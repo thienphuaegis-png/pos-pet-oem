@@ -27,11 +27,11 @@
             }
         }
         .canvas-element {
-            position: relative;
-            margin-bottom: 6px;
-            cursor: pointer;
+            position: absolute;
+            cursor: move;
             user-select: none;
-            transition: outline 0.1s ease;
+            transition: outline 0.15s ease, box-shadow 0.15s ease;
+            z-index: 5;
         }
         .canvas-element:hover {
             outline: 1.5px dashed #0284c7;
@@ -40,6 +40,7 @@
             outline: 2px solid #0284c7;
             background-color: rgba(2, 132, 199, 0.05);
             border-radius: 2px;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
         }
         .resize-handle {
             position: absolute;
@@ -75,6 +76,25 @@
             border-radius: 10px;
             border: 1px solid #bae6fd;
             pointer-events: none;
+        }
+        .snap-guide {
+            position: absolute;
+            background: #f43f5e;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .snap-guide-h { height: 1px; left: 0; right: 0; }
+        .snap-guide-v { width: 1px; top: 0; bottom: 0; }
+        .canvas-grid {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.15;
+            background-image:
+                linear-gradient(to right, #94a3b8 1px, transparent 1px),
+                linear-gradient(to bottom, #94a3b8 1px, transparent 1px);
         }
 
 
@@ -1173,6 +1193,9 @@
             renderPropsPanel();
         }
 
+        const GRID_SIZE = 10; // px - snap grid
+        const SNAP_THRESHOLD = 6; // px - khoang cach hut
+
         function renderCanvas() {
             const canvas = document.getElementById('paper-canvas');
             const mockData = {
@@ -1192,14 +1215,33 @@
                 con_no: "0 đ"
             };
 
-            const tableElem = canvasElements.find(e => e.type === 'table');
+            // Grid background
+            let html = `<div class="canvas-grid" style="background-size: ${GRID_SIZE}px ${GRID_SIZE}px;"></div>`;
 
-            let elementsHTML = canvasElements.map((e, index) => {
+            // Snap guide container
+            html += `<div id="snap-guides"></div>`;
+
+            // Zone demarcation lines
+            const zones = ['header', 'body', 'footer'];
+            const zoneLabels = { header: '📌 ĐẦU TRANG', body: '📋 BẢNG HÀNG HÓA', footer: '💰 CHÂN TRANG' };
+            const zoneColors = { header: '#0ea5e9', body: '#8b5cf6', footer: '#10b981' };
+
+            zones.forEach(z => {
+                const zElems = canvasElements.filter(e => (e.zone || 'header') === z);
+                if (zElems.length === 0) return;
+                const minY = Math.min(...zElems.map(e => e.y));
+                html += `<div style="position: absolute; left: 0; right: 0; top: ${minY - 16}px; border-top: 1.5px dashed ${zoneColors[z]}; z-index: 2; pointer-events: none;">
+                    <span style="position: absolute; left: 4px; top: -10px; background: ${zoneColors[z]}20; color: ${zoneColors[z]}; font-size: 10px; font-weight: bold; padding: 1px 8px; border-radius: 8px; border: 1px solid ${zoneColors[z]}40; white-space: nowrap;">${zoneLabels[z]}</span>
+                </div>`;
+            });
+
+            // Render elements with absolute positioning
+            canvasElements.forEach((e, index) => {
                 const isSel = e.id === selectedElementId ? 'selected' : '';
                 let content = '';
 
                 if (e.type === 'logo') {
-                    content = currentSettings.shop_logo 
+                    content = currentSettings.shop_logo
                         ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: 100%; height: auto; pointer-events: none; margin: 0 auto;">`
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
                 } else if (e.type === 'qr') {
@@ -1244,31 +1286,20 @@
                     content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; pointer-events: none;">${txt}</div>`;
                 }
 
-                const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Bấm giữ và kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
+                const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
 
-                // Hien thi vach ngan cach Zone ro rang ngay truoc phan tu dau tien cua Zone
-                let zoneHeaderLine = '';
-                const currentZone = e.zone || 'header';
-                const prevZone = index > 0 ? (canvasElements[index - 1].zone || 'header') : null;
-                if (prevZone && prevZone !== currentZone) {
-                    const badgeText = currentZone === 'body' ? '⬇ VÙNG BẢNG HÀNG HÓA' : '⬇ VÙNG CHÂN TRANG & THANH TOÁN';
-                    zoneHeaderLine = `
-                        <div style="margin: 12px 0 6px 0; border-top: 1.5px dashed #0284c7; position: relative;">
-                            <span style="position: absolute; right: 0; top: -10px; background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: bold; padding: 1px 8px; border-radius: 8px; border: 1px solid #bae6fd;">${badgeText}</span>
-                        </div>
-                    `;
-                }
-
-                return `
-                    ${zoneHeaderLine}
-                    <div id="${e.id}" class="canvas-element ${isSel}" style="width: ${e.w ? e.w + 'px' : '100%'};" onclick="selectElement('${e.id}')">
+                html += `
+                    <div id="${e.id}" class="canvas-element ${isSel}"
+                         style="left: ${e.x || 0}px; top: ${e.y || 0}px; width: ${e.w ? e.w + 'px' : 'auto'};"
+                         onmousedown="startDrag(event, '${e.id}')"
+                         onclick="selectElement('${e.id}')">
                         ${content}
                         ${resizeHandleHTML}
                     </div>
                 `;
-            }).join('');
+            });
 
-            canvas.innerHTML = elementsHTML;
+            canvas.innerHTML = html;
         }
 
 
@@ -1299,6 +1330,17 @@
                             <button onclick="moveElementOrder('${elem.id}', 1)" title="Đưa khối xuống dưới" class="py-1 px-2 border rounded bg-white hover:bg-amber-100 text-amber-800 font-bold flex items-center justify-center gap-1">
                                 <span>▼ Xuống dưới</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-xs mb-0.5">Vị trí X (px):</label>
+                            <input type="number" class="border p-1 rounded w-full text-xs" value="${elem.x || 0}" oninput="updateProp('x', parseInt(this.value) || 0)">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-xs mb-0.5">Vị trí Y (px):</label>
+                            <input type="number" class="border p-1 rounded w-full text-xs" value="${elem.y || 0}" oninput="updateProp('y', parseInt(this.value) || 0)">
                         </div>
                     </div>
 
@@ -1359,23 +1401,130 @@
             }
         }
 
-        // Mouse Drag & Resize Logic
+        // Mouse Drag & Resize Logic — snap-to-grid + snap-to-elements
         let isDragging = false;
         let isResizing = false;
         let dragElem = null;
         let startX, startY, origX, origY, origW;
 
+        function snapToGrid(val) {
+            return Math.round(val / GRID_SIZE) * GRID_SIZE;
+        }
+
+        function getSnapEdges(elem) {
+            const w = elem.w || 200;
+            const domEl = document.getElementById(elem.id);
+            const h = domEl ? domEl.offsetHeight : 30;
+            return {
+                left: elem.x, right: elem.x + w, cx: elem.x + w / 2,
+                top: elem.y, bottom: elem.y + h, cy: elem.y + h / 2,
+                w, h
+            };
+        }
+
+        function computeSnap(draggedElem) {
+            const canvas = document.getElementById('paper-canvas');
+            const cW = canvas.offsetWidth;
+            const guides = [];
+            const result = { x: draggedElem.x, y: draggedElem.y };
+            const de = getSnapEdges(draggedElem);
+
+            // Snap to canvas edges (left=0, center=cW/2, right=cW)
+            const canvasAnchorsX = [0, cW / 2, cW];
+            const canvasAnchorsY = [0]; // top edge
+
+            // Collect edges from other elements
+            const otherEdgesX = new Set(canvasAnchorsX);
+            const otherEdgesY = new Set(canvasAnchorsY);
+
+            canvasElements.forEach(e => {
+                if (e.id === draggedElem.id) return;
+                const oe = getSnapEdges(e);
+                otherEdgesX.add(oe.left);
+                otherEdgesX.add(oe.right);
+                otherEdgesX.add(oe.cx);
+                otherEdgesY.add(oe.top);
+                otherEdgesY.add(oe.bottom);
+                otherEdgesY.add(oe.cy);
+            });
+
+            let snappedX = false, snappedY = false;
+
+            // Check X snapping: left, right, center of dragged vs each anchor
+            const myXEdges = [
+                { val: de.left, label: 'left' },
+                { val: de.right, label: 'right' },
+                { val: de.cx, label: 'cx' }
+            ];
+
+            for (const mx of myXEdges) {
+                if (snappedX) break;
+                for (const ax of otherEdgesX) {
+                    if (Math.abs(mx.val - ax) < SNAP_THRESHOLD) {
+                        const offset = mx.label === 'right' ? de.w : mx.label === 'cx' ? de.w / 2 : 0;
+                        result.x = ax - offset;
+                        guides.push({ type: 'v', pos: ax });
+                        snappedX = true;
+                        break;
+                    }
+                }
+            }
+
+            // Check Y snapping
+            const myYEdges = [
+                { val: de.top, label: 'top' },
+                { val: de.bottom, label: 'bottom' },
+                { val: de.cy, label: 'cy' }
+            ];
+
+            for (const my of myYEdges) {
+                if (snappedY) break;
+                for (const ay of otherEdgesY) {
+                    if (Math.abs(my.val - ay) < SNAP_THRESHOLD) {
+                        const offset = my.label === 'bottom' ? de.h : my.label === 'cy' ? de.h / 2 : 0;
+                        result.y = ay - offset;
+                        guides.push({ type: 'h', pos: ay });
+                        snappedY = true;
+                        break;
+                    }
+                }
+            }
+
+            // If not snapped to elements, snap to grid
+            if (!snappedX) result.x = snapToGrid(result.x);
+            if (!snappedY) result.y = snapToGrid(result.y);
+
+            return { ...result, guides };
+        }
+
+        function showSnapGuides(guides) {
+            const container = document.getElementById('snap-guides');
+            if (!container) return;
+            container.innerHTML = guides.map(g =>
+                g.type === 'h'
+                    ? `<div class="snap-guide snap-guide-h" style="top: ${g.pos}px;"></div>`
+                    : `<div class="snap-guide snap-guide-v" style="left: ${g.pos}px;"></div>`
+            ).join('');
+        }
+
+        function clearSnapGuides() {
+            const container = document.getElementById('snap-guides');
+            if (container) container.innerHTML = '';
+        }
+
         function startDrag(e, id) {
             if (isResizing) return;
+            if (e.target.classList.contains('resize-handle')) return;
             selectElement(id);
             isDragging = true;
             dragElem = canvasElements.find(el => el.id === id);
             if (!dragElem) return;
             startX = e.clientX;
             startY = e.clientY;
-            origX = dragElem.x;
-            origY = dragElem.y;
+            origX = dragElem.x || 0;
+            origY = dragElem.y || 0;
             e.stopPropagation();
+            e.preventDefault();
         }
 
         function startResize(e, id) {
@@ -1392,7 +1541,8 @@
         window.addEventListener('mousemove', (e) => {
             if (isResizing && dragElem) {
                 const dx = e.clientX - startX;
-                dragElem.w = Math.max(50, Math.round(origW + dx));
+                const newW = Math.max(50, snapToGrid(origW + dx));
+                dragElem.w = newW;
                 const propWInput = document.getElementById('prop-w');
                 if (propWInput) propWInput.value = dragElem.w;
                 const el = document.getElementById(dragElem.id);
@@ -1402,45 +1552,35 @@
             if (isDragging && dragElem) {
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
-                dragElem.x = Math.max(0, Math.round(origX + dx));
-                dragElem.y = Math.max(0, Math.round(origY + dy));
+                dragElem.x = Math.max(0, origX + dx);
+                dragElem.y = Math.max(0, origY + dy);
+
+                // Compute snap
+                const snap = computeSnap(dragElem);
+                dragElem.x = Math.max(0, snap.x);
+                dragElem.y = Math.max(0, snap.y);
+
                 const el = document.getElementById(dragElem.id);
                 if (el) {
                     el.style.left = dragElem.x + 'px';
                     el.style.top = dragElem.y + 'px';
                 }
+
+                showSnapGuides(snap.guides);
             }
         });
 
         window.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
-                // Sap xep lai theo vi tri Y thuc te trong pham vi Zone de cho phep keo tha chuot hoan doi vi tri
-                if (dragElem) {
-                    const currentZone = dragElem.zone || 'header';
-                    // Loc cac phan tu trong cung Zone va sap xep theo Y
-                    const zoneElements = canvasElements.filter(e => (e.zone || 'header') === currentZone);
-                    zoneElements.sort((a, b) => a.y - b.y);
-
-                    // Re-insert vao canvasElements giu nguyen trat tu cac Zone
-                    let newElements = [];
-                    const headers = canvasElements.filter(e => (e.zone || 'header') === 'header');
-                    if (currentZone === 'header') headers.sort((a, b) => a.y - b.y);
-
-                    const bodies = canvasElements.filter(e => (e.zone || 'header') === 'body');
-                    if (currentZone === 'body') bodies.sort((a, b) => a.y - b.y);
-
-                    const footers = canvasElements.filter(e => (e.zone || 'header') === 'footer');
-                    if (currentZone === 'footer') footers.sort((a, b) => a.y - b.y);
-
-                    canvasElements = [...headers, ...bodies, ...footers];
-                    recomputeElementPositions();
-                }
+                clearSnapGuides();
                 renderCanvas();
+                renderPropsPanel();
             }
             if (isResizing) {
                 isResizing = false;
                 renderCanvas();
+                renderPropsPanel();
             }
         });
 
@@ -1448,15 +1588,19 @@
             if (!selectedElementId) return;
             const el = canvasElements.find(e => e.id === selectedElementId);
             if (!el) return;
+            const canvas = document.getElementById('paper-canvas');
+            const cW = canvas.offsetWidth;
+            const elW = el.w || 200;
 
-            if (mode === 'center') {
-                el.align = 'center';
-            } else if (mode === 'left') {
-                el.align = 'left';
+            if (mode === 'left') {
+                el.x = 0;
+            } else if (mode === 'center') {
+                el.x = Math.round((cW - elW) / 2);
             } else if (mode === 'right') {
-                el.align = 'right';
+                el.x = Math.max(0, cW - elW);
             } else if (mode === 'full') {
-                el.w = null; // 100% width
+                el.x = 0;
+                el.w = cW;
             }
             renderCanvas();
             renderPropsPanel();
@@ -1670,7 +1814,14 @@
                     content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
                 }
 
-                html += `<div style="position: relative; margin-bottom: 6px; width: ${e.w ? e.w + 'px' : '100%'};">${content}</div>`;
+                // In thực tế: tính deltaY cho footer elements nếu bảng dài hơn thiết kế
+                let printY = e.y || 0;
+                const isAfterTable = e.zone === 'footer' || ((e.zone || 'header') === 'footer');
+                if (isAfterTable && deltaY > 0) {
+                    printY += deltaY;
+                }
+
+                html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
             });
             html += `</div>`;
 
