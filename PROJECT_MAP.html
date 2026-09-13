@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản Đồ Dự Án - POS Offline Portable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .task-done { text-decoration: line-through; opacity: 0.6; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="bg-white rounded-xl shadow-sm border p-6 flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <span>⚡ BẢN ĐỒ DỰ ÁN: POS OFFLINE PORTABLE</span>
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">Hệ thống quản trị bán hàng & thiết kế mẫu in hóa đơn đa khổ giấy trên Windows</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportMarkdown()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> Xuất File Markdown (.md)
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid 3 cột -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Cây Thư Mục & Tài Nguyên -->
+            <div class="bg-white rounded-xl shadow-sm border p-5 space-y-4">
+                <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-folder-tree text-amber-500"></i> Cấu Trúc Mã Nguồn
+                </h2>
+                <div class="text-xs font-mono bg-slate-900 text-emerald-400 p-3.5 rounded-lg overflow-x-auto space-y-1">
+                    <div>📁 pos-offline/</div>
+                    <div class="pl-3">├── 📄 chay_ngay.bat</div>
+                    <div class="pl-3">├── 📄 build_exe.bat</div>
+                    <div class="pl-3">├── 🐍 server.py (FastAPI API)</div>
+                    <div class="pl-3">├── 🐍 database.py (SQLite)</div>
+                    <div class="pl-3">├── 📁 data/</div>
+                    <div class="pl-6">└── 🗄️ pos.db</div>
+                    <div class="pl-3">├── 📁 templates/</div>
+                    <div class="pl-6">└── 🌐 index.html (SPA Canvas)</div>
+                    <div class="pl-3">└── 📁 plans/ (9 tài liệu đặc tả)</div>
+                </div>
+                <div class="border-t pt-3 space-y-2 text-xs">
+                    <div class="flex justify-between"><span class="text-slate-500">Local URL:</span><a href="http://127.0.0.1:8989" target="_blank" class="text-sky-600 font-bold hover:underline">127.0.0.1:8989</a></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Database:</span><span class="font-mono text-slate-700">SQLite (Local)</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Khổ giấy in:</span><span class="font-bold text-slate-700">K80, K58, A4, A5</span></div>
+                </div>
+            </div>
+
+            <!-- Tiến Độ Tính Năng -->
+            <div class="bg-white rounded-xl shadow-sm border p-5 md:col-span-2 space-y-4">
+                <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center justify-between">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-list-check text-sky-500"></i> Danh Sách Tính Năng & Trạng Thái</span>
+                    <span class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Click để đánh dấu</span>
+                </h2>
+
+                <div class="space-y-3 text-xs" id="task-list">
+                    <!-- Phân hệ Core -->
+                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded">📦 Phân Hệ Nghiệp Vụ Bán Hàng (POS Core)</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Bán hàng (POS Cart, chiết khấu, thanh toán, lưu đơn)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Quản lý hàng hóa, nguyên vật liệu & định mức BOM</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Nhập hàng, quản lý công nợ nhà cung cấp & khách hàng</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Sổ quỹ tiền mặt thu chi & Báo cáo doanh thu</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Thông tin doanh nghiệp & QR Code VietQR động</span>
+                    </label>
+
+                    <!-- Phân hệ In -->
+                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded mt-3">🎨 Phân Hệ Thiết Kế Mẫu In (Canvas Invoice Designer)</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Lưu cấu hình độc lập theo từng khổ giấy (K80, K58, A4, A5)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Cấu trúc 3 phân vùng riêng biệt (Header, Body bảng món, Footer)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Hít canh chỉnh Snap-to-Grid (10px) và Snap-to-Elements (đường gióng đỏ)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Kéo thả tự do trong vùng chia cột (2 cột, 3 cột thông tin tùy ý)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Tự động đẩy khối phía dưới (deltaY) khi bảng món co dãn nhiều dòng</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Đồng bộ tỷ lệ in thực tế theo pixel canvas (WYSIWYG Print Fix)</span>
+                    </label>
+
+                    <!-- Kế hoạch tương lai -->
+                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Đang Triển Khai (Backlog)</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Mẫu hóa đơn A4 chuẩn đại lý/bán sỉ (bảng 9 cột, 3 ô chân trang, 3 chữ ký)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Lưu thành nhiều mẫu in độc lập (Preset Templates)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Build file EXE đóng gói độc lập qua PyInstaller</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lịch Sử Git Commit -->
+        <div class="bg-white rounded-xl shadow-sm border p-5 space-y-3">
+            <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center gap-2">
+                <i class="fa-solid fa-code-commit text-indigo-500"></i> Lịch Sử Triển Khai Gần Nhất
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">cbca735</span> Fix: In thực tế chuẩn WYSIWYG theo pixel canvas</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">46408ef</span> Feat: Snap-to-grid 10px + snap gióng đỏ + kéo thả tự do 2-3 cột</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">f4ba7b0</span> Fix: Logo lên đầu Header, tự động bù Zone metadata</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">7e3bac7</span> Fix: Ngăn chặn chồng chéo khối chữ trên Canvas</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a5c157f</span> Fix: Vạch ranh giới phân vùng tự động co dãn theo vị trí</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">3d44234</span> Feat: deltaY tự đẩy khối dưới khi bảng nở dòng</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTask(checkbox) {
+            const span = checkbox.nextElementSibling;
+            if (checkbox.checked) {
+                span.classList.add('task-done');
+            } else {
+                span.classList.remove('task-done');
+            }
+        }
+
+        function exportMarkdown() {
+            let md = "# ⚡ BẢN ĐỒ DỰ ÁN: POS OFFLINE PORTABLE (WINDOWS)\n\n";
+            md += "Ngày xuất: " + new Date().toLocaleString('vi-VN') + "\n\n";
+            md += "## Danh Sách Tính Năng & Trạng Thái:\n\n";
+
+            document.querySelectorAll('#task-list > div, #task-list > label').forEach(el => {
+                if (el.tagName === 'DIV') {
+                    md += "\n### " + el.innerText.trim() + "\n";
+                } else if (el.tagName === 'LABEL') {
+                    const cb = el.querySelector('input[type=\"checkbox\"]');
+                    const text = el.querySelector('span').innerText.trim();
+                    md += `- [${cb.checked ? 'x' : ' '}] ${text}\n`;
+                }
+            });
+
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'PROJECT_MAP_EXPORT.md';
+            link.click();
+        }
+    </script>
+</body>
+</html>
