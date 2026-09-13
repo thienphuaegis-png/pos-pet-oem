@@ -27,20 +27,23 @@
             }
         }
         .canvas-element {
-            position: absolute;
-            cursor: move;
+            position: relative;
+            margin-bottom: 6px;
+            cursor: pointer;
             user-select: none;
+            transition: outline 0.1s ease;
         }
         .canvas-element:hover {
-            outline: 1px dashed #0284c7;
+            outline: 1.5px dashed #0284c7;
         }
         .canvas-element.selected {
             outline: 2px solid #0284c7;
             background-color: rgba(2, 132, 199, 0.05);
+            border-radius: 2px;
         }
         .resize-handle {
             position: absolute;
-            right: -5px;
+            right: -6px;
             top: 50%;
             transform: translateY(-50%);
             width: 10px;
@@ -50,7 +53,7 @@
             border-radius: 3px;
             border: 1px solid white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            z-index: 10;
+            z-index: 20;
         }
         .canvas-zone-line {
             position: absolute;
@@ -1080,6 +1083,9 @@
                 multiTemplates.templates[newSize] = canvasElements;
             }
 
+            // Luon tu dong tinh toan dong bo lai dong chay vi tri theo Flow Layout
+            recomputeElementPositions();
+
             selectedElementId = null;
             const canvas = document.getElementById('paper-canvas');
             const dim = paperDimensions[newSize] || paperDimensions["A4-portrait"];
@@ -1195,30 +1201,15 @@
                 con_no: "0 đ"
             };
 
-            // Tinh toan vi tri vach phan 3 khu vuc dua tren toa do thuc te cua cac phan tu
             const tableElem = canvasElements.find(e => e.type === 'table');
-            let zone1Y = tableElem ? (tableElem.y - 8) : (paperSize.includes('K80') || paperSize.includes('K58') ? 125 : 190);
-            
-            // Tinh vi tri bat dau Footer (ngay duoi phan tu cuoi cua Table hoac phan tu footer dau tien)
-            let firstFooter = canvasElements.find(e => (e.zone || 'header') === 'footer');
-            let zone2Y = firstFooter ? (firstFooter.y - 8) : (tableElem ? (tableElem.y + 110) : (paperSize.includes('K80') || paperSize.includes('K58') ? 240 : 380));
 
-            let zoneLinesHTML = `
-                <div id="canvas-line-zone-1" class="canvas-zone-line" style="top: ${zone1Y}px;">
-                    <span class="canvas-zone-badge">⬇ VÙNG BẢNG HÀNG</span>
-                </div>
-                <div id="canvas-line-zone-2" class="canvas-zone-line" style="top: ${zone2Y}px;">
-                    <span class="canvas-zone-badge">⬇ VÙNG CHÂN TRANG</span>
-                </div>
-            `;
-
-            let elementsHTML = canvasElements.map(e => {
+            let elementsHTML = canvasElements.map((e, index) => {
                 const isSel = e.id === selectedElementId ? 'selected' : '';
                 let content = '';
 
                 if (e.type === 'logo') {
                     content = currentSettings.shop_logo 
-                        ? `<img src="${currentSettings.shop_logo}" style="max-height: 100%; max-width: 100%; pointer-events: none;">`
+                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: 100%; height: auto; pointer-events: none; margin: 0 auto;">`
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(240000, 'HD2609130001');
@@ -1264,37 +1255,29 @@
 
                 const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Bấm giữ và kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
 
+                // Hien thi vach ngan cach Zone ro rang ngay truoc phan tu dau tien cua Zone
+                let zoneHeaderLine = '';
+                const currentZone = e.zone || 'header';
+                const prevZone = index > 0 ? (canvasElements[index - 1].zone || 'header') : null;
+                if (prevZone && prevZone !== currentZone) {
+                    const badgeText = currentZone === 'body' ? '⬇ VÙNG BẢNG HÀNG HÓA' : '⬇ VÙNG CHÂN TRANG & THANH TOÁN';
+                    zoneHeaderLine = `
+                        <div style="margin: 12px 0 6px 0; border-top: 1.5px dashed #0284c7; position: relative;">
+                            <span style="position: absolute; right: 0; top: -10px; background: #e0f2fe; color: #0369a1; font-size: 10px; font-weight: bold; padding: 1px 8px; border-radius: 8px; border: 1px solid #bae6fd;">${badgeText}</span>
+                        </div>
+                    `;
+                }
+
                 return `
-                    <div id="${e.id}" class="canvas-element ${isSel}" style="left: ${e.x}px; top: ${e.y}px; width: ${e.w ? e.w + 'px' : 'auto'};" onmousedown="startDrag(event, '${e.id}')">
+                    ${zoneHeaderLine}
+                    <div id="${e.id}" class="canvas-element ${isSel}" style="width: ${e.w ? e.w + 'px' : '100%'};" onclick="selectElement('${e.id}')">
                         ${content}
                         ${resizeHandleHTML}
                     </div>
                 `;
             }).join('');
 
-            canvas.innerHTML = zoneLinesHTML + elementsHTML;
-
-            setTimeout(() => {
-                let actualZone1Y = 0;
-                let actualZone2Y = 0;
-
-                const tableDom = document.getElementById(tableElem ? tableElem.id : '');
-                if (tableDom) {
-                    actualZone1Y = tableDom.offsetTop - 6;
-                    actualZone2Y = tableDom.offsetTop + tableDom.offsetHeight + 10;
-                } else {
-                    const firstFooterElem = canvasElements.find(e => (e.zone || 'header') === 'footer');
-                    const firstFooterDom = firstFooterElem ? document.getElementById(firstFooterElem.id) : null;
-                    if (firstFooterDom) {
-                        actualZone2Y = firstFooterDom.offsetTop - 6;
-                    }
-                }
-
-                const line1 = document.getElementById('canvas-line-zone-1');
-                const line2 = document.getElementById('canvas-line-zone-2');
-                if (line1 && actualZone1Y > 0) line1.style.top = actualZone1Y + 'px';
-                if (line2 && actualZone2Y > 0) line2.style.top = actualZone2Y + 'px';
-            }, 50);
+            canvas.innerHTML = elementsHTML;
         }
 
 
@@ -1475,23 +1458,17 @@
             const el = canvasElements.find(e => e.id === selectedElementId);
             if (!el) return;
 
-            const canvas = document.getElementById('paper-canvas');
-            const canvasW = canvas.offsetWidth;
-            const elemW = el.w || 250;
-
             if (mode === 'center') {
-                el.x = Math.max(0, Math.round((canvasW - elemW) / 2));
+                el.align = 'center';
             } else if (mode === 'left') {
-                el.x = 25;
+                el.align = 'left';
             } else if (mode === 'right') {
-                el.x = Math.max(0, canvasW - elemW - 25);
+                el.align = 'right';
             } else if (mode === 'full') {
-                el.x = 25;
-                el.w = Math.max(100, canvasW - 50);
-                const propWInput = document.getElementById('prop-w');
-                if (propWInput) propWInput.value = el.w;
+                el.w = null; // 100% width
             }
             renderCanvas();
+            renderPropsPanel();
         }
 
 
@@ -1687,13 +1664,7 @@
                     content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
                 }
 
-                // Neu khoi nam o ben duoi bang hang hoa thi tu dong day xuong theo deltaY
-                let actualY = e.y;
-                if (tableElem && e.id !== tableElem.id && e.y > tableElem.y) {
-                    actualY += deltaY;
-                }
-
-                html += `<div style="position: absolute; left: ${e.x}px; top: ${actualY}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
+                html += `<div style="position: relative; margin-bottom: 6px; width: ${e.w ? e.w + 'px' : '100%'};">${content}</div>`;
             });
             html += `</div>`;
 
