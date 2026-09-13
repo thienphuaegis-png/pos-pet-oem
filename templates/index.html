@@ -1446,11 +1446,24 @@
             };
 
             const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
+
+            // Tinh toan do cao thuc te cua bang hang hoa de tu dong day cac khoi ben duoi xuong
+            const tableElem = canvasElements.find(e => e.type === 'table');
+            let deltaY = 0;
+            if (tableElem && ord.items) {
+                // Moi dong san pham cao trung binh ~28px, phan thead va padding ~35px
+                const actualTableHeight = Math.max(70, 35 + ord.items.length * 28);
+                const designTableHeight = 70; // chieu cao mau ban dau (1-2 dong) tren canvas
+                if (actualTableHeight > designTableHeight) {
+                    deltaY = actualTableHeight - designTableHeight;
+                }
+            }
+
             let html = `
             <style>
                 @page { size: ${dim.printSize || 'A4 portrait'}; margin: 5mm; }
             </style>
-            <div style="position: relative; width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; font-family: monospace; overflow: hidden;">`;
+            <div style="position: relative; width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; font-family: monospace; padding-bottom: 20px;">`;
 
             canvasElements.forEach(e => {
                 let content = '';
@@ -1499,7 +1512,14 @@
                     txt = txt.replace(/{{con_no}}/g, printData.con_no);
                     content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
                 }
-                html += `<div style="position: absolute; left: ${e.x}px; top: ${e.y}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
+
+                // Neu khoi nam o ben duoi bang hang hoa thi tu dong day xuong theo deltaY
+                let actualY = e.y;
+                if (tableElem && e.id !== tableElem.id && e.y > tableElem.y) {
+                    actualY += deltaY;
+                }
+
+                html += `<div style="position: absolute; left: ${e.x}px; top: ${actualY}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
             });
             html += `</div>`;
 
