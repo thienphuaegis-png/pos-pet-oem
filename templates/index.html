@@ -1048,22 +1048,29 @@
         function moveElementOrder(id, direction) {
             const idx = canvasElements.findIndex(e => e.id === id);
             if (idx === -1) return;
-            const currentZone = canvasElements[idx].zone || 'header';
             const targetIdx = idx + direction;
 
-            if (targetIdx >= 0 && targetIdx < canvasElements.length) {
-                // Chi cho phep hoan doi trong cung khu vuc (Zone)
-                const targetZone = canvasElements[targetIdx].zone || 'header';
-                if (currentZone === targetZone) {
-                    const temp = canvasElements[idx];
-                    canvasElements[idx] = canvasElements[targetIdx];
-                    canvasElements[targetIdx] = temp;
-                    recomputeElementPositions();
-                    renderCanvas();
-                    renderPropsPanel();
-                } else {
-                    alert(`Khối này thuộc [${currentZone.toUpperCase()}], không thể di chuyển sang khu vực khác!`);
-                }
+            if (targetIdx < 0) {
+                alert('Khối này đã ở vị trí trên cùng!');
+                return;
+            }
+            if (targetIdx >= canvasElements.length) {
+                alert('Khối này đã ở vị trí dưới cùng!');
+                return;
+            }
+
+            const currentZone = canvasElements[idx].zone || 'header';
+            const targetZone = canvasElements[targetIdx].zone || 'header';
+
+            // Neu phan tu chua duoc gan zone thi tu dong suy luan
+            if (currentZone === targetZone) {
+                const temp = canvasElements[idx];
+                canvasElements[idx] = canvasElements[targetIdx];
+                canvasElements[targetIdx] = temp;
+                renderCanvas();
+                renderPropsPanel();
+            } else {
+                alert(`Khối này thuộc [${currentZone.toUpperCase()}], không thể di chuyển sang [${targetZone.toUpperCase()}]!`);
             }
         }
 
@@ -1151,22 +1158,6 @@
             renderCanvas();
             renderPropsPanel();
         }
-
-        function addCanvasItem(catalogKey) {
-            const proto = defaultElementCatalog[catalogKey];
-            if (!proto) return;
-            const newElem = JSON.parse(JSON.stringify(proto));
-            newElem.id = "elem_" + Date.now();
-            newElem.x = 40;
-            newElem.y = canvasElements.length * 28 + 40;
-            if (newElem.type === 'table') {
-                newElem.w = paperSize.includes('K80') ? 270 : paperSize.includes('K58') ? 195 : 650;
-            }
-            canvasElements.push(newElem);
-            selectElement(newElem.id);
-            renderCanvas();
-        }
-
 
         function selectElement(id) {
             selectedElementId = id;
@@ -1510,6 +1501,17 @@
             renderCanvas();
         }
 
+        function ensureElementsHaveZone(elements) {
+            return elements.map(e => {
+                if (!e.zone) {
+                    if (e.type === 'table') e.zone = 'body';
+                    else if (['total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'].some(k => (e.label||'').includes(k) || (e.text||'').includes(k) || (e.id||'').includes(k))) e.zone = 'footer';
+                    else e.zone = 'header';
+                }
+                return e;
+            });
+        }
+
         async function loadSettings() {
             const res = await fetch('/api/settings');
             currentSettings = await res.json();
@@ -1518,11 +1520,15 @@
                     const parsed = JSON.parse(currentSettings.print_blocks_config);
                     if (parsed.templates) {
                         multiTemplates = parsed;
+                        // Bao dam tat ca cac elements trong moi template deu co thuoc tinh zone
+                        for (let s in multiTemplates.templates) {
+                            multiTemplates.templates[s] = ensureElementsHaveZone(multiTemplates.templates[s]);
+                        }
                         paperSize = parsed.active_size || "A4-portrait";
                         canvasElements = multiTemplates.templates[paperSize] || getInitialElementsForSize(paperSize);
                     } else if (parsed.canvasElements) {
                         paperSize = parsed.paperSize || "A4-portrait";
-                        canvasElements = parsed.canvasElements;
+                        canvasElements = ensureElementsHaveZone(parsed.canvasElements);
                         multiTemplates.templates[paperSize] = canvasElements;
                     } else {
                         resetDefaultTemplate(paperSize);
