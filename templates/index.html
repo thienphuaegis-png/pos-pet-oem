@@ -1026,13 +1026,19 @@
 
                 // Tinh do cao cua khoi de cong don cho khoi ke tiep
                 let blockHeight = 26;
-                if (e.type === 'logo') blockHeight = 65;
-                else if (e.type === 'table') blockHeight = 90;
-                else if (e.type === 'qr') blockHeight = 145;
-                else if (e.fsz && e.fsz >= 18) blockHeight = 36;
-                else if (e.text && e.text.includes('<br>')) blockHeight = 44;
+                if (e.type === 'logo') {
+                    blockHeight = e.h || 120;
+                } else if (e.type === 'table') {
+                    blockHeight = 90;
+                } else if (e.type === 'qr') {
+                    blockHeight = 145;
+                } else if (e.fsz && e.fsz >= 18) {
+                    blockHeight = 36;
+                } else if (e.text && e.text.includes('<br>')) {
+                    blockHeight = 44;
+                }
 
-                curY += blockHeight + 6;
+                curY += blockHeight + 10;
             });
         }
 
@@ -1189,17 +1195,20 @@
                 con_no: "0 đ"
             };
 
-            // Tinh toan vi tri vach phan 3 khu vuc
-            const cHeight = canvas.offsetHeight || 800;
-            const zone1Y = paperSize.includes('K80') || paperSize.includes('K58') ? 125 : 190;
-            const zone2Y = paperSize.includes('K80') || paperSize.includes('K58') ? 240 : 380;
+            // Tinh toan vi tri vach phan 3 khu vuc dua tren toa do thuc te cua cac phan tu
+            const tableElem = canvasElements.find(e => e.type === 'table');
+            let zone1Y = tableElem ? (tableElem.y - 8) : (paperSize.includes('K80') || paperSize.includes('K58') ? 125 : 190);
+            
+            // Tinh vi tri bat dau Footer (ngay duoi phan tu cuoi cua Table hoac phan tu footer dau tien)
+            let firstFooter = canvasElements.find(e => (e.zone || 'header') === 'footer');
+            let zone2Y = firstFooter ? (firstFooter.y - 8) : (tableElem ? (tableElem.y + 110) : (paperSize.includes('K80') || paperSize.includes('K58') ? 240 : 380));
 
             let zoneLinesHTML = `
-                <div class="canvas-zone-line" style="top: ${zone1Y}px;">
-                    <span class="canvas-zone-badge">⬇ KHU VỰC BẢNG HÀNG HÓA</span>
+                <div id="canvas-line-zone-1" class="canvas-zone-line" style="top: ${zone1Y}px;">
+                    <span class="canvas-zone-badge">⬇ VÙNG BẢNG HÀNG</span>
                 </div>
-                <div class="canvas-zone-line" style="top: ${zone2Y}px;">
-                    <span class="canvas-zone-badge">⬇ KHU VỰC THANH TOÁN & QR</span>
+                <div id="canvas-line-zone-2" class="canvas-zone-line" style="top: ${zone2Y}px;">
+                    <span class="canvas-zone-badge">⬇ VÙNG CHÂN TRANG</span>
                 </div>
             `;
 
@@ -1264,6 +1273,28 @@
             }).join('');
 
             canvas.innerHTML = zoneLinesHTML + elementsHTML;
+
+            setTimeout(() => {
+                let actualZone1Y = 0;
+                let actualZone2Y = 0;
+
+                const tableDom = document.getElementById(tableElem ? tableElem.id : '');
+                if (tableDom) {
+                    actualZone1Y = tableDom.offsetTop - 6;
+                    actualZone2Y = tableDom.offsetTop + tableDom.offsetHeight + 10;
+                } else {
+                    const firstFooterElem = canvasElements.find(e => (e.zone || 'header') === 'footer');
+                    const firstFooterDom = firstFooterElem ? document.getElementById(firstFooterElem.id) : null;
+                    if (firstFooterDom) {
+                        actualZone2Y = firstFooterDom.offsetTop - 6;
+                    }
+                }
+
+                const line1 = document.getElementById('canvas-line-zone-1');
+                const line2 = document.getElementById('canvas-line-zone-2');
+                if (line1 && actualZone1Y > 0) line1.style.top = actualZone1Y + 'px';
+                if (line2 && actualZone2Y > 0) line2.style.top = actualZone2Y + 'px';
+            }, 50);
         }
 
 
