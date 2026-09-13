@@ -449,36 +449,41 @@
                         </div>
 
                         <div class="space-y-1.5">
-                            <span class="font-bold text-slate-600 block">Thông Tin Cửa Hàng:</span>
-                            <button type="button" onclick="addCanvasItem('logo')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🖼️ Logo cửa hàng</button>
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sky-700 uppercase">1. Vùng Đầu Trang:</span>
+                                <span class="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded">Header</span>
+                            </div>
+                            <button type="button" onclick="addCanvasItem('logo')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🖼️ Logo cửa hàng (Lên đầu)</button>
                             <button type="button" onclick="addCanvasItem('shop_name')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏢 Tên cửa hàng</button>
                             <button type="button" onclick="addCanvasItem('shop_address')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📍 Địa chỉ cửa hàng</button>
                             <button type="button" onclick="addCanvasItem('shop_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📞 Số điện thoại</button>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <span class="font-bold text-slate-600 block">Thông Tin Hóa Đơn:</span>
-                            <button type="button" onclick="addCanvasItem('title')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📑 Tiêu đề (HÓA ĐƠN BÁN HÀNG)</button>
+                            <button type="button" onclick="addCanvasItem('title')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📑 Tiêu đề (HÓA ĐƠN)</button>
                             <button type="button" onclick="addCanvasItem('order_code')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🔖 Mã hóa đơn</button>
                             <button type="button" onclick="addCanvasItem('datetime')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🕒 Ngày giờ lập phiếu</button>
-                            <button type="button" onclick="addCanvasItem('staff')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">👤 Tên nhân viên bán / thu ngân</button>
+                            <button type="button" onclick="addCanvasItem('staff')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">👤 Thu ngân / Nhân viên</button>
                             <button type="button" onclick="addCanvasItem('customer')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🧑 Tên khách hàng</button>
                             <button type="button" onclick="addCanvasItem('customer_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📱 Số điện thoại khách</button>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <span class="font-bold text-slate-600 block">Bảng & Thanh Toán:</span>
+                        <div class="space-y-1.5 pt-2 border-t">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-blue-700 uppercase">2. Vùng Bảng Hàng:</span>
+                                <span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Body</span>
+                            </div>
                             <button type="button" onclick="addCanvasItem('table')" class="w-full text-left p-1.5 border-2 border-dashed border-sky-400 rounded bg-sky-50 font-bold text-sky-800">📦 Bảng Danh Sách Hàng Hóa</button>
+                        </div>
+
+                        <div class="space-y-1.5 pt-2 border-t">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-emerald-700 uppercase">3. Vùng Cuối Trang:</span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Footer</span>
+                            </div>
                             <button type="button" onclick="addCanvasItem('total')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💵 Tổng tiền hàng</button>
                             <button type="button" onclick="addCanvasItem('discount')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏷️ Chiết khấu / Giảm giá</button>
                             <button type="button" onclick="addCanvasItem('final')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-bold text-sky-700">💰 Khách phải trả</button>
                             <button type="button" onclick="addCanvasItem('paid')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💸 Tiền khách đưa</button>
                             <button type="button" onclick="addCanvasItem('debt')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💳 Tiền thừa / Nợ lại</button>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <span class="font-bold text-slate-600 block">Mã QR & Chân Trang:</span>
-                            <button type="button" onclick="addCanvasItem('qr')" class="w-full text-left p-1.5 border rounded bg-emerald-50 text-emerald-800 font-bold">📲 Mã QR Thanh Toán (VietQR / Tĩnh)</button>
+                            <button type="button" onclick="addCanvasItem('qr')" class="w-full text-left p-1.5 border rounded bg-emerald-50 text-emerald-800 font-bold">📲 Mã QR Thanh Toán</button>
                             <button type="button" onclick="addCanvasItem('footer_msg')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💬 Lời cảm ơn chân trang</button>
                             <button type="button" onclick="addCanvasItem('custom_text')" class="w-full text-left p-1.5 border rounded hover:bg-purple-50 text-purple-700 font-medium">✍️ Thêm ô chữ tùy ý...</button>
                         </div>
@@ -937,26 +942,121 @@
         };
 
         const defaultElementCatalog = {
-            logo: { type: "logo", label: "Logo Cửa Hàng", w: 180, h: 60, align: "center" },
-            shop_name: { type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 18, bold: true, align: "center", w: 300 },
-            shop_address: { type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 12, bold: false, align: "center", w: 350 },
-            shop_phone: { type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 12, bold: false, align: "center", w: 250 },
-            title: { type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 20, bold: true, align: "center", w: 300 },
-            order_code: { type: "text", text: "Mã ĐH: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 12, bold: false, align: "left", w: 200 },
-            datetime: { type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", fsz: 12, bold: false, align: "left", w: 220 },
-            staff: { type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 12, bold: false, align: "left", w: 200 },
-            customer: { type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 12, bold: false, align: "left", w: 250 },
-            customer_phone: { type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 12, bold: false, align: "left", w: 200 },
-            table: { type: "table", label: "Bảng Danh Sách Món", w: 650, fsz: 12, border: "dashed" },
-            total: { type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 13, bold: false, align: "right", w: 280 },
-            discount: { type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 13, bold: false, align: "right", w: 280 },
-            final: { type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 16, bold: true, align: "right", w: 320 },
-            paid: { type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 13, bold: false, align: "right", w: 280 },
-            debt: { type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 13, bold: false, align: "right", w: 280 },
-            qr: { type: "qr", label: "QR Code Thanh Toán", w: 140, h: 140 },
-            footer_msg: { type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", fsz: 12, italic: true, align: "center", w: 400 },
-            custom_text: { type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 13, bold: false, align: "left", w: 200 }
+            logo: { zone: "header", type: "logo", label: "Logo Cửa Hàng", w: 180, h: 60, align: "center" },
+            shop_name: { zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 18, bold: true, align: "center", w: 300 },
+            shop_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 12, bold: false, align: "center", w: 350 },
+            shop_phone: { zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 12, bold: false, align: "center", w: 250 },
+            title: { zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 20, bold: true, align: "center", w: 300 },
+            order_code: { zone: "header", type: "text", text: "Mã ĐH: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 12, bold: false, align: "left", w: 200 },
+            datetime: { zone: "header", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", fsz: 12, bold: false, align: "left", w: 220 },
+            staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 12, bold: false, align: "left", w: 200 },
+            customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 12, bold: false, align: "left", w: 250 },
+            customer_phone: { zone: "header", type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 12, bold: false, align: "left", w: 200 },
+            table: { zone: "body", type: "table", label: "Bảng Danh Sách Món", w: 650, fsz: 12, border: "dashed" },
+            total: { zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 13, bold: false, align: "right", w: 280 },
+            discount: { zone: "footer", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 13, bold: false, align: "right", w: 280 },
+            final: { zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 16, bold: true, align: "right", w: 320 },
+            paid: { zone: "footer", type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 13, bold: false, align: "right", w: 280 },
+            debt: { zone: "footer", type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 13, bold: false, align: "right", w: 280 },
+            qr: { zone: "footer", type: "qr", label: "QR Code Thanh Toán", w: 140, h: 140 },
+            footer_msg: { zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", fsz: 12, italic: true, align: "center", w: 400 },
+            custom_text: { zone: "footer", type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 13, bold: false, align: "left", w: 200 }
         };
+
+        function addCanvasItem(catalogKey) {
+            const proto = defaultElementCatalog[catalogKey];
+            if (!proto) return;
+            const newElem = JSON.parse(JSON.stringify(proto));
+            newElem.id = "elem_" + Date.now();
+            newElem.x = 20;
+
+            if (newElem.type === 'table') {
+                newElem.w = paperSize.includes('K80') ? 270 : paperSize.includes('K58') ? 195 : 650;
+            }
+
+            const targetZone = newElem.zone || 'header';
+
+            if (targetZone === 'header') {
+                // Neu la Logo thi uu tien nam dau tien cua Vung Header
+                if (newElem.type === 'logo') {
+                    canvasElements.unshift(newElem);
+                } else {
+                    // Tim vi tri cuoi cung cua Header de chen vao
+                    const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
+                    if (lastHeaderIdx >= 0) {
+                        canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
+                    } else {
+                        canvasElements.unshift(newElem);
+                    }
+                }
+            } else if (targetZone === 'body') {
+                // Table: thay the hoac chen vao giua
+                const existTableIdx = canvasElements.findIndex(e => e.type === 'table');
+                if (existTableIdx >= 0) {
+                    canvasElements[existTableIdx] = newElem;
+                } else {
+                    const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
+                    canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
+                }
+            } else {
+                // Footer
+                canvasElements.push(newElem);
+            }
+
+            recomputeElementPositions();
+            selectElement(newElem.id);
+            renderCanvas();
+        }
+
+        // Tinh toan toa do Y tu dong theo luong chay (Flow) cua tung Zone
+        function recomputeElementPositions() {
+            let curY = 15;
+            const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+            const defaultW = isThermal ? (paperSize.includes('K80') ? 270 : 195) : 680;
+
+            canvasElements.forEach(e => {
+                if (!e.zone) {
+                    if (e.type === 'table') e.zone = 'body';
+                    else if (['total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'].some(k => (e.label||'').includes(k) || (e.text||'').includes(k))) e.zone = 'footer';
+                    else e.zone = 'header';
+                }
+
+                e.y = curY;
+                if (!e.w) e.w = defaultW;
+
+                // Tinh do cao cua khoi de cong don cho khoi ke tiep
+                let blockHeight = 26;
+                if (e.type === 'logo') blockHeight = 65;
+                else if (e.type === 'table') blockHeight = 90;
+                else if (e.type === 'qr') blockHeight = 145;
+                else if (e.fsz && e.fsz >= 18) blockHeight = 36;
+                else if (e.text && e.text.includes('<br>')) blockHeight = 44;
+
+                curY += blockHeight + 6;
+            });
+        }
+
+        function moveElementOrder(id, direction) {
+            const idx = canvasElements.findIndex(e => e.id === id);
+            if (idx === -1) return;
+            const currentZone = canvasElements[idx].zone || 'header';
+            const targetIdx = idx + direction;
+
+            if (targetIdx >= 0 && targetIdx < canvasElements.length) {
+                // Chi cho phep hoan doi trong cung khu vuc (Zone)
+                const targetZone = canvasElements[targetIdx].zone || 'header';
+                if (currentZone === targetZone) {
+                    const temp = canvasElements[idx];
+                    canvasElements[idx] = canvasElements[targetIdx];
+                    canvasElements[targetIdx] = temp;
+                    recomputeElementPositions();
+                    renderCanvas();
+                    renderPropsPanel();
+                } else {
+                    alert(`Khối này thuộc [${currentZone.toUpperCase()}], không thể di chuyển sang khu vực khác!`);
+                }
+            }
+        }
 
         function changePaperSize(newSize) {
             // Luu layout hien tai vao memory
@@ -989,45 +1089,45 @@
                 const tWidth = isLandscape ? (size.startsWith('A4') ? 950 : 660) : (size.startsWith('A4') ? 680 : 460);
                 const alignRightX = isLandscape ? (size.startsWith('A4') ? 680 : 420) : (size.startsWith('A4') ? 440 : 220);
                 return [
-                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 30, y: 25, w: 350, fsz: 16, bold: true, align: "left" },
-                    { id: "e2", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 30, y: 50, w: 400, fsz: 11, bold: false, align: "left" },
-                    { id: "e3", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 30, y: 70, w: 250, fsz: 11, bold: false, align: "left" },
-                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: isLandscape ? 260 : 150, y: 105, w: 350, fsz: 20, bold: true, align: "center" },
-                    { id: "e5", type: "text", text: "Mã đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 30, y: 150, w: 220, fsz: 11, bold: false, align: "left" },
-                    { id: "e6", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", x: alignRightX, y: 150, w: 240, fsz: 11, bold: false, align: "right" },
-                    { id: "e7", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 30, y: 175, w: 350, fsz: 11, bold: false, align: "left" },
-                    { id: "e8", type: "table", label: "Bảng Danh Sách Món", x: 30, y: 205, w: tWidth, fsz: 11 },
-                    { id: "e9", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", x: alignRightX, y: 290, w: 250, fsz: 12, bold: false, align: "right" },
-                    { id: "e10", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", x: alignRightX, y: 315, w: 250, fsz: 12, bold: false, align: "right" },
-                    { id: "e11", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: alignRightX, y: 345, w: 250, fsz: 15, bold: true, align: "right" },
-                    { id: "e12", type: "qr", label: "QR Code Thanh Toán", x: 30, y: 280, w: 130, h: 130 },
-                    { id: "e13", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: isLandscape ? 220 : 120, y: 430, w: 400, fsz: 11, italic: true, align: "center" }
+                    { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 30, y: 25, w: 350, fsz: 16, bold: true, align: "left" },
+                    { id: "e2", zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 30, y: 50, w: 400, fsz: 11, bold: false, align: "left" },
+                    { id: "e3", zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 30, y: 70, w: 250, fsz: 11, bold: false, align: "left" },
+                    { id: "e4", zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: isLandscape ? 260 : 150, y: 105, w: 350, fsz: 20, bold: true, align: "center" },
+                    { id: "e5", zone: "header", type: "text", text: "Mã đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 30, y: 150, w: 220, fsz: 11, bold: false, align: "left" },
+                    { id: "e6", zone: "header", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", x: alignRightX, y: 150, w: 240, fsz: 11, bold: false, align: "right" },
+                    { id: "e7", zone: "header", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 30, y: 175, w: 350, fsz: 11, bold: false, align: "left" },
+                    { id: "e8", zone: "body", type: "table", label: "Bảng Danh Sách Món", x: 30, y: 205, w: tWidth, fsz: 11 },
+                    { id: "e9", zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", x: alignRightX, y: 290, w: 250, fsz: 12, bold: false, align: "right" },
+                    { id: "e10", zone: "footer", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", x: alignRightX, y: 315, w: 250, fsz: 12, bold: false, align: "right" },
+                    { id: "e11", zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: alignRightX, y: 345, w: 250, fsz: 15, bold: true, align: "right" },
+                    { id: "e12", zone: "footer", type: "qr", label: "QR Code Thanh Toán", x: 30, y: 280, w: 130, h: 130 },
+                    { id: "e13", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: isLandscape ? 220 : 120, y: 430, w: 400, fsz: 11, italic: true, align: "center" }
                 ];
             } else if (size === 'K80') {
                 return [
-                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
-                    { id: "e2", type: "text", text: "{{dia_chi}}", label: "Địa Chỉ", x: 10, y: 32, w: 270, fsz: 10, bold: false, align: "center" },
-                    { id: "e3", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 10, y: 48, w: 270, fsz: 10, bold: false, align: "center" },
-                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: 10, y: 70, w: 270, fsz: 14, bold: true, align: "center" },
-                    { id: "e5", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã Đơn", x: 10, y: 92, w: 270, fsz: 10, bold: false, align: "center" },
-                    { id: "e6", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 110, w: 270, fsz: 10, bold: false, align: "left" },
-                    { id: "e7", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 130, w: 270, fsz: 10 },
-                    { id: "e8", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 200, w: 270, fsz: 11, bold: false, align: "right" },
-                    { id: "e9", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 220, w: 270, fsz: 13, bold: true, align: "right" },
-                    { id: "e10", type: "qr", label: "QR Code Thanh Toán", x: 75, y: 245, w: 130, h: 130 },
-                    { id: "e11", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 390, w: 270, fsz: 10, italic: true, align: "center" }
+                    { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                    { id: "e2", zone: "header", type: "text", text: "{{dia_chi}}", label: "Địa Chỉ", x: 10, y: 32, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e3", zone: "header", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 10, y: 48, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e4", zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: 10, y: 70, w: 270, fsz: 14, bold: true, align: "center" },
+                    { id: "e5", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã Đơn", x: 10, y: 92, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e6", zone: "header", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 110, w: 270, fsz: 10, bold: false, align: "left" },
+                    { id: "e7", zone: "body", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 130, w: 270, fsz: 10 },
+                    { id: "e8", zone: "footer", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 200, w: 270, fsz: 11, bold: false, align: "right" },
+                    { id: "e9", zone: "footer", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 220, w: 270, fsz: 13, bold: true, align: "right" },
+                    { id: "e10", zone: "footer", type: "qr", label: "QR Code Thanh Toán", x: 75, y: 245, w: 130, h: 130 },
+                    { id: "e11", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 390, w: 270, fsz: 10, italic: true, align: "center" }
                 ];
             } else {
                 // K58
                 return [
-                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 5, y: 10, w: 195, fsz: 12, bold: true, align: "center" },
-                    { id: "e2", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 5, y: 30, w: 195, fsz: 9, bold: false, align: "center" },
-                    { id: "e3", type: "text", text: "HÓA ĐƠN", label: "Tiêu Đề", x: 5, y: 48, w: 195, fsz: 13, bold: true, align: "center" },
-                    { id: "e4", type: "text", text: "Mã: {{ma_hoa_don}}", label: "Mã Đơn", x: 5, y: 68, w: 195, fsz: 9, bold: false, align: "center" },
-                    { id: "e5", type: "table", label: "Bảng Danh Sách Món", x: 5, y: 88, w: 195, fsz: 9 },
-                    { id: "e6", type: "text", text: "PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 5, y: 155, w: 195, fsz: 11, bold: true, align: "right" },
-                    { id: "e7", type: "qr", label: "QR Code Thanh Toán", x: 45, y: 175, w: 110, h: 110 },
-                    { id: "e8", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 5, y: 300, w: 195, fsz: 9, italic: true, align: "center" }
+                    { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 5, y: 10, w: 195, fsz: 12, bold: true, align: "center" },
+                    { id: "e2", zone: "header", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 5, y: 30, w: 195, fsz: 9, bold: false, align: "center" },
+                    { id: "e3", zone: "header", type: "text", text: "HÓA ĐƠN", label: "Tiêu Đề", x: 5, y: 48, w: 195, fsz: 13, bold: true, align: "center" },
+                    { id: "e4", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}}", label: "Mã Đơn", x: 5, y: 68, w: 195, fsz: 9, bold: false, align: "center" },
+                    { id: "e5", zone: "body", type: "table", label: "Bảng Danh Sách Món", x: 5, y: 88, w: 195, fsz: 9 },
+                    { id: "e6", zone: "footer", type: "text", text: "PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 5, y: 155, w: 195, fsz: 11, bold: true, align: "right" },
+                    { id: "e7", zone: "footer", type: "qr", label: "QR Code Thanh Toán", x: 45, y: 175, w: 110, h: 110 },
+                    { id: "e8", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 5, y: 300, w: 195, fsz: 9, italic: true, align: "center" }
                 ];
             }
         }
@@ -1175,9 +1275,28 @@
                 return;
             }
 
+            const zoneName = elem.zone === 'body' ? 'BẢNG HÀNG HÓA' : elem.zone === 'footer' ? 'CHÂN TRANG' : 'ĐẦU TRANG';
+            const zoneColor = elem.zone === 'body' ? 'bg-blue-100 text-blue-800' : elem.zone === 'footer' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800';
+
             panel.innerHTML = `
                 <div class="space-y-3">
-                    <div class="font-bold text-sky-700 pb-1 border-b">${elem.label}</div>
+                    <div class="flex items-center justify-between pb-1 border-b">
+                        <span class="font-bold text-sky-700">${elem.label}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded font-bold ${zoneColor}">VÙNG: ${zoneName}</span>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                        <label class="block font-bold text-amber-900 mb-1">↕ Thứ tự trong phân vùng:</label>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <button onclick="moveElementOrder('${elem.id}', -1)" title="Đưa khối lên trên" class="py-1 px-2 border rounded bg-white hover:bg-amber-100 text-amber-800 font-bold flex items-center justify-center gap-1">
+                                <span>▲ Lên trên</span>
+                            </button>
+                            <button onclick="moveElementOrder('${elem.id}', 1)" title="Đưa khối xuống dưới" class="py-1 px-2 border rounded bg-white hover:bg-amber-100 text-amber-800 font-bold flex items-center justify-center gap-1">
+                                <span>▼ Xuống dưới</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block font-semibold mb-1 text-xs">Căn vị trí trên trang:</label>
                         <div class="grid grid-cols-4 gap-1">
@@ -1289,8 +1408,32 @@
         });
 
         window.addEventListener('mouseup', () => {
-            if (isDragging || isResizing) {
+            if (isDragging) {
                 isDragging = false;
+                // Sap xep lai theo vi tri Y thuc te trong pham vi Zone de cho phep keo tha chuot hoan doi vi tri
+                if (dragElem) {
+                    const currentZone = dragElem.zone || 'header';
+                    // Loc cac phan tu trong cung Zone va sap xep theo Y
+                    const zoneElements = canvasElements.filter(e => (e.zone || 'header') === currentZone);
+                    zoneElements.sort((a, b) => a.y - b.y);
+
+                    // Re-insert vao canvasElements giu nguyen trat tu cac Zone
+                    let newElements = [];
+                    const headers = canvasElements.filter(e => (e.zone || 'header') === 'header');
+                    if (currentZone === 'header') headers.sort((a, b) => a.y - b.y);
+
+                    const bodies = canvasElements.filter(e => (e.zone || 'header') === 'body');
+                    if (currentZone === 'body') bodies.sort((a, b) => a.y - b.y);
+
+                    const footers = canvasElements.filter(e => (e.zone || 'header') === 'footer');
+                    if (currentZone === 'footer') footers.sort((a, b) => a.y - b.y);
+
+                    canvasElements = [...headers, ...bodies, ...footers];
+                    recomputeElementPositions();
+                }
+                renderCanvas();
+            }
+            if (isResizing) {
                 isResizing = false;
                 renderCanvas();
             }
