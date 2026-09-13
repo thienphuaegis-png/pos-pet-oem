@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS KiotViet Offline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .active-tab { background-color: #0284c7; color: white; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-modal, #print-modal * { visibility: visible; }
+            #print-modal {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            #print-modal button, #print-modal h3 { display: none !important; }
+            #print-area { border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+            @page {
+                size: auto;
+                margin: 5mm;
+            }
+        }
+        .canvas-element {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+        }
+        .canvas-element:hover {
+            outline: 1px dashed #0284c7;
+        }
+        .canvas-element.selected {
+            outline: 2px solid #0284c7;
+            background-color: rgba(2, 132, 199, 0.05);
+        }
+        .resize-handle {
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 24px;
+            background: #0284c7;
+            cursor: ew-resize;
+            border-radius: 3px;
+            border: 1px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .canvas-zone-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed rgba(2, 132, 199, 0.35);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .canvas-zone-badge {
+            position: absolute;
+            right: 8px;
+            top: -10px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 1px 8px;
+            border-radius: 10px;
+            border: 1px solid #bae6fd;
+            pointer-events: none;
+        }
+
+
+    </style>
+
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="w-64 bg-slate-900 text-white flex flex-col justify-between">
+            <div>
+                <div class="p-4 border-b border-slate-800 flex items-center gap-2">
+                    <span class="text-xl font-bold text-sky-400">⚡ POS Offline</span>
+                </div>
+                <nav class="p-2 space-y-1">
+                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 active-tab">🛒 Bán Hàng (POS)</button>
+                    <button onclick="switchTab('products')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📦 Hàng Hóa & BOM</button>
+                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📥 Nhập Hàng</button>
+                    <button onclick="switchTab('production')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">⚙️ Sản Xuất</button>
+                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">👥 Đối Tác & Công Nợ</button>
+                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">💰 Sổ Quỹ Thu Chi</button>
+                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📊 Báo Cáo Tổng Hợp</button>
+                    <button onclick="switchTab('company')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">🏢 Thông Tin Doanh Nghiệp</button>
+                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">⚙️ Thiết Kế Mẫu In</button>
+
+
+                </nav>
+            </div>
+            <div class="p-4 text-xs text-slate-400 border-t border-slate-800">
+                Chế độ Offline 100%<br>Dữ liệu: SQLite Local
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+            
+            <!-- TAB: BAN HANG (POS) -->
+            <div id="tab-pos" class="space-y-4">
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
+                    <h2 class="text-xl font-bold">Màn Hình Bán Hàng</h2>
+                    <div class="flex gap-4">
+                        <div>
+                            <label class="text-xs text-gray-500">Khách Hàng:</label>
+                            <select id="pos-customer" class="border p-1 rounded w-48 block"></select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">Nhân Viên Bán:</label>
+                            <select id="pos-staff" class="border p-1 rounded w-48 block"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Danh sach san pham de click chon -->
+                    <div class="col-span-2 bg-white p-4 rounded-lg shadow-sm">
+                        <div class="flex justify-between mb-3">
+                            <input type="text" id="search-pos-product" placeholder="🔍 Tìm tên hoặc quét barcode..." class="border p-2 rounded w-full" oninput="renderPOSProducts()">
+                        </div>
+                        <div id="pos-product-list" class="grid grid-cols-3 gap-3 max-h-[500px] overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Gio hang & Thanh toan -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm flex flex-col justify-between h-[600px]">
+                        <div>
+                            <h3 class="font-bold border-b pb-2 mb-2">Đơn Hàng</h3>
+                            <div id="pos-cart" class="space-y-2 overflow-y-auto max-h-[320px] text-sm"></div>
+                        </div>
+
+                        <div class="border-t pt-2 space-y-2 text-sm">
+                            <div class="flex justify-between font-bold">
+                                <span>Tổng tiền:</span>
+                                <span id="pos-total">0 đ</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Giảm giá:</span>
+                                <input type="number" id="pos-discount" class="border p-1 rounded w-24 text-right" value="0" oninput="calculatePOSTotals()">
+                            </div>
+                            <div class="flex justify-between font-bold text-sky-600 text-base">
+                                <span>Khách phải trả:</span>
+                                <span id="pos-final">0 đ</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Khách thanh toán:</span>
+                                <input type="number" id="pos-paid" class="border p-1 rounded w-28 text-right font-bold text-green-600" value="0" oninput="calculatePOSTotals()">
+                            </div>
+                            <div class="flex justify-between text-red-500 font-bold">
+                                <span>Tính vào công nợ:</span>
+                                <span id="pos-debt">0 đ</span>
+                            </div>
+                            <button onclick="submitOrder()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-lg mt-2 shadow">
+                                THANH TOÁN & IN HÓA ĐƠN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: DANH MUC HANG HOA -->
+            <div id="tab-products" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Danh Mục Hàng Hóa, Dịch Vụ & BOM</h2>
+                    <button onclick="showModalProduct()" class="bg-sky-600 text-white px-4 py-2 rounded">+ Thêm Mới</button>
+                </div>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-3">Mã</th>
+                                <th class="p-3">Tên sản phẩm</th>
+                                <th class="p-3">Loại</th>
+                                <th class="p-3 text-right">Giá vốn</th>
+                                <th class="p-3 text-right">Giá bán</th>
+                                <th class="p-3 text-right">Tồn kho</th>
+                                <th class="p-3">ĐVT</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-products"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: NHAP HANG -->
+            <div id="tab-purchases" class="hidden space-y-4">
+                <h2 class="text-xl font-bold">Nhập Hàng Từ Nhà Cung Cấp</h2>
+                <div class="bg-white p-4 rounded-lg shadow space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold mb-1">Nhà Cung Cấp:</label>
+                            <select id="purchase-supplier" class="border p-2 rounded w-full"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold mb-1">Chọn Hàng Hóa / Nguyên Liệu:</label>
+                            <select id="purchase-product-select" class="border p-2 rounded w-full" onchange="addPurchaseItem(this.value)">
+                                <option value="">-- Chọn sản phẩm --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <table class="w-full text-sm border-collapse">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-2 text-left">Sản phẩm</th>
+                                <th class="p-2 w-28">Số lượng</th>
+                                <th class="p-2 w-32">Giá nhập</th>
+                                <th class="p-2 text-right">Thành tiền</th>
+                                <th class="p-2 w-16"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchase-items-table"></tbody>
+                    </table>
+
+                    <div class="border-t pt-4 flex justify-between items-center">
+                        <div class="flex gap-4 items-center">
+                            <span>Thực trả NCC:</span>
+                            <input type="number" id="purchase-paid" class="border p-2 rounded w-36 font-bold" value="0">
+                        </div>
+                        <button onclick="submitPurchase()" class="bg-green-600 text-white font-bold px-6 py-2 rounded shadow">
+                            LƯU ĐƠN NHẬP KHO
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: SAN XUAT -->
+            <div id="tab-production" class="hidden space-y-4">
+                <h2 class="text-xl font-bold">Lệnh Sản Xuất Theo Định Lượng (BOM)</h2>
+                <div class="bg-white p-4 rounded-lg shadow max-w-lg space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Thành Phẩm Cần Sản Xuất:</label>
+                        <select id="prod-product" class="border p-2 rounded w-full"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Số Lượng Sản Xuất:</label>
+                        <input type="number" id="prod-qty" class="border p-2 rounded w-full" value="1" min="1">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Ghi Chú:</label>
+                        <input type="text" id="prod-note" class="border p-2 rounded w-full" placeholder="Lô sản xuất...">
+                    </div>
+                    <button onclick="submitProduction()" class="w-full bg-sky-600 text-white font-bold py-2 rounded">
+                        TIẾN HÀNH SẢN XUẤT (TRỪ KHO NGUYÊN LIỆU)
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB: DOI TAC & CONG NO -->
+            <div id="tab-contacts" class="hidden space-y-4">
+                <h2 class="text-xl font-bold">Quản Lý Khách Hàng, NCC & Công Nợ</h2>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-3">Loại</th>
+                                <th class="p-3">Tên đối tác</th>
+                                <th class="p-3">Điện thoại</th>
+                                <th class="p-3">Địa chỉ</th>
+                                <th class="p-3 text-right">Công Nợ Hiện Tại</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-contacts"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: SO QUY -->
+            <div id="tab-cashbook" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Sổ Quỹ Thu Chi</h2>
+                    <div class="flex gap-2">
+                        <button onclick="showCashModal('in')" class="bg-green-600 text-white px-3 py-1.5 rounded text-sm">+ Lập Phiếu Thu</button>
+                        <button onclick="showCashModal('out')" class="bg-red-600 text-white px-3 py-1.5 rounded text-sm">- Lập Phiếu Chi</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-3">Mã phiếu</th>
+                                <th class="p-3">Loại</th>
+                                <th class="p-3">Hạng mục</th>
+                                <th class="p-3 text-right">Số tiền</th>
+                                <th class="p-3">Ghi chú</th>
+                                <th class="p-3">Thời gian</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-cashbook"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: BAO CAO -->
+            <div id="tab-reports" class="hidden space-y-6">
+                <h2 class="text-xl font-bold">Báo Cáo Tình Hình Kinh Doanh</h2>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+                        <div class="text-xs text-gray-500 uppercase">Tổng Doanh Thu</div>
+                        <div id="rep-revenue" class="text-xl font-bold text-blue-600 mt-1">0 đ</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                        <div class="text-xs text-gray-500 uppercase">Tồn Quỹ Thực Tế</div>
+                        <div id="rep-cash" class="text-xl font-bold text-green-600 mt-1">0 đ</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-amber-500">
+                        <div class="text-xs text-gray-500 uppercase">Khách Nợ</div>
+                        <div id="rep-cust-debt" class="text-xl font-bold text-amber-600 mt-1">0 đ</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
+                        <div class="text-xs text-gray-500 uppercase">Hoa Hồng Đã Tính</div>
+                        <div id="rep-comm" class="text-xl font-bold text-purple-600 mt-1">0 đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: THONG TIN DOANH NGHIEP -->
+            <div id="tab-company" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
+                    <button onclick="saveCompanySettings()" class="bg-sky-600 text-white font-bold px-4 py-2 rounded shadow">💾 Lưu Thông Tin Doanh Nghiệp</button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Co ban -->
+                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
+                        <h3 class="font-bold border-b pb-2 text-slate-700">Thông Tin Chung Cửa Hàng</h3>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty:</label>
+                            <input type="text" id="comp-name" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Địa Chỉ:</label>
+                            <input type="text" id="comp-address" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Hotline / Số Điện Thoại:</label>
+                            <input type="text" id="comp-phone" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
+                            <input type="text" id="comp-footer" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Logo Cửa Hàng (Ảnh):</label>
+                            <input type="file" id="comp-logo-input" accept="image/*" class="border p-1 rounded w-full text-xs" onchange="previewUploadImage(this, 'comp-logo-preview')">
+                            <div class="mt-2 text-center">
+                                <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded hidden">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ngan hang & QR -->
+                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
+                        <h3 class="font-bold border-b pb-2 text-slate-700">Cấu Hình Tài Khoản & QR Thanh Toán</h3>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Phương Thức QR Code:</label>
+                            <select id="comp-qr-mode" class="border p-2 rounded w-full font-medium" onchange="toggleQRModeUI()">
+                                <option value="vietqr">⚡ VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
+                                <option value="static">🖼️ Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
+                            </select>
+                        </div>
+
+                        <!-- Panel VietQR Dong -->
+                        <div id="panel-vietqr" class="space-y-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Ngân Hàng (Mã BIN):</label>
+                                <select id="comp-bank-code" class="border p-2 rounded w-full bg-white">
+                                    <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
+                                    <option value="VCB">Vietcombank (Ngoại thương)</option>
+                                    <option value="TCB">Techcombank (Kỹ thương)</option>
+                                    <option value="ICB">VietinBank (Công thương)</option>
+                                    <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
+                                    <option value="ACB">ACB (Á Châu)</option>
+                                    <option value="TPB">TPBank (Tiên Phong)</option>
+                                    <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
+                                    <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
+                                    <option value="VIB">VIB (Quốc Tế)</option>
+                                    <option value="MSB">MSB (Hàng Hải)</option>
+                                    <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
+                                    <option value="LPB">LPBank (Lộc Phát)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Số Tài Khoản:</label>
+                                <input type="text" id="comp-bank-account" class="border p-2 rounded w-full bg-white" placeholder="VD: 0901234567">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
+                                <input type="text" id="comp-bank-owner" class="border p-2 rounded w-full bg-white uppercase" placeholder="VD: NGUYEN VAN A">
+                            </div>
+                        </div>
+
+                        <!-- Panel QR Tinh -->
+                        <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50 rounded border border-amber-200 text-sm">
+                            <label class="block text-xs font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
+                            <input type="file" id="comp-qr-input" accept="image/*" class="border p-1 rounded w-full text-xs bg-white" onchange="previewUploadImage(this, 'comp-qr-preview')">
+                            <div class="mt-2 text-center">
+                                <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded hidden">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CAI DAT MAU IN (CANVAS DRAG & DROP CHO A4, A5, K80) -->
+            <div id="tab-settings" class="hidden space-y-4">
+                <!-- Thanh dieu khien tren cung -->
+                <div class="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-lg font-bold text-slate-800">Trình Thiết Kế Mẫu In Kéo Thả</h2>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="font-semibold text-gray-600">Khổ Giấy:</span>
+                            <select id="canvas-paper-size" class="border p-1.5 rounded bg-white font-bold text-sky-700" onchange="changePaperSize(this.value)">
+                                <option value="A4-portrait">📄 A4 Dọc (210 x 297 mm)</option>
+                                <option value="A4-landscape">📄 A4 Ngang (297 x 210 mm)</option>
+                                <option value="A5-portrait">📑 A5 Dọc (148 x 210 mm)</option>
+                                <option value="A5-landscape">📑 A5 Ngang (210 x 148 mm)</option>
+                                <option value="K80">🧾 Cuộn Nhiệt K80 (80mm)</option>
+                                <option value="K58">🧾 Cuộn Nhiệt K58 (58mm)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="printTestTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded shadow text-xs flex items-center gap-1">🖨️ In Thử Mẫu Này</button>
+                        <button onclick="resetDefaultTemplate(paperSize)" class="px-3 py-1.5 border text-xs text-gray-600 hover:bg-gray-100 rounded">Mẫu Mặc Định Khổ Này</button>
+                        <button onclick="saveCanvasTemplate()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-1.5 rounded shadow text-sm flex items-center gap-1.5">💾 Lưu Tất Cả Mẫu In</button>
+                    </div>
+
+                </div>
+
+                <div class="grid grid-cols-12 gap-4">
+                    <!-- Danh sach khoi de keo tha (Trai - 3 cols) -->
+                    <div class="col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 max-h-[780px] overflow-y-auto text-xs">
+                        <div>
+                            <span class="font-bold text-slate-700 uppercase block mb-1">Thao tác:</span>
+                            <p class="text-[11px] text-gray-500 mb-2">Bấm vào khối dưới đây để chèn vào giấy, sau đó dùng chuột <strong>kéo di chuyển</strong> tới bất kỳ đâu.</p>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <span class="font-bold text-slate-600 block">Thông Tin Cửa Hàng:</span>
+                            <button type="button" onclick="addCanvasItem('logo')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🖼️ Logo cửa hàng</button>
+                            <button type="button" onclick="addCanvasItem('shop_name')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏢 Tên cửa hàng</button>
+                            <button type="button" onclick="addCanvasItem('shop_address')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📍 Địa chỉ cửa hàng</button>
+                            <button type="button" onclick="addCanvasItem('shop_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📞 Số điện thoại</button>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <span class="font-bold text-slate-600 block">Thông Tin Hóa Đơn:</span>
+                            <button type="button" onclick="addCanvasItem('title')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📑 Tiêu đề (HÓA ĐƠN BÁN HÀNG)</button>
+                            <button type="button" onclick="addCanvasItem('order_code')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🔖 Mã hóa đơn</button>
+                            <button type="button" onclick="addCanvasItem('datetime')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🕒 Ngày giờ lập phiếu</button>
+                            <button type="button" onclick="addCanvasItem('staff')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">👤 Tên nhân viên bán / thu ngân</button>
+                            <button type="button" onclick="addCanvasItem('customer')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🧑 Tên khách hàng</button>
+                            <button type="button" onclick="addCanvasItem('customer_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📱 Số điện thoại khách</button>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <span class="font-bold text-slate-600 block">Bảng & Thanh Toán:</span>
+                            <button type="button" onclick="addCanvasItem('table')" class="w-full text-left p-1.5 border-2 border-dashed border-sky-400 rounded bg-sky-50 font-bold text-sky-800">📦 Bảng Danh Sách Hàng Hóa</button>
+                            <button type="button" onclick="addCanvasItem('total')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💵 Tổng tiền hàng</button>
+                            <button type="button" onclick="addCanvasItem('discount')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏷️ Chiết khấu / Giảm giá</button>
+                            <button type="button" onclick="addCanvasItem('final')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-bold text-sky-700">💰 Khách phải trả</button>
+                            <button type="button" onclick="addCanvasItem('paid')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💸 Tiền khách đưa</button>
+                            <button type="button" onclick="addCanvasItem('debt')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💳 Tiền thừa / Nợ lại</button>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <span class="font-bold text-slate-600 block">Mã QR & Chân Trang:</span>
+                            <button type="button" onclick="addCanvasItem('qr')" class="w-full text-left p-1.5 border rounded bg-emerald-50 text-emerald-800 font-bold">📲 Mã QR Thanh Toán (VietQR / Tĩnh)</button>
+                            <button type="button" onclick="addCanvasItem('footer_msg')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💬 Lời cảm ơn chân trang</button>
+                            <button type="button" onclick="addCanvasItem('custom_text')" class="w-full text-left p-1.5 border rounded hover:bg-purple-50 text-purple-700 font-medium">✍️ Thêm ô chữ tùy ý...</button>
+                        </div>
+                    </div>
+
+                    <!-- Khung Canvas Giay In (Giua - 6 cols) -->
+                    <div class="col-span-6 bg-slate-200 p-4 rounded-lg flex justify-center items-start overflow-auto max-h-[780px] shadow-inner">
+                        <div id="paper-canvas" class="bg-white shadow-2xl relative border transition-all" style="width: 210mm; min-height: 297mm;">
+                            <!-- Cac phan tu duoc keo tha nam tai day -->
+                        </div>
+                    </div>
+
+                    <!-- Bang Thuoc Tinh Phan Tu Duoc Chon (Phai - 3 cols) -->
+                    <div class="col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 max-h-[780px] overflow-y-auto text-xs">
+                        <h3 class="font-bold border-b pb-2 text-slate-800 uppercase">Thuộc Tính Khối</h3>
+                        <div id="element-props-panel" class="text-gray-400 italic">
+                            Click vào một khối trên trang giấy để chỉnh sửa kích thước, căn lề, chữ đậm...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+
+            <!-- MODAL IN HOA DON -->
+            <div id="print-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 flex flex-col items-center">
+                    <h3 class="font-bold text-lg mb-4">Hóa Đơn Thanh Toán</h3>
+                    <div id="print-area" class="border border-dashed p-4 rounded bg-gray-50 max-h-[450px] overflow-y-auto w-full mb-4"></div>
+                    <div class="flex gap-4 w-full">
+                        <button onclick="window.print()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded shadow">🖨️ In Hóa Đơn</button>
+                        <button onclick="closePrintModal()" class="px-4 py-2 border rounded hover:bg-gray-100">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+        let allProducts = [];
+        let allContacts = [];
+        let allStaff = [];
+        let posCart = [];
+        let purchaseCart = [];
+
+        function formatMoney(num) {
+            return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active-tab');
+                b.classList.add('hover:bg-slate-800');
+            });
+            event.target.classList.add('active-tab');
+            event.target.classList.remove('hover:bg-slate-800');
+
+            if (tabId === 'products') loadProducts();
+            if (tabId === 'contacts') loadContacts();
+            if (tabId === 'cashbook') loadCashbook();
+            if (tabId === 'reports') loadReports();
+            if (tabId === 'settings') loadSettings();
+            if (tabId === 'company') loadCompanySettings();
+            if (tabId === 'purchases') initPurchases();
+
+
+            if (tabId === 'production') initProduction();
+        }
+
+        async function init() {
+            await Promise.all([loadProducts(), loadContacts(), loadStaff()]);
+            renderPOSProducts();
+            initPurchases();
+            initProduction();
+        }
+
+        async function loadProducts() {
+            const res = await fetch('/api/products');
+            allProducts = await res.json();
+            
+            const tbody = document.getElementById('table-products');
+            tbody.innerHTML = allProducts.map(p => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-mono text-xs font-bold">${p.code}</td>
+                    <td class="p-3 font-medium">${p.name}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.type === 'service' ? 'bg-indigo-100 text-indigo-700' : p.type === 'material' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${p.type}</span></td>
+                    <td class="p-3 text-right">${formatMoney(p.cost_price)}</td>
+                    <td class="p-3 text-right font-bold text-sky-600">${formatMoney(p.sell_price)}</td>
+                    <td class="p-3 text-right font-bold ${p.stock <= 5 ? 'text-red-500' : ''}">${p.stock}</td>
+                    <td class="p-3 text-gray-500">${p.unit}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadContacts() {
+            const res = await fetch('/api/contacts');
+            allContacts = await res.json();
+            
+            const custSelect = document.getElementById('pos-customer');
+            const suppSelect = document.getElementById('purchase-supplier');
+            
+            custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            suppSelect.innerHTML = allContacts.filter(c => c.type === 'supplier').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+            const tbody = document.getElementById('table-contacts');
+            tbody.innerHTML = allContacts.map(c => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${c.type === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">${c.type}</span></td>
+                    <td class="p-3 font-medium">${c.name}</td>
+                    <td class="p-3">${c.phone || '-'}</td>
+                    <td class="p-3">${c.address || '-'}</td>
+                    <td class="p-3 text-right font-bold ${c.debt > 0 ? 'text-red-600' : 'text-gray-500'}">${formatMoney(c.debt)}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadStaff() {
+            const res = await fetch('/api/staff');
+            allStaff = await res.json();
+            const staffSelect = document.getElementById('pos-staff');
+            staffSelect.innerHTML = allStaff.map(s => `<option value="${s.id}">${s.name} (${s.commission_rate}%)</option>`).join('');
+        }
+
+        function renderPOSProducts() {
+            const q = document.getElementById('search-pos-product').value.toLowerCase();
+            const filtered = allProducts.filter(p => p.type !== 'material' && (p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)));
+            
+            const container = document.getElementById('pos-product-list');
+            container.innerHTML = filtered.map(p => `
+                <div onclick="addToCart(${p.id})" class="border rounded-lg p-3 hover:border-sky-500 cursor-pointer bg-white shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="text-xs text-gray-400 font-mono">${p.code}</div>
+                        <div class="font-medium text-sm line-clamp-2">${p.name}</div>
+                    </div>
+                    <div class="mt-2 flex justify-between items-center">
+                        <span class="text-sky-600 font-bold">${formatMoney(p.sell_price)}</span>
+                        <span class="text-xs text-gray-500">Tồn: ${p.type === 'service' ? '∞' : p.stock}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(productId) {
+            const p = allProducts.find(x => x.id === productId);
+            const exist = posCart.find(x => x.product_id === productId);
+            if (exist) {
+                exist.quantity += 1;
+            } else {
+                posCart.push({ product_id: p.id, name: p.name, price: p.sell_price, quantity: 1 });
+            }
+            renderPOSCart();
+        }
+
+        function renderPOSCart() {
+            const container = document.getElementById('pos-cart');
+            if (posCart.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-center py-8">Chưa có sản phẩm nào</div>';
+                calculatePOSTotals();
+                return;
+            }
+            container.innerHTML = posCart.map((item, idx) => `
+                <div class="flex justify-between items-center border-b pb-2">
+                    <div class="flex-1 pr-2">
+                        <div class="font-medium">${item.name}</div>
+                        <div class="text-xs text-gray-500">${formatMoney(item.price)}</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <input type="number" value="${item.quantity}" min="1" class="border w-12 text-center rounded p-0.5 text-xs" onchange="posCart[${idx}].quantity = parseFloat(this.value); renderPOSCart()">
+                        <button onclick="posCart.splice(${idx}, 1); renderPOSCart()" class="text-red-500 text-xs px-1">✕</button>
+                    </div>
+                </div>
+            `).join('');
+            calculatePOSTotals();
+        }
+
+        function calculatePOSTotals() {
+            const total = posCart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+            const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+            const finalAmount = Math.max(0, total - discount);
+            const paidInput = document.getElementById('pos-paid');
+            
+            // Mac dinh neu khach tra chua go thi auto dien du
+            if (!paidInput.dataset.manual) {
+                paidInput.value = finalAmount;
+            }
+            const paid = parseFloat(paidInput.value) || 0;
+            const debt = Math.max(0, finalAmount - paid);
+
+            document.getElementById('pos-total').innerText = formatMoney(total);
+            document.getElementById('pos-final').innerText = formatMoney(finalAmount);
+            document.getElementById('pos-debt').innerText = formatMoney(debt);
+        }
+
+        document.getElementById('pos-paid').addEventListener('input', function() {
+            this.dataset.manual = "true";
+            calculatePOSTotals();
+        });
+
+        async function submitOrder() {
+            if (posCart.length === 0) return alert('Giỏ hàng trống!');
+            const req = {
+                customer_id: parseInt(document.getElementById('pos-customer').value),
+                staff_id: parseInt(document.getElementById('pos-staff').value),
+                discount: parseFloat(document.getElementById('pos-discount').value) || 0,
+                paid_amount: parseFloat(document.getElementById('pos-paid').value) || 0,
+                items: posCart.map(i => ({ product_id: i.product_id, quantity: i.quantity, price: i.price }))
+            };
+
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(req)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                posCart = [];
+                document.getElementById('pos-paid').dataset.manual = "";
+                renderPOSCart();
+                loadProducts();
+                // Bat popup in hoa don ngay
+                showPrintModal(data.order_code);
+            } else {
+                alert('Lỗi: ' + data.detail);
+            }
+
+        }
+
+        // Nhap hang
+        function initPurchases() {
+            const sel = document.getElementById('purchase-product-select');
+            sel.innerHTML = '<option value="">-- Chọn sản phẩm/nguyên liệu --</option>' + 
+                allProducts.map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+        }
+
+        function addPurchaseItem(prodId) {
+            if (!prodId) return;
+            const p = allProducts.find(x => x.id == prodId);
+            purchaseCart.push({ product_id: p.id, name: p.name, quantity: 10, cost_price: p.cost_price });
+            renderPurchaseItems();
+        }
+
+        function renderPurchaseItems() {
+            const tbody = document.getElementById('purchase-items-table');
+            let total = 0;
+            tbody.innerHTML = purchaseCart.map((i, idx) => {
+                const sub = i.quantity * i.cost_price;
+                total += sub;
+                return `
+                <tr class="border-b">
+                    <td class="p-2">${i.name}</td>
+                    <td class="p-2"><input type="number" value="${i.quantity}" class="border w-20 p-1 rounded" onchange="purchaseCart[${idx}].quantity = parseFloat(this.value); renderPurchaseItems()"></td>
+                    <td class="p-2"><input type="number" value="${i.cost_price}" class="border w-28 p-1 rounded" onchange="purchaseCart[${idx}].cost_price = parseFloat(this.value); renderPurchaseItems()"></td>
+                    <td class="p-2 text-right font-bold">${formatMoney(sub)}</td>
+                    <td class="p-2 text-center"><button onclick="purchaseCart.splice(${idx}, 1); renderPurchaseItems()" class="text-red-500">✕</button></td>
+                </tr>
+                `;
+            }).join('');
+            document.getElementById('purchase-paid').value = total;
+        }
+
+        async function submitPurchase() {
+            if (purchaseCart.length === 0) return alert('Chưa chọn hàng nhập!');
+            const req = {
+                supplier_id: parseInt(document.getElementById('purchase-supplier').value),
+                paid_amount: parseFloat(document.getElementById('purchase-paid').value) || 0,
+                items: purchaseCart.map(i => ({ product_id: i.product_id, quantity: i.quantity, cost_price: i.cost_price }))
+            };
+            const res = await fetch('/api/purchases', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(req)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Lưu phiếu nhập thành công: ' + data.purchase_code);
+                purchaseCart = [];
+                renderPurchaseItems();
+                loadProducts();
+            } else {
+                alert('Lỗi: ' + data.detail);
+            }
+        }
+
+        // San xuat
+        function initProduction() {
+            const sel = document.getElementById('prod-product');
+            // Chi nhung san pham co BOM (hoac dang tao san xuat)
+            sel.innerHTML = allProducts.filter(p => p.type === 'product').map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+        }
+
+        async function submitProduction() {
+            const req = {
+                product_id: parseInt(document.getElementById('prod-product').value),
+                quantity: parseFloat(document.getElementById('prod-qty').value),
+                note: document.getElementById('prod-note').value
+            };
+            const res = await fetch('/api/productions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(req)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert('Lệnh sản xuất thành công: ' + data.production_code);
+                loadProducts();
+            } else {
+                alert('Lỗi: ' + data.detail);
+            }
+        }
+
+        // So quy
+        async function loadCashbook() {
+            const res = await fetch('/api/cashbook');
+            const data = await res.json();
+            const tbody = document.getElementById('table-cashbook');
+            tbody.innerHTML = data.map(c => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-mono text-xs font-bold">${c.code}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${c.type === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${c.type === 'in' ? 'Thu' : 'Chi'}</span></td>
+                    <td class="p-3">${c.category}</td>
+                    <td class="p-3 text-right font-bold ${c.type === 'in' ? 'text-green-600' : 'text-red-600'}">${formatMoney(c.amount)}</td>
+                    <td class="p-3 text-gray-500">${c.note || '-'}</td>
+                    <td class="p-3 text-xs text-gray-400">${c.created_at}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Bao cao
+        async function loadReports() {
+            const res = await fetch('/api/reports/summary');
+            const d = await res.json();
+            document.getElementById('rep-revenue').innerText = formatMoney(d.revenue);
+            document.getElementById('rep-cash').innerText = formatMoney(d.cash_balance);
+            document.getElementById('rep-cust-debt').innerText = formatMoney(d.customer_debt);
+            document.getElementById('rep-comm').innerText = formatMoney(d.commission_paid);
+        }
+
+        // Cai dat & Mau in
+        let currentSettings = {};
+
+        async function loadCompanySettings() {
+            const res = await fetch('/api/settings');
+            currentSettings = await res.json();
+            document.getElementById('comp-name').value = currentSettings.shop_name || '';
+            document.getElementById('comp-address').value = currentSettings.shop_address || '';
+            document.getElementById('comp-phone').value = currentSettings.shop_phone || '';
+            document.getElementById('comp-footer').value = currentSettings.shop_footer || '';
+            document.getElementById('comp-bank-code').value = currentSettings.shop_bank_code || 'MB';
+            document.getElementById('comp-bank-account').value = currentSettings.shop_bank_account || '';
+            document.getElementById('comp-bank-owner').value = currentSettings.shop_bank_owner || '';
+            document.getElementById('comp-qr-mode').value = currentSettings.shop_qr_mode || 'vietqr';
+            
+            if (currentSettings.shop_logo) {
+                const img = document.getElementById('comp-logo-preview');
+                img.src = currentSettings.shop_logo;
+                img.classList.remove('hidden');
+            }
+            if (currentSettings.shop_qr_image) {
+                const img = document.getElementById('comp-qr-preview');
+                img.src = currentSettings.shop_qr_image;
+                img.classList.remove('hidden');
+            }
+            toggleQRModeUI();
+        }
+
+        function toggleQRModeUI() {
+            const mode = document.getElementById('comp-qr-mode').value;
+            if (mode === 'vietqr') {
+                document.getElementById('panel-vietqr').classList.remove('hidden');
+                document.getElementById('panel-static-qr').classList.add('hidden');
+            } else {
+                document.getElementById('panel-vietqr').classList.add('hidden');
+                document.getElementById('panel-static-qr').classList.remove('hidden');
+            }
+        }
+
+        function previewUploadImage(input, previewId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById(previewId);
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function saveCompanySettings() {
+            const logoImg = document.getElementById('comp-logo-preview');
+            const qrImg = document.getElementById('comp-qr-preview');
+            const payload = {
+                shop_name: document.getElementById('comp-name').value,
+                shop_address: document.getElementById('comp-address').value,
+                shop_phone: document.getElementById('comp-phone').value,
+                shop_footer: document.getElementById('comp-footer').value,
+                shop_bank_code: document.getElementById('comp-bank-code').value,
+                shop_bank_account: document.getElementById('comp-bank-account').value,
+                shop_bank_owner: document.getElementById('comp-bank-owner').value,
+                shop_qr_mode: document.getElementById('comp-qr-mode').value,
+                shop_logo: !logoImg.classList.contains('hidden') ? logoImg.src : '',
+                shop_qr_image: !qrImg.classList.contains('hidden') ? qrImg.src : ''
+            };
+            const res = await fetch('/api/settings/company', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                alert('Đã lưu thông tin doanh nghiệp & cấu hình QR!');
+                Object.assign(currentSettings, payload);
+            } else {
+                alert('Lỗi lưu thông tin!');
+            }
+        }
+
+        // --- CANVAS DRAG & DROP ENGINE ---
+        let multiTemplates = {
+            active_size: "A4-portrait",
+            templates: {}
+        };
+        let canvasElements = [];
+        let selectedElementId = null;
+        let paperSize = "A4-portrait";
+
+        function getQRCodeHTML(amount, code) {
+            const mode = currentSettings.shop_qr_mode || 'vietqr';
+            if (mode === 'static' && currentSettings.shop_qr_image) {
+                return `<img src="${currentSettings.shop_qr_image}" style="max-width: 140px; margin: 0 auto; display: block;" alt="QR Thanh Toán">`;
+            }
+            if (currentSettings.shop_bank_account) {
+                const bank = currentSettings.shop_bank_code || 'MB';
+                const acc = currentSettings.shop_bank_account;
+                const name = encodeURIComponent(currentSettings.shop_bank_owner || '');
+                const desc = encodeURIComponent(code || 'THANH TOAN');
+                const amt = Math.round(amount || 0);
+                const qrUrl = `https://img.vietqr.io/image/${bank}-${acc}-compact2.png?amount=${amt}&addInfo=${desc}&accountName=${name}`;
+                return `<div style="text-align: center;"><img src="${qrUrl}" style="max-width: 140px; margin: 2px auto; display: block; border-radius: 4px;" alt="VietQR"><div style="font-size: 10px; color: #555;">Quét QR chuyển khoản</div></div>`;
+            }
+            return `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center; color: #777;">(Chưa cấu hình tài khoản VietQR trong Cài Đặt)</div>`;
+        }
+
+        const paperDimensions = {
+            "A4-portrait": { width: "210mm", height: "297mm", printSize: "A4 portrait" },
+            "A4-landscape": { width: "297mm", height: "210mm", printSize: "A4 landscape" },
+            "A5-portrait": { width: "148mm", height: "210mm", printSize: "A5 portrait" },
+            "A5-landscape": { width: "210mm", height: "148mm", printSize: "A5 landscape" },
+            "K80": { width: "80mm", height: "200mm", printSize: "80mm auto" },
+            "K58": { width: "58mm", height: "180mm", printSize: "58mm auto" }
+        };
+
+        const defaultElementCatalog = {
+            logo: { type: "logo", label: "Logo Cửa Hàng", w: 180, h: 60, align: "center" },
+            shop_name: { type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 18, bold: true, align: "center", w: 300 },
+            shop_address: { type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 12, bold: false, align: "center", w: 350 },
+            shop_phone: { type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 12, bold: false, align: "center", w: 250 },
+            title: { type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 20, bold: true, align: "center", w: 300 },
+            order_code: { type: "text", text: "Mã ĐH: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 12, bold: false, align: "left", w: 200 },
+            datetime: { type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", fsz: 12, bold: false, align: "left", w: 220 },
+            staff: { type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 12, bold: false, align: "left", w: 200 },
+            customer: { type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 12, bold: false, align: "left", w: 250 },
+            customer_phone: { type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 12, bold: false, align: "left", w: 200 },
+            table: { type: "table", label: "Bảng Danh Sách Món", w: 650, fsz: 12, border: "dashed" },
+            total: { type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 13, bold: false, align: "right", w: 280 },
+            discount: { type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 13, bold: false, align: "right", w: 280 },
+            final: { type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 16, bold: true, align: "right", w: 320 },
+            paid: { type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 13, bold: false, align: "right", w: 280 },
+            debt: { type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 13, bold: false, align: "right", w: 280 },
+            qr: { type: "qr", label: "QR Code Thanh Toán", w: 140, h: 140 },
+            footer_msg: { type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", fsz: 12, italic: true, align: "center", w: 400 },
+            custom_text: { type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 13, bold: false, align: "left", w: 200 }
+        };
+
+        function changePaperSize(newSize) {
+            // Luu layout hien tai vao memory
+            if (canvasElements && canvasElements.length > 0) {
+                multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
+            }
+            paperSize = newSize;
+            multiTemplates.active_size = newSize;
+
+            // Nap layout cua kho moi
+            if (multiTemplates.templates[newSize] && multiTemplates.templates[newSize].length > 0) {
+                canvasElements = multiTemplates.templates[newSize];
+            } else {
+                canvasElements = getInitialElementsForSize(newSize);
+                multiTemplates.templates[newSize] = canvasElements;
+            }
+
+            selectedElementId = null;
+            const canvas = document.getElementById('paper-canvas');
+            const dim = paperDimensions[newSize] || paperDimensions["A4-portrait"];
+            canvas.style.width = dim.width;
+            canvas.style.minHeight = dim.height;
+            renderCanvas();
+            renderPropsPanel();
+        }
+
+        function getInitialElementsForSize(size) {
+            if (size.startsWith('A4') || size.startsWith('A5')) {
+                const isLandscape = size.includes('landscape');
+                const tWidth = isLandscape ? (size.startsWith('A4') ? 950 : 660) : (size.startsWith('A4') ? 680 : 460);
+                const alignRightX = isLandscape ? (size.startsWith('A4') ? 680 : 420) : (size.startsWith('A4') ? 440 : 220);
+                return [
+                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 30, y: 25, w: 350, fsz: 16, bold: true, align: "left" },
+                    { id: "e2", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 30, y: 50, w: 400, fsz: 11, bold: false, align: "left" },
+                    { id: "e3", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 30, y: 70, w: 250, fsz: 11, bold: false, align: "left" },
+                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: isLandscape ? 260 : 150, y: 105, w: 350, fsz: 20, bold: true, align: "center" },
+                    { id: "e5", type: "text", text: "Mã đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 30, y: 150, w: 220, fsz: 11, bold: false, align: "left" },
+                    { id: "e6", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", x: alignRightX, y: 150, w: 240, fsz: 11, bold: false, align: "right" },
+                    { id: "e7", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 30, y: 175, w: 350, fsz: 11, bold: false, align: "left" },
+                    { id: "e8", type: "table", label: "Bảng Danh Sách Món", x: 30, y: 205, w: tWidth, fsz: 11 },
+                    { id: "e9", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", x: alignRightX, y: 290, w: 250, fsz: 12, bold: false, align: "right" },
+                    { id: "e10", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", x: alignRightX, y: 315, w: 250, fsz: 12, bold: false, align: "right" },
+                    { id: "e11", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: alignRightX, y: 345, w: 250, fsz: 15, bold: true, align: "right" },
+                    { id: "e12", type: "qr", label: "QR Code Thanh Toán", x: 30, y: 280, w: 130, h: 130 },
+                    { id: "e13", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: isLandscape ? 220 : 120, y: 430, w: 400, fsz: 11, italic: true, align: "center" }
+                ];
+            } else if (size === 'K80') {
+                return [
+                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                    { id: "e2", type: "text", text: "{{dia_chi}}", label: "Địa Chỉ", x: 10, y: 32, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e3", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 10, y: 48, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: 10, y: 70, w: 270, fsz: 14, bold: true, align: "center" },
+                    { id: "e5", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã Đơn", x: 10, y: 92, w: 270, fsz: 10, bold: false, align: "center" },
+                    { id: "e6", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 110, w: 270, fsz: 10, bold: false, align: "left" },
+                    { id: "e7", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 130, w: 270, fsz: 10 },
+                    { id: "e8", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 200, w: 270, fsz: 11, bold: false, align: "right" },
+                    { id: "e9", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 220, w: 270, fsz: 13, bold: true, align: "right" },
+                    { id: "e10", type: "qr", label: "QR Code Thanh Toán", x: 75, y: 245, w: 130, h: 130 },
+                    { id: "e11", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 390, w: 270, fsz: 10, italic: true, align: "center" }
+                ];
+            } else {
+                // K58
+                return [
+                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 5, y: 10, w: 195, fsz: 12, bold: true, align: "center" },
+                    { id: "e2", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 5, y: 30, w: 195, fsz: 9, bold: false, align: "center" },
+                    { id: "e3", type: "text", text: "HÓA ĐƠN", label: "Tiêu Đề", x: 5, y: 48, w: 195, fsz: 13, bold: true, align: "center" },
+                    { id: "e4", type: "text", text: "Mã: {{ma_hoa_don}}", label: "Mã Đơn", x: 5, y: 68, w: 195, fsz: 9, bold: false, align: "center" },
+                    { id: "e5", type: "table", label: "Bảng Danh Sách Món", x: 5, y: 88, w: 195, fsz: 9 },
+                    { id: "e6", type: "text", text: "PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 5, y: 155, w: 195, fsz: 11, bold: true, align: "right" },
+                    { id: "e7", type: "qr", label: "QR Code Thanh Toán", x: 45, y: 175, w: 110, h: 110 },
+                    { id: "e8", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 5, y: 300, w: 195, fsz: 9, italic: true, align: "center" }
+                ];
+            }
+        }
+
+        function resetDefaultTemplate(size) {
+            canvasElements = getInitialElementsForSize(size || paperSize);
+            multiTemplates.templates[paperSize] = canvasElements;
+            selectedElementId = null;
+            renderCanvas();
+            renderPropsPanel();
+        }
+
+        function addCanvasItem(catalogKey) {
+            const proto = defaultElementCatalog[catalogKey];
+            if (!proto) return;
+            const newElem = JSON.parse(JSON.stringify(proto));
+            newElem.id = "elem_" + Date.now();
+            newElem.x = 40;
+            newElem.y = canvasElements.length * 28 + 40;
+            if (newElem.type === 'table') {
+                newElem.w = paperSize.includes('K80') ? 270 : paperSize.includes('K58') ? 195 : 650;
+            }
+            canvasElements.push(newElem);
+            selectElement(newElem.id);
+            renderCanvas();
+        }
+
+
+        function selectElement(id) {
+            selectedElementId = id;
+            renderCanvas();
+            renderPropsPanel();
+        }
+
+        function deleteSelectedElement() {
+            if (!selectedElementId) return;
+            canvasElements = canvasElements.filter(e => e.id !== selectedElementId);
+            selectedElementId = null;
+            renderCanvas();
+            renderPropsPanel();
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('paper-canvas');
+            const mockData = {
+                ten_cua_hang: currentSettings.shop_name || "CỬA HÀNG THỜI TRANG & DỊCH VỤ",
+                dia_chi: currentSettings.shop_address || "123 Đường ABC, Quận 1",
+                so_dien_thoai: currentSettings.shop_phone || "0909.123.456",
+                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách và hẹn gặp lại!",
+                ma_hoa_don: "HD2609130001",
+                ngay_gio: new Date().toLocaleString('vi-VN'),
+                thu_ngan: "Quản Lý",
+                ten_khach: "Nguyễn Văn A",
+                sdt_khach: "0987654321",
+                tong_tien: "240.000 đ",
+                giam_gia: "0 đ",
+                phai_tra: "240.000 đ",
+                khach_tra: "240.000 đ",
+                con_no: "0 đ"
+            };
+
+            // Tinh toan vi tri vach phan 3 khu vuc
+            const cHeight = canvas.offsetHeight || 800;
+            const zone1Y = paperSize.includes('K80') || paperSize.includes('K58') ? 125 : 190;
+            const zone2Y = paperSize.includes('K80') || paperSize.includes('K58') ? 240 : 380;
+
+            let zoneLinesHTML = `
+                <div class="canvas-zone-line" style="top: ${zone1Y}px;">
+                    <span class="canvas-zone-badge">⬇ KHU VỰC BẢNG HÀNG HÓA</span>
+                </div>
+                <div class="canvas-zone-line" style="top: ${zone2Y}px;">
+                    <span class="canvas-zone-badge">⬇ KHU VỰC THANH TOÁN & QR</span>
+                </div>
+            `;
+
+            let elementsHTML = canvasElements.map(e => {
+                const isSel = e.id === selectedElementId ? 'selected' : '';
+                let content = '';
+
+                if (e.type === 'logo') {
+                    content = currentSettings.shop_logo 
+                        ? `<img src="${currentSettings.shop_logo}" style="max-height: 100%; max-width: 100%; pointer-events: none;">`
+                        : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
+                } else if (e.type === 'qr') {
+                    content = getQRCodeHTML(240000, 'HD2609130001');
+                } else if (e.type === 'table') {
+                    content = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none;">
+                            <thead style="border-bottom: 1px dashed #000;">
+                                <tr>
+                                    <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                    <th style="text-align: center; width: 40px;">SL</th>
+                                    <th style="text-align: right; width: 80px;">Đơn giá</th>
+                                    <th style="text-align: right; width: 90px;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 0.5px dotted #ccc;">
+                                    <td style="padding: 4px 0;">Áo Thun Basic (Demo)</td>
+                                    <td style="text-align: center;">2</td>
+                                    <td style="text-align: right;">120.000 đ</td>
+                                    <td style="text-align: right;">240.000 đ</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    let txt = e.text || '';
+                    txt = txt.replace(/{{ten_cua_hang}}/g, mockData.ten_cua_hang);
+                    txt = txt.replace(/{{dia_chi}}/g, mockData.dia_chi);
+                    txt = txt.replace(/{{so_dien_thoai}}/g, mockData.so_dien_thoai);
+                    txt = txt.replace(/{{loi_cam_on}}/g, mockData.loi_cam_on);
+                    txt = txt.replace(/{{ma_hoa_don}}/g, mockData.ma_hoa_don);
+                    txt = txt.replace(/{{ngay_gio}}/g, mockData.ngay_gio);
+                    txt = txt.replace(/{{thu_ngan}}/g, mockData.thu_ngan);
+                    txt = txt.replace(/{{ten_khach}}/g, mockData.ten_khach);
+                    txt = txt.replace(/{{sdt_khach}}/g, mockData.sdt_khach);
+                    txt = txt.replace(/{{tong_tien}}/g, mockData.tong_tien);
+                    txt = txt.replace(/{{giam_gia}}/g, mockData.giam_gia);
+                    txt = txt.replace(/{{phai_tra}}/g, mockData.phai_tra);
+                    txt = txt.replace(/{{khach_tra}}/g, mockData.khach_tra);
+                    txt = txt.replace(/{{con_no}}/g, mockData.con_no);
+                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; pointer-events: none;">${txt}</div>`;
+                }
+
+                const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Bấm giữ và kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
+
+                return `
+                    <div id="${e.id}" class="canvas-element ${isSel}" style="left: ${e.x}px; top: ${e.y}px; width: ${e.w ? e.w + 'px' : 'auto'};" onmousedown="startDrag(event, '${e.id}')">
+                        ${content}
+                        ${resizeHandleHTML}
+                    </div>
+                `;
+            }).join('');
+
+            canvas.innerHTML = zoneLinesHTML + elementsHTML;
+        }
+
+
+        function renderPropsPanel() {
+            const panel = document.getElementById('element-props-panel');
+            const elem = canvasElements.find(e => e.id === selectedElementId);
+            if (!elem) {
+                panel.innerHTML = '<div class="text-gray-400 italic">Click vào một khối trên trang giấy để chỉnh sửa...</div>';
+                return;
+            }
+
+            panel.innerHTML = `
+                <div class="space-y-3">
+                    <div class="font-bold text-sky-700 pb-1 border-b">${elem.label}</div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-xs">Căn vị trí trên trang:</label>
+                        <div class="grid grid-cols-4 gap-1">
+                            <button onclick="alignElement('left')" title="Căn sát lề trái" class="py-1 px-1.5 border rounded text-xs bg-gray-50 hover:bg-gray-200 text-gray-700 font-bold">⬅ Trái</button>
+                            <button onclick="alignElement('center')" title="Đưa ra chính giữa trang" class="py-1 px-1.5 border rounded text-xs bg-sky-50 border-sky-300 text-sky-700 hover:bg-sky-100 font-bold">↔ Giữa</button>
+                            <button onclick="alignElement('right')" title="Căn sát lề phải" class="py-1 px-1.5 border rounded text-xs bg-gray-50 hover:bg-gray-200 text-gray-700 font-bold">➡ Phải</button>
+                            <button onclick="alignElement('full')" title="Kéo dãn đầy chiều ngang" class="py-1 px-1.5 border rounded text-xs bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 font-bold">⇱ Rộng</button>
+                        </div>
+                    </div>
+                    ${elem.type === 'text' ? `
+                    <div>
+                        <label class="block font-semibold mb-1 text-xs">Nội dung text / biến:</label>
+                        <input type="text" class="border p-1.5 rounded w-full text-xs" value="${elem.text || ''}" oninput="updateProp('text', this.value)">
+                    </div>` : ''}
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block font-semibold text-xs">Độ rộng khối (px):</label>
+                            <span class="text-[10px] text-sky-600">Hoặc kéo tay cầm 🟦 trên giấy</span>
+                        </div>
+                        <input id="prop-w" type="number" class="border p-1.5 rounded w-full text-xs" value="${elem.w || 200}" oninput="updateProp('w', parseInt(this.value) || 100)">
+                    </div>
+                    ${elem.fsz !== undefined ? `
+                    <div>
+                        <label class="block font-semibold mb-1">Kích thước chữ (px):</label>
+                        <input type="number" class="border p-1.5 rounded w-full" value="${elem.fsz}" oninput="updateProp('fsz', parseInt(this.value) || 12)">
+                    </div>` : ''}
+                    <div class="grid grid-cols-2 gap-2">
+                        ${elem.bold !== undefined ? `
+                        <button onclick="updateProp('bold', !${elem.bold})" class="p-1.5 border rounded ${elem.bold ? 'bg-slate-800 text-white font-bold' : 'bg-white'}">In Đậm [B]</button>` : ''}
+                        ${elem.italic !== undefined ? `
+                        <button onclick="updateProp('italic', !${elem.italic})" class="p-1.5 border rounded ${elem.italic ? 'bg-slate-800 text-white italic' : 'bg-white'}">In Nghiêng [I]</button>` : ''}
+                    </div>
+                    ${elem.align !== undefined ? `
+                    <div>
+                        <label class="block font-semibold mb-1">Căn lề chữ:</label>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button onclick="updateProp('align', 'left')" class="border p-1 rounded ${elem.align === 'left' ? 'bg-sky-600 text-white' : 'bg-white'}">Trái</button>
+                            <button onclick="updateProp('align', 'center')" class="border p-1 rounded ${elem.align === 'center' ? 'bg-sky-600 text-white' : 'bg-white'}">Giữa</button>
+                            <button onclick="updateProp('align', 'right')" class="border p-1 rounded ${elem.align === 'right' ? 'bg-sky-600 text-white' : 'bg-white'}">Phải</button>
+                        </div>
+                    </div>` : ''}
+                    <div class="pt-3 border-t">
+                        <button onclick="deleteSelectedElement()" class="w-full bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 p-2 rounded font-bold">🗑️ Xóa Khối Này</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateProp(prop, val) {
+            const elem = canvasElements.find(e => e.id === selectedElementId);
+            if (elem) {
+                elem[prop] = val;
+                renderCanvas();
+                renderPropsPanel();
+            }
+        }
+
+        // Mouse Drag & Resize Logic
+        let isDragging = false;
+        let isResizing = false;
+        let dragElem = null;
+        let startX, startY, origX, origY, origW;
+
+        function startDrag(e, id) {
+            if (isResizing) return;
+            selectElement(id);
+            isDragging = true;
+            dragElem = canvasElements.find(el => el.id === id);
+            if (!dragElem) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            origX = dragElem.x;
+            origY = dragElem.y;
+            e.stopPropagation();
+        }
+
+        function startResize(e, id) {
+            e.stopPropagation();
+            e.preventDefault();
+            selectElement(id);
+            isResizing = true;
+            dragElem = canvasElements.find(el => el.id === id);
+            if (!dragElem) return;
+            startX = e.clientX;
+            origW = dragElem.w || 200;
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if (isResizing && dragElem) {
+                const dx = e.clientX - startX;
+                dragElem.w = Math.max(50, Math.round(origW + dx));
+                const propWInput = document.getElementById('prop-w');
+                if (propWInput) propWInput.value = dragElem.w;
+                const el = document.getElementById(dragElem.id);
+                if (el) el.style.width = dragElem.w + 'px';
+                return;
+            }
+            if (isDragging && dragElem) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                dragElem.x = Math.max(0, Math.round(origX + dx));
+                dragElem.y = Math.max(0, Math.round(origY + dy));
+                const el = document.getElementById(dragElem.id);
+                if (el) {
+                    el.style.left = dragElem.x + 'px';
+                    el.style.top = dragElem.y + 'px';
+                }
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging || isResizing) {
+                isDragging = false;
+                isResizing = false;
+                renderCanvas();
+            }
+        });
+
+        function alignElement(mode) {
+            if (!selectedElementId) return;
+            const el = canvasElements.find(e => e.id === selectedElementId);
+            if (!el) return;
+
+            const canvas = document.getElementById('paper-canvas');
+            const canvasW = canvas.offsetWidth;
+            const elemW = el.w || 250;
+
+            if (mode === 'center') {
+                el.x = Math.max(0, Math.round((canvasW - elemW) / 2));
+            } else if (mode === 'left') {
+                el.x = 25;
+            } else if (mode === 'right') {
+                el.x = Math.max(0, canvasW - elemW - 25);
+            } else if (mode === 'full') {
+                el.x = 25;
+                el.w = Math.max(100, canvasW - 50);
+                const propWInput = document.getElementById('prop-w');
+                if (propWInput) propWInput.value = el.w;
+            }
+            renderCanvas();
+        }
+
+
+        function resetDefaultTemplate() {
+            if (paperSize.startsWith('A4') || paperSize.startsWith('A5')) {
+                const isLandscape = paperSize.includes('landscape');
+                const tWidth = isLandscape ? 950 : 680;
+                canvasElements = [
+                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 40, y: 30, w: 400, fsz: 18, bold: true, align: "left" },
+                    { id: "e2", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 40, y: 60, w: 450, fsz: 11, bold: false, align: "left" },
+                    { id: "e3", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 40, y: 80, w: 300, fsz: 11, bold: false, align: "left" },
+                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: isLandscape ? 300 : 180, y: 120, w: 400, fsz: 22, bold: true, align: "center" },
+                    { id: "e5", type: "text", text: "Mã đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 40, y: 165, w: 250, fsz: 12, bold: false, align: "left" },
+                    { id: "e6", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", x: isLandscape ? 700 : 450, y: 165, w: 250, fsz: 12, bold: false, align: "right" },
+                    { id: "e7", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 40, y: 190, w: 400, fsz: 12, bold: false, align: "left" },
+                    { id: "e8", type: "table", label: "Bảng Danh Sách Món", x: 40, y: 225, w: tWidth, fsz: 12 },
+                    { id: "e9", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", x: isLandscape ? 680 : 440, y: 310, w: 280, fsz: 13, bold: false, align: "right" },
+                    { id: "e10", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", x: isLandscape ? 680 : 440, y: 335, w: 280, fsz: 13, bold: false, align: "right" },
+                    { id: "e11", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: isLandscape ? 680 : 440, y: 365, w: 280, fsz: 16, bold: true, align: "right" },
+                    { id: "e12", type: "qr", label: "QR Code Thanh Toán", x: 40, y: 300, w: 140, h: 140 },
+                    { id: "e13", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: isLandscape ? 250 : 150, y: 460, w: 450, fsz: 12, italic: true, align: "center" }
+                ];
+            } else {
+                // K80
+                canvasElements = [
+                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 15, w: 280, fsz: 15, bold: true, align: "center" },
+                    { id: "e2", type: "text", text: "{{dia_chi}}", label: "Địa Chỉ", x: 10, y: 38, w: 280, fsz: 10, bold: false, align: "center" },
+                    { id: "e3", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 10, y: 55, w: 280, fsz: 10, bold: false, align: "center" },
+                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: 10, y: 78, w: 280, fsz: 14, bold: true, align: "center" },
+                    { id: "e5", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã Đơn", x: 10, y: 102, w: 280, fsz: 10, bold: false, align: "center" },
+                    { id: "e6", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 122, w: 280, fsz: 11, bold: false, align: "left" },
+                    { id: "e7", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 145, w: 280, fsz: 10 },
+                    { id: "e8", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 220, w: 280, fsz: 11, bold: false, align: "right" },
+                    { id: "e9", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 240, w: 280, fsz: 13, bold: true, align: "right" },
+                    { id: "e10", type: "qr", label: "QR Code Thanh Toán", x: 80, y: 270, w: 130, h: 130 },
+                    { id: "e11", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 415, w: 280, fsz: 10, italic: true, align: "center" }
+                ];
+            }
+            renderCanvas();
+        }
+
+        async function loadSettings() {
+            const res = await fetch('/api/settings');
+            currentSettings = await res.json();
+            if (currentSettings.print_blocks_config) {
+                try {
+                    const parsed = JSON.parse(currentSettings.print_blocks_config);
+                    if (parsed.templates) {
+                        multiTemplates = parsed;
+                        paperSize = parsed.active_size || "A4-portrait";
+                        canvasElements = multiTemplates.templates[paperSize] || getInitialElementsForSize(paperSize);
+                    } else if (parsed.canvasElements) {
+                        paperSize = parsed.paperSize || "A4-portrait";
+                        canvasElements = parsed.canvasElements;
+                        multiTemplates.templates[paperSize] = canvasElements;
+                    } else {
+                        resetDefaultTemplate(paperSize);
+                    }
+                } catch(e) {
+                    resetDefaultTemplate(paperSize);
+                }
+            } else {
+                resetDefaultTemplate(paperSize);
+            }
+            document.getElementById('canvas-paper-size').value = paperSize;
+            changePaperSize(paperSize);
+        }
+
+        async function saveCanvasTemplate() {
+            // Cap nhat template dang mo vao multiTemplates
+            multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
+            multiTemplates.active_size = paperSize;
+
+            const payload = {
+                print_blocks_config: JSON.stringify(multiTemplates)
+            };
+            const res = await fetch('/api/settings/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                alert(`Đã lưu toàn bộ mẫu in cho tất cả các khổ giấy thành công! (Khổ mặc định: ${paperSize})`);
+            } else {
+                alert('Lỗi khi lưu!');
+            }
+        }
+
+        function printTestTemplate() {
+            const mockOrder = {
+                code: "HD2609139999",
+                created_at: new Date().toLocaleString('vi-VN'),
+                staff_name: "Nguyễn Thu Ngân",
+                customer_name: "Khách Mẫu Demo",
+                customer_phone: "0909999888",
+                total_amount: 350000,
+                discount: 50000,
+                final_amount: 300000,
+                paid_amount: 300000,
+                debt_amount: 0,
+                items: [
+                    { product_name: "Sản phẩm A (Mẫu A4)", quantity: 2, price: 100000 },
+                    { product_name: "Sản phẩm B (Mẫu A4)", quantity: 1, price: 150000 }
+                ]
+            };
+            renderAndPrint(mockOrder);
+        }
+
+        function renderAndPrint(ord) {
+            const printData = {
+                ten_cua_hang: currentSettings.shop_name || "TÊN CỬA HÀNG",
+                dia_chi: currentSettings.shop_address || "Địa chỉ shop",
+                so_dien_thoai: currentSettings.shop_phone || "0900000000",
+                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách!",
+                ma_hoa_don: ord.code,
+                ngay_gio: ord.created_at,
+                thu_ngan: ord.staff_name || 'Thu ngân',
+                ten_khach: ord.customer_name || 'Khách lẻ',
+                sdt_khach: ord.customer_phone || '-',
+                tong_tien: formatMoney(ord.total_amount),
+                giam_gia: formatMoney(ord.discount),
+                phai_tra: formatMoney(ord.final_amount),
+                khach_tra: formatMoney(ord.paid_amount),
+                con_no: formatMoney(ord.debt_amount),
+                raw_phai_tra: ord.final_amount
+            };
+
+            const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
+            let html = `
+            <style>
+                @page { size: ${dim.printSize || 'A4 portrait'}; margin: 5mm; }
+            </style>
+            <div style="position: relative; width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; font-family: monospace; overflow: hidden;">`;
+
+            canvasElements.forEach(e => {
+                let content = '';
+                if (e.type === 'logo') {
+                    if (currentSettings.shop_logo) content = `<img src="${currentSettings.shop_logo}" style="max-height: 100%; max-width: 100%;">`;
+                } else if (e.type === 'qr') {
+                    content = getQRCodeHTML(ord.final_amount, ord.code);
+                } else if (e.type === 'table') {
+                    content = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
+                            <thead style="border-bottom: 1px dashed #000;">
+                                <tr>
+                                    <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                    <th style="text-align: center; width: 40px;">SL</th>
+                                    <th style="text-align: right; width: 80px;">Đơn giá</th>
+                                    <th style="text-align: right; width: 90px;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ord.items.map(it => `
+                                <tr style="border-bottom: 0.5px dotted #ccc;">
+                                    <td style="padding: 4px 0;">${it.product_name}</td>
+                                    <td style="text-align: center;">${it.quantity}</td>
+                                    <td style="text-align: right;">${formatMoney(it.price)}</td>
+                                    <td style="text-align: right;">${formatMoney(it.quantity * it.price)}</td>
+                                </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    let txt = e.text || '';
+                    txt = txt.replace(/{{ten_cua_hang}}/g, printData.ten_cua_hang);
+                    txt = txt.replace(/{{dia_chi}}/g, printData.dia_chi);
+                    txt = txt.replace(/{{so_dien_thoai}}/g, printData.so_dien_thoai);
+                    txt = txt.replace(/{{loi_cam_on}}/g, printData.loi_cam_on);
+                    txt = txt.replace(/{{ma_hoa_don}}/g, printData.ma_hoa_don);
+                    txt = txt.replace(/{{ngay_gio}}/g, printData.ngay_gio);
+                    txt = txt.replace(/{{thu_ngan}}/g, printData.thu_ngan);
+                    txt = txt.replace(/{{ten_khach}}/g, printData.ten_khach);
+                    txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
+                    txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
+                    txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
+                    txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
+                    txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
+                    txt = txt.replace(/{{con_no}}/g, printData.con_no);
+                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
+                }
+                html += `<div style="position: absolute; left: ${e.x}px; top: ${e.y}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
+            });
+            html += `</div>`;
+
+            document.getElementById('print-area').innerHTML = html;
+            document.getElementById('print-modal').classList.remove('hidden');
+        }
+
+        async function showPrintModal(orderCode) {
+            if (!currentSettings.shop_name) {
+                const resSet = await fetch('/api/settings');
+                currentSettings = await resSet.json();
+                if (currentSettings.print_blocks_config) {
+                    try {
+                        const parsed = JSON.parse(currentSettings.print_blocks_config);
+                        if (parsed.templates) {
+                            multiTemplates = parsed;
+                            paperSize = parsed.active_size || "A4-portrait";
+                            canvasElements = multiTemplates.templates[paperSize] || getInitialElementsForSize(paperSize);
+                        }
+                    } catch(e) {}
+                }
+            }
+            const res = await fetch(`/api/orders/${orderCode}`);
+            const ord = await res.json();
+            renderAndPrint(ord);
+        }
+
+
+
+
+        function closePrintModal() {
+            document.getElementById('print-modal').classList.add('hidden');
+        }
+
+
+        window.onload = init;
+    </script>
+</body>
+</html>
