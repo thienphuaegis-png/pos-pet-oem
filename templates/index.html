@@ -534,9 +534,9 @@
 
             <!-- MODAL IN HOA DON -->
             <div id="print-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 flex flex-col items-center">
+                <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 flex flex-col items-center">
                     <h3 class="font-bold text-lg mb-4">Hóa Đơn Thanh Toán</h3>
-                    <div id="print-area" class="border border-dashed p-4 rounded bg-gray-50 max-h-[450px] overflow-y-auto w-full mb-4"></div>
+                    <div id="print-area" class="border border-dashed p-4 rounded bg-gray-50 max-h-[550px] overflow-y-auto w-full mb-4"></div>
                     <div class="flex gap-4 w-full">
                         <button onclick="window.print()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded shadow">🖨️ In Hóa Đơn</button>
                         <button onclick="closePrintModal()" class="px-4 py-2 border rounded hover:bg-gray-100">Đóng</button>
@@ -1748,23 +1748,41 @@
 
             const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
 
-            // Tinh toan do cao thuc te cua bang hang hoa de tu dong day cac khoi ben duoi xuong
+            // Lay kich thuoc canvas thuc te (px) de lam ty le chuan
+            const canvasEl = document.getElementById('paper-canvas');
+            const canvasW = canvasEl ? canvasEl.offsetWidth : 794;
+            const canvasH = canvasEl ? canvasEl.offsetHeight : 1123;
+
+            // Tinh deltaY: bang hang hoa co nhieu dong hon thiet ke
             const tableElem = canvasElements.find(e => e.type === 'table');
             let deltaY = 0;
             if (tableElem && ord.items) {
-                // Moi dong san pham cao trung binh ~28px, phan thead va padding ~35px
                 const actualTableHeight = Math.max(70, 35 + ord.items.length * 28);
-                const designTableHeight = 70; // chieu cao mau ban dau (1-2 dong) tren canvas
+                const designTableHeight = 70;
                 if (actualTableHeight > designTableHeight) {
                     deltaY = actualTableHeight - designTableHeight;
                 }
             }
 
+            // Dung px giong canvas, in ra scale fit trang giay
             let html = `
             <style>
-                @page { size: ${dim.printSize || 'A4 portrait'}; margin: 5mm; }
+                @page { size: ${dim.printSize || 'A4 portrait'}; margin: 0; }
+                @media print {
+                    body { margin: 0; padding: 0; }
+                    .print-container { 
+                        width: ${dim.width} !important; 
+                        min-height: ${dim.height} !important; 
+                        margin: 0 !important;
+                        overflow: hidden;
+                    }
+                    .print-inner {
+                        transform-origin: top left;
+                    }
+                }
             </style>
-            <div style="position: relative; width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; font-family: monospace; padding-bottom: 20px;">`;
+            <div class="print-container" style="width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; overflow: hidden; position: relative;">
+                <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${canvasH + deltaY}px; font-family: monospace;">`;
 
             canvasElements.forEach(e => {
                 let content = '';
@@ -1814,18 +1832,37 @@
                     content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
                 }
 
-                // In thực tế: tính deltaY cho footer elements nếu bảng dài hơn thiết kế
+                // deltaY cho footer elements
                 let printY = e.y || 0;
-                const isAfterTable = e.zone === 'footer' || ((e.zone || 'header') === 'footer');
-                if (isAfterTable && deltaY > 0) {
+                const isFooter = (e.zone || 'header') === 'footer';
+                if (isFooter && deltaY > 0) {
                     printY += deltaY;
                 }
 
                 html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
             });
-            html += `</div>`;
 
-            document.getElementById('print-area').innerHTML = html;
+            html += `</div></div>`;
+
+            // Sau khi render, do va scale fit container
+            const printArea = document.getElementById('print-area');
+            printArea.innerHTML = html;
+
+            // Scale print-inner to fit print-container
+            requestAnimationFrame(() => {
+                const container = printArea.querySelector('.print-container');
+                const inner = printArea.querySelector('.print-inner');
+                if (container && inner) {
+                    const containerW = container.offsetWidth;
+                    const innerW = inner.scrollWidth || canvasW;
+                    if (innerW > containerW) {
+                        const scale = containerW / innerW;
+                        inner.style.transform = `scale(${scale})`;
+                        inner.style.transformOrigin = 'top left';
+                    }
+                }
+            });
+
             document.getElementById('print-modal').classList.remove('hidden');
         }
 
