@@ -178,6 +178,23 @@ def update_template_settings(req: TemplateSettingsUpdate):
 
 
 
+@app.get("/api/orders")
+def list_orders(limit: int = 50):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT o.*, c.name as customer_name, s.name as staff_name,
+           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+    FROM orders o
+    LEFT JOIN contacts c ON o.customer_id = c.id
+    LEFT JOIN staff s ON o.staff_id = s.id
+    ORDER BY o.id DESC
+    LIMIT ?
+    ''', (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
 @app.get("/api/orders/{code}")
 def get_order_detail(code: str):
     conn = get_db()

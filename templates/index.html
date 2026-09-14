@@ -483,7 +483,10 @@
                         <p class="text-xs text-gray-500">Quản lý thành phần cấu thành (IS_PHYSICAL / SERVICE), lịch sử giá nhập và tự động tính giá vốn sản phẩm</p>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow">
+                        <button onclick="openModalAdjustStockQuick()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📥 Nhập Tồn Kho
+                        </button>
+                        <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
                             + Thêm Nguyên Liệu / Dịch Vụ
                         </button>
                     </div>
@@ -708,6 +711,128 @@
 
                     <div class="flex justify-end pt-2 border-t">
                         <button onclick="closeModalIngredientDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: NHẬP TỒN KHO NGUYÊN LIỆU (CHỨC NĂNG RIÊNG) -->
+            <div id="modal-adjust-stock" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[460px] max-w-full space-y-3 text-xs shadow-2xl">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                            <span>📥 Nhập Tồn Kho Nguyên Liệu</span>
+                        </h3>
+                        <button onclick="closeModalAdjustStock()" class="text-gray-400 hover:text-gray-600 text-base font-bold">✕</button>
+                    </div>
+                    
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Chọn Nguyên Liệu Nhập:</label>
+                        <select id="modal-adjust-ing-select" class="border p-2 rounded w-full font-medium" onchange="onAdjustIngChange(this.value)"></select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Kho Nhập Hàng:</label>
+                            <select id="modal-adjust-warehouse-select" class="border p-2 rounded w-full font-medium"></select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Nhà Cung Cấp (nếu có):</label>
+                            <select id="modal-adjust-supplier-select" class="border p-2 rounded w-full font-medium">
+                                <option value="">-- Chọn Nhà Cung Cấp --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Số Lượng Nhập Thêm:</label>
+                            <div class="flex items-center">
+                                <input id="modal-adjust-quantity" type="number" step="any" class="border p-2 rounded-l w-full font-bold text-sky-700" placeholder="0">
+                                <span id="modal-adjust-unit-badge" class="bg-gray-100 border-t border-b border-r px-2 py-2 text-gray-500 rounded-r text-[11px]">kg</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Đơn Giá Nhập (đ):</label>
+                            <input id="modal-adjust-price" type="number" step="any" class="border p-2 rounded w-full font-bold text-rose-600" placeholder="Đơn giá nhập mới...">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Ghi Chú Biến Động:</label>
+                        <input id="modal-adjust-note" type="text" class="border p-2 rounded w-full" placeholder="Nhập thêm hàng đợt mới / điều chỉnh...">
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button onclick="closeModalAdjustStock()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="submitAdjustStockModal()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Xác Nhận Nhập Kho</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG -->
+            <div id="modal-order-view" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[650px] max-w-full space-y-4 text-xs shadow-2xl max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-slate-800">Chi Tiết Hóa Đơn</h3>
+                                <span id="view-order-code" class="font-mono font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded text-xs">HD...</span>
+                            </div>
+                            <p class="text-gray-400 text-[11px] mt-0.5" id="view-order-date">2026-09-14 16:00:00</p>
+                        </div>
+                        <button onclick="closeModalOrderView()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded border">
+                        <div>
+                            <span class="text-gray-500">Khách Hàng:</span>
+                            <span id="view-order-cust" class="font-bold text-slate-800 ml-1">Khách lẻ</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Thu Ngân / Bán Hàng:</span>
+                            <span id="view-order-staff" class="font-bold text-slate-800 ml-1">Thu ngân 1</span>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto border rounded">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="bg-gray-100 sticky top-0 border-b">
+                                <tr>
+                                    <th class="p-2">STT</th>
+                                    <th class="p-2">Tên Hàng Hóa</th>
+                                    <th class="p-2 text-right">SL</th>
+                                    <th class="p-2 text-right">Đơn Giá</th>
+                                    <th class="p-2 text-right">Thành Tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody id="view-order-items"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded border space-y-1.5">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Tổng tiền hàng:</span>
+                            <span id="view-order-total" class="font-bold">0 đ</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Giảm giá:</span>
+                            <span id="view-order-discount" class="text-rose-600">0 đ</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold border-t pt-1.5">
+                            <span class="text-slate-800">Khách phải trả:</span>
+                            <span id="view-order-final" class="text-sky-600">0 đ</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Khách đã trả:</span>
+                            <span id="view-order-paid" class="font-bold text-emerald-600">0 đ</span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2 border-t">
+                        <button onclick="printCurrentViewedOrder()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1">
+                            🖨️ In Lại Hóa Đơn Này
+                        </button>
+                        <button onclick="closeModalOrderView()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -1374,7 +1499,7 @@
                         <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
                         <td class="p-2 text-center space-x-1">
                             <button onclick="viewIngredientDetail(${ing.id})" class="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded hover:bg-sky-100 font-medium" title="Xem chi tiết biến động & lịch sử giá">🔍 Chi tiết</button>
-                            <button onclick="promptAdjustStock(${ing.id}, '${ing.name}', '${ing.type}')" class="text-xs text-emerald-600 hover:underline font-medium ${ing.type === 'SERVICE' ? 'hidden' : ''}">Nhập tồn</button>
+                            <button onclick="openModalAdjustStockQuick(${ing.id})" class="text-xs text-emerald-600 hover:underline font-medium ${ing.type === 'SERVICE' ? 'hidden' : ''}">📥 Nhập tồn</button>
                         </td>
                     </tr>
                 `).join('');
@@ -1658,7 +1783,7 @@
                             : `<span class="text-rose-600 font-bold">${l.quantity}</span>`;
 
                         const refDisplay = l.order_code 
-                            ? `<span class="font-mono font-bold text-sky-700 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">🧾 ${l.order_code}</span>` 
+                            ? `<button onclick="viewOrderDetailModal('${l.order_code}')" class="font-mono font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded border border-sky-300 text-[11px] underline flex items-center gap-1 inline-flex" title="Bấm để xem hóa đơn này">🧾 ${l.order_code}</button>` 
                             : (l.supplier_name ? `<span class="font-medium text-slate-700">🏢 ${l.supplier_name}</span>` : '-');
 
                         return `
@@ -1684,6 +1809,166 @@
 
         function closeModalIngredientDetail() {
             document.getElementById('modal-ingredient-detail').classList.add('hidden');
+        }
+
+        // --- CHỨC NĂNG NHẬP TỒN KHO RIÊNG (MODAL NHẬP TỒN) ---
+        let allWarehousesList = [];
+
+        async function openModalAdjustStockQuick(defaultIngId = null) {
+            try {
+                // Tải danh sách kho nếu chưa có
+                const [whRes, suppRes] = await Promise.all([
+                    fetch('/api/warehouses'),
+                    fetch('/api/contacts?type=supplier')
+                ]);
+                allWarehousesList = await whRes.json();
+                const suppliers = await suppRes.json();
+
+                // Đổ dữ liệu kho
+                const whSel = document.getElementById('modal-adjust-warehouse-select');
+                whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+
+                // Đổ dữ liệu NCC
+                const suppSel = document.getElementById('modal-adjust-supplier-select');
+                suppSel.innerHTML = '<option value="">-- Không chọn / NCC lẻ --</option>' + 
+                    suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
+
+                // Đổ dữ liệu nguyên liệu chỉ lấy loại vật lý IS_PHYSICAL
+                const ingSel = document.getElementById('modal-adjust-ing-select');
+                const physicalIngs = costIngredients.filter(i => i.type !== 'SERVICE');
+                
+                if (physicalIngs.length === 0) {
+                    return alert('Chưa có nguyên liệu vật lý nào để nhập kho!');
+                }
+
+                ingSel.innerHTML = physicalIngs.map(i => `<option value="${i.id}">${i.code ? '['+i.code+'] ' : ''}${i.name} (hiện có: ${i.total_stock} ${i.unit})</option>`).join('');
+                
+                if (defaultIngId) {
+                    ingSel.value = defaultIngId;
+                }
+                
+                onAdjustIngChange(ingSel.value);
+                document.getElementById('modal-adjust-quantity').value = '';
+                document.getElementById('modal-adjust-price').value = '';
+                document.getElementById('modal-adjust-note').value = '';
+
+                document.getElementById('modal-adjust-stock').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi tải dữ liệu nhập kho');
+            }
+        }
+
+        function onAdjustIngChange(ingId) {
+            const ing = costIngredients.find(i => i.id == ingId);
+            if (ing) {
+                document.getElementById('modal-adjust-unit-badge').textContent = ing.unit || 'đv';
+                if (ing.latest_cost && ing.latest_cost > 0) {
+                    document.getElementById('modal-adjust-price').placeholder = `Giá nhập gần nhất: ${formatMoney(ing.latest_cost)}`;
+                } else {
+                    document.getElementById('modal-adjust-price').placeholder = 'Đơn giá nhập mới (đ)...';
+                }
+            }
+        }
+
+        function closeModalAdjustStock() {
+            document.getElementById('modal-adjust-stock').classList.add('hidden');
+        }
+
+        async function submitAdjustStockModal() {
+            const ingId = parseInt(document.getElementById('modal-adjust-ing-select').value);
+            const whId = parseInt(document.getElementById('modal-adjust-warehouse-select').value) || 1;
+            const suppIdVal = document.getElementById('modal-adjust-supplier-select').value;
+            const suppId = suppIdVal ? parseInt(suppIdVal) : null;
+            const qty = parseFloat(document.getElementById('modal-adjust-quantity').value);
+            const priceVal = document.getElementById('modal-adjust-price').value;
+            const price = priceVal ? parseFloat(priceVal) : null;
+            const note = document.getElementById('modal-adjust-note').value.trim();
+
+            if (isNaN(qty) || qty <= 0) {
+                return alert('Vui lòng nhập số lượng nhập hợp lệ (lớn hơn 0)!');
+            }
+
+            try {
+                const res = await fetch('/api/inventory/adjust', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        warehouse_id: whId,
+                        ingredient_id: ingId,
+                        quantity: qty,
+                        mode: 'add',
+                        purchase_price: price,
+                        supplier_id: suppId,
+                        note: note || 'Nhập kho nguyên liệu'
+                    })
+                });
+
+                if (res.ok) {
+                    closeModalAdjustStock();
+                    await loadCostIngredients();
+                    const prodId = document.getElementById('cost-product-select').value;
+                    if (prodId) await loadProductBOMDetails(prodId);
+                    alert('Nhập kho nguyên liệu thành công!');
+                } else {
+                    const err = await res.json();
+                    alert('Lỗi: ' + (err.detail || 'Không thể nhập tồn'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
+            }
+        }
+
+        // --- XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG TỪ LOGS ---
+        let currentViewedOrderCode = null;
+
+        async function viewOrderDetailModal(orderCode) {
+            try {
+                const res = await fetch(`/api/orders/${orderCode}`);
+                if (!res.ok) return alert(`Không tìm thấy hóa đơn [${orderCode}]!`);
+                const ord = await res.json();
+                currentViewedOrderCode = orderCode;
+
+                document.getElementById('view-order-code').textContent = ord.code;
+                document.getElementById('view-order-date').textContent = ord.created_at || '';
+                document.getElementById('view-order-cust').textContent = (ord.customer_name || 'Khách lẻ') + (ord.customer_phone ? ' (' + ord.customer_phone + ')' : '');
+                document.getElementById('view-order-staff').textContent = ord.staff_name || 'Thu ngân';
+
+                const tbody = document.getElementById('view-order-items');
+                tbody.innerHTML = (ord.items || []).map((item, idx) => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 text-center text-gray-500">${idx + 1}</td>
+                        <td class="p-2 font-medium text-slate-800">${item.product_name}</td>
+                        <td class="p-2 text-right font-mono font-bold">${item.quantity} ${item.unit || ''}</td>
+                        <td class="p-2 text-right font-mono">${formatMoney(item.price)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-slate-800">${formatMoney(item.subtotal)}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('view-order-total').textContent = formatMoney(ord.total_amount);
+                document.getElementById('view-order-discount').textContent = formatMoney(ord.discount || 0);
+                document.getElementById('view-order-final').textContent = formatMoney(ord.final_amount);
+                document.getElementById('view-order-paid').textContent = formatMoney(ord.paid_amount);
+
+                document.getElementById('modal-order-view').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi tải chi tiết đơn hàng!');
+            }
+        }
+
+        function closeModalOrderView() {
+            document.getElementById('modal-order-view').classList.add('hidden');
+            currentViewedOrderCode = null;
+        }
+
+        function printCurrentViewedOrder() {
+            if (currentViewedOrderCode) {
+                closeModalOrderView();
+                closeModalIngredientDetail();
+                showPrintModal(currentViewedOrderCode);
+            }
         }
 
         // --- CANVAS DRAG & DROP ENGINE ---
