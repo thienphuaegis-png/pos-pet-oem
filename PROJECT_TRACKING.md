@@ -82,13 +82,14 @@ pos-offline/
 | `f4ba7b0` | Fix | Dọn hàm trùng `addCanvasItem`, Logo mặc định lên đầu Header, gán Zone metadata chuẩn |
 | `46408ef` | Feature | Snap-to-grid 10px + snap đường gióng đỏ + kéo thả tự do layout 2-3 cột |
 | `cbca735` | Fix | Đồng bộ tỷ lệ in thực tế theo pixel canvas, khắc phục lệch vị trí khi in |
+| `fe2b8a1` | Feature | Mẫu in A4 B2B đại lý (bảng 9 cột, 3 ô chân trang, 3 chữ ký) + Quản lý Presets mẫu in độc lập + Bật/Tắt theo 3 phân vùng chuẩn xác |
 
 ---
 
 ## 5. HẠNG MỤC CẦN LÀM TIẾP THEO (BACKLOG)
-- [ ] **Mẫu in A4 bán sỉ/đại lý chuẩn nghiệp vụ**:
+- [x] **Mẫu in A4 bán sỉ/đại lý chuẩn nghiệp vụ**:
   - Bảng 9 cột: TT, SKU, Tên hàng, ĐVT, Đơn giá, Chiết khấu, Số lượng, Thành tiền, Ghi chú.
   - 3 ô chân trang: Thông tin chuyển khoản VietQR, Ghi chú & Điều khoản, Tổng kết công nợ.
   - 3 cột chữ ký: Kế toán, Thủ kho, Người nhận hàng.
-- [ ] **Quản lý danh sách mẫu in (Templates Presets)**: Cho phép lưu thành nhiều mẫu riêng biệt thay vì ghi đè.
+- [x] **Quản lý danh sách mẫu in (Templates Presets)**: Cho phép lưu thành nhiều mẫu riêng biệt thay vì ghi đè, tạo mẫu mới, chuyển đổi linh hoạt.
 - [ ] **Đóng gói file EXE hoàn chỉnh**: Chạy `build_exe.bat` và test trên máy Windows độc lập không cài Python.

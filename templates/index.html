@@ -440,12 +440,19 @@
             <!-- TAB: CAI DAT MAU IN (CANVAS DRAG & DROP CHO A4, A5, K80) -->
             <div id="tab-settings" class="hidden space-y-4">
                 <!-- Thanh dieu khien tren cung -->
-                <div class="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border">
-                    <div class="flex items-center gap-4">
-                        <h2 class="text-lg font-bold text-slate-800">Trình Thiết Kế Mẫu In Kéo Thả</h2>
-                        <div class="flex items-center gap-2 text-xs">
-                            <span class="font-semibold text-gray-600">Khổ Giấy:</span>
-                            <select id="canvas-paper-size" class="border p-1.5 rounded bg-white font-bold text-sky-700" onchange="changePaperSize(this.value)">
+                <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-3">
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                        <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 mr-2">
+                            <span>🎨 Thiết Kế Mẫu In</span>
+                        </h2>
+                        <div class="flex items-center gap-1.5 bg-purple-50 px-2.5 py-1 rounded border border-purple-200">
+                            <span class="font-bold text-purple-900">Mẫu In:</span>
+                            <select id="canvas-preset-select" class="border border-purple-300 p-1 rounded bg-white font-bold text-purple-700 text-xs" onchange="switchPreset(this.value)">
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded border border-sky-200">
+                            <span class="font-bold text-sky-900">Khổ Giấy:</span>
+                            <select id="canvas-paper-size" class="border border-sky-300 p-1 rounded bg-white font-bold text-sky-700 text-xs" onchange="changePaperSize(this.value)">
                                 <option value="A4-portrait">📄 A4 Dọc (210 x 297 mm)</option>
                                 <option value="A4-landscape">📄 A4 Ngang (297 x 210 mm)</option>
                                 <option value="A5-portrait">📑 A5 Dọc (148 x 210 mm)</option>
@@ -455,60 +462,142 @@
                             </select>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5">
                         <button onclick="printTestTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded shadow text-xs flex items-center gap-1">🖨️ In Thử Mẫu Này</button>
-                        <button onclick="resetDefaultTemplate(paperSize)" class="px-3 py-1.5 border text-xs text-gray-600 hover:bg-gray-100 rounded">Mẫu Mặc Định Khổ Này</button>
-                        <button onclick="saveCanvasTemplate()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-1.5 rounded shadow text-sm flex items-center gap-1.5">💾 Lưu Tất Cả Mẫu In</button>
+                        <button onclick="saveCurrentPreset()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1.5 rounded shadow text-xs flex items-center gap-1">💾 Lưu Mẫu Này</button>
+                        <button onclick="saveNewPreset()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded shadow text-xs flex items-center gap-1">➕ Lưu Thành Mẫu Mới</button>
+                        <button onclick="deleteCurrentPreset()" title="Xóa mẫu in đang chọn" class="px-2 py-1.5 border border-red-200 text-xs text-red-600 hover:bg-red-50 rounded font-bold">🗑️ Xóa</button>
+                        <button onclick="resetDefaultTemplate(paperSize)" class="px-2 py-1.5 border text-xs text-gray-600 hover:bg-gray-100 rounded">↺ Mặc Định</button>
                     </div>
-
                 </div>
 
                 <div class="grid grid-cols-12 gap-4">
-                    <!-- Danh sach khoi de keo tha (Trai - 3 cols) -->
+                    <!-- Danh sach khoi de bat/tat va keo tha (Trai - 3 cols) -->
                     <div class="col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 max-h-[780px] overflow-y-auto text-xs">
-                        <div>
-                            <span class="font-bold text-slate-700 uppercase block mb-1">Thao tác:</span>
-                            <p class="text-[11px] text-gray-500 mb-2">Bấm vào khối dưới đây để chèn vào giấy, sau đó dùng chuột <strong>kéo di chuyển</strong> tới bất kỳ đâu.</p>
+                        <div class="border-b pb-2">
+                            <span class="font-bold text-slate-800 uppercase block mb-1">Thành Phần Mẫu In:</span>
+                            <p class="text-[11px] text-gray-500">Tích chọn để Bật/Tắt. Thành phần mới tự động ghim đúng phân vùng, không trôi nổi giữa trang.</p>
                         </div>
 
+                        <!-- Vùng 1: Header -->
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between">
                                 <span class="font-bold text-sky-700 uppercase">1. Vùng Đầu Trang:</span>
-                                <span class="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded">Header</span>
+                                <span class="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-bold">Header</span>
                             </div>
-                            <button type="button" onclick="addCanvasItem('logo')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🖼️ Logo cửa hàng (Lên đầu)</button>
-                            <button type="button" onclick="addCanvasItem('shop_name')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏢 Tên cửa hàng</button>
-                            <button type="button" onclick="addCanvasItem('shop_address')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📍 Địa chỉ cửa hàng</button>
-                            <button type="button" onclick="addCanvasItem('shop_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📞 Số điện thoại</button>
-                            <button type="button" onclick="addCanvasItem('title')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📑 Tiêu đề (HÓA ĐƠN)</button>
-                            <button type="button" onclick="addCanvasItem('order_code')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🔖 Mã hóa đơn</button>
-                            <button type="button" onclick="addCanvasItem('datetime')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🕒 Ngày giờ lập phiếu</button>
-                            <button type="button" onclick="addCanvasItem('staff')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">👤 Thu ngân / Nhân viên</button>
-                            <button type="button" onclick="addCanvasItem('customer')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🧑 Tên khách hàng</button>
-                            <button type="button" onclick="addCanvasItem('customer_phone')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">📱 Số điện thoại khách</button>
+                            <div class="space-y-1 pl-1">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-logo" onchange="toggleCanvasItem('logo', this.checked)" class="rounded text-sky-600">
+                                    <span>🖼️ Logo cửa hàng</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-shop_name" onchange="toggleCanvasItem('shop_name', this.checked)" class="rounded text-sky-600">
+                                    <span>🏢 Tên cửa hàng</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-shop_address" onchange="toggleCanvasItem('shop_address', this.checked)" class="rounded text-sky-600">
+                                    <span>📍 Địa chỉ cửa hàng</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-shop_phone" onchange="toggleCanvasItem('shop_phone', this.checked)" class="rounded text-sky-600">
+                                    <span>📞 Số điện thoại hotline</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-title" onchange="toggleCanvasItem('title', this.checked)" class="rounded text-sky-600">
+                                    <span>📑 Tiêu đề phiếu / hóa đơn</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-order_code" onchange="toggleCanvasItem('order_code', this.checked)" class="rounded text-sky-600">
+                                    <span>🔖 Mã hóa đơn</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-datetime" onchange="toggleCanvasItem('datetime', this.checked)" class="rounded text-sky-600">
+                                    <span>🕒 Ngày giờ lập phiếu</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-staff" onchange="toggleCanvasItem('staff', this.checked)" class="rounded text-sky-600">
+                                    <span>👤 Nhân viên bán hàng / Thu ngân</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-customer" onchange="toggleCanvasItem('customer', this.checked)" class="rounded text-sky-600">
+                                    <span>🧑 Tên khách hàng / Đại lý</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-customer_phone" onchange="toggleCanvasItem('customer_phone', this.checked)" class="rounded text-sky-600">
+                                    <span>📱 Số điện thoại khách</span>
+                                </label>
+                            </div>
                         </div>
 
+                        <!-- Vùng 2: Body -->
                         <div class="space-y-1.5 pt-2 border-t">
                             <div class="flex items-center justify-between">
-                                <span class="font-bold text-blue-700 uppercase">2. Vùng Bảng Hàng:</span>
-                                <span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Body</span>
+                                <span class="font-bold text-indigo-700 uppercase">2. Vùng Bảng Hàng Hóa:</span>
+                                <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">Body</span>
                             </div>
-                            <button type="button" onclick="addCanvasItem('table')" class="w-full text-left p-1.5 border-2 border-dashed border-sky-400 rounded bg-sky-50 font-bold text-sky-800">📦 Bảng Danh Sách Hàng Hóa</button>
+                            <div class="space-y-1 pl-1">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 p-1 rounded bg-indigo-50/60 border border-indigo-200">
+                                    <input type="radio" name="table_mode" id="chk-table_b2b" onchange="toggleTableMode('table_b2b')" class="text-indigo-600">
+                                    <span class="font-bold text-indigo-900">📊 Bảng 9 Cột B2B/Đại Lý (Chuẩn A4)</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 p-1 rounded">
+                                    <input type="radio" name="table_mode" id="chk-table" onchange="toggleTableMode('table')" class="text-indigo-600">
+                                    <span>🧾 Bảng 4 Cột Tiêu Chuẩn (Bán lẻ/K80)</span>
+                                </label>
+                            </div>
                         </div>
 
+                        <!-- Vùng 3: Footer -->
                         <div class="space-y-1.5 pt-2 border-t">
                             <div class="flex items-center justify-between">
-                                <span class="font-bold text-emerald-700 uppercase">3. Vùng Cuối Trang:</span>
-                                <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Footer</span>
+                                <span class="font-bold text-emerald-700 uppercase">3. Vùng Chân Trang:</span>
+                                <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">Footer</span>
                             </div>
-                            <button type="button" onclick="addCanvasItem('total')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💵 Tổng tiền hàng</button>
-                            <button type="button" onclick="addCanvasItem('discount')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">🏷️ Chiết khấu / Giảm giá</button>
-                            <button type="button" onclick="addCanvasItem('final')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-bold text-sky-700">💰 Khách phải trả</button>
-                            <button type="button" onclick="addCanvasItem('paid')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💸 Tiền khách đưa</button>
-                            <button type="button" onclick="addCanvasItem('debt')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💳 Tiền thừa / Nợ lại</button>
-                            <button type="button" onclick="addCanvasItem('qr')" class="w-full text-left p-1.5 border rounded bg-emerald-50 text-emerald-800 font-bold">📲 Mã QR Thanh Toán</button>
-                            <button type="button" onclick="addCanvasItem('footer_msg')" class="w-full text-left p-1.5 border rounded hover:bg-sky-50 font-medium">💬 Lời cảm ơn chân trang</button>
-                            <button type="button" onclick="addCanvasItem('custom_text')" class="w-full text-left p-1.5 border rounded hover:bg-purple-50 text-purple-700 font-medium">✍️ Thêm ô chữ tùy ý...</button>
+                            <div class="space-y-1 pl-1">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1.5 rounded bg-emerald-50/70 border border-emerald-200">
+                                    <input type="checkbox" id="chk-b2b_footer_boxes" onchange="toggleCanvasItem('b2b_footer_boxes', this.checked)" class="rounded text-emerald-600">
+                                    <span class="font-bold text-emerald-800">🏦 3 Ô Chân Trang (Bank - QR - Tổng kết)</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1.5 rounded bg-emerald-50/70 border border-emerald-200">
+                                    <input type="checkbox" id="chk-signatures_3col" onchange="toggleCanvasItem('signatures_3col', this.checked)" class="rounded text-emerald-600">
+                                    <span class="font-bold text-emerald-800">✍️ 3 Cột Chữ Ký (Kế toán - Kho - Nhận)</span>
+                                </label>
+                                <div class="text-[10px] text-gray-400 font-bold uppercase mt-2 pt-1 border-t">Khối Tiền Lẻ & QR Đơn Lập:</div>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-total" onchange="toggleCanvasItem('total', this.checked)" class="rounded text-emerald-600">
+                                    <span>💵 Tổng tiền hàng</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-discount" onchange="toggleCanvasItem('discount', this.checked)" class="rounded text-emerald-600">
+                                    <span>🏷️ Chiết khấu / Giảm giá</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-final" onchange="toggleCanvasItem('final', this.checked)" class="rounded text-emerald-600">
+                                    <span>💰 Khách phải trả</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-paid" onchange="toggleCanvasItem('paid', this.checked)" class="rounded text-emerald-600">
+                                    <span>💸 Tiền khách đưa</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-debt" onchange="toggleCanvasItem('debt', this.checked)" class="rounded text-emerald-600">
+                                    <span>💳 Tiền thừa / Nợ lại</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-qr" onchange="toggleCanvasItem('qr', this.checked)" class="rounded text-emerald-600">
+                                    <span>📲 Mã VietQR Thanh Toán</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                    <input type="checkbox" id="chk-footer_msg" onchange="toggleCanvasItem('footer_msg', this.checked)" class="rounded text-emerald-600">
+                                    <span>💬 Lời cảm ơn chân trang</span>
+                                </label>
+                                <div class="pt-1.5">
+                                    <button type="button" onclick="addCustomTextItem()" class="w-full text-left p-1.5 border border-purple-200 rounded hover:bg-purple-50 text-purple-700 font-medium flex items-center justify-between">
+                                        <span>✍️ + Thêm Ô Chữ Tùy Ý</span>
+                                        <span class="text-[10px] bg-purple-100 px-1 py-0.5 rounded">+ Thêm</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -965,93 +1054,397 @@
         };
 
         const defaultElementCatalog = {
-            logo: { zone: "header", type: "logo", label: "Logo Cửa Hàng", w: 180, h: 60, align: "center" },
-            shop_name: { zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 18, bold: true, align: "center", w: 300 },
-            shop_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 12, bold: false, align: "center", w: 350 },
-            shop_phone: { zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 12, bold: false, align: "center", w: 250 },
-            title: { zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 20, bold: true, align: "center", w: 300 },
-            order_code: { zone: "header", type: "text", text: "Mã ĐH: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 12, bold: false, align: "left", w: 200 },
-            datetime: { zone: "header", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", fsz: 12, bold: false, align: "left", w: 220 },
-            staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 12, bold: false, align: "left", w: 200 },
-            customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 12, bold: false, align: "left", w: 250 },
-            customer_phone: { zone: "header", type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 12, bold: false, align: "left", w: 200 },
-            table: { zone: "body", type: "table", label: "Bảng Danh Sách Món", w: 650, fsz: 12, border: "dashed" },
-            total: { zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 13, bold: false, align: "right", w: 280 },
-            discount: { zone: "footer", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 13, bold: false, align: "right", w: 280 },
-            final: { zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 16, bold: true, align: "right", w: 320 },
-            paid: { zone: "footer", type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 13, bold: false, align: "right", w: 280 },
-            debt: { zone: "footer", type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 13, bold: false, align: "right", w: 280 },
+            logo: { zone: "header", type: "logo", label: "Logo Cửa Hàng", w: 120, h: 55, align: "center" },
+            shop_name: { zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 16, bold: true, align: "left", w: 580 },
+            shop_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 10, bold: false, align: "left", w: 580 },
+            shop_phone: { zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 10, bold: false, align: "left", w: 250 },
+            title: { zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 18, bold: true, align: "center", w: 734 },
+            order_code: { zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 10, bold: false, align: "left", w: 250 },
+            datetime: { zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", fsz: 10, bold: false, align: "right", w: 250 },
+            staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 10, bold: false, align: "right", w: 250 },
+            customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 10, bold: false, align: "left", w: 450 },
+            customer_phone: { zone: "header", type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 10, bold: false, align: "left", w: 200 },
+            table: { zone: "body", type: "table", label: "Bảng Danh Sách Món (4 Cột)", w: 734, fsz: 11, border: "dashed" },
+            table_b2b: { zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", w: 734, fsz: 10 },
+            b2b_footer_boxes: { zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", w: 734, h: 140 },
+            signatures_3col: { zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", w: 734, h: 90 },
+            total: { zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 12, bold: false, align: "right", w: 280 },
+            discount: { zone: "footer", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 12, bold: false, align: "right", w: 280 },
+            final: { zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 15, bold: true, align: "right", w: 320 },
+            paid: { zone: "footer", type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 12, bold: false, align: "right", w: 280 },
+            debt: { zone: "footer", type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 12, bold: false, align: "right", w: 280 },
             qr: { zone: "footer", type: "qr", label: "QR Code Thanh Toán", w: 140, h: 140 },
-            footer_msg: { zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", fsz: 12, italic: true, align: "center", w: 400 },
-            custom_text: { zone: "footer", type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 13, bold: false, align: "left", w: 200 }
+            footer_msg: { zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", fsz: 11, italic: true, align: "center", w: 734 },
+            custom_text: { zone: "footer", type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 11, bold: false, align: "left", w: 250 }
         };
 
-        function addCanvasItem(catalogKey) {
-            const proto = defaultElementCatalog[catalogKey];
+        function getB2BA4Template() {
+            return [
+                { id: "e1", catalog_key: "logo", zone: "header", type: "logo", label: "Logo Cửa Hàng", x: 30, y: 20, w: 120, h: 55, align: "center" },
+                { id: "e2", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 160, y: 18, w: 580, fsz: 16, bold: true, align: "left" },
+                { id: "e3", catalog_key: "shop_address", zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 160, y: 40, w: 580, fsz: 10, bold: false, align: "left" },
+                { id: "e4", catalog_key: "shop_phone", zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 160, y: 56, w: 300, fsz: 10, bold: false, align: "left" },
+                { id: "e5", catalog_key: "title", zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG ĐẠI LÝ", label: "Tiêu Đề", x: 30, y: 85, w: 734, fsz: 18, bold: true, align: "center" },
+                { id: "e6", catalog_key: "order_code", zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 30, y: 118, w: 260, fsz: 10, bold: false, align: "left" },
+                { id: "e7", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: 504, y: 118, w: 260, fsz: 10, bold: false, align: "right" },
+                { id: "e8", catalog_key: "customer", zone: "header", type: "text", text: "Đại lý / Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 30, y: 138, w: 460, fsz: 10, bold: false, align: "left" },
+                { id: "e9", catalog_key: "staff", zone: "header", type: "text", text: "Nhân viên kinh doanh: {{thu_ngan}}", label: "Thu Ngân", x: 504, y: 138, w: 260, fsz: 10, bold: false, align: "right" },
+                { id: "e10", catalog_key: "table_b2b", zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", x: 30, y: 168, w: 734, fsz: 10 },
+                { id: "e11", catalog_key: "b2b_footer_boxes", zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", x: 30, y: 310, w: 734, h: 140 },
+                { id: "e12", catalog_key: "signatures_3col", zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", x: 30, y: 465, w: 734, h: 90 },
+                { id: "e13", catalog_key: "footer_msg", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 30, y: 575, w: 734, fsz: 10, italic: true, align: "center" }
+            ];
+        }
+
+        function getDefaultPresets() {
+            return {
+                "a4_b2b": {
+                    name: "Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)",
+                    paper_size: "A4-portrait",
+                    elements: getB2BA4Template()
+                },
+                "a4_standard": {
+                    name: "Mẫu A4 Tiêu Chuẩn (Bán Lẻ)",
+                    paper_size: "A4-portrait",
+                    elements: getInitialElementsForSize("A4-portrait")
+                },
+                "a5_standard": {
+                    name: "Mẫu A5 Tiêu Chuẩn",
+                    paper_size: "A5-portrait",
+                    elements: getInitialElementsForSize("A5-portrait")
+                },
+                "k80_standard": {
+                    name: "Mẫu Cuộn Nhiệt K80",
+                    paper_size: "K80",
+                    elements: getInitialElementsForSize("K80")
+                },
+                "k58_standard": {
+                    name: "Mẫu Cuộn Nhiệt K58",
+                    paper_size: "K58",
+                    elements: getInitialElementsForSize("K58")
+                }
+            };
+        }
+
+        function renderPresetSelect() {
+            const sel = document.getElementById('canvas-preset-select');
+            if (!sel) return;
+            if (!multiTemplates.presets) {
+                multiTemplates.presets = getDefaultPresets();
+            }
+            const curPreset = multiTemplates.active_preset || "a4_b2b";
+            let html = '';
+            for (let key in multiTemplates.presets) {
+                const p = multiTemplates.presets[key];
+                const isSel = key === curPreset ? 'selected' : '';
+                html += `<option value="${key}" ${isSel}>${p.name}</option>`;
+            }
+            sel.innerHTML = html;
+        }
+
+        function switchPreset(presetKey) {
+            if (!multiTemplates.presets || !multiTemplates.presets[presetKey]) return;
+            multiTemplates.active_preset = presetKey;
+            const preset = multiTemplates.presets[presetKey];
+            paperSize = preset.paper_size || "A4-portrait";
+            document.getElementById('canvas-paper-size').value = paperSize;
+            canvasElements = JSON.parse(JSON.stringify(preset.elements));
+            selectedElementId = null;
+
+            const canvas = document.getElementById('paper-canvas');
+            const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
+            canvas.style.width = dim.width;
+            canvas.style.minHeight = dim.height;
+
+            renderCanvas();
+            renderPropsPanel();
+            updateSidebarCheckboxes();
+        }
+
+        async function saveCurrentPreset() {
+            if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            if (!multiTemplates.presets[curKey]) {
+                multiTemplates.presets[curKey] = {
+                    name: "Mẫu Tùy Biến",
+                    paper_size: paperSize,
+                    elements: []
+                };
+            }
+            multiTemplates.presets[curKey].paper_size = paperSize;
+            multiTemplates.presets[curKey].elements = JSON.parse(JSON.stringify(canvasElements));
+            multiTemplates.active_size = paperSize;
+            multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
+
+            const payload = {
+                print_blocks_config: JSON.stringify(multiTemplates)
+            };
+            const res = await fetch('/api/settings/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                alert(`Đã lưu cập nhật cho [${multiTemplates.presets[curKey].name}] thành công!`);
+            } else {
+                alert('Lỗi khi lưu mẫu!');
+            }
+        }
+
+        async function saveNewPreset() {
+            const name = prompt("Nhập tên cho mẫu in mới:", "Hóa Đơn A4 Đại Lý (Mẫu Mới)");
+            if (!name || !name.trim()) return;
+
+            if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
+            const newKey = "preset_" + Date.now();
+            multiTemplates.presets[newKey] = {
+                name: name.trim(),
+                paper_size: paperSize,
+                elements: JSON.parse(JSON.stringify(canvasElements))
+            };
+            multiTemplates.active_preset = newKey;
+            multiTemplates.active_size = paperSize;
+            multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
+
+            const payload = {
+                print_blocks_config: JSON.stringify(multiTemplates)
+            };
+            const res = await fetch('/api/settings/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                renderPresetSelect();
+                alert(`Đã tạo và lưu thành mẫu mới: "${name.trim()}"!`);
+            } else {
+                alert('Lỗi khi lưu mẫu mới!');
+            }
+        }
+
+        async function deleteCurrentPreset() {
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            const builtIn = ["a4_b2b", "a4_standard", "a5_standard", "k80_standard", "k58_standard"];
+            if (builtIn.includes(curKey)) {
+                alert("Đây là mẫu in hệ thống mặc định, không thể xóa!");
+                return;
+            }
+            const name = multiTemplates.presets[curKey] ? multiTemplates.presets[curKey].name : curKey;
+            if (!confirm(`Bạn có chắc muốn xóa mẫu "${name}"?`)) return;
+
+            delete multiTemplates.presets[curKey];
+            multiTemplates.active_preset = "a4_b2b";
+            const payload = {
+                print_blocks_config: JSON.stringify(multiTemplates)
+            };
+            await fetch('/api/settings/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            renderPresetSelect();
+            switchPreset("a4_b2b");
+            alert(`Đã xóa mẫu "${name}" thành công!`);
+        }
+
+        function toggleTableMode(mode) {
+            canvasElements = canvasElements.filter(e => (e.zone || '') !== 'body');
+            const proto = defaultElementCatalog[mode];
             if (!proto) return;
             const newElem = JSON.parse(JSON.stringify(proto));
             newElem.id = "elem_" + Date.now();
-            newElem.x = 20;
+            newElem.catalog_key = mode;
+            newElem.zone = 'body';
+            newElem.x = paperSize.startsWith('A') ? 30 : 10;
+            newElem.w = paperSize.includes('K80') ? 270 : paperSize.includes('K58') ? 195 : 734;
 
-            if (newElem.type === 'table') {
-                newElem.w = paperSize.includes('K80') ? 270 : paperSize.includes('K58') ? 195 : 650;
+            const headerElems = canvasElements.filter(e => (e.zone || 'header') === 'header');
+            let startY = 168;
+            if (headerElems.length > 0) {
+                startY = Math.max(...headerElems.map(e => (e.y || 0) + (e.h || (e.fsz ? e.fsz + 14 : 26)))) + 12;
             }
+            newElem.y = startY;
 
-            const targetZone = newElem.zone || 'header';
-
-            if (targetZone === 'header') {
-                // Neu la Logo thi uu tien nam dau tien cua Vung Header
-                if (newElem.type === 'logo') {
-                    canvasElements.unshift(newElem);
-                } else {
-                    // Tim vi tri cuoi cung cua Header de chen vao
-                    const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
-                    if (lastHeaderIdx >= 0) {
-                        canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
-                    } else {
-                        canvasElements.unshift(newElem);
-                    }
-                }
-            } else if (targetZone === 'body') {
-                // Table: thay the hoac chen vao giua
-                const existTableIdx = canvasElements.findIndex(e => e.type === 'table');
-                if (existTableIdx >= 0) {
-                    canvasElements[existTableIdx] = newElem;
-                } else {
-                    const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
-                    canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
-                }
+            const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
+            if (lastHeaderIdx >= 0) {
+                canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
             } else {
-                // Footer
-                canvasElements.push(newElem);
+                canvasElements.unshift(newElem);
             }
 
-            recomputeElementPositions();
-            selectElement(newElem.id);
             renderCanvas();
+            renderPropsPanel();
+            updateSidebarCheckboxes();
         }
 
-        // Tinh toan toa do Y tu dong theo luong chay (Flow) cua tung Zone
+        function toggleCanvasItem(key, checked) {
+            if (checked) {
+                const exists = canvasElements.some(e => e.catalog_key === key || (defaultElementCatalog[key] && e.type === defaultElementCatalog[key].type && e.type !== 'text') || (e.type === 'text' && defaultElementCatalog[key] && e.label === defaultElementCatalog[key].label));
+                if (exists) return;
+
+                const proto = defaultElementCatalog[key];
+                if (!proto) return;
+                const newElem = JSON.parse(JSON.stringify(proto));
+                newElem.id = "elem_" + Date.now();
+                newElem.catalog_key = key;
+
+                const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+                const defaultW = isThermal ? (paperSize.includes('K80') ? 270 : 195) : 734;
+                if (newElem.type === 'b2b_footer_boxes' || newElem.type === 'signatures_3col') {
+                    newElem.w = defaultW;
+                    newElem.x = isThermal ? 10 : 30;
+                }
+
+                const targetZone = newElem.zone || 'header';
+                const zoneElems = canvasElements.filter(e => (e.zone || 'header') === targetZone);
+
+                if (zoneElems.length > 0) {
+                    const maxY = Math.max(...zoneElems.map(e => (e.y || 0) + (e.h || (e.fsz ? e.fsz + 14 : 26))));
+                    newElem.y = maxY + 8;
+                    newElem.x = zoneElems[zoneElems.length - 1].x || (isThermal ? 10 : 30);
+                } else {
+                    if (targetZone === 'header') {
+                        newElem.y = 20;
+                        newElem.x = isThermal ? 10 : 30;
+                    } else if (targetZone === 'body') {
+                        const headerElems = canvasElements.filter(e => (e.zone || 'header') === 'header');
+                        newElem.y = headerElems.length > 0 ? Math.max(...headerElems.map(e => (e.y || 0) + (e.h || 26))) + 12 : 20;
+                        newElem.x = isThermal ? 10 : 30;
+                    } else {
+                        const nonFooter = canvasElements.filter(e => (e.zone || 'header') !== 'footer');
+                        newElem.y = nonFooter.length > 0 ? Math.max(...nonFooter.map(e => (e.y || 0) + (e.h || (e.type === 'table_b2b' ? 110 : 85)))) + 15 : 20;
+                        newElem.x = isThermal ? 10 : 30;
+                    }
+                }
+
+                if (targetZone === 'header') {
+                    if (newElem.type === 'logo') {
+                        canvasElements.unshift(newElem);
+                    } else {
+                        const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
+                        if (lastHeaderIdx >= 0) {
+                            canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
+                        } else {
+                            canvasElements.unshift(newElem);
+                        }
+                    }
+                } else if (targetZone === 'body') {
+                    const lastHeaderIdx = canvasElements.map(e => e.zone || 'header').lastIndexOf('header');
+                    canvasElements.splice(lastHeaderIdx + 1, 0, newElem);
+                } else {
+                    canvasElements.push(newElem);
+                }
+
+                selectElement(newElem.id);
+            } else {
+                canvasElements = canvasElements.filter(e => {
+                    if (e.catalog_key === key) return false;
+                    const proto = defaultElementCatalog[key];
+                    if (!proto) return true;
+                    if (e.type === proto.type) {
+                        if (e.type === 'text') return e.label !== proto.label;
+                        return false;
+                    }
+                    return true;
+                });
+                if (selectedElementId && !canvasElements.some(e => e.id === selectedElementId)) {
+                    selectedElementId = null;
+                }
+            }
+
+            renderCanvas();
+            renderPropsPanel();
+            updateSidebarCheckboxes();
+        }
+
+        function updateSidebarCheckboxes() {
+            const keys = [
+                'logo', 'shop_name', 'shop_address', 'shop_phone', 'title',
+                'order_code', 'datetime', 'staff', 'customer', 'customer_phone',
+                'b2b_footer_boxes', 'signatures_3col',
+                'total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'
+            ];
+            keys.forEach(k => {
+                const el = document.getElementById('chk-' + k);
+                if (!el) return;
+                const proto = defaultElementCatalog[k];
+                const has = canvasElements.some(e => {
+                    if (e.catalog_key === k) return true;
+                    if (proto && e.type === proto.type) {
+                        if (e.type === 'text') return e.label === proto.label;
+                        return true;
+                    }
+                    return false;
+                });
+                el.checked = has;
+            });
+
+            const chkB2B = document.getElementById('chk-table_b2b');
+            const chkStd = document.getElementById('chk-table');
+            if (chkB2B && chkStd) {
+                const hasB2B = canvasElements.some(e => e.type === 'table_b2b');
+                const hasStd = canvasElements.some(e => e.type === 'table');
+                chkB2B.checked = hasB2B;
+                chkStd.checked = hasStd;
+            }
+        }
+
+        function addCustomTextItem() {
+            const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+            const newElem = {
+                id: "elem_" + Date.now(),
+                catalog_key: "custom_text",
+                zone: "footer",
+                type: "text",
+                text: "Nội dung tùy chỉnh...",
+                label: "Ô Chữ Tự Do",
+                fsz: 11,
+                bold: false,
+                align: "left",
+                x: isThermal ? 10 : 30,
+                y: 350,
+                w: isThermal ? 270 : 250
+            };
+            const footerElems = canvasElements.filter(e => (e.zone || 'header') === 'footer');
+            if (footerElems.length > 0) {
+                const maxY = Math.max(...footerElems.map(e => (e.y || 0) + (e.h || 26)));
+                newElem.y = maxY + 8;
+            }
+            canvasElements.push(newElem);
+            selectElement(newElem.id);
+            renderCanvas();
+            renderPropsPanel();
+        }
+
+        function addCanvasItem(catalogKey) {
+            toggleCanvasItem(catalogKey, true);
+        }
+
         function recomputeElementPositions() {
             let curY = 15;
             const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
-            const defaultW = isThermal ? (paperSize.includes('K80') ? 270 : 195) : 680;
+            const defaultW = isThermal ? (paperSize.includes('K80') ? 270 : 195) : 734;
 
             canvasElements.forEach(e => {
                 if (!e.zone) {
-                    if (e.type === 'table') e.zone = 'body';
-                    else if (['total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'].some(k => (e.label||'').includes(k) || (e.text||'').includes(k))) e.zone = 'footer';
+                    if (e.type === 'table' || e.type === 'table_b2b') e.zone = 'body';
+                    else if (['total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg', 'b2b_footer_boxes', 'signatures_3col'].some(k => (e.label||'').includes(k) || (e.text||'').includes(k) || (e.id||'').includes(k) || e.type === k)) e.zone = 'footer';
                     else e.zone = 'header';
                 }
 
-                e.y = curY;
+                if (e.y === undefined) e.y = curY;
                 if (!e.w) e.w = defaultW;
 
-                // Tinh do cao cua khoi de cong don cho khoi ke tiep
                 let blockHeight = 26;
                 if (e.type === 'logo') {
-                    blockHeight = e.h || 120;
+                    blockHeight = e.h || 55;
                 } else if (e.type === 'table') {
+                    blockHeight = 85;
+                } else if (e.type === 'table_b2b') {
+                    blockHeight = 110;
+                } else if (e.type === 'b2b_footer_boxes') {
+                    blockHeight = 140;
+                } else if (e.type === 'signatures_3col') {
                     blockHeight = 90;
                 } else if (e.type === 'qr') {
                     blockHeight = 145;
@@ -1120,6 +1513,7 @@
             canvas.style.minHeight = dim.height;
             renderCanvas();
             renderPropsPanel();
+            updateSidebarCheckboxes();
         }
 
         function getInitialElementsForSize(size) {
@@ -1191,6 +1585,7 @@
             selectedElementId = null;
             renderCanvas();
             renderPropsPanel();
+            updateSidebarCheckboxes();
         }
 
         const GRID_SIZE = 10; // px - snap grid
@@ -1246,6 +1641,81 @@
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(240000, 'HD2609130001');
+                } else if (e.type === 'table_b2b') {
+                    content = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000; pointer-events: none;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 1px solid #000; font-weight: bold; text-align: center;">
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 28px;">TT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: left;">Tên sản phẩm</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 75px;">Đơn giá</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 38px;">SL</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 85px;">Thành tiền</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #ccc; text-align: center;">
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">1</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px;">SP001</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">Áo Thun Basic (Demo)</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">Cái</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">120.000</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">2</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">240.000</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">Size L</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
+                } else if (e.type === 'b2b_footer_boxes') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px; pointer-events: none;">
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                                <div>Ngân hàng: <b>${currentSettings.shop_bank_code || 'MB Bank'}</b></div>
+                                <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
+                                <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
+                                <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${mockData.ma_hoa_don}</i></div>
+                            </div>
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                                ${getQRCodeHTML(240000, mockData.ma_hoa_don)}
+                            </div>
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${mockData.tong_tien}</span></div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${mockData.giam_gia}</span></div>
+                                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${mockData.phai_tra}</span></div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${mockData.khach_tra}</span></div>
+                                <div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Còn nợ lại:</span> <span>${mockData.con_no}</span></div>
+                            </div>
+                        </div>
+                    `;
+                } else if (e.type === 'signatures_3col') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Người Nhận Hàng</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Thủ Kho</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Kế Toán / Người Lập</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                        </div>
+                    `;
                 } else if (e.type === 'table') {
                     content = `
                         <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none;">
@@ -1662,49 +2132,66 @@
             if (currentSettings.print_blocks_config) {
                 try {
                     const parsed = JSON.parse(currentSettings.print_blocks_config);
-                    if (parsed.templates) {
+                    if (parsed.presets) {
                         multiTemplates = parsed;
-                        // Bao dam tat ca cac elements trong moi template deu co thuoc tinh zone
-                        for (let s in multiTemplates.templates) {
-                            multiTemplates.templates[s] = ensureElementsHaveZone(multiTemplates.templates[s]);
+                        const curPreset = multiTemplates.active_preset || "a4_b2b";
+                        if (multiTemplates.presets[curPreset]) {
+                            paperSize = multiTemplates.presets[curPreset].paper_size || "A4-portrait";
+                            canvasElements = ensureElementsHaveZone(multiTemplates.presets[curPreset].elements);
+                        } else {
+                            paperSize = parsed.active_size || "A4-portrait";
+                            canvasElements = getB2BA4Template();
                         }
+                    } else if (parsed.templates) {
+                        multiTemplates = parsed;
+                        multiTemplates.presets = getDefaultPresets();
+                        multiTemplates.active_preset = "a4_b2b";
                         paperSize = parsed.active_size || "A4-portrait";
-                        canvasElements = multiTemplates.templates[paperSize] || getInitialElementsForSize(paperSize);
-                    } else if (parsed.canvasElements) {
-                        paperSize = parsed.paperSize || "A4-portrait";
-                        canvasElements = ensureElementsHaveZone(parsed.canvasElements);
-                        multiTemplates.templates[paperSize] = canvasElements;
+                        canvasElements = ensureElementsHaveZone(multiTemplates.templates[paperSize] || getB2BA4Template());
                     } else {
-                        resetDefaultTemplate(paperSize);
+                        multiTemplates = {
+                            active_preset: "a4_b2b",
+                            active_size: "A4-portrait",
+                            presets: getDefaultPresets(),
+                            templates: {}
+                        };
+                        paperSize = "A4-portrait";
+                        canvasElements = getB2BA4Template();
                     }
                 } catch(e) {
-                    resetDefaultTemplate(paperSize);
+                    multiTemplates = {
+                        active_preset: "a4_b2b",
+                        active_size: "A4-portrait",
+                        presets: getDefaultPresets(),
+                        templates: {}
+                    };
+                    paperSize = "A4-portrait";
+                    canvasElements = getB2BA4Template();
                 }
             } else {
-                resetDefaultTemplate(paperSize);
+                multiTemplates = {
+                    active_preset: "a4_b2b",
+                    active_size: "A4-portrait",
+                    presets: getDefaultPresets(),
+                    templates: {}
+                };
+                paperSize = "A4-portrait";
+                canvasElements = getB2BA4Template();
             }
+
+            renderPresetSelect();
             document.getElementById('canvas-paper-size').value = paperSize;
-            changePaperSize(paperSize);
+            const canvas = document.getElementById('paper-canvas');
+            const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
+            canvas.style.width = dim.width;
+            canvas.style.minHeight = dim.height;
+            renderCanvas();
+            renderPropsPanel();
+            updateSidebarCheckboxes();
         }
 
         async function saveCanvasTemplate() {
-            // Cap nhat template dang mo vao multiTemplates
-            multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
-            multiTemplates.active_size = paperSize;
-
-            const payload = {
-                print_blocks_config: JSON.stringify(multiTemplates)
-            };
-            const res = await fetch('/api/settings/template', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                alert(`Đã lưu toàn bộ mẫu in cho tất cả các khổ giấy thành công! (Khổ mặc định: ${paperSize})`);
-            } else {
-                alert('Lỗi khi lưu!');
-            }
+            await saveCurrentPreset();
         }
 
         function printTestTemplate() {
@@ -1712,16 +2199,17 @@
                 code: "HD2609139999",
                 created_at: new Date().toLocaleString('vi-VN'),
                 staff_name: "Nguyễn Thu Ngân",
-                customer_name: "Khách Mẫu Demo",
-                customer_phone: "0909999888",
-                total_amount: 350000,
+                customer_name: "Đại Lý Thức Ăn Thú Cưng Miền Nam",
+                customer_phone: "0909.999.888",
+                total_amount: 550000,
                 discount: 50000,
-                final_amount: 300000,
-                paid_amount: 300000,
+                final_amount: 500000,
+                paid_amount: 500000,
                 debt_amount: 0,
                 items: [
-                    { product_name: "Sản phẩm A (Mẫu A4)", quantity: 2, price: 100000 },
-                    { product_name: "Sản phẩm B (Mẫu A4)", quantity: 1, price: 150000 }
+                    { product_code: "SP001", product_name: "Sữa Tắm Cho Mèo Pet Care", unit: "Chai", quantity: 2, price: 120000, subtotal: 240000, note: "Hương Lavender" },
+                    { product_code: "SP002", product_name: "Pate Cho Chó Trưởng Thành", unit: "Hộp", quantity: 5, price: 35000, subtotal: 175000, note: "Vị Bò Rau Củ" },
+                    { product_code: "SP003", product_name: "Xương Gặm Sạch Răng", unit: "Gói", quantity: 3, price: 45000, subtotal: 135000, note: "Size M" }
                 ]
             };
             renderAndPrint(mockOrder);
@@ -1754,11 +2242,13 @@
             const canvasH = canvasEl ? canvasEl.offsetHeight : 1123;
 
             // Tinh deltaY: bang hang hoa co nhieu dong hon thiet ke
-            const tableElem = canvasElements.find(e => e.type === 'table');
+            const tableElem = canvasElements.find(e => e.type === 'table' || e.type === 'table_b2b');
             let deltaY = 0;
             if (tableElem && ord.items) {
-                const actualTableHeight = Math.max(70, 35 + ord.items.length * 28);
-                const designTableHeight = 70;
+                const rowHeight = tableElem.type === 'table_b2b' ? 24 : 28;
+                const baseHeight = tableElem.type === 'table_b2b' ? 100 : 70;
+                const actualTableHeight = Math.max(baseHeight, 35 + ord.items.length * rowHeight);
+                const designTableHeight = baseHeight;
                 if (actualTableHeight > designTableHeight) {
                     deltaY = actualTableHeight - designTableHeight;
                 }
@@ -1790,6 +2280,83 @@
                     if (currentSettings.shop_logo) content = `<img src="${currentSettings.shop_logo}" style="max-height: 100%; max-width: 100%;">`;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(ord.final_amount, ord.code);
+                } else if (e.type === 'table_b2b') {
+                    content = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 1px solid #000; font-weight: bold; text-align: center;">
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 28px;">TT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: left;">Tên sản phẩm</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 75px;">Đơn giá</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 38px;">SL</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 85px;">Thành tiền</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ord.items.map((it, idx) => `
+                                <tr style="border-bottom: 1px solid #ccc; text-align: center;">
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">${idx + 1}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px;">${it.product_code || ''}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">${it.product_name}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">${it.unit || 'Cái'}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">${formatMoney(it.price)}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>
+                                </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else if (e.type === 'b2b_footer_boxes') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px;">
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                                <div>Ngân hàng: <b>${currentSettings.shop_bank_code || 'MB Bank'}</b></div>
+                                <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
+                                <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
+                                <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
+                            </div>
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                                ${getQRCodeHTML(ord.final_amount, ord.code)}
+                            </div>
+                            <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
+                                <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${printData.tong_tien}</span></div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${printData.giam_gia}</span></div>
+                                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${printData.phai_tra}</span></div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${printData.khach_tra}</span></div>
+                                <div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Còn nợ lại:</span> <span>${printData.con_no}</span></div>
+                            </div>
+                        </div>
+                    `;
+                } else if (e.type === 'signatures_3col') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; font-size: 11px;">
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Người Nhận Hàng</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Thủ Kho</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase;">Kế Toán / Người Lập</div>
+                                <div style="font-size: 9px; font-style: italic; color: #555;">(Ký, ghi rõ họ tên)</div>
+                                <div style="height: 50px;"></div>
+                            </div>
+                        </div>
+                    `;
                 } else if (e.type === 'table') {
                     content = `
                         <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
@@ -1873,7 +2440,14 @@
                 if (currentSettings.print_blocks_config) {
                     try {
                         const parsed = JSON.parse(currentSettings.print_blocks_config);
-                        if (parsed.templates) {
+                        if (parsed.presets) {
+                            multiTemplates = parsed;
+                            const curPreset = multiTemplates.active_preset || "a4_b2b";
+                            if (multiTemplates.presets[curPreset]) {
+                                paperSize = multiTemplates.presets[curPreset].paper_size || "A4-portrait";
+                                canvasElements = multiTemplates.presets[curPreset].elements;
+                            }
+                        } else if (parsed.templates) {
                             multiTemplates = parsed;
                             paperSize = parsed.active_size || "A4-portrait";
                             canvasElements = multiTemplates.templates[paperSize] || getInitialElementsForSize(paperSize);
