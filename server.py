@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import datetime
+import time
 import os
 import sys
 from database import get_db, init_db
@@ -49,6 +50,42 @@ class ProductCreate(BaseModel):
     sell_price: float = 0
     stock: float = 0
     unit: str = "cái"
+
+# --- Schema cho Ingredients, Warehouses, Inventory ---
+class IngredientCreate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    unit: str = "cái"
+    type: str = "IS_PHYSICAL" # IS_PHYSICAL | SERVICE
+    initial_stock: float = 0
+    initial_cost: float = 0
+    warehouse_id: Optional[int] = 1
+
+class IngredientUpdate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    unit: str = "cái"
+    type: str = "IS_PHYSICAL"
+
+class WarehouseCreate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    address: Optional[str] = ""
+
+class WarehouseUpdate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    address: Optional[str] = ""
+    is_active: int = 1
+
+class InventoryAdjust(BaseModel):
+    warehouse_id: int
+    ingredient_id: int
+    quantity: float # Số lượng mới hoặc delta
+    mode: str = "set" # 'set' (đặt số lượng tuyệt đối) hoặc 'add' (cộng dồn)
+    purchase_price: Optional[float] = None
+    supplier_id: Optional[int] = None
+    note: Optional[str] = ""
 
 class PurchaseItemIn(BaseModel):
     product_id: int
@@ -189,6 +226,225 @@ def create_product(p: ProductCreate):
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
+
+# ========================================================
+# CRUD CHO NGUYÊN LIỆU (INGREDIENTS) & KHO (WAREHOUSES)
+# ========================================================
+
+# --- 1. Warehouses (Kho hàng) ---
+@app.get("/api/warehouses")
+def list_warehouses():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM warehouses ORDER BY id ASC")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.post("/api/warehouses")
+def create_warehouse(w: WarehouseCreate):
+    conn = get_db()
+    cur = conn.cursor()
+    code = w.code or f"WH-{int(time.time() * 1000)}"
+    try:
+        cur.execute("INSERT INTO warehouses (code, name, address) VALUES (?, ?, ?)", (code, w.name, w.address))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "code": code}
+
+@app.put("/api/warehouses/{warehouse_id}")
+def update_warehouse(warehouse_id: int, w: WarehouseUpdate):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE warehouses SET name = ?, address = ?, is_active = ? WHERE id = ?",
+        (w.name, w.address, w.is_active, warehouse_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+@app.delete("/api/warehouses/{warehouse_id}")
+def delete_warehouse(warehouse_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM warehouses WHERE id = ?", (warehouse_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+# --- 2. Ingredients (Nguyên liệu / Dịch vụ thành phần) ---
+@app.get("/api/ingredients")
+def list_ingredients():
+    conn = get_db()
+    cur = conn.cursor()
+    # Lấy thông tin kèm tổng tồn kho và giá nhập gần nhất
+    query = '''
+    SELECT 
+        i.*,
+        COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) AS total_stock,
+        COALESCE(
+            (SELECT purchase_price FROM price_history ph 
+             WHERE ph.ingredient_id = i.id 
+             ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+            0
+        ) AS latest_cost
+    FROM ingredients i
+    ORDER BY i.id DESC
+    '''
+    cur.execute(query)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.post("/api/ingredients")
+def create_ingredient(ing: IngredientCreate):
+    conn = get_db()
+    cur = conn.cursor()
+    code = ing.code or f"NL-{int(time.time() * 1000)}"
+    try:
+        cur.execute(
+            "INSERT INTO ingredients (code, name, unit, type) VALUES (?, ?, ?, ?)",
+            (code, ing.name, ing.unit, ing.type)
+        )
+        ing_id = cur.lastrowid
+
+        # Nếu là thành phần vật lý và có số lượng ban đầu -> tạo tồn kho
+        if ing.type == 'IS_PHYSICAL' and ing.initial_stock > 0:
+            wh_id = ing.warehouse_id or 1
+            cur.execute(
+                "INSERT INTO inventory (warehouse_id, ingredient_id, quantity) VALUES (?, ?, ?)",
+                (wh_id, ing_id, ing.initial_stock)
+            )
+
+        # Lưu giá nhập ban đầu vào lịch sử nếu có
+        if ing.initial_cost > 0:
+            cur.execute(
+                "INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, ?)",
+                (ing_id, ing.initial_cost, "Khởi tạo ban đầu")
+            )
+
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "id": ing_id, "code": code}
+
+@app.put("/api/ingredients/{ingredient_id}")
+def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "UPDATE ingredients SET name = ?, unit = ?, type = ? WHERE id = ?",
+            (ing.name, ing.unit, ing.type, ingredient_id)
+        )
+        # Nếu đổi sang SERVICE thì xóa tồn kho
+        if ing.type == 'SERVICE':
+            cur.execute("DELETE FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok"}
+
+@app.delete("/api/ingredients/{ingredient_id}")
+def delete_ingredient(ingredient_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+# --- 3. Inventory & Price History (Tồn kho & Lịch sử giá) ---
+@app.get("/api/inventory")
+def list_inventory(warehouse_id: Optional[int] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    if warehouse_id:
+        cur.execute('''
+        SELECT inv.*, i.name as ingredient_name, i.unit, i.type, w.name as warehouse_name
+        FROM inventory inv
+        JOIN ingredients i ON inv.ingredient_id = i.id
+        JOIN warehouses w ON inv.warehouse_id = w.id
+        WHERE inv.warehouse_id = ?
+        ORDER BY i.name ASC
+        ''', (warehouse_id,))
+    else:
+        cur.execute('''
+        SELECT inv.*, i.name as ingredient_name, i.unit, i.type, w.name as warehouse_name
+        FROM inventory inv
+        JOIN ingredients i ON inv.ingredient_id = i.id
+        JOIN warehouses w ON inv.warehouse_id = w.id
+        ORDER BY w.name ASC, i.name ASC
+        ''')
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.post("/api/inventory/adjust")
+def adjust_inventory(req: InventoryAdjust):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Kiểm tra loại thành phần
+        cur.execute("SELECT type FROM ingredients WHERE id = ?", (req.ingredient_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy nguyên liệu")
+        if row["type"] == "SERVICE":
+            raise HTTPException(status_code=400, detail="Thành phần SERVICE không lưu trữ tồn kho")
+
+        if req.mode == "set":
+            new_qty = req.quantity
+        else: # add
+            cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                        (req.warehouse_id, req.ingredient_id))
+            cur_inv = cur.fetchone()
+            new_qty = (cur_inv["quantity"] if cur_inv else 0) + req.quantity
+
+        cur.execute('''
+        INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+            quantity = ?,
+            updated_at = CURRENT_TIMESTAMP
+        ''', (req.warehouse_id, req.ingredient_id, new_qty, new_qty))
+
+        # Lưu giá nhập vào price_history nếu có truyền vào
+        if req.purchase_price is not None and req.purchase_price > 0:
+            cur.execute('''
+            INSERT INTO price_history (ingredient_id, supplier_id, purchase_price, note)
+            VALUES (?, ?, ?, ?)
+            ''', (req.ingredient_id, req.supplier_id, req.purchase_price, req.note or "Điều chỉnh tồn / Nhập kho"))
+
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "new_quantity": new_qty}
+
+@app.get("/api/ingredients/{ingredient_id}/price-history")
+def get_price_history(ingredient_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT ph.*, c.name as supplier_name
+    FROM price_history ph
+    LEFT JOIN contacts c ON ph.supplier_id = c.id
+    WHERE ph.ingredient_id = ?
+    ORDER BY ph.effective_date DESC, ph.id DESC
+    ''', (ingredient_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
 
 @app.get("/api/contacts")
 def list_contacts(type: Optional[str] = None):

@@ -59,6 +59,73 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # 3.1. Module Cost: Nguyen lieu & Dich vu thanh phan (ingredients)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS ingredients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        unit TEXT DEFAULT 'cái',
+        type TEXT NOT NULL CHECK(type IN ('IS_PHYSICAL', 'SERVICE')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 3.2. Module Cost: Kho hang (warehouses)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS warehouses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        address TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 3.3. Module Cost: Ton kho nguyen lieu theo kho (chi luu IS_PHYSICAL)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        warehouse_id INTEGER NOT NULL,
+        ingredient_id INTEGER NOT NULL,
+        quantity REAL DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+        UNIQUE(warehouse_id, ingredient_id)
+    )''')
+
+    # 3.4. Module Cost: Lich su gia nhap theo NCC
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS price_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ingredient_id INTEGER NOT NULL,
+        supplier_id INTEGER,
+        purchase_price REAL NOT NULL,
+        effective_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        note TEXT,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+        FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
+    )''')
+
+    # 3.5. Module Cost: Dinh luong BOM san pham theo ingredients
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS product_bom (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        ingredient_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT,
+        UNIQUE(product_id, ingredient_id)
+    )''')
+
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_inventory_lookup ON inventory(warehouse_id, ingredient_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_price_history_latest ON price_history(ingredient_id, effective_date DESC)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_bom_product ON product_bom(product_id)')
+
+    # Kho mac dinh ban dau neu chua co
+    cur.execute("INSERT OR IGNORE INTO warehouses (id, code, name, address) VALUES (1, 'KHO-TONG', 'Kho Tổng Mặc Định', 'Tại cửa hàng')")
+
     # 4. Dinh luong san xuat (BOM - Bill of Materials)
     cur.execute('''
     CREATE TABLE IF NOT EXISTS bom (
