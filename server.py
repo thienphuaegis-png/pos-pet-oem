@@ -40,6 +40,7 @@ class OrderCreate(BaseModel):
     discount: float = 0
     paid_amount: float
     note: Optional[str] = ""
+    warehouse_id: Optional[int] = 1 # Kho xuất nguyên liệu
     items: List[OrderItemIn]
 
 class ProductCreate(BaseModel):
@@ -607,6 +608,7 @@ def create_order(req: OrderCreate):
         ''', (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note))
         
         order_id = cur.lastrowid
+        warehouse_id = req.warehouse_id or 1
 
         for item in req.items:
             subtotal = item.quantity * item.price
@@ -615,8 +617,33 @@ def create_order(req: OrderCreate):
             VALUES (?, ?, ?, ?, ?)
             ''', (order_id, item.product_id, item.quantity, item.price, subtotal))
             
-            # Tru ton kho neu khong phai la dich vu
+            # 1. Trừ tồn kho thành phẩm (nếu không phải là dịch vụ)
             cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (item.quantity, item.product_id))
+
+            # 2. Trừ tồn kho nguyên liệu BOM (nếu sản phẩm có cấu thành từ ingredients)
+            cur.execute('''
+            SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+            FROM product_bom b
+            JOIN ingredients i ON b.ingredient_id = i.id
+            WHERE b.product_id = ?
+            ''', (item.product_id,))
+            bom_rows = cur.fetchall()
+
+            for bom in bom_rows:
+                # Thành phần SERVICE không quản lý tồn kho -> bỏ qua
+                if bom["ingredient_type"] == 'SERVICE':
+                    continue
+
+                total_consumed = bom["quantity"] * item.quantity
+                
+                # Trừ tồn kho trong inventory (tự động thêm mới dòng nếu chưa có để ghi nhận âm kho)
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity - ?,
+                    updated_at = CURRENT_TIMESTAMP
+                ''', (warehouse_id, bom["ingredient_id"], -total_consumed, total_consumed))
 
         # Cong cong no khach hang
         if debt_amount > 0:
