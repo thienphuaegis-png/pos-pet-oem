@@ -425,6 +425,12 @@ def adjust_inventory(req: InventoryAdjust):
             updated_at = CURRENT_TIMESTAMP
         ''', (req.warehouse_id, req.ingredient_id, new_qty, new_qty))
 
+        # Ghi nhật ký điều chỉnh tồn kho (inventory_logs)
+        cur.execute('''
+        INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
+        VALUES (?, ?, 'ADJUST', ?, ?, ?, ?)
+        ''', (req.ingredient_id, req.warehouse_id, req.quantity if req.mode == 'add' else (new_qty - (cur_inv["quantity"] if cur_inv else 0)), new_qty, req.supplier_id, req.note or "Điều chỉnh tồn kho"))
+
         # Lưu giá nhập vào price_history nếu có truyền vào
         if req.purchase_price is not None and req.purchase_price > 0:
             cur.execute('''
@@ -453,6 +459,75 @@ def get_price_history(ingredient_id: int):
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+@app.get("/api/ingredients/{ingredient_id}/logs")
+def get_ingredient_logs(ingredient_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT 
+        l.*,
+        w.name as warehouse_name,
+        c.name as supplier_name
+    FROM inventory_logs l
+    JOIN warehouses w ON l.warehouse_id = w.id
+    LEFT JOIN contacts c ON l.supplier_id = c.id
+    WHERE l.ingredient_id = ?
+    ORDER BY l.created_at DESC, l.id DESC
+    ''', (ingredient_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.get("/api/ingredients/{ingredient_id}/detail")
+def get_ingredient_detail(ingredient_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM ingredients WHERE id = ?", (ingredient_id,))
+    ing = cur.fetchone()
+    if not ing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy nguyên liệu")
+    
+    # Tồn kho theo từng kho
+    cur.execute('''
+    SELECT inv.*, w.name as warehouse_name, w.address as warehouse_address
+    FROM inventory inv
+    JOIN warehouses w ON inv.warehouse_id = w.id
+    WHERE inv.ingredient_id = ?
+    ORDER BY w.id ASC
+    ''', (ingredient_id,))
+    stocks = [dict(r) for r in cur.fetchall()]
+    
+    # Lịch sử giá theo NCC
+    cur.execute('''
+    SELECT ph.*, c.name as supplier_name, c.phone as supplier_phone
+    FROM price_history ph
+    LEFT JOIN contacts c ON ph.supplier_id = c.id
+    WHERE ph.ingredient_id = ?
+    ORDER BY ph.effective_date DESC, ph.id DESC
+    ''', (ingredient_id,))
+    prices = [dict(r) for r in cur.fetchall()]
+
+    # Nhật ký xuất/nhập/trừ bill
+    cur.execute('''
+    SELECT l.*, w.name as warehouse_name, c.name as supplier_name
+    FROM inventory_logs l
+    JOIN warehouses w ON l.warehouse_id = w.id
+    LEFT JOIN contacts c ON l.supplier_id = c.id
+    WHERE l.ingredient_id = ?
+    ORDER BY l.created_at DESC, l.id DESC
+    LIMIT 50
+    ''', (ingredient_id,))
+    logs = [dict(r) for r in cur.fetchall()]
+
+    conn.close()
+    return {
+        "ingredient": dict(ing),
+        "stocks": stocks,
+        "price_history": prices,
+        "logs": logs
+    }
 
 # ========================================================
 # LOGIC BOM & TÍNH TOÁN GIÁ COST THÀNH PHẨM TỰ ĐỘNG
@@ -644,6 +719,17 @@ def create_order(req: OrderCreate):
                     quantity = quantity - ?,
                     updated_at = CURRENT_TIMESTAMP
                 ''', (warehouse_id, bom["ingredient_id"], -total_consumed, total_consumed))
+
+                # Lấy tồn sau khi trừ
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, bom["ingredient_id"]))
+                bal_row = cur.fetchone()
+                balance_after = bal_row["quantity"] if bal_row else 0
+
+                # Ghi nhật ký trừ kho do bán đơn hàng
+                cur.execute('''
+                INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, order_id, order_code, note)
+                VALUES (?, ?, 'SALE', ?, ?, ?, ?, ?)
+                ''', (bom["ingredient_id"], warehouse_id, -total_consumed, balance_after, order_id, code, f"Bán {item.quantity} {item.product_id}"))
 
         # Cong cong no khach hang
         if debt_amount > 0:

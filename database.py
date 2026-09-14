@@ -107,6 +107,29 @@ def init_db():
         FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
     )''')
 
+    # 3.4.1. Module Cost: Nhat ky bien dong kho (Xuat ban bill nao, nhap kho NCC nao, vi tri kho)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS inventory_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ingredient_id INTEGER NOT NULL,
+        warehouse_id INTEGER NOT NULL,
+        change_type TEXT NOT NULL, -- 'SALE' (ban hang), 'PURCHASE' (nhap hang), 'ADJUST' (kiem kho/dieu chinh)
+        quantity REAL NOT NULL, -- delta (< 0 neu tru, > 0 neu cong)
+        balance_after REAL DEFAULT 0, -- ton sau bien dong
+        order_id INTEGER, -- bill nao
+        order_code TEXT, -- ma hoa don
+        supplier_id INTEGER, -- NCC nao neu co
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
+        FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
+    )''')
+
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_inv_logs_ing ON inventory_logs(ingredient_id, created_at DESC)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_inv_logs_order ON inventory_logs(order_code)')
+
     # 3.5. Module Cost: Dinh luong BOM san pham theo ingredients
     cur.execute('''
     CREATE TABLE IF NOT EXISTS product_bom (
