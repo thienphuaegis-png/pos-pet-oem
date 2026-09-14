@@ -508,155 +508,159 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-12 gap-4">
-                    <!-- Danh sach khoi de bat/tat va keo tha (Trai - 2.5 cols) -->
-                    <div class="col-span-12 xl:col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 max-h-[820px] overflow-y-auto text-xs">
-                        <div class="border-b pb-2">
-                            <span class="font-bold text-slate-800 uppercase block mb-1">Thành Phần Mẫu In:</span>
-                            <p class="text-[11px] text-gray-500">Tích chọn để Bật/Tắt. Thành phần mới tự động ghim đúng phân vùng, không trôi nổi giữa trang.</p>
+                <!-- BANG THANH PHAN MAU IN (NẰM NGANG Ở PHÍA TRÊN) -->
+                <div class="bg-white p-3 rounded-lg shadow-sm border text-xs">
+                    <div class="flex items-center justify-between pb-2 border-b mb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-800 uppercase text-xs flex items-center gap-1.5">
+                                <span>📋 Thành Phần Mẫu In</span>
+                            </span>
+                            <span class="text-[11px] text-gray-500 italic">(Tích chọn để Bật/Tắt - tự động ghim chuẩn phân vùng)</span>
                         </div>
+                        <button type="button" onclick="addCustomTextItem()" class="px-2.5 py-1 border border-purple-300 rounded hover:bg-purple-50 text-purple-700 font-bold text-[11px] flex items-center gap-1">
+                            <span>✍️ + Thêm Ô Chữ Tùy Ý</span>
+                        </button>
+                    </div>
 
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <!-- Vùng 1: Header -->
-                        <div class="space-y-1.5">
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-sky-700 uppercase">1. Vùng Đầu Trang:</span>
-                                <span class="text-[10px] bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-bold">Header</span>
+                        <div class="p-2.5 bg-sky-50/50 rounded-lg border border-sky-200">
+                            <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-sky-200">
+                                <span class="font-bold text-sky-800 uppercase text-[11px]">1. Đầu Trang (Header)</span>
+                                <span class="text-[10px] bg-sky-200/60 text-sky-900 px-1.5 py-0.5 rounded font-bold">10 mục</span>
                             </div>
-                            <div class="space-y-1 pl-1">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-logo" onchange="toggleCanvasItem('logo', this.checked)" class="rounded text-sky-600">
-                                    <span>🖼️ Logo cửa hàng</span>
+                                    <span class="truncate">🖼️ Logo cửa hàng</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-shop_name" onchange="toggleCanvasItem('shop_name', this.checked)" class="rounded text-sky-600">
-                                    <span>🏢 Tên cửa hàng</span>
+                                    <span class="truncate">🏢 Tên cửa hàng</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-shop_address" onchange="toggleCanvasItem('shop_address', this.checked)" class="rounded text-sky-600">
-                                    <span>📍 Địa chỉ cửa hàng</span>
+                                    <span class="truncate">📍 Địa chỉ</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-shop_phone" onchange="toggleCanvasItem('shop_phone', this.checked)" class="rounded text-sky-600">
-                                    <span>📞 Số điện thoại hotline</span>
+                                    <span class="truncate">📞 Hotline shop</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-title" onchange="toggleCanvasItem('title', this.checked)" class="rounded text-sky-600">
-                                    <span>📑 Tiêu đề phiếu / hóa đơn</span>
+                                    <span class="truncate">📑 Tiêu đề phiếu</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-order_code" onchange="toggleCanvasItem('order_code', this.checked)" class="rounded text-sky-600">
-                                    <span>🔖 Mã hóa đơn</span>
+                                    <span class="truncate">🔖 Mã hóa đơn</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-datetime" onchange="toggleCanvasItem('datetime', this.checked)" class="rounded text-sky-600">
-                                    <span>🕒 Ngày giờ lập phiếu</span>
+                                    <span class="truncate">🕒 Ngày giờ lập</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-staff" onchange="toggleCanvasItem('staff', this.checked)" class="rounded text-sky-600">
-                                    <span>👤 Nhân viên bán hàng / Thu ngân</span>
+                                    <span class="truncate">👤 Thu ngân</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-customer" onchange="toggleCanvasItem('customer', this.checked)" class="rounded text-sky-600">
-                                    <span>🧑 Tên khách hàng / Đại lý</span>
+                                    <span class="truncate">🧑 Tên khách / Đại lý</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-sky-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-customer_phone" onchange="toggleCanvasItem('customer_phone', this.checked)" class="rounded text-sky-600">
-                                    <span>📱 Số điện thoại khách</span>
+                                    <span class="truncate">📱 SĐT khách</span>
                                 </label>
                             </div>
                         </div>
 
                         <!-- Vùng 2: Body -->
-                        <div class="space-y-1.5 pt-2 border-t">
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-indigo-700 uppercase">2. Vùng Bảng Hàng Hóa:</span>
-                                <span class="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">Body</span>
+                        <div class="p-2.5 bg-indigo-50/50 rounded-lg border border-indigo-200">
+                            <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-indigo-200">
+                                <span class="font-bold text-indigo-800 uppercase text-[11px]">2. Bảng Hàng Hóa (Body)</span>
+                                <span class="text-[10px] bg-indigo-200/60 text-indigo-900 px-1.5 py-0.5 rounded font-bold">Kiểu bảng</span>
                             </div>
-                            <div class="space-y-1 pl-1">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 p-1 rounded bg-indigo-50/60 border border-indigo-200">
+                            <div class="space-y-1.5">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1.5 rounded bg-indigo-100/30 border border-indigo-200">
                                     <input type="radio" name="table_mode" id="chk-table_b2b" onchange="toggleTableMode('table_b2b')" class="text-indigo-600">
-                                    <span class="font-bold text-indigo-900">📊 Bảng 9 Cột B2B/Đại Lý (Chuẩn A4)</span>
+                                    <span class="font-bold text-indigo-950 text-xs">📊 Bảng 9 Cột B2B/Đại Lý (Chuẩn A4)</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-50 p-1 rounded">
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1.5 rounded border border-transparent">
                                     <input type="radio" name="table_mode" id="chk-table" onchange="toggleTableMode('table')" class="text-indigo-600">
-                                    <span>🧾 Bảng 4 Cột Tiêu Chuẩn (Bán lẻ/K80)</span>
+                                    <span class="text-gray-700 text-xs">🧾 Bảng 4 Cột Tiêu Chuẩn (Bán lẻ / K80)</span>
                                 </label>
                             </div>
                         </div>
 
                         <!-- Vùng 3: Footer -->
-                        <div class="space-y-1.5 pt-2 border-t">
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-emerald-700 uppercase">3. Vùng Chân Trang:</span>
-                                <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">Footer</span>
+                        <div class="p-2.5 bg-emerald-50/50 rounded-lg border border-emerald-200">
+                            <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-emerald-200">
+                                <span class="font-bold text-emerald-800 uppercase text-[11px]">3. Chân Trang (Footer)</span>
+                                <span class="text-[10px] bg-emerald-200/60 text-emerald-900 px-1.5 py-0.5 rounded font-bold">Khối & Chữ ký</span>
                             </div>
-                            <div class="space-y-1 pl-1">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1.5 rounded bg-emerald-50/70 border border-emerald-200">
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                                <label class="col-span-2 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/60 p-1 rounded bg-emerald-100/40 border border-emerald-200 font-bold text-emerald-900">
                                     <input type="checkbox" id="chk-b2b_footer_boxes" onchange="toggleCanvasItem('b2b_footer_boxes', this.checked)" class="rounded text-emerald-600">
-                                    <span class="font-bold text-emerald-800">🏦 3 Ô Chân Trang (Bank - QR - Tổng kết)</span>
+                                    <span class="truncate">🏦 3 Ô Chân Trang (Bank - QR - Tổng)</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1.5 rounded bg-emerald-50/70 border border-emerald-200">
+                                <label class="col-span-2 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/60 p-1 rounded bg-emerald-100/40 border border-emerald-200 font-bold text-emerald-900">
                                     <input type="checkbox" id="chk-signatures_3col" onchange="toggleCanvasItem('signatures_3col', this.checked)" class="rounded text-emerald-600">
-                                    <span class="font-bold text-emerald-800">✍️ 3 Cột Chữ Ký (Kế toán - Kho - Nhận)</span>
+                                    <span class="truncate">✍️ 3 Cột Chữ Ký (Kế toán - Kho - Nhận)</span>
                                 </label>
-                                <div class="text-[10px] text-gray-400 font-bold uppercase mt-2 pt-1 border-t">Khối Tiền Lẻ & QR Đơn Lập:</div>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-total" onchange="toggleCanvasItem('total', this.checked)" class="rounded text-emerald-600">
-                                    <span>💵 Tổng tiền hàng</span>
+                                    <span class="truncate">💵 Tổng tiền</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-discount" onchange="toggleCanvasItem('discount', this.checked)" class="rounded text-emerald-600">
-                                    <span>🏷️ Chiết khấu / Giảm giá</span>
+                                    <span class="truncate">🏷️ Chiết khấu</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-final" onchange="toggleCanvasItem('final', this.checked)" class="rounded text-emerald-600">
-                                    <span>💰 Khách phải trả</span>
+                                    <span class="truncate">💰 Phải trả</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-paid" onchange="toggleCanvasItem('paid', this.checked)" class="rounded text-emerald-600">
-                                    <span>💸 Tiền khách đưa</span>
+                                    <span class="truncate">💸 Khách đưa</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-debt" onchange="toggleCanvasItem('debt', this.checked)" class="rounded text-emerald-600">
-                                    <span>💳 Tiền thừa / Nợ lại</span>
+                                    <span class="truncate">💳 Còn nợ</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-qr" onchange="toggleCanvasItem('qr', this.checked)" class="rounded text-emerald-600">
-                                    <span>📲 Mã VietQR Thanh Toán</span>
+                                    <span class="truncate">📲 Mã QR</span>
                                 </label>
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-emerald-50 p-1 rounded">
+                                <label class="col-span-2 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-footer_msg" onchange="toggleCanvasItem('footer_msg', this.checked)" class="rounded text-emerald-600">
-                                    <span>💬 Lời cảm ơn chân trang</span>
+                                    <span class="truncate">💬 Lời cảm ơn</span>
                                 </label>
-                                <div class="pt-1.5">
-                                    <button type="button" onclick="addCustomTextItem()" class="w-full text-left p-1.5 border border-purple-200 rounded hover:bg-purple-50 text-purple-700 font-medium flex items-center justify-between">
-                                        <span>✍️ + Thêm Ô Chữ Tùy Ý</span>
-                                        <span class="text-[10px] bg-purple-100 px-1 py-0.5 rounded">+ Thêm</span>
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Khung Canvas Giay In (Giua) -->
-                    <div class="col-span-12 xl:col-span-6 bg-slate-200 p-3 rounded-lg flex flex-col items-center justify-start overflow-hidden max-h-[820px] shadow-inner">
+                <!-- BỐ CỤC 2 CỘT: KHUNG REVIEW LỚN NHẤT (9 COLS) + THUỘC TÍNH KHỐI (3 COLS) -->
+                <div class="grid grid-cols-12 gap-4">
+                    <!-- Khung Canvas Giay In (Review lon nhat - 9 cols) -->
+                    <div class="col-span-12 lg:col-span-9 bg-slate-200 p-3 rounded-lg flex flex-col items-center justify-start overflow-hidden min-h-[620px] max-h-[850px] shadow-inner">
                         <!-- Toolbar phu: Thu phong canvas -->
                         <div class="w-full flex items-center justify-between pb-2 mb-2 border-b border-slate-300 text-xs px-1">
-                            <span class="font-bold text-slate-700 flex items-center gap-1">
-                                <span>📄 Khung Xem Bản In</span>
-                                <span id="canvas-dim-badge" class="bg-white px-2 py-0.5 rounded text-[10px] text-slate-500 border border-slate-300 font-mono">297 x 210 mm</span>
+                            <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                                <span class="text-sm">📄</span>
+                                <span class="text-slate-900 font-bold">Khung Xem Bản In</span>
+                                <span id="canvas-dim-badge" class="bg-white px-2 py-0.5 rounded text-[10px] text-slate-600 border border-slate-300 font-mono">297 x 210 mm</span>
                             </span>
-                            <div class="flex items-center gap-1 bg-white px-2 py-1 rounded border border-slate-300 shadow-sm">
+                            <div class="flex items-center gap-1 bg-white px-2.5 py-1 rounded border border-slate-300 shadow-sm">
                                 <span class="text-[11px] font-semibold text-slate-600">Thu phóng:</span>
                                 <button onclick="setCanvasZoom(-0.1)" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-100 font-bold text-slate-700">-</button>
                                 <span id="canvas-zoom-text" class="w-12 text-center font-bold font-mono text-sky-700">100%</span>
                                 <button onclick="setCanvasZoom(0.1)" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-100 font-bold text-slate-700">+</button>
-                                <button onclick="setCanvasZoom('fit')" class="ml-1 text-[10px] bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 font-medium border">Vừa khung</button>
+                                <button onclick="setCanvasZoom('fit')" class="ml-1 text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold border">Vừa khung</button>
                             </div>
                         </div>
 
                         <!-- Vung cuon va scale canvas -->
-                        <div id="canvas-viewport" class="w-full flex-1 overflow-auto flex justify-center items-start p-2" style="max-height: 750px;">
+                        <div id="canvas-viewport" class="w-full flex-1 overflow-auto flex justify-center items-start p-2" style="max-height: 800px;">
                             <div id="canvas-scale-wrapper" style="transform-origin: top center; transition: transform 0.15s ease;">
                                 <div id="paper-canvas" class="bg-white shadow-2xl relative border transition-all" style="width: 297mm; min-height: 210mm;">
                                     <!-- Cac phan tu duoc keo tha nam tai day -->
@@ -665,9 +669,12 @@
                         </div>
                     </div>
 
-                    <!-- Bang Thuoc Tinh Phan Tu Duoc Chon (Phai) -->
-                    <div class="col-span-12 xl:col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 max-h-[820px] overflow-y-auto text-xs">
-                        <h3 class="font-bold border-b pb-2 text-slate-800 uppercase">Thuộc Tính Khối</h3>
+                    <!-- Bang Thuoc Tinh Phan Tu Duoc Chon (3 cols) -->
+                    <div class="col-span-12 lg:col-span-3 bg-white p-3 rounded-lg shadow-sm border space-y-3 min-h-[620px] max-h-[850px] overflow-y-auto text-xs">
+                        <h3 class="font-bold border-b pb-2 text-slate-800 uppercase flex items-center justify-between">
+                            <span>Thuộc Tính Khối</span>
+                            <span class="text-[10px] text-gray-400 font-normal">Chỉnh sửa chi tiết</span>
+                        </h3>
                         <div id="element-props-panel" class="text-gray-400 italic">
                             Click vào một khối trên trang giấy để chỉnh sửa kích thước, căn lề, chữ đậm...
                         </div>
