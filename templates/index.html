@@ -640,7 +640,7 @@
 
                     <!-- Khung Canvas Giay In (Giua - 6 cols) -->
                     <div class="col-span-6 bg-slate-200 p-4 rounded-lg flex justify-center items-start overflow-auto max-h-[780px] shadow-inner">
-                        <div id="paper-canvas" class="bg-white shadow-2xl relative border transition-all" style="width: 210mm; min-height: 297mm;">
+                        <div id="paper-canvas" class="bg-white shadow-2xl relative border transition-all" style="width: 297mm; min-height: 210mm;">
                             <!-- Cac phan tu duoc keo tha nam tai day -->
                         </div>
                     </div>
@@ -1115,21 +1115,27 @@
             custom_text: { zone: "footer", type: "text", text: "Nội dung tùy chỉnh...", label: "Ô Chữ Tự Do", fsz: 11, bold: false, align: "left", w: 250 }
         };
 
-        function getB2BA4Template() {
+        function getB2BA4Template(size) {
+            const isLandscape = (size || paperSize || 'A4-landscape').includes('landscape');
+            const totalW = isLandscape ? 980 : 734;
+            const rightX = isLandscape ? 740 : 504;
+            const titleW = totalW;
+            const startX = isLandscape ? 40 : 30;
+
             return [
-                { id: "e1", catalog_key: "logo", zone: "header", type: "logo", label: "Logo Cửa Hàng", x: 30, y: 20, w: 120, h: 55, align: "center" },
-                { id: "e2", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 160, y: 18, w: 580, fsz: 16, bold: true, align: "left" },
-                { id: "e3", catalog_key: "shop_address", zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 160, y: 40, w: 580, fsz: 10, bold: false, align: "left" },
-                { id: "e4", catalog_key: "shop_phone", zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 160, y: 56, w: 300, fsz: 10, bold: false, align: "left" },
-                { id: "e5", catalog_key: "title", zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG ĐẠI LÝ", label: "Tiêu Đề", x: 30, y: 85, w: 734, fsz: 18, bold: true, align: "center" },
-                { id: "e6", catalog_key: "order_code", zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 30, y: 118, w: 260, fsz: 10, bold: false, align: "left" },
-                { id: "e7", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: 504, y: 118, w: 260, fsz: 10, bold: false, align: "right" },
-                { id: "e8", catalog_key: "customer", zone: "header", type: "text", text: "Đại lý / Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 30, y: 138, w: 460, fsz: 10, bold: false, align: "left" },
-                { id: "e9", catalog_key: "staff", zone: "header", type: "text", text: "Nhân viên kinh doanh: {{thu_ngan}}", label: "Thu Ngân", x: 504, y: 138, w: 260, fsz: 10, bold: false, align: "right" },
-                { id: "e10", catalog_key: "table_b2b", zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", x: 30, y: 168, w: 734, fsz: 10 },
-                { id: "e11", catalog_key: "b2b_footer_boxes", zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", x: 30, y: 310, w: 734, h: 140 },
-                { id: "e12", catalog_key: "signatures_3col", zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", x: 30, y: 465, w: 734, h: 90 },
-                { id: "e13", catalog_key: "footer_msg", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 30, y: 575, w: 734, fsz: 10, italic: true, align: "center" }
+                { id: "e1", catalog_key: "logo", zone: "header", type: "logo", label: "Logo Cửa Hàng", x: startX, y: 22, w: 120, h: 55, align: "center" },
+                { id: "e2", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: startX + 140, y: 20, w: isLandscape ? 520 : 580, fsz: 16, bold: true, align: "left" },
+                { id: "e3", catalog_key: "shop_address", zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: startX + 140, y: 42, w: isLandscape ? 520 : 580, fsz: 10, bold: false, align: "left" },
+                { id: "e4", catalog_key: "shop_phone", zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: startX + 140, y: 60, w: 300, fsz: 10, bold: false, align: "left" },
+                { id: "e5", catalog_key: "title", zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG ĐẠI LÝ", label: "Tiêu Đề", x: startX, y: 92, w: titleW, fsz: 18, bold: true, align: "center" },
+                { id: "e6", catalog_key: "order_code", zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: startX, y: 125, w: 260, fsz: 10, bold: false, align: "left" },
+                { id: "e7", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: rightX, y: 125, w: 260, fsz: 10, bold: false, align: "right" },
+                { id: "e8", catalog_key: "customer", zone: "header", type: "text", text: "Đại lý / Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: startX, y: 147, w: isLandscape ? 550 : 460, fsz: 10, bold: false, align: "left" },
+                { id: "e9", catalog_key: "staff", zone: "header", type: "text", text: "Nhân viên kinh doanh: {{thu_ngan}}", label: "Thu Ngân", x: rightX, y: 147, w: 260, fsz: 10, bold: false, align: "right" },
+                { id: "e10", catalog_key: "table_b2b", zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", x: startX, y: 180, w: totalW, fsz: 10 },
+                { id: "e11", catalog_key: "b2b_footer_boxes", zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", x: startX, y: 325, w: totalW, h: 140 },
+                { id: "e12", catalog_key: "signatures_3col", zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", x: startX, y: 480, w: totalW, h: 90 },
+                { id: "e13", catalog_key: "footer_msg", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: startX, y: 585, w: totalW, fsz: 10, italic: true, align: "center" }
             ];
         }
 
@@ -1137,8 +1143,8 @@
             return {
                 "a4_b2b": {
                     name: "Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)",
-                    paper_size: "A4-portrait",
-                    elements: getB2BA4Template()
+                    paper_size: "A4-landscape",
+                    elements: getB2BA4Template("A4-landscape")
                 },
                 "a4_standard": {
                     name: "Mẫu A4 Tiêu Chuẩn (Bán Lẻ)",
@@ -1540,9 +1546,6 @@
                 multiTemplates.templates[newSize] = canvasElements;
             }
 
-            // Luon tu dong tinh toan dong bo lai dong chay vi tri theo Flow Layout
-            recomputeElementPositions();
-
             selectedElementId = null;
             const canvas = document.getElementById('paper-canvas');
             const dim = paperDimensions[newSize] || paperDimensions["A4-portrait"];
@@ -1556,6 +1559,9 @@
         function getInitialElementsForSize(size) {
             if (size.startsWith('A4') || size.startsWith('A5')) {
                 const isLandscape = size.includes('landscape');
+                if (isLandscape && size.startsWith('A4')) {
+                    return getB2BA4Template('A4-landscape');
+                }
                 const tWidth = isLandscape ? (size.startsWith('A4') ? 950 : 660) : (size.startsWith('A4') ? 680 : 460);
                 const alignRightX = isLandscape ? (size.startsWith('A4') ? 680 : 420) : (size.startsWith('A4') ? 440 : 220);
                 return [
@@ -1662,8 +1668,8 @@
                 const zElems = canvasElements.filter(e => (e.zone || 'header') === z);
                 if (zElems.length === 0) return;
                 const minY = Math.min(...zElems.map(e => e.y));
-                html += `<div style="position: absolute; left: 0; right: 0; top: ${minY - 16}px; border-top: 1.5px dashed ${zoneColors[z]}; z-index: 2; pointer-events: none;">
-                    <span style="position: absolute; left: 4px; top: -10px; background: ${zoneColors[z]}20; color: ${zoneColors[z]}; font-size: 10px; font-weight: bold; padding: 1px 8px; border-radius: 8px; border: 1px solid ${zoneColors[z]}40; white-space: nowrap;">${zoneLabels[z]}</span>
+                html += `<div style="position: absolute; left: 0; right: 0; top: ${minY - 4}px; border-top: 1px dashed ${zoneColors[z]}; z-index: 2; pointer-events: none;">
+                    <span style="position: absolute; right: 8px; top: -9px; background: white; color: ${zoneColors[z]}; font-size: 9px; font-weight: bold; padding: 1px 6px; border-radius: 4px; border: 1px solid ${zoneColors[z]}60; white-space: nowrap;">${zoneLabels[z]}</span>
                 </div>`;
             });
 
@@ -2427,6 +2433,8 @@
                 let elemW = e.w ? e.w + 'px' : 'auto';
                 if (paperSize === 'A4-portrait' && e.w && e.w > 734 && (e.type === 'table_b2b' || e.type === 'b2b_footer_boxes' || e.type === 'signatures_3col')) {
                     elemW = '734px';
+                } else if (paperSize === 'A4-landscape' && e.w && e.w > 980 && (e.type === 'table_b2b' || e.type === 'b2b_footer_boxes' || e.type === 'signatures_3col')) {
+                    elemW = '980px';
                 }
 
                 html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
