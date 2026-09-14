@@ -8,22 +8,59 @@
     <style>
         .active-tab { background-color: #0284c7; color: white; }
         @media print {
-            body * { visibility: hidden; }
-            #print-modal, #print-modal * { visibility: visible; }
-            #print-modal {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white;
-                padding: 0;
-                margin: 0;
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                overflow: visible !important;
             }
-            #print-modal button, #print-modal h3 { display: none !important; }
-            #print-area { border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+            body * {
+                visibility: hidden !important;
+            }
+            #print-area, #print-area * {
+                visibility: visible !important;
+            }
+            #print-modal {
+                position: static !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+            #print-modal > div {
+                position: static !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+            #print-modal button, #print-modal h3 {
+                display: none !important;
+            }
+            #print-area {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
             @page {
                 size: auto;
-                margin: 5mm;
+                margin: 0;
             }
         }
         .canvas-element {
@@ -2077,43 +2114,7 @@
         }
 
 
-        function resetDefaultTemplate() {
-            if (paperSize.startsWith('A4') || paperSize.startsWith('A5')) {
-                const isLandscape = paperSize.includes('landscape');
-                const tWidth = isLandscape ? 950 : 680;
-                canvasElements = [
-                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 40, y: 30, w: 400, fsz: 18, bold: true, align: "left" },
-                    { id: "e2", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", x: 40, y: 60, w: 450, fsz: 11, bold: false, align: "left" },
-                    { id: "e3", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", x: 40, y: 80, w: 300, fsz: 11, bold: false, align: "left" },
-                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: isLandscape ? 300 : 180, y: 120, w: 400, fsz: 22, bold: true, align: "center" },
-                    { id: "e5", type: "text", text: "Mã đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: 40, y: 165, w: 250, fsz: 12, bold: false, align: "left" },
-                    { id: "e6", type: "text", text: "Ngày: {{ngay_gio}}", label: "Thời Gian", x: isLandscape ? 700 : 450, y: 165, w: 250, fsz: 12, bold: false, align: "right" },
-                    { id: "e7", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 40, y: 190, w: 400, fsz: 12, bold: false, align: "left" },
-                    { id: "e8", type: "table", label: "Bảng Danh Sách Món", x: 40, y: 225, w: tWidth, fsz: 12 },
-                    { id: "e9", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", x: isLandscape ? 680 : 440, y: 310, w: 280, fsz: 13, bold: false, align: "right" },
-                    { id: "e10", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", x: isLandscape ? 680 : 440, y: 335, w: 280, fsz: 13, bold: false, align: "right" },
-                    { id: "e11", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: isLandscape ? 680 : 440, y: 365, w: 280, fsz: 16, bold: true, align: "right" },
-                    { id: "e12", type: "qr", label: "QR Code Thanh Toán", x: 40, y: 300, w: 140, h: 140 },
-                    { id: "e13", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: isLandscape ? 250 : 150, y: 460, w: 450, fsz: 12, italic: true, align: "center" }
-                ];
-            } else {
-                // K80
-                canvasElements = [
-                    { id: "e1", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 15, w: 280, fsz: 15, bold: true, align: "center" },
-                    { id: "e2", type: "text", text: "{{dia_chi}}", label: "Địa Chỉ", x: 10, y: 38, w: 280, fsz: 10, bold: false, align: "center" },
-                    { id: "e3", type: "text", text: "SĐT: {{so_dien_thoai}}", label: "SĐT Shop", x: 10, y: 55, w: 280, fsz: 10, bold: false, align: "center" },
-                    { id: "e4", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", x: 10, y: 78, w: 280, fsz: 14, bold: true, align: "center" },
-                    { id: "e5", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã Đơn", x: 10, y: 102, w: 280, fsz: 10, bold: false, align: "center" },
-                    { id: "e6", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 122, w: 280, fsz: 11, bold: false, align: "left" },
-                    { id: "e7", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 145, w: 280, fsz: 10 },
-                    { id: "e8", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 220, w: 280, fsz: 11, bold: false, align: "right" },
-                    { id: "e9", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 240, w: 280, fsz: 13, bold: true, align: "right" },
-                    { id: "e10", type: "qr", label: "QR Code Thanh Toán", x: 80, y: 270, w: 130, h: 130 },
-                    { id: "e11", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 415, w: 280, fsz: 10, italic: true, align: "center" }
-                ];
-            }
-            renderCanvas();
-        }
+
 
         function ensureElementsHaveZone(elements) {
             return elements.map(e => {
@@ -2245,12 +2246,18 @@
             const tableElem = canvasElements.find(e => e.type === 'table' || e.type === 'table_b2b');
             let deltaY = 0;
             if (tableElem && ord.items) {
-                const rowHeight = tableElem.type === 'table_b2b' ? 24 : 28;
-                const baseHeight = tableElem.type === 'table_b2b' ? 100 : 70;
-                const actualTableHeight = Math.max(baseHeight, 35 + ord.items.length * rowHeight);
-                const designTableHeight = baseHeight;
-                if (actualTableHeight > designTableHeight) {
-                    deltaY = actualTableHeight - designTableHeight;
+                const isB2B = tableElem.type === 'table_b2b';
+                const headerH = isB2B ? 34 : 28;
+                const rowH = isB2B ? 28 : 28;
+                const actualTableHeight = headerH + (ord.items.length * rowH) + 10;
+                const tableBottom = (tableElem.y || 0) + actualTableHeight;
+
+                const footerElems = canvasElements.filter(e => (e.zone || 'header') === 'footer');
+                if (footerElems.length > 0) {
+                    const minFooterY = Math.min(...footerElems.map(e => e.y || 0));
+                    if (tableBottom + 15 > minFooterY) {
+                        deltaY = (tableBottom + 15) - minFooterY;
+                    }
                 }
             }
 
@@ -2259,20 +2266,31 @@
             <style>
                 @page { size: ${dim.printSize || 'A4 portrait'}; margin: 0; }
                 @media print {
-                    body { margin: 0; padding: 0; }
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
                     .print-container { 
                         width: ${dim.width} !important; 
-                        min-height: ${dim.height} !important; 
+                        height: auto !important; 
+                        max-height: ${dim.height} !important;
                         margin: 0 !important;
-                        overflow: hidden;
+                        padding: 0 !important;
+                        overflow: hidden !important;
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
                     }
                     .print-inner {
                         transform-origin: top left;
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
                     }
                 }
             </style>
-            <div class="print-container" style="width: ${dim.width}; min-height: ${dim.height}; margin: 0 auto; background: white; overflow: hidden; position: relative;">
-                <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${canvasH + deltaY}px; font-family: monospace;">`;
+            <div class="print-container" style="width: ${dim.width}; margin: 0 auto; background: white; overflow: hidden; position: relative;">
+                <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${Math.min(canvasH, canvasH + deltaY)}px; font-family: monospace;">`;
 
             canvasElements.forEach(e => {
                 let content = '';
@@ -2406,7 +2424,12 @@
                     printY += deltaY;
                 }
 
-                html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
+                let elemW = e.w ? e.w + 'px' : 'auto';
+                if (paperSize === 'A4-portrait' && e.w && e.w > 734 && (e.type === 'table_b2b' || e.type === 'b2b_footer_boxes' || e.type === 'signatures_3col')) {
+                    elemW = '734px';
+                }
+
+                html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
             });
 
             html += `</div></div>`;
