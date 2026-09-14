@@ -155,6 +155,7 @@
                     <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">💰 Sổ Quỹ Thu Chi</button>
                     <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📊 Báo Cáo Tổng Hợp</button>
                     <button onclick="switchTab('company')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">🏢 Thông Tin Doanh Nghiệp</button>
+                    <button onclick="switchTab('cost-management')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 bg-slate-800/40 text-emerald-400 font-semibold">🧪 Quản Lý Nguyên Liệu & Cost</button>
                     <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">⚙️ Thiết Kế Mẫu In</button>
 
 
@@ -474,6 +475,176 @@
                 </div>
             </div>
 
+            <!-- TAB: QUẢN LÝ NGUYÊN LIỆU & COST VỐN (BOM) -->
+            <div id="tab-cost-management" class="hidden space-y-4">
+                <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">🧪 Quản Lý Nguyên Liệu, Kho Hàng & Định Lượng Cost (BOM)</h2>
+                        <p class="text-xs text-gray-500">Quản lý thành phần cấu thành (IS_PHYSICAL / SERVICE), lịch sử giá nhập và tự động tính giá vốn sản phẩm</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow">
+                            + Thêm Nguyên Liệu / Dịch Vụ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2 Cột: Bên trái Nguyên liệu & Tồn kho, Bên phải BOM & Cost từng sản phẩm -->
+                <div class="grid grid-cols-12 gap-4">
+                    <!-- Cột Trái: Bảng Nguyên Liệu & Kho (7 cols) -->
+                    <div class="col-span-12 lg:col-span-7 bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h3 class="font-bold text-slate-700 text-sm">📦 Danh Sách Nguyên Liệu & Tồn Kho</h3>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span>Kho:</span>
+                                <select id="cost-wh-filter" class="border p-1 rounded font-medium" onchange="loadCostIngredients()">
+                                    <option value="">Tất cả kho</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto max-h-[480px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2">Mã</th>
+                                        <th class="p-2">Tên thành phần</th>
+                                        <th class="p-2 text-center">Loại</th>
+                                        <th class="p-2 text-right">Tồn kho</th>
+                                        <th class="p-2">ĐVT</th>
+                                        <th class="p-2 text-right">Giá nhập gần nhất</th>
+                                        <th class="p-2 text-center">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-cost-ingredients"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Cột Phải: Tra Cứu & Thiết Lập BOM Sản Phẩm (5 cols) -->
+                    <div class="col-span-12 lg:col-span-5 bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="border-b pb-2">
+                            <h3 class="font-bold text-slate-700 text-sm">⚡ Định Lượng BOM & Tính Giá Cost Sản Phẩm</h3>
+                            <p class="text-[11px] text-gray-500">Chọn sản phẩm để xem và cập nhật thành phần tiêu hao</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Chọn Sản Phẩm Thành Phẩm:</label>
+                            <select id="cost-product-select" class="border p-2 rounded w-full text-xs font-bold text-sky-700 bg-sky-50" onchange="loadProductBOMDetails(this.value)">
+                                <option value="">-- Chọn sản phẩm để xem BOM --</option>
+                            </select>
+                        </div>
+
+                        <!-- Card Tóm tắt Cost -->
+                        <div id="cost-summary-card" class="hidden bg-slate-50 border rounded p-3 text-xs space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Giá bán hiện tại:</span>
+                                <span id="cost-sum-sell" class="font-bold text-sky-600">0 đ</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Tổng Giá Cost (vốn):</span>
+                                <span id="cost-sum-cost" class="font-bold text-rose-600">0 đ</span>
+                            </div>
+                            <div class="flex justify-between border-t pt-1 font-bold">
+                                <span class="text-gray-700">Biên Lợi Nhuận:</span>
+                                <span id="cost-sum-margin" class="text-emerald-600">0 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách BOM hiện tại -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-xs text-slate-700">Các thành phần cấu thành:</span>
+                                <button onclick="openModalAddBOMItem()" class="text-[11px] bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">
+                                    + Thêm thành phần
+                                </button>
+                            </div>
+                            <div class="overflow-x-auto max-h-[260px] border rounded">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-gray-100 border-b text-[11px]">
+                                        <tr>
+                                            <th class="p-1.5">Nguyên liệu</th>
+                                            <th class="p-1.5 text-right">Định lượng</th>
+                                            <th class="p-1.5 text-right">Giá vốn</th>
+                                            <th class="p-1.5 text-center">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-product-bom-items">
+                                        <tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pt-2">
+                                <button onclick="recalculateActiveProductCost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded shadow">
+                                    🔄 Tính Toán & Cập Nhật Giá Cost Tự Động
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: THÊM NGUYÊN LIỆU MỚI -->
+            <div id="modal-ingredient" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-5 w-96 max-w-full space-y-3 text-xs shadow-xl">
+                    <h3 class="font-bold text-sm text-slate-800 border-b pb-2">Thêm Nguyên Liệu / Dịch Vụ Mới</h3>
+                    <div>
+                        <label class="block font-bold mb-1">Mã nguyên liệu (để trống tự sinh):</label>
+                        <input id="modal-ing-code" type="text" class="border p-2 rounded w-full" placeholder="NL-01">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Tên nguyên liệu / dịch vụ:</label>
+                        <input id="modal-ing-name" type="text" class="border p-2 rounded w-full" placeholder="Hạt cà phê / Công phục vụ">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold mb-1">Đơn vị tính:</label>
+                            <input id="modal-ing-unit" type="text" class="border p-2 rounded w-full" placeholder="kg, lon, ly...">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Loại thành phần:</label>
+                            <select id="modal-ing-type" class="border p-2 rounded w-full font-bold">
+                                <option value="IS_PHYSICAL">Vật lý (Tồn kho)</option>
+                                <option value="SERVICE">Dịch vụ (Không tồn kho)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold mb-1">Tồn kho ban đầu:</label>
+                            <input id="modal-ing-stock" type="number" step="any" class="border p-2 rounded w-full" value="0">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Giá nhập ban đầu (đ):</label>
+                            <input id="modal-ing-cost" type="number" step="any" class="border p-2 rounded w-full" value="0">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="closeModalIngredient()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="saveNewIngredient()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Lưu Thành Phần</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: THÊM THÀNH PHẦN VÀO BOM -->
+            <div id="modal-bom-item" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+                <div class="bg-white rounded-lg p-5 w-96 max-w-full space-y-3 text-xs shadow-xl">
+                    <h3 class="font-bold text-sm text-slate-800 border-b pb-2">Thêm Thành Phần Cấu Thành</h3>
+                    <div>
+                        <label class="block font-bold mb-1">Chọn Nguyên Liệu / Dịch Vụ:</label>
+                        <select id="modal-bom-ing-select" class="border p-2 rounded w-full font-medium"></select>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Định lượng tiêu hao cho 1 thành phẩm:</label>
+                        <input id="modal-bom-quantity" type="number" step="any" class="border p-2 rounded w-full" placeholder="Ví dụ: 0.02 (20g)">
+                        <p class="text-[10px] text-gray-500 mt-1">Lưu ý nhập theo đúng ĐVT của nguyên liệu (kg, lon, cái...)</p>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="closeModalBOMItem()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="addCurrentBOMItem()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Thêm Vào BOM</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- TAB: CAI DAT MAU IN (CANVAS DRAG & DROP CHO A4, A5, K80) -->
             <div id="tab-settings" class="hidden space-y-4">
                 <!-- Thanh dieu khien tren cung -->
@@ -729,6 +900,7 @@
             if (tabId === 'reports') loadReports();
             if (tabId === 'settings') loadSettings();
             if (tabId === 'company') loadCompanySettings();
+            if (tabId === 'cost-management') initCostManagement();
             if (tabId === 'purchases') initPurchases();
 
 
@@ -1079,6 +1251,271 @@
                 Object.assign(currentSettings, payload);
             } else {
                 alert('Lỗi lưu thông tin!');
+            }
+        }
+
+        // ========================================================
+        // LOGIC QUẢN LÝ NGUYÊN LIỆU & COST VỐN (BOM)
+        // ========================================================
+        let costIngredients = [];
+        let currentBOMData = null;
+
+        async function initCostManagement() {
+            await Promise.all([loadCostWarehouses(), loadCostIngredients(), loadCostProductOptions()]);
+        }
+
+        async function loadCostWarehouses() {
+            try {
+                const res = await fetch('/api/warehouses');
+                const whs = await res.json();
+                const sel = document.getElementById('cost-wh-filter');
+                if (sel) {
+                    sel.innerHTML = '<option value="">Tất cả kho</option>' + 
+                        whs.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadCostIngredients() {
+            try {
+                const res = await fetch('/api/ingredients');
+                costIngredients = await res.json();
+                
+                const tbody = document.getElementById('table-cost-ingredients');
+                if (!tbody) return;
+
+                if (costIngredients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-3 text-center text-gray-400">Chưa có nguyên liệu / dịch vụ nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = costIngredients.map(ing => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 font-mono font-bold text-slate-700">${ing.code || '-'}</td>
+                        <td class="p-2 font-medium text-slate-800">${ing.name}</td>
+                        <td class="p-2 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">
+                                ${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}
+                            </span>
+                        </td>
+                        <td class="p-2 text-right font-bold ${ing.type === 'SERVICE' ? 'text-gray-400' : (ing.total_stock <= 5 ? 'text-rose-600' : 'text-slate-700')}">
+                            ${ing.type === 'SERVICE' ? '-' : ing.total_stock}
+                        </td>
+                        <td class="p-2 text-gray-500">${ing.unit}</td>
+                        <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
+                        <td class="p-2 text-center">
+                            <button onclick="promptAdjustStock(${ing.id}, '${ing.name}', '${ing.type}')" class="text-xs text-sky-600 hover:underline ${ing.type === 'SERVICE' ? 'hidden' : ''}">Nhập tồn</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadCostProductOptions() {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            const sel = document.getElementById('cost-product-select');
+            if (sel) {
+                sel.innerHTML = '<option value="">-- Chọn sản phẩm để xem BOM --</option>' + 
+                    products.map(p => `<option value="${p.id}">${p.code} - ${p.name} (${formatMoney(p.sell_price)})</option>`).join('');
+            }
+        }
+
+        async function loadProductBOMDetails(productId) {
+            if (!productId) {
+                document.getElementById('cost-summary-card').classList.add('hidden');
+                document.getElementById('table-product-bom-items').innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>';
+                currentBOMData = null;
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${productId}/bom`);
+                currentBOMData = await res.json();
+                
+                document.getElementById('cost-summary-card').classList.remove('hidden');
+                document.getElementById('cost-sum-sell').textContent = formatMoney(currentBOMData.sell_price);
+                document.getElementById('cost-sum-cost').textContent = formatMoney(currentBOMData.cost_price);
+                document.getElementById('cost-sum-margin').textContent = formatMoney(currentBOMData.profit_margin);
+
+                const tbody = document.getElementById('table-product-bom-items');
+                if (currentBOMData.bom_items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa có thành phần nào trong BOM</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = currentBOMData.bom_items.map(item => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-1.5 font-medium">${item.ingredient_name}</td>
+                        <td class="p-1.5 text-right font-mono">${item.quantity} ${item.unit}</td>
+                        <td class="p-1.5 text-right text-rose-600 font-medium">${formatMoney(item.line_cost)}</td>
+                        <td class="p-1.5 text-center">
+                            <button onclick="removeBOMItem(${item.ingredient_id})" class="text-red-500 hover:text-red-700 font-bold">×</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openModalAddIngredient() {
+            document.getElementById('modal-ing-code').value = '';
+            document.getElementById('modal-ing-name').value = '';
+            document.getElementById('modal-ing-unit').value = 'kg';
+            document.getElementById('modal-ing-type').value = 'IS_PHYSICAL';
+            document.getElementById('modal-ing-stock').value = '0';
+            document.getElementById('modal-ing-cost').value = '0';
+            document.getElementById('modal-ingredient').classList.remove('hidden');
+        }
+
+        function closeModalIngredient() {
+            document.getElementById('modal-ingredient').classList.add('hidden');
+        }
+
+        async function saveNewIngredient() {
+            const name = document.getElementById('modal-ing-name').value.trim();
+            if (!name) return alert('Vui lòng nhập tên nguyên liệu!');
+
+            const payload = {
+                code: document.getElementById('modal-ing-code').value.trim() || null,
+                name: name,
+                unit: document.getElementById('modal-ing-unit').value.trim() || 'cái',
+                type: document.getElementById('modal-ing-type').value,
+                initial_stock: parseFloat(document.getElementById('modal-ing-stock').value) || 0,
+                initial_cost: parseFloat(document.getElementById('modal-ing-cost').value) || 0,
+                warehouse_id: 1
+            };
+
+            const res = await fetch('/api/ingredients', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeModalIngredient();
+                await loadCostIngredients();
+                alert('Đã thêm nguyên liệu thành công!');
+            } else {
+                const err = await res.json();
+                alert('Lỗi: ' + (err.detail || 'Không thể tạo nguyên liệu'));
+            }
+        }
+
+        function openModalAddBOMItem() {
+            const prodId = document.getElementById('cost-product-select').value;
+            if (!prodId) return alert('Vui lòng chọn sản phẩm trước!');
+            
+            const sel = document.getElementById('modal-bom-ing-select');
+            sel.innerHTML = costIngredients.map(i => `<option value="${i.id}">${i.name} (${i.unit} - ${formatMoney(i.latest_cost)})</option>`).join('');
+            document.getElementById('modal-bom-quantity').value = '';
+            document.getElementById('modal-bom-item').classList.remove('hidden');
+        }
+
+        function closeModalBOMItem() {
+            document.getElementById('modal-bom-item').classList.add('hidden');
+        }
+
+        async function addCurrentBOMItem() {
+            const prodId = document.getElementById('cost-product-select').value;
+            const ingId = parseInt(document.getElementById('modal-bom-ing-select').value);
+            const qty = parseFloat(document.getElementById('modal-bom-quantity').value);
+
+            if (!qty || qty <= 0) return alert('Vui lòng nhập định lượng tiêu hao hợp lệ!');
+
+            let currentItems = (currentBOMData ? currentBOMData.bom_items : []).map(b => ({
+                ingredient_id: b.ingredient_id,
+                quantity: b.quantity
+            }));
+
+            // Nếu đã có thì cập nhật số lượng, chưa có thì thêm mới
+            const existing = currentItems.find(x => x.ingredient_id === ingId);
+            if (existing) {
+                existing.quantity = qty;
+            } else {
+                currentItems.push({ ingredient_id: ingId, quantity: qty });
+            }
+
+            const res = await fetch(`/api/products/${prodId}/bom`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ items: currentItems })
+            });
+
+            if (res.ok) {
+                closeModalBOMItem();
+                await loadProductBOMDetails(prodId);
+                await loadProducts(); // reload bảng hàng hóa
+            } else {
+                alert('Lỗi khi lưu định lượng BOM');
+            }
+        }
+
+        async function removeBOMItem(ingId) {
+            if (!confirm('Xóa thành phần này khỏi BOM?')) return;
+            const prodId = document.getElementById('cost-product-select').value;
+            let currentItems = currentBOMData.bom_items
+                .filter(b => b.ingredient_id !== ingId)
+                .map(b => ({ ingredient_id: b.ingredient_id, quantity: b.quantity }));
+
+            const res = await fetch(`/api/products/${prodId}/bom`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ items: currentItems })
+            });
+
+            if (res.ok) {
+                await loadProductBOMDetails(prodId);
+                await loadProducts();
+            }
+        }
+
+        async function recalculateActiveProductCost() {
+            const prodId = document.getElementById('cost-product-select').value;
+            if (!prodId) return alert('Vui lòng chọn sản phẩm!');
+            const res = await fetch(`/api/products/${prodId}/recalculate-cost`, { method: 'POST' });
+            if (res.ok) {
+                await loadProductBOMDetails(prodId);
+                await loadProducts();
+                alert('Đã cập nhật giá Cost thành công!');
+            }
+        }
+
+        async function promptAdjustStock(ingId, ingName, ingType) {
+            if (ingType === 'SERVICE') return alert('Thành phần dịch vụ không quản lý tồn kho!');
+            const qtyStr = prompt(`Nhập số lượng nhập thêm cho [${ingName}]:`, '10');
+            if (!qtyStr) return;
+            const qty = parseFloat(qtyStr);
+            if (isNaN(qty)) return alert('Số lượng không hợp lệ');
+
+            const priceStr = prompt(`Nhập đơn giá nhập mới (để trống nếu giữ nguyên):`, '');
+            const price = priceStr ? parseFloat(priceStr) : null;
+
+            const res = await fetch('/api/inventory/adjust', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    warehouse_id: 1,
+                    ingredient_id: ingId,
+                    quantity: qty,
+                    mode: 'add',
+                    purchase_price: price,
+                    note: 'Nhập tay từ giao diện Quản Lý Cost'
+                })
+            });
+
+            if (res.ok) {
+                await loadCostIngredients();
+                const prodId = document.getElementById('cost-product-select').value;
+                if (prodId) await loadProductBOMDetails(prodId);
+                alert('Đã cập nhật tồn kho & giá thành công!');
+            } else {
+                alert('Lỗi cập nhật tồn kho!');
             }
         }
 
