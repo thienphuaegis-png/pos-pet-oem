@@ -254,44 +254,176 @@
                 </div>
             </div>
 
-            <!-- TAB: NHAP HANG -->
+            <!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
             <div id="tab-purchases" class="hidden space-y-4">
-                <h2 class="text-xl font-bold">Nhập Hàng Từ Nhà Cung Cấp</h2>
-                <div class="bg-white p-4 rounded-lg shadow space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold mb-1">Nhà Cung Cấp:</label>
-                            <select id="purchase-supplier" class="border p-2 rounded w-full"></select>
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">📥 Quản Lý Nhập Hàng & Mua Hàng</h2>
+                        <p class="text-xs text-gray-500">Tạo phiếu nhập nhiều mặt hàng (hàng hóa & nguyên liệu), tính VAT, phí vận chuyển, chiết khấu và theo dõi công nợ NCC</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="togglePurchaseView('create')" id="btn-purchase-new" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            ➕ Tạo Phiếu Nhập Mới
+                        </button>
+                        <button onclick="togglePurchaseView('list')" id="btn-purchase-history" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📋 Lịch Sử Phiếu Nhập
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VIEW 1: TẠO PHIẾU NHẬP MỚI -->
+                <div id="purchase-create-view" class="space-y-4">
+                    <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
+                        <!-- Thông tin chung phiếu nhập -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nhà Cung Cấp (*):</label>
+                                <select id="purchase-supplier" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kho Nhập Hàng (*):</label>
+                                <select id="purchase-warehouse" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Ghi Chú Phiếu Nhập:</label>
+                                <input type="text" id="purchase-note" class="border p-2 rounded w-full text-xs" placeholder="Ghi chú đợt nhập, số hóa đơn đỏ NCC...">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold mb-1">Chọn Hàng Hóa / Nguyên Liệu:</label>
-                            <select id="purchase-product-select" class="border p-2 rounded w-full" onchange="addPurchaseItem(this.value)">
-                                <option value="">-- Chọn sản phẩm --</option>
-                            </select>
+
+                        <!-- Chọn mặt hàng thêm vào phiếu -->
+                        <div class="bg-slate-50 p-3 rounded-lg border flex flex-wrap items-center gap-3">
+                            <span class="text-xs font-bold text-slate-700 whitespace-nowrap">➕ Chọn Hàng Nhập:</span>
+                            <div class="flex-1 min-w-[280px]">
+                                <select id="purchase-product-select" class="border p-2 rounded w-full text-xs font-medium bg-white" onchange="addPurchaseItemFromSelect(this.value)">
+                                    <option value="">-- Bấm chọn Sản Phẩm hoặc Nguyên Liệu để thêm vào phiếu --</option>
+                                </select>
+                            </div>
+                            <span class="text-[11px] text-gray-500 italic">(Hỗ trợ nhập nhiều món cùng lúc)</span>
+                        </div>
+
+                        <!-- Bảng danh sách hàng hóa trong phiếu -->
+                        <div class="overflow-x-auto border rounded">
+                            <table class="w-full text-xs border-collapse text-left">
+                                <thead class="bg-gray-100 border-b">
+                                    <tr>
+                                        <th class="p-2.5 w-12 text-center">STT</th>
+                                        <th class="p-2.5">Tên Mặt Hàng / Nguyên Liệu</th>
+                                        <th class="p-2.5 text-center w-24">Loại</th>
+                                        <th class="p-2.5 text-center w-20">ĐVT</th>
+                                        <th class="p-2.5 text-right w-28">Số Lượng</th>
+                                        <th class="p-2.5 text-right w-36">Đơn Giá Nhập (đ)</th>
+                                        <th class="p-2.5 text-right w-36">Thành Tiền</th>
+                                        <th class="p-2.5 text-center w-14">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchase-items-table">
+                                    <tr>
+                                        <td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Khu vực tính toán tổng tiền, chiết khấu, VAT, ship -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                            <div class="lg:col-span-6 space-y-2 text-xs text-gray-600 bg-gray-50 p-4 rounded-lg border">
+                                <h4 class="font-bold text-slate-700 text-sm">💡 Quy tắc hạch toán nhập kho:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-[11px]">
+                                    <li>Hàng hóa và Nguyên liệu dạng vật lý sẽ được tự động cộng dồn số lượng tồn kho.</li>
+                                    <li>Đơn giá nhập mới của nguyên liệu sẽ tự động ghi vào <b>Lịch Sử Giá</b> và tính lại giá vốn sản phẩm (Cost BOM).</li>
+                                    <li>Tiền thực trả sẽ tự động tạo phiếu chi trong <b>Sổ Quỹ</b>; phần nợ còn lại sẽ tự động ghi vào <b>Công Nợ NCC</b>.</li>
+                                </ul>
+                            </div>
+
+                            <div class="lg:col-span-6 bg-slate-50 p-4 rounded-lg border space-y-2.5 text-xs">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Tiền hàng (chưa giảm):</span>
+                                    <span id="p-calc-subtotal" class="font-bold text-slate-800 text-sm">0 đ</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Chiết khấu (đ):</span>
+                                        <input type="number" id="purchase-discount" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Phí ship (đ):</span>
+                                        <input type="number" id="purchase-shipping" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Chi phí khác:</span>
+                                        <input type="number" id="purchase-other-fee" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Thuế VAT (%):</span>
+                                        <input type="number" id="purchase-vat-rate" class="w-16 text-right p-1 font-medium border-b outline-none" value="0" min="0" max="100" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center text-gray-500 text-[11px]">
+                                    <span>Tiền thuế VAT:</span>
+                                    <span id="p-calc-vat">0 đ</span>
+                                </div>
+
+                                <div class="flex justify-between items-center border-t border-slate-300 pt-2 font-black text-base text-slate-900">
+                                    <span>Tổng Thanh Toán:</span>
+                                    <span id="p-calc-total" class="text-sky-700">0 đ</span>
+                                </div>
+
+                                <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-200">
+                                    <span class="font-bold text-emerald-800">Thực trả NCC (đ):</span>
+                                    <input type="number" id="purchase-paid" class="w-36 text-right p-1.5 font-black text-emerald-600 text-sm border rounded bg-emerald-50 outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                </div>
+
+                                <div class="flex justify-between items-center text-rose-600 font-bold">
+                                    <span>Còn nợ NCC:</span>
+                                    <span id="p-calc-debt">0 đ</span>
+                                </div>
+
+                                <div class="pt-3 flex gap-2">
+                                    <button onclick="resetPurchaseForm()" class="flex-1 py-2.5 border rounded font-bold text-gray-600 hover:bg-gray-100">
+                                        Hủy / Làm Mới
+                                    </button>
+                                    <button onclick="submitPurchase()" class="flex-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-sm flex items-center justify-center gap-1.5">
+                                        <span>💾 LƯU PHIẾU NHẬP KHO</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <table class="w-full text-sm border-collapse">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="p-2 text-left">Sản phẩm</th>
-                                <th class="p-2 w-28">Số lượng</th>
-                                <th class="p-2 w-32">Giá nhập</th>
-                                <th class="p-2 text-right">Thành tiền</th>
-                                <th class="p-2 w-16"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchase-items-table"></tbody>
-                    </table>
+                </div>
 
-                    <div class="border-t pt-4 flex justify-between items-center">
-                        <div class="flex gap-4 items-center">
-                            <span>Thực trả NCC:</span>
-                            <input type="number" id="purchase-paid" class="border p-2 rounded w-36 font-bold" value="0">
-                        </div>
-                        <button onclick="submitPurchase()" class="bg-green-600 text-white font-bold px-6 py-2 rounded shadow">
-                            LƯU ĐƠN NHẬP KHO
-                        </button>
+                <!-- VIEW 2: DANH SÁCH LỊCH SỬ PHIẾU NHẬP HÀNG -->
+                <div id="purchase-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 class="font-bold text-slate-700 text-sm">📜 Lịch Sử Các Đợt Nhập Hàng</h3>
+                        <button onclick="loadPurchasesList()" class="text-xs text-sky-600 hover:underline flex items-center gap-1">🔄 Tải lại</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs border-collapse text-left">
+                            <thead class="bg-gray-100 border-b">
+                                <tr>
+                                    <th class="p-2.5">Mã Phiếu</th>
+                                    <th class="p-2.5">Thời Gian</th>
+                                    <th class="p-2.5">Nhà Cung Cấp</th>
+                                    <th class="p-2.5">Kho Nhập</th>
+                                    <th class="p-2.5 text-center">Số Mặt Hàng</th>
+                                    <th class="p-2.5 text-right">Tổng Tiền</th>
+                                    <th class="p-2.5 text-right">Đã Trả</th>
+                                    <th class="p-2.5 text-right">Còn Nợ</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-purchases-history">
+                                <tr>
+                                    <td colspan="9" class="p-4 text-center text-gray-400">Đang tải lịch sử phiếu nhập...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -483,8 +615,8 @@
                         <p class="text-xs text-gray-500">Quản lý thành phần cấu thành (IS_PHYSICAL / SERVICE), lịch sử giá nhập và tự động tính giá vốn sản phẩm</p>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="openModalAdjustStockQuick()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            📥 Nhập Tồn Kho
+                        <button onclick="goToPurchaseTabWithItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📥 Tạo Phiếu Nhập Hàng (Mua Hàng)
                         </button>
                         <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
                             + Thêm Nguyên Liệu / Dịch Vụ
@@ -711,60 +843,6 @@
 
                     <div class="flex justify-end pt-2 border-t">
                         <button onclick="closeModalIngredientDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MODAL: NHẬP TỒN KHO NGUYÊN LIỆU (CHỨC NĂNG RIÊNG) -->
-            <div id="modal-adjust-stock" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg p-5 w-[460px] max-w-full space-y-3 text-xs shadow-2xl">
-                    <div class="flex justify-between items-center border-b pb-2">
-                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                            <span>📥 Nhập Tồn Kho Nguyên Liệu</span>
-                        </h3>
-                        <button onclick="closeModalAdjustStock()" class="text-gray-400 hover:text-gray-600 text-base font-bold">✕</button>
-                    </div>
-                    
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Chọn Nguyên Liệu Nhập:</label>
-                        <select id="modal-adjust-ing-select" class="border p-2 rounded w-full font-medium" onchange="onAdjustIngChange(this.value)"></select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Kho Nhập Hàng:</label>
-                            <select id="modal-adjust-warehouse-select" class="border p-2 rounded w-full font-medium"></select>
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Nhà Cung Cấp (nếu có):</label>
-                            <select id="modal-adjust-supplier-select" class="border p-2 rounded w-full font-medium">
-                                <option value="">-- Chọn Nhà Cung Cấp --</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Số Lượng Nhập Thêm:</label>
-                            <div class="flex items-center">
-                                <input id="modal-adjust-quantity" type="number" step="any" class="border p-2 rounded-l w-full font-bold text-sky-700" placeholder="0">
-                                <span id="modal-adjust-unit-badge" class="bg-gray-100 border-t border-b border-r px-2 py-2 text-gray-500 rounded-r text-[11px]">kg</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Đơn Giá Nhập (đ):</label>
-                            <input id="modal-adjust-price" type="number" step="any" class="border p-2 rounded w-full font-bold text-rose-600" placeholder="Đơn giá nhập mới...">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Ghi Chú Biến Động:</label>
-                        <input id="modal-adjust-note" type="text" class="border p-2 rounded w-full" placeholder="Nhập thêm hàng đợt mới / điều chỉnh...">
-                    </div>
-
-                    <div class="flex justify-end gap-2 pt-3 border-t">
-                        <button onclick="closeModalAdjustStock()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
-                        <button onclick="submitAdjustStockModal()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Xác Nhận Nhập Kho</button>
                     </div>
                 </div>
             </div>
@@ -1257,59 +1335,358 @@
 
         }
 
-        // Nhap hang
-        function initPurchases() {
-            const sel = document.getElementById('purchase-product-select');
-            sel.innerHTML = '<option value="">-- Chọn sản phẩm/nguyên liệu --</option>' + 
-                allProducts.map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+        // Nhap hang (Phieu Mua Hang / Nhap Ton Kho Nhieu Mat Hang)
+        // purchaseCart da khai bao o tren
+        // allWarehousesList dung chung
+        purchaseCart = [];
+        allWarehousesList = [];
+
+        async function initPurchases() {
+            try {
+                // 1. Tải danh sách NCC, Kho, Sản phẩm và Nguyên liệu
+                const [whRes, suppRes, ingRes, prodRes] = await Promise.all([
+                    fetch('/api/warehouses'),
+                    fetch('/api/contacts?type=supplier'),
+                    fetch('/api/ingredients'),
+                    fetch('/api/products')
+                ]);
+
+                allWarehousesList = await whRes.json();
+                const suppliers = await suppRes.json();
+                costIngredients = await ingRes.json();
+                allProducts = await prodRes.json();
+
+                // 2. Đổ vào select NCC
+                const suppSel = document.getElementById('purchase-supplier');
+                suppSel.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
+                    suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
+
+                // 3. Đổ vào select Kho
+                const whSel = document.getElementById('purchase-warehouse');
+                whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+
+                // 4. Đổ vào select Chọn Hàng Nhập (Gộp cả Hàng hóa lẫn Nguyên liệu)
+                populatePurchaseItemSelect();
+
+                // 5. Render lại bảng giỏ nhập
+                renderPurchaseItems();
+            } catch (e) {
+                console.error(e);
+            }
         }
 
-        function addPurchaseItem(prodId) {
-            if (!prodId) return;
-            const p = allProducts.find(x => x.id == prodId);
-            purchaseCart.push({ product_id: p.id, name: p.name, quantity: 10, cost_price: p.cost_price });
+        function populatePurchaseItemSelect() {
+            const sel = document.getElementById('purchase-product-select');
+            if (!sel) return;
+
+            let html = '<option value="">-- Bấm chọn Sản Phẩm hoặc Nguyên Liệu để thêm vào phiếu --</option>';
+
+            // Nhóm Nguyên liệu
+            const physicalIngs = (costIngredients || []).filter(i => i.type !== 'SERVICE');
+            if (physicalIngs.length > 0) {
+                html += '<optgroup label="🧪 NGUYÊN LIỆU / VẬT TƯ THÀNH PHẦN">';
+                physicalIngs.forEach(ing => {
+                    html += `<option value="ing_${ing.id}">[NL] ${ing.name} (Tồn: ${ing.total_stock} ${ing.unit} - Giá nhập: ${formatMoney(ing.latest_cost)})</option>`;
+                });
+                html += '</optgroup>';
+            }
+
+            // Nhóm Hàng hóa
+            const standardProds = (allProducts || []).filter(p => p.type !== 'service');
+            if (standardProds.length > 0) {
+                html += '<optgroup label="📦 SẢN PHẨM / HÀNG HÓA">';
+                standardProds.forEach(p => {
+                    html += `<option value="prod_${p.id}">[SP] ${p.name} (Tồn: ${p.stock} ${p.unit} - Vốn: ${formatMoney(p.cost_price)})</option>`;
+                });
+                html += '</optgroup>';
+            }
+
+            sel.innerHTML = html;
+        }
+
+        function addPurchaseItemFromSelect(val) {
+            if (!val) return;
+            const [type, idStr] = val.split('_');
+            const targetId = parseInt(idStr);
+
+            if (type === 'ing') {
+                const ing = costIngredients.find(i => i.id === targetId);
+                if (ing) {
+                    const existing = purchaseCart.find(x => x.item_type === 'ingredient' && x.ingredient_id === targetId);
+                    if (existing) {
+                        existing.quantity += 1;
+                    } else {
+                        purchaseCart.push({
+                            item_type: 'ingredient',
+                            ingredient_id: ing.id,
+                            product_id: null,
+                            name: ing.name,
+                            unit: ing.unit || 'đv',
+                            quantity: 1,
+                            cost_price: ing.latest_cost || 0
+                        });
+                    }
+                }
+            } else if (type === 'prod') {
+                const prod = allProducts.find(p => p.id === targetId);
+                if (prod) {
+                    const existing = purchaseCart.find(x => x.item_type === 'product' && x.product_id === targetId);
+                    if (existing) {
+                        existing.quantity += 1;
+                    } else {
+                        purchaseCart.push({
+                            item_type: 'product',
+                            ingredient_id: null,
+                            product_id: prod.id,
+                            name: prod.name,
+                            unit: prod.unit || 'cái',
+                            quantity: 1,
+                            cost_price: prod.cost_price || 0
+                        });
+                    }
+                }
+            }
+
+            document.getElementById('purchase-product-select').value = '';
             renderPurchaseItems();
         }
 
-        function renderPurchaseItems() {
+        function removePurchaseItem(idx) {
+            purchaseCart.splice(idx, 1);
+            renderPurchaseItems();
+        }
+
+        function updatePurchaseItemField(idx, field, val) {
+            const num = parseFloat(val) || 0;
+            if (field === 'quantity') purchaseCart[idx].quantity = num;
+            if (field === 'cost_price') purchaseCart[idx].cost_price = num;
+            renderPurchaseItems(false); // rerender nhẹ tính toán không mất focus
+        }
+
+        function renderPurchaseItems(rebuildDOM = true) {
             const tbody = document.getElementById('purchase-items-table');
-            let total = 0;
-            tbody.innerHTML = purchaseCart.map((i, idx) => {
-                const sub = i.quantity * i.cost_price;
-                total += sub;
-                return `
-                <tr class="border-b">
-                    <td class="p-2">${i.name}</td>
-                    <td class="p-2"><input type="number" value="${i.quantity}" class="border w-20 p-1 rounded" onchange="purchaseCart[${idx}].quantity = parseFloat(this.value); renderPurchaseItems()"></td>
-                    <td class="p-2"><input type="number" value="${i.cost_price}" class="border w-28 p-1 rounded" onchange="purchaseCart[${idx}].cost_price = parseFloat(this.value); renderPurchaseItems()"></td>
-                    <td class="p-2 text-right font-bold">${formatMoney(sub)}</td>
-                    <td class="p-2 text-center"><button onclick="purchaseCart.splice(${idx}, 1); renderPurchaseItems()" class="text-red-500">✕</button></td>
-                </tr>
-                `;
-            }).join('');
-            document.getElementById('purchase-paid').value = total;
+            if (!tbody) return;
+
+            if (purchaseCart.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td></tr>';
+                calculatePurchaseTotals();
+                return;
+            }
+
+            if (rebuildDOM) {
+                tbody.innerHTML = purchaseCart.map((item, idx) => {
+                    const subtotal = item.quantity * item.cost_price;
+                    const isIng = item.item_type === 'ingredient';
+                    const badge = isIng 
+                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>' 
+                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
+
+                    return `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2 font-medium text-slate-800">${item.name}</td>
+                        <td class="p-2 text-center">${badge}</td>
+                        <td class="p-2 text-center text-gray-500">${item.unit}</td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" min="0.001" value="${item.quantity}" 
+                                class="border p-1 rounded w-20 text-right font-bold text-sky-700" 
+                                oninput="updatePurchaseItemField(${idx}, 'quantity', this.value)">
+                        </td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" min="0" value="${item.cost_price}" 
+                                class="border p-1 rounded w-28 text-right font-bold text-rose-600" 
+                                oninput="updatePurchaseItemField(${idx}, 'cost_price', this.value)">
+                        </td>
+                        <td class="p-2 text-right font-bold text-slate-800 font-mono" id="p-subtotal-${idx}">
+                            ${formatMoney(subtotal)}
+                        </td>
+                        <td class="p-2 text-center">
+                            <button onclick="removePurchaseItem(${idx})" class="text-rose-500 hover:text-rose-700 font-black text-sm px-1.5" title="Xóa món này khỏi phiếu">✕</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            } else {
+                // Cập nhật lại cột thành tiền của từng dòng mà không xóa DOM input
+                purchaseCart.forEach((item, idx) => {
+                    const el = document.getElementById(`p-subtotal-${idx}`);
+                    if (el) el.textContent = formatMoney(item.quantity * item.cost_price);
+                });
+            }
+
+            calculatePurchaseTotals();
+        }
+
+        function calculatePurchaseTotals() {
+            const subtotal = purchaseCart.reduce((sum, item) => sum + (item.quantity * item.cost_price), 0);
+            const discount = parseFloat(document.getElementById('purchase-discount').value) || 0;
+            const shipping = parseFloat(document.getElementById('purchase-shipping').value) || 0;
+            const otherFee = parseFloat(document.getElementById('purchase-other-fee').value) || 0;
+            const vatRate = parseFloat(document.getElementById('purchase-vat-rate').value) || 0;
+
+            const afterDiscount = Math.max(0, subtotal - discount);
+            const vatAmount = (vatRate > 0) ? Math.round(afterDiscount * (vatRate / 100)) : 0;
+            const total = Math.max(0, afterDiscount + shipping + otherFee + vatAmount);
+
+            document.getElementById('p-calc-subtotal').textContent = formatMoney(subtotal);
+            document.getElementById('p-calc-vat').textContent = formatMoney(vatAmount);
+            document.getElementById('p-calc-total').textContent = formatMoney(total);
+
+            const paidInput = document.getElementById('purchase-paid');
+            // Nếu người dùng chưa gõ tiền trả riêng thì mặc định điền đủ tổng tiền
+            if (document.activeElement !== paidInput && (parseFloat(paidInput.value) === 0 || parseFloat(paidInput.value) > total)) {
+                paidInput.value = total;
+            }
+
+            const paid = parseFloat(paidInput.value) || 0;
+            const debt = Math.max(0, total - paid);
+            document.getElementById('p-calc-debt').textContent = formatMoney(debt);
+        }
+
+        function resetPurchaseForm() {
+            purchaseCart = [];
+            document.getElementById('purchase-discount').value = 0;
+            document.getElementById('purchase-shipping').value = 0;
+            document.getElementById('purchase-other-fee').value = 0;
+            document.getElementById('purchase-vat-rate').value = 0;
+            document.getElementById('purchase-paid').value = 0;
+            document.getElementById('purchase-note').value = '';
+            renderPurchaseItems();
         }
 
         async function submitPurchase() {
-            if (purchaseCart.length === 0) return alert('Chưa chọn hàng nhập!');
-            const req = {
-                supplier_id: parseInt(document.getElementById('purchase-supplier').value),
-                paid_amount: parseFloat(document.getElementById('purchase-paid').value) || 0,
-                items: purchaseCart.map(i => ({ product_id: i.product_id, quantity: i.quantity, cost_price: i.cost_price }))
+            if (purchaseCart.length === 0) return alert('Vui lòng chọn ít nhất 1 mặt hàng vào phiếu nhập!');
+            const suppIdVal = document.getElementById('purchase-supplier').value;
+            if (!suppIdVal) return alert('Vui lòng chọn Nhà Cung Cấp!');
+
+            const suppId = parseInt(suppIdVal);
+            const whId = parseInt(document.getElementById('purchase-warehouse').value) || 1;
+            const discount = parseFloat(document.getElementById('purchase-discount').value) || 0;
+            const shipping = parseFloat(document.getElementById('purchase-shipping').value) || 0;
+            const otherFee = parseFloat(document.getElementById('purchase-other-fee').value) || 0;
+            const vatRate = parseFloat(document.getElementById('purchase-vat-rate').value) || 0;
+            const paid = parseFloat(document.getElementById('purchase-paid').value) || 0;
+            const note = document.getElementById('purchase-note').value.trim();
+
+            const payload = {
+                supplier_id: suppId,
+                warehouse_id: whId,
+                discount: discount,
+                shipping_fee: shipping,
+                other_fee: otherFee,
+                vat_rate: vatRate,
+                paid_amount: paid,
+                note: note,
+                items: purchaseCart.map(i => ({
+                    item_type: i.item_type,
+                    product_id: i.product_id,
+                    ingredient_id: i.ingredient_id,
+                    item_name: i.name,
+                    unit: i.unit,
+                    quantity: i.quantity,
+                    cost_price: i.cost_price
+                }))
             };
-            const res = await fetch('/api/purchases', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(req)
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert('Lưu phiếu nhập thành công: ' + data.purchase_code);
-                purchaseCart = [];
-                renderPurchaseItems();
-                loadProducts();
+
+            try {
+                const res = await fetch('/api/purchases', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`✅ Tạo phiếu nhập hàng thành công: ${data.purchase_code}!`);
+                    resetPurchaseForm();
+                    await Promise.all([loadCostIngredients(), loadProducts()]);
+                    togglePurchaseView('list');
+                } else {
+                    alert('Lỗi: ' + (data.detail || 'Không thể lưu phiếu nhập'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
+            }
+        }
+
+        function togglePurchaseView(view) {
+            const createView = document.getElementById('purchase-create-view');
+            const listView = document.getElementById('purchase-list-view');
+            const btnNew = document.getElementById('btn-purchase-new');
+            const btnHist = document.getElementById('btn-purchase-history');
+
+            if (view === 'create') {
+                createView.classList.remove('hidden');
+                listView.classList.add('hidden');
+                btnNew.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                btnHist.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
             } else {
-                alert('Lỗi: ' + data.detail);
+                createView.classList.add('hidden');
+                listView.classList.remove('hidden');
+                btnHist.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                btnNew.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                loadPurchasesList();
+            }
+        }
+
+        async function loadPurchasesList() {
+            try {
+                const res = await fetch('/api/purchases');
+                const list = await res.json();
+                const tbody = document.getElementById('table-purchases-history');
+                if (!tbody) return;
+
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Chưa có phiếu nhập hàng nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = list.map(p => `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
+                        <td class="p-2.5 text-gray-500">${p.created_at || '-'}</td>
+                        <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
+                        <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>
+                        <td class="p-2.5 text-center font-bold">${p.item_count || 1} món</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_amount)}</td>
+                        <td class="p-2.5 text-right font-mono text-emerald-600 font-bold">${formatMoney(p.paid_amount)}</td>
+                        <td class="p-2.5 text-right font-mono font-bold ${p.debt_amount > 0 ? 'text-rose-600' : 'text-gray-400'}">${formatMoney(p.debt_amount)}</td>
+                        <td class="p-2.5 text-center space-x-1">
+                            <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-0.5 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deletePurchaseOrder(code) {
+            if (!confirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\nThao tác này sẽ trừ lại tồn kho và hoàn lại công nợ NCC!`)) return;
+            try {
+                const res = await fetch(`/api/purchases/${code}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Đã hủy phiếu nhập thành công!');
+                    await Promise.all([loadCostIngredients(), loadProducts(), loadPurchasesList()]);
+                } else {
+                    alert('Lỗi: ' + (data.detail || 'Không thể xóa phiếu'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
+            }
+        }
+
+        function goToPurchaseTabWithItem(type = null, id = null) {
+            switchTab('purchases');
+            togglePurchaseView('create');
+            if (type && id) {
+                setTimeout(() => {
+                    const key = type === 'ingredient' ? `ing_${id}` : `prod_${id}`;
+                    addPurchaseItemFromSelect(key);
+                }, 300);
             }
         }
 
@@ -1499,7 +1876,7 @@
                         <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
                         <td class="p-2 text-center space-x-1">
                             <button onclick="viewIngredientDetail(${ing.id})" class="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded hover:bg-sky-100 font-medium" title="Xem chi tiết biến động & lịch sử giá">🔍 Chi tiết</button>
-                            <button onclick="openModalAdjustStockQuick(${ing.id})" class="text-xs text-emerald-600 hover:underline font-medium ${ing.type === 'SERVICE' ? 'hidden' : ''}">📥 Nhập tồn</button>
+                            <button onclick="goToPurchaseTabWithItem('ingredient', ${ing.id})" class="text-xs text-indigo-600 hover:underline font-medium ${ing.type === 'SERVICE' ? 'hidden' : ''}" title="Tạo phiếu nhập hàng cho nguyên liệu này">📥 Nhập hàng</button>
                         </td>
                     </tr>
                 `).join('');
@@ -1809,115 +2186,6 @@
 
         function closeModalIngredientDetail() {
             document.getElementById('modal-ingredient-detail').classList.add('hidden');
-        }
-
-        // --- CHỨC NĂNG NHẬP TỒN KHO RIÊNG (MODAL NHẬP TỒN) ---
-        let allWarehousesList = [];
-
-        async function openModalAdjustStockQuick(defaultIngId = null) {
-            try {
-                // Tải danh sách kho nếu chưa có
-                const [whRes, suppRes] = await Promise.all([
-                    fetch('/api/warehouses'),
-                    fetch('/api/contacts?type=supplier')
-                ]);
-                allWarehousesList = await whRes.json();
-                const suppliers = await suppRes.json();
-
-                // Đổ dữ liệu kho
-                const whSel = document.getElementById('modal-adjust-warehouse-select');
-                whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-
-                // Đổ dữ liệu NCC
-                const suppSel = document.getElementById('modal-adjust-supplier-select');
-                suppSel.innerHTML = '<option value="">-- Không chọn / NCC lẻ --</option>' + 
-                    suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
-
-                // Đổ dữ liệu nguyên liệu chỉ lấy loại vật lý IS_PHYSICAL
-                const ingSel = document.getElementById('modal-adjust-ing-select');
-                const physicalIngs = costIngredients.filter(i => i.type !== 'SERVICE');
-                
-                if (physicalIngs.length === 0) {
-                    return alert('Chưa có nguyên liệu vật lý nào để nhập kho!');
-                }
-
-                ingSel.innerHTML = physicalIngs.map(i => `<option value="${i.id}">${i.code ? '['+i.code+'] ' : ''}${i.name} (hiện có: ${i.total_stock} ${i.unit})</option>`).join('');
-                
-                if (defaultIngId) {
-                    ingSel.value = defaultIngId;
-                }
-                
-                onAdjustIngChange(ingSel.value);
-                document.getElementById('modal-adjust-quantity').value = '';
-                document.getElementById('modal-adjust-price').value = '';
-                document.getElementById('modal-adjust-note').value = '';
-
-                document.getElementById('modal-adjust-stock').classList.remove('hidden');
-            } catch (e) {
-                console.error(e);
-                alert('Lỗi tải dữ liệu nhập kho');
-            }
-        }
-
-        function onAdjustIngChange(ingId) {
-            const ing = costIngredients.find(i => i.id == ingId);
-            if (ing) {
-                document.getElementById('modal-adjust-unit-badge').textContent = ing.unit || 'đv';
-                if (ing.latest_cost && ing.latest_cost > 0) {
-                    document.getElementById('modal-adjust-price').placeholder = `Giá nhập gần nhất: ${formatMoney(ing.latest_cost)}`;
-                } else {
-                    document.getElementById('modal-adjust-price').placeholder = 'Đơn giá nhập mới (đ)...';
-                }
-            }
-        }
-
-        function closeModalAdjustStock() {
-            document.getElementById('modal-adjust-stock').classList.add('hidden');
-        }
-
-        async function submitAdjustStockModal() {
-            const ingId = parseInt(document.getElementById('modal-adjust-ing-select').value);
-            const whId = parseInt(document.getElementById('modal-adjust-warehouse-select').value) || 1;
-            const suppIdVal = document.getElementById('modal-adjust-supplier-select').value;
-            const suppId = suppIdVal ? parseInt(suppIdVal) : null;
-            const qty = parseFloat(document.getElementById('modal-adjust-quantity').value);
-            const priceVal = document.getElementById('modal-adjust-price').value;
-            const price = priceVal ? parseFloat(priceVal) : null;
-            const note = document.getElementById('modal-adjust-note').value.trim();
-
-            if (isNaN(qty) || qty <= 0) {
-                return alert('Vui lòng nhập số lượng nhập hợp lệ (lớn hơn 0)!');
-            }
-
-            try {
-                const res = await fetch('/api/inventory/adjust', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        warehouse_id: whId,
-                        ingredient_id: ingId,
-                        quantity: qty,
-                        mode: 'add',
-                        purchase_price: price,
-                        supplier_id: suppId,
-                        note: note || 'Nhập kho nguyên liệu'
-                    })
-                });
-
-                if (res.ok) {
-                    closeModalAdjustStock();
-                    await loadCostIngredients();
-                    const prodId = document.getElementById('cost-product-select').value;
-                    if (prodId) await loadProductBOMDetails(prodId);
-                    alert('Nhập kho nguyên liệu thành công!');
-                } else {
-                    const err = await res.json();
-                    alert('Lỗi: ' + (err.detail || 'Không thể nhập tồn'));
-                }
-            } catch (e) {
-                console.error(e);
-                alert('Lỗi kết nối máy chủ!');
-            }
         }
 
         // --- XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG TỪ LOGS ---

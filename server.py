@@ -96,13 +96,22 @@ class BOMSetRequest(BaseModel):
     items: List[BOMItemIn]
 
 class PurchaseItemIn(BaseModel):
-    product_id: int
+    item_type: str = "product" # "product" | "ingredient"
+    product_id: Optional[int] = None
+    ingredient_id: Optional[int] = None
+    item_name: Optional[str] = ""
+    unit: Optional[str] = "cái"
     quantity: float
     cost_price: float
 
 class PurchaseCreate(BaseModel):
     supplier_id: int
-    paid_amount: float
+    warehouse_id: Optional[int] = 1
+    discount: float = 0
+    shipping_fee: float = 0
+    other_fee: float = 0
+    vat_rate: float = 0
+    paid_amount: float = 0
     note: Optional[str] = ""
     items: List[PurchaseItemIn]
 
@@ -768,32 +777,129 @@ def create_order(req: OrderCreate):
     conn.close()
     return {"status": "ok", "order_code": code}
 
-# Nhap hang
+# Nhap hang (Phieu Mua Hang / Nhap Ton)
+@app.get("/api/purchases")
+def list_purchases(limit: int = 50):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT p.*, c.name as supplier_name, c.phone as supplier_phone, w.name as warehouse_name,
+           (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count
+    FROM purchases p
+    LEFT JOIN contacts c ON p.supplier_id = c.id
+    LEFT JOIN warehouses w ON p.warehouse_id = w.id
+    ORDER BY p.id DESC
+    LIMIT ?
+    ''', (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.get("/api/purchases/{code}")
+def get_purchase_detail(code: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT p.*, c.name as supplier_name, c.phone as supplier_phone, c.address as supplier_address,
+           w.name as warehouse_name
+    FROM purchases p
+    LEFT JOIN contacts c ON p.supplier_id = c.id
+    LEFT JOIN warehouses w ON p.warehouse_id = w.id
+    WHERE p.code = ?
+    ''', (code,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+    
+    cur.execute('''
+    SELECT pi.*
+    FROM purchase_items pi
+    WHERE pi.purchase_id = ?
+    ORDER BY pi.id ASC
+    ''', (row["id"],))
+    items = [dict(r) for r in cur.fetchall()]
+    
+    result = dict(row)
+    result["items"] = items
+    conn.close()
+    return result
+
 @app.post("/api/purchases")
 def create_purchase(req: PurchaseCreate):
     conn = get_db()
     cur = conn.cursor()
     try:
-        total_amount = sum(item.quantity * item.cost_price for item in req.items)
-        debt_amount = max(0.0, total_amount - req.paid_amount)
+        warehouse_id = req.warehouse_id or 1
+        subtotal_amount = sum(item.quantity * item.cost_price for item in req.items)
+        vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2) if req.vat_rate > 0 else 0.0
+        total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
+        debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
         code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
 
         cur.execute('''
-        INSERT INTO purchases (code, supplier_id, total_amount, paid_amount, debt_amount, note)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ''', (code, req.supplier_id, total_amount, req.paid_amount, debt_amount, req.note))
+        INSERT INTO purchases (
+            code, supplier_id, warehouse_id, subtotal_amount, discount, 
+            shipping_fee, other_fee, vat_rate, vat_amount, total_amount, 
+            paid_amount, debt_amount, note
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            code, req.supplier_id, warehouse_id, subtotal_amount, req.discount,
+            req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
+            req.paid_amount, debt_amount, req.note
+        ))
         purchase_id = cur.lastrowid
 
         for item in req.items:
-            subtotal = item.quantity * item.cost_price
+            subtotal = round(item.quantity * item.cost_price, 2)
+            # Nếu là ingredient thì gắn product_id = 1 (hoặc id hợp lệ) để thỏa mãn FK cũ nếu có
+            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
             cur.execute('''
-            INSERT INTO purchase_items (purchase_id, product_id, quantity, cost_price, subtotal)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (purchase_id, item.product_id, item.quantity, item.cost_price, subtotal))
-            # Cong ton kho & cap nhat gia von
-            cur.execute("UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?", (item.quantity, item.cost_price, item.product_id))
+            INSERT INTO purchase_items (
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, quantity, cost_price, subtotal
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                purchase_id, item.item_type, prod_id_val, item.ingredient_id,
+                item.item_name, item.unit, item.quantity, item.cost_price, subtotal
+            ))
 
-        if debt_amount > 0:
+            if item.item_type == 'ingredient' and item.ingredient_id:
+                # 1. Cập nhật tồn kho nguyên liệu trong inventory
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity + ?,
+                    updated_at = CURRENT_TIMESTAMP
+                ''', (warehouse_id, item.ingredient_id, item.quantity, item.quantity))
+
+                # Lấy số tồn sau khi cộng
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, item.ingredient_id))
+                bal_row = cur.fetchone()
+                balance_after = bal_row["quantity"] if bal_row else item.quantity
+
+                # Ghi lịch sử giá nhập theo NCC
+                cur.execute('''
+                INSERT INTO price_history (ingredient_id, supplier_id, purchase_price, note)
+                VALUES (?, ?, ?, ?)
+                ''', (item.ingredient_id, req.supplier_id, item.cost_price, f"Phiếu nhập {code}"))
+
+                # Ghi nhật ký biến động kho
+                cur.execute('''
+                INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
+                VALUES (?, ?, 'PURCHASE', ?, ?, ?, ?)
+                ''', (item.ingredient_id, warehouse_id, item.quantity, balance_after, req.supplier_id, f"Phiếu nhập {code}"))
+
+            elif item.product_id:
+                # 2. Cập nhật tồn kho và giá vốn của sản phẩm thông thường
+                cur.execute(
+                    "UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?",
+                    (item.quantity, item.cost_price, item.product_id)
+                )
+
+        if debt_amount > 0 and req.supplier_id:
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (debt_amount, req.supplier_id))
 
         if req.paid_amount > 0:
@@ -810,6 +916,60 @@ def create_purchase(req: PurchaseCreate):
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok", "purchase_code": code}
+
+@app.delete("/api/purchases/{code}")
+def delete_purchase(code: str):
+    """
+    Xóa/Hủy phiếu nhập hàng: Hoàn lại tồn kho, công nợ NCC và xóa phiếu.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+
+        cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (p["id"],))
+        items = cur.fetchall()
+
+        # Hoàn lại tồn kho
+        for item in items:
+            if item["item_type"] == 'ingredient' and item["ingredient_id"]:
+                cur.execute('''
+                UPDATE inventory SET quantity = quantity - ? WHERE warehouse_id = ? AND ingredient_id = ?
+                ''', (item["quantity"], p["warehouse_id"], item["ingredient_id"]))
+
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (p["warehouse_id"], item["ingredient_id"]))
+                bal = cur.fetchone()
+                bal_after = bal["quantity"] if bal else 0
+
+                cur.execute('''
+                INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                VALUES (?, ?, 'ADJUST', ?, ?, ?)
+                ''', (item["ingredient_id"], p["warehouse_id"], -item["quantity"], bal_after, f"Hủy phiếu nhập {code}"))
+
+            elif item["product_id"]:
+                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (item["quantity"], item["product_id"]))
+
+        # Hoàn lại công nợ NCC
+        if p["debt_amount"] > 0 and p["supplier_id"]:
+            cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (p["debt_amount"], p["supplier_id"]))
+
+        # Xóa bản ghi thu chi cashbook liên quan
+        cur.execute("DELETE FROM cashbook WHERE ref_type = 'purchase' AND ref_id = ?", (p["id"],))
+
+        # Xóa purchase_items và purchase
+        cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (p["id"],))
+        cur.execute("DELETE FROM purchases WHERE id = ?", (p["id"],))
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": f"Đã hủy phiếu nhập {code}"}
 
 # San xuat (BOM Execution)
 @app.post("/api/productions")

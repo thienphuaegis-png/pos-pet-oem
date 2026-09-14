@@ -199,24 +199,35 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
         supplier_id INTEGER,
-        total_amount REAL NOT NULL,
-        paid_amount REAL NOT NULL,
-        debt_amount REAL DEFAULT 0,
+        warehouse_id INTEGER DEFAULT 1,
+        subtotal_amount REAL NOT NULL DEFAULT 0, -- Tien hang
+        discount REAL DEFAULT 0, -- Chiet khau
+        shipping_fee REAL DEFAULT 0, -- Phi van chuyen
+        other_fee REAL DEFAULT 0, -- Chi phi khac
+        vat_rate REAL DEFAULT 0, -- % VAT
+        vat_amount REAL DEFAULT 0, -- Tien VAT
+        total_amount REAL NOT NULL, -- Tong thanh toan
+        paid_amount REAL NOT NULL, -- Da tra NCC
+        debt_amount REAL DEFAULT 0, -- Con no NCC
         note TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(supplier_id) REFERENCES contacts(id)
+        FOREIGN KEY(supplier_id) REFERENCES contacts(id),
+        FOREIGN KEY(warehouse_id) REFERENCES warehouses(id)
     )''')
 
     cur.execute('''
     CREATE TABLE IF NOT EXISTS purchase_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         purchase_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
+        item_type TEXT DEFAULT 'product', -- 'product' hoac 'ingredient'
+        product_id INTEGER, -- id trong bang products neu la product
+        ingredient_id INTEGER, -- id trong bang ingredients neu la ingredient
+        item_name TEXT,
+        unit TEXT,
         quantity REAL NOT NULL,
         cost_price REAL NOT NULL,
         subtotal REAL NOT NULL,
-        FOREIGN KEY(purchase_id) REFERENCES purchases(id),
-        FOREIGN KEY(product_id) REFERENCES products(id)
+        FOREIGN KEY(purchase_id) REFERENCES purchases(id) ON DELETE CASCADE
     )''')
 
     # 7. Lenh san xuat
