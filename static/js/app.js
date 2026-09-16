@@ -1364,6 +1364,16 @@
         }
 
         // ==================== PHẦN 1: NHẬP HÀNG (PO / PURCHASES) ====================
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         let currentViewingPurchase = null;
 
         let currentSupplierItems = []; // Danh sách mặt hàng của NCC đang chọn
