@@ -321,11 +321,24 @@ def init_db():
         total_amount REAL NOT NULL, -- Tong thanh toan
         paid_amount REAL NOT NULL, -- Da tra NCC
         debt_amount REAL DEFAULT 0, -- Con no NCC
+        status TEXT DEFAULT 'pending', -- 'pending' (Cho nhan hang), 'received' (Da nhan & nhap kho), 'cancelled' (Da huy)
+        expected_date DATE, -- Du kien ngay nhan hang
+        received_date DATETIME, -- Ngay thuc te nhan hang
         note TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(supplier_id) REFERENCES contacts(id),
         FOREIGN KEY(warehouse_id) REFERENCES warehouses(id)
     )''')
+
+    # Migration them status, expected_date, received_date neu chua co
+    cur.execute("PRAGMA table_info(purchases)")
+    purchases_cols = [c[1] for c in cur.fetchall()]
+    if 'status' not in purchases_cols:
+        cur.execute("ALTER TABLE purchases ADD COLUMN status TEXT DEFAULT 'pending'")
+    if 'expected_date' not in purchases_cols:
+        cur.execute("ALTER TABLE purchases ADD COLUMN expected_date DATE")
+    if 'received_date' not in purchases_cols:
+        cur.execute("ALTER TABLE purchases ADD COLUMN received_date DATETIME")
 
     cur.execute('''
     CREATE TABLE IF NOT EXISTS purchase_items (
@@ -347,11 +360,50 @@ def init_db():
     CREATE TABLE IF NOT EXISTS productions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
-        product_id INTEGER NOT NULL, -- Thanh pham muon san xuat
-        quantity REAL NOT NULL,
+        warehouse_id INTEGER DEFAULT 1,
+        total_cost REAL DEFAULT 0,
+        status TEXT DEFAULT 'completed', -- 'completed'
         note TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(warehouse_id) REFERENCES warehouses(id)
+    )''')
+
+    # Migration productions cols neu thieu
+    cur.execute("PRAGMA table_info(productions)")
+    prod_cols = [c[1] for c in cur.fetchall()]
+    if 'warehouse_id' not in prod_cols:
+        cur.execute("ALTER TABLE productions ADD COLUMN warehouse_id INTEGER DEFAULT 1")
+    if 'total_cost' not in prod_cols:
+        cur.execute("ALTER TABLE productions ADD COLUMN total_cost REAL DEFAULT 0")
+    if 'status' not in prod_cols:
+        cur.execute("ALTER TABLE productions ADD COLUMN status TEXT DEFAULT 'completed'")
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS production_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        production_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        product_name TEXT,
+        unit TEXT,
+        quantity REAL NOT NULL,
+        unit_cost REAL DEFAULT 0,
+        total_cost REAL DEFAULT 0,
+        FOREIGN KEY(production_id) REFERENCES productions(id) ON DELETE CASCADE,
         FOREIGN KEY(product_id) REFERENCES products(id)
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS production_materials_consumed (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        production_id INTEGER NOT NULL,
+        item_type TEXT DEFAULT 'ingredient', -- 'ingredient' | 'material'
+        item_id INTEGER NOT NULL,
+        item_name TEXT,
+        unit TEXT,
+        quantity_needed REAL NOT NULL,
+        cost_price REAL DEFAULT 0,
+        total_cost REAL DEFAULT 0,
+        FOREIGN KEY(production_id) REFERENCES productions(id) ON DELETE CASCADE
     )''')
 
     # 8. So quy (Thu / Chi)

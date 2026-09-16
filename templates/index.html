@@ -701,29 +701,150 @@
 
                 <!-- TAB: SAN XUAT -->
             <div id="inv-sub-production" class="hidden space-y-4">
-                <h2 class="text-xl font-bold">Lệnh Sản Xuất Theo Định Lượng (BOM)</h2>
-                <div class="bg-white p-4 rounded-lg shadow max-w-lg space-y-3">
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
                     <div>
-                        <label class="block text-xs font-bold mb-1">Thành Phẩm Cần Sản Xuất:</label>
-                        <select id="prod-product" class="border p-2 rounded w-full"></select>
+                        <h2 class="text-xl font-bold text-slate-800">⚙️ Lệnh Sản Xuất Theo Định Lượng (BOM)</h2>
+                        <p class="text-xs text-gray-500">Tạo lệnh sản xuất nhiều thành phẩm, tự động tính toán và khấu trừ kho nguyên vật liệu theo định lượng BOM</p>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Số Lượng Sản Xuất:</label>
-                        <input type="number" id="prod-qty" class="border p-2 rounded w-full" value="1" min="1">
+                    <div class="flex gap-2">
+                        <button onclick="toggleProductionView('create')" id="btn-prod-new" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            ➕ Tạo Lệnh Sản Xuất
+                        </button>
+                        <button onclick="toggleProductionView('list')" id="btn-prod-history" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📋 Lịch Sử Sản Xuất
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Ghi Chú:</label>
-                        <input type="text" id="prod-note" class="border p-2 rounded w-full" placeholder="Lô sản xuất...">
+                </div>
+
+                <!-- VIEW 1: TẠO LỆNH SẢN XUẤT -->
+                <div id="prod-create-view" class="space-y-4">
+                    <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
+                        <!-- Thông tin kho & ghi chú -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kho Thực Hiện Sản Xuất (*):</label>
+                                <select id="prod-warehouse" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Ghi Chú Lệnh Sản Xuất:</label>
+                                <input type="text" id="prod-note" class="border p-2 rounded w-full text-xs" placeholder="Ví dụ: Lô sản xuất ngày..., ca sáng...">
+                            </div>
+                        </div>
+
+                        <!-- Ô tìm kiếm thành phẩm không cần chính xác 100% -->
+                        <div class="bg-slate-50 p-3 rounded-lg border space-y-2 relative">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-bold text-slate-700 whitespace-nowrap">🔍 Thêm Thành Phẩm Cần Sản Xuất:</span>
+                                <div class="relative flex-1 min-w-[300px]">
+                                    <input type="text" id="search-prod-input" 
+                                           placeholder="🔍 Gõ tên hoặc mã thành phẩm (tìm gần đúng, ví dụ: 'ca phe', 'tra sua')..." 
+                                           class="border p-2 rounded w-full text-xs bg-white shadow-inner outline-none focus:border-sky-500" 
+                                           oninput="filterProdSearch(this.value)"
+                                           onfocus="filterProdSearch(this.value)">
+                                    <div id="prod-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y">
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-gray-500 italic">* Chỉ các sản phẩm đã được cài đặt định lượng (BOM) mới xuất hiện trong danh sách này.</p>
+                        </div>
+
+                        <!-- Bảng danh sách thành phẩm cần sản xuất -->
+                        <div class="overflow-x-auto border rounded">
+                            <table class="w-full text-xs border-collapse text-left">
+                                <thead class="bg-gray-100 border-b">
+                                    <tr>
+                                        <th class="p-2.5 w-12 text-center">STT</th>
+                                        <th class="p-2.5">Tên Thành Phẩm</th>
+                                        <th class="p-2.5 text-center w-24">Mã SP</th>
+                                        <th class="p-2.5 text-center w-20">ĐVT</th>
+                                        <th class="p-2.5 text-right w-32">Số Lượng Sản Xuất</th>
+                                        <th class="p-2.5 text-right w-36">Giá Vốn Dự Tính (đ)</th>
+                                        <th class="p-2.5 text-right w-36">Tổng Giá Vốn</th>
+                                        <th class="p-2.5 text-center w-14">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="production-items-table">
+                                    <tr>
+                                        <td colspan="8" class="p-4 text-center text-gray-400">Chưa có thành phẩm nào. Hãy tìm kiếm ở trên để thêm vào lệnh!</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Bảng dự tính nguyên vật liệu tiêu hao -->
+                        <div class="bg-amber-50/60 p-4 rounded-lg border border-amber-200 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1">
+                                    <span>🧪 Dự Tính Nguyên Vật Liệu Cần Tiêu Hao & Trừ Kho:</span>
+                                </h4>
+                                <span id="prod-materials-status" class="text-xs font-bold text-emerald-700">Đầy đủ nguyên liệu</span>
+                            </div>
+                            <div class="overflow-x-auto border rounded bg-white max-h-52">
+                                <table class="w-full text-xs border-collapse text-left">
+                                    <thead class="bg-gray-50 border-b text-[11px]">
+                                        <tr>
+                                            <th class="p-2">STT</th>
+                                            <th class="p-2">Tên Nguyên Vật Liệu / Vật Tư</th>
+                                            <th class="p-2 text-right">Tổng Cần Dùng</th>
+                                            <th class="p-2 text-right">Tồn Kho Hiện Có</th>
+                                            <th class="p-2 text-center">ĐVT</th>
+                                            <th class="p-2 text-center">Trạng Thái Tồn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="production-materials-summary">
+                                        <tr><td colspan="6" class="p-3 text-center text-gray-400">Chưa có dữ liệu</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Khu vực tổng kết và nút bấm -->
+                        <div class="flex flex-wrap items-center justify-between border-t pt-3 gap-3">
+                            <div class="text-xs text-gray-600">
+                                Tổng số lượng thành phẩm: <span id="prod-total-qty" class="font-bold text-slate-800 text-sm">0</span> | 
+                                Tổng giá vốn sản xuất: <span id="prod-total-cost" class="font-bold text-rose-600 text-sm">0 đ</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="resetProductionForm()" class="px-4 py-2 border rounded font-bold text-gray-600 hover:bg-gray-100 text-xs">
+                                    Hủy / Làm Mới
+                                </button>
+                                <button onclick="submitProduction()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow text-xs flex items-center gap-1.5">
+                                    <span>🚀 TIẾN HÀNH SẢN XUẤT (TRỪ KHO NGUYÊN LIỆU)</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <button onclick="submitProduction()" class="w-full bg-sky-600 text-white font-bold py-2 rounded">
-                        TIẾN HÀNH SẢN XUẤT (TRỪ KHO NGUYÊN LIỆU)
-                    </button>
+                </div>
+
+                <!-- VIEW 2: LỊCH SỬ LỆNH SẢN XUẤT -->
+                <div id="prod-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 class="font-bold text-slate-700 text-sm">📜 Lịch Sử Các Đợt Sản Xuất</h3>
+                        <button onclick="loadProductionsList()" class="text-xs text-sky-600 hover:underline flex items-center gap-1">🔄 Tải lại</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs border-collapse text-left">
+                            <thead class="bg-gray-100 border-b">
+                                <tr>
+                                    <th class="p-2.5">Mã Lệnh</th>
+                                    <th class="p-2.5">Thời Gian</th>
+                                    <th class="p-2.5">Kho Sản Xuất</th>
+                                    <th class="p-2.5 text-center">Số Mặt Hàng</th>
+                                    <th class="p-2.5 text-right">Tổng Sản Lượng</th>
+                                    <th class="p-2.5 text-right">Tổng Giá Vốn</th>
+                                    <th class="p-2.5">Ghi Chú</th>
+                                    <th class="p-2.5 text-center">Chi Tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-productions-history">
+                                <tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải lịch sử sản xuất...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            
-            </div>
-<!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
+            <!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
             <div id="tab-purchases" class="hidden space-y-4">
                 <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
                     <div>
@@ -744,7 +865,7 @@
                 <div id="purchase-create-view" class="space-y-4">
                     <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
                         <!-- Thông tin chung phiếu nhập -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 border-b pb-4">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">Nhà Cung Cấp (*):</label>
                                 <select id="purchase-supplier" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
@@ -754,20 +875,30 @@
                                 <select id="purchase-warehouse" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
                             </div>
                             <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Dự Kiến Ngày Nhận:</label>
+                                <input type="date" id="purchase-expected-date" class="border p-2 rounded w-full text-xs font-medium bg-white">
+                            </div>
+                            <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">Ghi Chú Phiếu Nhập:</label>
-                                <input type="text" id="purchase-note" class="border p-2 rounded w-full text-xs" placeholder="Ghi chú đợt nhập, số hóa đơn đỏ NCC...">
+                                <input type="text" id="purchase-note" class="border p-2 rounded w-full text-xs" placeholder="Số hóa đơn đỏ, ghi chú đợt hàng...">
                             </div>
                         </div>
 
-                        <!-- Chọn mặt hàng thêm vào phiếu -->
-                        <div class="bg-slate-50 p-3 rounded-lg border flex flex-wrap items-center gap-3">
-                            <span class="text-xs font-bold text-slate-700 whitespace-nowrap">➕ Chọn Hàng Nhập:</span>
-                            <div class="flex-1 min-w-[280px]">
-                                <select id="purchase-product-select" class="border p-2 rounded w-full text-xs font-medium bg-white" onchange="addPurchaseItemFromSelect(this.value)">
-                                    <option value="">-- Bấm chọn Sản Phẩm hoặc Nguyên Liệu để thêm vào phiếu --</option>
-                                </select>
+                        <!-- Chọn mặt hàng thêm vào phiếu (Fuzzy search không dấu) -->
+                        <div class="bg-slate-50 p-3 rounded-lg border space-y-1 relative">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-bold text-slate-700 whitespace-nowrap">🔍 Thêm Hàng Nhập:</span>
+                                <div class="relative flex-1 min-w-[300px]">
+                                    <input type="text" id="search-purchase-input" 
+                                           placeholder="🔍 Gõ tên hoặc mã (không dấu, ví dụ: 'sua sao', 'ca phe', 'ly giay')..." 
+                                           class="border p-2 rounded w-full text-xs bg-white shadow-inner outline-none focus:border-sky-500" 
+                                           oninput="filterPurchaseSearch(this.value)"
+                                           onfocus="filterPurchaseSearch(this.value)">
+                                    <div id="purchase-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y">
+                                    </div>
+                                </div>
                             </div>
-                            <span class="text-[11px] text-gray-500 italic">(Hỗ trợ nhập nhiều món cùng lúc)</span>
+                            <p class="text-[11px] text-gray-500 italic">* Hệ thống tự tìm kiếm gần đúng cả Sản Phẩm lẫn Nguyên Liệu/Vật Tư mà không cần gõ chính xác 100%.</p>
                         </div>
 
                         <!-- Bảng danh sách hàng hóa trong phiếu -->
@@ -857,7 +988,7 @@
                                         Hủy / Làm Mới
                                     </button>
                                     <button onclick="submitPurchase()" class="flex-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-sm flex items-center justify-center gap-1.5">
-                                        <span>💾 LƯU PHIẾU NHẬP KHO</span>
+                                        <span>📋 LƯU ĐƠN NHẬP (CHỜ NHẬN HÀNG)</span>
                                     </button>
                                 </div>
                             </div>
@@ -877,12 +1008,12 @@
                             <thead class="bg-gray-100 border-b">
                                 <tr>
                                     <th class="p-2.5">Mã Phiếu</th>
-                                    <th class="p-2.5">Thời Gian</th>
+                                    <th class="p-2.5">Ngày Tạo</th>
+                                    <th class="p-2.5">Dự Kiến Nhận</th>
                                     <th class="p-2.5">Nhà Cung Cấp</th>
                                     <th class="p-2.5">Kho Nhập</th>
-                                    <th class="p-2.5 text-center">Số Mặt Hàng</th>
+                                    <th class="p-2.5 text-center">Trạng Thái</th>
                                     <th class="p-2.5 text-right">Tổng Tiền</th>
-                                    <th class="p-2.5 text-right">Đã Trả</th>
                                     <th class="p-2.5 text-right">Còn Nợ</th>
                                     <th class="p-2.5 text-center">Thao Tác</th>
                                 </tr>
@@ -961,6 +1092,152 @@
                     <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
                         <div class="text-xs text-gray-500 uppercase">Hoa Hồng Đã Tính</div>
                         <div id="rep-comm" class="text-xl font-bold text-purple-600 mt-1">0 đ</div>
+                    </div>
+                </div>
+            </div>
+
+            
+            <!-- MODAL: CHI TIẾT & NHẬN HÀNG PHIẾU NHẬP -->
+            <div id="modal-receive-purchase" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="p-4 bg-slate-800 text-white flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-sm flex items-center gap-2">
+                                <span>📦 Chi Tiết & Xác Nhận Nhập Kho Phiếu:</span>
+                                <span id="rec-code" class="text-amber-400 font-mono text-base">PN-XXX</span>
+                            </h3>
+                            <p class="text-[11px] text-slate-300" id="rec-meta">Nhà cung cấp: ... | Kho: ...</p>
+                        </div>
+                        <button onclick="closeReceiveModal()" class="text-gray-400 hover:text-white text-lg font-bold px-2">✕</button>
+                    </div>
+
+                    <div class="p-4 overflow-y-auto space-y-4 text-xs flex-1">
+                        <!-- Thẻ thông tin trạng thái -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border">
+                            <div>
+                                <span class="text-gray-500 block text-[11px]">Trạng thái:</span>
+                                <span id="rec-status-badge" class="font-bold">...</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block text-[11px]">Dự kiến nhận:</span>
+                                <span id="rec-expected-date" class="font-bold text-slate-700">...</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block text-[11px]">Tổng giá trị đơn:</span>
+                                <span id="rec-total" class="font-bold text-slate-900 font-mono">0 đ</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block text-[11px]">Công nợ phiếu:</span>
+                                <span id="rec-debt" class="font-bold text-rose-600 font-mono">0 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Bảng kiểm đếm hàng hóa -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <h4 class="font-bold text-slate-700 text-xs">📋 Danh Sách Mặt Hàng & Kiểm Đếm Thực Tế:</h4>
+                                <span class="text-[11px] text-gray-500 italic">* Bạn có thể điều chỉnh số lượng thực tế nhận được trước khi chốt kho</span>
+                            </div>
+                            <div class="border rounded overflow-x-auto">
+                                <table class="w-full text-xs border-collapse text-left">
+                                    <thead class="bg-gray-100 border-b">
+                                        <tr>
+                                            <th class="p-2 w-10 text-center">STT</th>
+                                            <th class="p-2">Tên Mặt Hàng</th>
+                                            <th class="p-2 text-center w-24">Loại</th>
+                                            <th class="p-2 text-center w-16">ĐVT</th>
+                                            <th class="p-2 text-right w-24">SL Đặt</th>
+                                            <th class="p-2 text-right w-28 bg-amber-50">SL Thực Nhận</th>
+                                            <th class="p-2 text-right w-28">Đơn Giá Nhập</th>
+                                            <th class="p-2 text-right w-32">Thành Tiền</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rec-items-tbody">
+                                        <!-- Render dynamic -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Ghi chú nhận hàng -->
+                        <div id="rec-action-box" class="space-y-2 border-t pt-3">
+                            <label class="block font-bold text-slate-700">Ghi chú khi nhận hàng / kiểm đếm:</label>
+                            <input type="text" id="rec-note-input" class="border p-2 rounded w-full text-xs" placeholder="Ghi chú tình trạng hàng, tem niêm phong, v.v...">
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50 border-t flex justify-between items-center">
+                        <span class="text-[11px] text-gray-500" id="rec-footer-note">Hệ thống sẽ cộng dồn tồn kho và ghi nhận thẻ kho ngay khi bấm nhận hàng.</span>
+                        <div class="flex gap-2">
+                            <button onclick="closeReceiveModal()" class="px-4 py-2 border rounded font-bold text-gray-600 hover:bg-gray-100 text-xs">
+                                Đóng
+                            </button>
+                            <button id="btn-confirm-receive" onclick="submitConfirmReceive()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
+                                <span>📥 XÁC NHẬN NHẬN HÀNG VÀO KHO</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: CHI TIẾT LỆNH SẢN XUẤT -->
+            <div id="modal-production-detail" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+                    <div class="p-4 bg-slate-800 text-white flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-sm flex items-center gap-2">
+                                <span>⚙️ Chi Tiết Lệnh Sản Xuất:</span>
+                                <span id="dt-prod-code" class="text-amber-400 font-mono text-base">SX-XXX</span>
+                            </h3>
+                            <p class="text-[11px] text-slate-300" id="dt-prod-meta">Kho: ... | Thời gian: ...</p>
+                        </div>
+                        <button onclick="closeProdDetailModal()" class="text-gray-400 hover:text-white text-lg font-bold px-2">✕</button>
+                    </div>
+
+                    <div class="p-4 overflow-y-auto space-y-4 text-xs flex-1">
+                        <div>
+                            <h4 class="font-bold text-slate-800 mb-1">📦 Thành Phẩm Nhập Kho:</h4>
+                            <div class="border rounded overflow-x-auto">
+                                <table class="w-full text-xs border-collapse text-left">
+                                    <thead class="bg-gray-100 border-b">
+                                        <tr>
+                                            <th class="p-2 w-10 text-center">STT</th>
+                                            <th class="p-2">Tên Sản Phẩm</th>
+                                            <th class="p-2 text-center">ĐVT</th>
+                                            <th class="p-2 text-right">Số Lượng Sản Xuất</th>
+                                            <th class="p-2 text-right">Giá Vốn Đơn Vị</th>
+                                            <th class="p-2 text-right">Tổng Vốn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dt-prod-items-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="font-bold text-slate-800 mb-1">🧪 Nguyên Liệu Thực Tế Tiêu Hao (Đã Khấu Trừ Kho):</h4>
+                            <div class="border rounded overflow-x-auto">
+                                <table class="w-full text-xs border-collapse text-left">
+                                    <thead class="bg-amber-50 border-b">
+                                        <tr>
+                                            <th class="p-2 w-10 text-center">STT</th>
+                                            <th class="p-2">Nguyên Liệu / Vật Tư</th>
+                                            <th class="p-2 text-center">ĐVT</th>
+                                            <th class="p-2 text-right">Số Lượng Tiêu Hao</th>
+                                            <th class="p-2 text-right">Đơn Giá Vốn</th>
+                                            <th class="p-2 text-right">Tổng Chi Phí</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dt-prod-mats-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-gray-50 border-t flex justify-end">
+                        <button onclick="closeProdDetailModal()" class="px-4 py-2 border rounded font-bold text-gray-600 hover:bg-gray-100 text-xs">
+                            Đóng
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2766,9 +3043,29 @@
         purchaseCart = [];
         allWarehousesList = [];
 
+        function removeVietnameseTones(str) {
+            if (!str) return '';
+            return str.normalize('NFD')
+                      .replace(/[̀-ͯ]/g, '')
+                      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                      .toLowerCase()
+                      .trim();
+        }
+
+        function fuzzyMatch(query, text) {
+            if (!query || !query.trim()) return true;
+            if (!text) return false;
+            const qNorm = removeVietnameseTones(query);
+            const tNorm = removeVietnameseTones(text);
+            const words = qNorm.split(/\s+/).filter(Boolean);
+            return words.every(w => tNorm.includes(w));
+        }
+
+        // ==================== PHẦN 1: NHẬP HÀNG (PO / PURCHASES) ====================
+        let currentViewingPurchase = null;
+
         async function initPurchases() {
             try {
-                // 1. Tải danh sách NCC, Kho, Sản phẩm và Nguyên liệu
                 const [whRes, suppRes, ingRes, prodRes] = await Promise.all([
                     fetch('/api/warehouses'),
                     fetch('/api/contacts?type=supplier'),
@@ -2781,60 +3078,105 @@
                 costIngredients = await ingRes.json();
                 allProducts = await prodRes.json();
 
-                // 2. Đổ vào select NCC
                 const suppSel = document.getElementById('purchase-supplier');
-                suppSel.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
-                    suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
+                if (suppSel) {
+                    suppSel.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
+                        suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
+                }
 
-                // 3. Đổ vào select Kho
                 const whSel = document.getElementById('purchase-warehouse');
-                whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                if (whSel) {
+                    whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                }
 
-                // 4. Đổ vào select Chọn Hàng Nhập (Gộp cả Hàng hóa lẫn Nguyên liệu)
-                populatePurchaseItemSelect();
+                const expInput = document.getElementById('purchase-expected-date');
+                if (expInput && !expInput.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    expInput.value = today;
+                }
 
-                // 5. Render lại bảng giỏ nhập
                 renderPurchaseItems();
             } catch (e) {
-                console.error(e);
+                console.error('initPurchases err:', e);
             }
         }
 
-        function populatePurchaseItemSelect() {
-            const sel = document.getElementById('purchase-product-select');
-            if (!sel) return;
+        function filterPurchaseSearch(val) {
+            const resBox = document.getElementById('purchase-search-results');
+            if (!resBox) return;
 
-            let html = '<option value="">-- Bấm chọn Sản Phẩm hoặc Nguyên Liệu để thêm vào phiếu --</option>';
+            const matches = [];
 
-            // Nhóm Nguyên liệu
-            const physicalIngs = (costIngredients || []).filter(i => i.type !== 'SERVICE');
-            if (physicalIngs.length > 0) {
-                html += '<optgroup label="🧪 NGUYÊN LIỆU / VẬT TƯ THÀNH PHẦN">';
-                physicalIngs.forEach(ing => {
-                    html += `<option value="ing_${ing.id}">[NL] ${ing.name} (Tồn: ${ing.total_stock} ${ing.unit} - Giá nhập: ${formatMoney(ing.latest_cost)})</option>`;
-                });
-                html += '</optgroup>';
+            // Tìm kiếm trong Nguyên liệu / Vật tư
+            (costIngredients || []).filter(i => i.type !== 'SERVICE').forEach(ing => {
+                const searchText = `${ing.name} ${ing.code || ''} ${ing.unit || ''} nl nguyen lieu`;
+                if (fuzzyMatch(val, searchText)) {
+                    matches.push({
+                        type: 'ingredient',
+                        id: ing.id,
+                        name: ing.name,
+                        code: ing.code || '',
+                        unit: ing.unit || 'đv',
+                        cost: ing.latest_cost || 0,
+                        stock: ing.total_stock || 0
+                    });
+                }
+            });
+
+            // Tìm kiếm trong Hàng hóa / Sản phẩm
+            (allProducts || []).filter(p => p.type !== 'service').forEach(prod => {
+                const searchText = `${prod.name} ${prod.code || ''} ${prod.unit || ''} sp san pham`;
+                if (fuzzyMatch(val, searchText)) {
+                    matches.push({
+                        type: 'product',
+                        id: prod.id,
+                        name: prod.name,
+                        code: prod.code || '',
+                        unit: prod.unit || 'cái',
+                        cost: prod.cost_price || 0,
+                        stock: prod.stock || 0
+                    });
+                }
+            });
+
+            if (matches.length === 0) {
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy mặt hàng phù hợp</div>';
+                resBox.classList.remove('hidden');
+                return;
             }
 
-            // Nhóm Hàng hóa
-            const standardProds = (allProducts || []).filter(p => p.type !== 'service');
-            if (standardProds.length > 0) {
-                html += '<optgroup label="📦 SẢN PHẨM / HÀNG HÓA">';
-                standardProds.forEach(p => {
-                    html += `<option value="prod_${p.id}">[SP] ${p.name} (Tồn: ${p.stock} ${p.unit} - Vốn: ${formatMoney(p.cost_price)})</option>`;
-                });
-                html += '</optgroup>';
-            }
+            resBox.innerHTML = matches.slice(0, 20).map(m => {
+                const badge = m.type === 'ingredient' 
+                    ? '<span class="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>'
+                    : '<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>';
 
-            sel.innerHTML = html;
+                return `
+                <div onclick="addPurchaseItemFromFuzzy('${m.type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition-colors">
+                    <div class="flex items-center gap-2">
+                        ${badge}
+                        <div>
+                            <div class="font-bold text-slate-800">${m.name}</div>
+                            <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.code || '---'} | ĐVT: ${m.unit}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-slate-900 font-mono">${formatMoney(m.cost)}</div>
+                        <div class="text-[11px] text-gray-500">Tồn hiện tại: <span class="font-bold text-sky-700">${m.stock}</span></div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            resBox.classList.remove('hidden');
         }
 
-        function addPurchaseItemFromSelect(val) {
-            if (!val) return;
-            const [type, idStr] = val.split('_');
-            const targetId = parseInt(idStr);
+        function addPurchaseItemFromFuzzy(type, targetId) {
+            const resBox = document.getElementById('purchase-search-results');
+            if (resBox) resBox.classList.add('hidden');
+            const searchInput = document.getElementById('search-purchase-input');
+            if (searchInput) searchInput.value = '';
 
-            if (type === 'ing') {
+            if (type === 'ingredient') {
                 const ing = costIngredients.find(i => i.id === targetId);
                 if (ing) {
                     const existing = purchaseCart.find(x => x.item_type === 'ingredient' && x.ingredient_id === targetId);
@@ -2852,7 +3194,7 @@
                         });
                     }
                 }
-            } else if (type === 'prod') {
+            } else if (type === 'product') {
                 const prod = allProducts.find(p => p.id === targetId);
                 if (prod) {
                     const existing = purchaseCart.find(x => x.item_type === 'product' && x.product_id === targetId);
@@ -2872,9 +3214,23 @@
                 }
             }
 
-            document.getElementById('purchase-product-select').value = '';
             renderPurchaseItems();
         }
+
+        // Đóng dropdown kết quả tìm kiếm khi click ra ngoài
+        document.addEventListener('click', function(e) {
+            const purSearchBox = document.getElementById('purchase-search-results');
+            const purSearchInput = document.getElementById('search-purchase-input');
+            if (purSearchBox && purSearchInput && !purSearchBox.contains(e.target) && e.target !== purSearchInput) {
+                purSearchBox.classList.add('hidden');
+            }
+
+            const prodSearchBox = document.getElementById('prod-search-results');
+            const prodSearchInput = document.getElementById('search-prod-input');
+            if (prodSearchBox && prodSearchInput && !prodSearchBox.contains(e.target) && e.target !== prodSearchInput) {
+                prodSearchBox.classList.add('hidden');
+            }
+        });
 
         function removePurchaseItem(idx) {
             purchaseCart.splice(idx, 1);
@@ -2885,7 +3241,7 @@
             const num = parseFloat(val) || 0;
             if (field === 'quantity') purchaseCart[idx].quantity = num;
             if (field === 'cost_price') purchaseCart[idx].cost_price = num;
-            renderPurchaseItems(false); // rerender nhẹ tính toán không mất focus
+            renderPurchaseItems(false);
         }
 
         function renderPurchaseItems(rebuildDOM = true) {
@@ -2893,7 +3249,7 @@
             if (!tbody) return;
 
             if (purchaseCart.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Hãy tìm kiếm ở trên để thêm vào phiếu!</td></tr>';
                 calculatePurchaseTotals();
                 return;
             }
@@ -2932,7 +3288,6 @@
                     `;
                 }).join('');
             } else {
-                // Cập nhật lại cột thành tiền của từng dòng mà không xóa DOM input
                 purchaseCart.forEach((item, idx) => {
                     const el = document.getElementById(`p-subtotal-${idx}`);
                     if (el) el.textContent = formatMoney(item.quantity * item.cost_price);
@@ -2958,7 +3313,6 @@
             document.getElementById('p-calc-total').textContent = formatMoney(total);
 
             const paidInput = document.getElementById('purchase-paid');
-            // Nếu người dùng chưa gõ tiền trả riêng thì mặc định điền đủ tổng tiền
             if (document.activeElement !== paidInput && (parseFloat(paidInput.value) === 0 || parseFloat(paidInput.value) > total)) {
                 paidInput.value = total;
             }
@@ -2976,6 +3330,8 @@
             document.getElementById('purchase-vat-rate').value = 0;
             document.getElementById('purchase-paid').value = 0;
             document.getElementById('purchase-note').value = '';
+            const expInput = document.getElementById('purchase-expected-date');
+            if (expInput) expInput.value = new Date().toISOString().split('T')[0];
             renderPurchaseItems();
         }
 
@@ -2992,6 +3348,7 @@
             const vatRate = parseFloat(document.getElementById('purchase-vat-rate').value) || 0;
             const paid = parseFloat(document.getElementById('purchase-paid').value) || 0;
             const note = document.getElementById('purchase-note').value.trim();
+            const expectedDate = document.getElementById('purchase-expected-date').value || null;
 
             const payload = {
                 supplier_id: suppId,
@@ -3001,6 +3358,7 @@
                 other_fee: otherFee,
                 vat_rate: vatRate,
                 paid_amount: paid,
+                expected_date: expectedDate,
                 note: note,
                 items: purchaseCart.map(i => ({
                     item_type: i.item_type,
@@ -3022,9 +3380,8 @@
 
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`✅ Tạo phiếu nhập hàng thành công: ${data.purchase_code}!`);
+                    alert(`✅ Tạo đơn nhập hàng thành công: ${data.purchase_code}!\nTrạng thái: CHỜ NHẬN HÀNG (chưa tăng tồn kho cho đến khi kiểm đếm thực nhận).`);
                     resetPurchaseForm();
-                    await Promise.all([loadCostIngredients(), loadProducts()]);
                     togglePurchaseView('list');
                 } else {
                     alert('Lỗi: ' + (data.detail || 'Không thể lưu phiếu nhập'));
@@ -3067,28 +3424,162 @@
                     return;
                 }
 
-                tbody.innerHTML = list.map(p => `
+                tbody.innerHTML = list.map(p => {
+                    const statusBadge = p.status === 'received' 
+                        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đã Nhận Hàng</span>' 
+                        : (p.status === 'cancelled'
+                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">❌ Đã Hủy</span>'
+                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ Chờ Nhận</span>');
+
+                    const actionButtons = p.status === 'pending'
+                        ? `
+                        <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và nhập hàng vào kho">📥 Nhận Hàng</button>
+                        <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu nhập">✕ Hủy</button>
+                        `
+                        : `
+                        <button onclick="openReceiveModal('${p.code}', true)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
+                        <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
+                        `;
+
+                    return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
                         <td class="p-2.5 text-gray-500">${p.created_at || '-'}</td>
+                        <td class="p-2.5 font-semibold text-slate-700">${p.expected_date || '<span class="text-gray-400">---</span>'}</td>
                         <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
                         <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>
-                        <td class="p-2.5 text-center font-bold">${p.item_count || 1} món</td>
+                        <td class="p-2.5 text-center">${statusBadge}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_amount)}</td>
-                        <td class="p-2.5 text-right font-mono text-emerald-600 font-bold">${formatMoney(p.paid_amount)}</td>
                         <td class="p-2.5 text-right font-mono font-bold ${p.debt_amount > 0 ? 'text-rose-600' : 'text-gray-400'}">${formatMoney(p.debt_amount)}</td>
-                        <td class="p-2.5 text-center space-x-1">
-                            <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-0.5 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
-                        </td>
+                        <td class="p-2.5 text-center space-x-1">${actionButtons}</td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('loadPurchasesList err:', e);
+            }
+        }
+
+        async function openReceiveModal(code, readonly = false) {
+            try {
+                const res = await fetch(`/api/purchases/${code}`);
+                const data = await res.json();
+                if (!res.ok) return alert('Lỗi: ' + data.detail);
+
+                currentViewingPurchase = data;
+
+                document.getElementById('rec-code').textContent = data.code;
+                document.getElementById('rec-meta').textContent = `Nhà cung cấp: ${data.supplier_name || 'NCC Mặc định'} | Kho: ${data.warehouse_name || 'Kho Tổng'} | Tạo lúc: ${data.created_at || ''}`;
+                document.getElementById('rec-expected-date').textContent = data.expected_date || 'Không có';
+                document.getElementById('rec-total').textContent = formatMoney(data.total_amount);
+                document.getElementById('rec-debt').textContent = formatMoney(data.debt_amount);
+
+                const statusBadgeEl = document.getElementById('rec-status-badge');
+                if (data.status === 'received') {
+                    statusBadgeEl.innerHTML = '<span class="text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">Đã Nhập Kho (' + (data.received_date || '') + ')</span>';
+                } else if (data.status === 'cancelled') {
+                    statusBadgeEl.innerHTML = '<span class="text-rose-600 bg-rose-100 px-2 py-0.5 rounded">Đã Hủy</span>';
+                } else {
+                    statusBadgeEl.innerHTML = '<span class="text-amber-600 bg-amber-100 px-2 py-0.5 rounded">Chờ Nhận Hàng</span>';
+                }
+
+                const tbody = document.getElementById('rec-items-tbody');
+                const isReceived = data.status === 'received' || readonly;
+
+                tbody.innerHTML = (data.items || []).map((it, idx) => {
+                    const badge = it.item_type === 'ingredient'
+                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
+
+                    const qtyInput = isReceived 
+                        ? `<span class="font-bold text-slate-800">${it.quantity}</span>`
+                        : `<input type="number" step="any" min="0" value="${it.quantity}" id="rec-item-qty-${it.id}" class="border p-1 rounded w-20 text-right font-bold text-sky-700 bg-white">`;
+
+                    return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2 font-medium text-slate-800">${it.item_name || 'Mặt hàng'}</td>
+                        <td class="p-2 text-center">${badge}</td>
+                        <td class="p-2 text-center text-gray-500">${it.unit || ''}</td>
+                        <td class="p-2 text-right font-semibold text-gray-600">${it.quantity}</td>
+                        <td class="p-2 text-right bg-amber-50/50">${qtyInput}</td>
+                        <td class="p-2 text-right font-mono text-gray-700">${formatMoney(it.cost_price)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(it.total_cost)}</td>
+                    </tr>
+                    `;
+                }).join('');
+
+                const btnConfirm = document.getElementById('btn-confirm-receive');
+                const actionBox = document.getElementById('rec-action-box');
+                const footerNote = document.getElementById('rec-footer-note');
+
+                if (isReceived) {
+                    btnConfirm.classList.add('hidden');
+                    actionBox.classList.add('hidden');
+                    footerNote.textContent = 'Phiếu này đã hoàn tất nhận hàng và cập nhật tồn kho.';
+                } else {
+                    btnConfirm.classList.remove('hidden');
+                    actionBox.classList.remove('hidden');
+                    footerNote.textContent = 'Hệ thống sẽ cộng dồn tồn kho và ghi nhận thẻ kho ngay khi bấm nhận hàng.';
+                    document.getElementById('rec-note-input').value = '';
+                }
+
+                document.getElementById('modal-receive-purchase').classList.remove('hidden');
             } catch (e) {
                 console.error(e);
+                alert('Lỗi tải chi tiết phiếu nhập!');
+            }
+        }
+
+        function closeReceiveModal() {
+            document.getElementById('modal-receive-purchase').classList.add('hidden');
+            currentViewingPurchase = null;
+        }
+
+        async function submitConfirmReceive() {
+            if (!currentViewingPurchase) return;
+            const code = currentViewingPurchase.code;
+
+            const itemsPayload = [];
+            for (const it of (currentViewingPurchase.items || [])) {
+                const inputEl = document.getElementById(`rec-item-qty-${it.id}`);
+                const actualQty = inputEl ? parseFloat(inputEl.value) : it.quantity;
+                itemsPayload.push({
+                    item_id: it.id,
+                    actual_quantity: isNaN(actualQty) ? it.quantity : actualQty
+                });
+            }
+
+            const note = document.getElementById('rec-note-input').value.trim();
+
+            if (!confirm(`Xác nhận nhận hàng cho phiếu [${code}]?\nTồn kho sẽ được cộng dồn và thẻ kho sẽ được tạo ngay lập tức.`)) return;
+
+            try {
+                const res = await fetch(`/api/purchases/${code}/receive`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        items: itemsPayload,
+                        note: note
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert('✅ Đã nhận hàng và nhập kho thành công!');
+                    closeReceiveModal();
+                    await Promise.all([loadCostIngredients(), loadProducts(), loadPurchasesList()]);
+                } else {
+                    alert('Lỗi: ' + (data.detail || 'Không thể nhận hàng'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
             }
         }
 
         async function deletePurchaseOrder(code) {
-            if (!confirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\nThao tác này sẽ trừ lại tồn kho và hoàn lại công nợ NCC!`)) return;
+            if (!confirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\nThao tác này sẽ hoàn lại công nợ NCC và hoàn kho (nếu phiếu đã nhận hàng)!`)) return;
             try {
                 const res = await fetch(`/api/purchases/${code}`, { method: 'DELETE' });
                 const data = await res.json();
@@ -3109,37 +3600,397 @@
             togglePurchaseView('create');
             if (type && id) {
                 setTimeout(() => {
-                    const key = type === 'ingredient' ? `ing_${id}` : `prod_${id}`;
-                    addPurchaseItemFromSelect(key);
+                    addPurchaseItemFromFuzzy(type, id);
                 }, 300);
             }
         }
 
-        // San xuat
-        function initProduction() {
-            const sel = document.getElementById('prod-product');
-            // Chi nhung san pham co BOM (hoac dang tao san xuat)
-            sel.innerHTML = allProducts.filter(p => p.type === 'product').map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+
+        // ==================== PHẦN 2: LỆNH SẢN XUẤT (PRODUCTIONS - BOM) ====================
+        let productionCart = []; // Danh sách các thành phẩm trong lệnh sản xuất
+
+        async function initProduction() {
+            try {
+                const [whRes, prodRes, ingRes, bomRes] = await Promise.all([
+                    fetch('/api/warehouses'),
+                    fetch('/api/products'),
+                    fetch('/api/ingredients'),
+                    fetch('/api/bom')
+                ]);
+
+                allWarehousesList = await whRes.json();
+                allProducts = await prodRes.json();
+                costIngredients = await ingRes.json();
+                costBOMList = await bomRes.json();
+
+                const whSel = document.getElementById('prod-warehouse');
+                if (whSel) {
+                    whSel.innerHTML = allWarehousesList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                }
+
+                renderProductionItems();
+            } catch (e) {
+                console.error('initProduction err:', e);
+            }
+        }
+
+        function toggleProductionView(view) {
+            const createView = document.getElementById('prod-create-view');
+            const listView = document.getElementById('prod-list-view');
+            const btnNew = document.getElementById('btn-prod-new');
+            const btnHist = document.getElementById('btn-prod-history');
+
+            if (view === 'create') {
+                createView.classList.remove('hidden');
+                listView.classList.add('hidden');
+                btnNew.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                btnHist.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+            } else {
+                createView.classList.add('hidden');
+                listView.classList.remove('hidden');
+                btnHist.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                btnNew.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
+                loadProductionsList();
+            }
+        }
+
+        function filterProdSearch(val) {
+            const resBox = document.getElementById('prod-search-results');
+            if (!resBox) return;
+
+            // Lấy tập hợp product_id có BOM
+            const bomProductIds = new Set((costBOMList || []).map(b => b.product_id));
+
+            const matches = (allProducts || []).filter(p => {
+                if (p.type === 'service') return false;
+                if (!bomProductIds.has(p.id)) return false; // Chỉ sản phẩm đã có BOM
+                const searchText = `${p.name} ${p.code || ''} ${p.unit || ''}`;
+                return fuzzyMatch(val, searchText);
+            });
+
+            if (matches.length === 0) {
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy thành phẩm có định lượng BOM phù hợp</div>';
+                resBox.classList.remove('hidden');
+                return;
+            }
+
+            resBox.innerHTML = matches.slice(0, 20).map(p => `
+                <div onclick="addProductionItem(${p.id})" class="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors">
+                    <div>
+                        <div class="font-bold text-slate-800">${p.name}</div>
+                        <div class="text-[11px] text-gray-500 font-mono">Mã: ${p.code || '---'} | ĐVT: ${p.unit || 'cái'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</div>
+                        <div class="text-[11px] text-gray-500">Tồn hiện tại: <span class="font-bold text-slate-800">${p.stock || 0}</span></div>
+                    </div>
+                </div>
+            `).join('');
+
+            resBox.classList.remove('hidden');
+        }
+
+        function addProductionItem(productId) {
+            const resBox = document.getElementById('prod-search-results');
+            if (resBox) resBox.classList.add('hidden');
+            const input = document.getElementById('search-prod-input');
+            if (input) input.value = '';
+
+            const prod = (allProducts || []).find(p => p.id === productId);
+            if (!prod) return;
+
+            const existing = productionCart.find(x => x.product_id === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                // Tính giá vốn 1 thành phẩm từ BOM
+                const boms = (costBOMList || []).filter(b => b.product_id === productId);
+                let unitCost = 0;
+                boms.forEach(b => {
+                    const ing = (costIngredients || []).find(i => i.id === b.ingredient_id);
+                    const cost = ing ? (ing.latest_cost || 0) : 0;
+                    unitCost += b.quantity * cost;
+                });
+
+                productionCart.push({
+                    product_id: prod.id,
+                    name: prod.name,
+                    code: prod.code || '',
+                    unit: prod.unit || 'cái',
+                    quantity: 1,
+                    unit_cost: unitCost > 0 ? unitCost : (prod.cost_price || 0)
+                });
+            }
+
+            renderProductionItems();
+        }
+
+        function removeProductionItem(idx) {
+            productionCart.splice(idx, 1);
+            renderProductionItems();
+        }
+
+        function updateProductionItemQty(idx, val) {
+            const num = Math.max(0.001, parseFloat(val) || 0);
+            productionCart[idx].quantity = num;
+            renderProductionItems(false);
+        }
+
+        function renderProductionItems(rebuildDOM = true) {
+            const tbody = document.getElementById('production-items-table');
+            if (!tbody) return;
+
+            if (productionCart.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có thành phẩm nào. Hãy tìm kiếm ở trên để thêm vào lệnh!</td></tr>';
+                renderMaterialsSummary();
+                return;
+            }
+
+            if (rebuildDOM) {
+                tbody.innerHTML = productionCart.map((item, idx) => {
+                    const totalCost = item.quantity * item.unit_cost;
+                    return `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2 font-bold text-slate-800">${item.name}</td>
+                        <td class="p-2 text-center font-mono text-gray-500">${item.code || '---'}</td>
+                        <td class="p-2 text-center text-gray-600">${item.unit}</td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" min="0.001" value="${item.quantity}" 
+                                   class="border p-1 rounded w-24 text-right font-bold text-sky-700 bg-white"
+                                   oninput="updateProductionItemQty(${idx}, this.value)">
+                        </td>
+                        <td class="p-2 text-right font-mono text-gray-700">${formatMoney(item.unit_cost)}</td>
+                        <td class="p-2 text-right font-bold text-emerald-700 font-mono" id="prod-row-total-${idx}">${formatMoney(totalCost)}</td>
+                        <td class="p-2 text-center">
+                            <button onclick="removeProductionItem(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5" title="Xóa món">✕</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            } else {
+                productionCart.forEach((item, idx) => {
+                    const el = document.getElementById(`prod-row-total-${idx}`);
+                    if (el) el.textContent = formatMoney(item.quantity * item.unit_cost);
+                });
+            }
+
+            renderMaterialsSummary();
+        }
+
+        function renderMaterialsSummary() {
+            const matsTbody = document.getElementById('production-materials-summary');
+            const totalQtyEl = document.getElementById('prod-total-qty');
+            const totalCostEl = document.getElementById('prod-total-cost');
+            const statusEl = document.getElementById('prod-materials-status');
+
+            if (productionCart.length === 0) {
+                if (matsTbody) matsTbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Chưa có dữ liệu</td></tr>';
+                if (totalQtyEl) totalQtyEl.textContent = '0';
+                if (totalCostEl) totalCostEl.textContent = '0 đ';
+                if (statusEl) {
+                    statusEl.textContent = 'Chưa có dữ liệu';
+                    statusEl.className = 'text-xs font-bold text-gray-400';
+                }
+                return;
+            }
+
+            // Tính tổng sản lượng & tổng chi phí
+            let grandQty = 0;
+            let grandCost = 0;
+            const requiredMaterialsMap = {}; // ingredient_id -> { name, unit, qtyNeeded, stock, cost }
+
+            productionCart.forEach(item => {
+                grandQty += item.quantity;
+                grandCost += item.quantity * item.unit_cost;
+
+                // BOM của sản phẩm này
+                const boms = (costBOMList || []).filter(b => b.product_id === item.product_id);
+                boms.forEach(b => {
+                    const ing = (costIngredients || []).find(i => i.id === b.ingredient_id);
+                    if (!ing) return;
+
+                    const need = b.quantity * item.quantity;
+                    if (!requiredMaterialsMap[b.ingredient_id]) {
+                        requiredMaterialsMap[b.ingredient_id] = {
+                            id: b.ingredient_id,
+                            name: ing.name,
+                            unit: ing.unit || 'đv',
+                            qtyNeeded: 0,
+                            stock: ing.total_stock || 0,
+                            cost: ing.latest_cost || 0
+                        };
+                    }
+                    requiredMaterialsMap[b.ingredient_id].qtyNeeded += need;
+                });
+            });
+
+            if (totalQtyEl) totalQtyEl.textContent = grandQty.toLocaleString('vi-VN');
+            if (totalCostEl) totalCostEl.textContent = formatMoney(grandCost);
+
+            const matList = Object.values(requiredMaterialsMap);
+            let hasShortage = false;
+
+            if (matsTbody) {
+                if (matList.length === 0) {
+                    matsTbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Các thành phẩm đã chọn chưa cấu hình định lượng BOM</td></tr>';
+                } else {
+                    matsTbody.innerHTML = matList.map((m, idx) => {
+                        const isShort = m.qtyNeeded > m.stock;
+                        if (isShort) hasShortage = true;
+
+                        const badge = isShort
+                            ? '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold text-[10px]">Thiếu ' + (Math.round((m.qtyNeeded - m.stock)*100)/100) + ' ' + m.unit + '</span>'
+                            : '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px]">Đủ kho</span>';
+
+                        return `
+                        <tr class="border-b hover:bg-gray-50 text-xs ${isShort ? 'bg-rose-50/30' : ''}">
+                            <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                            <td class="p-2 font-medium text-slate-800">${m.name}</td>
+                            <td class="p-2 text-right font-bold text-sky-700 font-mono">${Math.round(m.qtyNeeded * 1000)/1000}</td>
+                            <td class="p-2 text-right font-mono text-gray-600">${m.stock}</td>
+                            <td class="p-2 text-center text-gray-500">${m.unit}</td>
+                            <td class="p-2 text-center">${badge}</td>
+                        </tr>
+                        `;
+                    }).join('');
+                }
+            }
+
+            if (statusEl) {
+                if (hasShortage) {
+                    statusEl.textContent = '⚠️ Cảnh báo: Tồn kho không đủ nguyên liệu!';
+                    statusEl.className = 'text-xs font-bold text-rose-600';
+                } else {
+                    statusEl.textContent = '✅ Đầy đủ nguyên vật liệu để sản xuất';
+                    statusEl.className = 'text-xs font-bold text-emerald-700';
+                }
+            }
+        }
+
+        function resetProductionForm() {
+            productionCart = [];
+            const noteEl = document.getElementById('prod-note');
+            if (noteEl) noteEl.value = '';
+            renderProductionItems();
         }
 
         async function submitProduction() {
-            const req = {
-                product_id: parseInt(document.getElementById('prod-product').value),
-                quantity: parseFloat(document.getElementById('prod-qty').value),
-                note: document.getElementById('prod-note').value
+            if (productionCart.length === 0) return alert('Vui lòng chọn ít nhất 1 thành phẩm để tạo lệnh sản xuất!');
+
+            const whId = parseInt(document.getElementById('prod-warehouse').value) || 1;
+            const note = document.getElementById('prod-note').value.trim();
+
+            const payload = {
+                warehouse_id: whId,
+                note: note,
+                items: productionCart.map(i => ({
+                    product_id: i.product_id,
+                    quantity: i.quantity
+                }))
             };
-            const res = await fetch('/api/productions', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(req)
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert('Lệnh sản xuất thành công: ' + data.production_code);
-                loadProducts();
-            } else {
-                alert('Lỗi: ' + data.detail);
+
+            if (!confirm(`Tiến hành tạo lệnh sản xuất cho ${productionCart.length} mặt hàng?\nKho nguyên vật liệu sẽ được khấu trừ tương ứng theo định lượng BOM.`)) return;
+
+            try {
+                const res = await fetch('/api/productions', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`✅ Lệnh sản xuất [${data.production_code}] hoàn tất thành công!\nĐã nhập kho thành phẩm và khấu trừ nguyên vật liệu.`);
+                    resetProductionForm();
+                    await Promise.all([loadCostIngredients(), loadProducts()]);
+                    toggleProductionView('list');
+                } else {
+                    alert('Lỗi sản xuất: ' + (data.detail || 'Không thể thực hiện'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
             }
+        }
+
+        async function loadProductionsList() {
+            try {
+                const res = await fetch('/api/productions');
+                const list = await res.json();
+                const tbody = document.getElementById('table-productions-history');
+                if (!tbody) return;
+
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có lệnh sản xuất nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = list.map(p => `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
+                        <td class="p-2.5 text-gray-500">${p.created_at || '-'}</td>
+                        <td class="p-2.5 text-slate-700 font-medium">${p.warehouse_name || 'Kho Tổng'}</td>
+                        <td class="p-2.5 text-center font-bold">${p.item_count || 1} món</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-sky-700">${p.total_produced_qty}</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_cost || 0)}</td>
+                        <td class="p-2.5 text-gray-500">${p.note || '-'}</td>
+                        <td class="p-2.5 text-center">
+                            <button onclick="openProdDetailModal('${p.code}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('loadProductionsList err:', e);
+            }
+        }
+
+        async function openProdDetailModal(code) {
+            try {
+                const res = await fetch(`/api/productions/${code}`);
+                const data = await res.json();
+                if (!res.ok) return alert('Lỗi: ' + data.detail);
+
+                document.getElementById('dt-prod-code').textContent = data.code;
+                document.getElementById('dt-prod-meta').textContent = `Kho: ${data.warehouse_name || 'Kho Tổng'} | Tạo lúc: ${data.created_at || ''} | Ghi chú: ${data.note || 'Không'}`;
+
+                const itemsTbody = document.getElementById('dt-prod-items-tbody');
+                itemsTbody.innerHTML = (data.items || []).map((it, idx) => `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2 font-bold text-slate-800">${it.product_name || 'Sản phẩm'}</td>
+                        <td class="p-2 text-center text-gray-500">${it.unit || ''}</td>
+                        <td class="p-2 text-right font-mono font-bold text-sky-700">${it.quantity}</td>
+                        <td class="p-2 text-right font-mono text-gray-600">${formatMoney(it.unit_cost || 0)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(it.total_cost || 0)}</td>
+                    </tr>
+                `).join('');
+
+                const matsTbody = document.getElementById('dt-prod-mats-tbody');
+                if (!data.materials || data.materials.length === 0) {
+                    matsTbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">Không có dữ liệu nguyên liệu tiêu hao</td></tr>';
+                } else {
+                    matsTbody.innerHTML = data.materials.map((m, idx) => `
+                        <tr class="border-b hover:bg-gray-50 text-xs">
+                            <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                            <td class="p-2 font-medium text-slate-800">${m.ingredient_name || 'Nguyên liệu'}</td>
+                            <td class="p-2 text-center text-gray-500">${m.unit || ''}</td>
+                            <td class="p-2 text-right font-mono font-bold text-rose-600">-${m.consumed_qty}</td>
+                            <td class="p-2 text-right font-mono text-gray-600">${formatMoney(m.unit_cost || 0)}</td>
+                            <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(m.total_cost || 0)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                document.getElementById('modal-production-detail').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi tải chi tiết lệnh sản xuất!');
+            }
+        }
+
+        function closeProdDetailModal() {
+            document.getElementById('modal-production-detail').classList.add('hidden');
         }
 
         // So quy

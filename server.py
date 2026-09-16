@@ -112,13 +112,18 @@ class PurchaseCreate(BaseModel):
     other_fee: float = 0
     vat_rate: float = 0
     paid_amount: float = 0
+    expected_date: Optional[str] = None
     note: Optional[str] = ""
     items: List[PurchaseItemIn]
 
-class ProductionCreate(BaseModel):
+class ProductionItemIn(BaseModel):
     product_id: int
     quantity: float
+
+class ProductionCreate(BaseModel):
+    warehouse_id: Optional[int] = 1
     note: Optional[str] = ""
+    items: List[ProductionItemIn]
 
 class CashbookCreate(BaseModel):
     type: str # in, out
@@ -1319,19 +1324,18 @@ def create_purchase(req: PurchaseCreate):
         INSERT INTO purchases (
             code, supplier_id, warehouse_id, subtotal_amount, discount, 
             shipping_fee, other_fee, vat_rate, vat_amount, total_amount, 
-            paid_amount, debt_amount, note
+            paid_amount, debt_amount, status, expected_date, note
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
         ''', (
             code, req.supplier_id, warehouse_id, subtotal_amount, req.discount,
             req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
-            req.paid_amount, debt_amount, req.note
+            req.paid_amount, debt_amount, req.expected_date, req.note
         ))
         purchase_id = cur.lastrowid
 
         for item in req.items:
             subtotal = round(item.quantity * item.cost_price, 2)
-            # Nếu là ingredient thì gắn product_id = 1 (hoặc id hợp lệ) để thỏa mãn FK cũ nếu có
             prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
             cur.execute('''
             INSERT INTO purchase_items (
@@ -1343,7 +1347,48 @@ def create_purchase(req: PurchaseCreate):
                 item.item_name, item.unit, item.quantity, item.cost_price, subtotal
             ))
 
-            if item.item_type == 'ingredient' and item.ingredient_id:
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "purchase_code": code, "message": "Tạo phiếu nhập hàng ở trạng thái chờ nhận hàng"}
+
+@app.post("/api/purchases/{code}/receive")
+def receive_purchase(code: str):
+    """
+    Xác nhận nhận hàng thực tế & Kiểm đếm:
+    - Đổi status sang 'received'
+    - Cập nhật tăng tồn kho trong kho tương ứng (sản phẩm hoặc nguyên liệu)
+    - Ghi lịch sử giá nhập & thẻ kho
+    - Ghi nợ NCC và chi tiền sổ quỹ (nếu có paid_amount)
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+        if p["status"] == 'received':
+            raise HTTPException(status_code=400, detail="Phiếu nhập này đã được nhận hàng trước đó!")
+        if p["status"] == 'cancelled':
+            raise HTTPException(status_code=400, detail="Phiếu nhập này đã bị hủy, không thể nhận hàng!")
+
+        purchase_id = p["id"]
+        warehouse_id = p["warehouse_id"] or 1
+
+        cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+        items = cur.fetchall()
+
+        for item in items:
+            item_type = item["item_type"]
+            qty = item["quantity"]
+            cost = item["cost_price"]
+
+            if item_type == 'ingredient' and item["ingredient_id"]:
+                ing_id = item["ingredient_id"]
                 # 1. Cập nhật tồn kho nguyên liệu trong inventory
                 cur.execute('''
                 INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
@@ -1351,30 +1396,31 @@ def create_purchase(req: PurchaseCreate):
                 ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
                     quantity = quantity + ?,
                     updated_at = CURRENT_TIMESTAMP
-                ''', (warehouse_id, item.ingredient_id, item.quantity, item.quantity))
+                ''', (warehouse_id, ing_id, qty, qty))
 
                 # Lấy số tồn sau khi cộng
-                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, item.ingredient_id))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, ing_id))
                 bal_row = cur.fetchone()
-                balance_after = bal_row["quantity"] if bal_row else item.quantity
+                balance_after = bal_row["quantity"] if bal_row else qty
 
                 # Ghi lịch sử giá nhập theo NCC
                 cur.execute('''
                 INSERT INTO price_history (ingredient_id, supplier_id, purchase_price, note)
                 VALUES (?, ?, ?, ?)
-                ''', (item.ingredient_id, req.supplier_id, item.cost_price, f"Phiếu nhập {code}"))
+                ''', (ing_id, p["supplier_id"], cost, f"Nhận hàng phiếu {code}"))
 
                 # Ghi nhật ký biến động kho
                 cur.execute('''
                 INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
                 VALUES (?, ?, 'PURCHASE', ?, ?, ?, ?)
-                ''', (item.ingredient_id, warehouse_id, item.quantity, balance_after, req.supplier_id, f"Phiếu nhập {code}"))
+                ''', (ing_id, warehouse_id, qty, balance_after, p["supplier_id"], f"Nhận hàng phiếu {code}"))
 
-            elif item.product_id:
-                # 2. Cập nhật tồn kho và giá vốn của sản phẩm thông thường
+            elif item["product_id"]:
+                prod_id = item["product_id"]
+                # 2. Cập nhật tồn kho và giá vốn của sản phẩm
                 cur.execute(
                     "UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?",
-                    (item.quantity, item.cost_price, item.product_id)
+                    (qty, cost, prod_id)
                 )
                 cur.execute('''
                 INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
@@ -1382,26 +1428,35 @@ def create_purchase(req: PurchaseCreate):
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity + ?,
                     updated_at = CURRENT_TIMESTAMP
-                ''', (warehouse_id, item.product_id, item.quantity, item.quantity))
+                ''', (warehouse_id, prod_id, qty, qty))
 
-                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, item.product_id))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, prod_id))
                 bal_p = cur.fetchone()
-                bal_p_after = bal_p["quantity"] if bal_p else item.quantity
+                bal_p_after = bal_p["quantity"] if bal_p else qty
 
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
                 VALUES ('product', ?, ?, 'PURCHASE', ?, ?, ?, ?)
-                ''', (item.product_id, warehouse_id, item.quantity, bal_p_after, req.supplier_id, f"Phiếu nhập {code}"))
+                ''', (prod_id, warehouse_id, qty, bal_p_after, p["supplier_id"], f"Nhận hàng phiếu {code}"))
 
-        if debt_amount > 0 and req.supplier_id:
-            cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (debt_amount, req.supplier_id))
+        # Cập nhật công nợ NCC
+        if p["debt_amount"] > 0 and p["supplier_id"]:
+            cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (p["debt_amount"], p["supplier_id"]))
 
-        if req.paid_amount > 0:
+        # Ghi sổ quỹ chi tiền đã trả
+        if p["paid_amount"] > 0:
             cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
             cur.execute('''
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
             VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?)
-            ''', (cb_code, req.paid_amount, req.supplier_id, purchase_id, f"Chi nhập hàng {code}"))
+            ''', (cb_code, p["paid_amount"], p["supplier_id"], purchase_id, f"Chi thanh toán phiếu nhập {code}"))
+
+        # Cập nhật trạng thái phiếu nhập sang 'received'
+        cur.execute('''
+        UPDATE purchases 
+        SET status = 'received', received_date = CURRENT_TIMESTAMP 
+        WHERE id = ?
+        ''', (purchase_id,))
 
         conn.commit()
     except Exception as e:
@@ -1409,7 +1464,7 @@ def create_purchase(req: PurchaseCreate):
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
-    return {"status": "ok", "purchase_code": code}
+    return {"status": "ok", "message": f"Đã xác nhận nhận hàng và cập nhật tồn kho phiếu {code}"}
 
 @app.delete("/api/purchases/{code}")
 def delete_purchase(code: str):
@@ -1427,43 +1482,44 @@ def delete_purchase(code: str):
         cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (p["id"],))
         items = cur.fetchall()
 
-        # Hoàn lại tồn kho
-        for item in items:
-            if item["item_type"] == 'ingredient' and item["ingredient_id"]:
-                cur.execute('''
-                UPDATE inventory SET quantity = quantity - ? WHERE warehouse_id = ? AND ingredient_id = ?
-                ''', (item["quantity"], p["warehouse_id"], item["ingredient_id"]))
+        # Hoàn lại tồn kho nếu phiếu đã nhận hàng
+        if p["status"] == 'received':
+            for item in items:
+                if item["item_type"] == 'ingredient' and item["ingredient_id"]:
+                    cur.execute('''
+                    UPDATE inventory SET quantity = quantity - ? WHERE warehouse_id = ? AND ingredient_id = ?
+                    ''', (item["quantity"], p["warehouse_id"], item["ingredient_id"]))
 
-                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (p["warehouse_id"], item["ingredient_id"]))
-                bal = cur.fetchone()
-                bal_after = bal["quantity"] if bal else 0
+                    cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (p["warehouse_id"], item["ingredient_id"]))
+                    bal = cur.fetchone()
+                    bal_after = bal["quantity"] if bal else 0
 
-                cur.execute('''
-                INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES (?, ?, 'ADJUST', ?, ?, ?)
-                ''', (item["ingredient_id"], p["warehouse_id"], -item["quantity"], bal_after, f"Hủy phiếu nhập {code}"))
+                    cur.execute('''
+                    INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                    VALUES (?, ?, 'ADJUST', ?, ?, ?)
+                    ''', (item["ingredient_id"], p["warehouse_id"], -item["quantity"], bal_after, f"Hủy phiếu nhập {code}"))
 
-            elif item["product_id"]:
-                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (item["quantity"], item["product_id"]))
-                cur.execute('''
-                UPDATE product_inventory SET quantity = quantity - ? 
-                WHERE warehouse_id = ? AND product_id = ?
-                ''', (item["quantity"], p["warehouse_id"], item["product_id"]))
-                
-                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (p["warehouse_id"], item["product_id"]))
-                bal_p = cur.fetchone()
-                bal_p_after = bal_p["quantity"] if bal_p else 0
-                cur.execute('''
-                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES ('product', ?, ?, 'ADJUST', ?, ?, ?)
-                ''', (item["product_id"], p["warehouse_id"], -item["quantity"], bal_p_after, f"Hủy phiếu nhập {code}"))
+                elif item["product_id"]:
+                    cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (item["quantity"], item["product_id"]))
+                    cur.execute('''
+                    UPDATE product_inventory SET quantity = quantity - ? 
+                    WHERE warehouse_id = ? AND product_id = ?
+                    ''', (item["quantity"], p["warehouse_id"], item["product_id"]))
+                    
+                    cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (p["warehouse_id"], item["product_id"]))
+                    bal_p = cur.fetchone()
+                    bal_p_after = bal_p["quantity"] if bal_p else 0
+                    cur.execute('''
+                    INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+                    VALUES ('product', ?, ?, 'ADJUST', ?, ?, ?)
+                    ''', (item["product_id"], p["warehouse_id"], -item["quantity"], bal_p_after, f"Hủy phiếu nhập {code}"))
 
-        # Hoàn lại công nợ NCC
-        if p["debt_amount"] > 0 and p["supplier_id"]:
-            cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (p["debt_amount"], p["supplier_id"]))
+            # Hoàn lại công nợ NCC
+            if p["debt_amount"] > 0 and p["supplier_id"]:
+                cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (p["debt_amount"], p["supplier_id"]))
 
-        # Xóa bản ghi thu chi cashbook liên quan
-        cur.execute("DELETE FROM cashbook WHERE ref_type = 'purchase' AND ref_id = ?", (p["id"],))
+            # Xóa bản ghi thu chi cashbook liên quan
+            cur.execute("DELETE FROM cashbook WHERE ref_type = 'purchase' AND ref_id = ?", (p["id"],))
 
         # Xóa purchase_items và purchase
         cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (p["id"],))
@@ -1478,39 +1534,234 @@ def delete_purchase(code: str):
     return {"status": "ok", "message": f"Đã hủy phiếu nhập {code}"}
 
 # San xuat (BOM Execution)
+@app.get("/api/productions")
+def list_productions(limit: int = 50):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT pr.*, w.name as warehouse_name,
+           (SELECT COUNT(*) FROM production_items WHERE production_id = pr.id) as item_count,
+           (SELECT SUM(quantity) FROM production_items WHERE production_id = pr.id) as total_qty
+    FROM productions pr
+    LEFT JOIN warehouses w ON pr.warehouse_id = w.id
+    ORDER BY pr.id DESC
+    LIMIT ?
+    ''', (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@app.get("/api/productions/{code}")
+def get_production_detail(code: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT pr.*, w.name as warehouse_name
+    FROM productions pr
+    LEFT JOIN warehouses w ON pr.warehouse_id = w.id
+    WHERE pr.code = ?
+    ''', (code,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy lệnh sản xuất")
+    
+    prod_id = row["id"]
+    cur.execute("SELECT * FROM production_items WHERE production_id = ?", (prod_id,))
+    items = [dict(r) for r in cur.fetchall()]
+
+    cur.execute("SELECT * FROM production_materials_consumed WHERE production_id = ?", (prod_id,))
+    materials = [dict(r) for r in cur.fetchall()]
+
+    res = dict(row)
+    res["items"] = items
+    res["materials"] = materials
+    conn.close()
+    return res
+
 @app.post("/api/productions")
 def create_production(req: ProductionCreate):
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Kiem tra BOM dinh luong
-        cur.execute("SELECT material_id, quantity FROM bom WHERE product_id = ?", (req.product_id,))
-        boms = cur.fetchall()
-        if not boms:
-            raise Exception("Sản phẩm này chưa được cài định lượng nguyên liệu (BOM)!")
+        warehouse_id = req.warehouse_id or 1
+        if not req.items or len(req.items) == 0:
+            raise Exception("Vui lòng chọn ít nhất 1 thành phẩm để sản xuất!")
 
-        # Kiem tra xem du nguyen lieu khong & tinh gia von
-        total_cost = 0
-        for b in boms:
-            mat_id = b["material_id"]
-            need_qty = b["quantity"] * req.quantity
-            cur.execute("SELECT stock, cost_price, name FROM products WHERE id = ?", (mat_id,))
-            mat = cur.fetchone()
-            if not mat or mat["stock"] < need_qty:
-                raise Exception(f"Không đủ nguyên liệu: {mat['name'] if mat else mat_id} (Cần {need_qty}, tồn {mat['stock'] if mat else 0})")
-            total_cost += need_qty * mat["cost_price"]
+        # 1. Tổng hợp BOM của tất cả thành phẩm trong danh sách
+        # Gom tổng nguyên liệu cần dùng: dict (type, id) -> {name, unit, needed_qty, cost_price}
+        consumed_dict = {}
+        produced_items_calc = []
+        overall_total_cost = 0.0
 
-        # Tru nguyen lieu
-        for b in boms:
-            need_qty = b["quantity"] * req.quantity
-            cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (need_qty, b["material_id"]))
+        for item in req.items:
+            prod_id = item.product_id
+            prod_qty = item.quantity
+            if prod_qty <= 0:
+                continue
 
-        # Cong thanh pham
-        unit_cost = total_cost / req.quantity if req.quantity > 0 else 0
-        cur.execute("UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?", (req.quantity, unit_cost, req.product_id))
+            cur.execute("SELECT id, code, name, unit, cost_price FROM products WHERE id = ?", (prod_id,))
+            prod = cur.fetchone()
+            if not prod:
+                raise Exception(f"Không tìm thấy sản phẩm ID {prod_id}")
 
-        code = f"SX{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-        cur.execute("INSERT INTO productions (code, product_id, quantity, note) VALUES (?, ?, ?, ?)", (code, req.product_id, req.quantity, req.note))
+            # Kiểm tra BOM trong product_bom (Module Cost chuẩn)
+            cur.execute('''
+            SELECT pb.ingredient_id, pb.quantity, i.code, i.name, i.unit, i.type,
+                   COALESCE((SELECT purchase_price FROM price_history ph 
+                             WHERE ph.ingredient_id = pb.ingredient_id 
+                             ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as latest_cost
+            FROM product_bom pb
+            JOIN ingredients i ON pb.ingredient_id = i.id
+            WHERE pb.product_id = ?
+            ''', (prod_id,))
+            boms_ing = cur.fetchall()
+
+            # Kiểm tra cả bảng bom legacy nếu có
+            cur.execute("SELECT material_id, quantity FROM bom WHERE product_id = ?", (prod_id,))
+            boms_legacy = cur.fetchall()
+
+            if not boms_ing and not boms_legacy:
+                raise Exception(f"Sản phẩm '{prod['name']}' chưa được cài đặt định lượng nguyên liệu (BOM)!")
+
+            single_unit_cost = 0.0
+
+            # Tính từ product_bom
+            for b in boms_ing:
+                ing_id = b["ingredient_id"]
+                needed = b["quantity"] * prod_qty
+                cost = b["latest_cost"]
+                single_unit_cost += b["quantity"] * cost
+
+                key = ("ingredient", ing_id)
+                if key not in consumed_dict:
+                    consumed_dict[key] = {
+                        "type": "ingredient",
+                        "id": ing_id,
+                        "name": b["name"],
+                        "unit": b["unit"],
+                        "needed_qty": 0.0,
+                        "cost_price": cost
+                    }
+                consumed_dict[key]["needed_qty"] += needed
+
+            # Tính từ legacy bom
+            for b in boms_legacy:
+                mat_id = b["material_id"]
+                needed = b["quantity"] * prod_qty
+                cur.execute("SELECT id, name, unit, cost_price FROM products WHERE id = ?", (mat_id,))
+                mat_row = cur.fetchone()
+                cost = mat_row["cost_price"] if mat_row else 0
+                single_unit_cost += b["quantity"] * cost
+
+                key = ("material", mat_id)
+                if key not in consumed_dict:
+                    consumed_dict[key] = {
+                        "type": "material",
+                        "id": mat_id,
+                        "name": mat_row["name"] if mat_row else f"NL-{mat_id}",
+                        "unit": mat_row["unit"] if mat_row else "đv",
+                        "needed_qty": 0.0,
+                        "cost_price": cost
+                    }
+                consumed_dict[key]["needed_qty"] += needed
+
+            total_line_cost = round(single_unit_cost * prod_qty, 2)
+            overall_total_cost += total_line_cost
+            produced_items_calc.append({
+                "product_id": prod_id,
+                "product_name": prod["name"],
+                "unit": prod["unit"],
+                "quantity": prod_qty,
+                "unit_cost": round(single_unit_cost, 2),
+                "total_cost": total_line_cost
+            })
+
+        # 2. Kiểm tra tồn kho tất cả nguyên vật liệu cần dùng
+        for key, mat in consumed_dict.items():
+            m_type, m_id = key
+            needed = mat["needed_qty"]
+            if m_type == "ingredient":
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, m_id))
+                stock_row = cur.fetchone()
+                cur_stock = stock_row["quantity"] if stock_row else 0.0
+                if cur_stock < needed:
+                    raise Exception(f"Không đủ nguyên liệu '{mat['name']}' (Kho cần {needed} {mat['unit']}, hiện chỉ có {cur_stock} {mat['unit']})")
+            else:
+                cur.execute("SELECT stock FROM products WHERE id = ?", (m_id,))
+                stock_row = cur.fetchone()
+                cur_stock = stock_row["stock"] if stock_row else 0.0
+                if cur_stock < needed:
+                    raise Exception(f"Không đủ vật tư '{mat['name']}' (Kho cần {needed} {mat['unit']}, hiện chỉ có {cur_stock} {mat['unit']})")
+
+        # 3. Tạo phiếu lệnh sản xuất
+        code = f"LSX{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        first_prod_id = produced_items_calc[0]["product_id"] if produced_items_calc else 0
+        total_prod_qty = sum(p["quantity"] for p in produced_items_calc)
+
+        cur.execute('''
+        INSERT INTO productions (code, product_id, quantity, warehouse_id, total_cost, status, note)
+        VALUES (?, ?, ?, ?, ?, 'completed', ?)
+        ''', (code, first_prod_id, total_prod_qty, warehouse_id, overall_total_cost, req.note))
+        production_id = cur.lastrowid
+
+        # 4. Ghi nhận chi tiết thành phẩm sản xuất (production_items) & Cộng kho thành phẩm
+        for p in produced_items_calc:
+            cur.execute('''
+            INSERT INTO production_items (production_id, product_id, product_name, unit, quantity, unit_cost, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (production_id, p["product_id"], p["product_name"], p["unit"], p["quantity"], p["unit_cost"], p["total_cost"]))
+
+            # Cộng tồn kho sản phẩm
+            cur.execute("UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?", (p["quantity"], p["unit_cost"], p["product_id"]))
+            cur.execute('''
+            INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                quantity = quantity + ?,
+                updated_at = CURRENT_TIMESTAMP
+            ''', (warehouse_id, p["product_id"], p["quantity"], p["quantity"]))
+
+            cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, p["product_id"]))
+            bal_p = cur.fetchone()
+            bal_p_after = bal_p["quantity"] if bal_p else p["quantity"]
+
+            cur.execute('''
+            INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+            VALUES ('product', ?, ?, 'PRODUCE_IN', ?, ?, ?)
+            ''', (p["product_id"], warehouse_id, p["quantity"], bal_p_after, f"Sản xuất nhập kho {code}"))
+
+        # 5. Trừ kho nguyên liệu & ghi nhật ký xuất kho sản xuất (production_materials_consumed)
+        for key, mat in consumed_dict.items():
+            m_type, m_id = key
+            needed = mat["needed_qty"]
+            m_cost = mat["cost_price"]
+            line_tot = round(needed * m_cost, 2)
+
+            cur.execute('''
+            INSERT INTO production_materials_consumed (production_id, item_type, item_id, item_name, unit, quantity_needed, cost_price, total_cost)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (production_id, m_type, m_id, mat["name"], mat["unit"], needed, m_cost, line_tot))
+
+            if m_type == "ingredient":
+                cur.execute("UPDATE inventory SET quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE warehouse_id = ? AND ingredient_id = ?", (needed, warehouse_id, m_id))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, m_id))
+                bal_i = cur.fetchone()
+                bal_after = bal_i["quantity"] if bal_i else 0
+                cur.execute('''
+                INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                VALUES (?, ?, 'PRODUCE_OUT', ?, ?, ?)
+                ''', (m_id, warehouse_id, -needed, bal_after, f"Xuất sản xuất theo {code}"))
+            else:
+                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (needed, m_id))
+                cur.execute("UPDATE product_inventory SET quantity = quantity - ? WHERE warehouse_id = ? AND product_id = ?", (needed, warehouse_id, m_id))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, m_id))
+                bal_m = cur.fetchone()
+                bal_after = bal_m["quantity"] if bal_m else 0
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+                VALUES ('product', ?, ?, 'PRODUCE_OUT', ?, ?, ?)
+                ''', (m_id, warehouse_id, -needed, bal_after, f"Xuất sản xuất theo {code}"))
 
         conn.commit()
     except Exception as e:
@@ -1518,7 +1769,7 @@ def create_production(req: ProductionCreate):
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
-    return {"status": "ok", "production_code": code}
+    return {"status": "ok", "production_code": code, "total_cost": overall_total_cost}
 
 # So quy & Thu chi
 @app.get("/api/cashbook")
