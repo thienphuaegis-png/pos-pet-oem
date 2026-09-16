@@ -64,15 +64,19 @@ class IngredientUpdate(BaseModel):
     type: str = "RAW"
 
 class WarehouseCreate(BaseModel):
+    code: Optional[str] = None
     name: str
     address: Optional[str] = ""
     phone: Optional[str] = ""
+    is_active: Optional[int] = 1
     is_default: Optional[int] = 0
 
 class WarehouseUpdate(BaseModel):
+    code: Optional[str] = None
     name: str
     address: Optional[str] = ""
     phone: Optional[str] = ""
+    is_active: Optional[int] = 1
     is_default: Optional[int] = 0
 
 class InventoryAdjust(BaseModel):

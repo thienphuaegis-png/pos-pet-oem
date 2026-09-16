@@ -24,7 +24,8 @@ def create_warehouse(w: WarehouseCreate):
     cur = conn.cursor()
     code = w.code or f"WH-{int(time.time() * 1000)}"
     try:
-        cur.execute("INSERT INTO warehouses (code, name, address) VALUES (?, ?, ?)", (code, w.name, w.address))
+        cur.execute("INSERT INTO warehouses (code, name, address, is_active) VALUES (?, ?, ?, ?)", 
+                    (code, w.name, w.address, w.is_active if w.is_active is not None else 1))
         conn.commit()
     except Exception as e:
         conn.close()
@@ -36,11 +37,23 @@ def create_warehouse(w: WarehouseCreate):
 def update_warehouse(warehouse_id: int, w: WarehouseUpdate):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute(
-        "UPDATE warehouses SET name = ?, address = ?, is_active = ? WHERE id = ?",
-        (w.name, w.address, w.is_active, warehouse_id)
-    )
-    conn.commit()
+    try:
+        cur.execute("SELECT id, code FROM warehouses WHERE id = ?", (warehouse_id,))
+        existing = cur.fetchone()
+        if not existing:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Không tìm thấy kho hàng")
+
+        code = w.code if w.code else existing["code"]
+        is_active = w.is_active if w.is_active is not None else 1
+        cur.execute(
+            "UPDATE warehouses SET code = ?, name = ?, address = ?, is_active = ? WHERE id = ?",
+            (code, w.name, w.address, is_active, warehouse_id)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
 
@@ -367,6 +380,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     if warehouse_id:
         where_p.append("w.id = ?")
         params_p.append(warehouse_id)
+        params_p.append(warehouse_id)
         
     prod_sql = f'''
     SELECT 
@@ -396,6 +410,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     where_i = ["i.type = 'IS_PHYSICAL'"]
     if warehouse_id:
         where_i.append("w.id = ?")
+        params_i.append(warehouse_id)
         params_i.append(warehouse_id)
         
     ing_sql = f'''

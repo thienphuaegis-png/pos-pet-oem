@@ -1218,6 +1218,7 @@
             allProducts = await res.json();
             
             const tbody = document.getElementById('table-products');
+            if (!tbody) return;
             tbody.innerHTML = allProducts.map(p => `
                 <tr class="border-b hover:bg-gray-50">
                     <td class="p-3 font-mono text-xs font-bold">${p.code}</td>
