@@ -359,8 +359,6 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     if warehouse_id:
         where_p.append("w.id = ?")
         params_p.append(warehouse_id)
-    else:
-        where_p.append("COALESCE(pi.quantity, 0) != 0")
         
     prod_sql = f'''
     SELECT 
@@ -372,8 +370,8 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
         p.type as sub_type,
         p.cost_price,
         p.sell_price,
-        w.id as warehouse_id,
-        w.name as warehouse_name,
+        COALESCE(w.id, 1) as warehouse_id,
+        COALESCE(w.name, 'Kho Mặc Định') as warehouse_name,
         COALESCE(pi.quantity, 0) as quantity,
         COALESCE(pi.quantity * p.cost_price, 0) as total_value,
         (SELECT GROUP_CONCAT(DISTINCT c.name) 
@@ -381,8 +379,8 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
          JOIN contacts c ON si.supplier_id = c.id 
          WHERE si.item_type = 'product' AND si.product_id = p.id) as supplier_names
     FROM products p
-    JOIN warehouses w ON 1=1
-    LEFT JOIN product_inventory pi ON pi.product_id = p.id AND pi.warehouse_id = w.id
+    LEFT JOIN warehouses w ON ({"w.id = ?" if warehouse_id else "w.id = 1"})
+    LEFT JOIN product_inventory pi ON pi.product_id = p.id AND pi.warehouse_id = COALESCE(w.id, 1)
     WHERE {' AND '.join(where_p)}
     '''
     
@@ -391,8 +389,6 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     if warehouse_id:
         where_i.append("w.id = ?")
         params_i.append(warehouse_id)
-    else:
-        where_i.append("COALESCE(inv.quantity, 0) != 0")
         
     ing_sql = f'''
     SELECT 
@@ -406,8 +402,8 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
             (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
         ) as cost_price,
         0 as sell_price,
-        w.id as warehouse_id,
-        w.name as warehouse_name,
+        COALESCE(w.id, 1) as warehouse_id,
+        COALESCE(w.name, 'Kho Mặc Định') as warehouse_name,
         COALESCE(inv.quantity, 0) as quantity,
         COALESCE(inv.quantity * COALESCE(
             (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
@@ -417,8 +413,8 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
          JOIN contacts c ON si.supplier_id = c.id 
          WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
     FROM ingredients i
-    JOIN warehouses w ON 1=1
-    LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = w.id
+    LEFT JOIN warehouses w ON ({"w.id = ?" if warehouse_id else "w.id = 1"})
+    LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = COALESCE(w.id, 1)
     WHERE {' AND '.join(where_i)}
     '''
     
