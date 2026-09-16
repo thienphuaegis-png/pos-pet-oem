@@ -9,6 +9,7 @@ call .venv\Scripts\activate
 pyinstaller --noconfirm --onedir --windowed ^
     --name "POS_Offline" ^
     --add-data "templates;templates" ^
+    --add-data "static;static" ^
     main.py
 
 echo.
