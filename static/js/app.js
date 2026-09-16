@@ -1367,7 +1367,6 @@
         let currentViewingPurchase = null;
 
         let currentSupplierItems = []; // Danh sách mặt hàng của NCC đang chọn
-
         let allSuppliersList = []; // Cache danh sách NCC riêng cho nhập hàng
 
         async function selectSupplier(id, name, phone) {
@@ -1393,7 +1392,7 @@
             const resBox = document.getElementById('supplier-search-results');
             if (!resBox) return;
 
-            // Nếu chưa có allSuppliersList hoặc allSuppliersList rỗng thì nạp ngay lập tức
+            // Nếu chưa có danh sách thì fetch ngay
             if (!allSuppliersList || allSuppliersList.length === 0) {
                 try {
                     const res = await fetch('/api/contacts?type=supplier');
@@ -1408,21 +1407,23 @@
                 : (allContacts || []).filter(c => c.type === 'supplier');
 
             const q = (val || '').trim();
-            const matches = q === '' 
-                ? supps // Nếu chưa gõ gì thì hiển thị toàn bộ danh sách NCC
+            // Nếu rỗng hoặc đang chứa tên đã chọn thì hiển thị toàn bộ danh sách để người dùng chọn lại
+            const isSelectedText = q.includes('(') && q.includes(')');
+            const matches = (q === '' || isSelectedText)
+                ? supps 
                 : supps.filter(s => {
                     const text = `${s.name} ${s.phone || ''} ${s.address || ''}`;
                     return fuzzyMatch(q, text);
                 });
 
             if (matches.length === 0) {
-                resBox.innerHTML = '<div class="p-2.5 text-gray-400 text-center italic">Không tìm thấy nhà cung cấp nào</div>';
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy nhà cung cấp nào</div>';
                 resBox.classList.remove('hidden');
                 return;
             }
 
-            resBox.innerHTML = matches.slice(0, 20).map(s => `
-                <div onclick="selectSupplier(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.phone || '')}')" 
+            resBox.innerHTML = matches.map(s => `
+                <div onmousedown="selectSupplier(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.phone || '')}')" 
                      class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition border-b last:border-0">
                     <div>
                         <span class="font-bold text-slate-800 text-xs">🏭 ${s.name}</span>
@@ -1461,17 +1462,17 @@
                     expInput.value = today;
                 }
 
-                // Close search dropdowns on outside click
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('#purchase-supplier-search') && !e.target.closest('#supplier-search-results')) {
-                        const sb = document.getElementById('supplier-search-results');
-                        if (sb) sb.classList.add('hidden');
-                    }
-                    if (!e.target.closest('#search-purchase-input') && !e.target.closest('#purchase-search-results')) {
-                        const pb = document.getElementById('purchase-search-results');
-                        if (pb) pb.classList.add('hidden');
-                    }
-                });
+        // Close search dropdowns on outside click
+        document.addEventListener('pointerdown', (e) => {
+            if (!e.target.closest('#purchase-supplier-search') && !e.target.closest('#supplier-search-results')) {
+                const sb = document.getElementById('supplier-search-results');
+                if (sb) sb.classList.add('hidden');
+            }
+            if (!e.target.closest('#search-purchase-input') && !e.target.closest('#purchase-search-results')) {
+                const pb = document.getElementById('purchase-search-results');
+                if (pb) pb.classList.add('hidden');
+            }
+        });
 
                 renderPurchaseItems();
             } catch (e) {
