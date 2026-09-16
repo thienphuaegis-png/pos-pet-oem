@@ -870,6 +870,7 @@
         }
 
         function switchTab(tabId, subTabId) {
+            console.log("switchTab activated:", tabId, subTabId);
             // Map legacy ids
             if (tabId === 'products') { tabId = 'inventory'; subTabId = 'products'; }
             else if (tabId === 'cost-management') { tabId = 'inventory'; subTabId = 'cost'; }
