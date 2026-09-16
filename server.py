@@ -1,6 +1,6 @@
 import os
 import sys
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -35,6 +35,10 @@ if os.path.exists(static_dir):
 
 def get_template_path():
     return os.path.join(base_dir, "templates", "index.html")
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
 
 @app.get("/", response_class=HTMLResponse)
 def index():

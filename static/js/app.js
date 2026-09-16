@@ -905,6 +905,7 @@
                 loadReports();
             } else if (tabId === 'purchases') {
                 initPurchases();
+                loadPurchasesList();
             } else if (tabId === 'pos') {
                 loadProducts();
             }
@@ -4039,4 +4040,9 @@
 
 
         window.onload = init;
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(init, 50);
+        } else {
+            document.addEventListener('DOMContentLoaded', init);
+        }
     
