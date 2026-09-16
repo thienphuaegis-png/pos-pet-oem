@@ -125,15 +125,31 @@
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
                         <span class="task-done">Sidebar Bật/Tắt checkbox theo 3 phân vùng, tự ghim đúng vị trí không trôi nổi</span>
                     </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span class="task-done">Quản lý kho đa điểm: Tồn kho hợp nhất, Kiểm kê cân bằng tồn, Điều chuyển nội bộ, Thẻ kho</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span class="task-done">Fuzzy search hàng hóa/nguyên liệu không dấu ("sữa sao" tìm ra "Sữa Hộp Ngôi Sao")</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span class="task-done">Chuẩn hóa PO Nhập hàng: Chờ nhận hàng (pending), kiểm đếm thực nhận mới chốt kho & nợ NCC</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span class="task-done">Lệnh sản xuất BOM dạng bảng đa thành phẩm, tự tính nguyên liệu & trừ kho tự động</span>
+                    </label>
 
                     <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Đang Triển Khai (Backlog)</div>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Đóng gói file EXE độc lập (PyInstaller)</span>
+                        <span>Chia module Backend (routers/) và Frontend (static/js/) để dễ bảo trì</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Build file EXE đóng gói độc lập qua PyInstaller</span>
+                        <span>Đóng gói file EXE độc lập (PyInstaller qua build_exe.bat)</span>
                     </label>
                 </div>
             </div>
@@ -145,12 +161,12 @@
                 <i class="fa-solid fa-code-commit text-indigo-500"></i> Lịch Sử Triển Khai Gần Nhất
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">753a45b</span> Fix: Endpoint GET /api/bom trả về định lượng BOM</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">467e7f7</span> Feat: Fuzzy search, PO chờ nhận hàng, bảng lệnh sản xuất đa thành phẩm</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a4c92e1</span> Feat: Quản lý kho đa điểm, tồn kho tổng hợp, kiểm kê, chuyển kho, thẻ kho</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">fe2b8a1</span> Feat: Mẫu in A4 B2B đại lý 9 cột + Quản lý Presets mẫu in độc lập</div>
                 <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">cbca735</span> Fix: In thực tế chuẩn WYSIWYG theo pixel canvas</div>
                 <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">46408ef</span> Feat: Snap-to-grid 10px + snap gióng đỏ + kéo thả tự do 2-3 cột</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">f4ba7b0</span> Fix: Logo lên đầu Header, tự động bù Zone metadata</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">7e3bac7</span> Fix: Ngăn chặn chồng chéo khối chữ trên Canvas</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a5c157f</span> Fix: Vạch ranh giới phân vùng tự động co dãn theo vị trí</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">3d44234</span> Feat: deltaY tự đẩy khối dưới khi bảng nở dòng</div>
             </div>
         </div>
     </div>
