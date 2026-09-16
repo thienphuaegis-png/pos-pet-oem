@@ -1,0 +1,9 @@
+2026-09-16 11:04:24,474 [WARNING] pos_server: GET /api/non-existent - Status: 404
+2026-09-16 11:04:24,477 [INFO] httpx2: HTTP Request: GET http://testserver/api/non-existent "HTTP/1.1 404 Not Found"
+2026-09-16 11:08:41,565 [INFO] httpx2: HTTP Request: GET http://testserver/api/contacts "HTTP/1.1 200 OK"
+2026-09-16 11:08:41,573 [WARNING] pos_server: POST /api/contacts - Status: 422
+2026-09-16 11:08:41,575 [INFO] httpx2: HTTP Request: POST http://testserver/api/contacts "HTTP/1.1 422 Unprocessable Entity"
+2026-09-16 11:08:49,810 [INFO] httpx2: HTTP Request: GET http://testserver/api/contacts "HTTP/1.1 200 OK"
+2026-09-16 11:08:49,829 [INFO] httpx2: HTTP Request: POST http://testserver/api/contacts "HTTP/1.1 200 OK"
+2026-09-16 11:08:49,854 [INFO] httpx2: HTTP Request: GET http://testserver/api/contacts/2 "HTTP/1.1 200 OK"
+2026-09-16 11:08:49,882 [INFO] httpx2: HTTP Request: DELETE http://testserver/api/contacts/2 "HTTP/1.1 200 OK"

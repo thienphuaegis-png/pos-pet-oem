@@ -937,27 +937,296 @@
             `).join('');
         }
 
-        async function loadContacts() {
-            const res = await fetch('/api/contacts');
-            allContacts = await res.json();
-            
-            const custSelect = document.getElementById('pos-customer');
-            const suppSelect = document.getElementById('purchase-supplier');
-            
-            custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            suppSelect.innerHTML = allContacts.filter(c => c.type === 'supplier').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                let currentContactFilterType = 'all';
+        let contactSearchDebounceTimer = null;
 
-            const tbody = document.getElementById('table-contacts');
-            tbody.innerHTML = allContacts.map(c => `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${c.type === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">${c.type}</span></td>
-                    <td class="p-3 font-medium">${c.name}</td>
-                    <td class="p-3">${c.phone || '-'}</td>
-                    <td class="p-3">${c.address || '-'}</td>
-                    <td class="p-3 text-right font-bold ${c.debt > 0 ? 'text-red-600' : 'text-gray-500'}">${formatMoney(c.debt)}</td>
-                </tr>
-            `).join('');
+        function filterContactsType(type) {
+            currentContactFilterType = type;
+            const btnAll = document.getElementById('filter-btn-all');
+            const btnCust = document.getElementById('filter-btn-customer');
+            const btnSupp = document.getElementById('filter-btn-supplier');
+            
+            if (btnAll) btnAll.className = type === 'all' ? 'px-3 py-1.5 text-xs font-bold rounded-l-lg bg-sky-600 text-white' : 'px-3 py-1.5 text-xs font-bold rounded-l-lg bg-white text-slate-700 border-t border-b border-l hover:bg-gray-50';
+            if (btnCust) btnCust.className = type === 'customer' ? 'px-3 py-1.5 text-xs font-bold bg-sky-600 text-white' : 'px-3 py-1.5 text-xs font-bold bg-white text-slate-700 border-t border-b border-r hover:bg-gray-50';
+            if (btnSupp) btnSupp.className = type === 'supplier' ? 'px-3 py-1.5 text-xs font-bold rounded-r-lg bg-sky-600 text-white' : 'px-3 py-1.5 text-xs font-bold rounded-r-lg bg-white text-slate-700 border-t border-b border-r hover:bg-gray-50';
+            
+            renderContactsTable();
         }
+
+        function debounceFilterContacts() {
+            clearTimeout(contactSearchDebounceTimer);
+            contactSearchDebounceTimer = setTimeout(() => {
+                renderContactsTable();
+            }, 200);
+        }
+
+        function renderContactsTable() {
+            const q = (document.getElementById('search-contacts-input')?.value || '').trim();
+            const tbody = document.getElementById('table-contacts');
+            if (!tbody) return;
+
+            let filtered = (allContacts || []).filter(c => {
+                if (currentContactFilterType !== 'all' && c.type !== currentContactFilterType) return false;
+                if (q) {
+                    const searchSource = `${c.name} ${c.phone || ''} ${c.address || ''}`;
+                    if (!fuzzyMatch(q, searchSource)) return false;
+                }
+                return true;
+            });
+
+            // Update KPI cards
+            const totalCust = (allContacts || []).filter(c => c.type === 'customer').length;
+            const custDebt = (allContacts || []).filter(c => c.type === 'customer').reduce((sum, c) => sum + (c.debt || 0), 0);
+            const suppDebt = (allContacts || []).filter(c => c.type === 'supplier').reduce((sum, c) => sum + (c.debt || 0), 0);
+
+            const elCustCount = document.getElementById('kpi-contacts-customers');
+            const elCustDebt = document.getElementById('kpi-contacts-cust-debt');
+            const elSuppDebt = document.getElementById('kpi-contacts-supp-debt');
+            if (elCustCount) elCustCount.textContent = totalCust;
+            if (elCustDebt) elCustDebt.textContent = formatMoney(custDebt);
+            if (elSuppDebt) elSuppDebt.textContent = formatMoney(suppDebt);
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Không tìm thấy đối tác nào phù hợp</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(c => {
+                const isCustomer = c.type === 'customer';
+                const typeBadge = isCustomer
+                    ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800">👤 Khách Hàng</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">🏭 Nhà Cung Cấp</span>';
+                
+                const debtColor = c.debt > 0 
+                    ? (isCustomer ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold') 
+                    : 'text-gray-400';
+
+                return `
+                <tr class="border-b hover:bg-gray-50 text-xs">
+                    <td class="p-3">${typeBadge}</td>
+                    <td class="p-3 font-semibold text-slate-800">${c.name}</td>
+                    <td class="p-3 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">Chưa có SĐT</span>'}</td>
+                    <td class="p-3 text-gray-500">${c.address || '<span class="text-gray-300">---</span>'}</td>
+                    <td class="p-3 text-right font-mono ${debtColor}">${formatMoney(c.debt)}</td>
+                    <td class="p-3 text-center space-x-1">
+                        ${c.debt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[11px] font-bold shadow" title="Thanh toán / Thu hồi công nợ">💵 Trả nợ</button>` : ''}
+                        <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-[11px] font-bold" title="Xem lịch sử">👁️ Xem</button>
+                        <button onclick="editContact(${c.id})" class="text-sky-600 hover:text-sky-800 px-1.5 py-1 border border-sky-200 rounded text-[11px] font-bold" title="Sửa">✏️</button>
+                        ${c.id !== 1 && c.debt === 0 ? `<button onclick="deleteContact(${c.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-[11px] font-bold" title="Xóa">🗑️</button>` : ''}
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadContacts() {
+            try {
+                const res = await fetch('/api/contacts');
+                allContacts = await res.json();
+                
+                const custSelect = document.getElementById('pos-customer');
+                const suppSelect = document.getElementById('purchase-supplier');
+                
+                if (custSelect) {
+                    custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+                if (suppSelect) {
+                    suppSelect.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
+                        allContacts.filter(c => c.type === 'supplier').map(c => `<option value="${c.id}">${c.name} (${c.phone || 'Không SĐT'})</option>`).join('');
+                }
+
+                renderContactsTable();
+            } catch (e) {
+                console.error("loadContacts error:", e);
+            }
+        }
+
+        function openContactModal(defaultType = 'customer') {
+            document.getElementById('contact-form-id').value = '';
+            document.getElementById('modal-contact-title').textContent = defaultType === 'customer' ? 'Thêm Khách Hàng Mới' : 'Thêm Nhà Cung Cấp Mới';
+            document.getElementById('contact-form-type').value = defaultType;
+            document.getElementById('contact-form-name').value = '';
+            document.getElementById('contact-form-phone').value = '';
+            document.getElementById('contact-form-address').value = '';
+            document.getElementById('modal-contact').classList.remove('hidden');
+        }
+
+        function editContact(id) {
+            const c = (allContacts || []).find(item => item.id === id);
+            if (!c) return;
+            document.getElementById('contact-form-id').value = c.id;
+            document.getElementById('modal-contact-title').textContent = 'Sửa Thông Tin Đối Tác';
+            document.getElementById('contact-form-type').value = c.type;
+            document.getElementById('contact-form-name').value = c.name;
+            document.getElementById('contact-form-phone').value = c.phone || '';
+            document.getElementById('contact-form-address').value = c.address || '';
+            document.getElementById('modal-contact').classList.remove('hidden');
+        }
+
+        function closeContactModal() {
+            document.getElementById('modal-contact').classList.add('hidden');
+        }
+
+        async function submitContactForm() {
+            const id = document.getElementById('contact-form-id').value;
+            const type = document.getElementById('contact-form-type').value;
+            const name = document.getElementById('contact-form-name').value.trim();
+            const phone = document.getElementById('contact-form-phone').value.trim();
+            const address = document.getElementById('contact-form-address').value.trim();
+
+            if (!name) {
+                alert('Vui lòng nhập họ tên hoặc tên đơn vị đối tác!');
+                return;
+            }
+
+            try {
+                if (id) {
+                    const res = await fetch(`/api/contacts/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, phone, address })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert('Lỗi cập nhật: ' + (err.detail || 'Không thể cập nhật'));
+                        return;
+                    }
+                } else {
+                    const res = await fetch('/api/contacts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type, name, phone, address })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert('Lỗi tạo mới: ' + (err.detail || 'Không thể tạo mới'));
+                        return;
+                    }
+                }
+                closeContactModal();
+                await loadContacts();
+            } catch (e) {
+                console.error("submitContactForm err:", e);
+                alert("Lỗi kết nối máy chủ");
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('Bạn có chắc chắn muốn xóa đối tác này?')) return;
+            try {
+                const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.detail || 'Không thể xóa');
+                    return;
+                }
+                await loadContacts();
+            } catch (e) {
+                alert("Lỗi kết nối");
+            }
+        }
+
+        function openPayDebtModal(id) {
+            const c = (allContacts || []).find(item => item.id === id);
+            if (!c) return;
+            document.getElementById('pay-debt-contact-id').value = c.id;
+            document.getElementById('pay-debt-contact-name').textContent = `${c.name} (${c.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'})`;
+            document.getElementById('pay-debt-current').textContent = formatMoney(c.debt);
+            document.getElementById('pay-debt-amount').value = c.debt;
+            document.getElementById('pay-debt-note').value = '';
+            document.getElementById('modal-pay-debt').classList.remove('hidden');
+        }
+
+        function closePayDebtModal() {
+            document.getElementById('modal-pay-debt').classList.add('hidden');
+        }
+
+        async function submitPayDebt() {
+            const id = document.getElementById('pay-debt-contact-id').value;
+            const amount = parseFloat(document.getElementById('pay-debt-amount').value) || 0;
+            const note = document.getElementById('pay-debt-note').value.trim();
+
+            if (amount <= 0) {
+                alert('Số tiền thanh toán phải lớn hơn 0!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/contacts/${id}/pay-debt`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, note })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.detail || 'Lỗi khi thanh toán công nợ');
+                    return;
+                }
+                closePayDebtModal();
+                await loadContacts();
+                if (typeof loadCashbook === 'function') loadCashbook();
+                alert('Đã thanh toán công nợ và cập nhật sổ quỹ thành công!');
+            } catch (e) {
+                alert('Lỗi kết nối máy chủ');
+            }
+        }
+
+        async function viewContactDetail(id) {
+            try {
+                const res = await fetch(`/api/contacts/${id}`);
+                if (!res.ok) {
+                    alert('Không tìm thấy thông tin đối tác');
+                    return;
+                }
+                const data = await res.json();
+                document.getElementById('modal-contact-detail-name').textContent = `Chi Tiết: ${data.name}`;
+                document.getElementById('detail-contact-type').textContent = data.type === 'customer' ? 'Khách Hàng' : 'Nhà Cung Cấp';
+                document.getElementById('detail-contact-phone').textContent = data.phone || 'Chưa có';
+                document.getElementById('detail-contact-address').textContent = data.address || 'Chưa có';
+                document.getElementById('detail-contact-debt').textContent = formatMoney(data.debt);
+
+                const tbHist = document.getElementById('detail-contact-history');
+                if (data.history && data.history.length > 0) {
+                    tbHist.innerHTML = data.history.map(h => `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-2 font-mono font-bold text-sky-700">${h.code}</td>
+                            <td class="p-2 text-gray-500">${h.created_at || '-'}</td>
+                            <td class="p-2 text-right font-mono font-bold">${formatMoney(h.total_amount)}</td>
+                            <td class="p-2 text-right font-mono text-emerald-600">${formatMoney(h.paid_amount)}</td>
+                            <td class="p-2 text-right font-mono text-rose-600 font-bold">${formatMoney(h.debt)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbHist.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Chưa có lịch sử giao dịch</td></tr>';
+                }
+
+                const tbCash = document.getElementById('detail-contact-cashbook');
+                if (data.cashbook_history && data.cashbook_history.length > 0) {
+                    tbCash.innerHTML = data.cashbook_history.map(c => `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-2 font-mono font-bold">${c.code}</td>
+                            <td class="p-2 text-gray-500">${c.created_at || '-'}</td>
+                            <td class="p-2">${c.category}</td>
+                            <td class="p-2 text-right font-mono font-bold ${c.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${c.type === 'in' ? '+' : '-'}${formatMoney(c.amount)}
+                            </td>
+                            <td class="p-2 text-gray-500">${c.note || '-'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbCash.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">Chưa có giao dịch sổ quỹ</td></tr>';
+                }
+
+                document.getElementById('modal-contact-detail').classList.remove('hidden');
+            } catch (e) {
+                alert('Lỗi khi tải thông tin chi tiết');
+            }
+        }
+
+        function closeContactDetailModal() {
+            document.getElementById('modal-contact-detail').classList.add('hidden');
+        }
+
 
         async function loadStaff() {
             const res = await fetch('/api/staff');
