@@ -147,18 +147,13 @@
                     <span class="text-xl font-bold text-sky-400">⚡ POS Offline</span>
                 </div>
                 <nav class="p-2 space-y-1">
-                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 active-tab">🛒 Bán Hàng (POS)</button>
-                    <button onclick="switchTab('products')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📦 Hàng Hóa & BOM</button>
-                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📥 Nhập Hàng</button>
-                    <button onclick="switchTab('production')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">⚙️ Sản Xuất</button>
-                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">👥 Đối Tác & Công Nợ</button>
-                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">💰 Sổ Quỹ Thu Chi</button>
-                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">📊 Báo Cáo Tổng Hợp</button>
-                    <button onclick="switchTab('company')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">🏢 Thông Tin Doanh Nghiệp</button>
-                    <button onclick="switchTab('cost-management')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 bg-slate-800/40 text-emerald-400 font-semibold">🧪 Quản Lý Nguyên Liệu & Cost</button>
-                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800">⚙️ Thiết Kế Mẫu In</button>
-
-
+                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 active-tab" data-tab="pos">🛒 Bán Hàng (POS)</button>
+                    <button onclick="switchTab('inventory')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-sky-400 font-semibold" data-tab="inventory">📦 Hàng Hóa & Kho</button>
+                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="purchases">📥 Nhập Hàng</button>
+                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="contacts">👥 Đối Tác & Công Nợ</button>
+                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="cashbook">💰 Sổ Quỹ Thu Chi</button>
+                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="reports">📊 Báo Cáo Tổng Hợp</button>
+                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="settings">⚙️ Cài Đặt Hệ Thống</button>
                 </nav>
             </div>
             <div class="p-4 text-xs text-slate-400 border-t border-slate-800">
@@ -230,8 +225,115 @@
                 </div>
             </div>
 
-            <!-- TAB: DANH MUC HANG HOA -->
-            <div id="tab-products" class="hidden space-y-4">
+            
+            <!-- TAB: QUẢN LÝ HÀNG HÓA & KHO HÀNG (CONSOLIDATED) -->
+            <div id="tab-inventory" class="hidden space-y-4">
+                <!-- Thanh điều hướng Tab con (Sub-tabs) -->
+                <div class="flex flex-wrap items-center justify-between bg-white p-2.5 rounded-lg shadow-sm border gap-2">
+                    <div class="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+                        <button onclick="switchInvSubTab('unified')" class="inv-subtab-btn px-3 py-2 rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1.5" data-sub="unified">
+                            <span>🏢 Tồn Kho Tổng Hợp</span>
+                        </button>
+                        <button onclick="switchInvSubTab('products')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="products">
+                            <span>📦 Hàng Hóa & Dịch Vụ</span>
+                        </button>
+                        <button onclick="switchInvSubTab('cost')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="cost">
+                            <span>🧪 Nguyên Liệu & BOM</span>
+                        </button>
+                        <button onclick="switchInvSubTab('audit')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="audit">
+                            <span>⚖️ Kiểm Kê Kho</span>
+                        </button>
+                        <button onclick="switchInvSubTab('transfer')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="transfer">
+                            <span>🔄 Chuyển Kho</span>
+                        </button>
+                        <button onclick="switchInvSubTab('warehouses')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="warehouses">
+                            <span>🏬 Danh Mục Kho</span>
+                        </button>
+                        <button onclick="switchInvSubTab('production')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="production">
+                            <span>⚙️ Lệnh Sản Xuất</span>
+                        </button>
+                    </div>
+                </div>
+
+                
+                <!-- SUB 1: TỒN KHO TỔNG HỢP -->
+                <div id="inv-sub-unified" class="space-y-4">
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-gray-500 uppercase">Tổng Mặt Hàng Đang Quản Lý</div>
+                                <div id="kpi-inv-count" class="text-2xl font-black text-slate-800 mt-1">0</div>
+                            </div>
+                            <div class="w-11 h-11 bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center text-xl font-bold">📦</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-gray-500 uppercase">Tổng Số Lượng Tồn Kho</div>
+                                <div id="kpi-inv-qty" class="text-2xl font-black text-emerald-600 mt-1">0</div>
+                            </div>
+                            <div class="w-11 h-11 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-xl font-bold">🔢</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-gray-500 uppercase">Tổng Giá Trị Tồn Kho (Vốn)</div>
+                                <div id="kpi-inv-val" class="text-2xl font-black text-rose-600 mt-1">0 đ</div>
+                            </div>
+                            <div class="w-11 h-11 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center text-xl font-bold">💰</div>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Lọc & Dữ Liệu -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-xs">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="font-bold text-gray-700">Kho:</span>
+                                <select id="unified-wh-filter" class="border p-1.5 rounded font-bold text-slate-800" onchange="loadUnifiedInventory()">
+                                    <option value="">Tất cả kho hàng</option>
+                                </select>
+                                <span class="font-bold text-gray-700 ml-2">Phân loại:</span>
+                                <select id="unified-type-filter" class="border p-1.5 rounded font-medium" onchange="loadUnifiedInventory()">
+                                    <option value="all">Tất cả (Hàng hóa & Nguyên liệu)</option>
+                                    <option value="product">Chỉ Hàng Hóa Thành Phẩm</option>
+                                    <option value="ingredient">Chỉ Nguyên Vật Liệu</option>
+                                </select>
+                                <label class="flex items-center gap-1.5 font-medium ml-2 cursor-pointer text-rose-600">
+                                    <input type="checkbox" id="unified-low-stock" onchange="loadUnifiedInventory()" class="rounded">
+                                    <span>Tồn thấp (≤ 5)</span>
+                                </label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="unified-search" oninput="loadUnifiedInventory()" placeholder="🔍 Tìm tên hoặc mã..." class="border p-1.5 rounded w-48 text-xs">
+                                <button onclick="loadUnifiedInventory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded text-xs">🔄 Tải lại</button>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2.5">Mã hàng</th>
+                                        <th class="p-2.5">Tên mặt hàng</th>
+                                        <th class="p-2.5 text-center">Phân loại</th>
+                                        <th class="p-2.5">Kho lưu trữ</th>
+                                        <th class="p-2.5 text-right font-bold">Số lượng tồn</th>
+                                        <th class="p-2.5">ĐVT</th>
+                                        <th class="p-2.5 text-right">Giá vốn</th>
+                                        <th class="p-2.5 text-right">Tổng giá trị tồn</th>
+                                        <th class="p-2.5 text-center">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-unified-inventory">
+                                    <tr><td colspan="9" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB: DANH MUC HANG HOA -->
+            <div id="inv-sub-products" class="hidden space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold">Danh Mục Hàng Hóa, Dịch Vụ & BOM</h2>
                     <button onclick="showModalProduct()" class="bg-sky-600 text-white px-4 py-2 rounded">+ Thêm Mới</button>
@@ -254,7 +356,374 @@
                 </div>
             </div>
 
-            <!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
+            
+                <!-- TAB: QUẢN LÝ NGUYÊN LIỆU & COST VỐN (BOM) -->
+            <div id="inv-sub-cost" class="hidden space-y-4">
+                <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">🧪 Quản Lý Nguyên Liệu, Kho Hàng & Định Lượng Cost (BOM)</h2>
+                        <p class="text-xs text-gray-500">Quản lý thành phần cấu thành (IS_PHYSICAL / SERVICE), lịch sử giá nhập và tự động tính giá vốn sản phẩm</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="goToPurchaseTabWithItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📥 Tạo Phiếu Nhập Hàng (Mua Hàng)
+                        </button>
+                        <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            + Thêm Nguyên Liệu / Dịch Vụ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2 Cột: Bên trái Nguyên liệu & Tồn kho, Bên phải BOM & Cost từng sản phẩm -->
+                <div class="grid grid-cols-12 gap-4">
+                    <!-- Cột Trái: Bảng Nguyên Liệu & Kho (7 cols) -->
+                    <div class="col-span-12 lg:col-span-7 bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h3 class="font-bold text-slate-700 text-sm">📦 Danh Sách Nguyên Liệu & Tồn Kho</h3>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span>Kho:</span>
+                                <select id="cost-wh-filter" class="border p-1 rounded font-medium" onchange="loadCostIngredients()">
+                                    <option value="">Tất cả kho</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto max-h-[480px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2">Mã</th>
+                                        <th class="p-2">Tên thành phần</th>
+                                        <th class="p-2 text-center">Loại</th>
+                                        <th class="p-2 text-right">Tồn kho</th>
+                                        <th class="p-2">ĐVT</th>
+                                        <th class="p-2 text-right">Giá nhập gần nhất</th>
+                                        <th class="p-2 text-center">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-cost-ingredients"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Cột Phải: Tra Cứu & Thiết Lập BOM Sản Phẩm (5 cols) -->
+                    <div class="col-span-12 lg:col-span-5 bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="border-b pb-2">
+                            <h3 class="font-bold text-slate-700 text-sm">⚡ Định Lượng BOM & Tính Giá Cost Sản Phẩm</h3>
+                            <p class="text-[11px] text-gray-500">Chọn sản phẩm để xem và cập nhật thành phần tiêu hao</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Chọn Sản Phẩm Thành Phẩm:</label>
+                            <select id="cost-product-select" class="border p-2 rounded w-full text-xs font-bold text-sky-700 bg-sky-50" onchange="loadProductBOMDetails(this.value)">
+                                <option value="">-- Chọn sản phẩm để xem BOM --</option>
+                            </select>
+                        </div>
+
+                        <!-- Card Tóm tắt Cost -->
+                        <div id="cost-summary-card" class="hidden bg-slate-50 border rounded p-3 text-xs space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Giá bán hiện tại:</span>
+                                <span id="cost-sum-sell" class="font-bold text-sky-600">0 đ</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Tổng Giá Cost (vốn):</span>
+                                <span id="cost-sum-cost" class="font-bold text-rose-600">0 đ</span>
+                            </div>
+                            <div class="flex justify-between border-t pt-1 font-bold">
+                                <span class="text-gray-700">Biên Lợi Nhuận:</span>
+                                <span id="cost-sum-margin" class="text-emerald-600">0 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách BOM hiện tại -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-xs text-slate-700">Các thành phần cấu thành:</span>
+                                <button onclick="openModalAddBOMItem()" class="text-[11px] bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">
+                                    + Thêm thành phần
+                                </button>
+                            </div>
+                            <div class="overflow-x-auto max-h-[260px] border rounded">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-gray-100 border-b text-[11px]">
+                                        <tr>
+                                            <th class="p-1.5">Nguyên liệu</th>
+                                            <th class="p-1.5 text-right">Định lượng</th>
+                                            <th class="p-1.5 text-right">Giá vốn</th>
+                                            <th class="p-1.5 text-center">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-product-bom-items">
+                                        <tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pt-2">
+                                <button onclick="recalculateActiveProductCost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded shadow">
+                                    🔄 Tính Toán & Cập Nhật Giá Cost Tự Động
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+                
+                <!-- SUB 4: KIỂM KÊ KHO -->
+                <div id="inv-sub-audit" class="hidden space-y-4">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800">⚖️ Kiểm Kê Kho & Cân Bằng Tồn Kho</h2>
+                            <p class="text-xs text-gray-500">Đối soát số lượng thực tế với phần mềm, tự động tính chênh lệch và cập nhật số dư kho</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="toggleAuditView('create')" id="btn-audit-create" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                                ➕ Tạo Phiếu Kiểm Kê
+                            </button>
+                            <button onclick="toggleAuditView('list')" id="btn-audit-list" class="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                                📋 Lịch Sử Kiểm Kê
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- VIEW 1: TẠO PHIẾU KIỂM KÊ -->
+                    <div id="audit-create-view" class="space-y-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Chọn Kho Cần Kiểm Kê (*):</label>
+                                    <select id="audit-wh-select" class="border p-2 rounded w-full font-bold text-slate-800 bg-sky-50 border-sky-300" onchange="loadAuditItemsForWarehouse(this.value)">
+                                        <option value="">-- Chọn kho kiểm kê --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Ghi Chú Đợt Kiểm Kê:</label>
+                                    <input type="text" id="audit-note" class="border p-2 rounded w-full" placeholder="Ví dụ: Kiểm kê định kỳ cuối tháng, kiểm đột xuất...">
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-xs text-slate-700">Danh sách mặt hàng trong kho:</span>
+                                <span class="text-[11px] text-gray-400">Nhập số lượng thực tế đếm được vào cột "Tồn Thực Tế"</span>
+                            </div>
+
+                            <div class="overflow-x-auto max-h-[420px] border rounded">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-gray-50 sticky top-0 border-b">
+                                        <tr>
+                                            <th class="p-2 w-12">STT</th>
+                                            <th class="p-2">Mã</th>
+                                            <th class="p-2">Tên mặt hàng</th>
+                                            <th class="p-2 text-center">Phân loại</th>
+                                            <th class="p-2">ĐVT</th>
+                                            <th class="p-2 text-right">Tồn hệ thống</th>
+                                            <th class="p-2 text-right w-32">Tồn thực tế (*)</th>
+                                            <th class="p-2 text-right">Chênh lệch</th>
+                                            <th class="p-2">Ghi chú mặt hàng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-audit-items">
+                                        <tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho để nạp danh sách hàng</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-2 border-t text-xs">
+                                <div class="text-gray-500">
+                                    Tổng số mặt hàng kiểm: <span id="audit-sum-count" class="font-bold text-slate-800">0</span> | 
+                                    Tổng lệch: <span id="audit-sum-diff" class="font-bold text-slate-800">0</span>
+                                </div>
+                                <button onclick="submitStockAudit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded shadow">
+                                    ⚡ Cân Bằng Kho & Hoàn Tất Kiểm Kê
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW 2: LỊCH SỬ PHIẾU KIỂM KÊ -->
+                    <div id="audit-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h3 class="font-bold text-xs text-slate-700">Danh Sách Các Đợt Kiểm Kê Đã Thực Hiện</h3>
+                            <button onclick="loadStockAuditsList()" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded text-slate-700 font-bold">🔄 Tải lại</button>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2.5">Mã phiếu</th>
+                                        <th class="p-2.5">Thời gian</th>
+                                        <th class="p-2.5">Kho kiểm kê</th>
+                                        <th class="p-2.5 text-right">Số món kiểm</th>
+                                        <th class="p-2.5 text-right">Tổng chênh lệch</th>
+                                        <th class="p-2.5">Ghi chú</th>
+                                        <th class="p-2.5 text-center">Chi tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-audit-history">
+                                    <tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dữ liệu</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- SUB 5: CHUYỂN KHO -->
+                <div id="inv-sub-transfer" class="hidden space-y-4">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800">🔄 Điều Chuyển Hàng Hóa & Nguyên Liệu Nội Bộ</h2>
+                            <p class="text-xs text-gray-500">Chuyển mặt hàng từ kho này sang kho khác, tự động trừ kho xuất và cộng kho nhập</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="toggleTransferView('create')" id="btn-transfer-create" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                                ➕ Tạo Phiếu Chuyển Kho
+                            </button>
+                            <button onclick="toggleTransferView('list')" id="btn-transfer-list" class="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                                📋 Lịch Sử Chuyển Kho
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- VIEW 1: TẠO PHIẾU CHUYỂN -->
+                    <div id="transfer-create-view" class="space-y-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Từ Kho (Xuất Hàng) (*):</label>
+                                    <select id="transfer-from-wh" class="border p-2 rounded w-full font-bold text-slate-800 bg-rose-50 border-rose-300" onchange="onTransferFromChange()">
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Đến Kho (Nhập Hàng) (*):</label>
+                                    <select id="transfer-to-wh" class="border p-2 rounded w-full font-bold text-slate-800 bg-emerald-50 border-emerald-300">
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Ghi Chú Điều Chuyển:</label>
+                                    <input type="text" id="transfer-note" class="border p-2 rounded w-full" placeholder="Ví dụ: Điều chuyển chi nhánh, cấp bù hàng...">
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-xs text-slate-700">Danh sách các mặt hàng cần điều chuyển:</span>
+                                <button onclick="addTransferRow()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-2.5 py-1.5 rounded flex items-center gap-1">
+                                    + Thêm Dòng Chuyển Hàng
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto border rounded max-h-[380px]">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-gray-50 sticky top-0 border-b">
+                                        <tr>
+                                            <th class="p-2 w-10">STT</th>
+                                            <th class="p-2">Mặt hàng cần chuyển (*)</th>
+                                            <th class="p-2 text-center w-28">Phân loại</th>
+                                            <th class="p-2 text-right w-28">Tồn kho xuất</th>
+                                            <th class="p-2 text-right w-36">Số lượng chuyển (*)</th>
+                                            <th class="p-2 w-20">ĐVT</th>
+                                            <th class="p-2 text-center w-16">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-transfer-rows">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="flex justify-end pt-2 border-t">
+                                <button onclick="submitStockTransfer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded shadow">
+                                    🚀 Xác Nhận Điều Chuyển Hàng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VIEW 2: LỊCH SỬ CHUYỂN KHO -->
+                    <div id="transfer-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <h3 class="font-bold text-xs text-slate-700">Danh Sách Các Đợt Điều Chuyển Kho Đã Thực Hiện</h3>
+                            <button onclick="loadStockTransfersList()" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded text-slate-700 font-bold">🔄 Tải lại</button>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2.5">Mã phiếu</th>
+                                        <th class="p-2.5">Thời gian</th>
+                                        <th class="p-2.5">Từ kho (Xuất)</th>
+                                        <th class="p-2.5">Đến kho (Nhập)</th>
+                                        <th class="p-2.5 text-right">Số món chuyển</th>
+                                        <th class="p-2.5">Ghi chú</th>
+                                        <th class="p-2.5 text-center">Chi tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-transfer-history">
+                                    <tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dữ liệu</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- SUB 6: DANH MỤC KHO -->
+                <div id="inv-sub-warehouses" class="hidden space-y-4">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800">🏬 Danh Sách Kho Hàng & Điểm Lưu Trữ</h2>
+                            <p class="text-xs text-gray-500">Quản lý các chi nhánh kho, địa chỉ và theo dõi tổng giá trị hàng hóa lưu trữ</p>
+                        </div>
+                        <button onclick="openModalWarehouse()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                            + Thêm Kho Hàng Mới
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-gray-50 border-b font-bold text-slate-700">
+                                <tr>
+                                    <th class="p-3">Mã kho</th>
+                                    <th class="p-3">Tên kho</th>
+                                    <th class="p-3">Địa chỉ</th>
+                                    <th class="p-3 text-right">Số mặt hàng</th>
+                                    <th class="p-3 text-right">Tổng SL tồn</th>
+                                    <th class="p-3 text-right">Tổng giá trị kho</th>
+                                    <th class="p-3 text-center">Trạng thái</th>
+                                    <th class="p-3 text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-warehouses-list">
+                                <tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải danh sách kho...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: SAN XUAT -->
+            <div id="inv-sub-production" class="hidden space-y-4">
+                <h2 class="text-xl font-bold">Lệnh Sản Xuất Theo Định Lượng (BOM)</h2>
+                <div class="bg-white p-4 rounded-lg shadow max-w-lg space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Thành Phẩm Cần Sản Xuất:</label>
+                        <select id="prod-product" class="border p-2 rounded w-full"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Số Lượng Sản Xuất:</label>
+                        <input type="number" id="prod-qty" class="border p-2 rounded w-full" value="1" min="1">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold mb-1">Ghi Chú:</label>
+                        <input type="text" id="prod-note" class="border p-2 rounded w-full" placeholder="Lô sản xuất...">
+                    </div>
+                    <button onclick="submitProduction()" class="w-full bg-sky-600 text-white font-bold py-2 rounded">
+                        TIẾN HÀNH SẢN XUẤT (TRỪ KHO NGUYÊN LIỆU)
+                    </button>
+                </div>
+            </div>
+
+            
+            </div>
+<!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
             <div id="tab-purchases" class="hidden space-y-4">
                 <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
                     <div>
@@ -428,28 +897,6 @@
                 </div>
             </div>
 
-            <!-- TAB: SAN XUAT -->
-            <div id="tab-production" class="hidden space-y-4">
-                <h2 class="text-xl font-bold">Lệnh Sản Xuất Theo Định Lượng (BOM)</h2>
-                <div class="bg-white p-4 rounded-lg shadow max-w-lg space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Thành Phẩm Cần Sản Xuất:</label>
-                        <select id="prod-product" class="border p-2 rounded w-full"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Số Lượng Sản Xuất:</label>
-                        <input type="number" id="prod-qty" class="border p-2 rounded w-full" value="1" min="1">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold mb-1">Ghi Chú:</label>
-                        <input type="text" id="prod-note" class="border p-2 rounded w-full" placeholder="Lô sản xuất...">
-                    </div>
-                    <button onclick="submitProduction()" class="w-full bg-sky-600 text-white font-bold py-2 rounded">
-                        TIẾN HÀNH SẢN XUẤT (TRỪ KHO NGUYÊN LIỆU)
-                    </button>
-                </div>
-            </div>
-
             <!-- TAB: DOI TAC & CONG NO -->
             <div id="tab-contacts" class="hidden space-y-4">
                 <h2 class="text-xl font-bold">Quản Lý Khách Hàng, NCC & Công Nợ</h2>
@@ -514,206 +961,6 @@
                     <div class="bg-white p-4 rounded-lg shadow border-l-4 border-purple-500">
                         <div class="text-xs text-gray-500 uppercase">Hoa Hồng Đã Tính</div>
                         <div id="rep-comm" class="text-xl font-bold text-purple-600 mt-1">0 đ</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: THONG TIN DOANH NGHIEP -->
-            <div id="tab-company" class="hidden space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
-                    <button onclick="saveCompanySettings()" class="bg-sky-600 text-white font-bold px-4 py-2 rounded shadow">💾 Lưu Thông Tin Doanh Nghiệp</button>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-6">
-                    <!-- Co ban -->
-                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
-                        <h3 class="font-bold border-b pb-2 text-slate-700">Thông Tin Chung Cửa Hàng</h3>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty:</label>
-                            <input type="text" id="comp-name" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Địa Chỉ:</label>
-                            <input type="text" id="comp-address" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Hotline / Số Điện Thoại:</label>
-                            <input type="text" id="comp-phone" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
-                            <input type="text" id="comp-footer" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Logo Cửa Hàng (Ảnh):</label>
-                            <input type="file" id="comp-logo-input" accept="image/*" class="border p-1 rounded w-full text-xs" onchange="previewUploadImage(this, 'comp-logo-preview')">
-                            <div class="mt-2 text-center">
-                                <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded hidden">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Ngan hang & QR -->
-                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
-                        <h3 class="font-bold border-b pb-2 text-slate-700">Cấu Hình Tài Khoản & QR Thanh Toán</h3>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Phương Thức QR Code:</label>
-                            <select id="comp-qr-mode" class="border p-2 rounded w-full font-medium" onchange="toggleQRModeUI()">
-                                <option value="vietqr">⚡ VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
-                                <option value="static">🖼️ Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
-                            </select>
-                        </div>
-
-                        <!-- Panel VietQR Dong -->
-                        <div id="panel-vietqr" class="space-y-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
-                            <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Ngân Hàng (Mã BIN):</label>
-                                <select id="comp-bank-code" class="border p-2 rounded w-full bg-white">
-                                    <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
-                                    <option value="VCB">Vietcombank (Ngoại thương)</option>
-                                    <option value="TCB">Techcombank (Kỹ thương)</option>
-                                    <option value="ICB">VietinBank (Công thương)</option>
-                                    <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
-                                    <option value="ACB">ACB (Á Châu)</option>
-                                    <option value="TPB">TPBank (Tiên Phong)</option>
-                                    <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
-                                    <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
-                                    <option value="VIB">VIB (Quốc Tế)</option>
-                                    <option value="MSB">MSB (Hàng Hải)</option>
-                                    <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
-                                    <option value="LPB">LPBank (Lộc Phát)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Số Tài Khoản:</label>
-                                <input type="text" id="comp-bank-account" class="border p-2 rounded w-full bg-white" placeholder="VD: 0901234567">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
-                                <input type="text" id="comp-bank-owner" class="border p-2 rounded w-full bg-white uppercase" placeholder="VD: NGUYEN VAN A">
-                            </div>
-                        </div>
-
-                        <!-- Panel QR Tinh -->
-                        <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50 rounded border border-amber-200 text-sm">
-                            <label class="block text-xs font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
-                            <input type="file" id="comp-qr-input" accept="image/*" class="border p-1 rounded w-full text-xs bg-white" onchange="previewUploadImage(this, 'comp-qr-preview')">
-                            <div class="mt-2 text-center">
-                                <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded hidden">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: QUẢN LÝ NGUYÊN LIỆU & COST VỐN (BOM) -->
-            <div id="tab-cost-management" class="hidden space-y-4">
-                <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-2">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-800">🧪 Quản Lý Nguyên Liệu, Kho Hàng & Định Lượng Cost (BOM)</h2>
-                        <p class="text-xs text-gray-500">Quản lý thành phần cấu thành (IS_PHYSICAL / SERVICE), lịch sử giá nhập và tự động tính giá vốn sản phẩm</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="goToPurchaseTabWithItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            📥 Tạo Phiếu Nhập Hàng (Mua Hàng)
-                        </button>
-                        <button onclick="openModalAddIngredient()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            + Thêm Nguyên Liệu / Dịch Vụ
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 2 Cột: Bên trái Nguyên liệu & Tồn kho, Bên phải BOM & Cost từng sản phẩm -->
-                <div class="grid grid-cols-12 gap-4">
-                    <!-- Cột Trái: Bảng Nguyên Liệu & Kho (7 cols) -->
-                    <div class="col-span-12 lg:col-span-7 bg-white p-4 rounded-lg shadow-sm border space-y-3">
-                        <div class="flex justify-between items-center border-b pb-2">
-                            <h3 class="font-bold text-slate-700 text-sm">📦 Danh Sách Nguyên Liệu & Tồn Kho</h3>
-                            <div class="flex items-center gap-2 text-xs">
-                                <span>Kho:</span>
-                                <select id="cost-wh-filter" class="border p-1 rounded font-medium" onchange="loadCostIngredients()">
-                                    <option value="">Tất cả kho</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto max-h-[480px]">
-                            <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-gray-50 sticky top-0 border-b">
-                                    <tr>
-                                        <th class="p-2">Mã</th>
-                                        <th class="p-2">Tên thành phần</th>
-                                        <th class="p-2 text-center">Loại</th>
-                                        <th class="p-2 text-right">Tồn kho</th>
-                                        <th class="p-2">ĐVT</th>
-                                        <th class="p-2 text-right">Giá nhập gần nhất</th>
-                                        <th class="p-2 text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-cost-ingredients"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Cột Phải: Tra Cứu & Thiết Lập BOM Sản Phẩm (5 cols) -->
-                    <div class="col-span-12 lg:col-span-5 bg-white p-4 rounded-lg shadow-sm border space-y-3">
-                        <div class="border-b pb-2">
-                            <h3 class="font-bold text-slate-700 text-sm">⚡ Định Lượng BOM & Tính Giá Cost Sản Phẩm</h3>
-                            <p class="text-[11px] text-gray-500">Chọn sản phẩm để xem và cập nhật thành phần tiêu hao</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">Chọn Sản Phẩm Thành Phẩm:</label>
-                            <select id="cost-product-select" class="border p-2 rounded w-full text-xs font-bold text-sky-700 bg-sky-50" onchange="loadProductBOMDetails(this.value)">
-                                <option value="">-- Chọn sản phẩm để xem BOM --</option>
-                            </select>
-                        </div>
-
-                        <!-- Card Tóm tắt Cost -->
-                        <div id="cost-summary-card" class="hidden bg-slate-50 border rounded p-3 text-xs space-y-1">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Giá bán hiện tại:</span>
-                                <span id="cost-sum-sell" class="font-bold text-sky-600">0 đ</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Tổng Giá Cost (vốn):</span>
-                                <span id="cost-sum-cost" class="font-bold text-rose-600">0 đ</span>
-                            </div>
-                            <div class="flex justify-between border-t pt-1 font-bold">
-                                <span class="text-gray-700">Biên Lợi Nhuận:</span>
-                                <span id="cost-sum-margin" class="text-emerald-600">0 đ</span>
-                            </div>
-                        </div>
-
-                        <!-- Danh sách BOM hiện tại -->
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-xs text-slate-700">Các thành phần cấu thành:</span>
-                                <button onclick="openModalAddBOMItem()" class="text-[11px] bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">
-                                    + Thêm thành phần
-                                </button>
-                            </div>
-                            <div class="overflow-x-auto max-h-[260px] border rounded">
-                                <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-gray-100 border-b text-[11px]">
-                                        <tr>
-                                            <th class="p-1.5">Nguyên liệu</th>
-                                            <th class="p-1.5 text-right">Định lượng</th>
-                                            <th class="p-1.5 text-right">Giá vốn</th>
-                                            <th class="p-1.5 text-center">Xóa</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-product-bom-items">
-                                        <tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="pt-2">
-                                <button onclick="recalculateActiveProductCost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded shadow">
-                                    🔄 Tính Toán & Cập Nhật Giá Cost Tự Động
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -915,9 +1162,217 @@
                 </div>
             </div>
 
-            <!-- TAB: CAI DAT MAU IN (CANVAS DRAG & DROP CHO A4, A5, K80) -->
+            
+            <!-- MODAL: THÊM HÀNG HÓA MỚI -->
+            <div id="modal-product" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-96 max-w-full space-y-3 text-xs shadow-xl">
+                    <h3 class="font-bold text-sm text-slate-800 border-b pb-2">Thêm Hàng Hóa / Dịch Vụ Mới</h3>
+                    <div>
+                        <label class="block font-bold mb-1">Mã sản phẩm (để trống tự sinh):</label>
+                        <input id="modal-prod-code" type="text" class="border p-2 rounded w-full" placeholder="SP-01">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Tên sản phẩm (*):</label>
+                        <input id="modal-prod-name" type="text" class="border p-2 rounded w-full" placeholder="Áo thun basic, Cà phê sữa...">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold mb-1">Loại sản phẩm:</label>
+                            <select id="modal-prod-type" class="border p-2 rounded w-full font-bold">
+                                <option value="product">Hàng hóa (Có tồn kho)</option>
+                                <option value="service">Dịch vụ (Không tồn kho)</option>
+                                <option value="material">Vật tư / Nguyên liệu</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Đơn vị tính:</label>
+                            <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, ly...">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold mb-1">Giá vốn (đ):</label>
+                            <input id="modal-prod-cost" type="number" class="border p-2 rounded w-full" value="0">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Giá bán niêm yết (đ):</label>
+                            <input id="modal-prod-price" type="number" class="border p-2 rounded w-full" value="0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Tồn kho ban đầu (Kho Tổng):</label>
+                        <input id="modal-prod-stock" type="number" class="border p-2 rounded w-full" value="0">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="closeModalProduct()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="saveNewProduct()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Lưu Sản Phẩm</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: THÊM / SỬA KHO HÀNG -->
+            <div id="modal-warehouse" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-96 max-w-full space-y-3 text-xs shadow-xl">
+                    <h3 id="modal-wh-title" class="font-bold text-sm text-slate-800 border-b pb-2">Thêm Kho Hàng Mới</h3>
+                    <input type="hidden" id="modal-wh-id" value="">
+                    <div>
+                        <label class="block font-bold mb-1">Mã kho (để trống tự sinh):</label>
+                        <input id="modal-wh-code" type="text" class="border p-2 rounded w-full" placeholder="KHO-02">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Tên kho hàng (*):</label>
+                        <input id="modal-wh-name" type="text" class="border p-2 rounded w-full" placeholder="Kho Chi Nhánh 2, Kho Bến Tre...">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Địa chỉ kho:</label>
+                        <input id="modal-wh-address" type="text" class="border p-2 rounded w-full" placeholder="Số nhà, đường, quận/huyện...">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Trạng thái:</label>
+                        <select id="modal-wh-active" class="border p-2 rounded w-full font-medium">
+                            <option value="1">Đang hoạt động</option>
+                            <option value="0">Tạm khóa / Ngừng sử dụng</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="closeModalWarehouse()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="saveWarehouse()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Lưu Kho</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: THẺ KHO / LỊCH SỬ BIẾN ĐỘNG MẶT HÀNG -->
+            <div id="modal-item-logs" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[850px] max-w-full space-y-4 text-xs shadow-2xl max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 id="card-log-item-name" class="font-bold text-base text-slate-800">Tên Mặt Hàng</h3>
+                                <span id="card-log-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>
+                            </div>
+                            <p class="text-gray-500 text-[11px] mt-0.5">Mã: <span id="card-log-code" class="font-mono font-bold text-slate-700">SP-01</span> | ĐVT: <span id="card-log-unit">cái</span></p>
+                        </div>
+                        <button onclick="closeModalItemLogs()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto border rounded min-h-[300px]">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="bg-gray-100 sticky top-0 border-b">
+                                <tr>
+                                    <th class="p-2">Thời gian</th>
+                                    <th class="p-2">Loại biến động</th>
+                                    <th class="p-2 text-right">Biến động</th>
+                                    <th class="p-2 text-right">Tồn sau</th>
+                                    <th class="p-2">Kho hàng</th>
+                                    <th class="p-2">Mã Bill / NCC</th>
+                                    <th class="p-2">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-card-logs">
+                                <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải nhật ký...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end pt-2 border-t">
+                        <button onclick="closeModalItemLogs()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: CHI TIẾT PHIẾU KIỂM KÊ -->
+            <div id="modal-audit-detail" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[750px] max-w-full space-y-4 text-xs shadow-2xl max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-slate-800">Chi Tiết Phiếu Kiểm Kê</h3>
+                                <span id="view-audit-code" class="font-mono font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">KK...</span>
+                            </div>
+                            <p class="text-gray-400 text-[11px] mt-0.5" id="view-audit-date"></p>
+                        </div>
+                        <button onclick="closeModalAuditDetail()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded border flex justify-between text-xs">
+                        <div><span class="text-gray-500">Kho kiểm kê:</span> <span id="view-audit-wh" class="font-bold text-slate-800 ml-1"></span></div>
+                        <div><span class="text-gray-500">Ghi chú:</span> <span id="view-audit-note" class="font-medium ml-1"></span></div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto border rounded">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="bg-gray-100 sticky top-0 border-b">
+                                <tr>
+                                    <th class="p-2">STT</th>
+                                    <th class="p-2">Mã</th>
+                                    <th class="p-2">Tên mặt hàng</th>
+                                    <th class="p-2">ĐVT</th>
+                                    <th class="p-2 text-right">Tồn hệ thống</th>
+                                    <th class="p-2 text-right">Tồn thực tế</th>
+                                    <th class="p-2 text-right">Chênh lệch</th>
+                                </tr>
+                            </thead>
+                            <tbody id="view-audit-items"></tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end pt-2 border-t">
+                        <button onclick="closeModalAuditDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: CHI TIẾT PHIẾU CHUYỂN KHO -->
+            <div id="modal-transfer-detail" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[750px] max-w-full space-y-4 text-xs shadow-2xl max-h-[90vh] flex flex-col">
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-bold text-base text-slate-800">Chi Tiết Phiếu Chuyển Kho</h3>
+                                <span id="view-transfer-code" class="font-mono font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded text-xs">CK...</span>
+                            </div>
+                            <p class="text-gray-400 text-[11px] mt-0.5" id="view-transfer-date"></p>
+                        </div>
+                        <button onclick="closeModalTransferDetail()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded border text-xs">
+                        <div><span class="text-gray-500">Từ kho (Xuất):</span> <span id="view-transfer-from" class="font-bold text-rose-700 ml-1"></span></div>
+                        <div><span class="text-gray-500">Đến kho (Nhập):</span> <span id="view-transfer-to" class="font-bold text-emerald-700 ml-1"></span></div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto border rounded">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="bg-gray-100 sticky top-0 border-b">
+                                <tr>
+                                    <th class="p-2">STT</th>
+                                    <th class="p-2">Tên mặt hàng</th>
+                                    <th class="p-2 text-center">Phân loại</th>
+                                    <th class="p-2 text-right">Số lượng chuyển</th>
+                                    <th class="p-2">ĐVT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="view-transfer-items"></tbody>
+                        </table>
+                    </div>
+                    <div class="flex justify-end pt-2 border-t">
+                        <button onclick="closeModalTransferDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- TAB: CÀI ĐẶT HỆ THỐNG (CONSOLIDATED) -->
             <div id="tab-settings" class="hidden space-y-4">
-                <!-- Thanh dieu khien tren cung -->
+                <div class="flex flex-wrap items-center bg-white p-2.5 rounded-lg shadow-sm border gap-2">
+                    <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                        <button onclick="switchSettingsSubTab('templates')" class="settings-subtab-btn px-3 py-2 rounded-lg bg-purple-600 text-white shadow-sm flex items-center gap-1.5" data-sub="templates">
+                            <span>🎨 Thiết Kế Mẫu In Hóa Đơn</span>
+                        </button>
+                        <button onclick="switchSettingsSubTab('company')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="company">
+                            <span>🏢 Thông Tin Doanh Nghiệp & QR</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB 1: THIẾT KẾ MẪU IN -->
+                <div id="settings-sub-templates" class="space-y-4">
+                    <!-- Thanh dieu khien tren cung -->
                 <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-3">
                     <div class="flex flex-wrap items-center gap-3 text-xs">
                         <h2 class="text-base font-black text-slate-800 flex items-center gap-1.5 mr-2">
@@ -1140,9 +1595,962 @@
 
 
         </div>
-    </div>
+                </div>
 
-    <script>
+                <!-- SUB 2: THÔNG TIN DOANH NGHIEP -->
+                <!-- TAB: THONG TIN DOANH NGHIEP -->
+            <div id="settings-sub-company" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
+                    <button onclick="saveCompanySettings()" class="bg-sky-600 text-white font-bold px-4 py-2 rounded shadow">💾 Lưu Thông Tin Doanh Nghiệp</button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Co ban -->
+                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
+                        <h3 class="font-bold border-b pb-2 text-slate-700">Thông Tin Chung Cửa Hàng</h3>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty:</label>
+                            <input type="text" id="comp-name" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Địa Chỉ:</label>
+                            <input type="text" id="comp-address" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Hotline / Số Điện Thoại:</label>
+                            <input type="text" id="comp-phone" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
+                            <input type="text" id="comp-footer" class="border p-2 rounded w-full">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Logo Cửa Hàng (Ảnh):</label>
+                            <input type="file" id="comp-logo-input" accept="image/*" class="border p-1 rounded w-full text-xs" onchange="previewUploadImage(this, 'comp-logo-preview')">
+                            <div class="mt-2 text-center">
+                                <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded hidden">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ngan hang & QR -->
+                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
+                        <h3 class="font-bold border-b pb-2 text-slate-700">Cấu Hình Tài Khoản & QR Thanh Toán</h3>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Phương Thức QR Code:</label>
+                            <select id="comp-qr-mode" class="border p-2 rounded w-full font-medium" onchange="toggleQRModeUI()">
+                                <option value="vietqr">⚡ VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
+                                <option value="static">🖼️ Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
+                            </select>
+                        </div>
+
+                        <!-- Panel VietQR Dong -->
+                        <div id="panel-vietqr" class="space-y-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Ngân Hàng (Mã BIN):</label>
+                                <select id="comp-bank-code" class="border p-2 rounded w-full bg-white">
+                                    <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
+                                    <option value="VCB">Vietcombank (Ngoại thương)</option>
+                                    <option value="TCB">Techcombank (Kỹ thương)</option>
+                                    <option value="ICB">VietinBank (Công thương)</option>
+                                    <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
+                                    <option value="ACB">ACB (Á Châu)</option>
+                                    <option value="TPB">TPBank (Tiên Phong)</option>
+                                    <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
+                                    <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
+                                    <option value="VIB">VIB (Quốc Tế)</option>
+                                    <option value="MSB">MSB (Hàng Hải)</option>
+                                    <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
+                                    <option value="LPB">LPBank (Lộc Phát)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Số Tài Khoản:</label>
+                                <input type="text" id="comp-bank-account" class="border p-2 rounded w-full bg-white" placeholder="VD: 0901234567">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-blue-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
+                                <input type="text" id="comp-bank-owner" class="border p-2 rounded w-full bg-white uppercase" placeholder="VD: NGUYEN VAN A">
+                            </div>
+                        </div>
+
+                        <!-- Panel QR Tinh -->
+                        <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50 rounded border border-amber-200 text-sm">
+                            <label class="block text-xs font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
+                            <input type="file" id="comp-qr-input" accept="image/*" class="border p-1 rounded w-full text-xs bg-white" onchange="previewUploadImage(this, 'comp-qr-preview')">
+                            <div class="mt-2 text-center">
+                                <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded hidden">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+            </div>
+
+<script>
+
+        // ==================== QUẢN LÝ KHO HÀNG & HÀNG HÓA CONSOLIDATED ====================
+        let allWarehouses = [];
+        let unifiedInventoryData = [];
+        let transferSourceItems = [];
+        let currentTransferRows = [];
+        let currentAuditItems = [];
+
+        function switchInvSubTab(subId) {
+            document.querySelectorAll('[id^="inv-sub-"]').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById('inv-sub-' + subId);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.inv-subtab-btn').forEach(btn => {
+                if (btn.dataset.sub === subId) {
+                    btn.className = 'inv-subtab-btn px-3 py-2 rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1.5';
+                } else {
+                    btn.className = 'inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5';
+                }
+            });
+
+            if (subId === 'unified') loadUnifiedInventory();
+            if (subId === 'products') loadProducts();
+            if (subId === 'cost') initCostManagement();
+            if (subId === 'audit') initStockAuditView();
+            if (subId === 'transfer') initStockTransferView();
+            if (subId === 'warehouses') loadWarehousesList();
+            if (subId === 'production') initProduction();
+        }
+
+        function switchSettingsSubTab(subId) {
+            document.querySelectorAll('[id^="settings-sub-"]').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById('settings-sub-' + subId);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
+                if (btn.dataset.sub === subId) {
+                    btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-purple-600 text-white shadow-sm flex items-center gap-1.5';
+                } else {
+                    btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5';
+                }
+            });
+
+            if (subId === 'company') loadCompanySettings();
+            if (subId === 'templates') loadSettings();
+        }
+
+        // --- SUB 1: TỒN KHO TỔNG HỢP ---
+        async function loadUnifiedInventory() {
+            try {
+                const whId = document.getElementById('unified-wh-filter')?.value || '';
+                const itemType = document.getElementById('unified-type-filter')?.value || 'all';
+                const search = document.getElementById('unified-search')?.value || '';
+                const lowStock = document.getElementById('unified-low-stock')?.checked || false;
+
+                let url = `/api/inventory/unified?item_type=${itemType}&low_stock=${lowStock}`;
+                if (whId) url += `&warehouse_id=${whId}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+
+                const [resInv, resWh] = await Promise.all([
+                    fetch(url),
+                    fetch('/api/warehouses')
+                ]);
+                
+                const data = await resInv.json();
+                allWarehouses = await resWh.json();
+
+                const whSelect = document.getElementById('unified-wh-filter');
+                if (whSelect && whSelect.options.length <= 1) {
+                    whSelect.innerHTML = '<option value="">Tất cả kho hàng</option>' + 
+                        allWarehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                    if (whId) whSelect.value = whId;
+                }
+
+                document.getElementById('kpi-inv-count').innerText = (data.total_count || 0).toLocaleString('vi-VN');
+                document.getElementById('kpi-inv-qty').innerText = (data.total_quantity || 0).toLocaleString('vi-VN');
+                document.getElementById('kpi-inv-val').innerText = formatMoney(data.total_value || 0);
+
+                const tbody = document.getElementById('table-unified-inventory');
+                if (!data.items || data.items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.items.map(item => {
+                    const isProd = item.item_type === 'product';
+                    const badge = isProd 
+                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                    const stockColor = item.quantity <= 0 ? 'text-red-600 font-bold' : (item.quantity <= 5 ? 'text-amber-600 font-bold' : 'font-bold text-slate-800');
+
+                    return `
+                        <tr class="border-b hover:bg-gray-50 text-xs">
+                            <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
+                            <td class="p-2.5 font-bold text-slate-800">${item.name}</td>
+                            <td class="p-2.5 text-center">${badge}</td>
+                            <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
+                            <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
+                            <td class="p-2.5 text-gray-500">${item.unit || 'cái'}</td>
+                            <td class="p-2.5 text-right font-medium text-gray-700">${formatMoney(item.cost_price)}</td>
+                            <td class="p-2.5 text-right font-bold text-rose-600">${formatMoney(item.total_value)}</td>
+                            <td class="p-2.5 text-center">
+                                <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
+                                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold">
+                                    📜 Thẻ kho
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("loadUnifiedInventory error:", e);
+            }
+        }
+
+        // --- MODAL: THẺ KHO / NHẬT KÝ BIẾN ĐỘNG ---
+        async function openItemLogsModal(itemType, itemId, encodedName, code, unit) {
+            const name = decodeURIComponent(encodedName);
+            document.getElementById('card-log-item-name').innerText = name;
+            document.getElementById('card-log-code').innerText = code || '-';
+            document.getElementById('card-log-unit').innerText = unit || 'cái';
+            const badge = document.getElementById('card-log-badge');
+            if (itemType === 'product') {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700';
+                badge.innerText = 'Hàng Hóa';
+            } else {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700';
+                badge.innerText = 'Nguyên Liệu';
+            }
+
+            const modal = document.getElementById('modal-item-logs');
+            modal.classList.remove('hidden');
+
+            const tbody = document.getElementById('table-card-logs');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải lịch sử thẻ kho...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/inventory/item-logs?item_type=${itemType}&item_id=${itemId}`);
+                const logs = await res.json();
+                if (!logs || logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có giao dịch xuất nhập cho mặt hàng này</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = logs.map(l => {
+                    let typeBadge = '';
+                    if (l.ref_type === 'SALE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Bán hàng (POS)</span>';
+                    else if (l.ref_type === 'PURCHASE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nhập NCC</span>';
+                    else if (l.ref_type === 'ADJUST') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">Kiểm kê / Cân bằng</span>';
+                    else if (l.ref_type === 'TRANSFER_IN') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-700">Nhận chuyển kho</span>';
+                    else if (l.ref_type === 'TRANSFER_OUT') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Xuất chuyển kho</span>';
+                    else typeBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700">${l.ref_type || 'Biến động'}</span>`;
+
+                    const changeClass = l.change_qty > 0 ? 'text-emerald-600 font-bold' : (l.change_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-600');
+                    const changePrefix = l.change_qty > 0 ? '+' : '';
+
+                    return `
+                        <tr class="border-b hover:bg-gray-50 text-[11px]">
+                            <td class="p-2 text-gray-500 whitespace-nowrap">${l.created_at || '-'}</td>
+                            <td class="p-2">${typeBadge}</td>
+                            <td class="p-2 text-right ${changeClass}">${changePrefix}${l.change_qty.toLocaleString('vi-VN')}</td>
+                            <td class="p-2 text-right font-bold text-slate-800">${(l.new_qty || 0).toLocaleString('vi-VN')}</td>
+                            <td class="p-2 font-medium text-slate-700">${l.warehouse_name || 'Kho'}</td>
+                            <td class="p-2 font-mono text-gray-600">${l.ref_id ? '#' + l.ref_id : '-'}</td>
+                            <td class="p-2 text-gray-500">${l.note || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("item-logs error:", e);
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">Lỗi khi tải thẻ kho</td></tr>';
+            }
+        }
+
+        function closeModalItemLogs() {
+            document.getElementById('modal-item-logs')?.classList.add('hidden');
+        }
+
+        // --- SUB 6: DANH MỤC KHO HÀNG ---
+        async function loadWarehousesList() {
+            try {
+                const res = await fetch('/api/warehouses/overview');
+                const list = await res.json();
+                const tbody = document.getElementById('table-warehouses-list');
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có kho hàng nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = list.map(w => {
+                    const statusBadge = w.is_active 
+                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Đang hoạt động</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500">Tạm khóa</span>';
+
+                    return `
+                        <tr class="border-b hover:bg-gray-50 text-xs">
+                            <td class="p-3 font-mono font-bold text-slate-600">${w.code || '-'}</td>
+                            <td class="p-3 font-bold text-slate-800">${w.name}</td>
+                            <td class="p-3 text-gray-500">${w.address || '-'}</td>
+                            <td class="p-3 text-right font-medium">${(w.total_items || 0).toLocaleString('vi-VN')}</td>
+                            <td class="p-3 text-right font-bold text-sky-700">${(w.total_quantity || 0).toLocaleString('vi-VN')}</td>
+                            <td class="p-3 text-right font-bold text-rose-600">${formatMoney(w.total_value || 0)}</td>
+                            <td class="p-3 text-center">${statusBadge}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="openModalWarehouse(${w.id}, '${encodeURIComponent(w.name)}', '${w.code || ''}', '${encodeURIComponent(w.address || '')}', ${w.is_active})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-bold mr-1">✏️ Sửa</button>
+                                ${w.id !== 1 ? `<button onclick="deleteWarehouse(${w.id}, '${encodeURIComponent(w.name)}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold">🗑️ Xóa</button>` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("loadWarehousesList error:", e);
+            }
+        }
+
+        function openModalWarehouse(id = null, encodedName = '', code = '', encodedAddress = '', isActive = 1) {
+            const modal = document.getElementById('modal-warehouse');
+            document.getElementById('modal-wh-id').value = id || '';
+            document.getElementById('modal-wh-title').innerText = id ? 'Cập Nhật Kho Hàng' : 'Thêm Kho Hàng Mới';
+            document.getElementById('modal-wh-name').value = id ? decodeURIComponent(encodedName) : '';
+            document.getElementById('modal-wh-code').value = code || '';
+            document.getElementById('modal-wh-address').value = id ? decodeURIComponent(encodedAddress) : '';
+            document.getElementById('modal-wh-active').value = isActive ? '1' : '0';
+            modal.classList.remove('hidden');
+        }
+
+        function closeModalWarehouse() {
+            document.getElementById('modal-warehouse')?.classList.add('hidden');
+        }
+
+        async function saveWarehouse() {
+            const id = document.getElementById('modal-wh-id').value;
+            const name = document.getElementById('modal-wh-name').value.trim();
+            const code = document.getElementById('modal-wh-code').value.trim();
+            const address = document.getElementById('modal-wh-address').value.trim();
+            const is_active = parseInt(document.getElementById('modal-wh-active').value) || 1;
+
+            if (!name) {
+                alert("Vui lòng nhập tên kho hàng!");
+                return;
+            }
+
+            try {
+                let res;
+                if (id) {
+                    res = await fetch(`/api/warehouses/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, code, address, is_active })
+                    });
+                } else {
+                    res = await fetch('/api/warehouses', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, code, address, is_active })
+                    });
+                }
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể lưu kho"));
+                    return;
+                }
+
+                closeModalWarehouse();
+                loadWarehousesList();
+                alert("Đã lưu thông tin kho hàng thành công!");
+            } catch (e) {
+                console.error("saveWarehouse error:", e);
+                alert("Lỗi kết nối khi lưu kho");
+            }
+        }
+
+        async function deleteWarehouse(id, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            if (!confirm(`Bạn có chắc chắn muốn xóa kho "${name}"?`)) return;
+
+            try {
+                const res = await fetch(`/api/warehouses/${id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Không thể xóa: " + (err.detail || "Có lỗi xảy ra"));
+                    return;
+                }
+                loadWarehousesList();
+                alert("Đã xóa kho hàng thành công!");
+            } catch (e) {
+                console.error("deleteWarehouse error:", e);
+                alert("Lỗi kết nối khi xóa kho");
+            }
+        }
+
+        // --- SUB 4: KIỂM KÊ KHO ---
+        function toggleAuditView(view) {
+            if (view === 'create') {
+                document.getElementById('audit-create-view').classList.remove('hidden');
+                document.getElementById('audit-list-view').classList.add('hidden');
+                document.getElementById('btn-audit-create').className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                document.getElementById('btn-audit-list').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+            } else {
+                document.getElementById('audit-create-view').classList.add('hidden');
+                document.getElementById('audit-list-view').classList.remove('hidden');
+                document.getElementById('btn-audit-create').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                document.getElementById('btn-audit-list').className = 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                loadStockAuditsList();
+            }
+        }
+
+        async function initStockAuditView() {
+            toggleAuditView('create');
+            try {
+                const res = await fetch('/api/warehouses');
+                allWarehouses = await res.json();
+                const sel = document.getElementById('audit-wh-select');
+                sel.innerHTML = '<option value="">-- Chọn kho kiểm kê --</option>' + 
+                    allWarehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                if (allWarehouses.length > 0) {
+                    sel.value = allWarehouses[0].id;
+                    loadAuditItemsForWarehouse(allWarehouses[0].id);
+                }
+            } catch (e) {
+                console.error("initStockAuditView error:", e);
+            }
+        }
+
+        async function loadAuditItemsForWarehouse(whId) {
+            if (!whId) {
+                document.getElementById('table-audit-items').innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho</td></tr>';
+                currentAuditItems = [];
+                return;
+            }
+
+            const tbody = document.getElementById('table-audit-items');
+            tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Đang nạp dữ liệu hàng tồn kho...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/inventory/unified?warehouse_id=${whId}`);
+                const data = await res.json();
+                currentAuditItems = (data.items || []).map(item => ({
+                    ...item,
+                    actual_qty: item.quantity,
+                    diff_qty: 0,
+                    note: ''
+                }));
+
+                renderAuditTable();
+            } catch (e) {
+                console.error("loadAuditItemsForWarehouse error:", e);
+                tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-red-500">Lỗi nạp dữ liệu kiểm kê</td></tr>';
+            }
+        }
+
+        function renderAuditTable() {
+            const tbody = document.getElementById('table-audit-items');
+            if (!currentAuditItems || currentAuditItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Kho này chưa có mặt hàng nào</td></tr>';
+                document.getElementById('audit-sum-count').innerText = '0';
+                document.getElementById('audit-sum-diff').innerText = '0';
+                return;
+            }
+
+            let totalDiff = 0;
+            tbody.innerHTML = currentAuditItems.map((item, idx) => {
+                totalDiff += (item.diff_qty || 0);
+                const isProd = item.item_type === 'product';
+                const badge = isProd 
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+
+                const diffColor = item.diff_qty > 0 ? 'text-emerald-600 font-bold' : (item.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
+                const diffPrefix = item.diff_qty > 0 ? '+' : '';
+
+                return `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
+                        <td class="p-2 font-mono font-bold text-slate-600">${item.code || '-'}</td>
+                        <td class="p-2 font-bold text-slate-800">${item.name}</td>
+                        <td class="p-2 text-center">${badge}</td>
+                        <td class="p-2 text-gray-500">${item.unit || 'cái'}</td>
+                        <td class="p-2 text-right font-medium text-slate-700">${item.quantity.toLocaleString('vi-VN')}</td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" value="${item.actual_qty}" oninput="calcAuditDiff(${idx}, this.value)" class="border p-1 text-right font-bold w-24 rounded bg-amber-50 border-amber-300">
+                        </td>
+                        <td class="p-2 text-right ${diffColor}">${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}</td>
+                        <td class="p-2">
+                            <input type="text" placeholder="Lý do lệch..." oninput="currentAuditItems[${idx}].note = this.value" class="border p-1 w-full rounded text-[11px]">
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('audit-sum-count').innerText = currentAuditItems.length.toLocaleString('vi-VN');
+            const sumDiffEl = document.getElementById('audit-sum-diff');
+            sumDiffEl.innerText = (totalDiff > 0 ? '+' : '') + totalDiff.toLocaleString('vi-VN');
+            sumDiffEl.className = totalDiff > 0 ? 'font-bold text-emerald-600' : (totalDiff < 0 ? 'font-bold text-rose-600' : 'font-bold text-slate-700');
+        }
+
+        function calcAuditDiff(idx, val) {
+            const actual = parseFloat(val) || 0;
+            currentAuditItems[idx].actual_qty = actual;
+            currentAuditItems[idx].diff_qty = actual - currentAuditItems[idx].quantity;
+            renderAuditTable();
+        }
+
+        async function submitStockAudit() {
+            const whId = parseInt(document.getElementById('audit-wh-select').value);
+            if (!whId) {
+                alert("Vui lòng chọn kho kiểm kê!");
+                return;
+            }
+
+            if (!currentAuditItems || currentAuditItems.length === 0) {
+                alert("Không có mặt hàng nào để kiểm kê!");
+                return;
+            }
+
+            const note = document.getElementById('audit-note').value.trim();
+            const itemsPayload = currentAuditItems.map(it => ({
+                item_type: it.item_type,
+                item_id: it.id,
+                system_qty: it.quantity,
+                actual_qty: it.actual_qty,
+                diff_qty: it.diff_qty,
+                note: it.note || ''
+            }));
+
+            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng? Tồn kho hệ thống sẽ được cập nhật theo số thực tế.`)) return;
+
+            try {
+                const res = await fetch('/api/inventory/audit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        warehouse_id: whId,
+                        note: note || 'Kiểm kê kho',
+                        items: itemsPayload
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi kiểm kê: " + (err.detail || "Không thể lưu phiếu"));
+                    return;
+                }
+
+                const result = await res.json();
+                alert(`Đã hoàn tất kiểm kê kho! Mã phiếu: ${result.audit_code}`);
+                document.getElementById('audit-note').value = '';
+                loadAuditItemsForWarehouse(whId);
+                loadUnifiedInventory();
+            } catch (e) {
+                console.error("submitStockAudit error:", e);
+                alert("Lỗi kết nối khi gửi phiếu kiểm kê");
+            }
+        }
+
+        async function loadStockAuditsList() {
+            const tbody = document.getElementById('table-audit-history');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải lịch sử phiếu kiểm...</td></tr>';
+            try {
+                const res = await fetch('/api/inventory/audits');
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có phiếu kiểm kê nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = list.map(a => {
+                    const diffColor = a.total_diff > 0 ? 'text-emerald-600 font-bold' : (a.total_diff < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
+                    const diffPrefix = a.total_diff > 0 ? '+' : '';
+
+                    return `
+                        <tr class="border-b hover:bg-gray-50 text-xs">
+                            <td class="p-2.5 font-mono font-bold text-indigo-700">${a.audit_code}</td>
+                            <td class="p-2.5 text-gray-500 whitespace-nowrap">${a.created_at || '-'}</td>
+                            <td class="p-2.5 font-bold text-slate-800">${a.warehouse_name || 'Kho'}</td>
+                            <td class="p-2.5 text-right font-medium">${(a.items_count || 0).toLocaleString('vi-VN')} món</td>
+                            <td class="p-2.5 text-right ${diffColor}">${diffPrefix}${(a.total_diff || 0).toLocaleString('vi-VN')}</td>
+                            <td class="p-2.5 text-gray-500">${a.note || '-'}</td>
+                            <td class="p-2.5 text-center">
+                                <button onclick="viewAuditDetail(${a.id})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[11px] font-bold">
+                                    👁️ Xem
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("loadStockAuditsList error:", e);
+            }
+        }
+
+        async function viewAuditDetail(auditId) {
+            const modal = document.getElementById('modal-audit-detail');
+            modal.classList.remove('hidden');
+            const tbody = document.getElementById('view-audit-items');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải chi tiết phiếu...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/inventory/audits/${auditId}`);
+                const data = await res.json();
+                document.getElementById('view-audit-code').innerText = data.audit_code;
+                document.getElementById('view-audit-date').innerText = 'Thời gian: ' + (data.created_at || '-');
+                document.getElementById('view-audit-wh').innerText = data.warehouse_name;
+                document.getElementById('view-audit-note').innerText = data.note || 'Không có';
+
+                tbody.innerHTML = (data.items || []).map((it, idx) => {
+                    const diffColor = it.diff_qty > 0 ? 'text-emerald-600 font-bold' : (it.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
+                    const diffPrefix = it.diff_qty > 0 ? '+' : '';
+
+                    return `
+                        <tr class="border-b text-[11px]">
+                            <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
+                            <td class="p-2 font-mono font-bold text-slate-600">${it.code || '-'}</td>
+                            <td class="p-2 font-bold text-slate-800">${it.name}</td>
+                            <td class="p-2 text-gray-500">${it.unit || 'cái'}</td>
+                            <td class="p-2 text-right font-medium">${it.system_qty.toLocaleString('vi-VN')}</td>
+                            <td class="p-2 text-right font-bold text-slate-800">${it.actual_qty.toLocaleString('vi-VN')}</td>
+                            <td class="p-2 text-right ${diffColor}">${diffPrefix}${it.diff_qty.toLocaleString('vi-VN')}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("viewAuditDetail error:", e);
+            }
+        }
+
+        function closeModalAuditDetail() {
+            document.getElementById('modal-audit-detail')?.classList.add('hidden');
+        }
+
+        // --- SUB 5: CHUYỂN KHO ---
+        function toggleTransferView(view) {
+            if (view === 'create') {
+                document.getElementById('transfer-create-view').classList.remove('hidden');
+                document.getElementById('transfer-list-view').classList.add('hidden');
+                document.getElementById('btn-transfer-create').className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                document.getElementById('btn-transfer-list').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+            } else {
+                document.getElementById('transfer-create-view').classList.add('hidden');
+                document.getElementById('transfer-list-view').classList.remove('hidden');
+                document.getElementById('btn-transfer-create').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                document.getElementById('btn-transfer-list').className = 'bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
+                loadStockTransfersList();
+            }
+        }
+
+        async function initStockTransferView() {
+            toggleTransferView('create');
+            try {
+                const res = await fetch('/api/warehouses');
+                allWarehouses = await res.json();
+                const fromSel = document.getElementById('transfer-from-wh');
+                const toSel = document.getElementById('transfer-to-wh');
+
+                const opts = allWarehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                fromSel.innerHTML = opts;
+                toSel.innerHTML = opts;
+
+                if (allWarehouses.length > 1) {
+                    toSel.value = allWarehouses[1].id;
+                }
+
+                currentTransferRows = [];
+                onTransferFromChange();
+            } catch (e) {
+                console.error("initStockTransferView error:", e);
+            }
+        }
+
+        async function onTransferFromChange() {
+            const whId = document.getElementById('transfer-from-wh').value;
+            if (!whId) return;
+
+            try {
+                const res = await fetch(`/api/inventory/unified?warehouse_id=${whId}`);
+                const data = await res.json();
+                transferSourceItems = (data.items || []).filter(it => it.quantity > 0);
+                renderTransferRows();
+            } catch (e) {
+                console.error("onTransferFromChange error:", e);
+            }
+        }
+
+        function addTransferRow() {
+            if (!transferSourceItems || transferSourceItems.length === 0) {
+                alert("Kho xuất không còn mặt hàng nào có tồn kho (>0) để chuyển!");
+                return;
+            }
+
+            currentTransferRows.push({
+                item_key: `${transferSourceItems[0].item_type}_${transferSourceItems[0].id}`,
+                item_type: transferSourceItems[0].item_type,
+                item_id: transferSourceItems[0].id,
+                name: transferSourceItems[0].name,
+                stock: transferSourceItems[0].quantity,
+                unit: transferSourceItems[0].unit,
+                quantity: 1
+            });
+
+            renderTransferRows();
+        }
+
+        function removeTransferRow(idx) {
+            currentTransferRows.splice(idx, 1);
+            renderTransferRows();
+        }
+
+        function onTransferItemSelect(idx, val) {
+            const parts = val.split('_');
+            const type = parts[0];
+            const id = parseInt(parts[1]);
+            const found = transferSourceItems.find(it => it.item_type === type && it.id === id);
+            if (found) {
+                currentTransferRows[idx].item_key = val;
+                currentTransferRows[idx].item_type = type;
+                currentTransferRows[idx].item_id = id;
+                currentTransferRows[idx].name = found.name;
+                currentTransferRows[idx].stock = found.quantity;
+                currentTransferRows[idx].unit = found.unit;
+            }
+            renderTransferRows();
+        }
+
+        function renderTransferRows() {
+            const tbody = document.getElementById('table-transfer-rows');
+            if (!currentTransferRows || currentTransferRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dòng nào. Bấm "+ Thêm Dòng Chuyển Hàng" để bắt đầu.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = currentTransferRows.map((row, idx) => {
+                const isProd = row.item_type === 'product';
+                const badge = isProd 
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+
+                const optionsHtml = transferSourceItems.map(it => `
+                    <option value="${it.item_type}_${it.id}" ${row.item_key === `${it.item_type}_${it.id}` ? 'selected' : ''}>
+                        ${it.name} (Tồn: ${it.quantity} ${it.unit})
+                    </option>
+                `).join('');
+
+                return `
+                    <tr class="border-b text-xs">
+                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2">
+                            <select onchange="onTransferItemSelect(${idx}, this.value)" class="border p-1.5 rounded w-full font-bold text-slate-800">
+                                ${optionsHtml}
+                            </select>
+                        </td>
+                        <td class="p-2 text-center">${badge}</td>
+                        <td class="p-2 text-right font-bold text-slate-700">${row.stock.toLocaleString('vi-VN')}</td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" min="0.001" max="${row.stock}" value="${row.quantity}" 
+                                   oninput="currentTransferRows[${idx}].quantity = parseFloat(this.value) || 0" 
+                                   class="border p-1 text-right font-bold w-24 rounded bg-sky-50 border-sky-300">
+                        </td>
+                        <td class="p-2 text-gray-500">${row.unit || 'cái'}</td>
+                        <td class="p-2 text-center">
+                            <button onclick="removeTransferRow(${idx})" class="text-rose-500 hover:text-rose-700 font-bold text-base">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function submitStockTransfer() {
+            const fromWh = parseInt(document.getElementById('transfer-from-wh').value);
+            const toWh = parseInt(document.getElementById('transfer-to-wh').value);
+            const note = document.getElementById('transfer-note').value.trim();
+
+            if (!fromWh || !toWh) {
+                alert("Vui lòng chọn cả kho xuất và kho nhập!");
+                return;
+            }
+
+            if (fromWh === toWh) {
+                alert("Kho xuất và kho nhập phải khác nhau!");
+                return;
+            }
+
+            if (!currentTransferRows || currentTransferRows.length === 0) {
+                alert("Vui lòng thêm ít nhất một mặt hàng để chuyển!");
+                return;
+            }
+
+            for (const r of currentTransferRows) {
+                if (r.quantity <= 0) {
+                    alert(`Số lượng chuyển cho "${r.name}" phải lớn hơn 0!`);
+                    return;
+                }
+                if (r.quantity > r.stock) {
+                    alert(`Số lượng chuyển cho "${r.name}" (${r.quantity}) vượt quá tồn kho hiện có (${r.stock})!`);
+                    return;
+                }
+            }
+
+            const itemsPayload = currentTransferRows.map(r => ({
+                item_type: r.item_type,
+                item_id: r.item_id,
+                quantity: r.quantity
+            }));
+
+            if (!confirm(`Xác nhận chuyển ${itemsPayload.length} mặt hàng từ kho xuất sang kho nhập?`)) return;
+
+            try {
+                const res = await fetch('/api/inventory/transfer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_warehouse_id: fromWh,
+                        to_warehouse_id: toWh,
+                        note: note || 'Chuyển kho nội bộ',
+                        items: itemsPayload
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi chuyển kho: " + (err.detail || "Không thể thực hiện chuyển kho"));
+                    return;
+                }
+
+                const result = await res.json();
+                alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code}`);
+                document.getElementById('transfer-note').value = '';
+                currentTransferRows = [];
+                onTransferFromChange();
+                loadUnifiedInventory();
+            } catch (e) {
+                console.error("submitStockTransfer error:", e);
+                alert("Lỗi kết nối khi gửi phiếu chuyển kho");
+            }
+        }
+
+        async function loadStockTransfersList() {
+            const tbody = document.getElementById('table-transfer-history');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải lịch sử chuyển kho...</td></tr>';
+
+            try {
+                const res = await fetch('/api/inventory/transfers');
+                const list = await res.json();
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có phiếu chuyển kho nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = list.map(t => `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2.5 font-mono font-bold text-sky-700">${t.transfer_code}</td>
+                        <td class="p-2.5 text-gray-500 whitespace-nowrap">${t.created_at || '-'}</td>
+                        <td class="p-2.5 font-bold text-rose-700">${t.from_warehouse_name || 'Kho xuất'}</td>
+                        <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
+                        <td class="p-2.5 text-right font-medium">${(t.items_count || 0).toLocaleString('vi-VN')} món</td>
+                        <td class="p-2.5 text-gray-500">${t.note || '-'}</td>
+                        <td class="p-2.5 text-center">
+                            <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold">
+                                👁️ Xem
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error("loadStockTransfersList error:", e);
+            }
+        }
+
+        async function viewTransferDetail(transferId) {
+            const modal = document.getElementById('modal-transfer-detail');
+            modal.classList.remove('hidden');
+            const tbody = document.getElementById('view-transfer-items');
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Đang tải chi tiết phiếu...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/inventory/transfers/${transferId}`);
+                const data = await res.json();
+                document.getElementById('view-transfer-code').innerText = data.transfer_code;
+                document.getElementById('view-transfer-date').innerText = 'Thời gian: ' + (data.created_at || '-');
+                document.getElementById('view-transfer-from').innerText = data.from_warehouse_name;
+                document.getElementById('view-transfer-to').innerText = data.to_warehouse_name;
+
+                tbody.innerHTML = (data.items || []).map((it, idx) => {
+                    const badge = it.item_type === 'product'
+                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+
+                    return `
+                        <tr class="border-b text-[11px]">
+                            <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
+                            <td class="p-2 font-bold text-slate-800">${it.name}</td>
+                            <td class="p-2 text-center">${badge}</td>
+                            <td class="p-2 text-right font-bold text-sky-700">${it.quantity.toLocaleString('vi-VN')}</td>
+                            <td class="p-2 text-gray-500">${it.unit || 'cái'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("viewTransferDetail error:", e);
+            }
+        }
+
+        function closeModalTransferDetail() {
+            document.getElementById('modal-transfer-detail')?.classList.add('hidden');
+        }
+
+        // --- MODAL PRODUCT CRUD ---
+        function showModalProduct() {
+            document.getElementById('modal-prod-code').value = '';
+            document.getElementById('modal-prod-name').value = '';
+            document.getElementById('modal-prod-type').value = 'product';
+            document.getElementById('modal-prod-unit').value = 'cái';
+            document.getElementById('modal-prod-cost').value = '0';
+            document.getElementById('modal-prod-price').value = '0';
+            document.getElementById('modal-prod-stock').value = '0';
+            document.getElementById('modal-product').classList.remove('hidden');
+        }
+
+        function closeModalProduct() {
+            document.getElementById('modal-product')?.classList.add('hidden');
+        }
+
+        async function saveNewProduct() {
+            const name = document.getElementById('modal-prod-name').value.trim();
+            const code = document.getElementById('modal-prod-code').value.trim();
+            const type = document.getElementById('modal-prod-type').value;
+            const unit = document.getElementById('modal-prod-unit').value.trim();
+            const cost_price = parseFloat(document.getElementById('modal-prod-cost').value) || 0;
+            const price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
+            const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
+
+            if (!name) {
+                alert("Vui lòng nhập tên sản phẩm!");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, name, type, unit, cost_price, price, stock })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể tạo sản phẩm"));
+                    return;
+                }
+
+                closeModalProduct();
+                loadProducts();
+                loadUnifiedInventory();
+                alert("Đã thêm sản phẩm mới thành công!");
+            } catch (e) {
+                console.error("saveNewProduct error:", e);
+                alert("Lỗi kết nối khi lưu sản phẩm");
+            }
+        }
+
+
         let allProducts = [];
         let allContacts = [];
         let allStaff = [];
@@ -1153,28 +2561,45 @@
             return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
         }
 
-        function switchTab(tabId) {
+        function switchTab(tabId, subTabId) {
+            // Map legacy ids
+            if (tabId === 'products') { tabId = 'inventory'; subTabId = 'products'; }
+            else if (tabId === 'cost-management') { tabId = 'inventory'; subTabId = 'cost'; }
+            else if (tabId === 'production') { tabId = 'inventory'; subTabId = 'production'; }
+            else if (tabId === 'company') { tabId = 'settings'; subTabId = 'company'; }
+
             document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
-            document.getElementById('tab-' + tabId).classList.remove('hidden');
-            
+            const targetTab = document.getElementById('tab-' + tabId);
+            if (targetTab) targetTab.classList.remove('hidden');
+
             document.querySelectorAll('.tab-btn').forEach(b => {
-                b.classList.remove('active-tab');
-                b.classList.add('hover:bg-slate-800');
+                const btnTab = b.dataset.tab || (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + tabId + "'") ? tabId : '');
+                if (btnTab === tabId) {
+                    b.classList.add('active-tab');
+                    b.classList.remove('hover:bg-slate-800');
+                } else {
+                    b.classList.remove('active-tab');
+                    b.classList.add('hover:bg-slate-800');
+                }
             });
-            event.target.classList.add('active-tab');
-            event.target.classList.remove('hover:bg-slate-800');
 
-            if (tabId === 'products') loadProducts();
-            if (tabId === 'contacts') loadContacts();
-            if (tabId === 'cashbook') loadCashbook();
-            if (tabId === 'reports') loadReports();
-            if (tabId === 'settings') loadSettings();
-            if (tabId === 'company') loadCompanySettings();
-            if (tabId === 'cost-management') initCostManagement();
-            if (tabId === 'purchases') initPurchases();
-
-
-            if (tabId === 'production') initProduction();
+            if (tabId === 'inventory') {
+                if (subTabId) switchInvSubTab(subTabId);
+                else switchInvSubTab('unified');
+            } else if (tabId === 'settings') {
+                if (subTabId) switchSettingsSubTab(subTabId);
+                else switchSettingsSubTab('templates');
+            } else if (tabId === 'contacts') {
+                loadContacts();
+            } else if (tabId === 'cashbook') {
+                loadCashbook();
+            } else if (tabId === 'reports') {
+                loadReports();
+            } else if (tabId === 'purchases') {
+                initPurchases();
+            } else if (tabId === 'pos') {
+                loadProducts();
+            }
         }
 
         async function init() {

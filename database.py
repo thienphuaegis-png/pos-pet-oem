@@ -107,28 +107,140 @@ def init_db():
         FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
     )''')
 
-    # 3.4.1. Module Cost: Nhat ky bien dong kho (Xuat ban bill nao, nhap kho NCC nao, vi tri kho)
+    # 3.4.1. Module Cost: Nhat ky bien dong kho (Xuat ban bill nao, nhap kho NCC nao, vi tri kho, chuyen kho, kiem ke)
     cur.execute('''
     CREATE TABLE IF NOT EXISTS inventory_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ingredient_id INTEGER NOT NULL,
+        item_type TEXT DEFAULT 'ingredient', -- 'ingredient' hoac 'product'
+        ingredient_id INTEGER,
+        product_id INTEGER,
         warehouse_id INTEGER NOT NULL,
-        change_type TEXT NOT NULL, -- 'SALE' (ban hang), 'PURCHASE' (nhap hang), 'ADJUST' (kiem kho/dieu chinh)
+        change_type TEXT NOT NULL, -- 'SALE' (ban hang), 'PURCHASE' (nhap hang), 'ADJUST' (kiem kho/dieu chinh), 'TRANSFER_IN', 'TRANSFER_OUT'
         quantity REAL NOT NULL, -- delta (< 0 neu tru, > 0 neu cong)
         balance_after REAL DEFAULT 0, -- ton sau bien dong
-        order_id INTEGER, -- bill nao
+        order_id INTEGER, -- bill nao neu co
         order_code TEXT, -- ma hoa don
         supplier_id INTEGER, -- NCC nao neu co
         note TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
         FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
         FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
     )''')
 
+    # Kiem tra neu bang inventory_logs cu thieu cot product_id thi tu dong migrate
+    cur.execute("PRAGMA table_info(inventory_logs)")
+    inv_cols = [c[1] for c in cur.fetchall()]
+    if "product_id" not in inv_cols:
+        cur.execute("PRAGMA foreign_keys = OFF")
+        cur.execute('''
+        CREATE TABLE inventory_logs_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_type TEXT DEFAULT 'ingredient',
+            ingredient_id INTEGER,
+            product_id INTEGER,
+            warehouse_id INTEGER NOT NULL,
+            change_type TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            balance_after REAL DEFAULT 0,
+            order_id INTEGER,
+            order_code TEXT,
+            supplier_id INTEGER,
+            note TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
+            FOREIGN KEY (supplier_id) REFERENCES contacts(id) ON DELETE SET NULL
+        )''')
+        cur.execute('''
+        INSERT INTO inventory_logs_new (id, item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, order_id, order_code, supplier_id, note, created_at)
+        SELECT id, 'ingredient', ingredient_id, warehouse_id, change_type, quantity, balance_after, order_id, order_code, supplier_id, note, created_at FROM inventory_logs
+        ''')
+        cur.execute("DROP TABLE inventory_logs")
+        cur.execute("ALTER TABLE inventory_logs_new RENAME TO inventory_logs")
+        cur.execute("PRAGMA foreign_keys = ON")
+
     cur.execute('CREATE INDEX IF NOT EXISTS idx_inv_logs_ing ON inventory_logs(ingredient_id, created_at DESC)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_inv_logs_prod ON inventory_logs(product_id, created_at DESC)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_inv_logs_order ON inventory_logs(order_code)')
+
+    # 3.4.2. Ton kho hang hoa theo tung kho (product_inventory)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS product_inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        warehouse_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity REAL DEFAULT 0,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        UNIQUE(warehouse_id, product_id)
+    )''')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_prod_inv ON product_inventory(warehouse_id, product_id)')
+
+    # Dong bo ton kho san pham vao kho 1 neu chua co
+    cur.execute("SELECT COUNT(*) FROM product_inventory")
+    if cur.fetchone()[0] == 0:
+        cur.execute('''
+        INSERT OR IGNORE INTO product_inventory (warehouse_id, product_id, quantity)
+        SELECT 1, id, stock FROM products WHERE type != 'service'
+        ''')
+
+    # 3.4.3. Chuyen kho noi bo (warehouse_transfers & warehouse_transfer_items)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS warehouse_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        from_warehouse_id INTEGER NOT NULL,
+        to_warehouse_id INTEGER NOT NULL,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id),
+        FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id)
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS warehouse_transfer_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        transfer_id INTEGER NOT NULL,
+        item_type TEXT NOT NULL, -- 'product' hoac 'ingredient'
+        product_id INTEGER,
+        ingredient_id INTEGER,
+        item_name TEXT,
+        unit TEXT,
+        quantity REAL NOT NULL,
+        FOREIGN KEY (transfer_id) REFERENCES warehouse_transfers(id) ON DELETE CASCADE
+    )''')
+
+    # 3.4.4. Kiem ke kho (stock_audits & stock_audit_items)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS stock_audits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        warehouse_id INTEGER NOT NULL,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS stock_audit_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        audit_id INTEGER NOT NULL,
+        item_type TEXT NOT NULL, -- 'product' hoac 'ingredient'
+        product_id INTEGER,
+        ingredient_id INTEGER,
+        item_name TEXT,
+        unit TEXT,
+        system_qty REAL NOT NULL,
+        actual_qty REAL NOT NULL,
+        diff_qty REAL NOT NULL,
+        FOREIGN KEY (audit_id) REFERENCES stock_audits(id) ON DELETE CASCADE
+    )''')
 
     # 3.5. Module Cost: Dinh luong BOM san pham theo ingredients
     cur.execute('''

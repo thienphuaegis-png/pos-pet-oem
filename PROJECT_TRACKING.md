@@ -83,10 +83,17 @@ pos-offline/
 | `46408ef` | Feature | Snap-to-grid 10px + snap đường gióng đỏ + kéo thả tự do layout 2-3 cột |
 | `cbca735` | Fix | Đồng bộ tỷ lệ in thực tế theo pixel canvas, khắc phục lệch vị trí khi in |
 | `fe2b8a1` | Feature | Mẫu in A4 B2B đại lý (bảng 9 cột, 3 ô chân trang, 3 chữ ký) + Quản lý Presets mẫu in độc lập + Bật/Tắt theo 3 phân vùng chuẩn xác |
+| `a4c92e1` | Feature | Hoàn thiện Module Quản Lý Kho Hàng đa kho trọn gói (Tồn kho tổng hợp, Kiểm kê cân bằng tồn, Điều chuyển nội bộ, Danh mục kho, Thẻ kho tra cứu lịch sử) + Gộp menu sidebar tinh gọn thành các sub-tabs con |
 
 ---
 
-## 5. HẠNG MỤC CẦN LÀM TIẾP THEO (BACKLOG)
+## 5. HẠNG MỤC ĐÃ HOÀN THÀNH & BACKLOG
+- [x] **Quản lý kho hàng trọn gói (Đa kho & Tồn kho hợp nhất)**:
+  - Bảng tồn kho đa kho (`product_inventory`, `ingredient_warehouses`).
+  - Điều chuyển kho nội bộ (`POST /api/inventory/transfer`) ghi nhận thẻ kho tự động.
+  - Kiểm kê kho & cân bằng lệch tồn (`POST /api/inventory/audit`).
+  - Thẻ kho tra cứu toàn bộ lịch sử xuất/nhập/bán/kiểm theo từng mặt hàng (`GET /api/inventory/item-logs`).
+  - Tinh gọn thanh điều hướng thành 7 phân hệ chính, gom các chức năng con liên quan bằng sub-tabs ngang mượt mà.
 - [x] **Mẫu in A4 bán sỉ/đại lý chuẩn nghiệp vụ**:
   - Bảng 9 cột: TT, SKU, Tên hàng, ĐVT, Đơn giá, Chiết khấu, Số lượng, Thành tiền, Ghi chú.
   - 3 ô chân trang: Thông tin chuyển khoản VietQR, Ghi chú & Điều khoản, Tổng kết công nợ.
