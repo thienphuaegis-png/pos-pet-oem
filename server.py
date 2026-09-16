@@ -1092,6 +1092,27 @@ def calculate_product_cost_internal(product_id: int, conn) -> dict:
         "bom_items": bom_items
     }
 
+@app.get("/api/bom")
+def get_all_bom():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT pb.id, pb.product_id, pb.ingredient_id, pb.quantity,
+           p.name as product_name, i.name as ingredient_name, i.unit,
+           COALESCE(
+               (SELECT purchase_price FROM price_history ph 
+                WHERE ph.ingredient_id = i.id 
+                ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+               0
+           ) as latest_cost
+    FROM product_bom pb
+    JOIN products p ON pb.product_id = p.id
+    JOIN ingredients i ON pb.ingredient_id = i.id
+    ''')
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
 @app.get("/api/products/{product_id}/bom")
 def get_product_bom(product_id: int):
     conn = get_db()
