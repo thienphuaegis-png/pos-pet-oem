@@ -84,10 +84,15 @@ pos-offline/
 | `cbca735` | Fix | Đồng bộ tỷ lệ in thực tế theo pixel canvas, khắc phục lệch vị trí khi in |
 | `fe2b8a1` | Feature | Mẫu in A4 B2B đại lý (bảng 9 cột, 3 ô chân trang, 3 chữ ký) + Quản lý Presets mẫu in độc lập + Bật/Tắt theo 3 phân vùng chuẩn xác |
 | `a4c92e1` | Feature | Hoàn thiện Module Quản Lý Kho Hàng đa kho trọn gói (Tồn kho tổng hợp, Kiểm kê cân bằng tồn, Điều chuyển nội bộ, Danh mục kho, Thẻ kho tra cứu lịch sử) + Gộp menu sidebar tinh gọn thành các sub-tabs con |
+| `467e7f7` | Feature | Fuzzy search tiếng Việt không dấu (gõ "sữa sao" ra "Sữa Hộp Ngôi Sao"), quy trình PO chờ nhận hàng & kiểm đếm nhập kho, bảng Lệnh Sản Xuất đa thành phẩm theo định lượng BOM |
 
 ---
 
 ## 5. HẠNG MỤC ĐÃ HOÀN THÀNH & BACKLOG
+- [x] **Tìm kiếm Fuzzy Search & Quy trình PO Nhập Hàng & Lệnh Sản Xuất**:
+  - Gõ tìm kiếm không dấu linh hoạt mọi từ khóa rời.
+  - Phiếu nhập hàng lưu trạng thái Chờ nhận hàng (có ngày dự kiến), chưa cộng tồn kho; kiểm đếm thực nhận mới chốt nhập kho và hạch toán công nợ.
+  - Lệnh sản xuất dạng bảng nhiều thành phẩm, tự động tổng hợp nguyên liệu theo BOM và trừ kho đồng loạt.
 - [x] **Quản lý kho hàng trọn gói (Đa kho & Tồn kho hợp nhất)**:
   - Bảng tồn kho đa kho (`product_inventory`, `ingredient_warehouses`).
   - Điều chuyển kho nội bộ (`POST /api/inventory/transfer`) ghi nhận thẻ kho tự động.
