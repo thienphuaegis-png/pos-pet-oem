@@ -4,7 +4,7 @@ import datetime
 from database import get_db
 from schemas import (
     WarehouseCreate, WarehouseUpdate, IngredientCreate, IngredientUpdate,
-    InventoryAdjust, TransferCreate, AuditCreate
+    InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
 )
 
 router = APIRouter(tags=["Warehouses & Inventory"])
@@ -138,8 +138,16 @@ def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
 def delete_ingredient(ingredient_id: int):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
-    conn.commit()
+    try:
+        cur.execute("DELETE FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
+        cur.execute("DELETE FROM price_history WHERE ingredient_id = ?", (ingredient_id,))
+        cur.execute("DELETE FROM product_bom WHERE ingredient_id = ?", (ingredient_id,))
+        cur.execute("DELETE FROM supplier_items WHERE item_type = 'ingredient' AND ingredient_id = ?", (ingredient_id,))
+        cur.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
 
@@ -741,6 +749,77 @@ def get_item_inventory_logs(item_type: str, item_id: int, warehouse_id: Optional
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+# --- 5. Xuất hủy hàng hóa (Hư hỏng / Hết hạn / Mất mát) ---
+@router.post("/api/inventory/write-off")
+def write_off_items(data: WriteOffCreate):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id, name FROM warehouses WHERE id = ?", (data.warehouse_id,))
+        wh = cur.fetchone()
+        if not wh:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Không tìm thấy kho hàng")
+
+        processed = []
+        for item in data.items:
+            qty = float(item.quantity)
+            if qty <= 0:
+                continue
+            
+            note = f"Xuất hủy: {item.reason}" if item.reason else "Xuất hủy hàng hóa"
+            if data.note:
+                note += f" ({data.note})"
+
+            if item.item_type == 'product':
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (data.warehouse_id, item.item_id))
+                row = cur.fetchone()
+                current_qty = row["quantity"] if row else 0.0
+                new_qty = max(0.0, current_qty - qty)
+                
+                cur.execute('''
+                    INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                        quantity = excluded.quantity,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (data.warehouse_id, item.item_id, new_qty))
+
+                cur.execute('''
+                    INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+                    VALUES ('product', ?, ?, 'WRITEOFF', ?, ?, ?)
+                ''', (item.item_id, data.warehouse_id, -qty, new_qty, note))
+                processed.append({"item_type": "product", "id": item.item_id, "written_off": qty, "balance": new_qty})
+
+            else:
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (data.warehouse_id, item.item_id))
+                row = cur.fetchone()
+                current_qty = row["quantity"] if row else 0.0
+                new_qty = max(0.0, current_qty - qty)
+
+                cur.execute('''
+                    INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                        quantity = excluded.quantity,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (data.warehouse_id, item.item_id, new_qty))
+
+                cur.execute('''
+                    INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                    VALUES ('ingredient', ?, ?, 'WRITEOFF', ?, ?, ?)
+                ''', (item.item_id, data.warehouse_id, -qty, new_qty, note))
+                processed.append({"item_type": "ingredient", "id": item.item_id, "written_off": qty, "balance": new_qty})
+
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "processed": processed}
 
 # ========================================================
 # LOGIC BOM & TÍNH TOÁN GIÁ COST THÀNH PHẨM TỰ ĐỘNG

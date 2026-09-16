@@ -235,9 +235,6 @@
                         <button onclick="switchInvSubTab('unified')" class="inv-subtab-btn px-3 py-2 rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1.5" data-sub="unified">
                             <span>🏢 Tồn Kho Tổng Hợp</span>
                         </button>
-                        <button onclick="switchInvSubTab('products')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="products">
-                            <span>📦 Hàng Hóa & Dịch Vụ</span>
-                        </button>
                         <button onclick="switchInvSubTab('cost')" class="inv-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="cost">
                             <span>🧪 Nguyên Liệu & BOM</span>
                         </button>
@@ -298,31 +295,47 @@
                                     <option value="product">Chỉ Hàng Hóa Thành Phẩm</option>
                                     <option value="ingredient">Chỉ Nguyên Vật Liệu</option>
                                 </select>
-                                <label class="flex items-center gap-1.5 font-medium ml-2 cursor-pointer text-rose-600">
-                                    <input type="checkbox" id="unified-low-stock" onchange="loadUnifiedInventory()" class="rounded">
-                                    <span>Tồn thấp (≤ 5)</span>
-                                </label>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
                                 <input type="text" id="unified-search" oninput="loadUnifiedInventory()" placeholder="🔍 Tìm tên hoặc mã..." class="border p-1.5 rounded w-48 text-xs">
+                                <button onclick="openModalProductUnified()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow-sm">
+                                    + Thêm Hàng Hóa
+                                </button>
+                                <button onclick="openModalWriteOff()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 shadow-sm">
+                                    🗑️ Xuất Hủy
+                                </button>
                                 <button onclick="loadUnifiedInventory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded text-xs">🔄 Tải lại</button>
                             </div>
                         </div>
 
                         <!-- Table -->
-                        <div class="overflow-x-auto max-h-[500px]">
+                        <div class="overflow-x-auto max-h-[520px]">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-gray-50 sticky top-0 border-b">
-                                    <tr>
-                                        <th class="p-2.5">Mã hàng</th>
-                                        <th class="p-2.5">Tên mặt hàng</th>
-                                        <th class="p-2.5 text-center">Phân loại</th>
-                                        <th class="p-2.5">Nhà cung cấp</th>
+                                    <tr class="select-none">
+                                        <th class="p-2.5 cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('code')">
+                                            Mã hàng <span id="sort-icon-code" class="text-gray-400">↕</span>
+                                        </th>
+                                        <th class="p-2.5 cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('name')">
+                                            Tên mặt hàng <span id="sort-icon-name" class="text-gray-400">↕</span>
+                                        </th>
+                                        <th class="p-2.5 text-center cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('item_type')">
+                                            Phân loại <span id="sort-icon-item_type" class="text-gray-400">↕</span>
+                                        </th>
+                                        <th class="p-2.5 cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('supplier_names')">
+                                            Nhà cung cấp <span id="sort-icon-supplier_names" class="text-gray-400">↕</span>
+                                        </th>
                                         <th class="p-2.5">Kho lưu trữ</th>
-                                        <th class="p-2.5 text-right font-bold">Số lượng tồn</th>
+                                        <th class="p-2.5 text-right font-bold cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('quantity')">
+                                            Số lượng tồn <span id="sort-icon-quantity" class="text-gray-400">↕</span>
+                                        </th>
                                         <th class="p-2.5">ĐVT</th>
-                                        <th class="p-2.5 text-right">Giá vốn</th>
-                                        <th class="p-2.5 text-right">Tổng giá trị tồn</th>
+                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('cost_price')">
+                                            Giá vốn <span id="sort-icon-cost_price" class="text-gray-400">↕</span>
+                                        </th>
+                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('total_value')">
+                                            Tổng giá trị tồn <span id="sort-icon-total_value" class="text-gray-400">↕</span>
+                                        </th>
                                         <th class="p-2.5 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
@@ -334,32 +347,6 @@
                     </div>
                 </div>
 
-                <!-- TAB: DANH MUC HANG HOA -->
-            <div id="inv-sub-products" class="hidden space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Danh Mục Hàng Hóa, Dịch Vụ & BOM</h2>
-                    <button onclick="showModalProduct()" class="bg-sky-600 text-white px-4 py-2 rounded">+ Thêm Mới</button>
-                </div>
-                <div class="bg-white rounded-lg shadow overflow-hidden">
-                    <table class="w-full text-left border-collapse text-sm">
-                        <thead class="bg-gray-50 border-b">
-                            <tr>
-                                <th class="p-3">Mã</th>
-                                <th class="p-3">Tên sản phẩm</th>
-                                <th class="p-3">Loại</th>
-                                <th class="p-3">Nhà cung cấp</th>
-                                <th class="p-3 text-right">Giá vốn</th>
-                                <th class="p-3 text-right">Giá bán</th>
-                                <th class="p-3 text-right">Tồn kho</th>
-                                <th class="p-3">ĐVT</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-products"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            
                 <!-- TAB: QUẢN LÝ NGUYÊN LIỆU & COST VỐN (BOM) -->
             <div id="inv-sub-cost" class="hidden space-y-4">
                 <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm border gap-2">
@@ -413,14 +400,20 @@
                     <div class="col-span-12 lg:col-span-5 bg-white p-4 rounded-lg shadow-sm border space-y-3">
                         <div class="border-b pb-2">
                             <h3 class="font-bold text-slate-700 text-sm">⚡ Định Lượng BOM & Tính Giá Cost Sản Phẩm</h3>
-                            <p class="text-[11px] text-gray-500">Chọn sản phẩm để xem và cập nhật thành phần tiêu hao</p>
+                            <p class="text-[11px] text-gray-500">Tìm & chọn một hoặc nhiều sản phẩm để xem và cập nhật định lượng BOM</p>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">Chọn Sản Phẩm Thành Phẩm:</label>
-                            <select id="cost-product-select" class="border p-2 rounded w-full text-xs font-bold text-sky-700 bg-sky-50" onchange="loadProductBOMDetails(this.value)">
-                                <option value="">-- Chọn sản phẩm để xem BOM --</option>
-                            </select>
+                        <!-- Multi-select / Combobox chọn sản phẩm -->
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-gray-700">Chọn sản phẩm (có thể chọn nhiều):</label>
+                            <div class="relative">
+                                <input type="text" id="bom-prod-search-input" oninput="filterBOMProductDropdown()" onfocus="showBOMProductDropdown()" placeholder="🔍 Tìm kiếm mã hoặc tên sản phẩm..." class="border p-2 rounded w-full text-xs font-medium focus:ring-1 focus:ring-sky-500">
+                                <div id="bom-prod-dropdown-list" class="absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-white border rounded shadow-lg z-20 hidden divide-y text-xs"></div>
+                            </div>
+                            <!-- Chips sản phẩm đã chọn -->
+                            <div id="bom-selected-products-chips" class="flex flex-wrap gap-1.5 min-h-[28px] p-1.5 border rounded bg-slate-50">
+                                <span class="text-[11px] text-gray-400 italic">Chưa chọn sản phẩm nào</span>
+                            </div>
                         </div>
 
                         <!-- Card Tóm tắt Cost -->
@@ -1517,30 +1510,34 @@
             </div>
 
             
-            <!-- MODAL: THÊM HÀNG HÓA MỚI -->
+            <!-- MODAL: THÊM / SỬA HÀNG HÓA -->
             <div id="modal-product" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg p-5 w-96 max-w-full space-y-3 text-xs shadow-xl">
-                    <h3 class="font-bold text-sm text-slate-800 border-b pb-2">Thêm Hàng Hóa / Dịch Vụ Mới</h3>
+                <div class="bg-white rounded-lg p-5 w-[460px] max-w-full space-y-3 text-xs shadow-xl">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h3 id="modal-prod-title" class="font-bold text-sm text-slate-800">Thêm Hàng Hóa Mới</h3>
+                        <button onclick="closeModalProduct()" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
+                    </div>
+                    <input type="hidden" id="modal-prod-id" value="">
                     <div>
                         <label class="block font-bold mb-1">Mã sản phẩm (để trống tự sinh):</label>
-                        <input id="modal-prod-code" type="text" class="border p-2 rounded w-full" placeholder="SP-01">
+                        <input id="modal-prod-code" type="text" class="border p-2 rounded w-full font-mono font-bold" placeholder="SP-01">
                     </div>
                     <div>
                         <label class="block font-bold mb-1">Tên sản phẩm (*):</label>
-                        <input id="modal-prod-name" type="text" class="border p-2 rounded w-full" placeholder="Áo thun basic, Cà phê sữa...">
+                        <input id="modal-prod-name" type="text" class="border p-2 rounded w-full font-medium" placeholder="Tên hàng hóa...">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block font-bold mb-1">Loại sản phẩm:</label>
+                            <label class="block font-bold mb-1">Loại:</label>
                             <select id="modal-prod-type" class="border p-2 rounded w-full font-bold">
                                 <option value="product">Hàng hóa (Có tồn kho)</option>
                                 <option value="service">Dịch vụ (Không tồn kho)</option>
-                                <option value="material">Vật tư / Nguyên liệu</option>
+                                <option value="material">Vật tư / Thành phẩm</option>
                             </select>
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Đơn vị tính:</label>
-                            <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, ly...">
+                            <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, gói, lon...">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -1553,13 +1550,76 @@
                             <input id="modal-prod-price" type="number" class="border p-2 rounded w-full" value="0">
                         </div>
                     </div>
-                    <div>
+                    <div id="modal-prod-stock-group">
                         <label class="block font-bold mb-1">Tồn kho ban đầu (Kho Tổng):</label>
                         <input id="modal-prod-stock" type="number" class="border p-2 rounded w-full" value="0">
                     </div>
+                    <div>
+                        <label class="block font-bold mb-1">Nhà cung cấp (giữ Ctrl để chọn nhiều NCC):</label>
+                        <select id="modal-prod-suppliers" multiple class="border p-2 rounded w-full h-24 text-xs font-medium focus:ring-1 focus:ring-sky-500">
+                        </select>
+                    </div>
                     <div class="flex justify-end gap-2 pt-2 border-t">
                         <button onclick="closeModalProduct()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
-                        <button onclick="saveNewProduct()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Lưu Sản Phẩm</button>
+                        <button onclick="saveProductForm()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow-sm">Lưu Sản Phẩm</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: XUẤT HỦY HÀNG HÓA -->
+            <div id="modal-write-off" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg p-5 w-[440px] max-w-full space-y-3 text-xs shadow-xl">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h3 class="font-bold text-sm text-rose-700 flex items-center gap-1.5">
+                            <span>🗑️ Xuất Hủy Hàng Hóa / Nguyên Liệu</span>
+                        </h3>
+                        <button onclick="closeModalWriteOff()" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
+                    </div>
+                    <input type="hidden" id="modal-wo-item-type" value="product">
+                    <input type="hidden" id="modal-wo-item-id" value="">
+                    
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">Chọn mặt hàng xuất hủy (*):</label>
+                        <select id="modal-wo-select-item" onchange="onWriteOffItemSelected(this.value)" class="border p-2 rounded w-full font-medium text-xs"></select>
+                    </div>
+
+                    <div class="bg-slate-50 p-2.5 rounded border space-y-1">
+                        <div class="font-bold text-slate-800 text-xs" id="modal-wo-item-name">Chưa chọn mặt hàng</div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Mã: <b id="modal-wo-item-code" class="font-mono text-slate-700">-</b></span>
+                            <span>Tồn hiện tại: <b id="modal-wo-item-current-stock" class="text-emerald-700">0</b> <span id="modal-wo-item-unit">cái</span></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">Kho xuất hủy:</label>
+                        <select id="modal-wo-warehouse" class="border p-2 rounded w-full font-bold text-slate-800"></select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">Số lượng xuất hủy (*):</label>
+                        <input id="modal-wo-qty" type="number" step="any" min="0.01" class="border p-2 rounded w-full font-bold text-rose-600 text-sm" placeholder="0">
+                    </div>
+
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">Lý do xuất hủy:</label>
+                        <select id="modal-wo-reason" class="border p-2 rounded w-full font-medium">
+                            <option value="Hết hạn sử dụng (Hết date)">Hết hạn sử dụng (Hết date)</option>
+                            <option value="Hư hỏng, bể vỡ, biến chất">Hư hỏng, bể vỡ, biến chất</option>
+                            <option value="Thất thoát, hao hụt kiểm kê">Thất thoát, hao hụt kiểm kê</option>
+                            <option value="Hàng mẫu / Thử nghiệm / Tiêu hủy">Hàng mẫu / Thử nghiệm / Tiêu hủy</option>
+                            <option value="Lý do khác">Lý do khác</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">Ghi chú thêm:</label>
+                        <input id="modal-wo-note" type="text" class="border p-2 rounded w-full" placeholder="Chi tiết lý do...">
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="closeModalWriteOff()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
+                        <button onclick="submitWriteOff()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold shadow-sm">Xác Nhận Xuất Hủy</button>
                     </div>
                 </div>
             </div>
@@ -2161,6 +2221,6 @@
         </div>
     </div>
 
-<script src="/static/js/app.js?v=20260916_06"></script>
+<script src="/static/js/app.js?v=20260916_07"></script>
 </body>
 </html>

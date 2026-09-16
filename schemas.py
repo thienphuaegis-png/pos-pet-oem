@@ -26,6 +26,27 @@ class ProductCreate(BaseModel):
     unit: str = "cái"
     stock: float = 0
     warehouse_id: Optional[int] = 1
+    supplier_ids: Optional[List[int]] = None
+
+class ProductUpdate(BaseModel):
+    code: Optional[str] = None
+    name: str
+    type: str = "product"
+    cost_price: float = 0
+    sell_price: float = 0
+    unit: str = "cái"
+    supplier_ids: Optional[List[int]] = None
+
+class WriteOffItemIn(BaseModel):
+    item_type: str # 'product' or 'ingredient'
+    item_id: int
+    quantity: float
+    reason: Optional[str] = "Hư hỏng / Hết hạn"
+
+class WriteOffCreate(BaseModel):
+    warehouse_id: int = 1
+    note: Optional[str] = "Xuất hủy hàng hóa"
+    items: List[WriteOffItemIn]
 
 # --- Ingredients & Inventory ---
 class IngredientCreate(BaseModel):

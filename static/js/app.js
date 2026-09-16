@@ -3,6 +3,10 @@
         // ==================== QUẢN LÝ KHO HÀNG & HÀNG HÓA CONSOLIDATED ====================
         let allWarehouses = [];
         let unifiedInventoryData = [];
+        let unifiedSortColumn = 'name';
+        let unifiedSortAsc = true;
+        let selectedBOMProductIds = [];
+        let allBOMProductsList = [];
         let transferSourceItems = [];
         let currentTransferRows = [];
         let currentAuditItems = [];
@@ -52,9 +56,8 @@
                 const whId = document.getElementById('unified-wh-filter')?.value || '';
                 const itemType = document.getElementById('unified-type-filter')?.value || 'all';
                 const search = document.getElementById('unified-search')?.value || '';
-                const lowStock = document.getElementById('unified-low-stock')?.checked || false;
 
-                let url = `/api/inventory/unified?item_type=${itemType}&low_stock=${lowStock}`;
+                let url = `/api/inventory/unified?item_type=${itemType}`;
                 if (whId) url += `&warehouse_id=${whId}`;
                 if (search) url += `&search=${encodeURIComponent(search)}`;
 
@@ -65,6 +68,7 @@
                 
                 const data = await resInv.json();
                 allWarehouses = await resWh.json();
+                unifiedInventoryData = data.items || [];
 
                 const whSelect = document.getElementById('unified-wh-filter');
                 if (whSelect && whSelect.options.length <= 1) {
@@ -77,46 +81,114 @@
                 document.getElementById('kpi-inv-qty').innerText = (data.total_quantity || 0).toLocaleString('vi-VN');
                 document.getElementById('kpi-inv-val').innerText = formatMoney(data.total_value || 0);
 
-                const tbody = document.getElementById('table-unified-inventory');
-                if (!data.items || data.items.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = data.items.map(item => {
-                    const isProd = item.item_type === 'product';
-                    const badge = isProd 
-                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
-                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
-                    const stockColor = item.quantity <= 0 ? 'text-red-600 font-bold' : (item.quantity <= 5 ? 'text-amber-600 font-bold' : 'font-bold text-slate-800');
-
-                    const suppBadge = item.supplier_names 
-                        ? item.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
-                        : '<span class="text-gray-400 italic text-xs">---</span>';
-
-                    return `
-                        <tr class="border-b hover:bg-gray-50 text-xs">
-                            <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
-                            <td class="p-2.5 font-bold text-slate-800">${item.name}</td>
-                            <td class="p-2.5 text-center">${badge}</td>
-                            <td class="p-2.5">${suppBadge}</td>
-                            <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
-                            <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
-                            <td class="p-2.5 text-gray-500">${item.unit || 'cái'}</td>
-                            <td class="p-2.5 text-right font-medium text-gray-700">${formatMoney(item.cost_price)}</td>
-                            <td class="p-2.5 text-right font-bold text-rose-600">${formatMoney(item.total_value)}</td>
-                            <td class="p-2.5 text-center">
-                                <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
-                                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold">
-                                    📜 Thẻ kho
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                renderUnifiedInventoryTable();
             } catch (e) {
                 console.error("loadUnifiedInventory error:", e);
             }
+        }
+
+        function sortUnifiedTable(column) {
+            if (unifiedSortColumn === column) {
+                unifiedSortAsc = !unifiedSortAsc;
+            } else {
+                unifiedSortColumn = column;
+                unifiedSortAsc = true;
+            }
+            // Cập nhật icon mũi tên trên thead
+            ['code', 'name', 'item_type', 'supplier_names', 'quantity', 'cost_price', 'total_value'].forEach(col => {
+                const icon = document.getElementById('sort-icon-' + col);
+                if (icon) {
+                    if (col === unifiedSortColumn) {
+                        icon.innerText = unifiedSortAsc ? '▲' : '▼';
+                        icon.className = 'text-sky-600 font-bold';
+                    } else {
+                        icon.innerText = '↕';
+                        icon.className = 'text-gray-400';
+                    }
+                }
+            });
+            renderUnifiedInventoryTable();
+        }
+
+        function renderUnifiedInventoryTable() {
+            const tbody = document.getElementById('table-unified-inventory');
+            if (!tbody) return;
+
+            if (!unifiedInventoryData || unifiedInventoryData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
+                return;
+            }
+
+            // Sắp xếp mảng tại frontend
+            const items = [...unifiedInventoryData].sort((a, b) => {
+                let valA = a[unifiedSortColumn];
+                let valB = b[unifiedSortColumn];
+                if (valA === null || valA === undefined) valA = '';
+                if (valB === null || valB === undefined) valB = '';
+
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return unifiedSortAsc ? valA - valB : valB - valA;
+                }
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                return unifiedSortAsc ? strA.localeCompare(strB, 'vi') : strB.localeCompare(strA, 'vi');
+            });
+
+            tbody.innerHTML = items.map(item => {
+                const isProd = item.item_type === 'product';
+                const badge = isProd 
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                const stockColor = item.quantity <= 0 ? 'text-red-600 font-bold' : (item.quantity <= 5 ? 'text-amber-600 font-bold' : 'font-bold text-slate-800');
+
+                const suppBadge = item.supplier_names 
+                    ? item.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                    : '<span class="text-gray-400 italic text-xs">---</span>';
+
+                // Thao tác: Hàng hóa có Thẻ kho, Sửa, Xóa; Nguyên liệu có Thẻ kho, Xóa
+                const actionButtons = isProd ? `
+                    <div class="flex items-center justify-center gap-1">
+                        <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
+                                class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
+                            📜 Thẻ kho
+                        </button>
+                        <button onclick="openModalEditProduct(${item.id})" 
+                                class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-bold" title="Chỉnh sửa thông tin">
+                            ✏️ Sửa
+                        </button>
+                        <button onclick="deleteProductItem(${item.id}, '${encodeURIComponent(item.name)}')" 
+                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Xóa hàng hóa">
+                            🗑️ Xóa
+                        </button>
+                    </div>
+                ` : `
+                    <div class="flex items-center justify-center gap-1">
+                        <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
+                                class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
+                            📜 Thẻ kho
+                        </button>
+                        <button onclick="deleteIngredientItem(${item.id}, '${encodeURIComponent(item.name)}')" 
+                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Xóa nguyên liệu">
+                            🗑️ Xóa
+                        </button>
+                    </div>
+                `;
+
+                return `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
+                        <td class="p-2.5 font-bold text-slate-800">${item.name}</td>
+                        <td class="p-2.5 text-center">${badge}</td>
+                        <td class="p-2.5">${suppBadge}</td>
+                        <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
+                        <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
+                        <td class="p-2.5 text-gray-500">${item.unit || 'cái'}</td>
+                        <td class="p-2.5 text-right font-medium text-gray-700">${formatMoney(item.cost_price)}</td>
+                        <td class="p-2.5 text-right font-bold text-rose-600">${formatMoney(item.total_value)}</td>
+                        <td class="p-2.5 text-center">${actionButtons}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // --- MODAL: THẺ KHO / NHẬT KÝ BIẾN ĐỘNG ---
@@ -810,8 +882,10 @@
             document.getElementById('modal-transfer-detail')?.classList.add('hidden');
         }
 
-        // --- MODAL PRODUCT CRUD ---
-        function showModalProduct() {
+        // --- MODAL PRODUCT CRUD (THÊM / SỬA / XÓA HÀNG HÓA) ---
+        async function openModalProductUnified() {
+            document.getElementById('modal-prod-title').innerText = 'Thêm Hàng Hóa Mới';
+            document.getElementById('modal-prod-id').value = '';
             document.getElementById('modal-prod-code').value = '';
             document.getElementById('modal-prod-name').value = '';
             document.getElementById('modal-prod-type').value = 'product';
@@ -819,21 +893,81 @@
             document.getElementById('modal-prod-cost').value = '0';
             document.getElementById('modal-prod-price').value = '0';
             document.getElementById('modal-prod-stock').value = '0';
+            document.getElementById('modal-prod-stock-group').classList.remove('hidden');
+
+            await populateProductSuppliersDropdown([]);
             document.getElementById('modal-product').classList.remove('hidden');
+        }
+
+        async function openModalEditProduct(productId) {
+            try {
+                const res = await fetch('/api/products');
+                const products = await res.json();
+                const p = products.find(x => x.id === productId);
+                if (!p) return alert('Không tìm thấy sản phẩm!');
+
+                document.getElementById('modal-prod-title').innerText = 'Chỉnh Sửa Hàng Hóa';
+                document.getElementById('modal-prod-id').value = p.id;
+                document.getElementById('modal-prod-code').value = p.code || '';
+                document.getElementById('modal-prod-name').value = p.name || '';
+                document.getElementById('modal-prod-type').value = p.type || 'product';
+                document.getElementById('modal-prod-unit').value = p.unit || 'cái';
+                document.getElementById('modal-prod-cost').value = p.cost_price || 0;
+                document.getElementById('modal-prod-price').value = p.sell_price || 0;
+                document.getElementById('modal-prod-stock-group').classList.add('hidden'); // Khi sửa thì dùng chức năng kiểm kê/xuất hủy/mua hàng
+
+                // Nạp NCC
+                let attachedSuppIds = [];
+                try {
+                    const resSupp = await fetch('/api/contacts?type=supplier');
+                    const allSupps = await resSupp.json();
+                    if (p.supplier_names) {
+                        const suppNames = p.supplier_names.split(',').map(s => s.trim().toLowerCase());
+                        attachedSuppIds = allSupps.filter(s => suppNames.includes(s.name.toLowerCase())).map(s => s.id);
+                    }
+                    await populateProductSuppliersDropdown(attachedSuppIds);
+                } catch (e) {
+                    await populateProductSuppliersDropdown([]);
+                }
+
+                document.getElementById('modal-product').classList.remove('hidden');
+            } catch (e) {
+                console.error("openModalEditProduct error:", e);
+                alert("Lỗi khi tải thông tin sản phẩm");
+            }
+        }
+
+        async function populateProductSuppliersDropdown(selectedIds = []) {
+            try {
+                const res = await fetch('/api/contacts?type=supplier');
+                const suppliers = await res.json();
+                const sel = document.getElementById('modal-prod-suppliers');
+                if (!sel) return;
+                sel.innerHTML = suppliers.map(s => {
+                    const isSelected = selectedIds.includes(s.id) ? 'selected' : '';
+                    return `<option value="${s.id}" ${isSelected}>${s.name} ${s.phone ? '(' + s.phone + ')' : ''}</option>`;
+                }).join('');
+            } catch (e) {
+                console.error("populateProductSuppliersDropdown error:", e);
+            }
         }
 
         function closeModalProduct() {
             document.getElementById('modal-product')?.classList.add('hidden');
         }
 
-        async function saveNewProduct() {
+        async function saveProductForm() {
+            const id = document.getElementById('modal-prod-id').value;
             const name = document.getElementById('modal-prod-name').value.trim();
             const code = document.getElementById('modal-prod-code').value.trim();
             const type = document.getElementById('modal-prod-type').value;
-            const unit = document.getElementById('modal-prod-unit').value.trim();
+            const unit = document.getElementById('modal-prod-unit').value.trim() || 'cái';
             const cost_price = parseFloat(document.getElementById('modal-prod-cost').value) || 0;
-            const price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
+            const sell_price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
+
+            const suppSelect = document.getElementById('modal-prod-suppliers');
+            const supplier_ids = Array.from(suppSelect.selectedOptions).map(opt => parseInt(opt.value));
 
             if (!name) {
                 alert("Vui lòng nhập tên sản phẩm!");
@@ -841,25 +975,180 @@
             }
 
             try {
-                const res = await fetch('/api/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, name, type, unit, cost_price, price, stock })
-                });
+                let res;
+                if (id) {
+                    // Update
+                    res = await fetch(`/api/products/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, supplier_ids })
+                    });
+                } else {
+                    // Create
+                    res = await fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, supplier_ids })
+                    });
+                }
 
                 if (!res.ok) {
                     const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể tạo sản phẩm"));
+                    alert("Lỗi: " + (err.detail || "Không thể lưu sản phẩm"));
                     return;
                 }
 
                 closeModalProduct();
-                loadProducts();
-                loadUnifiedInventory();
-                alert("Đã thêm sản phẩm mới thành công!");
+                await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
+                alert(id ? "Đã cập nhật hàng hóa thành công!" : "Đã thêm hàng hóa mới thành công!");
             } catch (e) {
-                console.error("saveNewProduct error:", e);
+                console.error("saveProductForm error:", e);
                 alert("Lỗi kết nối khi lưu sản phẩm");
+            }
+        }
+
+        async function deleteProductItem(productId, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            if (!confirm(`Bạn có chắc chắn muốn XÓA hàng hóa:\n"${name}"?\n(Toàn bộ tồn kho và cấu thành BOM của sản phẩm sẽ bị xóa)`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert(`Đã xóa hàng hóa "${name}" thành công!`);
+                    await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
+                } else {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể xóa hàng hóa"));
+                }
+            } catch (e) {
+                console.error("deleteProductItem error:", e);
+                alert("Lỗi kết nối khi xóa hàng hóa");
+            }
+        }
+
+        async function deleteIngredientItem(ingId, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            if (!confirm(`Bạn có chắc chắn muốn XÓA nguyên liệu:\n"${name}"?\n(Dữ liệu tồn kho, giá nhập và liên kết BOM liên quan sẽ bị xóa)`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/ingredients/${ingId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert(`Đã xóa nguyên liệu "${name}" thành công!`);
+                    await Promise.all([loadUnifiedInventory(), loadCostIngredients()]);
+                } else {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể xóa nguyên liệu"));
+                }
+            } catch (e) {
+                console.error("deleteIngredientItem error:", e);
+                alert("Lỗi kết nối khi xóa nguyên liệu");
+            }
+        }
+
+        // --- MODAL XUẤT HỦY HÀNG HÓA ---
+        async function openModalWriteOff(itemType = null, itemId = null) {
+            const selectEl = document.getElementById('modal-wo-select-item');
+            const whSelect = document.getElementById('modal-wo-warehouse');
+            if (whSelect && allWarehouses.length > 0) {
+                whSelect.innerHTML = allWarehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+            }
+
+            // Nạp droplist mặt hàng
+            if (selectEl && unifiedInventoryData.length > 0) {
+                selectEl.innerHTML = '<option value="">-- Chọn mặt hàng muốn xuất hủy --</option>' + 
+                    unifiedInventoryData.map(item => `
+                        <option value="${item.item_type}_${item.id}">[${item.item_type === 'product' ? 'Hàng hóa' : 'Nguyên liệu'}] ${item.code || ''} - ${item.name} (Tồn: ${item.quantity} ${item.unit || ''})</option>
+                    `).join('');
+            }
+
+            if (itemType && itemId) {
+                const key = `${itemType}_${itemId}`;
+                if (selectEl) selectEl.value = key;
+                onWriteOffItemSelected(key);
+            } else {
+                if (selectEl && selectEl.options.length > 1) {
+                    selectEl.selectedIndex = 1;
+                    onWriteOffItemSelected(selectEl.value);
+                }
+            }
+
+            document.getElementById('modal-wo-qty').value = '';
+            document.getElementById('modal-wo-note').value = '';
+            document.getElementById('modal-write-off').classList.remove('hidden');
+        }
+
+        function onWriteOffItemSelected(val) {
+            if (!val) {
+                document.getElementById('modal-wo-item-name').innerText = 'Chưa chọn mặt hàng';
+                document.getElementById('modal-wo-item-code').innerText = '-';
+                document.getElementById('modal-wo-item-current-stock').innerText = '0';
+                document.getElementById('modal-wo-item-unit').innerText = 'cái';
+                document.getElementById('modal-wo-item-type').value = '';
+                document.getElementById('modal-wo-item-id').value = '';
+                return;
+            }
+
+            const [type, idStr] = val.split('_');
+            const id = parseInt(idStr);
+            const found = unifiedInventoryData.find(x => x.item_type === type && x.id === id);
+            if (found) {
+                document.getElementById('modal-wo-item-type').value = type;
+                document.getElementById('modal-wo-item-id').value = id;
+                document.getElementById('modal-wo-item-name').innerText = found.name;
+                document.getElementById('modal-wo-item-code').innerText = found.code || '-';
+                document.getElementById('modal-wo-item-current-stock').innerText = found.quantity.toLocaleString('vi-VN');
+                document.getElementById('modal-wo-item-unit').innerText = found.unit || 'cái';
+            }
+        }
+
+        function closeModalWriteOff() {
+            document.getElementById('modal-write-off')?.classList.add('hidden');
+        }
+
+        async function submitWriteOff() {
+            const item_type = document.getElementById('modal-wo-item-type').value;
+            const item_id = parseInt(document.getElementById('modal-wo-item-id').value);
+            const warehouse_id = parseInt(document.getElementById('modal-wo-warehouse').value) || 1;
+            const quantity = parseFloat(document.getElementById('modal-wo-qty').value);
+            const reason = document.getElementById('modal-wo-reason').value;
+            const note = document.getElementById('modal-wo-note').value.trim();
+
+            if (!item_id || !item_type) {
+                alert("Vui lòng chọn mặt hàng cần xuất hủy!");
+                return;
+            }
+            if (!quantity || quantity <= 0) {
+                alert("Vui lòng nhập số lượng xuất hủy hợp lệ (> 0)!");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/inventory/write-off', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        warehouse_id,
+                        note,
+                        items: [{ item_type, item_id, quantity, reason }]
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể xuất hủy hàng hóa"));
+                    return;
+                }
+
+                closeModalWriteOff();
+                await loadUnifiedInventory();
+                alert(`Đã xuất hủy thành công ${quantity} sản phẩm! Tồn kho đã được trừ và ghi vào thẻ kho.`);
+            } catch (e) {
+                console.error("submitWriteOff error:", e);
+                alert("Lỗi kết nối khi gửi yêu cầu xuất hủy");
             }
         }
 
@@ -2577,9 +2866,10 @@
                         </td>
                         <td class="p-2 text-gray-500">${ing.unit}</td>
                         <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
-                        <td class="p-2 text-center space-x-1">
+                        <td class="p-2 text-center space-x-1 whitespace-nowrap">
                             <button onclick="viewIngredientDetail(${ing.id})" class="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded hover:bg-sky-100 font-medium" title="Xem chi tiết biến động & lịch sử giá">🔍 Chi tiết</button>
                             <button onclick="goToPurchaseTabWithItem('ingredient', ${ing.id})" class="text-xs text-indigo-600 hover:underline font-medium ${ing.type === 'SERVICE' ? 'hidden' : ''}" title="Tạo phiếu nhập hàng cho nguyên liệu này">📥 Nhập hàng</button>
+                            <button onclick="deleteIngredientItem(${ing.id}, '${encodeURIComponent(ing.name)}')" class="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded hover:bg-rose-100 font-medium" title="Xóa nguyên liệu này">🗑️ Xóa</button>
                         </td>
                     </tr>
                 `).join('');
@@ -2590,18 +2880,110 @@
 
         async function loadCostProductOptions() {
             const res = await fetch('/api/products');
-            const products = await res.json();
-            const sel = document.getElementById('cost-product-select');
-            if (sel) {
-                sel.innerHTML = '<option value="">-- Chọn sản phẩm để xem BOM --</option>' + 
-                    products.map(p => `<option value="${p.id}">${p.code} - ${p.name} (${formatMoney(p.sell_price)})</option>`).join('');
+            allBOMProductsList = await res.json();
+            renderBOMSelectedChips();
+        }
+
+        function showBOMProductDropdown() {
+            const dd = document.getElementById('bom-prod-dropdown-list');
+            if (dd) dd.classList.remove('hidden');
+            filterBOMProductDropdown();
+        }
+
+        function hideBOMProductDropdown() {
+            setTimeout(() => {
+                const dd = document.getElementById('bom-prod-dropdown-list');
+                if (dd) dd.classList.add('hidden');
+            }, 250);
+        }
+
+        function filterBOMProductDropdown() {
+            const dd = document.getElementById('bom-prod-dropdown-list');
+            const search = (document.getElementById('bom-prod-search-input')?.value || '').toLowerCase().trim();
+            if (!dd) return;
+
+            const filtered = allBOMProductsList.filter(p => {
+                const text = `${p.code || ''} ${p.name || ''}`.toLowerCase();
+                return text.includes(search);
+            });
+
+            if (filtered.length === 0) {
+                dd.innerHTML = '<div class="p-3 text-center text-gray-400">Không tìm thấy sản phẩm nào</div>';
+                return;
             }
+
+            dd.innerHTML = filtered.map(p => {
+                const isChecked = selectedBOMProductIds.includes(p.id);
+                return `
+                    <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer" onclick="toggleSelectBOMProduct(${p.id})">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} class="rounded pointer-events-none text-sky-600">
+                            <div>
+                                <span class="font-bold text-slate-800">${p.name}</span>
+                                <span class="font-mono text-slate-500 ml-1">(${p.code || '-'})</span>
+                            </div>
+                        </div>
+                        <span class="font-semibold text-sky-600">${formatMoney(p.sell_price)}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleSelectBOMProduct(productId) {
+            const idx = selectedBOMProductIds.indexOf(productId);
+            if (idx > -1) {
+                selectedBOMProductIds.splice(idx, 1);
+            } else {
+                selectedBOMProductIds.push(productId);
+            }
+            renderBOMSelectedChips();
+            filterBOMProductDropdown();
+
+            if (selectedBOMProductIds.length > 0) {
+                // Tải BOM của sản phẩm đầu tiên hoặc mới nhất trong danh sách
+                const targetId = selectedBOMProductIds[selectedBOMProductIds.length - 1];
+                loadProductBOMDetails(targetId);
+            } else {
+                loadProductBOMDetails(null);
+            }
+        }
+
+        function removeSelectedBOMProduct(productId) {
+            selectedBOMProductIds = selectedBOMProductIds.filter(id => id !== productId);
+            renderBOMSelectedChips();
+            filterBOMProductDropdown();
+            if (selectedBOMProductIds.length > 0) {
+                loadProductBOMDetails(selectedBOMProductIds[selectedBOMProductIds.length - 1]);
+            } else {
+                loadProductBOMDetails(null);
+            }
+        }
+
+        function renderBOMSelectedChips() {
+            const container = document.getElementById('bom-selected-products-chips');
+            if (!container) return;
+
+            if (selectedBOMProductIds.length === 0) {
+                container.innerHTML = '<span class="text-[11px] text-gray-400 italic">Chưa chọn sản phẩm nào (Bấm ô tìm kiếm để chọn nhiều sản phẩm)</span>';
+                return;
+            }
+
+            container.innerHTML = selectedBOMProductIds.map(id => {
+                const prod = allBOMProductsList.find(p => p.id === id);
+                if (!prod) return '';
+                return `
+                    <span class="inline-flex items-center gap-1 bg-sky-100 text-sky-800 border border-sky-200 text-xs px-2 py-0.5 rounded-full font-bold">
+                        <span>${prod.name}</span>
+                        <button onclick="removeSelectedBOMProduct(${id})" class="text-sky-600 hover:text-rose-600 ml-1 font-black">×</button>
+                    </span>
+                `;
+            }).join('');
         }
 
         async function loadProductBOMDetails(productId) {
             if (!productId) {
                 document.getElementById('cost-summary-card').classList.add('hidden');
-                document.getElementById('table-product-bom-items').innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>';
+                document.getElementById('table-product-bom-items').innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm nào</td></tr>';
                 currentBOMData = null;
                 return;
             }
@@ -2680,9 +3062,14 @@
             }
         }
 
+        function getActiveBOMTargetId() {
+            if (selectedBOMProductIds.length === 0) return null;
+            return selectedBOMProductIds[selectedBOMProductIds.length - 1];
+        }
+
         function openModalAddBOMItem() {
-            const prodId = document.getElementById('cost-product-select').value;
-            if (!prodId) return alert('Vui lòng chọn sản phẩm trước!');
+            const prodId = getActiveBOMTargetId();
+            if (!prodId) return alert('Vui lòng chọn ít nhất một sản phẩm trước!');
             
             const sel = document.getElementById('modal-bom-ing-select');
             sel.innerHTML = costIngredients.map(i => `<option value="${i.id}">${i.name} (${i.unit} - ${formatMoney(i.latest_cost)})</option>`).join('');
@@ -2695,7 +3082,9 @@
         }
 
         async function addCurrentBOMItem() {
-            const prodId = document.getElementById('cost-product-select').value;
+            const targetIds = [...selectedBOMProductIds];
+            if (targetIds.length === 0) return alert('Vui lòng chọn sản phẩm trước!');
+
             const ingId = parseInt(document.getElementById('modal-bom-ing-select').value);
             const qty = parseFloat(document.getElementById('modal-bom-quantity').value);
 
@@ -2714,49 +3103,53 @@
                 currentItems.push({ ingredient_id: ingId, quantity: qty });
             }
 
-            const res = await fetch(`/api/products/${prodId}/bom`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ items: currentItems })
-            });
-
-            if (res.ok) {
-                closeModalBOMItem();
-                await loadProductBOMDetails(prodId);
-                await loadProducts(); // reload bảng hàng hóa
-            } else {
-                alert('Lỗi khi lưu định lượng BOM');
+            // Áp dụng cho tất cả các sản phẩm đang được chọn
+            for (const prodId of targetIds) {
+                await fetch(`/api/products/${prodId}/bom`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ items: currentItems })
+                });
             }
+
+            closeModalBOMItem();
+            await loadProductBOMDetails(targetIds[targetIds.length - 1]);
+            await loadUnifiedInventory();
+            alert(`Đã cập nhật định lượng BOM cho ${targetIds.length} sản phẩm được chọn!`);
         }
 
         async function removeBOMItem(ingId) {
             if (!confirm('Xóa thành phần này khỏi BOM?')) return;
-            const prodId = document.getElementById('cost-product-select').value;
+            const targetIds = [...selectedBOMProductIds];
+            if (targetIds.length === 0) return;
+
             let currentItems = currentBOMData.bom_items
                 .filter(b => b.ingredient_id !== ingId)
                 .map(b => ({ ingredient_id: b.ingredient_id, quantity: b.quantity }));
 
-            const res = await fetch(`/api/products/${prodId}/bom`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ items: currentItems })
-            });
-
-            if (res.ok) {
-                await loadProductBOMDetails(prodId);
-                await loadProducts();
+            for (const prodId of targetIds) {
+                await fetch(`/api/products/${prodId}/bom`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ items: currentItems })
+                });
             }
+
+            await loadProductBOMDetails(targetIds[targetIds.length - 1]);
+            await loadUnifiedInventory();
         }
 
         async function recalculateActiveProductCost() {
-            const prodId = document.getElementById('cost-product-select').value;
-            if (!prodId) return alert('Vui lòng chọn sản phẩm!');
-            const res = await fetch(`/api/products/${prodId}/recalculate-cost`, { method: 'POST' });
-            if (res.ok) {
-                await loadProductBOMDetails(prodId);
-                await loadProducts();
-                alert('Đã cập nhật giá Cost thành công!');
+            const targetIds = [...selectedBOMProductIds];
+            if (targetIds.length === 0) return alert('Vui lòng chọn sản phẩm trước!');
+            
+            for (const prodId of targetIds) {
+                await fetch(`/api/products/${prodId}/recalculate-cost`, { method: 'POST' });
             }
+
+            await loadProductBOMDetails(targetIds[targetIds.length - 1]);
+            await loadUnifiedInventory();
+            alert(`Đã tính toán lại giá cost cho ${targetIds.length} sản phẩm theo giá nhập nguyên liệu mới nhất!`);
         }
 
         async function promptAdjustStock(ingId, ingName, ingType) {
