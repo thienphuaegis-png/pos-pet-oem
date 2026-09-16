@@ -90,11 +90,16 @@
                         : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
                     const stockColor = item.quantity <= 0 ? 'text-red-600 font-bold' : (item.quantity <= 5 ? 'text-amber-600 font-bold' : 'font-bold text-slate-800');
 
+                    const suppBadge = item.supplier_names 
+                        ? item.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                        : '<span class="text-gray-400 italic text-xs">---</span>';
+
                     return `
                         <tr class="border-b hover:bg-gray-50 text-xs">
                             <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
                             <td class="p-2.5 font-bold text-slate-800">${item.name}</td>
                             <td class="p-2.5 text-center">${badge}</td>
+                            <td class="p-2.5">${suppBadge}</td>
                             <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
                             <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
                             <td class="p-2.5 text-gray-500">${item.unit || 'cái'}</td>
@@ -929,6 +934,11 @@
                     <td class="p-3 font-mono text-xs font-bold">${p.code}</td>
                     <td class="p-3 font-medium">${p.name}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.type === 'service' ? 'bg-indigo-100 text-indigo-700' : p.type === 'material' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${p.type}</span></td>
+                    <td class="p-3">
+                        ${p.supplier_names 
+                            ? p.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                            : '<span class="text-gray-400 italic text-xs">---</span>'}
+                    </td>
                     <td class="p-3 text-right">${formatMoney(p.cost_price)}</td>
                     <td class="p-3 text-right font-bold text-sky-600">${formatMoney(p.sell_price)}</td>
                     <td class="p-3 text-right font-bold ${p.stock <= 5 ? 'text-red-500' : ''}">${p.stock}</td>
@@ -2556,6 +2566,11 @@
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">
                                 ${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}
                             </span>
+                        </td>
+                        <td class="p-2">
+                            ${ing.supplier_names 
+                                ? ing.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                                : '<span class="text-gray-400 italic text-xs">---</span>'}
                         </td>
                         <td class="p-2 text-right font-bold ${ing.type === 'SERVICE' ? 'text-gray-400' : (ing.total_stock <= 5 ? 'text-rose-600' : 'text-slate-700')}">
                             ${ing.type === 'SERVICE' ? '-' : ing.total_stock}

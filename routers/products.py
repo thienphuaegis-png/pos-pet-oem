@@ -8,7 +8,15 @@ router = APIRouter(prefix="/api/products", tags=["Products"])
 def list_products():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM products ORDER BY id DESC")
+    cur.execute('''
+    SELECT p.*,
+           GROUP_CONCAT(DISTINCT c.name) as supplier_names
+    FROM products p
+    LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
+    LEFT JOIN contacts c ON si.supplier_id = c.id
+    GROUP BY p.id
+    ORDER BY p.id DESC
+    ''')
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows

@@ -58,7 +58,7 @@ def delete_warehouse(warehouse_id: int):
 def list_ingredients():
     conn = get_db()
     cur = conn.cursor()
-    # Lấy thông tin kèm tổng tồn kho và giá nhập gần nhất
+    # Lấy thông tin kèm tổng tồn kho, giá nhập gần nhất và danh sách nhà cung cấp
     query = '''
     SELECT 
         i.*,
@@ -68,7 +68,11 @@ def list_ingredients():
              WHERE ph.ingredient_id = i.id 
              ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
             0
-        ) AS latest_cost
+        ) AS latest_cost,
+        (SELECT GROUP_CONCAT(DISTINCT c.name) 
+         FROM supplier_items si 
+         JOIN contacts c ON si.supplier_id = c.id 
+         WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
     FROM ingredients i
     ORDER BY i.id DESC
     '''
@@ -371,7 +375,11 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
         w.id as warehouse_id,
         w.name as warehouse_name,
         COALESCE(pi.quantity, 0) as quantity,
-        COALESCE(pi.quantity * p.cost_price, 0) as total_value
+        COALESCE(pi.quantity * p.cost_price, 0) as total_value,
+        (SELECT GROUP_CONCAT(DISTINCT c.name) 
+         FROM supplier_items si 
+         JOIN contacts c ON si.supplier_id = c.id 
+         WHERE si.item_type = 'product' AND si.product_id = p.id) as supplier_names
     FROM products p
     JOIN warehouses w ON 1=1
     LEFT JOIN product_inventory pi ON pi.product_id = p.id AND pi.warehouse_id = w.id
@@ -403,7 +411,11 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
         COALESCE(inv.quantity, 0) as quantity,
         COALESCE(inv.quantity * COALESCE(
             (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
-        ), 0) as total_value
+        ), 0) as total_value,
+        (SELECT GROUP_CONCAT(DISTINCT c.name) 
+         FROM supplier_items si 
+         JOIN contacts c ON si.supplier_id = c.id 
+         WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
     FROM ingredients i
     JOIN warehouses w ON 1=1
     LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = w.id
