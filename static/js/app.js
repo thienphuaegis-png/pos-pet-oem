@@ -1366,6 +1366,76 @@
         // ==================== PHẦN 1: NHẬP HÀNG (PO / PURCHASES) ====================
         let currentViewingPurchase = null;
 
+        let currentSupplierItems = []; // Danh sách mặt hàng của NCC đang chọn
+
+        let allSuppliersList = []; // Cache danh sách NCC riêng cho nhập hàng
+
+        async function selectSupplier(id, name, phone) {
+            const suppInput = document.getElementById('purchase-supplier');
+            const searchInput = document.getElementById('purchase-supplier-search');
+            const resBox = document.getElementById('supplier-search-results');
+            if (suppInput) suppInput.value = id;
+            if (searchInput) searchInput.value = `${name} (${phone || 'Không SĐT'})`;
+            if (resBox) resBox.classList.add('hidden');
+
+            // Nạp danh sách mặt hàng của riêng NCC này
+            try {
+                const res = await fetch(`/api/suppliers/${id}/items`);
+                currentSupplierItems = await res.json();
+                console.log(`Loaded ${currentSupplierItems.length} items for supplier ${name}`);
+            } catch (e) {
+                console.error("selectSupplier items error:", e);
+                currentSupplierItems = [];
+            }
+        }
+
+        async function filterSupplierSearch(val) {
+            const resBox = document.getElementById('supplier-search-results');
+            if (!resBox) return;
+
+            // Nếu chưa có allSuppliersList hoặc allSuppliersList rỗng thì nạp ngay lập tức
+            if (!allSuppliersList || allSuppliersList.length === 0) {
+                try {
+                    const res = await fetch('/api/contacts?type=supplier');
+                    allSuppliersList = await res.json();
+                } catch (e) {
+                    console.error("fetch suppliers error:", e);
+                }
+            }
+
+            const supps = (allSuppliersList && allSuppliersList.length > 0)
+                ? allSuppliersList
+                : (allContacts || []).filter(c => c.type === 'supplier');
+
+            const q = (val || '').trim();
+            const matches = q === '' 
+                ? supps // Nếu chưa gõ gì thì hiển thị toàn bộ danh sách NCC
+                : supps.filter(s => {
+                    const text = `${s.name} ${s.phone || ''} ${s.address || ''}`;
+                    return fuzzyMatch(q, text);
+                });
+
+            if (matches.length === 0) {
+                resBox.innerHTML = '<div class="p-2.5 text-gray-400 text-center italic">Không tìm thấy nhà cung cấp nào</div>';
+                resBox.classList.remove('hidden');
+                return;
+            }
+
+            resBox.innerHTML = matches.slice(0, 20).map(s => `
+                <div onclick="selectSupplier(${s.id}, '${escapeHtml(s.name)}', '${escapeHtml(s.phone || '')}')" 
+                     class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition border-b last:border-0">
+                    <div>
+                        <span class="font-bold text-slate-800 text-xs">🏭 ${s.name}</span>
+                        <span class="text-[11px] text-gray-500 ml-1.5">${s.phone ? '📞 ' + s.phone : ''}</span>
+                    </div>
+                    <span class="text-xs font-bold ${s.debt > 0 ? 'text-rose-600' : 'text-slate-400'}">
+                        ${s.debt > 0 ? 'Nợ: ' + formatMoney(s.debt) + ' đ' : '0 đ'}
+                    </span>
+                </div>
+            `).join('');
+            resBox.classList.remove('hidden');
+        }
+
         async function initPurchases() {
             try {
                 const [whRes, suppRes, ingRes, prodRes] = await Promise.all([
@@ -1376,15 +1446,9 @@
                 ]);
 
                 allWarehousesList = await whRes.json();
-                const suppliers = await suppRes.json();
+                allSuppliersList = await suppRes.json();
                 costIngredients = await ingRes.json();
                 allProducts = await prodRes.json();
-
-                const suppSel = document.getElementById('purchase-supplier');
-                if (suppSel) {
-                    suppSel.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
-                        suppliers.map(s => `<option value="${s.id}">${s.name} (${s.phone || 'Không SĐT'})</option>`).join('');
-                }
 
                 const whSel = document.getElementById('purchase-warehouse');
                 if (whSel) {
@@ -1397,6 +1461,18 @@
                     expInput.value = today;
                 }
 
+                // Close search dropdowns on outside click
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('#purchase-supplier-search') && !e.target.closest('#supplier-search-results')) {
+                        const sb = document.getElementById('supplier-search-results');
+                        if (sb) sb.classList.add('hidden');
+                    }
+                    if (!e.target.closest('#search-purchase-input') && !e.target.closest('#purchase-search-results')) {
+                        const pb = document.getElementById('purchase-search-results');
+                        if (pb) pb.classList.add('hidden');
+                    }
+                });
+
                 renderPurchaseItems();
             } catch (e) {
                 console.error('initPurchases err:', e);
@@ -1407,39 +1483,62 @@
             const resBox = document.getElementById('purchase-search-results');
             if (!resBox) return;
 
+            const suppId = document.getElementById('purchase-supplier')?.value;
+            if (!suppId) {
+                resBox.innerHTML = '<div class="p-3 text-amber-600 bg-amber-50 text-center font-medium">⚠️ Vui lòng chọn Nhà Cung Cấp trước khi chọn mặt hàng</div>';
+                resBox.classList.remove('hidden');
+                return;
+            }
+
             const matches = [];
 
-            // Tìm kiếm trong Nguyên liệu / Vật tư
-            (costIngredients || []).filter(i => i.type !== 'SERVICE').forEach(ing => {
-                const searchText = `${ing.name} ${ing.code || ''} ${ing.unit || ''} nl nguyen lieu`;
-                if (fuzzyMatch(val, searchText)) {
-                    matches.push({
-                        type: 'ingredient',
-                        id: ing.id,
-                        name: ing.name,
-                        code: ing.code || '',
-                        unit: ing.unit || 'đv',
-                        cost: ing.latest_cost || 0,
-                        stock: ing.total_stock || 0
-                    });
-                }
-            });
-
-            // Tìm kiếm trong Hàng hóa / Sản phẩm
-            (allProducts || []).filter(p => p.type !== 'service').forEach(prod => {
-                const searchText = `${prod.name} ${prod.code || ''} ${prod.unit || ''} sp san pham`;
-                if (fuzzyMatch(val, searchText)) {
-                    matches.push({
-                        type: 'product',
-                        id: prod.id,
-                        name: prod.name,
-                        code: prod.code || '',
-                        unit: prod.unit || 'cái',
-                        cost: prod.cost_price || 0,
-                        stock: prod.stock || 0
-                    });
-                }
-            });
+            // Nếu nhà cung cấp đã có danh mục hàng hóa / nguyên liệu riêng
+            if (currentSupplierItems && currentSupplierItems.length > 0) {
+                currentSupplierItems.forEach(item => {
+                    const searchText = `${item.name} ${item.code || ''} ${item.unit || ''}`;
+                    if (fuzzyMatch(val, searchText)) {
+                        matches.push({
+                            type: item.item_type,
+                            id: item.id,
+                            name: item.name,
+                            code: item.code || '',
+                            unit: item.unit || 'cái',
+                            cost: item.cost_price || 0,
+                            stock: 0
+                        });
+                    }
+                });
+            } else {
+                // Fallback nếu NCC chưa có danh mục ràng buộc
+                (costIngredients || []).filter(i => i.type !== 'SERVICE').forEach(ing => {
+                    const searchText = `${ing.name} ${ing.code || ''} ${ing.unit || ''} nl nguyen lieu`;
+                    if (fuzzyMatch(val, searchText)) {
+                        matches.push({
+                            type: 'ingredient',
+                            id: ing.id,
+                            name: ing.name,
+                            code: ing.code || '',
+                            unit: ing.unit || 'đv',
+                            cost: ing.latest_cost || 0,
+                            stock: ing.total_stock || 0
+                        });
+                    }
+                });
+                (allProducts || []).filter(p => p.type !== 'service').forEach(prod => {
+                    const searchText = `${prod.name} ${prod.code || ''} ${prod.unit || ''} sp san pham`;
+                    if (fuzzyMatch(val, searchText)) {
+                        matches.push({
+                            type: 'product',
+                            id: prod.id,
+                            name: prod.name,
+                            code: prod.code || '',
+                            unit: prod.unit || 'cái',
+                            cost: prod.cost_price || 0,
+                            stock: prod.stock || 0
+                        });
+                    }
+                });
+            }
 
             if (matches.length === 0) {
                 resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy mặt hàng phù hợp</div>';

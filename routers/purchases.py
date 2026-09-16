@@ -6,6 +6,43 @@ from schemas import PurchaseCreate
 
 router = APIRouter(tags=["Purchases"])
 
+@router.get("/api/suppliers/{supplier_id}/items")
+def get_supplier_items(supplier_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    # Lấy danh sách sản phẩm/nguyên liệu cung cấp bởi supplier_id (DISTINCT)
+    cur.execute('''
+    SELECT DISTINCT si.item_type,
+           CASE 
+               WHEN si.item_type = 'product' THEN p.id 
+               ELSE i.id 
+           END as id,
+           CASE 
+               WHEN si.item_type = 'product' THEN p.code 
+               ELSE i.code 
+           END as code,
+           CASE 
+               WHEN si.item_type = 'product' THEN p.name 
+               ELSE i.name 
+           END as name,
+           CASE 
+               WHEN si.item_type = 'product' THEN p.unit 
+               ELSE i.unit 
+           END as unit,
+           CASE 
+               WHEN si.item_type = 'product' THEN p.cost_price 
+               ELSE 0.0 
+           END as cost_price
+    FROM supplier_items si
+    LEFT JOIN products p ON si.item_type = 'product' AND si.product_id = p.id
+    LEFT JOIN ingredients i ON si.item_type = 'ingredient' AND si.ingredient_id = i.id
+    WHERE si.supplier_id = ?
+    ORDER BY name ASC
+    ''', (supplier_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
 @router.get("/api/purchases")
 def list_purchases(limit: int = 50):
     conn = get_db()

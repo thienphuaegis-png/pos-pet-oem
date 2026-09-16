@@ -7,3 +7,6 @@
 2026-09-16 11:08:49,829 [INFO] httpx2: HTTP Request: POST http://testserver/api/contacts "HTTP/1.1 200 OK"
 2026-09-16 11:08:49,854 [INFO] httpx2: HTTP Request: GET http://testserver/api/contacts/2 "HTTP/1.1 200 OK"
 2026-09-16 11:08:49,882 [INFO] httpx2: HTTP Request: DELETE http://testserver/api/contacts/2 "HTTP/1.1 200 OK"
+2026-09-16 11:09:36,245 [INFO] httpx2: HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2026-09-16 11:09:36,257 [INFO] httpx2: HTTP Request: GET http://testserver/static/js/app.js "HTTP/1.1 200 OK"
+2026-09-16 11:09:36,267 [INFO] httpx2: HTTP Request: GET http://testserver/api/contacts?type=customer "HTTP/1.1 200 OK"
