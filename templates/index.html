@@ -1177,48 +1177,85 @@
                     <!-- VIEW SUB 2: LỊCH HẸN & HÓA ĐƠN DỊCH VỤ -->
                     <div id="pet-sub-view-services" class="space-y-3">
                         <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div class="inline-flex rounded-md shadow-sm text-xs">
-                                <button onclick="filterPetServices('all')" id="btn-svc-filter-all" class="px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow">Tất Cả</button>
-                                <button onclick="filterPetServices('pending')" id="btn-svc-filter-pending" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">⏳ Chờ</button>
-                                <button onclick="filterPetServices('in_progress')" id="btn-svc-filter-in_progress" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">🔄 Đang Làm</button>
-                                <button onclick="filterPetServices('completed')" id="btn-svc-filter-completed" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">✅ Xong</button>
-                                <button onclick="filterPetServices('checked_out')" id="btn-svc-filter-checked_out" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">🏠 Đã Về</button>
+                            <div class="flex items-center gap-3">
+                                <!-- Bộ chuyển chế độ xem -->
+                                <div class="inline-flex rounded-lg border bg-white shadow-sm text-xs">
+                                    <button onclick="switchSpaView('table')" id="btn-spa-view-table" class="px-3 py-1.5 font-bold rounded-l-lg bg-purple-700 text-white">📋 Bảng</button>
+                                    <button onclick="switchSpaView('kanban')" id="btn-spa-view-kanban" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l">📌 Kanban</button>
+                                    <button onclick="switchSpaView('calendar')" id="btn-spa-view-calendar" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l rounded-r-lg">📅 Lịch</button>
+                                </div>
+                                <!-- Bộ lọc trạng thái -->
+                                <div class="inline-flex rounded-md shadow-sm text-xs">
+                                    <button onclick="filterPetServices('all')" id="btn-svc-filter-all" class="px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow">Tất Cả</button>
+                                    <button onclick="filterPetServices('pending')" id="btn-svc-filter-pending" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">⏳ Chờ</button>
+                                    <button onclick="filterPetServices('in_progress')" id="btn-svc-filter-in_progress" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">🔄 Đang Làm</button>
+                                    <button onclick="filterPetServices('completed')" id="btn-svc-filter-completed" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">✅ Xong</button>
+                                    <button onclick="filterPetServices('checked_out')" id="btn-svc-filter-checked_out" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50">🏠 Đã Về</button>
+                                </div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <input type="text" id="search-pet-services" oninput="renderPetServicesTable()" placeholder="🔍 Tìm mã, khách, SĐT, bé, thợ..." class="border p-1.5 rounded text-xs bg-slate-50 w-64 focus:border-purple-500 outline-none">
                                 <button onclick="openCreateServiceTicketModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1">➕ Tạo Phiếu Dịch Vụ</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-xs border-collapse text-left whitespace-nowrap">
-                                <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[10px]">
+
+                        <!-- VIEW: BẢNG CHI TIẾT GOM CỤM (Mặc định) -->
+                        <div id="spa-view-table" class="overflow-x-auto">
+                            <table class="w-full text-[13px] border-collapse text-left">
+                                <thead class="bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[11px]">
                                     <tr>
-                                        <th class="p-2 text-center">STT</th>
-                                        <th class="p-2">Ngày</th>
-                                        <th class="p-2">Khách Hàng</th>
-                                        <th class="p-2">Số ĐT</th>
-                                        <th class="p-2 text-center">Gọi Điện</th>
-                                        <th class="p-2">Bé & Giống</th>
-                                        <th class="p-2 text-center">Màu & Giới Tính</th>
-                                        <th class="p-2 text-center">Cân Nặng</th>
-                                        <th class="p-2">Dịch Vụ & Nhuộm</th>
-                                        <th class="p-2 text-center">Trạng Thái</th>
-                                        <th class="p-2">Lưu Ý & Yêu Cầu</th>
-                                        <th class="p-2">Phụ Kiện & Ghi Chú</th>
-                                        <th class="p-2 text-right">Phụ Thu / Đ.Răng</th>
-                                        <th class="p-2 text-right">Tổng Tiền</th>
-                                        <th class="p-2 text-center">Thanh Toán</th>
-                                        <th class="p-2">Nhân Viên Làm (Thợ)</th>
-                                        <th class="p-2 text-center">Đến (Giờ/Cách)</th>
-                                        <th class="p-2 text-center">Về (Giờ/Cách)</th>
-                                        <th class="p-2 text-center">Thao Tác</th>
+                                        <!-- CỤM TRÁI: THỢ SPA -->
+                                        <th class="p-2.5 text-center border-r border-slate-200" title="Số thứ tự phiếu">#</th>
+                                        <th class="p-2.5" title="Tên khách & SĐT">Khách Hàng</th>
+                                        <th class="p-2.5 text-center" title="Trạng thái gọi điện">📞</th>
+                                        <th class="p-2.5" title="Tên bé, giống, màu, kg, giới tính">Thú Cưng & Thông Tin</th>
+                                        <th class="p-2.5" title="Gói dịch vụ chính + Nhuộm">Dịch Vụ</th>
+                                        <th class="p-2.5" title="Cạo bàn, yêu cầu cắt, phụ kiện">Lưu Ý & Yêu Cầu</th>
+                                        <th class="p-2.5" title="Thợ nhận, tắm, cắt, nhuộm">Thợ Phụ Trách</th>
+                                        <th class="p-2.5 text-center border-r-2 border-purple-300" title="Tiến độ làm việc">Trạng Thái</th>
+                                        <!-- CỤM PHẢI: THU NGÂN / BÁN HÀNG -->
+                                        <th class="p-2.5 text-right" title="Đánh răng, cắt NT, phụ thu, ship, tip">Phụ Thu</th>
+                                        <th class="p-2.5 text-right" title="Tổng tiền phải thu">💰 Tổng</th>
+                                        <th class="p-2.5 text-center" title="Đã thanh toán / Chưa">TT</th>
+                                        <th class="p-2.5 text-center" title="Giờ nhận & Giờ về">Đưa Đón</th>
+                                        <th class="p-2.5 text-center" title="Cập nhật, In, Xóa">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-pet-services" class="divide-y divide-gray-100">
-                                    <tr><td colspan="19" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
+                                    <tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- VIEW: KANBAN BOARD -->
+                        <div id="spa-view-kanban" class="hidden">
+                            <div class="grid grid-cols-4 gap-3" id="kanban-board">
+                                <div class="bg-amber-50 rounded-lg border-2 border-amber-200 p-3 min-h-[400px]">
+                                    <h4 class="font-bold text-amber-800 text-sm mb-2 flex items-center gap-1">⏳ Chờ Làm <span id="kanban-count-pending" class="bg-amber-200 text-amber-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
+                                    <div id="kanban-col-pending" class="space-y-2"></div>
+                                </div>
+                                <div class="bg-sky-50 rounded-lg border-2 border-sky-200 p-3 min-h-[400px]">
+                                    <h4 class="font-bold text-sky-800 text-sm mb-2 flex items-center gap-1">🔄 Đang Làm <span id="kanban-count-in_progress" class="bg-sky-200 text-sky-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
+                                    <div id="kanban-col-in_progress" class="space-y-2"></div>
+                                </div>
+                                <div class="bg-emerald-50 rounded-lg border-2 border-emerald-200 p-3 min-h-[400px]">
+                                    <h4 class="font-bold text-emerald-800 text-sm mb-2 flex items-center gap-1">✅ Xong (Chờ đón) <span id="kanban-count-completed" class="bg-emerald-200 text-emerald-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
+                                    <div id="kanban-col-completed" class="space-y-2"></div>
+                                </div>
+                                <div class="bg-purple-50 rounded-lg border-2 border-purple-200 p-3 min-h-[400px]">
+                                    <h4 class="font-bold text-purple-800 text-sm mb-2 flex items-center gap-1">🏠 Đã Về <span id="kanban-count-checked_out" class="bg-purple-200 text-purple-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
+                                    <div id="kanban-col-checked_out" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- VIEW: LỊCH HẸN THEO KHUNG GIỜ -->
+                        <div id="spa-view-calendar" class="hidden">
+                            <div class="bg-white rounded-lg border p-4 space-y-3" id="calendar-timeline">
+                                <div class="text-center text-gray-400 text-sm py-8">Đang tải lịch hẹn...</div>
+                            </div>
+                        </div>
+
                     </div>
                         </div>
                     </div>
