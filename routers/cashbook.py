@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException
 import datetime
 from database import get_db
 from schemas import CashbookCreate
+from logger_config import get_module_logger
+
+logger = get_module_logger("cashbook")
 
 router = APIRouter(tags=["Cashbook & Reports"])
 

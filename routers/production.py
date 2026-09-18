@@ -3,6 +3,9 @@ import datetime
 import time
 from database import get_db
 from schemas import ProductionCreate
+from logger_config import get_module_logger
+
+logger = get_module_logger("production")
 
 router = APIRouter(tags=["Production"])
 

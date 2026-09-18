@@ -1,0 +1,5 @@
+2026-09-16 16:00:10,874 [INFO] [pos]: Module pos logger initialized successfully
+2026-09-18 00:11:19,639 [WARNING] [pos]: GET /api/staff - Status: 404
+2026-09-18 00:11:19,651 [WARNING] [pos]: GET /api/staff - Status: 404
+2026-09-18 08:45:50,532 [WARNING] [pos]: GET /api/staff - Status: 404
+2026-09-18 08:45:50,542 [WARNING] [pos]: GET /api/staff - Status: 404

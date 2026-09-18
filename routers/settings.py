@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from database import get_db
 from schemas import CompanySettingsUpdate, TemplateSettingsUpdate
+from logger_config import get_module_logger
+
+logger = get_module_logger("settings")
 
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 

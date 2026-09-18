@@ -18,7 +18,7 @@
                 <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
                     <span>⚡ BẢN ĐỒ DỰ ÁN: POS OFFLINE PORTABLE</span>
                 </h1>
-                <p class="text-sm text-slate-500 mt-1">Hệ thống quản trị bán hàng & thiết kế mẫu in hóa đơn đa khổ giấy trên Windows</p>
+                <p class="text-sm text-slate-500 mt-1">Hệ thống quản trị bán hàng, gia công OEM & thiết kế mẫu in hóa đơn đa khổ giấy trên Windows</p>
             </div>
             <div class="flex items-center gap-3">
                 <button onclick="exportMarkdown()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow flex items-center gap-2">
@@ -36,19 +36,40 @@
                 </h2>
                 <div class="text-xs font-mono bg-slate-900 text-emerald-400 p-3.5 rounded-lg overflow-x-auto space-y-1">
                     <div>📁 pos-offline/</div>
-                    <div class="pl-3">├── 📄 chay_ngay.bat</div>
-                    <div class="pl-3">├── 📄 build_exe.bat</div>
-                    <div class="pl-3">├── 🐍 server.py (FastAPI API)</div>
-                    <div class="pl-3">├── 🐍 database.py (SQLite)</div>
-                    <div class="pl-3">├── 📁 data/</div>
-                    <div class="pl-6">└── 🗄️ pos.db</div>
+                    <div class="pl-3">├── 📄 chay_ngay.bat (Dọn cổng 8999 & khởi động)</div>
+                    <div class="pl-3">├── 📄 chia_se_online.bat (Cloudflare tunnel)</div>
+                    <div class="pl-3">├── 📄 build_exe.bat (Đóng gói PyInstaller)</div>
+                    <div class="pl-3">├── 🐍 main.py (Entrypoint Uvicorn)</div>
+                    <div class="pl-3">├── 🐍 server.py (FastAPI, 144 API routes)</div>
+                    <div class="pl-3">├── 🐍 database.py (Schema 35 bảng SQLite)</div>
+                    <div class="pl-3">├── 📁 routers/ (12 module nghiệp vụ)</div>
+                    <div class="pl-6">├── 🐍 pos.py (API bán hàng & đơn hàng)</div>
+                    <div class="pl-6">├── 🐍 products.py (Sản phẩm & Excel import/export)</div>
+                    <div class="pl-6">├── 🐍 inventory.py (Kho hợp nhất, kiểm kê, thẻ kho)</div>
+                    <div class="pl-6">├── 🐍 bom.py (Định mức NVL & sửa inline)</div>
+                    <div class="pl-6">├── 🐍 combos.py (Combo rã trừ kho & NVL BOM)</div>
+                    <div class="pl-6">├── 🐍 purchases.py (PO 2 bước, kiểm tay, nhận kho)</div>
+                    <div class="pl-6">├── 🐍 oem.py (Gia công xưởng, cọc, dòng tiền)</div>
+                    <div class="pl-6">├── 🐍 price_lists.py (Bảng giá & nhóm KH)</div>
+                    <div class="pl-6">├── 🐍 partners.py (KH, NCC, Thú cưng, Dịch vụ)</div>
+                    <div class="pl-6">├── 🐍 production.py (Lệnh sản xuất đa thành phẩm)</div>
+                    <div class="pl-6">├── 🐍 cashbook.py (Sổ quỹ đa quỹ & báo cáo)</div>
+                    <div class="pl-6">└── 🐍 settings.py (Cấu hình shop & mẫu in)</div>
+                    <div class="pl-3">├── 📁 static/</div>
+                    <div class="pl-6">├── 📄 app.js (SPA quản trị toàn diện)</div>
+                    <div class="pl-6">└── 📄 pos.js (Logic màn bán hàng chuyên dụng)</div>
                     <div class="pl-3">├── 📁 templates/</div>
-                    <div class="pl-6">└── 🌐 index.html (SPA Canvas)</div>
-                    <div class="pl-3">└── 📁 plans/ (9 tài liệu đặc tả)</div>
+                    <div class="pl-6">├── 🌐 index.html (Route / Quản trị & Canvas)</div>
+                    <div class="pl-6">└── 🌐 pos.html (Route /pos Màn thu ngân)</div>
+                    <div class="pl-3">├── 📁 data/</div>
+                    <div class="pl-6">└── 🗄️ pos.db (SQLite 35 bảng)</div>
+                    <div class="pl-3">├── 📁 plans/ (14 tài liệu đặc tả & plan)</div>
+                    <div class="pl-3">└── 📁 logs/ (pos_app.log & 12 file module)</div>
                 </div>
                 <div class="border-t pt-3 space-y-2 text-xs">
-                    <div class="flex justify-between"><span class="text-slate-500">Local URL:</span><a href="http://127.0.0.1:8989" target="_blank" class="text-sky-600 font-bold hover:underline">127.0.0.1:8989</a></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Database:</span><span class="font-mono text-slate-700">SQLite (Local)</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Quản trị URL:</span><a href="http://127.0.0.1:8999" target="_blank" class="text-sky-600 font-bold hover:underline">127.0.0.1:8999</a></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Màn hình POS:</span><a href="http://127.0.0.1:8999/pos" target="_blank" class="text-emerald-600 font-bold hover:underline">127.0.0.1:8999/pos</a></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Database:</span><span class="font-mono text-slate-700">SQLite (Local 35 bảng)</span></div>
                     <div class="flex justify-between"><span class="text-slate-500">Khổ giấy in:</span><span class="font-bold text-slate-700">K80, K58, A4, A5</span></div>
                 </div>
             </div>
@@ -61,112 +82,128 @@
                 </h2>
 
                 <div class="space-y-3 text-xs" id="task-list">
-                    <!-- Phân hệ Core -->
-                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded">📦 Phân Hệ Nghiệp Vụ Bán Hàng (POS Core)</div>
+                    <!-- Phân hệ Bán Hàng POS -->
+                    <div class="font-bold text-sky-700 bg-sky-50 p-1.5 rounded">🛒 Phân Hệ Bán Hàng & Thu Ngân (Nhúng Native SPA & Đa Tab Hóa Đơn)</div>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Bán hàng (POS Cart, chiết khấu, thanh toán, lưu đơn)</span>
+                        <span class="task-done">Nhúng màn hình POS trực tiếp vào tab Quản trị (SPA), tự động tràn viền không cuộn kép</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Quản lý hàng hóa, nguyên vật liệu & định mức BOM</span>
+                        <span class="task-done">Sắp xếp lại luồng Sidebar ưu tiên thu ngân: 🛒 Bán Hàng &rarr; 🐾 Dịch Vụ &rarr; 🧾 Hóa Đơn</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Nhập hàng, quản lý công nợ nhà cung cấp & khách hàng</span>
+                        <span class="task-done">Đa tab hóa đơn đồng thời (Hóa đơn 1, Hóa đơn 2...), phím tắt F1 tạo tab</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Sổ quỹ tiền mặt thu chi & Báo cáo doanh thu</span>
+                        <span class="task-done">Bảng sản phẩm giỏ hàng 12 cột (STT, Mã, Tên, ĐVT, SL tăng giảm [-][+], Đơn giá, Thành tiền)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Thông tin doanh nghiệp & QR Code VietQR động</span>
+                        <span class="task-done">Tìm kiếm hàng hóa thông minh (F3), barcode scanner tự động nhảy sản phẩm</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Bán Combo sản phẩm: tự rã tồn kho SP con và trừ NVL con theo BOM</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">In tạm tính (Draft Order) & In thanh toán chốt đơn theo mẫu được chọn (A4 B2B, K80)</span>
                     </label>
 
-                    <!-- Phân hệ In -->
-                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded mt-3">🎨 Phân Hệ Thiết Kế Mẫu In (Canvas Invoice Designer)</div>
+                    <!-- Phân hệ Gia Công OEM & Dòng Tiền -->
+                    <div class="font-bold text-amber-700 bg-amber-50 p-1.5 rounded mt-3">🏭 Phân Hệ Gia Công OEM & Quản Trị Dòng Tiền</div>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Lưu cấu hình độc lập theo từng khổ giấy (K80, K58, A4, A5)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
+                        <span class="task-done">Đặt hàng gia công xưởng OEM: Chọn sản phẩm, số lượng, % VAT, % CK, tự tính cọc 50%</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Cấu trúc 3 phân vùng riêng biệt (Header, Body bảng món, Footer)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
+                        <span class="task-done">Nhận hàng thực tế: Cập nhật SL thực nhận, quyết toán tiền đợt 2, tự trừ tem/vỏ chai kho xưởng theo BOM</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Hít canh chỉnh Snap-to-Grid (10px) và Snap-to-Elements (đường gióng đỏ)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
+                        <span class="task-done">Tự động cập nhật giá vốn thành phẩm sau khi nhận hàng OEM (tiền công ròng + tem + chai)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Kéo thả tự do trong vùng chia cột (2 cột, 3 cột thông tin tùy ý)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
+                        <span class="task-done">Dự báo dòng tiền chi theo 2 nguồn riêng biệt: 🏢 Quỹ Cty (Có VAT) vs 👤 Quỹ Cá Nhân (Ko VAT)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Tự động đẩy khối phía dưới (deltaY) khi bảng món co dãn nhiều dòng</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Đồng bộ tỷ lệ in thực tế theo pixel canvas (WYSIWYG Print Fix)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
+                        <span class="task-done">Tách biệt công nợ NCC theo nguồn tiền, ngăn cản cấn trừ nhầm quỹ thuế</span>
                     </label>
 
-                    <!-- Kế hoạch tương lai -->
-                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Tính Năng Vừa Hoàn Thành</div>
+                    <!-- Phân hệ Nhập Hàng & Bảng Giá -->
+                    <div class="font-bold text-emerald-700 bg-emerald-50 p-1.5 rounded mt-3">📥 Nhập Hàng (PO), Bảng Giá & Khách Hàng</div>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Mẫu hóa đơn A4 chuẩn đại lý/bán sỉ (bảng 9 cột, 3 ô chân trang, 3 chữ ký)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
+                        <span class="task-done">Quy trình PO 2 bước: Lập đơn chờ nhận → In phiếu kiểm tay → Xác nhận kiểm đếm thực nhận</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Quản lý nhiều mẫu in độc lập (Lưu đè / Lưu mẫu mới / Xóa / Chuyển đổi Preset)</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
+                        <span class="task-done">Bảng Giá Đa Cấp: Tạo bảng giá sỉ/lẻ, gán nhóm khách hàng, cài giá riêng từng SP + fallback giá lẻ</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Sidebar Bật/Tắt checkbox theo 3 phân vùng, tự ghim đúng vị trí không trôi nổi</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
+                        <span class="task-done">Tách danh bạ Đối Tác: Khách Hàng (kèm Thú Cưng) vs Nhà Cung Cấp (theo dõi nợ riêng)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Quản lý kho đa điểm: Tồn kho hợp nhất, Kiểm kê cân bằng tồn, Điều chuyển nội bộ, Thẻ kho</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Fuzzy search hàng hóa/nguyên liệu không dấu ("sữa sao" tìm ra "Sữa Hộp Ngôi Sao")</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Chuẩn hóa PO Nhập hàng: Chờ nhận hàng (pending), kiểm đếm thực nhận mới chốt kho & nợ NCC</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span class="task-done">Lệnh sản xuất BOM dạng bảng đa thành phẩm, tự tính nguyên liệu & trừ kho tự động</span>
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
+                        <span class="task-done">Import / Export Excel danh mục Hàng Hóa, Nguyên Liệu, BOM, Khách Hàng & NCC</span>
                     </label>
 
-                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Đang Triển Khai (Backlog)</div>
+                    <!-- Phân hệ Kho & In Ấn -->
+                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded mt-3">📦 Phân Hệ Kho Hàng & Canvas In Ấn</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
+                        <span class="task-done">Tồn kho hợp nhất 435 mặt hàng, Điều chuyển nội bộ, Kiểm kê cân bằng tồn, Thẻ kho</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
+                        <span class="task-done">Lệnh Sản Xuất đa thành phẩm theo định mức BOM, tự tính tổng NVL và trừ kho đồng loạt</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
+                        <span class="task-done">Mẫu in A4 B2B đại lý 9 cột, 3 ô chân trang (Bank, VietQR động, Tổng kết), 3 chữ ký</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
+                        <span class="task-done">Canvas Designer: Kéo thả tự do, snap-to-grid 10px, snap gióng đỏ, deltaY đẩy chân trang tự động</span>
+                    </label>
+
+                    <!-- Kế hoạch đang triển khai -->
+                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Tiếp Theo (Backlog)</div>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Chia module Backend (routers/) và Frontend (static/js/) để dễ bảo trì</span>
+                        <span>Hoàn thiện quy trình Hóa đơn Dịch vụ Pet Spa & Đặt lịch hẹn (`pet_service_tickets`)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Đóng gói file EXE độc lập (PyInstaller qua build_exe.bat)</span>
+                        <span>Đóng gói file EXE hoàn chỉnh (PyInstaller qua `build_exe.bat`) và test máy độc lập</span>
                     </label>
                 </div>
             </div>
         </div>
 
-        <!-- Lịch Sử Git Commit -->
+        <!-- Nhật Ký Commit -->
         <div class="bg-white rounded-xl shadow-sm border p-5 space-y-3">
             <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center gap-2">
-                <i class="fa-solid fa-code-commit text-indigo-500"></i> Lịch Sử Triển Khai Gần Nhất
+                <i class="fa-solid fa-code-commit text-indigo-500"></i> Nhật Ký Commit & Cập Nhật Gần Nhất
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">753a45b</span> Fix: Endpoint GET /api/bom trả về định lượng BOM</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">467e7f7</span> Feat: Fuzzy search, PO chờ nhận hàng, bảng lệnh sản xuất đa thành phẩm</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a4c92e1</span> Feat: Quản lý kho đa điểm, tồn kho tổng hợp, kiểm kê, chuyển kho, thẻ kho</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">fe2b8a1</span> Feat: Mẫu in A4 B2B đại lý 9 cột + Quản lý Presets mẫu in độc lập</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">cbca735</span> Fix: In thực tế chuẩn WYSIWYG theo pixel canvas</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">46408ef</span> Feat: Snap-to-grid 10px + snap gióng đỏ + kéo thả tự do 2-3 cột</div>
+                <div class="p-2 border rounded bg-emerald-50"><span class="font-mono font-bold text-emerald-700">FIX-POS</span> Fix: Khôi phục điều hướng nút Sidebar trỏ trực tiếp về route chuyên dụng `/pos`, dẹp bỏ tab-pos phôi cũ</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">OEM-CF</span> Feature: Hoàn thiện Router OEM gia công, trừ tem chai kho xưởng và dự báo dòng tiền 2 quỹ Cty/Cá nhân</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">PRICE-PETS</span> Feature: Bổ sung Bảng giá đa cấp, Phân nhóm KH, Hồ sơ Thú cưng và Import/Export Excel</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">e325689</span> Fix: Sửa lỗi tham số query kho hợp nhất & cập nhật kho</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">5ae1a4a</span> Feature: CRUD sản phẩm & nguyên liệu, modal xuất hủy kho, combo BOM</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">146af24</span> Fix: Kho hợp nhất hiển thị đầy đủ 435 mặt hàng và nhà cung cấp</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">9408b8d</span> Feature: Bổ sung cột nhà cung cấp cho sản phẩm, nguyên liệu và kho hợp nhất</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">467e7f7</span> Feature: Fuzzy search + PO chờ nhận + Lệnh SX đa thành phẩm BOM</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a4c92e1</span> Feature: Quản lý kho đa kho trọn gói + Tinh gọn sidebar sub-tabs</div>
+                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">fe2b8a1</span> Feature: Mẫu A4 B2B 9 cột + Quản lý Presets + Bật/Tắt 3 phân vùng</div>
             </div>
         </div>
     </div>

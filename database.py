@@ -56,6 +56,7 @@ def init_db():
         sell_price REAL DEFAULT 0, -- Gia ban
         stock REAL DEFAULT 0, -- Ton kho
         unit TEXT DEFAULT 'cái',
+        is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -369,6 +370,16 @@ def init_db():
     )''')
 
     # Migration productions cols neu thieu
+    cur.execute("PRAGMA table_info(products)")
+    prod_table_cols = [c[1] for c in cur.fetchall()]
+    if 'is_active' not in prod_table_cols:
+        cur.execute("ALTER TABLE products ADD COLUMN is_active INTEGER DEFAULT 1")
+
+    cur.execute("PRAGMA table_info(supplier_items)")
+    si_cols = [c[1] for c in cur.fetchall()]
+    if 'default_cost' not in si_cols:
+        cur.execute("ALTER TABLE supplier_items ADD COLUMN default_cost REAL DEFAULT 0")
+
     cur.execute("PRAGMA table_info(productions)")
     prod_cols = [c[1] for c in cur.fetchall()]
     if 'warehouse_id' not in prod_cols:
@@ -553,8 +564,184 @@ def init_db():
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('print_width', '72mm')")
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('print_padding', '5px')")
 
+    # 12. Combo sản phẩm (A + B = combo)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS combos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        sell_price REAL DEFAULT 0,
+        discount_percent REAL DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
 
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS combo_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        combo_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        price_at_time REAL DEFAULT 0,
+        FOREIGN KEY(combo_id) REFERENCES combos(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT,
+        UNIQUE(combo_id, product_id)
+    )''')
 
+    # 10. Bảng giá sản phẩm
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS price_lists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS product_price_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        price_list_id INTEGER NOT NULL,
+        price REAL NOT NULL DEFAULT 0,
+        min_qty REAL DEFAULT 1,
+        discount_percent REAL DEFAULT 0,
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY(price_list_id) REFERENCES price_lists(id) ON DELETE CASCADE,
+        UNIQUE(product_id, price_list_id)
+    )''')
+
+    # 11. Phân loại khách hàng
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS customer_segments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        discount_percent REAL DEFAULT 0,
+        priority INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Migration: thêm column segment_id vào contacts nếu chưa có
+    cur.execute("PRAGMA table_info(contacts)")
+    contact_cols = [c[1] for c in cur.fetchall()]
+    if "segment_id" not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN segment_id INTEGER DEFAULT NULL")
+
+    # Migration: thêm column is_oem và supplier_id vào warehouses nếu chưa có
+    cur.execute("PRAGMA table_info(warehouses)")
+    wh_cols = [c[1] for c in cur.fetchall()]
+    if "is_oem" not in wh_cols:
+        cur.execute("ALTER TABLE warehouses ADD COLUMN is_oem INTEGER DEFAULT 0")
+    if "supplier_id" not in wh_cols:
+        cur.execute("ALTER TABLE warehouses ADD COLUMN supplier_id INTEGER DEFAULT NULL")
+
+    # Migration: thêm column fund_source vào cashbook nếu chưa có ('COMPANY' hoặc 'PERSONAL')
+    cur.execute("PRAGMA table_info(cashbook)")
+    cb_cols = [c[1] for c in cur.fetchall()]
+    if "fund_source" not in cb_cols:
+        cur.execute("ALTER TABLE cashbook ADD COLUMN fund_source TEXT DEFAULT 'COMPANY'")
+
+    # Migration: thêm column price_list_id vào customer_segments nếu chưa có
+    cur.execute("PRAGMA table_info(customer_segments)")
+    seg_cols = [c[1] for c in cur.fetchall()]
+    if "price_list_id" not in seg_cols:
+        cur.execute("ALTER TABLE customer_segments ADD COLUMN price_list_id INTEGER DEFAULT NULL")
+
+    # Migration: thêm column fund_source vào purchases nếu chưa có
+    cur.execute("PRAGMA table_info(purchases)")
+    po_cols = [c[1] for c in cur.fetchall()]
+    if "fund_source" not in po_cols:
+        cur.execute("ALTER TABLE purchases ADD COLUMN fund_source TEXT DEFAULT 'PERSONAL'")
+
+    # Migration: thêm column actual_quantity vào purchase_items nếu chưa có
+    cur.execute("PRAGMA table_info(purchase_items)")
+    poi_cols = [c[1] for c in cur.fetchall()]
+    if "actual_quantity" not in poi_cols:
+        cur.execute("ALTER TABLE purchase_items ADD COLUMN actual_quantity REAL DEFAULT NULL")
+
+    # 12. Hồ sơ Thú Cưng (1 Khách Hàng - Nhiều Thú Cưng)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS pets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT DEFAULT 'Chó',
+        breed TEXT DEFAULT '',
+        color TEXT DEFAULT '',
+        weight REAL DEFAULT 0,
+        note TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(customer_id) REFERENCES contacts(id) ON DELETE CASCADE
+    )''')
+
+    # 12.1 Phiếu Dịch Vụ & Lịch Hẹn Thú Cưng
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS pet_service_tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        customer_id INTEGER NOT NULL,
+        pet_id INTEGER,
+        service_type TEXT NOT NULL,
+        appointment_time TEXT,
+        has_transport INTEGER DEFAULT 0,
+        transport_address TEXT DEFAULT '',
+        price REAL DEFAULT 0,
+        status TEXT DEFAULT 'pending',
+        note TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(customer_id) REFERENCES contacts(id) ON DELETE CASCADE,
+        FOREIGN KEY(pet_id) REFERENCES pets(id) ON DELETE SET NULL
+    )''')
+
+    # 13. Phân hệ Gia Công OEM
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS oem_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        partner_id INTEGER NOT NULL,
+        oem_warehouse_id INTEGER DEFAULT 1,
+        dest_warehouse_id INTEGER DEFAULT 1,
+        status TEXT DEFAULT 'DRAFT',
+        expected_delivery_date TEXT,
+        fund_source TEXT DEFAULT 'COMPANY',
+        vat_percent REAL DEFAULT 8.0,
+        discount_percent REAL DEFAULT 0.0,
+        deposit_amount REAL DEFAULT 0.0,
+        deposit_date TEXT,
+        total_raw_amount REAL DEFAULT 0.0,
+        total_final_amount REAL DEFAULT 0.0,
+        remaining_payment REAL DEFAULT 0.0,
+        payment_status TEXT DEFAULT 'UNPAID',
+        note TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(partner_id) REFERENCES contacts(id)
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS oem_order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        ordered_qty REAL NOT NULL DEFAULT 0,
+        received_qty REAL NOT NULL DEFAULT 0,
+        unit_price REAL NOT NULL DEFAULT 0,
+        final_unit_cost REAL NOT NULL DEFAULT 0,
+        full_cost_per_unit REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY(order_id) REFERENCES oem_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+    )''')
+
+    # Default data
+    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-BANLE', 'Giá Bán Lẻ', 'Giá bán lẻ mặc định')")
+    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-SI', 'Giá Sỉ', 'Giá sỉ cho đơn số lượng lớn')")
+    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-DL', 'Giá Đại Lý', 'Giá đại lý')")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('LE', 'Bán lẻ', 0, 1)")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('SI', 'Sỉ', 5, 2)")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('DL', 'Đại Lý', 10, 3)")
 
     # Tao tai khoan mac dinh neu chua co
     cur.execute("SELECT COUNT(*) FROM staff")

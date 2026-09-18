@@ -1,13 +1,40 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from typing import Optional
 import datetime
+import time
+import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 from database import get_db
 from schemas import (
     WarehouseCreate, WarehouseUpdate, IngredientCreate, IngredientUpdate,
     InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
 )
+from logger_config import get_module_logger
+
+logger = get_module_logger("inventory")
 
 router = APIRouter(tags=["Warehouses & Inventory"])
+
+def clean_num(val):
+    if val is None or val == "":
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).replace("đ", "").replace("₫", "").replace(" ", "").strip()
+    if "." in s and "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "." in s and len(s.split(".")[-1]) == 3:
+        s = s.replace(".", "")
+    elif "," in s and len(s.split(",")[-1]) == 3:
+        s = s.replace(",", "")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
 
 @router.get("/api/warehouses")
 def list_warehouses():
@@ -68,28 +95,52 @@ def delete_warehouse(warehouse_id: int):
 
 # --- 2. Ingredients (Nguyên liệu / Dịch vụ thành phần) ---
 @router.get("/api/ingredients")
-def list_ingredients():
+def list_ingredients(warehouse_id: Optional[int] = None):
     conn = get_db()
     cur = conn.cursor()
-    # Lấy thông tin kèm tổng tồn kho, giá nhập gần nhất và danh sách nhà cung cấp
-    query = '''
-    SELECT 
-        i.*,
-        COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) AS total_stock,
-        COALESCE(
-            (SELECT purchase_price FROM price_history ph 
-             WHERE ph.ingredient_id = i.id 
-             ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
-            0
-        ) AS latest_cost,
-        (SELECT GROUP_CONCAT(DISTINCT c.name) 
-         FROM supplier_items si 
-         JOIN contacts c ON si.supplier_id = c.id 
-         WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
-    FROM ingredients i
-    ORDER BY i.id DESC
-    '''
-    cur.execute(query)
+    
+    # Lấy thông tin kèm tồn kho: nếu chọn kho thì chỉ lấy nguyên liệu có trong kho đó; nếu tất cả kho thì lấy số liệu tổng
+    if warehouse_id:
+        query = '''
+        SELECT 
+            i.*,
+            COALESCE(inv.quantity, 0) AS total_stock,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph 
+                 WHERE ph.ingredient_id = i.id 
+                 ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+                0
+            ) AS latest_cost,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM inventory inv
+        JOIN ingredients i ON i.id = inv.ingredient_id
+        WHERE inv.warehouse_id = ?
+        ORDER BY i.id DESC
+        '''
+        cur.execute(query, (warehouse_id,))
+    else:
+        query = '''
+        SELECT 
+            i.*,
+            COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) AS total_stock,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph 
+                 WHERE ph.ingredient_id = i.id 
+                 ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+                0
+            ) AS latest_cost,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM ingredients i
+        ORDER BY i.id DESC
+        '''
+        cur.execute(query)
+
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -106,13 +157,18 @@ def create_ingredient(ing: IngredientCreate):
         )
         ing_id = cur.lastrowid
 
-        # Nếu là thành phần vật lý và có số lượng ban đầu -> tạo tồn kho
-        if ing.type == 'IS_PHYSICAL' and ing.initial_stock > 0:
+        # Nếu là thành phần vật lý -> tạo tồn kho
+        if ing.type == 'IS_PHYSICAL':
             wh_id = ing.warehouse_id or 1
             cur.execute(
-                "INSERT INTO inventory (warehouse_id, ingredient_id, quantity) VALUES (?, ?, ?)",
-                (wh_id, ing_id, ing.initial_stock)
+                "INSERT OR IGNORE INTO inventory (warehouse_id, ingredient_id, quantity) VALUES (?, ?, ?)",
+                (wh_id, ing_id, ing.initial_stock or 0)
             )
+            if ing.initial_stock and ing.initial_stock > 0:
+                cur.execute(
+                    "INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note) VALUES ('ingredient', ?, ?, 'ADJUST', ?, ?, 'Tồn kho ban đầu')",
+                    (ing_id, wh_id, ing.initial_stock, ing.initial_stock)
+                )
 
         # Lưu giá nhập ban đầu vào lịch sử nếu có
         if ing.initial_cost > 0:
@@ -128,6 +184,325 @@ def create_ingredient(ing: IngredientCreate):
     conn.close()
     return {"status": "ok", "id": ing_id, "code": code}
 
+@router.get("/api/ingredients/export-excel")
+@router.get("/api/ingredients/export")
+def export_ingredients(warehouse_id: Optional[int] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    if warehouse_id:
+        query = '''
+        SELECT 
+            i.id, i.code, i.name, i.unit, i.type,
+            COALESCE(inv.quantity, 0) AS stock,
+            w.name as warehouse_name,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph 
+                 WHERE ph.ingredient_id = i.id 
+                 ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+                0
+            ) AS latest_cost,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM inventory inv
+        JOIN ingredients i ON i.id = inv.ingredient_id
+        JOIN warehouses w ON w.id = inv.warehouse_id
+        WHERE inv.warehouse_id = ?
+        ORDER BY i.id DESC
+        '''
+        cur.execute(query, (warehouse_id,))
+    else:
+        query = '''
+        SELECT 
+            i.id, i.code, i.name, i.unit, i.type,
+            COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) AS stock,
+            'Tất cả kho' as warehouse_name,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph 
+                 WHERE ph.ingredient_id = i.id 
+                 ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+                0
+            ) AS latest_cost,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM ingredients i
+        ORDER BY i.id DESC
+        '''
+        cur.execute(query)
+
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Nguyen_Lieu_Ton_Kho"
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+
+    headers = [
+        "STT", "Mã nguyên liệu", "Tên nguyên liệu", "Phân loại",
+        "Đơn vị tính", "Tồn kho", "Giá nhập gần nhất (đ)", "Kho lưu trữ", "Nhà cung cấp"
+    ]
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+
+    for idx, r in enumerate(rows, 1):
+        type_str = "Dịch vụ" if r["type"] == "SERVICE" else "Vật lý"
+        ws.append([
+            idx,
+            r["code"] or "",
+            r["name"] or "",
+            type_str,
+            r["unit"] or "cái",
+            r["stock"] if r["type"] != "SERVICE" else "-",
+            r["latest_cost"] or 0,
+            r["warehouse_name"] or "Tất cả kho",
+            r["supplier_names"] or ""
+        ])
+
+    for row_idx in range(2, len(rows) + 2):
+        ws.cell(row=row_idx, column=1).alignment = align_center
+        ws.cell(row=row_idx, column=2).alignment = align_left
+        ws.cell(row=row_idx, column=4).alignment = align_center
+        ws.cell(row=row_idx, column=5).alignment = align_center
+        if ws.cell(row=row_idx, column=6).value != "-":
+            ws.cell(row=row_idx, column=6).number_format = "#,##0.##"
+        ws.cell(row=row_idx, column=7).number_format = "#,##0"
+        ws.cell(row=row_idx, column=8).alignment = align_left
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"Danh_Sach_Nguyen_Lieu_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+@router.get("/api/ingredients/template-excel")
+def get_ingredient_template_excel():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Mau_Import_Nguyen_Lieu"
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    align_center = Alignment(horizontal="center", vertical="center")
+
+    headers = [
+        "Mã nguyên liệu (để trống tự sinh)", "Tên nguyên liệu (*bắt buộc)", "Phân loại (Vật lý/Dịch vụ)",
+        "Đơn vị tính", "Tồn kho ban đầu", "Giá nhập ban đầu (đ)", "Nhà cung cấp"
+    ]
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+
+    sample_rows = [
+        ["NL001", "Hạt cà phê Robusta rang mộc", "Vật lý", "kg", 20, 140000, "NCC Nông sản Bến Tre"],
+        ["NL002", "Sữa đặc có đường", "Vật lý", "lon", 50, 18000, "Đại lý Vinamilk"],
+        ["DV001", "Công pha chế / sơ chế", "Dịch vụ", "giờ", 0, 30000, ""]
+    ]
+    for r in sample_rows:
+        ws.append(r)
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="Mau_Import_Nguyen_Lieu.xlsx"'}
+    )
+
+@router.post("/api/ingredients/import-excel")
+@router.post("/api/ingredients/import")
+async def import_ingredients_excel(file: UploadFile = File(...), warehouse_id: int = 1):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="File rỗng!")
+
+    rows = []
+    filename = file.filename.lower() if file.filename else ""
+    if filename.endswith(".csv"):
+        import csv
+        text = content.decode("utf-8-sig", errors="replace")
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+    else:
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            sheet = wb.active
+            rows = list(sheet.iter_rows(values_only=True))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
+
+    if len(rows) < 2:
+        raise HTTPException(status_code=400, detail="File không có dữ liệu nguyên liệu (yêu cầu tối thiểu 1 dòng tiêu đề và 1 dòng dữ liệu)")
+
+    header_row = [str(c or "").strip().lower() for c in rows[0]]
+
+    def find_col(aliases):
+        for idx, h in enumerate(header_row):
+            for a in aliases:
+                if a in h:
+                    return idx
+        return -1
+
+    idx_code = find_col(["mã", "code", "sku"])
+    idx_name = find_col(["tên", "name", "nguyên liệu", "vật tư"])
+    idx_type = find_col(["loại", "type", "phân loại"])
+    idx_unit = find_col(["đvt", "đơn vị", "unit"])
+    idx_stock = find_col(["tồn", "số lượng", "stock", "sl"])
+    idx_cost = find_col(["giá", "cost", "giá nhập", "vốn"])
+    idx_supp = find_col(["nhà cung cấp", "ncc", "supplier"])
+
+    if idx_name == -1:
+        if len(header_row) >= 2:
+            idx_code = 0
+            idx_name = 1
+        else:
+            raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Tên nguyên liệu' trong file!")
+
+    created_count = 0
+    updated_count = 0
+    errors = []
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    for row_idx, r in enumerate(rows[1:], start=2):
+        if not r or all(c is None or str(c).strip() == "" for c in r):
+            continue
+
+        name = str(r[idx_name] or "").strip() if idx_name < len(r) and r[idx_name] is not None else ""
+        if not name:
+            continue
+
+        code = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) and r[idx_code] is not None else ""
+        raw_type = str(r[idx_type] or "").strip().lower() if idx_type != -1 and idx_type < len(r) and r[idx_type] is not None else ""
+        item_type = "SERVICE" if ("dịch vụ" in raw_type or "service" in raw_type) else "IS_PHYSICAL"
+        unit = str(r[idx_unit] or "cái").strip() if idx_unit != -1 and idx_unit < len(r) and r[idx_unit] is not None else "cái"
+        stock_qty = clean_num(r[idx_stock]) if idx_stock != -1 and idx_stock < len(r) else 0.0
+        cost_price = clean_num(r[idx_cost]) if idx_cost != -1 and idx_cost < len(r) else 0.0
+        supplier_name = str(r[idx_supp] or "").strip() if idx_supp != -1 and idx_supp < len(r) and r[idx_supp] is not None else ""
+
+        try:
+            existing = None
+            if code:
+                cur.execute("SELECT id, code, name FROM ingredients WHERE code = ?", (code,))
+                existing = cur.fetchone()
+            if not existing and name:
+                cur.execute("SELECT id, code, name FROM ingredients WHERE name = ?", (name,))
+                existing = cur.fetchone()
+
+            if existing:
+                ing_id = existing["id"]
+                cur.execute("""
+                    UPDATE ingredients 
+                    SET name = ?, unit = ?, type = ?
+                    WHERE id = ?
+                """, (name, unit, item_type, ing_id))
+
+                if code and not existing["code"]:
+                    cur.execute("UPDATE ingredients SET code = ? WHERE id = ?", (code, ing_id))
+
+                if item_type == "IS_PHYSICAL" and stock_qty != 0:
+                    cur.execute("""
+                        INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, ing_id, stock_qty, stock_qty))
+
+                    cur.execute("""
+                        INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                        VALUES ('ingredient', ?, ?, 'ADJUST', ?, (SELECT quantity FROM inventory WHERE warehouse_id=? AND ingredient_id=?), 'Nhập từ file Excel')
+                    """, (ing_id, warehouse_id, stock_qty, warehouse_id, ing_id))
+
+                if cost_price > 0:
+                    cur.execute("INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, 'Nhập từ file Excel')", (ing_id, cost_price))
+
+                updated_count += 1
+            else:
+                if not code:
+                    code = f"NL-{int(time.time() * 1000) % 1000000:06d}"
+                cur.execute("""
+                    INSERT INTO ingredients (code, name, unit, type)
+                    VALUES (?, ?, ?, ?)
+                """, (code, name, unit, item_type))
+                ing_id = cur.lastrowid
+
+                if item_type == "IS_PHYSICAL":
+                    cur.execute("""
+                        INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    """, (warehouse_id, ing_id, stock_qty))
+
+                    if stock_qty != 0:
+                        cur.execute("""
+                            INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                            VALUES ('ingredient', ?, ?, 'ADJUST', ?, ?, 'Khởi tạo từ file Excel')
+                        """, (ing_id, warehouse_id, stock_qty, stock_qty))
+
+                if cost_price > 0:
+                    cur.execute("INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, 'Khởi tạo từ file Excel')", (ing_id, cost_price))
+
+                created_count += 1
+
+            if supplier_name:
+                cur.execute("SELECT id FROM contacts WHERE type = 'supplier' AND name = ?", (supplier_name,))
+                supp_row = cur.fetchone()
+                if supp_row:
+                    supp_id = supp_row["id"]
+                else:
+                    cur.execute("INSERT INTO contacts (type, name, debt) VALUES ('supplier', ?, 0)", (supplier_name,))
+                    supp_id = cur.lastrowid
+
+                cur.execute("""
+                    INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, ingredient_id, default_cost)
+                    VALUES (?, 'ingredient', ?, ?)
+                """, (supp_id, ing_id, cost_price))
+
+        except Exception as err:
+            errors.append(f"Dòng {row_idx} ({name}): {str(err)}")
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "created": created_count,
+        "updated": updated_count,
+        "total_processed": created_count + updated_count,
+        "errors": errors
+    }
+
 @router.put("/api/ingredients/{ingredient_id}")
 def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
     conn = get_db()
@@ -137,6 +512,15 @@ def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
             "UPDATE ingredients SET name = ?, unit = ?, type = ? WHERE id = ?",
             (ing.name, ing.unit, ing.type, ingredient_id)
         )
+        if ing.code:
+            cur.execute("UPDATE ingredients SET code = ? WHERE id = ?", (ing.code, ingredient_id))
+
+        if ing.latest_cost is not None and ing.latest_cost > 0:
+            cur.execute(
+                "INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, 'Cập nhật giá')",
+                (ingredient_id, ing.latest_cost)
+            )
+
         # Nếu đổi sang SERVICE thì xóa tồn kho
         if ing.type == 'SERVICE':
             cur.execute("DELETE FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
@@ -371,75 +755,131 @@ def get_warehouses_overview():
     return res
 
 @router.get("/api/inventory/unified")
-def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optional[str] = None, search: Optional[str] = None, low_stock: Optional[bool] = False):
+def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optional[str] = None, search: Optional[str] = None, low_stock: Optional[bool] = False, show_hidden: Optional[bool] = False):
     conn = get_db()
     cur = conn.cursor()
     
     params_p = []
-    where_p = ["p.type != 'service'"]
-    if warehouse_id:
-        where_p.append("w.id = ?")
-        params_p.append(warehouse_id)
-        params_p.append(warehouse_id)
-        
-    prod_sql = f'''
-    SELECT 
-        'product' as item_type,
-        p.id,
-        p.code,
-        p.name,
-        p.unit,
-        p.type as sub_type,
-        p.cost_price,
-        p.sell_price,
-        COALESCE(w.id, 1) as warehouse_id,
-        COALESCE(w.name, 'Kho Mặc Định') as warehouse_name,
-        COALESCE(pi.quantity, 0) as quantity,
-        COALESCE(pi.quantity * p.cost_price, 0) as total_value,
-        (SELECT GROUP_CONCAT(DISTINCT c.name) 
-         FROM supplier_items si 
-         JOIN contacts c ON si.supplier_id = c.id 
-         WHERE si.item_type = 'product' AND si.product_id = p.id) as supplier_names
-    FROM products p
-    LEFT JOIN warehouses w ON ({"w.id = ?" if warehouse_id else "w.id = 1"})
-    LEFT JOIN product_inventory pi ON pi.product_id = p.id AND pi.warehouse_id = COALESCE(w.id, 1)
-    WHERE {' AND '.join(where_p)}
-    '''
-    
+    where_p = []
+    if not show_hidden:
+        where_p.append("COALESCE(p.is_active, 1) = 1")
+    else:
+        where_p.append("COALESCE(p.is_active, 1) = 0")
+
     params_i = []
-    where_i = ["i.type = 'IS_PHYSICAL'"]
+    if show_hidden:
+        where_i = ["1 = 0"]
+    else:
+        where_i = ["i.type = 'IS_PHYSICAL'"]
+
     if warehouse_id:
-        where_i.append("w.id = ?")
+        # Chọn kho cụ thể: chỉ hiển thị sản phẩm và nguyên liệu có trong kho này
+        params_p.append(warehouse_id)
+        prod_sql = f'''
+        SELECT 
+            'product' as item_type,
+            p.id,
+            p.code,
+            p.name,
+            p.unit,
+            p.type as sub_type,
+            p.cost_price,
+            p.sell_price,
+            COALESCE(p.is_active, 1) as is_active,
+            w.id as warehouse_id,
+            w.name as warehouse_name,
+            pi.quantity as quantity,
+            COALESCE(pi.quantity * p.cost_price, 0) as total_value,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'product' AND si.product_id = p.id) as supplier_names
+        FROM product_inventory pi
+        JOIN products p ON p.id = pi.product_id
+        JOIN warehouses w ON w.id = pi.warehouse_id
+        WHERE pi.warehouse_id = ? AND {' AND '.join(where_p)}
+        '''
+
         params_i.append(warehouse_id)
-        params_i.append(warehouse_id)
-        
-    ing_sql = f'''
-    SELECT 
-        'ingredient' as item_type,
-        i.id,
-        i.code,
-        i.name,
-        i.unit,
-        i.type as sub_type,
-        COALESCE(
-            (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
-        ) as cost_price,
-        0 as sell_price,
-        COALESCE(w.id, 1) as warehouse_id,
-        COALESCE(w.name, 'Kho Mặc Định') as warehouse_name,
-        COALESCE(inv.quantity, 0) as quantity,
-        COALESCE(inv.quantity * COALESCE(
-            (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
-        ), 0) as total_value,
-        (SELECT GROUP_CONCAT(DISTINCT c.name) 
-         FROM supplier_items si 
-         JOIN contacts c ON si.supplier_id = c.id 
-         WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
-    FROM ingredients i
-    LEFT JOIN warehouses w ON ({"w.id = ?" if warehouse_id else "w.id = 1"})
-    LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = COALESCE(w.id, 1)
-    WHERE {' AND '.join(where_i)}
-    '''
+        ing_sql = f'''
+        SELECT 
+            'ingredient' as item_type,
+            i.id,
+            i.code,
+            i.name,
+            i.unit,
+            i.type as sub_type,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
+            ) as cost_price,
+            0 as sell_price,
+            1 as is_active,
+            w.id as warehouse_id,
+            w.name as warehouse_name,
+            inv.quantity as quantity,
+            COALESCE(inv.quantity * COALESCE(
+                (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
+            ), 0) as total_value,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM inventory inv
+        JOIN ingredients i ON i.id = inv.ingredient_id
+        JOIN warehouses w ON w.id = inv.warehouse_id
+        WHERE inv.warehouse_id = ? AND {' AND '.join(where_i)}
+        '''
+    else:
+        # Chọn tất cả kho: Hiển thị số liệu TỔNG hợp nhất của tất cả các kho
+        prod_sql = f'''
+        SELECT 
+            'product' as item_type,
+            p.id,
+            p.code,
+            p.name,
+            p.unit,
+            p.type as sub_type,
+            p.cost_price,
+            p.sell_price,
+            COALESCE(p.is_active, 1) as is_active,
+            0 as warehouse_id,
+            'Tất cả kho' as warehouse_name,
+            COALESCE((SELECT SUM(quantity) FROM product_inventory pi WHERE pi.product_id = p.id), 0) as quantity,
+            COALESCE((SELECT SUM(quantity) FROM product_inventory pi WHERE pi.product_id = p.id), 0) * p.cost_price as total_value,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'product' AND si.product_id = p.id) as supplier_names
+        FROM products p
+        WHERE {' AND '.join(where_p)}
+        '''
+
+        ing_sql = f'''
+        SELECT 
+            'ingredient' as item_type,
+            i.id,
+            i.code,
+            i.name,
+            i.unit,
+            i.type as sub_type,
+            COALESCE(
+                (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
+            ) as cost_price,
+            0 as sell_price,
+            1 as is_active,
+            0 as warehouse_id,
+            'Tất cả kho' as warehouse_name,
+            COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) as quantity,
+            COALESCE((SELECT SUM(quantity) FROM inventory inv WHERE inv.ingredient_id = i.id), 0) * COALESCE(
+                (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
+            ) as total_value,
+            (SELECT GROUP_CONCAT(DISTINCT c.name) 
+             FROM supplier_items si 
+             JOIN contacts c ON si.supplier_id = c.id 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+        FROM ingredients i
+        WHERE {' AND '.join(where_i)}
+        '''
     
     cur.execute(prod_sql, tuple(params_p))
     prod_rows = [dict(r) for r in cur.fetchall()]
@@ -450,8 +890,13 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     
     filtered = []
     for r in all_rows:
-        if item_type and item_type != "all" and r["item_type"] != item_type:
-            continue
+        if item_type and item_type != "all":
+            if item_type == "product" and (r["item_type"] != "product" or r["sub_type"] == "service"):
+                continue
+            elif item_type == "service" and (r["item_type"] != "product" or r["sub_type"] != "service"):
+                continue
+            elif item_type == "ingredient" and r["item_type"] != "ingredient":
+                continue
         if search:
             s = search.strip().lower()
             if s not in (r["name"] or "").lower() and s not in (r["code"] or "").lower():
