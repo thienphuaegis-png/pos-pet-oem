@@ -19,11 +19,13 @@ if __name__ == "__main__":
     print("="*50)
 
     from server import app
+    # reload chi dung khi dev (source .py), khong dung khi da dong goi .exe - tranh watcher loop khong len duoc server
+    is_frozen = getattr(sys, "frozen", False)
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
         port=8999,
-        reload=True,
+        reload=not is_frozen,
         reload_excludes=["*.log", "logs/*", "data/*", "*.db*", "*.db-wal", "*.db-shm", "backups/*"],
         log_level="error"
     )

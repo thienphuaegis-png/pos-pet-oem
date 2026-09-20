@@ -157,32 +157,97 @@
 
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
+
+<!-- ── LOGIN OVERLAY ── -->
+<div id="login-overlay" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 50%,#e0f2fe 100%);display:flex;align-items:center;justify-content:center">
+    <div style="width:360px;background:#fff;border-radius:16px;padding:36px 32px;box-shadow:0 4px 40px rgba(14,165,233,0.15);border:1px solid #bae6fd">
+        <div style="text-align:center;margin-bottom:28px">
+            <div style="font-size:2.5rem;line-height:1">⚡</div>
+            <div style="color:#0369a1;font-size:1.5rem;font-weight:800;margin-top:6px;letter-spacing:-0.5px">POS Offline</div>
+            <div style="color:#64748b;font-size:0.82rem;margin-top:4px">Đăng nhập để tiếp tục</div>
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Tên đăng nhập</label>
+            <input id="login-username" type="text" placeholder="username" autocomplete="username"
+                style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#cbd5e1'">
+        </div>
+        <div style="margin-bottom:22px">
+            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Mật khẩu</label>
+            <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"
+                style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
+                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#cbd5e1'">
+        </div>
+        <button onclick="handleLogin()" id="login-btn"
+            style="width:100%;padding:12px;background:linear-gradient(90deg,#0ea5e9,#0284c7);color:#fff;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.2px;box-shadow:0 2px 8px rgba(14,165,233,0.3);transition:opacity .15s"
+            onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+            Đăng Nhập
+        </button>
+        <p id="login-error" style="color:#dc2626;font-size:0.82rem;margin-top:10px;min-height:18px;text-align:center;font-weight:500"></p>
+    </div>
+</div>
+<div id="force-pwd-overlay" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 50%,#e0f2fe 100%);align-items:center;justify-content:center">
+    <div style="width:360px;background:#fff;border-radius:16px;padding:36px 32px;box-shadow:0 4px 40px rgba(14,165,233,0.15);border:1px solid #bae6fd">
+        <div style="text-align:center;margin-bottom:22px">
+            <div style="font-size:2.2rem;line-height:1">🔒</div>
+            <div style="color:#0369a1;font-size:1.15rem;font-weight:800;margin-top:6px">Đổi Mật Khẩu Lần Đầu</div>
+            <div style="color:#64748b;font-size:0.8rem;margin-top:4px">Vui lòng đặt mật khẩu mới trước khi tiếp tục</div>
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Mật khẩu hiện tại</label>
+            <input id="force-pwd-old" type="password" autocomplete="current-password"
+                style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;box-sizing:border-box;outline:none">
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Mật khẩu mới</label>
+            <input id="force-pwd-new" type="password" autocomplete="new-password"
+                style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;box-sizing:border-box;outline:none">
+        </div>
+        <button onclick="handleForceChangePassword()"
+            style="width:100%;padding:12px;background:linear-gradient(90deg,#0ea5e9,#0284c7);color:#fff;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer">
+            Đổi Mật Khẩu
+        </button>
+        <p id="force-pwd-error" style="color:#dc2626;font-size:0.82rem;margin-top:10px;min-height:18px;text-align:center;font-weight:500"></p>
+    </div>
+</div>
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <div class="w-64 bg-slate-900 text-white flex flex-col justify-between">
             <div>
                 <div class="p-4 border-b border-slate-800 flex items-center gap-2">
-                    <span class="text-xl font-bold text-sky-400">⚡ POS Offline</span>
+                    <span id="sidebar-app-name" class="text-xl font-bold text-sky-400">⚡ POS Offline</span>
                 </div>
                 <nav class="p-2 space-y-1">
-                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between bg-sky-600 hover:bg-sky-500 text-white font-bold mb-2 shadow transition active-tab" data-tab="pos">
+                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between bg-sky-600 hover:bg-sky-500 text-white font-bold mb-2 shadow transition active-tab" data-tab="pos" data-role="cashier,owner">
                         <span class="flex items-center gap-2">🛒 Bán Hàng (POS)</span>
                         <span class="text-[10px] bg-sky-700 px-1.5 py-0.5 rounded font-mono">BÁN</span>
                     </button>
-                    <button onclick="switchTab('pet-services')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-pink-400 font-semibold" data-tab="pet-services">🐾 Dịch Vụ & Thú Cưng</button>
-                    <button onclick="switchTab('orders')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-slate-300 font-semibold" data-tab="orders">🧾 Hóa Đơn</button>
-                    <button onclick="switchTab('price-lists')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-emerald-400 font-semibold" data-tab="price-lists">🏷️ Bảng Giá</button>
-                    <button onclick="switchTab('inventory')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-sky-400 font-semibold" data-tab="inventory">📦 Hàng Hóa & Kho</button>
-                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="purchases">📥 Nhập Hàng</button>
-                    <button onclick="switchTab('oem')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-amber-400 font-semibold" data-tab="oem">🏭 Gia Công OEM</button>
-                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="contacts">👥 Khách Hàng & Đối Tác</button>
-                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="cashbook">💰 Sổ Quỹ Thu Chi</button>
-                    <button onclick="switchTab('cashflow-debts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-yellow-400 font-semibold" data-tab="cashflow-debts">📊 Dòng Tiền & Nợ NCC</button>
-                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="reports">📈 Báo Cáo Tổng Hợp</button>
-                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="settings">⚙️ Cài Đặt Hệ Thống</button>
+                    <button onclick="switchTab('pet-services')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-pink-400 font-semibold" data-tab="pet-services" data-role="cashier,owner" data-module="module_pet_services">🐾 Dịch Vụ & Thú Cưng</button>
+                    <button onclick="switchTab('orders')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-slate-300 font-semibold" data-tab="orders" data-role="cashier,accountant,owner">🧾 Hóa Đơn</button>
+                    <button onclick="switchTab('price-lists')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-emerald-400 font-semibold" data-tab="price-lists" data-role="owner,accountant" data-module="module_price_lists">🏷️ Bảng Giá</button>
+                    <button onclick="switchTab('inventory')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-sky-400 font-semibold" data-tab="inventory" data-role="warehouse,owner,cashier">📦 Hàng Hóa & Kho</button>
+                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="purchases" data-role="warehouse,owner">📥 Nhập Hàng</button>
+                    <button onclick="switchTab('oem')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-amber-400 font-semibold" data-tab="oem" data-role="warehouse,owner" data-module="module_oem">🏭 Gia Công OEM</button>
+                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="contacts" data-role="owner,accountant">👥 Khách Hàng & Đối Tác</button>
+                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="cashbook" data-role="accountant,owner">💰 Sổ Quỹ Thu Chi</button>
+                    <button onclick="switchTab('cashflow-debts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-yellow-400 font-semibold" data-tab="cashflow-debts" data-role="accountant,owner">📊 Dòng Tiền & Nợ NCC</button>
+                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="reports" data-role="accountant,owner">📈 Báo Cáo Tổng Hợp</button>
+                    <button onclick="switchTab('shifts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-cyan-400 font-semibold" data-tab="shifts" data-role="accountant,owner">🕒 Ca Làm Việc</button>
+                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="settings" data-role="owner">⚙️ Cài Đặt Hệ Thống</button>
                 </nav>
             </div>
             <div class="p-4 text-xs text-slate-400 border-t border-slate-800">
+                <!-- User info + shift controls -->
+                <div id="sidebar-user-info" class="mb-3 text-slate-200">
+                    <div class="font-semibold text-sm" id="header-username">—</div>
+                    <div class="text-xs mt-0.5" id="header-role-badge"></div>
+                    <div class="text-xs mt-1 text-yellow-300" id="header-shift-status"></div>
+                    <div class="flex gap-2 mt-2">
+                        <button id="btn-open-shift" onclick="openShiftModal()" class="flex-1 text-xs bg-green-700 hover:bg-green-600 text-white px-2 py-1 rounded">▶ Mở Ca</button>
+                        <button id="btn-close-shift" onclick="closeShiftModal()" class="flex-1 text-xs bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded" style="display:none">⏹ Kết Ca</button>
+                    </div>
+                    <button onclick="handleLogout()" class="w-full mt-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded">🚪 Đăng Xuất</button>
+                </div>
                 Chế độ Offline 100%<br>Dữ liệu: SQLite Local
             </div>
         </div>
@@ -191,7 +256,16 @@
         <div id="main-content-area" class="flex-1 overflow-hidden p-0 flex flex-col">
             
             <!-- TAB: BAN HANG (POS) -->
-            <div id="tab-pos" class="h-full w-full flex flex-col overflow-hidden select-none bg-slate-100">
+            <div id="tab-pos" class="h-full w-full flex flex-col overflow-hidden select-none bg-slate-100 relative">
+                <!-- Overlay chan ban hang khi chua mo ca -->
+                <div id="pos-shift-lock-overlay" class="hidden absolute inset-0 z-50 bg-slate-900/90 flex flex-col items-center justify-center gap-4 text-white">
+                    <div class="text-6xl">🔒</div>
+                    <div class="text-xl font-semibold">Chưa mở ca làm việc</div>
+                    <div class="text-sm text-slate-300">Vui lòng mở ca trước khi bán hàng</div>
+                    <button onclick="openShiftModal()" class="mt-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-semibold text-base">
+                        Mở ca ngay
+                    </button>
+                </div>
 <!-- ==================== TOP NAVIGATION BAR ==================== -->
     <header class="bg-white border-b border-slate-200 h-14 px-4 flex items-center justify-between gap-3 shrink-0 shadow-sm z-30">
         
@@ -331,7 +405,10 @@
                     <!-- Selected Customer Info Card -->
                     <div id="selected-customer-card" class="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                         <div>
-                            <div class="font-bold text-slate-800" id="cust-name-display">Khách lẻ</div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-slate-800" id="cust-name-display">Khách lẻ</span>
+                                <span id="cust-segment-badge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700"></span>
+                            </div>
                             <div class="text-[11px] text-slate-400" id="cust-phone-display">Không SĐT</div>
                         </div>
                         <div class="flex items-center gap-1">
@@ -403,6 +480,15 @@
                             <button type="button" onclick="setPaymentMethod('card')" id="pay-method-card" class="pay-method-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">Thẻ</button>
                             <button type="button" onclick="setPaymentMethod('wallet')" id="pay-method-wallet" class="pay-method-btn py-1.5 text-center text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">Ví điện tử</button>
                         </div>
+                    </div>
+
+                    <!-- Chọn Tài Khoản Ngân Hàng / Thụ Hưởng (khi chuyển khoản hoặc thẻ) -->
+                    <div id="pos-bank-account-box" class="hidden pt-1">
+                        <div class="text-[11px] font-bold text-sky-700 mb-1 flex items-center justify-between">
+                            <span>🏦 Tài khoản nhận tiền (*):</span>
+                        </div>
+                        <select id="pos-bank-account-select" onchange="onPosBankAccountChange(this.value)" class="w-full border border-sky-300 bg-sky-50/50 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        </select>
                     </div>
 
                     <!-- Nút tiền gợi ý nhanh (Quick cash buttons) -->
@@ -483,6 +569,130 @@
             </div>
             
             <!-- TAB: QUẢN LÝ HÀNG HÓA & KHO HÀNG (CONSOLIDATED) -->
+    <!-- TAB: BẢNG GIÁ -->
+    <div id="tab-price-lists" class="hidden space-y-4">
+        <!-- Sub-tabs Navigation -->
+        <div class="flex border-b border-slate-200 gap-4 bg-white px-4 pt-3 rounded-t-lg shadow-sm">
+            <button id="btn-subtab-pl-matrix" onclick="switchPriceListSubTab('matrix')" class="px-4 py-2.5 text-sm font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-2 transition">
+                <i class="fa-solid fa-tags"></i> 🏷️ Bảng Giá & Ma Trận Giá SP
+            </button>
+            <button id="btn-subtab-pl-segments" onclick="switchPriceListSubTab('segments')" class="px-4 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition">
+                <i class="fa-solid fa-users"></i> 👥 Phân Nhóm Khách Hàng
+            </button>
+        </div>
+
+        <!-- SUBTAB 1: BẢNG GIÁ & MA TRẬN GIÁ SP -->
+        <div id="pl-subtab-matrix" class="space-y-4">
+            <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Quản Lý Bảng Giá</h2>
+                    <p class="text-xs text-slate-500">Tạo các bảng giá sỉ, đại lý, VIP để áp dụng giá riêng cho từng nhóm khách</p>
+                </div>
+                <button onclick="openPriceListModal()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-plus"></i> Tạo Bảng Giá Mới
+                </button>
+            </div>
+
+            <!-- Bảng danh sách giá -->
+            <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 border-b text-slate-600">
+                            <tr>
+                                <th class="p-3">Mã Bảng Giá</th>
+                                <th class="p-3">Tên Bảng Giá</th>
+                                <th class="p-3">Mô Tả</th>
+                                <th class="p-3 text-center">Số SP Có Giá Riêng</th>
+                                <th class="p-3 text-center">Trạng Thái</th>
+                                <th class="p-3 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="price-lists-tbody">
+                            <tr><td colspan="6" class="p-6 text-center text-gray-400">Đang tải...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bảng gán giá sản phẩm (Ma Trận Cài Giá Đa Cấp) -->
+            <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-800">Cài Đặt Giá Sản Phẩm Theo Bảng Giá</h3>
+                        <p class="text-[11px] text-gray-500">Sản phẩm nào <strong>không cài giá riêng</strong> sẽ tự động lấy <strong>Giá Bán Lẻ Mặc Định</strong>.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <div class="flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded border border-sky-200">
+                            <span class="text-xs text-sky-800 font-bold">⚡ Giảm nhanh:</span>
+                            <input type="number" id="bulk-discount-pct" placeholder="%" min="0" max="100" class="w-14 p-1 border rounded text-xs text-center font-bold bg-white" value="15">
+                            <span class="text-xs font-bold text-sky-800">%</span>
+                            <button onclick="applyBulkDiscountToActivePriceList()" class="px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold shadow-sm transition">Áp Dụng</button>
+                        </div>
+                        <div class="h-6 w-px bg-slate-300"></div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-xs font-bold text-slate-700">Bảng Giá:</label>
+                            <select id="pl-select-price-list" class="border p-1.5 rounded text-xs font-bold bg-white text-sky-800 min-w-[180px] shadow-sm"></select>
+                            <input type="text" id="pl-matrix-search" oninput="debounceLoadPriceMatrix()" placeholder="🔍 Tìm kiếm sản phẩm..." class="border p-1.5 rounded text-xs w-48 shadow-sm">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto max-h-[520px]">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 border-b text-slate-700 sticky top-0 uppercase text-[11px] z-10">
+                            <tr>
+                                <th class="p-2.5">Mã SP</th>
+                                <th class="p-2.5">Tên Sản Phẩm</th>
+                                <th class="p-2.5 text-center">ĐVT</th>
+                                <th class="p-2.5 text-right">Giá Lẻ Mặc Định</th>
+                                <th class="p-2.5 text-right w-44">Giá Riêng Theo Bảng</th>
+                                <th class="p-2.5 text-center">Trạng Thái Giá</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-prices-tbody" class="divide-y divide-gray-100">
+                            <tr><td colspan="7" class="p-6 text-center text-gray-400">Chọn bảng giá phía trên để xem ma trận giá</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUBTAB 2: PHÂN NHÓM KHÁCH HÀNG -->
+        <div id="pl-subtab-segments" class="hidden space-y-4">
+            <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800">Phân Nhóm Khách Hàng & Gán Bảng Giá</h3>
+                        <p class="text-xs text-gray-500">Mỗi nhóm khách hàng được gán vào 1 bảng giá để tự động áp giá ưu đãi khi lên đơn tại quầy POS</p>
+                    </div>
+                    <button onclick="openSegmentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs shadow flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus"></i> Thêm Nhóm KH Mới
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px]">
+                            <tr>
+                                <th class="p-2.5">Mã Nhóm</th>
+                                <th class="p-2.5">Tên Nhóm Khách Hàng</th>
+                                <th class="p-2.5">Bảng Giá Áp Dụng</th>
+                                <th class="p-2.5 text-center">Số Lượng KH</th>
+                                <th class="p-2.5 text-right">Chiết Khấu %</th>
+                                <th class="p-2.5 text-center">Ưu Tiên</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="segments-tbody" class="divide-y divide-gray-100">
+                            <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải danh sách nhóm...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
             <div id="tab-inventory" class="hidden space-y-4">
                 <!-- Thanh điều hướng Tab con (Sub-tabs) -->
                 <div class="flex flex-wrap items-center justify-between bg-white p-2.5 rounded-lg shadow-sm border gap-2">
@@ -1181,8 +1391,7 @@
                                 <!-- Bộ chuyển chế độ xem -->
                                 <div class="inline-flex rounded-lg border bg-white shadow-sm text-xs">
                                     <button onclick="switchSpaView('table')" id="btn-spa-view-table" class="px-3 py-1.5 font-bold rounded-l-lg bg-purple-700 text-white">📋 Bảng</button>
-                                    <button onclick="switchSpaView('kanban')" id="btn-spa-view-kanban" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l">📌 Kanban</button>
-                                    <button onclick="switchSpaView('calendar')" id="btn-spa-view-calendar" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l rounded-r-lg">📅 Lịch</button>
+                                    <button onclick="switchSpaView('kanban')" id="btn-spa-view-kanban" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l rounded-r-lg">📌 Kanban</button>
                                 </div>
                                 <!-- Bộ lọc trạng thái -->
                                 <div class="inline-flex rounded-md shadow-sm text-xs">
@@ -1194,70 +1403,73 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <input type="text" id="search-pet-services" oninput="renderPetServicesTable()" placeholder="🔍 Tìm mã, khách, SĐT, bé, thợ..." class="border p-1.5 rounded text-xs bg-slate-50 w-64 focus:border-purple-500 outline-none">
+                                <input type="text" id="search-pet-services" oninput="renderActiveSpaView()" placeholder="🔍 Tìm mã, khách, SĐT, bé, thợ..." class="border p-1.5 rounded text-xs bg-slate-50 w-64 focus:border-purple-500 outline-none">
                                 <button onclick="openCreateServiceTicketModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1">➕ Tạo Phiếu Dịch Vụ</button>
                             </div>
                         </div>
 
                         <!-- VIEW: BẢNG CHI TIẾT GOM CỤM (Mặc định) -->
-                        <div id="spa-view-table" class="overflow-x-auto">
-                            <table class="w-full text-[13px] border-collapse text-left">
-                                <thead class="bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[11px]">
+                        <div id="spa-view-table" class="overflow-x-auto rounded-lg border border-slate-200">
+                            <table class="w-full min-w-[1350px] text-[13px] border-collapse text-left">
+                                <thead class="bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[11px] tracking-wide">
                                     <tr>
                                         <!-- CỤM TRÁI: THỢ SPA -->
-                                        <th class="p-2.5 text-center border-r border-slate-200" title="Số thứ tự phiếu">#</th>
-                                        <th class="p-2.5" title="Tên khách & SĐT">Khách Hàng</th>
-                                        <th class="p-2.5 text-center" title="Trạng thái gọi điện">📞</th>
-                                        <th class="p-2.5" title="Tên bé, giống, màu, kg, giới tính">Thú Cưng & Thông Tin</th>
-                                        <th class="p-2.5" title="Gói dịch vụ chính + Nhuộm">Dịch Vụ</th>
-                                        <th class="p-2.5" title="Cạo bàn, yêu cầu cắt, phụ kiện">Lưu Ý & Yêu Cầu</th>
-                                        <th class="p-2.5" title="Thợ nhận, tắm, cắt, nhuộm">Thợ Phụ Trách</th>
-                                        <th class="p-2.5 text-center border-r-2 border-purple-300" title="Tiến độ làm việc">Trạng Thái</th>
+                                        <th class="p-3 text-center border-r border-slate-200 w-16" title="Số thứ tự phiếu">#</th>
+                                        <th class="p-3 min-w-[130px]" title="Tên khách & SĐT">Khách Hàng</th>
+                                        <th class="p-3 text-center min-w-[110px]" title="Trạng thái gọi điện">📞 Gọi Điện</th>
+                                        <th class="p-3 min-w-[160px]" title="Tên bé, giống, màu, kg, giới tính">Thú Cưng & Thông Tin</th>
+                                        <th class="p-3 min-w-[140px]" title="Gói dịch vụ chính + Nhuộm">Dịch Vụ</th>
+                                        <th class="p-3 min-w-[160px]" title="Cạo bàn, yêu cầu cắt, phụ kiện">Lưu Ý & Yêu Cầu</th>
+                                        <th class="p-3 min-w-[130px]" title="Thợ nhận, tắm, cắt, nhuộm">Thợ Phụ Trách</th>
+                                        <th class="p-3 text-center border-r-2 border-purple-300 min-w-[105px]" title="Tiến độ làm việc">Trạng Thái</th>
                                         <!-- CỤM PHẢI: THU NGÂN / BÁN HÀNG -->
-                                        <th class="p-2.5 text-right" title="Đánh răng, cắt NT, phụ thu, ship, tip">Phụ Thu</th>
-                                        <th class="p-2.5 text-right" title="Tổng tiền phải thu">💰 Tổng</th>
-                                        <th class="p-2.5 text-center" title="Đã thanh toán / Chưa">TT</th>
-                                        <th class="p-2.5 text-center" title="Giờ nhận & Giờ về">Đưa Đón</th>
-                                        <th class="p-2.5 text-center" title="Cập nhật, In, Xóa">Thao Tác</th>
+                                        <th class="p-3 text-right min-w-[110px]" title="Đánh răng, cắt NT, phụ thu, ship, tip">Phụ Thu</th>
+                                        <th class="p-3 text-right min-w-[95px]" title="Tổng tiền phải thu">💰 Tổng</th>
+                                        <th class="p-3 text-center min-w-[70px]" title="Đã thanh toán / Chưa">TT</th>
+                                        <th class="p-3 text-center min-w-[140px]" title="Giờ nhận & Giờ về">Đưa Đón</th>
+                                        <th class="p-3 text-center min-w-[140px]" title="Cập nhật, In, Xóa">Thao Tác</th>
                                     </tr>
                                 </thead>
-                                <tbody id="table-pet-services" class="divide-y divide-gray-100">
-                                    <tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
+                                <tbody id="table-pet-services" class="divide-y divide-slate-100 bg-white">
+                                    <tr><td colspan="13" class="p-8 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
                                 </tbody>
                             </table>
                         </div>
 
                         <!-- VIEW: KANBAN BOARD -->
                         <div id="spa-view-kanban" class="hidden">
-                            <div class="grid grid-cols-4 gap-3" id="kanban-board">
-                                <div class="bg-amber-50 rounded-lg border-2 border-amber-200 p-3 min-h-[400px]">
-                                    <h4 class="font-bold text-amber-800 text-sm mb-2 flex items-center gap-1">⏳ Chờ Làm <span id="kanban-count-pending" class="bg-amber-200 text-amber-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
-                                    <div id="kanban-col-pending" class="space-y-2"></div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanban-board">
+                                <div class="bg-amber-50/70 rounded-xl border-2 border-amber-200 p-3.5 min-h-[500px] flex flex-col">
+                                    <h4 class="font-bold text-amber-900 text-sm mb-3 flex items-center gap-1.5 pb-2 border-b border-amber-200">
+                                        <span>⏳ Chờ Làm</span> 
+                                        <span id="kanban-count-pending" class="bg-amber-200 text-amber-900 text-xs px-2 py-0.5 rounded-full font-black ml-auto">0</span>
+                                    </h4>
+                                    <div id="kanban-col-pending" class="space-y-3 flex-1"></div>
                                 </div>
-                                <div class="bg-sky-50 rounded-lg border-2 border-sky-200 p-3 min-h-[400px]">
-                                    <h4 class="font-bold text-sky-800 text-sm mb-2 flex items-center gap-1">🔄 Đang Làm <span id="kanban-count-in_progress" class="bg-sky-200 text-sky-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
-                                    <div id="kanban-col-in_progress" class="space-y-2"></div>
+                                <div class="bg-sky-50/70 rounded-xl border-2 border-sky-200 p-3.5 min-h-[500px] flex flex-col">
+                                    <h4 class="font-bold text-sky-900 text-sm mb-3 flex items-center gap-1.5 pb-2 border-b border-sky-200">
+                                        <span>🔄 Đang Làm</span> 
+                                        <span id="kanban-count-in_progress" class="bg-sky-200 text-sky-900 text-xs px-2 py-0.5 rounded-full font-black ml-auto">0</span>
+                                    </h4>
+                                    <div id="kanban-col-in_progress" class="space-y-3 flex-1"></div>
                                 </div>
-                                <div class="bg-emerald-50 rounded-lg border-2 border-emerald-200 p-3 min-h-[400px]">
-                                    <h4 class="font-bold text-emerald-800 text-sm mb-2 flex items-center gap-1">✅ Xong (Chờ đón) <span id="kanban-count-completed" class="bg-emerald-200 text-emerald-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
-                                    <div id="kanban-col-completed" class="space-y-2"></div>
+                                <div class="bg-emerald-50/70 rounded-xl border-2 border-emerald-200 p-3.5 min-h-[500px] flex flex-col">
+                                    <h4 class="font-bold text-emerald-900 text-sm mb-3 flex items-center gap-1.5 pb-2 border-b border-emerald-200">
+                                        <span>✅ Xong (Chờ đón)</span> 
+                                        <span id="kanban-count-completed" class="bg-emerald-200 text-emerald-900 text-xs px-2 py-0.5 rounded-full font-black ml-auto">0</span>
+                                    </h4>
+                                    <div id="kanban-col-completed" class="space-y-3 flex-1"></div>
                                 </div>
-                                <div class="bg-purple-50 rounded-lg border-2 border-purple-200 p-3 min-h-[400px]">
-                                    <h4 class="font-bold text-purple-800 text-sm mb-2 flex items-center gap-1">🏠 Đã Về <span id="kanban-count-checked_out" class="bg-purple-200 text-purple-900 text-[11px] px-1.5 rounded-full ml-auto">0</span></h4>
-                                    <div id="kanban-col-checked_out" class="space-y-2"></div>
+                                <div class="bg-purple-50/70 rounded-xl border-2 border-purple-200 p-3.5 min-h-[500px] flex flex-col">
+                                    <h4 class="font-bold text-purple-900 text-sm mb-3 flex items-center gap-1.5 pb-2 border-b border-purple-200">
+                                        <span>🏠 Đã Về</span> 
+                                        <span id="kanban-count-checked_out" class="bg-purple-200 text-purple-900 text-xs px-2 py-0.5 rounded-full font-black ml-auto">0</span>
+                                    </h4>
+                                    <div id="kanban-col-checked_out" class="space-y-3 flex-1"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- VIEW: LỊCH HẸN THEO KHUNG GIỜ -->
-                        <div id="spa-view-calendar" class="hidden">
-                            <div class="bg-white rounded-lg border p-4 space-y-3" id="calendar-timeline">
-                                <div class="text-center text-gray-400 text-sm py-8">Đang tải lịch hẹn...</div>
-                            </div>
-                        </div>
-
-                    </div>
-                        </div>
                     </div>
 
                     <!-- VIEW SUB 3: BẢNG GIÁ DỊCH VỤ THEO CÂN NẶNG -->
@@ -1328,183 +1540,32 @@
 
             <!-- TAB: NHAP HANG (PHIEU MUA HANG / NHAP TON) -->
             <div id="tab-purchases" class="hidden space-y-4">
-                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm border gap-3">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800">📥 Quản Lý Nhập Hàng & Mua Hàng</h2>
-                        <p class="text-xs text-gray-500">Tạo phiếu nhập nhiều mặt hàng (hàng hóa & nguyên liệu), tính VAT, phí vận chuyển, chiết khấu và theo dõi công nợ NCC</p>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <span>📥 Quản Lý Đơn Đặt Hàng & Nhập Kho</span>
+                            <span class="text-xs font-normal bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Purchases</span>
+                        </h2>
+                        <p class="text-xs text-gray-500">Theo dõi đơn đặt hàng NCC, in phiếu kiểm đếm cầm tay cho thủ kho, điều chỉnh số lượng và nhận hàng thực tế</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="togglePurchaseView('create')" id="btn-purchase-new" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            ➕ Tạo Phiếu Nhập Mới
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openCreatePurchaseModal()" id="btn-purchase-new" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
+                            <span>➕ Tạo Đơn Đặt Hàng Mới</span>
                         </button>
-                        <button onclick="togglePurchaseView('list')" id="btn-purchase-history" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            📋 Lịch Sử Phiếu Nhập
+                        <button onclick="loadPurchasesList()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
+                            <span>🔄 Làm Mới</span>
                         </button>
-                        <button onclick="togglePurchaseView('compare')" id="btn-purchase-compare" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                        <button onclick="togglePurchaseSubView('compare')" id="btn-purchase-compare" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
                             ⚖️ So Sánh Giá NCC
                         </button>
-                        <button onclick="togglePurchaseView('price-history')" id="btn-purchase-price-hist" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
-                            📈 Biến Động Giá Nhập
+                        <button onclick="togglePurchaseSubView('price-history')" id="btn-purchase-price-hist" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1">
+                            📈 Biến Động Giá
                         </button>
                     </div>
                 </div>
 
-                <!-- VIEW 1: TẠO PHIẾU NHẬP MỚI -->
-                <div id="purchase-create-view" class="space-y-4">
-                    <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
-                        <!-- Thông tin chung phiếu nhập -->
-                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 border-b pb-4">
-                            <div class="relative">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Nhà Cung Cấp (*):</label>
-                                <input type="hidden" id="purchase-supplier" value="">
-                                <div class="relative flex items-center">
-                                    <input type="text" id="purchase-supplier-search" 
-                                           placeholder="🔍 Click để chọn hoặc gõ tìm NCC..." 
-                                           class="border p-2 pr-8 rounded w-full text-xs font-medium bg-white shadow-sm outline-none focus:border-sky-500 cursor-pointer"
-                                           onclick="filterSupplierSearch(this.value)"
-                                           oninput="filterSupplierSearch(this.value)"
-                                           onfocus="filterSupplierSearch(this.value)"
-                                           autocomplete="off">
-                                    <span class="absolute right-2 text-gray-400 pointer-events-none text-xs">▼</span>
-                                </div>
-                                <div id="supplier-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y"></div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Kho Nhập Hàng (*):</label>
-                                <select id="purchase-warehouse" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Nguồn Tiền Chi Trả (*):</label>
-                                <select id="purchase-fund-source" class="border p-2 rounded w-full text-xs font-bold bg-white text-slate-700">
-                                    <option value="PERSONAL">👤 Quỹ Cá Nhân (Không VAT)</option>
-                                    <option value="COMPANY">🏢 Quỹ Công Ty (Có VAT)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Dự Kiến Ngày Nhận:</label>
-                                <input type="date" id="purchase-expected-date" class="border p-2 rounded w-full text-xs font-medium bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Ghi Chú Phiếu Nhập:</label>
-                                <input type="text" id="purchase-note" class="border p-2 rounded w-full text-xs" placeholder="Số HĐ đỏ, ghi chú đợt hàng...">
-                            </div>
-                        </div>
-
-                        <!-- Chọn mặt hàng thêm vào phiếu (Fuzzy search không dấu) -->
-                        <div class="bg-slate-50 p-3 rounded-lg border space-y-1 relative">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-xs font-bold text-slate-700 whitespace-nowrap">🔍 Thêm Hàng Nhập:</span>
-                                <div class="relative flex-1 min-w-[300px]">
-                                    <input type="text" id="search-purchase-input" 
-                                           placeholder="🔍 Gõ tên hoặc mã (không dấu, ví dụ: 'sua sao', 'ca phe', 'ly giay')..." 
-                                           class="border p-2 rounded w-full text-xs bg-white shadow-inner outline-none focus:border-sky-500" 
-                                           oninput="filterPurchaseSearch(this.value)"
-                                           onfocus="filterPurchaseSearch(this.value)">
-                                    <div id="purchase-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y">
-                                    </div>
-                                </div>
-                            </div>
-                            <p class="text-[11px] text-gray-500 italic">* Hệ thống tự tìm kiếm gần đúng cả Sản Phẩm lẫn Nguyên Liệu/Vật Tư mà không cần gõ chính xác 100%.</p>
-                        </div>
-
-                        <!-- Bảng danh sách hàng hóa trong phiếu -->
-                        <div class="overflow-x-auto border rounded">
-                            <table class="w-full text-xs border-collapse text-left">
-                                <thead class="bg-gray-100 border-b">
-                                    <tr>
-                                        <th class="p-2.5 w-12 text-center">STT</th>
-                                        <th class="p-2.5">Tên Mặt Hàng / Nguyên Liệu</th>
-                                        <th class="p-2.5 text-center w-24">Loại</th>
-                                        <th class="p-2.5 text-center w-20">ĐVT</th>
-                                        <th class="p-2.5 text-right w-28">Số Lượng</th>
-                                        <th class="p-2.5 text-right w-36">Đơn Giá Nhập (đ)</th>
-                                        <th class="p-2.5 text-right w-36">Thành Tiền</th>
-                                        <th class="p-2.5 text-center w-14">Xóa</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="purchase-items-table">
-                                    <tr>
-                                        <td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Khu vực tính toán tổng tiền, chiết khấu, VAT, ship -->
-                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
-                            <div class="lg:col-span-6 space-y-2 text-xs text-gray-600 bg-gray-50 p-4 rounded-lg border">
-                                <h4 class="font-bold text-slate-700 text-sm">💡 Quy tắc hạch toán nhập kho:</h4>
-                                <ul class="list-disc list-inside space-y-1 text-[11px]">
-                                    <li>Hàng hóa và Nguyên liệu dạng vật lý sẽ được tự động cộng dồn số lượng tồn kho.</li>
-                                    <li>Đơn giá nhập mới của nguyên liệu sẽ tự động ghi vào <b>Lịch Sử Giá</b> và tính lại giá vốn sản phẩm (Cost BOM).</li>
-                                    <li>Tiền thực trả sẽ tự động tạo phiếu chi trong <b>Sổ Quỹ</b>; phần nợ còn lại sẽ tự động ghi vào <b>Công Nợ NCC</b>.</li>
-                                </ul>
-                            </div>
-
-                            <div class="lg:col-span-6 bg-slate-50 p-4 rounded-lg border space-y-2.5 text-xs">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-600">Tiền hàng (chưa giảm):</span>
-                                    <span id="p-calc-subtotal" class="font-bold text-slate-800 text-sm">0 đ</span>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
-                                        <span class="text-gray-600 text-[11px]">Chiết khấu (đ):</span>
-                                        <input type="number" id="purchase-discount" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
-                                    </div>
-                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
-                                        <span class="text-gray-600 text-[11px]">Phí ship (đ):</span>
-                                        <input type="number" id="purchase-shipping" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
-                                        <span class="text-gray-600 text-[11px]">Chi phí khác:</span>
-                                        <input type="number" id="purchase-other-fee" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
-                                    </div>
-                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
-                                        <span class="text-gray-600 text-[11px]">Thuế VAT (%):</span>
-                                        <input type="number" id="purchase-vat-rate" class="w-16 text-right p-1 font-medium border-b outline-none" value="0" min="0" max="100" oninput="calculatePurchaseTotals()">
-                                    </div>
-                                </div>
-
-                                <div class="flex justify-between items-center text-gray-500 text-[11px]">
-                                    <span>Tiền thuế VAT:</span>
-                                    <span id="p-calc-vat">0 đ</span>
-                                </div>
-
-                                <div class="flex justify-between items-center border-t border-slate-300 pt-2 font-black text-base text-slate-900">
-                                    <span>Tổng Thanh Toán:</span>
-                                    <span id="p-calc-total" class="text-sky-700">0 đ</span>
-                                </div>
-
-                                <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-200">
-                                    <span class="font-bold text-emerald-800">Thực trả NCC (đ):</span>
-                                    <input type="number" id="purchase-paid" class="w-36 text-right p-1.5 font-black text-emerald-600 text-sm border rounded bg-emerald-50 outline-none" value="0" oninput="calculatePurchaseTotals()">
-                                </div>
-
-                                <div class="flex justify-between items-center text-rose-600 font-bold">
-                                    <span>Còn nợ NCC:</span>
-                                    <span id="p-calc-debt">0 đ</span>
-                                </div>
-
-                                <div class="pt-3 flex gap-2">
-                                    <button onclick="resetPurchaseForm()" class="flex-1 py-2.5 border rounded font-bold text-gray-600 hover:bg-gray-100">
-                                        Hủy / Làm Mới
-                                    </button>
-                                    <button onclick="submitPurchase()" class="flex-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-sm flex items-center justify-center gap-1.5">
-                                        <span>📋 LƯU ĐƠN NHẬP (CHỜ NHẬN HÀNG)</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- VIEW 2: DANH SÁCH LỊCH SỬ PHIẾU NHẬP HÀNG -->
-                <!-- VIEW 2: DANH SÁCH LỊCH SỬ PHIẾU NHẬP (QUY TRÌNH 2 BƯỚC) -->
-                <div id="purchase-list-view" class="hidden space-y-4">
+                <!-- VIEW: DANH SÁCH ĐƠN ĐẶT HÀNG & LỊCH SỬ NHẬP KHO -->
+                <div id="purchase-list-view" class="space-y-4">
                     <!-- KPI Cards Nhập Hàng -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div class="bg-white p-3.5 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-amber-500">
@@ -1547,6 +1608,7 @@
                             <!-- Lọc Trạng Thái -->
                             <div class="inline-flex rounded-md shadow-sm text-xs">
                                 <button onclick="filterPurchasesStatus('all')" id="btn-po-filter-all" class="px-3 py-1.5 font-bold rounded-l-md bg-slate-800 text-white">Tất Cả</button>
+                                <button onclick="filterPurchasesStatus('draft')" id="btn-po-filter-draft" class="px-3 py-1.5 font-bold bg-white text-slate-700 border-t border-b hover:bg-gray-50">📝 Nháp</button>
                                 <button onclick="filterPurchasesStatus('pending')" id="btn-po-filter-pending" class="px-3 py-1.5 font-bold bg-white text-slate-700 border-t border-b hover:bg-gray-50">⏳ Chờ Nhận</button>
                                 <button onclick="filterPurchasesStatus('received')" id="btn-po-filter-received" class="px-3 py-1.5 font-bold rounded-r-md bg-white text-slate-700 border hover:bg-gray-50">✅ Đã Nhập Kho</button>
                             </div>
@@ -2014,7 +2076,7 @@
 
                             <div class="pt-2 border-t flex flex-wrap justify-between items-center gap-2">
                                 <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
-                                    <input type="checkbox" id="oem-rec-pay-now" checked class="rounded text-amber-600 w-4 h-4">
+                                    <input type="checkbox" id="oem-rec-pay-now" class="rounded text-amber-600 w-4 h-4">
                                     <span>Thanh toán ngay số tiền còn lại khi nhận hàng</span>
                                 </label>
                                 <div class="flex items-center gap-1">
@@ -2272,13 +2334,23 @@
                         <h2 class="text-xl font-bold text-slate-800">💰 Sổ Quỹ Thu Chi</h2>
                         <p class="text-xs text-gray-500">Theo dõi toàn bộ các luồng tiền thực tế vào/ra theo từng nguồn quỹ (Công Ty & Cá Nhân)</p>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="showCashModal('in')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1">+ Lập Phiếu Thu</button>
-                        <button onclick="showCashModal('out')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1">- Lập Phiếu Chi</button>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openPaymentAccountsModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
+                            <span>🏦</span>
+                            <span>Quản Lý Tài Khoản</span>
+                        </button>
+                        <button onclick="openCreateCashModal('in')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
+                            <span>+</span>
+                            <span>Lập Phiếu Thu</span>
+                        </button>
+                        <button onclick="openCreateCashModal('out')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
+                            <span>-</span>
+                            <span>Lập Phiếu Chi</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- KPI Cards Sổ Quỹ: Hiển thị Tổng Rõ Ràng -->
+                <!-- KPI Cards Sổ Quỹ: Hiển thị Tổng & Từng Tài Khoản -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
                         <div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">🟢 Tổng Thu (Vào)</div>
@@ -2302,14 +2374,45 @@
                     </div>
                 </div>
 
+                <!-- Thẻ Số Dư Chi Tiết Từng Tài Khoản Thanh Toán -->
+                <div>
+                    <div class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">💳 <span>Số dư theo từng tài khoản / két tiền:</span></span>
+                        <span id="cashbook-accounts-count" class="text-[11px] text-gray-400 font-normal">3 tài khoản</span>
+                    </div>
+                    <div id="cashbook-accounts-kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                        <!-- Render dynamic account cards -->
+                    </div>
+                </div>
+
+                <!-- Thanh Công Cụ & Bộ Lọc Sổ Quỹ -->
+                <div class="bg-white p-3 rounded-lg shadow-sm border flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2 flex-1">
+                        <select id="cashbook-filter-account" onchange="loadCashbook()" class="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-indigo-500 font-medium text-slate-700">
+                            <option value="">🏦 Tất cả tài khoản / quỹ</option>
+                        </select>
+                        <select id="cashbook-filter-type" onchange="loadCashbook()" class="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-indigo-500 font-medium text-slate-700">
+                            <option value="">🔄 Tất cả loại (Thu & Chi)</option>
+                            <option value="in">🟢 Chỉ Phiếu Thu (Vào)</option>
+                            <option value="out">🔴 Chỉ Phiếu Chi (Ra)</option>
+                        </select>
+                        <input id="cashbook-filter-search" oninput="filterCashbookTable()" placeholder="🔍 Tìm theo mã phiếu, hạng mục, ghi chú, đối tác..." class="border border-slate-300 rounded px-3 py-1.5 text-xs flex-1 min-w-[200px] focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <button onclick="loadCashbook()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1">
+                        <span>🔄</span>
+                        <span>Làm mới</span>
+                    </button>
+                </div>
+
                 <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
                     <table class="w-full text-left text-xs border-collapse">
                         <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase">
                             <tr>
                                 <th class="p-2.5">Mã phiếu</th>
-                                <th class="p-2.5 text-center">Nguồn Quỹ</th>
-                                <th class="p-2.5">Loại</th>
+                                <th class="p-2.5">Tài Khoản / Nguồn Quỹ</th>
+                                <th class="p-2.5 text-center">Loại</th>
                                 <th class="p-2.5">Hạng mục</th>
+                                <th class="p-2.5">Đối tác / Người nộp-nhận</th>
                                 <th class="p-2.5 text-right">Số tiền</th>
                                 <th class="p-2.5">Ghi chú</th>
                                 <th class="p-2.5">Thời gian</th>
@@ -2365,19 +2468,19 @@
                 </div>
 
                 <!-- KHỐI 1: DỰ BÁO DÒNG TIỀN CHI THEO NGÀY HẸN (±1 NGÀY) -->
-                <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-xl shadow-md space-y-3">
-                    <div class="flex flex-wrap justify-between items-center border-b border-slate-700 pb-2.5 gap-2">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-2.5 gap-2">
                         <div class="flex items-center gap-2">
                             <span class="text-lg">📅</span>
                             <div>
-                                <h3 class="font-bold text-sm text-amber-400">KẾ HOẠCH DÒNG TIỀN CHI THEO NGÀY GIAO HÀNG (±1 NGÀY)</h3>
-                                <p class="text-[11px] text-slate-300">Tính trước số tiền cần chuẩn bị để nhận hàng, tự động phân tách Quỹ Công Ty và Quỹ Cá Nhân</p>
+                                <h3 class="font-bold text-sm text-slate-800">KẾ HOẠCH DÒNG TIỀN CHI THEO NGÀY GIAO HÀNG (±1 NGÀY)</h3>
+                                <p class="text-[11px] text-slate-500">Tính trước số tiền cần chuẩn bị để nhận hàng, tự động phân tách Quỹ Công Ty và Quỹ Cá Nhân</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1.5 text-xs bg-slate-800 p-1 rounded-lg border border-slate-700">
-                            <button onclick="filterCFDForecast('ALL')" id="cfd-filter-all" class="px-2.5 py-1 rounded font-bold bg-amber-500 text-slate-900">Tất Cả</button>
-                            <button onclick="filterCFDForecast('COMPANY')" id="cfd-filter-company" class="px-2.5 py-1 rounded font-bold hover:bg-slate-700 text-slate-300">🏢 Quỹ Cty</button>
-                            <button onclick="filterCFDForecast('PERSONAL')" id="cfd-filter-personal" class="px-2.5 py-1 rounded font-bold hover:bg-slate-700 text-slate-300">👤 Cá Nhân</button>
+                        <div class="flex items-center gap-1.5 text-xs bg-slate-50 p-1 rounded-lg border border-slate-200">
+                            <button onclick="filterCFDForecast('ALL')" id="cfd-filter-all" class="px-2.5 py-1 rounded font-bold bg-amber-500 text-slate-900 shadow-sm">Tất Cả</button>
+                            <button onclick="filterCFDForecast('COMPANY')" id="cfd-filter-company" class="px-2.5 py-1 rounded font-bold hover:bg-slate-200 text-slate-600">🏢 Quỹ Cty</button>
+                            <button onclick="filterCFDForecast('PERSONAL')" id="cfd-filter-personal" class="px-2.5 py-1 rounded font-bold hover:bg-slate-200 text-slate-600">👤 Cá Nhân</button>
                         </div>
                     </div>
 
@@ -2626,7 +2729,198 @@
                 </div>
             </div>
 
+            <!-- TAB: LỊCH SỬ CA LÀM VIỆC -->
+            <div id="tab-shifts" class="hidden space-y-4">
+                <h2 class="text-xl font-bold text-slate-800">🕒 Lịch Sử Ca Làm Việc</h2>
+                <div class="bg-white rounded-lg shadow-sm border overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-100 text-slate-600 uppercase">
+                            <tr>
+                                <th class="p-2.5 text-left">Thu Ngân</th>
+                                <th class="p-2.5 text-left">Mở Ca</th>
+                                <th class="p-2.5 text-left">Kết Ca</th>
+                                <th class="p-2.5 text-right">Đơn</th>
+                                <th class="p-2.5 text-right">Doanh Thu</th>
+                                <th class="p-2.5 text-right">Đầu Ca</th>
+                                <th class="p-2.5 text-right">Kỳ Vọng</th>
+                                <th class="p-2.5 text-right">Thực Nộp</th>
+                                <th class="p-2.5 text-right">Chênh Lệch</th>
+                                <th class="p-2.5 text-center">Trạng Thái</th>
+                                <th class="p-2.5 text-center">Duyệt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shifts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
             
+            <!-- MODAL: TẠO / SỬA ĐƠN ĐẶT HÀNG MUA HÀNG -->
+            <div id="modal-purchase-order" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col text-xs overflow-hidden">
+                    <div class="flex justify-between items-center border-b p-4 bg-slate-800 text-white rounded-t-xl shrink-0">
+                        <div>
+                            <h3 class="font-bold text-sm text-white flex items-center gap-2" id="modal-purchase-title">
+                                <span>➕ Tạo Đơn Đặt Hàng NCC Mới</span>
+                            </h3>
+                            <p class="text-[11px] text-slate-300">Đơn đặt hàng sẽ ở trạng thái Chờ Nhận Hàng (chưa cộng tồn kho). Bạn có thể sửa đổi số lượng bất cứ lúc nào trước khi chốt kho.</p>
+                        </div>
+                        <button onclick="closePurchaseModal()" class="text-gray-400 hover:text-white text-lg font-bold px-2">✕</button>
+                    </div>
+                    <div class="p-4 overflow-y-auto space-y-4 flex-1 bg-slate-50">
+                    <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
+                        <!-- Thông tin chung phiếu nhập -->
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 border-b pb-4">
+                            <div class="relative">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nhà Cung Cấp (*):</label>
+                                <input type="hidden" id="purchase-supplier" value="">
+                                <div class="relative flex items-center">
+                                    <input type="text" id="purchase-supplier-search" 
+                                           placeholder="🔍 Click để chọn hoặc gõ tìm NCC..." 
+                                           class="border p-2 pr-8 rounded w-full text-xs font-medium bg-white shadow-sm outline-none focus:border-sky-500 cursor-pointer"
+                                           onclick="filterSupplierSearch(this.value)"
+                                           oninput="filterSupplierSearch(this.value)"
+                                           onfocus="filterSupplierSearch(this.value)"
+                                           autocomplete="off">
+                                    <span class="absolute right-2 text-gray-400 pointer-events-none text-xs">▼</span>
+                                </div>
+                                <div id="supplier-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y"></div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kho Nhập Hàng (*):</label>
+                                <select id="purchase-warehouse" class="border p-2 rounded w-full text-xs font-medium bg-gray-50"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Nguồn Tiền Chi Trả (*):</label>
+                                <select id="purchase-fund-source" class="border p-2 rounded w-full text-xs font-bold bg-white text-slate-700">
+                                    <option value="PERSONAL">👤 Quỹ Cá Nhân (Không VAT)</option>
+                                    <option value="COMPANY">🏢 Quỹ Công Ty (Có VAT)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Dự Kiến Ngày Nhận:</label>
+                                <input type="date" id="purchase-expected-date" class="border p-2 rounded w-full text-xs font-medium bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Ghi Chú Phiếu Nhập:</label>
+                                <input type="text" id="purchase-note" class="border p-2 rounded w-full text-xs" placeholder="Số HĐ đỏ, ghi chú đợt hàng...">
+                            </div>
+                        </div>
+
+                        <!-- Chọn mặt hàng thêm vào phiếu (Fuzzy search không dấu) -->
+                        <div class="bg-slate-50 p-3 rounded-lg border space-y-1 relative">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-bold text-slate-700 whitespace-nowrap">🔍 Thêm Hàng Nhập:</span>
+                                <div class="relative flex-1 min-w-[300px]">
+                                    <input type="text" id="search-purchase-input" 
+                                           placeholder="🔍 Gõ tên hoặc mã (không dấu, ví dụ: 'sua sao', 'ca phe', 'ly giay')..." 
+                                           class="border p-2 rounded w-full text-xs bg-white shadow-inner outline-none focus:border-sky-500" 
+                                           oninput="filterPurchaseSearch(this.value)"
+                                           onfocus="filterPurchaseSearch(this.value)">
+                                    <div id="purchase-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border rounded shadow-2xl max-h-60 overflow-y-auto hidden z-50 text-xs divide-y">
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-gray-500 italic">* Hệ thống tự tìm kiếm gần đúng cả Sản Phẩm lẫn Nguyên Liệu/Vật Tư mà không cần gõ chính xác 100%.</p>
+                        </div>
+
+                        <!-- Bảng danh sách hàng hóa trong phiếu -->
+                        <div class="overflow-x-auto border rounded">
+                            <table class="w-full text-xs border-collapse text-left">
+                                <thead class="bg-gray-100 border-b">
+                                    <tr>
+                                        <th class="p-2.5 w-12 text-center">STT</th>
+                                        <th class="p-2.5">Tên Mặt Hàng / Nguyên Liệu</th>
+                                        <th class="p-2.5 text-center w-24">Loại</th>
+                                        <th class="p-2.5 text-center w-20">ĐVT</th>
+                                        <th class="p-2.5 text-right w-28">Số Lượng</th>
+                                        <th class="p-2.5 text-right w-36">Đơn Giá Nhập (đ)</th>
+                                        <th class="p-2.5 text-right w-36">Thành Tiền</th>
+                                        <th class="p-2.5 text-center w-14">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchase-items-table">
+                                    <tr>
+                                        <td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Khu vực tính toán tổng tiền, chiết khấu, VAT, ship -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                            <div class="lg:col-span-6 space-y-2 text-xs text-gray-600 bg-gray-50 p-4 rounded-lg border">
+                                <h4 class="font-bold text-slate-700 text-sm">💡 Quy tắc hạch toán nhập kho:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-[11px]">
+                                    <li>Hàng hóa và Nguyên liệu dạng vật lý sẽ được tự động cộng dồn số lượng tồn kho.</li>
+                                    <li>Đơn giá nhập mới của nguyên liệu sẽ tự động ghi vào <b>Lịch Sử Giá</b> và tính lại giá vốn sản phẩm (Cost BOM).</li>
+                                    <li>Tiền thực trả sẽ tự động tạo phiếu chi trong <b>Sổ Quỹ</b>; phần nợ còn lại sẽ tự động ghi vào <b>Công Nợ NCC</b>.</li>
+                                </ul>
+                            </div>
+
+                            <div class="lg:col-span-6 bg-slate-50 p-4 rounded-lg border space-y-2.5 text-xs">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">Tiền hàng (chưa giảm):</span>
+                                    <span id="p-calc-subtotal" class="font-bold text-slate-800 text-sm">0 đ</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Chiết khấu (đ):</span>
+                                        <input type="number" id="purchase-discount" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Phí ship (đ):</span>
+                                        <input type="number" id="purchase-shipping" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Chi phí khác:</span>
+                                        <input type="number" id="purchase-other-fee" class="w-24 text-right p-1 font-medium border-b outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                    <div class="flex items-center justify-between border bg-white p-1.5 rounded">
+                                        <span class="text-gray-600 text-[11px]">Thuế VAT (%):</span>
+                                        <input type="number" id="purchase-vat-rate" class="w-16 text-right p-1 font-medium border-b outline-none" value="0" min="0" max="100" oninput="calculatePurchaseTotals()">
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center text-gray-500 text-[11px]">
+                                    <span>Tiền thuế VAT:</span>
+                                    <span id="p-calc-vat">0 đ</span>
+                                </div>
+
+                                <div class="flex justify-between items-center border-t border-slate-300 pt-2 font-black text-base text-slate-900">
+                                    <span>Tổng Thanh Toán:</span>
+                                    <span id="p-calc-total" class="text-sky-700">0 đ</span>
+                                </div>
+
+                                <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-200">
+                                    <span class="font-bold text-emerald-800">Thực trả NCC (đ):</span>
+                                    <input type="number" id="purchase-paid" class="w-36 text-right p-1.5 font-black text-emerald-600 text-sm border rounded bg-emerald-50 outline-none" value="0" oninput="calculatePurchaseTotals()">
+                                </div>
+
+                                <div class="flex justify-between items-center text-rose-600 font-bold">
+                                    <span>Còn nợ NCC:</span>
+                                    <span id="p-calc-debt">0 đ</span>
+                                </div>
+
+                                <div class="pt-3 grid grid-cols-2 gap-3">
+                                    <button type="button" onclick="submitPurchase('draft')" id="btn-draft-purchase" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg font-bold shadow-sm text-xs flex items-center justify-center gap-1.5 transition">
+                                        <span id="btn-draft-purchase-text">📝 Lưu Tạm (Nháp)</span>
+                                    </button>
+                                    <button type="button" onclick="submitPurchase('pending')" id="btn-submit-purchase" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow text-xs flex items-center justify-center gap-1.5 transition">
+                                        <span id="btn-submit-purchase-text">📋 Đặt Hàng</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- MODAL: CHI TIẾT & NHẬN HÀNG PHIẾU NHẬP -->
             <div id="modal-receive-purchase" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -3459,6 +3753,15 @@
                         <button onclick="switchSettingsSubTab('company')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="company">
                             <span>🏢 Thông Tin Doanh Nghiệp & QR</span>
                         </button>
+                        <button onclick="switchSettingsSubTab('staff')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="staff" data-role="owner">
+                            <span>👤 Nhân Viên & Phân Quyền</span>
+                        </button>
+                        <button onclick="switchSettingsSubTab('permissions')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="permissions" data-role="owner">
+                            <span>🔐 Quyền & Module</span>
+                        </button>
+                        <button onclick="switchSettingsSubTab('reset-data')" class="settings-subtab-btn px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 border border-rose-200" data-sub="reset-data">
+                            <span>⚠️ Quản Lý & Xóa Dữ Liệu</span>
+                        </button>
                     </div>
                 </div>
 
@@ -3689,7 +3992,11 @@
                     <div class="bg-white p-5 rounded-lg shadow space-y-4">
                         <h3 class="font-bold border-b pb-2 text-slate-700">Thông Tin Chung Cửa Hàng</h3>
                         <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty:</label>
+                            <label class="block text-xs font-bold text-sky-700 mb-1">⚡ Tên Ứng Dụng (Hiển thị Sidebar & Tiêu Đề Tab):</label>
+                            <input type="text" id="comp-app-name" placeholder="VD: ⚡ POS Offline hoặc Tên Shop..." class="border border-sky-300 p-2 rounded w-full bg-sky-50 font-bold text-sky-900">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty (Trên Hóa Đơn):</label>
                             <input type="text" id="comp-name" class="border p-2 rounded w-full">
                         </div>
                         <div>
@@ -3766,9 +4073,258 @@
                 </div>
             </div>
 
+            <!-- SUB 3: QUẢN LÝ & XÓA DỮ LIỆU -->
+            <div id="settings-sub-staff" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-slate-800">👤 Quản Lý Nhân Viên</h3>
+                    <button onclick="openCreateStaffModal()" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow">+ Thêm Nhân Viên</button>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm border overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-100 text-slate-600 uppercase">
+                            <tr>
+                                <th class="p-2.5 text-left">Tên</th>
+                                <th class="p-2.5 text-left">Username</th>
+                                <th class="p-2.5 text-left">Vai Trò</th>
+                                <th class="p-2.5 text-left">SĐT</th>
+                                <th class="p-2.5 text-right">Hoa Hồng %</th>
+                                <th class="p-2.5 text-center">Trạng Thái</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staff-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODAL: TẠO / SỬA NHÂN VIÊN -->
+            <div id="modal-staff" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-5">
+                    <h3 class="font-bold text-lg mb-4" id="modal-staff-title">Thêm Nhân Viên</h3>
+                    <input type="hidden" id="staff-edit-id">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600">Họ Tên</label>
+                            <input id="staff-name" class="w-full border rounded px-3 py-2 text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600">Username</label>
+                            <input id="staff-username" class="w-full border rounded px-3 py-2 text-sm mt-1">
+                        </div>
+                        <div id="staff-password-row">
+                            <label class="text-xs font-bold text-slate-600">Mật Khẩu</label>
+                            <input id="staff-password" type="password" class="w-full border rounded px-3 py-2 text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600">Vai Trò</label>
+                            <select id="staff-role" class="w-full border rounded px-3 py-2 text-sm mt-1">
+                                <option value="cashier">Thu Ngân</option>
+                                <option value="accountant">Kế Toán</option>
+                                <option value="warehouse">Thủ Kho</option>
+                                <option value="owner">Chủ Shop</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600">SĐT</label>
+                            <input id="staff-phone" class="w-full border rounded px-3 py-2 text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600">Hoa Hồng (%)</label>
+                            <input id="staff-commission" type="number" step="0.1" class="w-full border rounded px-3 py-2 text-sm mt-1" value="0">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-5">
+                        <button onclick="document.getElementById('modal-staff').classList.add('hidden')" class="flex-1 bg-slate-200 hover:bg-slate-300 py-2 rounded text-sm font-bold">Hủy</button>
+                        <button onclick="submitStaffForm()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded text-sm font-bold">Lưu</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings-sub-permissions" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-lg shadow-sm border">
+                    <h3 class="font-bold text-lg text-slate-800 mb-1">🧩 Bật/Tắt Module Kinh Doanh</h3>
+                    <p class="text-xs text-slate-500 mb-3">Tắt module không dùng (VD: shop không gia công OEM) sẽ ẩn tab cho MỌI nhân viên.</p>
+                    <div id="modules-toggle-list" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border">
+                    <h3 class="font-bold text-lg text-slate-800 mb-1">🔐 Phân Quyền Chi Tiết Theo Vai Trò</h3>
+                    <p class="text-xs text-slate-500 mb-3">Owner luôn có toàn quyền. Tick để cấp quyền cho từng role.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead><tr class="border-b text-left text-slate-500">
+                                <th class="py-2 pr-2">Quyền</th>
+                                <th class="py-2 px-2 text-center">🏷 Thu Ngân</th>
+                                <th class="py-2 px-2 text-center">📒 Kế Toán</th>
+                                <th class="py-2 px-2 text-center">📦 Thủ Kho</th>
+                            </tr></thead>
+                            <tbody id="permissions-matrix-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border">
+                    <h3 class="font-bold text-lg text-slate-800 mb-1">🛡️ Nhật Ký Đăng Nhập</h3>
+                    <p class="text-xs text-slate-500 mb-3">100 lần đăng nhập gần nhất — phát hiện brute-force hoặc truy cập bất thường.</p>
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                        <table class="w-full text-sm">
+                            <thead><tr class="border-b text-left text-slate-500 sticky top-0 bg-white">
+                                <th class="py-2 pr-2">Tài khoản</th>
+                                <th class="py-2 px-2">IP</th>
+                                <th class="py-2 px-2">Kết quả</th>
+                                <th class="py-2 px-2">Thời gian</th>
+                            </tr></thead>
+                            <tbody id="login-log-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Quyen rieng tung nhan vien -->
+                <div class="bg-white border border-slate-200 rounded-lg p-4">
+                    <div class="font-semibold text-slate-700 mb-2">Quyền riêng theo từng nhân viên</div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <select id="staff-perm-select" class="border rounded px-2 py-1 text-sm" onchange="loadStaffPermissions(this.value)">
+                            <option value="">-- Chọn nhân viên --</option>
+                        </select>
+                    </div>
+                    <div id="staff-perm-table-wrap" class="overflow-x-auto"></div>
+                </div>
+
+                <!-- Log hoat dong (30 ngay) -->
+                <div class="bg-white border border-slate-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="font-semibold text-slate-700">Nhật ký hoạt động (30 ngày)</div>
+                        <select id="activity-log-filter" class="border rounded px-2 py-1 text-sm" onchange="renderActivityLog()">
+                            <option value="">Tất cả nhân viên</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-slate-500 border-b sticky top-0 bg-white"><tr>
+                                <th class="py-2 pr-2">Nhân viên</th>
+                                <th class="py-2 px-2">Vai trò</th>
+                                <th class="py-2 px-2">Hành động</th>
+                                <th class="py-2 px-2">IP</th>
+                                <th class="py-2 px-2">Thời gian</th>
+                            </tr></thead>
+                            <tbody id="activity-log-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings-sub-reset-data" class="hidden space-y-4">
+                <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
+                    <div class="border-b pb-3">
+                        <h2 class="text-lg font-bold text-rose-700 flex items-center gap-2">
+                            <span>⚠️ Quản Lý & Làm Sạch Dữ Liệu Hệ Thống</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">
+                            Cho phép dọn dẹp các giao dịch thử nghiệm hoặc khởi tạo lại cơ sở dữ liệu. Hệ thống sẽ <strong>tự động tạo bản sao lưu snapshot (.db)</strong> vào thư mục <code class="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-mono">data/backups/</code> trước khi xóa để bảo vệ an toàn dữ liệu.
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                        <!-- Nút 1: Chỉ xóa giao dịch & KH -->
+                        <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-amber-300 transition-colors">
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">🧾</span>
+                                    <div>
+                                        <h3 class="font-black text-slate-800 text-sm">1. Xóa Dữ Liệu Giao Dịch & Khách Hàng</h3>
+                                        <span class="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">Khuyên dùng sau khi test xong</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Làm sạch hệ thống để bắt đầu kinh doanh thực tế mà <strong>không phải nhập lại hàng hóa</strong>.
+                                </p>
+                                <ul class="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-lg border border-amber-200">
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hóa đơn bán lẻ</strong> & lịch sử đơn hàng.</li>
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Phiếu dịch vụ & Hồ sơ thú cưng</strong>.</li>
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Danh bạ Khách hàng</strong> (contacts KH).</li>
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Thu / Chi Sổ quỹ</strong> & phiếu nhập hàng, OEM.</li>
+                                    <li class="text-rose-600">❌ Reset toàn bộ số lượng tồn kho về 0.</li>
+                                    <li class="text-emerald-700 font-bold">✅ GIỮ LẠI: Danh mục Hàng hóa, Nguyên liệu, Bảng giá, NCC, Công thức BOM & Cài đặt cửa hàng.</li>
+                                </ul>
+                            </div>
+                            <button type="button" onclick="openResetDataModal('transactions_and_customers')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow text-xs flex items-center justify-center gap-2">
+                                <span>🧹 Xóa Hóa Đơn, Khách Hàng & Sổ Quỹ</span>
+                            </button>
+                        </div>
+
+                        <!-- Nút 2: Xóa sạch toàn bộ (Factory Reset) -->
+                        <div class="border-2 border-rose-300 bg-rose-50/50 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-rose-400 transition-colors">
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">💣</span>
+                                    <div>
+                                        <h3 class="font-black text-rose-900 text-sm">2. Khôi Phục Cài Đặt Gốc (Factory Reset)</h3>
+                                        <span class="text-[11px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">Nguy hiểm - Xóa 100% dữ liệu</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Đưa hệ thống về trạng thái ban đầu như khi mới cài đặt phần mềm.
+                                </p>
+                                <ul class="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-lg border border-rose-200">
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hàng hóa, Nguyên liệu & Kho hàng</strong>.</li>
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Khách hàng, Nhà cung cấp & Đối tác OEM</strong>.</li>
+                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hóa đơn, Bảng giá, Sổ quỹ & Lịch sử kho</strong>.</li>
+                                    <li class="text-slate-600">✅ Chỉ giữ lại: Tài khoản quản trị Admin & Mẫu in hóa đơn.</li>
+                                </ul>
+                            </div>
+                            <button type="button" onclick="openResetDataModal('factory_reset')" class="w-full py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-lg shadow text-xs flex items-center justify-center gap-2">
+                                <span>⚠️ Xóa Sạch Toàn Bộ Dữ Liệu (Reset Gốc)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
+            </div>
+        </div>
+
+
+    <!-- MODAL: XÁC NHẬN XÓA / LÀM SẠCH DỮ LIỆU -->
+    <div id="modal-reset-data" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl border-2 border-rose-500">
+            <div class="flex justify-between items-center border-b pb-3 text-rose-600">
+                <h3 class="text-base font-black flex items-center gap-2">
+                    <span>🚨 CẢNH BÁO: XÁC NHẬN XÓA DỮ LIỆU</span>
+                </h3>
+                <button type="button" onclick="closeResetDataModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-700">
+                <div id="reset-data-modal-desc" class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 leading-relaxed font-medium">
+                    <!-- Dynamic message -->
+                </div>
+
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
+                    🛡️ <strong>Chốt an toàn tự động:</strong> Trước khi xóa, một bản sao lưu toàn vẹn <code class="font-mono bg-white px-1 rounded text-blue-800">.db</code> sẽ được tự động lưu vào <code class="font-mono bg-white px-1 rounded text-blue-800">data/backups/</code>.
+                </div>
+
+                <div class="space-y-2 pt-2 border-t">
+                    <label class="flex items-start gap-2 cursor-pointer font-bold text-slate-800">
+                        <input type="checkbox" id="reset-data-check" onchange="checkResetDataInputs()" class="mt-0.5 rounded text-rose-600 focus:ring-rose-500">
+                        <span>Tôi hiểu rõ hành động này sẽ xóa dữ liệu và đã sẵn sàng làm mới hệ thống.</span>
+                    </label>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">
+                            Gõ chính xác cụm từ <strong class="text-rose-600 font-mono">XOA HET DU LIEU</strong> vào ô bên dưới để mở khóa nút xóa:
+                        </label>
+                        <input type="text" id="reset-data-confirm-text" oninput="checkResetDataInputs()" placeholder="XOA HET DU LIEU" class="border-2 border-slate-300 focus:border-rose-500 p-2 rounded w-full font-mono text-center uppercase font-bold text-sm tracking-widest">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t">
+                <button type="button" onclick="closeResetDataModal()" class="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 text-xs">Hủy Bỏ</button>
+                <button type="button" id="btn-confirm-reset-data" onclick="executeResetData()" disabled class="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded shadow text-xs flex items-center gap-1.5">
+                    <span>🗑️ Xác Nhận Xóa Vĩnh Viễn</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: THÊM / SỬA ĐỐI TÁC -->
     <div id="modal-contact" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -3793,6 +4349,10 @@
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số Điện Thoại:</label>
                     <input type="text" id="contact-form-phone" class="border p-2 rounded w-full" placeholder="VD: 0908123456">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Email (Hóa Đơn / Tra Cứu):</label>
+                    <input type="email" id="contact-form-email" class="border p-2 rounded w-full" placeholder="VD: khachhang@gmail.com">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Địa Chỉ:</label>
@@ -4252,7 +4812,7 @@
                         <input type="number" id="prog-shipping-fee" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-medium">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-emerald-800 mb-0.5">Tiền Tip Thợ (đ):</label>
+                        <label class="block text-[11px] font-bold text-emerald-800 mb-0.5" title="Khách cho riêng thợ - Không tính vào bill và không in ra phiếu">🎁 Tip Thợ (đ) <span class="text-[10px] text-gray-500 font-normal">(cho riêng, không vào bill)</span>:</label>
                         <input type="number" id="prog-tip-amount" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-bold text-emerald-700">
                     </div>
                     <div>
@@ -4500,102 +5060,6 @@
         </div>
     </div>
 
-    <!-- TAB: BẢNG GIÁ -->
-    <div id="tab-price-lists" class="hidden space-y-4">
-        <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
-            <h2 class="text-xl font-bold">Quản Lý Bảng Giá</h2>
-            <button onclick="openPriceListModal()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow flex items-center gap-1">
-                <i class="fa-solid fa-plus"></i> Tạo Bảng Giá
-            </button>
-        </div>
-
-        <!-- Bảng danh sách giá -->
-        <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead class="bg-slate-50 border-b">
-                        <tr>
-                            <th class="p-3">Code</th>
-                            <th class="p-3">Tên Bảng Giá</th>
-                            <th class="p-3">Mô Tả</th>
-                            <th class="p-3 text-center">Sản Phẩm</th>
-                            <th class="p-3 text-center">Trạng Thái</th>
-                            <th class="p-3 text-center">Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="price-lists-tbody">
-                        <tr><td colspan="6" class="p-6 text-center text-gray-400">Đang tải...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Bảng gán giá sản phẩm (Ma Trận Cài Giá Đa Cấp) -->
-        <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-            <div class="flex flex-wrap justify-between items-center gap-3 border-b pb-3">
-                <div>
-                    <h3 class="font-bold text-sm text-slate-800">Cài Đặt Giá Sản Phẩm Theo Bảng Giá</h3>
-                    <p class="text-[11px] text-gray-500">Sản phẩm nào <strong>không cài giá riêng</strong> sẽ tự động lấy <strong>Giá Bán Lẻ Mặc Định</strong>.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <label class="text-xs font-bold text-slate-700">Chọn Bảng Giá:</label>
-                    <select id="pl-select-price-list" class="border p-2 rounded text-xs font-bold bg-white text-sky-800 min-w-[180px]"></select>
-                    <input type="text" id="pl-matrix-search" oninput="debounceLoadPriceMatrix()" placeholder="🔍 Lọc sản phẩm..." class="border p-1.5 rounded text-xs w-48">
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto max-h-[500px]">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead class="bg-slate-100 border-b text-slate-700 sticky top-0 uppercase text-[11px]">
-                        <tr>
-                            <th class="p-2.5">Mã SP</th>
-                            <th class="p-2.5">Tên Sản Phẩm</th>
-                            <th class="p-2.5 text-center">ĐVT</th>
-                            <th class="p-2.5 text-right">Giá Lẻ Mặc Định</th>
-                            <th class="p-2.5 text-right w-40">Giá Riêng Theo Bảng</th>
-                            <th class="p-2.5 text-center">Trạng Thái Giá</th>
-                            <th class="p-2.5 text-center">Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="product-prices-tbody" class="divide-y divide-gray-100">
-                        <tr><td colspan="7" class="p-6 text-center text-gray-400">Chọn bảng giá phía trên để xem ma trận giá</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Phân loại khách hàng (Nhóm Khách Hàng) -->
-        <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-            <div class="flex justify-between items-center border-b pb-2">
-                <div>
-                    <h3 class="font-bold text-sm text-slate-800">Phân Nhóm Khách Hàng & Gán Bảng Giá</h3>
-                    <p class="text-[11px] text-gray-500">Mỗi nhóm khách hàng được gán vào 1 bảng giá để áp dụng tự động khi lên đơn</p>
-                </div>
-                <button onclick="openSegmentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded text-xs shadow flex items-center gap-1">
-                    <span>+ Thêm Nhóm KH</span>
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px]">
-                        <tr>
-                            <th class="p-2.5">Mã Nhóm</th>
-                            <th class="p-2.5">Tên Nhóm Khách Hàng</th>
-                            <th class="p-2.5">Bảng Giá Áp Dụng</th>
-                            <th class="p-2.5 text-center">Số Lượng KH</th>
-                            <th class="p-2.5 text-right">Chiết Khấu %</th>
-                            <th class="p-2.5 text-center">Ưu Tiên</th>
-                            <th class="p-2.5 text-center">Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="segments-tbody" class="divide-y divide-gray-100">
-                        <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải danh sách nhóm...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
     <!-- ==================== MODAL: CHỈNH GIÁ & GIẢM GIÁ SẢN PHẨM ==================== -->
     <div id="modal-item-price" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4 border border-slate-200 animate-in fade-in zoom-in duration-150">
@@ -4686,8 +5150,18 @@
                     <input type="text" id="quick-cust-phone" placeholder="09xxxxxxx..." class="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium">
                 </div>
                 <div>
+                    <label class="font-bold text-slate-600 block mb-1">Email (Xuất hóa đơn / Tra cứu):</label>
+                    <input type="email" id="quick-cust-email" placeholder="email@domain.com..." class="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium">
+                </div>
+                <div>
                     <label class="font-bold text-slate-600 block mb-1">Địa chỉ:</label>
                     <input type="text" id="quick-cust-address" placeholder="Địa chỉ..." class="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-600 block mb-1">Nhóm khách hàng:</label>
+                    <select id="quick-cust-segment" class="w-full border border-slate-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium bg-white">
+                        <option value="">-- Mặc định (Khách lẻ) --</option>
+                    </select>
                 </div>
             </div>
 
@@ -4720,8 +5194,11 @@
     </div>
 
     
-    <script src="/static/js/app.js?v=20260918_22"></script>
-    <script src="/static/js/pos.js?v=20260918_14"></script>
+    <script src="/static/js/auth.js?v=20260920_01"></script>
+    <script src="/static/js/shifts.js?v=20260920_01"></script>
+    <script src="/static/js/staff.js?v=20260920_01"></script>
+    <script src="/static/js/app.js?v=20260919_14"></script>
+    <script src="/static/js/pos.js?v=20260919_18"></script>
 
     <!-- MODAL: TẠO/SỬA BẢNG GIÁ -->
     <div id="modal-price-list" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -4793,29 +5270,347 @@
         </div>
     </div>
 
+    <!-- MODAL: LẬP PHIẾU THU / CHI THỦ CÔNG -->
+    <div id="modal-create-cashbook" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span id="cash-modal-icon" class="text-xl">💰</span>
+                    <h3 class="font-bold text-base text-slate-800" id="cash-modal-title">Lập Phiếu Thu Tiền</h3>
+                </div>
+                <button type="button" onclick="closeCreateCashModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <!-- Loại phiếu -->
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Loại Giao Dịch:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="btn-cash-type-in" onclick="setCashModalType('in')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700">
+                            <span>🟢</span> <span>Thu Tiền (Vào)</span>
+                        </button>
+                        <button type="button" id="btn-cash-type-out" onclick="setCashModalType('out')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600">
+                            <span>🔴</span> <span>Chi Tiền (Ra)</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="cash-type-val" value="in">
+                </div>
+
+                <!-- Tài khoản thanh toán & Nguồn quỹ -->
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Tài Khoản / Két Tiền (*):</label>
+                    <select id="cash-account-select" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
+                    </select>
+                </div>
+
+                <!-- Mã phiếu & Ngày tạo -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="font-bold text-slate-700">Mã Phiếu (*):</label>
+                            <span class="text-[10px] text-gray-400">Cho phép sửa tay</span>
+                        </div>
+                        <input id="cash-code-input" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-indigo-700 uppercase bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500" placeholder="VD: PT-TT-260919-001">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
+                        <input id="cash-amount-input" type="number" step="1000" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-right text-emerald-700 focus:outline-none focus:border-indigo-500" placeholder="0">
+                    </div>
+                </div>
+
+                <!-- Hạng mục thu chi -->
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Hạng Mục Thu / Chi (*):</label>
+                    <input id="cash-category-input" list="cash-categories-datalist" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500" placeholder="Chọn hoặc tự nhập hạng mục...">
+                    <datalist id="cash-categories-datalist">
+                        <option value="Thu tiền bán hàng">
+                        <option value="Thu hồi công nợ khách hàng">
+                        <option value="Thu tiền góp vốn / đầu tư">
+                        <option value="Thu hoàn ứng / tạm ứng">
+                        <option value="Thu khác">
+                        <option value="Chi tiền nhập hàng">
+                        <option value="Chi trả nợ nhà cung cấp">
+                        <option value="Chi phí thuê mặt bằng">
+                        <option value="Chi phí điện nước & internet">
+                        <option value="Chi lương & hoa hồng nhân viên">
+                        <option value="Chi mua sắm vật dụng / CCDC">
+                        <option value="Chi tiếp khách / ăn uống">
+                        <option value="Chi khác">
+                    </datalist>
+                </div>
+
+                <!-- Đối tác liên quan (tùy chọn) -->
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Đối Tác Liên Quan (Tùy chọn):</label>
+                    <select id="cash-contact-select" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-700 bg-white focus:outline-none focus:border-indigo-500">
+                        <option value="">-- Không chọn đối tác --</option>
+                    </select>
+                </div>
+
+                <!-- Ghi chú -->
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Ghi Chú Nội Dung:</label>
+                    <textarea id="cash-note-input" rows="2" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:border-indigo-500" placeholder="Lý do thu chi, số hóa đơn chứng từ kèm theo..."></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onclick="closeCreateCashModal()" class="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy Bỏ</button>
+                <button type="button" onclick="submitCreateCashbook()" id="btn-submit-cashbook" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5">
+                    <span>💾</span>
+                    <span>Xác Nhận Lưu Phiếu</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUẢN LÝ TÀI KHOẢN THANH TOÁN / SỔ QUỸ -->
+    <div id="modal-payment-accounts" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🏦</span>
+                    <h3 class="font-bold text-base text-slate-800">Danh Mục Tài Khoản Thanh Toán & Nguồn Quỹ</h3>
+                </div>
+                <button type="button" onclick="closePaymentAccountsModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <p class="text-xs text-gray-500">Quản lý các tài khoản ngân hàng, ví điện tử và két tiền mặt để phân luồng tiền thu chi.</p>
+                <button onclick="openEditPaymentAccountModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1">
+                    <span>+</span>
+                    <span>Thêm Tài Khoản Mới</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto border border-slate-200 rounded-lg">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-100 border-b text-slate-700 font-bold sticky top-0 uppercase">
+                        <tr>
+                            <th class="p-2.5">Mã TK</th>
+                            <th class="p-2.5">Tên Tài Khoản</th>
+                            <th class="p-2.5 text-center">Loại / Nguồn Quỹ</th>
+                            <th class="p-2.5">Thông tin Ngân hàng / STK</th>
+                            <th class="p-2.5 text-right">Số Dư Hiện Tại</th>
+                            <th class="p-2.5 text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-payment-accounts-body"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t">
+                <button onclick="closePaymentAccountsModal()" class="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: THÊM / SỬA MỘT TÀI KHOẢN THANH TOÁN -->
+    <div id="modal-edit-payment-account" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-base text-slate-800" id="account-modal-title">Thêm Tài Khoản Mới</h3>
+                <button type="button" onclick="closeEditPaymentAccountModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <input type="hidden" id="edit-account-id">
+
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Mã Tài Khoản (*):</label>
+                        <input id="acc-code-input" class="w-full border border-slate-300 rounded-lg p-2 uppercase font-mono font-bold" placeholder="VD: VCB-CTY">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Hình Thức (*):</label>
+                        <select id="acc-type-select" onchange="toggleAccountBankFields()" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white">
+                            <option value="cash">💵 Tiền mặt (Két)</option>
+                            <option value="bank">🏦 Tài khoản Ngân hàng</option>
+                            <option value="ewallet">📱 Ví điện tử</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Tên Gợi Nhớ Tài Khoản (*):</label>
+                    <input id="acc-name-input" class="w-full border border-slate-300 rounded-lg p-2 font-medium" placeholder="VD: Két tiền mặt POS, Vietcombank Cty...">
+                </div>
+
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Nguồn Quỹ / Chủ Sở Hữu:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+                            <input type="radio" name="acc-owner-radio" value="COMPANY" checked>
+                            <span class="font-bold text-blue-700">🏢 Quỹ Công Ty</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+                            <input type="radio" name="acc-owner-radio" value="PERSONAL">
+                            <span class="font-bold text-purple-700">👤 Quỹ Cá Nhân</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="acc-bank-fields" class="space-y-2.5 bg-slate-50 p-3 rounded-lg border">
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Tên Ngân Hàng:</label>
+                        <input id="acc-bank-name" class="w-full border border-slate-300 rounded p-1.5 bg-white" placeholder="VD: Vietcombank, MB Bank...">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="font-bold text-slate-700 block mb-1">Số Tài Khoản:</label>
+                            <input id="acc-bank-number" class="w-full border border-slate-300 rounded p-1.5 font-mono bg-white" placeholder="0123456789">
+                        </div>
+                        <div>
+                            <label class="font-bold text-slate-700 block mb-1">Tên Chủ Tài Khoản:</label>
+                            <input id="acc-bank-holder" class="w-full border border-slate-300 rounded p-1.5 uppercase bg-white" placeholder="NGUYEN VAN A">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 items-center">
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Số Dư Ban Đầu (VNĐ):</label>
+                        <input id="acc-initial-balance" type="number" step="1000" class="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-right" placeholder="0">
+                    </div>
+                    <div class="pt-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="acc-is-default" class="w-4 h-4 text-indigo-600 rounded">
+                            <span class="font-bold text-slate-700 text-xs">Đặt làm mặc định</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onclick="closeEditPaymentAccountModal()" class="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                <button type="button" onclick="savePaymentAccount()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow">Lưu Tài Khoản</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     // ========== BẢNG GIÁ ==========
+    // ========== BẢNG GIÁ SUB-TABS ==========
+    function switchPriceListSubTab(sub) {
+        const tabMatrix = document.getElementById('pl-subtab-matrix');
+        const tabSegments = document.getElementById('pl-subtab-segments');
+        const btnMatrix = document.getElementById('btn-subtab-pl-matrix');
+        const btnSegments = document.getElementById('btn-subtab-pl-segments');
+
+        if (sub === 'segments') {
+            tabMatrix?.classList.add('hidden');
+            tabSegments?.classList.remove('hidden');
+            btnMatrix?.classList.remove('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btnMatrix?.classList.add('text-slate-500', 'font-semibold');
+            btnSegments?.classList.add('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btnSegments?.classList.remove('text-slate-500', 'font-semibold');
+            loadSegments();
+        } else {
+            tabMatrix?.classList.remove('hidden');
+            tabSegments?.classList.add('hidden');
+            btnSegments?.classList.remove('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btnSegments?.classList.add('text-slate-500', 'font-semibold');
+            btnMatrix?.classList.add('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btnMatrix?.classList.remove('text-slate-500', 'font-semibold');
+            loadPriceLists();
+        }
+    }
+
+    // ========== BẢNG GIÁ CRUD ==========
+    function openPriceListModal() {
+        document.getElementById('pl-modal-title').textContent = 'Tạo Bảng Giá Mới';
+        document.getElementById('pl-edit-id').value = '';
+        document.getElementById('pl-code').value = '';
+        document.getElementById('pl-name').value = '';
+        document.getElementById('pl-desc').value = '';
+        document.getElementById('modal-price-list')?.classList.remove('hidden');
+    }
+
+    function closePriceListModal() {
+        document.getElementById('modal-price-list')?.classList.add('hidden');
+    }
+
+    async function savePriceList() {
+        const id = document.getElementById('pl-edit-id')?.value;
+        const code = document.getElementById('pl-code')?.value.trim();
+        const name = document.getElementById('pl-name')?.value.trim();
+        const description = document.getElementById('pl-desc')?.value.trim();
+        if (!code || !name) {
+            alert('Vui lòng nhập Mã và Tên bảng giá');
+            return;
+        }
+        const body = { code, name, description };
+        const url = id ? `/api/price-lists/${id}` : '/api/price-lists';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Lỗi: ' + (err.detail || 'Không thể lưu bảng giá'));
+            return;
+        }
+        closePriceListModal();
+        loadPriceLists();
+    }
+
+    async function editPriceList(id) {
+        const res = await fetch('/api/price-lists');
+        const list = await res.json();
+        const pl = list.find(x => x.id === id);
+        if (!pl) return;
+        document.getElementById('pl-modal-title').textContent = 'Sửa Bảng Giá';
+        document.getElementById('pl-edit-id').value = pl.id;
+        document.getElementById('pl-code').value = pl.code || '';
+        document.getElementById('pl-name').value = pl.name || '';
+        document.getElementById('pl-desc').value = pl.description || '';
+        document.getElementById('modal-price-list')?.classList.remove('hidden');
+    }
+
+    async function deletePriceList(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa bảng giá này?')) return;
+        const res = await fetch(`/api/price-lists/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.detail || 'Không thể xóa bảng giá');
+            return;
+        }
+        loadPriceLists();
+    }
+
     async function loadPriceLists() {
         const res = await fetch('/api/price-lists');
         const data = await res.json();
         const tbody = document.getElementById('price-lists-tbody');
-        tbody.innerHTML = data.map(pl => `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 font-mono">${pl.code}</td>
-                <td class="p-2 font-bold">${pl.name}</td>
-                <td class="p-2 text-slate-500">${pl.description || ''}</td>
-                <td class="p-2 text-center">${pl.product_count}</td>
-                <td class="p-2 text-center">${pl.is_active ? '<span class="text-emerald-600 font-bold">Đang dùng</span>' : '<span class="text-gray-400">Ngưng</span>'}</td>
-                <td class="p-2 text-center space-x-1">
-                    <button onclick="editPriceList(${pl.id})" class="text-sky-600 hover:underline text-xs">Sửa</button>
-                    <button onclick="deletePriceList(${pl.id})" class="text-rose-600 hover:underline text-xs">Xóa</button>
-                    <button onclick="selectPriceListForMatrix(${pl.id})" class="text-emerald-600 hover:underline text-xs font-bold">Cài Giá</button>
-                </td>
-            </tr>
-        `).join('');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Chưa có bảng giá nào. Bấm "Tạo Bảng Giá Mới" để bắt đầu.</td></tr>';
+        } else {
+            tbody.innerHTML = data.map(pl => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-mono font-bold text-slate-700">${pl.code}</td>
+                    <td class="p-3 font-bold text-slate-800">${pl.name}</td>
+                    <td class="p-3 text-slate-500">${pl.description || '-'}</td>
+                    <td class="p-3 text-center font-bold text-indigo-700">${pl.product_count || 0} SP</td>
+                    <td class="p-3 text-center">${pl.is_active ? '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[11px]">Đang dùng</span>' : '<span class="bg-gray-100 text-gray-400 px-2 py-0.5 rounded text-[11px]">Ngưng</span>'}</td>
+                    <td class="p-3 text-center space-x-2">
+                        <button onclick="editPriceList(${pl.id})" class="text-sky-600 hover:underline font-semibold text-xs">Sửa</button>
+                        <button onclick="deletePriceList(${pl.id})" class="text-rose-600 hover:underline font-semibold text-xs">Xóa</button>
+                        <button onclick="selectPriceListForMatrix(${pl.id})" class="bg-sky-50 text-sky-700 border border-sky-300 hover:bg-sky-100 px-2.5 py-1 rounded text-xs font-bold transition">Cài Giá</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
         // Cập nhật dropdown chọn bảng giá ma trận
         const sel = document.getElementById('pl-select-price-list');
+        const prevVal = sel.value;
         sel.innerHTML = '<option value="">-- Chọn bảng giá --</option>' + data.filter(d=>d.is_active).map(pl => `<option value="${pl.id}">${pl.name}</option>`).join('');
+        if (prevVal && data.some(d => d.id == prevVal)) {
+            sel.value = prevVal;
+        } else if (data.length > 0 && !sel.value) {
+            sel.value = data[0].id;
+            loadPriceMatrix(data[0].id);
+        }
         sel.onchange = () => { 
             const id = sel.value; 
             if(id) loadPriceMatrix(id); 
@@ -4849,6 +5644,38 @@
         }, 300);
     }
 
+    async function applyBulkDiscountToActivePriceList() {
+        const sel = document.getElementById('pl-select-price-list');
+        const plId = sel ? sel.value : null;
+        if (!plId) {
+            alert('Vui lòng chọn bảng giá trước khi áp dụng');
+            return;
+        }
+        const pctInput = document.getElementById('bulk-discount-pct');
+        const pct = pctInput ? parseFloat(pctInput.value) : 0;
+        if (isNaN(pct) || pct < 0 || pct > 100) {
+            alert('Vui lòng nhập phần trăm giảm giá hợp lệ (0 - 100%)');
+            return;
+        }
+        const selName = sel.options[sel.selectedIndex]?.text || '';
+        if (!confirm(`Áp dụng giảm ${pct}% so với giá lẻ mặc định cho TẤT CẢ sản phẩm trong "${selName}"?`)) return;
+
+        const res = await fetch(`/api/price-lists/${plId}/bulk-discount`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ discount_percent: pct })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (typeof window.clearPriceListsCache === 'function') window.clearPriceListsCache();
+            alert(`Đã cập nhật giá cho ${data.updated_count || 0} sản phẩm!`);
+            loadPriceMatrix(plId);
+            loadPriceLists();
+        } else {
+            alert('Lỗi áp dụng giảm giá hàng loạt');
+        }
+    }
+
     async function loadPriceMatrix(priceListId) {
         const search = document.getElementById('pl-matrix-search') ? document.getElementById('pl-matrix-search').value : '';
         const url = `/api/price-lists/${priceListId}/matrix` + (search ? `?search=${encodeURIComponent(search)}` : '');
@@ -4862,24 +5689,26 @@
 
         tbody.innerHTML = data.map(p => `
             <tr class="border-b hover:bg-gray-50 text-xs">
-                <td class="p-2.5 font-mono text-gray-500">${p.product_code || '-'}</td>
+                <td class="p-2.5 font-mono text-gray-500 font-semibold">${p.product_code || '-'}</td>
                 <td class="p-2.5 font-bold text-slate-800">${p.product_name}</td>
                 <td class="p-2.5 text-center text-gray-500">${p.unit || 'Cái'}</td>
                 <td class="p-2.5 text-right font-medium text-slate-600">${(p.default_retail_price || 0).toLocaleString('vi-VN')} đ</td>
                 <td class="p-2.5 text-right">
                     <input type="number" id="input-price-${p.product_id}" value="${p.custom_price !== null && p.custom_price !== undefined ? p.custom_price : ''}" 
                            placeholder="${(p.default_retail_price || 0).toLocaleString('vi-VN')}" 
-                           class="border p-1 rounded w-32 text-right text-xs font-bold text-sky-800 bg-white shadow-sm focus:border-sky-500">
+                           onchange="saveSingleProductPrice(${priceListId}, ${p.product_id})"
+                           onkeydown="if(event.key === 'Enter') { this.blur(); }"
+                           class="border p-1.5 rounded w-36 text-right text-xs font-bold text-sky-800 bg-white shadow-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
                 </td>
-                <td class="p-2.5 text-center">
+                <td class="p-2.5 text-center" id="status-cell-${p.product_id}">
                     ${p.is_custom 
                         ? `<span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px]">✨ Giá riêng: ${(p.custom_price || 0).toLocaleString('vi-VN')} đ</span>`
                         : `<span class="bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded text-[10px]">🏷️ Giá lẻ mặc định</span>`
                     }
                 </td>
                 <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                    <button onclick="saveSingleProductPrice(${priceListId}, ${p.product_id})" class="bg-sky-600 hover:bg-sky-700 text-white px-2 py-1 rounded text-[11px] font-bold shadow-sm">Lưu</button>
-                    ${p.is_custom ? `<button onclick="resetToDefaultRetailPrice(${priceListId}, ${p.product_id})" class="text-rose-600 hover:underline text-[11px] font-bold">Về Mặc Định</button>` : ''}
+                    <button onclick="saveSingleProductPrice(${priceListId}, ${p.product_id})" class="bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1 rounded text-[11px] font-bold shadow-sm transition">Lưu</button>
+                    ${p.is_custom ? `<button onclick="resetToDefaultRetailPrice(${priceListId}, ${p.product_id})" class="text-rose-600 hover:underline text-[11px] font-bold ml-1">Về Mặc Định</button>` : ''}
                 </td>
             </tr>
         `).join('');
@@ -4893,6 +5722,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ product_id: productId, custom_price: val && val > 0 ? val : null })
         });
+        if (typeof window.clearPriceListsCache === 'function') window.clearPriceListsCache();
         loadPriceMatrix(priceListId);
     }
 
@@ -4902,6 +5732,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ product_id: productId, custom_price: null })
         });
+        if (typeof window.clearPriceListsCache === 'function') window.clearPriceListsCache();
         loadPriceMatrix(priceListId);
     }
 

@@ -45,14 +45,24 @@
 
             document.querySelectorAll('.settings-subtab-btn').forEach(btn => {
                 if (btn.dataset.sub === subId) {
-                    btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-purple-600 text-white shadow-sm flex items-center gap-1.5';
+                    if (subId === 'reset-data') {
+                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-rose-600 text-white shadow-sm flex items-center gap-1.5 font-bold';
+                    } else {
+                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-purple-600 text-white shadow-sm flex items-center gap-1.5 font-bold';
+                    }
                 } else {
-                    btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5';
+                    if (btn.dataset.sub === 'reset-data') {
+                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 border border-rose-200';
+                    } else {
+                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5';
+                    }
                 }
             });
 
             if (subId === 'company') loadCompanySettings();
             if (subId === 'templates') loadSettings();
+            if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
+            if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
         }
 
         // --- SUB 1: TỒN KHO TỔNG HỢP ---
@@ -1381,10 +1391,13 @@
                 loadCashbook();
             } else if (tabId === 'reports') {
                 loadReports();
+            } else if (tabId === 'shifts') {
+                if (typeof loadShiftsHistory === 'function') loadShiftsHistory();
             } else if (tabId === 'purchases') {
                 initPurchases();
                 loadPurchasesList();
             } else if (tabId === 'pos') {
+                if (typeof window.clearPriceListsCache === 'function') window.clearPriceListsCache();
                 if (typeof window.initPOSModule === 'function') {
                     window.initPOSModule();
                 } else if (typeof initPOS === 'function') {
@@ -1407,6 +1420,15 @@
         }
 
         async function init() {
+            // Tải cấu hình cài đặt chung trước để hiển thị tiêu đề và logo
+            try {
+                const res = await fetch('/api/settings');
+                if (res.ok) {
+                    const st = await res.json();
+                    if (st.app_name) updateAppTitleUI(st.app_name);
+                }
+            } catch (_) {}
+
             await Promise.all([loadProducts(), loadContacts(), loadStaff()]);
             initPurchases();
             initProduction();
@@ -1611,6 +1633,8 @@
             document.getElementById('contact-form-type').value = defaultType;
             document.getElementById('contact-form-name').value = '';
             document.getElementById('contact-form-phone').value = '';
+            const emailEl = document.getElementById('contact-form-email');
+            if (emailEl) emailEl.value = '';
             document.getElementById('contact-form-address').value = '';
             
             // Populate segments
@@ -1637,6 +1661,8 @@
             document.getElementById('contact-form-type').value = c.type;
             document.getElementById('contact-form-name').value = c.name;
             document.getElementById('contact-form-phone').value = c.phone || '';
+            const emailEl = document.getElementById('contact-form-email');
+            if (emailEl) emailEl.value = c.email || '';
             document.getElementById('contact-form-address').value = c.address || '';
             
             const segSelect = document.getElementById('contact-form-segment');
@@ -1663,6 +1689,7 @@
             const type = document.getElementById('contact-form-type').value;
             const name = document.getElementById('contact-form-name').value.trim();
             const phone = document.getElementById('contact-form-phone').value.trim();
+            const email = (document.getElementById('contact-form-email')?.value || '').trim();
             const address = document.getElementById('contact-form-address').value.trim();
             const segVal = document.getElementById('contact-form-segment')?.value;
             const segment_id = segVal ? parseInt(segVal) : null;
@@ -1677,7 +1704,7 @@
                     const res = await fetch(`/api/contacts/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, phone, address, segment_id })
+                        body: JSON.stringify({ name, phone, email, address, segment_id })
                     });
                     if (!res.ok) {
                         const err = await res.json();
@@ -1688,7 +1715,7 @@
                     const res = await fetch('/api/contacts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type, name, phone, address, segment_id })
+                        body: JSON.stringify({ type, name, phone, email, address, segment_id })
                     });
                     if (!res.ok) {
                         const err = await res.json();
@@ -1698,6 +1725,7 @@
                 }
                 closeContactModal();
                 await loadContacts();
+                if (typeof initPOS === 'function') initPOS();
             } catch (e) {
                 console.error("submitContactForm err:", e);
                 alert("Lỗi kết nối máy chủ");
@@ -2103,8 +2131,8 @@
         // ==========================================
         // PET SERVICES KPI & TICKET LIST
         // ==========================================
-        let allPetServiceTickets = [];
-        let petServiceFilterStatus = 'all';
+        var allPetServiceTickets = [];
+        var petServiceFilterStatus = 'all';
 
         async function loadPetServicesKPI() {
             try {
@@ -2118,6 +2146,36 @@
             } catch(e) { console.error('loadPetServicesKPI error:', e); }
         }
 
+        var currentSpaView = 'table';
+
+        function switchSpaView(view) {
+            currentSpaView = (view === 'kanban') ? 'kanban' : 'table';
+            ['table', 'kanban'].forEach(v => {
+                const elView = document.getElementById('spa-view-' + v);
+                const btn = document.getElementById('btn-spa-view-' + v);
+                if (elView) {
+                    if (v === currentSpaView) {
+                        elView.classList.remove('hidden');
+                    } else {
+                        elView.classList.add('hidden');
+                    }
+                }
+                if (btn) {
+                    if (v === currentSpaView) {
+                        btn.className = `px-3 py-1.5 font-bold bg-purple-700 text-white ${v === 'table' ? 'rounded-l-lg' : 'rounded-r-lg'}`;
+                    } else {
+                        btn.className = `px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 ${v === 'table' ? 'rounded-l-lg' : 'border-l rounded-r-lg'}`;
+                    }
+                }
+            });
+            renderActiveSpaView();
+        }
+
+        function renderActiveSpaView() {
+            renderPetServicesTable();
+            renderKanbanBoard();
+        }
+
         function filterPetServices(status) {
             petServiceFilterStatus = status;
             ['all','pending','in_progress','completed','checked_out'].forEach(s => {
@@ -2126,7 +2184,7 @@
                     ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow'
                     : 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50';
             });
-            renderPetServicesTable();
+            renderActiveSpaView();
         }
 
         async function loadPetServicesList() {
@@ -2134,18 +2192,55 @@
                 const res = await fetch('/api/pet-services');
                 if (!res.ok) {
                     allPetServiceTickets = [];
-                    renderPetServicesTable();
+                    renderActiveSpaView();
                     return;
                 }
                 const data = await res.json();
                 allPetServiceTickets = Array.isArray(data) ? data : [];
-                renderPetServicesTable();
+                renderActiveSpaView();
             } catch(e) { 
                 console.error('loadPetServicesList error:', e);
                 allPetServiceTickets = [];
-                renderPetServicesTable();
+                renderActiveSpaView();
             }
         }
+
+        function getSpaStatusSelectorHtml(t) {
+            const s = t.status;
+            let colorClass = 'bg-gray-100 text-gray-800 border-gray-300';
+            if (s === 'pending') colorClass = 'bg-amber-50 text-amber-800 border-amber-300';
+            if (s === 'in_progress') colorClass = 'bg-sky-50 text-sky-800 border-sky-300';
+            if (s === 'completed') colorClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+            if (s === 'checked_out') colorClass = 'bg-purple-50 text-purple-800 border-purple-300';
+
+            return `
+                <select onchange="updateServiceStatus(${t.id}, this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
+                    <option value="pending" ${s === 'pending' ? 'selected' : ''}>⏳ Chờ</option>
+                    <option value="in_progress" ${s === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
+                    <option value="completed" ${s === 'completed' ? 'selected' : ''}>✅ Xong</option>
+                    <option value="checked_out" ${s === 'checked_out' ? 'selected' : ''}>🏠 Đã Về</option>
+                </select>
+            `;
+        }
+        var statusSelector = getSpaStatusSelectorHtml;
+
+        function getSpaCallStatusSelectorHtml(t) {
+            const cs = t.call_status || 'Chưa gọi';
+            let csClass = 'bg-gray-50 text-slate-700 border-gray-200';
+            if (cs === 'Đã gọi đón') csClass = 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
+            if (cs === 'Không nghe máy') csClass = 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
+            if (cs === 'Hẹn giờ đón') csClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
+
+            return `
+                <select onchange="updateServiceCallStatus(${t.id}, this.value)" class="text-[10px] py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
+                    <option value="Chưa gọi" ${cs === 'Chưa gọi' ? 'selected' : ''}>📞 Chưa gọi</option>
+                    <option value="Đã gọi đón" ${cs === 'Đã gọi đón' ? 'selected' : ''}>✅ Đã gọi đón</option>
+                    <option value="Không nghe máy" ${cs === 'Không nghe máy' ? 'selected' : ''}>❌ Không nghe</option>
+                    <option value="Hẹn giờ đón" ${cs === 'Hẹn giờ đón' ? 'selected' : ''}>⏰ Hẹn giờ</option>
+                </select>
+            `;
+        }
+        var callStatusSelector = getSpaCallStatusSelectorHtml;
 
         function renderPetServicesTable() {
             const tbody = document.getElementById('table-pet-services');
@@ -2159,118 +2254,238 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="19" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
                 return;
             }
 
-            const statusSelector = (t) => {
-                const s = t.status;
-                let colorClass = 'bg-gray-100 text-gray-800 border-gray-300';
-                if (s === 'pending') colorClass = 'bg-amber-50 text-amber-800 border-amber-300';
-                if (s === 'in_progress') colorClass = 'bg-sky-50 text-sky-800 border-sky-300';
-                if (s === 'completed') colorClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
-                if (s === 'checked_out') colorClass = 'bg-purple-50 text-purple-800 border-purple-300';
-
-                return `
-                    <select onchange="updateServiceStatus(${t.id}, this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
-                        <option value="pending" ${s === 'pending' ? 'selected' : ''}>⏳ Chờ</option>
-                        <option value="in_progress" ${s === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
-                        <option value="completed" ${s === 'completed' ? 'selected' : ''}>✅ Xong</option>
-                        <option value="checked_out" ${s === 'checked_out' ? 'selected' : ''}>🏠 Đã Về</option>
-                    </select>
-                `;
-            };
-
-            const callStatusSelector = (t) => {
-                const cs = t.call_status || 'Chưa gọi';
-                let csClass = 'bg-gray-50 text-slate-700 border-gray-200';
-                if (cs === 'Đã gọi đón') csClass = 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
-                if (cs === 'Không nghe máy') csClass = 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
-                if (cs === 'Hẹn giờ đón') csClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
-
-                return `
-                    <select onchange="updateServiceCallStatus(${t.id}, this.value)" class="text-[10px] py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
-                        <option value="Chưa gọi" ${cs === 'Chưa gọi' ? 'selected' : ''}>📞 Chưa gọi</option>
-                        <option value="Đã gọi đón" ${cs === 'Đã gọi đón' ? 'selected' : ''}>✅ Đã gọi đón</option>
-                        <option value="Không nghe máy" ${cs === 'Không nghe máy' ? 'selected' : ''}>❌ Không nghe</option>
-                        <option value="Hẹn giờ đón" ${cs === 'Hẹn giờ đón' ? 'selected' : ''}>⏰ Hẹn giờ</option>
-                    </select>
-                `;
-            };
-
             tbody.innerHTML = filtered.map(t => {
-                const dateOnly = (t.created_at || '').split(' ')[0] || (t.ticket_date || '');
-                const dParts = dateOnly.split('-');
-                const dFormatted = dParts.length === 3 ? `${dParts[2]}/${dParts[1]}` : dateOnly;
-
                 // Thợ làm
                 let staffDisplay = [];
                 if (t.staff_receiver) staffDisplay.push(`<span class="text-purple-700 font-bold" title="Nhận">📥 ${t.staff_receiver}</span>`);
                 if (t.staff_cutter) staffDisplay.push(`<span class="text-pink-700 font-bold" title="Cắt">✂️ ${t.staff_cutter}</span>`);
-                if (t.staff_worker_1) staffDisplay.push(`<span class="text-sky-700" title="Làm 1">🛁 ${t.staff_worker_1}</span>`);
+                if (t.staff_worker_1) staffDisplay.push(`<span class="text-sky-700" title="Tắm/Làm 1">🛁 ${t.staff_worker_1}</span>`);
                 if (t.staff_dyer) staffDisplay.push(`<span class="text-amber-700" title="Nhuộm">🎨 ${t.staff_dyer}</span>`);
                 const staffHtml = staffDisplay.length > 0 ? staffDisplay.join('<br>') : '<span class="text-gray-400 italic">Chưa phân công</span>';
 
                 // Phụ thu
                 let extraFees = [];
-                if (t.teeth_cleaning) extraFees.push(`Đ.Răng: ${formatMoney(t.teeth_cleaning)}`);
-                if (t.art_cutting_fee) extraFees.push(`PT Cắt: ${formatMoney(t.art_cutting_fee)}`);
+                if (t.teeth_cleaning) extraFees.push(`Răng: ${formatMoney(t.teeth_cleaning)}`);
+                if (t.art_cutting_fee) extraFees.push(`Cắt NT: ${formatMoney(t.art_cutting_fee)}`);
                 if (t.surcharge) extraFees.push(`Phụ thu: ${formatMoney(t.surcharge)}`);
                 if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
-                if (t.tip_amount) extraFees.push(`Tip: ${formatMoney(t.tip_amount)}`);
-                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[10px] text-amber-800 font-semibold">${extraFees.join(', ')}</div>` : '-';
+                if (t.tip_amount) extraFees.push(`<span class="text-emerald-700 font-bold">🎁 Tip thợ: ${formatMoney(t.tip_amount)}</span>`);
+                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 return `
-                <tr class="border-b hover:bg-slate-50 transition text-xs">
-                    <td class="p-2 text-center font-mono font-bold text-purple-700">
-                        ${t.ticket_number ? `<span class="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[11px]">#${t.ticket_number}</span>` : '-'}
+                <tr class="border-b border-slate-200 hover:bg-purple-50/40 transition text-[13px]">
+                    <!-- 1. STT / Mã -->
+                    <td class="p-3 text-center font-mono font-bold text-purple-700 border-r border-slate-200">
+                        ${t.ticket_number ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                        <div class="text-[10px] text-gray-400 font-mono mt-1">${t.code || ''}</div>
                     </td>
-                    <td class="p-2 text-gray-500 font-medium">${dFormatted}</td>
-                    <td class="p-2 font-bold text-slate-800">${t.customer_name || '-'}</td>
-                    <td class="p-2 font-mono text-gray-600">${t.customer_phone || '-'}</td>
-                    <td class="p-2 text-center">${callStatusSelector(t)}</td>
-                    <td class="p-2">
-                        ${t.pet_name ? `🐾 <strong>${t.pet_name}</strong> (${t.pet_breed || t.pet_species || 'Cún'})` : '<span class="text-gray-400">-</span>'}
+                    <!-- 2. Khách hàng -->
+                    <td class="p-3">
+                        <div class="font-bold text-slate-800">${t.customer_name || '-'}</div>
+                        <div class="font-mono text-xs text-gray-500">${t.customer_phone || ''}</div>
                     </td>
-                    <td class="p-2 text-center text-gray-600">${t.pet_color || '-'}${t.pet_gender ? ` / ${t.pet_gender}` : ''}</td>
-                    <td class="p-2 text-center font-bold text-pink-700">
-                        ${t.weight_at_service ? `${String(t.weight_at_service).replace('.', ',')} kg` : '-'}
+                    <!-- 3. Trạng thái gọi điện -->
+                    <td class="p-3 text-center">${callStatusSelector(t)}</td>
+                    <!-- 4. Thú cưng -->
+                    <td class="p-3">
+                        <div class="font-bold text-pink-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
+                        <div class="text-[11px] text-gray-600 flex items-center gap-1.5 mt-0.5">
+                            <span>${t.pet_color || '-'}${t.pet_gender ? ' / ' + t.pet_gender : ''}</span>
+                            ${t.weight_at_service ? `<span class="bg-pink-100 text-pink-800 font-bold px-1.5 py-0.2 rounded text-[11px]">${String(t.weight_at_service).replace('.', ',')} kg</span>` : ''}
+                        </div>
                     </td>
-                    <td class="p-2">
-                        <div class="font-bold text-slate-800">${t.service_type}</div>
-                        ${t.dye_package ? `<div class="text-[10px] text-pink-600 font-semibold">🎨 ${t.dye_package}</div>` : ''}
+                    <!-- 5. Dịch vụ -->
+                    <td class="p-3">
+                        <div class="font-bold text-slate-800">${t.service_type || '-'}</div>
+                        ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${t.dye_package}</div>` : ''}
                     </td>
-                    <td class="p-2 text-center">${statusSelector(t)}</td>
-                    <td class="p-2 text-gray-700 max-w-xs truncate" title="${t.customer_request || ''}">
-                        ${t.shaving_feet ? `<span class="text-pink-600 font-bold mr-1">[${t.shaving_feet}]</span>` : ''}
-                        <span>${t.customer_request || '-'}</span>
+                    <!-- 6. Lưu ý & Yêu cầu -->
+                    <td class="p-3 text-xs text-gray-700 max-w-xs">
+                        ${t.shaving_feet ? `<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${t.shaving_feet}</span>` : ''}
+                        ${t.customer_request ? `<div class="font-medium text-slate-700">${t.customer_request}</div>` : ''}
+                        ${t.accessories ? `<div class="text-[11px] text-amber-700 font-medium">🎒 ${t.accessories}</div>` : ''}
+                        ${t.note ? `<div class="text-[11px] italic text-gray-500">📝 ${t.note}</div>` : ''}
                     </td>
-                    <td class="p-2 text-gray-600 max-w-xs truncate" title="${t.accessories || ''} | ${t.note || ''}">
-                        ${t.accessories ? `<span class="text-amber-700 font-medium">🎒 ${t.accessories}</span>` : ''}
-                        ${t.note ? `<span class="italic text-gray-500"> (${t.note})</span>` : ''}
+                    <!-- 7. Thợ phụ trách -->
+                    <td class="p-3 text-xs">${staffHtml}</td>
+                    <!-- 8. Trạng thái làm -->
+                    <td class="p-3 text-center border-r-2 border-purple-300">${statusSelector(t)}</td>
+                    <!-- 9. Phụ thu -->
+                    <td class="p-3 text-right font-medium">${extraFeesHtml}</td>
+                    <!-- 10. Tổng tiền -->
+                    <td class="p-3 text-right font-mono font-black text-sky-700 text-sm">${formatMoney(t.price || 0)}</td>
+                    <!-- 11. Thanh toán -->
+                    <td class="p-3 text-center">
+                        ${t.payment_status === 'paid' ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Đã TT</span>' : '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Chưa TT</span>'}
                     </td>
-                    <td class="p-2 text-right">${extraFeesHtml}</td>
-                    <td class="p-2 text-right font-mono font-bold text-sky-700">${formatMoney(t.price || 0)}</td>
-                    <td class="p-2 text-center">
-                        ${t.payment_status === 'paid' ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Đã TT</span>' : '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Chưa TT</span>'}
+                    <!-- 12. Đưa đón -->
+                    <td class="p-3 text-center text-[11px] text-gray-600">
+                        <div><span class="text-purple-700 font-bold">Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
+                        <div><span class="text-emerald-700 font-bold">Về:</span> <strong>${t.checkout_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.return_method || 'Tự về'})</span></div>
                     </td>
-                    <td class="p-2 text-xs">${staffHtml}</td>
-                    <td class="p-2 text-center text-gray-600 text-[11px]">
-                        <div>${t.received_time || '-'}</div>
-                        <div class="text-[10px] text-gray-400">${t.arrival_method || ''}</div>
-                    </td>
-                    <td class="p-2 text-center text-gray-600 text-[11px]">
-                        <div>${t.checkout_time || '-'}</div>
-                        <div class="text-[10px] text-gray-400">${t.return_method || ''}</div>
-                    </td>
-                    <td class="p-2 text-center space-x-1 whitespace-nowrap">
-                        <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm" title="Cập nhật thợ làm, phụ thu & trả bé">✏️ Cập nhật</button>
-                        <button onclick="printPetServiceTicketDirectly(${t.id})" class="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow-sm" title="In phiếu K80">🖨️ In</button>
-                        <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-[10px] font-bold">🗑️</button>
+                    <!-- 13. Thao tác -->
+                    <td class="p-3 text-center space-x-1 whitespace-nowrap">
+                        <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-1.5 py-1 rounded text-[11px] font-bold shadow-sm" title="Cập nhật thợ làm, phụ thu & trả bé">✏️</button>
+                        <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-1 rounded text-[11px] font-bold shadow-sm" title="In phiếu tiếp nhận (2 chữ ký)">🖨️ Nhận</button>
+                        <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-1 rounded text-[11px] font-bold shadow-sm" title="In hóa đơn thanh toán K80">🧾 Trả</button>
+                        <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-1 border border-rose-200 rounded text-[11px] font-bold" title="Xóa phiếu">🗑️</button>
                     </td>
                 </tr>
                 `;
             }).join('');
+        }
+
+        function renderKanbanBoard() {
+            const kanbanContainer = document.getElementById('kanban-board');
+            if (!kanbanContainer) return;
+            if (!Array.isArray(allPetServiceTickets)) allPetServiceTickets = [];
+
+            const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
+            let filtered = allPetServiceTickets.filter(t => {
+                if (q && !(t.code||'').toLowerCase().includes(q) && !(t.customer_name||'').toLowerCase().includes(q) && !(t.customer_phone||'').includes(q) && !(t.pet_name||'').toLowerCase().includes(q) && !(t.service_type||'').toLowerCase().includes(q) && !(t.staff_cutter||'').toLowerCase().includes(q) && !(t.staff_receiver||'').toLowerCase().includes(q)) return false;
+                return true;
+            });
+
+            const cols = ['pending', 'in_progress', 'completed', 'checked_out'];
+            cols.forEach(status => {
+                const colEl = document.getElementById('kanban-col-' + status);
+                const countEl = document.getElementById('kanban-count-' + status);
+                const ticketsInCol = filtered.filter(t => (t.status || 'pending') === status);
+                if (countEl) countEl.innerText = ticketsInCol.length;
+                if (!colEl) return;
+
+                if (ticketsInCol.length === 0) {
+                    colEl.innerHTML = '<div class="text-xs text-gray-400 italic text-center py-12">Không có phiếu</div>';
+                    return;
+                }
+
+                colEl.innerHTML = ticketsInCol.map(t => {
+                    // Thợ phụ trách
+                    let staffPills = [];
+                    if (t.staff_receiver) staffPills.push(`<span class="text-purple-700 font-semibold">📥 ${t.staff_receiver}</span>`);
+                    if (t.staff_cutter) staffPills.push(`<span class="text-pink-700 font-semibold">✂️ ${t.staff_cutter}</span>`);
+                    if (t.staff_worker_1) staffPills.push(`<span class="text-sky-700">🛁 ${t.staff_worker_1}</span>`);
+                    if (t.staff_dyer) staffPills.push(`<span class="text-amber-700">🎨 ${t.staff_dyer}</span>`);
+
+                    // Phụ thu
+                    let extraFees = [];
+                    if (t.teeth_cleaning) extraFees.push(`Răng: ${formatMoney(t.teeth_cleaning)}`);
+                    if (t.art_cutting_fee) extraFees.push(`Cắt NT: ${formatMoney(t.art_cutting_fee)}`);
+                    if (t.surcharge) extraFees.push(`Phụ thu: ${formatMoney(t.surcharge)}`);
+                    if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
+                    if (t.tip_amount) extraFees.push(`<span class="text-emerald-700 font-bold">🎁 Tip thợ: ${formatMoney(t.tip_amount)}</span>`);
+                    const extraFeesText = extraFees.length > 0 ? extraFees.join(', ') : '';
+
+                    return `
+                        <div class="bg-white rounded-xl border-2 border-slate-200 p-3.5 shadow-sm space-y-2.5 hover:border-purple-400 hover:shadow-md transition">
+                            <!-- Header thẻ: STT to nổi bật + Dropdown đổi trạng thái trực tiếp -->
+                            <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl font-black font-mono text-purple-900 bg-purple-100 border-2 border-purple-300 px-3 py-0.5 rounded-lg shadow-xs">#${t.ticket_number || t.id}</span>
+                                    <span class="text-[11px] text-gray-400 font-mono">${t.code || ''}</span>
+                                </div>
+                                <div>
+                                    ${statusSelector(t)}
+                                </div>
+                            </div>
+
+                            <!-- Giờ nhận / Giờ trả -->
+                            <div class="text-[11px] bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center justify-between text-slate-600">
+                                <div><span class="text-purple-700 font-bold">📥 Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
+                                ${t.checkout_time ? `<div><span class="text-emerald-700 font-bold">📤 Về:</span> <strong>${t.checkout_time}</strong></div>` : ''}
+                            </div>
+
+                            <!-- Khách hàng & Cập nhật Gọi Điện Ngay Tại Thẻ -->
+                            <div class="flex items-center justify-between gap-2 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-bold text-slate-800 text-xs truncate">👤 ${t.customer_name || 'Khách lẻ'}</div>
+                                    <div class="font-mono text-[11px] text-gray-500">${t.customer_phone || ''}</div>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    ${callStatusSelector(t)}
+                                </div>
+                            </div>
+
+                            <!-- Thông tin bé cưng -->
+                            <div>
+                                <div class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                                    <span class="text-pink-600 font-black">🐾 ${t.pet_name || 'Bé cưng'}</span>
+                                    <span class="text-xs font-normal text-slate-500">(${t.pet_breed || t.pet_species || 'Cún'})</span>
+                                </div>
+                                <div class="text-xs text-pink-700 font-bold mt-0.5 flex items-center gap-2">
+                                    <span class="bg-pink-100 text-pink-800 px-2 py-0.2 rounded font-bold">${t.weight_at_service ? String(t.weight_at_service).replace('.', ',') + ' kg' : '-'}</span>
+                                    <span class="text-slate-600 font-normal">${t.pet_color || '-'}${t.pet_gender ? ' / ' + t.pet_gender : ''}</span>
+                                </div>
+                            </div>
+
+                            <!-- Gói dịch vụ & Ghi chú -->
+                            <div class="text-xs bg-purple-50/50 p-2 rounded-lg border border-purple-100 space-y-1">
+                                <div class="font-bold text-purple-950">${t.service_type || '-'}</div>
+                                ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 Nhuộm: ${t.dye_package}</div>` : ''}
+                                ${t.shaving_feet ? `<div class="text-[11px] text-purple-800 font-medium">⚡ Cạo bàn: <strong>${t.shaving_feet}</strong></div>` : ''}
+                                ${t.customer_request ? `<div class="text-[11px] text-slate-700">✂️ Y/c: ${t.customer_request}</div>` : ''}
+                                ${t.accessories ? `<div class="text-[11px] text-amber-700">🎒 PK: ${t.accessories}</div>` : ''}
+                                ${t.note ? `<div class="text-[11px] text-gray-500 italic">📝 ${t.note}</div>` : ''}
+                            </div>
+
+                            <!-- Thợ phụ trách -->
+                            ${staffPills.length > 0 ? `
+                                <div class="text-[11px] bg-slate-100/80 p-1.5 rounded-lg flex flex-wrap gap-x-2 gap-y-1">
+                                    ${staffPills.join('')}
+                                </div>
+                            ` : ''}
+
+                            <!-- Phụ thu (nếu có) -->
+                            ${extraFeesText ? `
+                                <div class="text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                    <strong>Phụ thu:</strong> ${extraFeesText}
+                                </div>
+                            ` : ''}
+
+                            <!-- Tổng tiền & TT -->
+                            <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                                <div>
+                                    <span class="text-[11px] text-gray-500">Tổng thu:</span>
+                                    <span class="font-mono font-black text-sky-700 text-sm ml-1">${formatMoney(t.price || 0)}</span>
+                                </div>
+                                <div>
+                                    ${t.payment_status === 'paid' ? '<span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Đã TT</span>' : '<span class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">Chưa TT</span>'}
+                                </div>
+                            </div>
+
+                            <!-- Nút chuyển tiến độ 1-click & Nút hoàn tác (Đã về vẫn hoàn tác lại được) -->
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
+                                <div class="flex items-center gap-1">
+                                    <button onclick="openServiceProgressModal(${t.id})" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded border border-indigo-200" title="Cập nhật tiến độ & phụ thu">✏️ Sửa</button>
+                                    <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold px-2 py-1 rounded border border-purple-200" title="In phiếu nhận K80">🖨️ Nhận</button>
+                                    <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded border border-emerald-200" title="In hóa đơn thanh toán K80">🧾 Trả</button>
+                                    <button onclick="deletePetService(${t.id})" class="text-xs text-rose-600 hover:text-rose-800 p-1 border border-rose-200 rounded font-bold" title="Xóa phiếu">🗑️</button>
+                                </div>
+                                <div>
+                                    ${t.status === 'pending' ? `<button onclick="updateServiceStatus(${t.id}, 'in_progress')" class="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold px-2.5 py-1 rounded shadow-sm">▶️ Làm</button>` : ''}
+                                    ${t.status === 'in_progress' ? `
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="updateServiceStatus(${t.id}, 'pending')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-1.5 py-1 rounded border" title="Quay lại chờ">◀️</button>
+                                            <button onclick="updateServiceStatus(${t.id}, 'completed')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded shadow-sm">✅ Xong</button>
+                                        </div>
+                                    ` : ''}
+                                    ${t.status === 'completed' ? `
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="updateServiceStatus(${t.id}, 'in_progress')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-1.5 py-1 rounded border" title="Quay lại đang làm">◀️</button>
+                                            <button onclick="updateServiceStatus(${t.id}, 'checked_out')" class="text-xs bg-purple-600 hover:bg-purple-700 text-white font-bold px-2.5 py-1 rounded shadow-sm">🏠 Trả Bé</button>
+                                        </div>
+                                    ` : ''}
+                                    ${t.status === 'checked_out' ? `<button onclick="updateServiceStatus(${t.id}, 'completed')" class="text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded shadow-xs" title="Hoàn tác về Xong (chờ đón)">↩️ Mở lại</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
         }
 
         async function updateServiceCallStatus(ticketId, callStatus) {
@@ -2355,8 +2570,8 @@
             document.getElementById('prog-shipping-fee').value = ticket.shipping_fee || '0';
             document.getElementById('prog-tip-amount').value = ticket.tip_amount || '0';
 
-            // Giá gốc dịch vụ = Tổng tiền hiện tại trừ đi các phụ phí hiện tại
-            const currentExtras = (ticket.teeth_cleaning || 0) + (ticket.art_cutting_fee || 0) + (ticket.surcharge || 0) + (ticket.shipping_fee || 0) + (ticket.tip_amount || 0);
+            // Giá gốc dịch vụ = Tổng tiền hiện tại trừ đi các phụ phí hiện tại (Tiền tip là ghi chú riêng, không tính vào bill)
+            const currentExtras = (ticket.teeth_cleaning || 0) + (ticket.art_cutting_fee || 0) + (ticket.surcharge || 0) + (ticket.shipping_fee || 0);
             currentProgressTicketBasePrice = Math.max(0, (ticket.price || 0) - currentExtras);
 
             document.getElementById('prog-final-price').value = ticket.price || 0;
@@ -2386,9 +2601,8 @@
             const artCut = parseFloat(document.getElementById('prog-art-cutting')?.value) || 0;
             const surcharge = parseFloat(document.getElementById('prog-surcharge')?.value) || 0;
             const ship = parseFloat(document.getElementById('prog-shipping-fee')?.value) || 0;
-            const tip = parseFloat(document.getElementById('prog-tip-amount')?.value) || 0;
-
-            const total = currentProgressTicketBasePrice + teeth + artCut + surcharge + ship + tip;
+            // Tiền tip là tiền khách cho riêng thợ, không cộng vào tổng tiền phải thu của tiệm
+            const total = currentProgressTicketBasePrice + teeth + artCut + surcharge + ship;
             const finalEl = document.getElementById('prog-final-price');
             if (finalEl) finalEl.value = total;
         }
@@ -2966,9 +3180,9 @@
         }
 
         // ==========================================
-        // IN PHIẾU TIẾP NHẬN SPA (K80 NHIỆT CHUẨN)
+        // IN PHIẾU SPA K80 (TIẾP NHẬN & THANH TOÁN)
         // ==========================================
-        async function printPetServiceTicketDirectly(ticketId) {
+        async function printPetServiceTicketDirectly(ticketId, type = 'intake') {
             const ticket = (allPetServiceTickets || []).find(t => t.id === ticketId);
             if (!ticket) { alert('Không tìm thấy thông tin phiếu'); return; }
 
@@ -2976,60 +3190,162 @@
             const dateStr = now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
             const weightDisplay = ticket.weight_at_service ? String(ticket.weight_at_service).replace('.', ',') + ' kg' : '-';
 
-            const printHtml = `
-                <div style="width: 290px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #000; padding: 10px;">
-                    <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
-                        <h2 style="margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase;">🐾 PET SPA & GROOMING</h2>
-                        <div style="font-size: 13px; font-weight: bold; margin-top: 4px;">PHIẾU TIẾP NHẬN DỊCH VỤ</div>
-                        <div style="display: inline-block; background: #000; color: #fff; font-size: 15px; font-weight: 900; padding: 2px 10px; border-radius: 4px; margin-top: 5px;">
-                            SỐ PHIẾU: #${ticket.ticket_number || ticket.id}
+            let printHtml = '';
+
+            if (type === 'invoice') {
+                // PHIẾU THANH TOÁN / TRẢ BÉ (K80)
+                const extraTeeth = ticket.teeth_cleaning || 0;
+                const extraArt = ticket.art_cutting_fee || 0;
+                const extraSurch = ticket.surcharge || 0;
+                const extraShip = ticket.shipping_fee || 0;
+                // Tiền tip không in ra hóa đơn, không tính vào tổng phải thu
+                const totalExtras = extraTeeth + extraArt + extraSurch + extraShip;
+                const basePrice = Math.max(0, (ticket.price || 0) - totalExtras);
+
+                let extraRows = '';
+                if (extraTeeth > 0) extraRows += `<tr><td style="padding: 3px 0;">Đánh răng:</td><td style="padding: 3px 0; text-align: right; font-family: monospace;">${formatMoney(extraTeeth)}</td></tr>`;
+                if (extraArt > 0) extraRows += `<tr><td style="padding: 3px 0;">PT Cắt nghệ thuật:</td><td style="padding: 3px 0; text-align: right; font-family: monospace;">${formatMoney(extraArt)}</td></tr>`;
+                if (extraSurch > 0) extraRows += `<tr><td style="padding: 3px 0;">Phụ thu khác:</td><td style="padding: 3px 0; text-align: right; font-family: monospace;">${formatMoney(extraSurch)}</td></tr>`;
+                if (extraShip > 0) extraRows += `<tr><td style="padding: 3px 0;">Cước giao bé về:</td><td style="padding: 3px 0; text-align: right; font-family: monospace;">${formatMoney(extraShip)}</td></tr>`;
+
+                printHtml = `
+                    <div style="width: 290px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #000; padding: 10px;">
+                        <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                            <h2 style="margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase;">🐾 PET SPA & GROOMING</h2>
+                            <div style="font-size: 13px; font-weight: bold; margin-top: 4px;">HÓA ĐƠN THANH TOÁN SPA</div>
+                            <div style="display: inline-block; background: #000; color: #fff; font-size: 15px; font-weight: 900; padding: 2px 10px; border-radius: 4px; margin-top: 5px;">
+                                SỐ PHIẾU: #${ticket.ticket_number || ticket.id}
+                            </div>
+                            <div style="font-size: 11px; margin-top: 3px; font-family: monospace;">Mã: ${ticket.code}</div>
+                            <div style="font-size: 10px; color: #444;">Ngày in: ${dateStr}</div>
                         </div>
-                        <div style="font-size: 11px; margin-top: 3px; font-family: monospace;">Mã: ${ticket.code}</div>
-                        <div style="font-size: 10px; color: #444;">Ngày lập: ${dateStr}</div>
-                    </div>
 
-                    <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
-                        <div><strong>Khách hàng:</strong> ${ticket.customer_name || 'Khách lẻ'}</div>
-                        <div><strong>Điện thoại:</strong> ${ticket.customer_phone || '-'}</div>
-                    </div>
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div><strong>Khách hàng:</strong> ${ticket.customer_name || 'Khách lẻ'}</div>
+                            <div><strong>Điện thoại:</strong> ${ticket.customer_phone || '-'}</div>
+                        </div>
 
-                    <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; background: #f8f8f8; padding: 6px; border-radius: 4px;">
-                        <div style="font-size: 13px; font-weight: bold; color: #b91c1c;">🐕 BÉ: ${ticket.pet_name || 'Bé cưng'}</div>
-                        <div><strong>Giống loài:</strong> ${ticket.pet_breed || ticket.pet_species || 'Chó cảnh'}</div>
-                        <div><strong>Giới tính:</strong> ${ticket.pet_gender || 'Đực'} | <strong>Màu:</strong> ${ticket.pet_color || 'Bò sữa'}</div>
-                        <div><strong>Cân nặng:</strong> <span style="font-size: 13px; font-weight: bold; color: #000;">${weightDisplay}</span></div>
-                        <div style="margin-top: 3px; padding-top: 3px; border-top: 1px dotted #ccc;">
-                            <strong>Cạo bàn:</strong> <span style="font-weight: bold; text-decoration: underline;">${ticket.shaving_feet || 'Không cạo bàn'}</span>
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; background: #f8f8f8; padding: 6px; border-radius: 4px;">
+                            <div style="font-size: 13px; font-weight: bold; color: #b91c1c;">🐕 BÉ: ${ticket.pet_name || 'Bé cưng'}</div>
+                            <div><strong>Giống loài:</strong> ${ticket.pet_breed || ticket.pet_species || 'Chó cảnh'} | <strong>Màu:</strong> ${ticket.pet_color || '-'}</div>
+                            <div><strong>Cân nặng:</strong> <span style="font-weight: bold; color: #000;">${weightDisplay}</span></div>
+                            <div style="font-size: 11px; color: #555; margin-top: 2px;">
+                                Giờ nhận: <strong>${ticket.received_time || '-'}</strong> ➔ Giờ về: <strong>${ticket.checkout_time || new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</strong>
+                            </div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div style="font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 4px;">BẢNG KÊ CHI PHÍ & DỊCH VỤ:</div>
+                            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 3px 0;"><strong>${ticket.service_type}</strong></td>
+                                    <td style="padding: 3px 0; text-align: right; font-family: monospace; font-weight: bold;">${formatMoney(basePrice)}</td>
+                                </tr>
+                                ${extraRows}
+                            </table>
+                        </div>
+
+                        <div style="border-bottom: 2px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; margin-top: 4px;">
+                                <span>TỔNG CỘNG:</span>
+                                <span style="font-family: monospace;">${formatMoney(ticket.price || 0)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; margin-top: 3px;">
+                                <span>Trạng thái TT:</span>
+                                <span style="color: ${ticket.payment_status === 'paid' ? '#047857' : '#b45309'};">
+                                    ${ticket.payment_status === 'paid' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
+                                </span>
+                            </div>
+                        </div>
+
+                        ${(ticket.staff_cutter || ticket.staff_worker_1) ? `
+                            <div style="font-size: 11px; color: #444; margin-bottom: 6px;">
+                                <div>Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong> | Thợ tắm: <strong>${ticket.staff_worker_1 || '-'}</strong></div>
+                            </div>
+                        ` : ''}
+
+                        <div style="text-align: center; font-size: 10px; color: #555; margin-top: 8px;">
+                            <div>Cảm ơn Quý khách đã tin tưởng & chăm sóc bé tại Mastercare!</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Chúc bé luôn khỏe mạnh & hẹn gặp lại! ❤️</div>
                         </div>
                     </div>
-
-                    <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
-                        <div style="font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 3px;">Dịch Vụ Sử Dụng:</div>
-                        <div style="font-weight: bold; font-size: 13px;">${ticket.service_type}</div>
-                        ${ticket.customer_request ? `<div style="font-size: 11px; margin-top: 2px;">✂️ <em>Y/c: ${ticket.customer_request}</em></div>` : ''}
-                        ${ticket.accessories ? `<div style="font-size: 11px; margin-top: 2px;">🎒 <em>PK kèm: ${ticket.accessories}</em></div>` : ''}
-                        ${ticket.note ? `<div style="font-size: 11px; margin-top: 2px;">📝 <em>Lưu ý: ${ticket.note}</em></div>` : ''}
-                    </div>
-
-                    <div style="border-bottom: 2px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 900; margin-top: 4px;">
-                            <span>TỔNG TIỀN:</span>
-                            <span>${formatMoney(ticket.price || 0)}</span>
+                `;
+            } else {
+                // PHIẾU TIẾP NHẬN DỊCH VỤ (K80) - CÓ 2 Ô CHỮ KÝ
+                printHtml = `
+                    <div style="width: 290px; margin: 0 auto; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #000; padding: 10px;">
+                        <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                            <h2 style="margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase;">🐾 PET SPA & GROOMING</h2>
+                            <div style="font-size: 13px; font-weight: bold; margin-top: 4px;">PHIẾU TIẾP NHẬN DỊCH VỤ</div>
+                            <div style="display: inline-block; background: #000; color: #fff; font-size: 15px; font-weight: 900; padding: 2px 10px; border-radius: 4px; margin-top: 5px;">
+                                SỐ PHIẾU: #${ticket.ticket_number || ticket.id}
+                            </div>
+                            <div style="font-size: 11px; margin-top: 3px; font-family: monospace;">Mã: ${ticket.code}</div>
+                            <div style="font-size: 10px; color: #444;">Ngày lập: ${dateStr}</div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; margin-top: 3px;">
-                            <span>Trạng thái thanh toán:</span>
-                            <span style="color: ${ticket.payment_status === 'paid' ? '#047857' : '#b45309'};">
-                                ${ticket.payment_status === 'paid' ? 'ĐÃ THANH TOÁN TRƯỚC' : 'THANH TOÁN KHI NHẬN BÉ'}
-                            </span>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div><strong>Khách hàng:</strong> ${ticket.customer_name || 'Khách lẻ'}</div>
+                            <div><strong>Điện thoại:</strong> ${ticket.customer_phone || '-'}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; background: #f8f8f8; padding: 6px; border-radius: 4px;">
+                            <div style="font-size: 13px; font-weight: bold; color: #b91c1c;">🐕 BÉ: ${ticket.pet_name || 'Bé cưng'}</div>
+                            <div><strong>Giống loài:</strong> ${ticket.pet_breed || ticket.pet_species || 'Chó cảnh'}</div>
+                            <div><strong>Giới tính:</strong> ${ticket.pet_gender || 'Đực'} | <strong>Màu:</strong> ${ticket.pet_color || 'Bò sữa'}</div>
+                            <div><strong>Cân nặng:</strong> <span style="font-size: 13px; font-weight: bold; color: #000;">${weightDisplay}</span></div>
+                            <div style="margin-top: 3px; padding-top: 3px; border-top: 1px dotted #ccc;">
+                                <strong>Cạo bàn:</strong> <span style="font-weight: bold; text-decoration: underline;">${ticket.shaving_feet || 'Không cạo bàn'}</span>
+                            </div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div style="font-weight: bold; text-transform: uppercase; font-size: 11px; margin-bottom: 3px;">Dịch Vụ Sử Dụng:</div>
+                            <div style="font-weight: bold; font-size: 13px;">${ticket.service_type}</div>
+                            ${ticket.customer_request ? `<div style="font-size: 11px; margin-top: 2px;">✂️ <em>Y/c: ${ticket.customer_request}</em></div>` : ''}
+                            ${ticket.accessories ? `<div style="font-size: 11px; margin-top: 2px;">🎒 <em>PK kèm: ${ticket.accessories}</em></div>` : ''}
+                            ${ticket.note ? `<div style="font-size: 11px; margin-top: 2px;">📝 <em>Lưu ý: ${ticket.note}</em></div>` : ''}
+                            <div style="font-size: 11px; margin-top: 3px; color: #555;">
+                                Giờ nhận: <strong>${ticket.received_time || '-'}</strong> (${ticket.arrival_method || 'Tự đến'})
+                            </div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 900;">
+                                <span>TỔNG TẠM TÍNH:</span>
+                                <span style="font-family: monospace;">${formatMoney(ticket.price || 0)}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; margin-top: 3px;">
+                                <span>Trạng thái thanh toán:</span>
+                                <span style="color: ${ticket.payment_status === 'paid' ? '#047857' : '#b45309'};">
+                                    ${ticket.payment_status === 'paid' ? 'ĐÃ THANH TOÁN TRƯỚC' : 'THANH TOÁN KHI NHẬN BÉ'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 2 Ô CHỮ KÝ XÁC NHẬN -->
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 25px; text-align: center; font-size: 11px;">
+                            <div style="width: 48%;">
+                                <strong>NV Tiếp Nhận</strong><br>
+                                <span style="font-size: 9px; color: #666;">(Ký & họ tên)</span>
+                                <div style="height: 40px;"></div>
+                                <div>${ticket.staff_receiver || '...................'}</div>
+                            </div>
+                            <div style="width: 48%;">
+                                <strong>Khách Gửi Bé</strong><br>
+                                <span style="font-size: 9px; color: #666;">(Ký xác nhận)</span>
+                                <div style="height: 40px;"></div>
+                                <div>${ticket.customer_name || '...................'}</div>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; font-size: 10px; color: #555; margin-top: 8px; border-top: 1px dotted #ccc; padding-top: 6px;">
+                            <div>Quý khách vui lòng kiểm tra phụ kiện & giữ phiếu đối chiếu khi đón bé!</div>
+                            <div style="font-weight: bold; margin-top: 2px;">Xin cảm ơn Quý khách! ❤️</div>
                         </div>
                     </div>
-
-                    <div style="text-align: center; font-size: 10px; color: #555; margin-top: 8px;">
-                        <div>Quý khách vui lòng giữ phiếu để đối chiếu khi đón bé!</div>
-                        <div style="font-weight: bold; margin-top: 2px;">Xin cảm ơn & Chúc bé có trải nghiệm vui vẻ! ❤️</div>
-                    </div>
-                </div>
-            `;
+                `;
+            }
 
             let iframe = document.getElementById('print-service-iframe');
             if (!iframe) {
@@ -3054,7 +3370,7 @@
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <title>In Phiếu Tiếp Nhận Spa</title>
+                    <title>${type === 'invoice' ? 'In Hóa Đơn Thanh Toán Spa' : 'In Phiếu Tiếp Nhận Spa'}</title>
                     <style>
                         @page { size: auto; margin: 0mm; }
                         body { margin: 0; padding: 0; background: #fff; }
@@ -3604,8 +3920,96 @@
             document.getElementById('p-calc-debt').textContent = formatMoney(debt);
         }
 
+        let editingPurchaseCode = null; // null: tạo mới, 'PN...': đang sửa
+
+        function openCreatePurchaseModal() {
+            editingPurchaseCode = null;
+            resetPurchaseForm();
+            const modalTitle = document.getElementById('modal-purchase-title');
+            if (modalTitle) modalTitle.innerHTML = '<span>➕ Tạo Đơn Đặt Hàng NCC Mới</span>';
+            const btnDraft = document.getElementById('btn-draft-purchase-text');
+            if (btnDraft) btnDraft.textContent = '📝 Lưu Tạm (Nháp)';
+            const btnSubmit = document.getElementById('btn-submit-purchase-text');
+            if (btnSubmit) btnSubmit.textContent = '📋 Đặt Hàng';
+            const modal = document.getElementById('modal-purchase-order');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closePurchaseModal() {
+            const modal = document.getElementById('modal-purchase-order');
+            if (modal) modal.classList.add('hidden');
+            editingPurchaseCode = null;
+            resetPurchaseForm();
+        }
+
+        async function openEditPurchaseModal(code) {
+            try {
+                const res = await fetch(`/api/purchases/${code}`);
+                const p = await res.json();
+                if (!res.ok) return alert('Lỗi: ' + (p.detail || 'Không thể tải đơn hàng'));
+
+                if (p.status !== 'pending' && p.status !== 'draft') {
+                    return alert('Chỉ có thể sửa đơn đặt hàng khi còn ở trạng thái "Chờ Nhận Hàng" hoặc "Bản Nháp"!');
+                }
+
+                editingPurchaseCode = code;
+
+                // Điền thông tin nhà cung cấp
+                document.getElementById('purchase-supplier').value = p.supplier_id || '';
+                document.getElementById('purchase-supplier-search').value = p.supplier_name || '';
+
+                // Kho & Nguồn quỹ & Ngày & Ghi chú
+                const whSel = document.getElementById('purchase-warehouse');
+                if (whSel && p.warehouse_id) whSel.value = p.warehouse_id;
+
+                const fundSel = document.getElementById('purchase-fund-source');
+                if (fundSel && p.fund_source) fundSel.value = p.fund_source;
+
+                if (p.expected_date) {
+                    document.getElementById('purchase-expected-date').value = p.expected_date;
+                }
+                document.getElementById('purchase-note').value = p.note || '';
+
+                // Chiết khấu, phí, thuế, thanh toán
+                document.getElementById('purchase-discount').value = p.discount || 0;
+                document.getElementById('purchase-shipping').value = p.shipping_fee || 0;
+                document.getElementById('purchase-other-fee').value = p.other_fee || 0;
+                document.getElementById('purchase-vat-rate').value = p.vat_rate || 0;
+                document.getElementById('purchase-paid').value = p.paid_amount || 0;
+
+                // Đổ danh sách items vào purchaseCart
+                purchaseCart = (p.items || []).map(item => ({
+                    item_type: item.item_type,
+                    product_id: item.product_id,
+                    ingredient_id: item.ingredient_id,
+                    name: item.item_name,
+                    unit: item.unit,
+                    quantity: item.quantity,
+                    cost_price: item.cost_price
+                }));
+
+                renderPurchaseItems();
+
+                // Đổi tiêu đề modal & nút bấm
+                const modalTitle = document.getElementById('modal-purchase-title');
+                if (modalTitle) modalTitle.innerHTML = `<span>✏️ Cập Nhật Đơn <strong class="font-mono text-amber-300">[${code}]</strong></span>`;
+                const btnDraft = document.getElementById('btn-draft-purchase-text');
+                if (btnDraft) btnDraft.textContent = '💾 Lưu Nháp';
+                const btnSubmit = document.getElementById('btn-submit-purchase-text');
+                if (btnSubmit) btnSubmit.textContent = '🚀 Chốt Đặt Hàng';
+
+                const modal = document.getElementById('modal-purchase-order');
+                if (modal) modal.classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi khi tải thông tin đơn hàng để sửa!');
+            }
+        }
+
         function resetPurchaseForm() {
             purchaseCart = [];
+            document.getElementById('purchase-supplier').value = '';
+            document.getElementById('purchase-supplier-search').value = '';
             document.getElementById('purchase-discount').value = 0;
             document.getElementById('purchase-shipping').value = 0;
             document.getElementById('purchase-other-fee').value = 0;
@@ -3617,7 +4021,7 @@
             renderPurchaseItems();
         }
 
-        async function submitPurchase() {
+        async function submitPurchase(targetStatus = 'pending') {
             if (purchaseCart.length === 0) return alert('Vui lòng chọn ít nhất 1 mặt hàng vào phiếu nhập!');
             const suppIdVal = document.getElementById('purchase-supplier').value;
             if (!suppIdVal) return alert('Vui lòng chọn Nhà Cung Cấp!');
@@ -3645,6 +4049,7 @@
                 expected_date: expectedDate,
                 fund_source: fundSource,
                 note: note,
+                status: targetStatus,
                 items: purchaseCart.map(i => ({
                     item_type: i.item_type,
                     product_id: i.product_id,
@@ -3656,18 +4061,31 @@
                 }))
             };
 
+            const isEdit = !!editingPurchaseCode;
+            const url = isEdit ? `/api/purchases/${editingPurchaseCode}` : '/api/purchases';
+            const method = isEdit ? 'PUT' : 'POST';
+
             try {
-                const res = await fetch('/api/purchases', {
-                    method: 'POST',
+                const res = await fetch(url, {
+                    method: method,
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`✅ Tạo đơn nhập hàng thành công: ${data.purchase_code}!\nTrạng thái: CHỜ NHẬN HÀNG (chưa tăng tồn kho cho đến khi kiểm đếm thực nhận).`);
-                    resetPurchaseForm();
-                    togglePurchaseView('list');
+                    if (isEdit) {
+                        const statusLabel = targetStatus === 'draft' ? 'Bản Nháp' : 'Chờ Nhận Hàng';
+                        alert(`✅ Đã cập nhật thành công đơn: ${editingPurchaseCode} (${statusLabel})!`);
+                    } else {
+                        if (targetStatus === 'draft') {
+                            alert(`📝 Đã lưu tạm đơn nháp thành công: ${data.purchase_code}!\nBạn có thể mở lại để hoàn thiện và chốt đơn sau.`);
+                        } else {
+                            alert(`✅ Tạo đơn đặt hàng thành công: ${data.purchase_code}!\nTrạng thái: CHỜ NHẬN HÀNG (chưa tăng tồn kho cho đến khi kiểm đếm thực nhận).`);
+                        }
+                    }
+                    closePurchaseModal();
+                    loadPurchasesList();
                 } else {
                     alert('Lỗi: ' + (data.detail || 'Không thể lưu phiếu nhập'));
                 }
@@ -3677,24 +4095,19 @@
             }
         }
 
-        function togglePurchaseView(view) {
-            const createView = document.getElementById('purchase-create-view');
+        function togglePurchaseSubView(view) {
             const listView = document.getElementById('purchase-list-view');
             const compareView = document.getElementById('purchase-compare-view');
             const priceHistView = document.getElementById('purchase-price-history-view');
 
-            const btnNew = document.getElementById('btn-purchase-new');
-            const btnHist = document.getElementById('btn-purchase-history');
             const btnCompare = document.getElementById('btn-purchase-compare');
             const btnPriceHist = document.getElementById('btn-purchase-price-hist');
 
             // Ẩn tất cả view
-            if (createView) createView.classList.add('hidden');
             if (listView) listView.classList.add('hidden');
             if (compareView) compareView.classList.add('hidden');
             if (priceHistView) priceHistView.classList.add('hidden');
 
-            // Reset style tất cả nút
             const resetBtn = (btn) => {
                 if (btn) btn.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
             };
@@ -3702,16 +4115,9 @@
                 if (btn) btn.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
             };
 
-            [btnNew, btnHist, btnCompare, btnPriceHist].forEach(resetBtn);
+            [btnCompare, btnPriceHist].forEach(resetBtn);
 
-            if (view === 'create') {
-                if (createView) createView.classList.remove('hidden');
-                activeBtn(btnNew);
-            } else if (view === 'list') {
-                if (listView) listView.classList.remove('hidden');
-                activeBtn(btnHist);
-                loadPurchasesList();
-            } else if (view === 'compare') {
+            if (view === 'compare') {
                 if (compareView) compareView.classList.remove('hidden');
                 activeBtn(btnCompare);
                 loadPriceComparisonData();
@@ -3719,6 +4125,20 @@
                 if (priceHistView) priceHistView.classList.remove('hidden');
                 activeBtn(btnPriceHist);
                 loadPriceHistoryAllData();
+            } else {
+                // Mặc định về danh sách
+                if (listView) listView.classList.remove('hidden');
+                loadPurchasesList();
+            }
+        }
+
+        function togglePurchaseView(view) {
+            if (view === 'create') {
+                openCreatePurchaseModal();
+            } else if (view === 'list') {
+                togglePurchaseSubView('list');
+            } else {
+                togglePurchaseSubView(view);
             }
         }
 
@@ -3925,11 +4345,11 @@
         let currentPurchaseFilterStatus = 'all';
         function filterPurchasesStatus(status) {
             currentPurchaseFilterStatus = status;
-            ['all', 'pending', 'received'].forEach(s => {
+            ['all', 'draft', 'pending', 'received'].forEach(s => {
                 const btn = document.getElementById(`btn-po-filter-${s}`);
                 if (btn) {
                     if (s === status) {
-                        btn.className = 'px-3 py-1.5 font-bold bg-slate-800 text-white ' + (s === 'all' ? 'rounded-l-md' : (s === 'received' ? 'rounded-r-md' : ''));
+                        btn.className = 'px-3 py-1.5 font-bold bg-slate-800 text-white ' + (s === 'all' ? 'rounded-l-md' : (s === 'received' ? 'rounded-r-md' : 'border-t border-b'));
                     } else {
                         btn.className = 'px-3 py-1.5 font-bold bg-white text-slate-700 border hover:bg-gray-50 ' + (s === 'all' ? 'rounded-l-md' : (s === 'received' ? 'rounded-r-md' : ''));
                     }
@@ -3999,17 +4419,20 @@
                         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đã Nhập Kho</span>' 
                         : (p.status === 'cancelled'
                             ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">❌ Đã Hủy</span>'
-                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ Chờ Nhận</span>');
+                            : (p.status === 'draft'
+                                ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">📝 Bản Nháp</span>'
+                                : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ Chờ Nhận</span>'));
 
                     const isCompany = (p.fund_source || 'PERSONAL') === 'COMPANY' || (p.vat_rate > 0);
                     const fundBadge = isCompany
                         ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">🏢 Quỹ Cty</span>'
                         : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">👤 Cá Nhân</span>';
 
-                    const actionButtons = p.status === 'pending'
+                    const actionButtons = (p.status === 'pending' || p.status === 'draft')
                         ? `
-                        <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế">🖨️ In Phiếu Kiểm</button>
-                        <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và xác nhận nhập kho thực tế">📥 Xác Nhận Nhập</button>
+                        <button onclick="openEditPurchaseModal('${p.code}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Chỉnh sửa số lượng, mặt hàng hoặc thông tin đơn">✏️ Sửa Đơn</button>
+                        <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế gửi cho kho">🖨️ Phiếu Kiểm</button>
+                        <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và xác nhận nhập kho thực tế">📥 Nhận Hàng</button>
                         <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu nhập">✕ Hủy</button>
                         `
                         : `
@@ -4571,28 +4994,93 @@
             document.getElementById('modal-production-detail').classList.add('hidden');
         }
 
-        // So quy
+        // So quy & Quan Ly Da Tai Khoan
+        window.allCashbookData = [];
+        window.allPaymentAccounts = [];
+
         async function loadCashbook() {
             try {
-                const res = await fetch('/api/cashbook');
-                const data = await res.json();
+                // 1. Load payment accounts first
+                const accRes = await fetch('/api/payment-accounts?_t=' + Date.now());
+                window.allPaymentAccounts = await accRes.json();
+
+                // Render account filter dropdown
+                const filterAccSelect = document.getElementById('cashbook-filter-account');
+                if (filterAccSelect) {
+                    const currentVal = filterAccSelect.value;
+                    let opts = '<option value="">🏦 Tất cả tài khoản / quỹ</option>';
+                    window.allPaymentAccounts.forEach(a => {
+                        const ownerBadge = a.owner_type === 'COMPANY' ? '[Cty]' : '[Cá nhân]';
+                        opts += `<option value="${a.id}" ${currentVal == a.id ? 'selected' : ''}>${a.code} - ${a.name} ${ownerBadge} (${formatMoney(a.current_balance || 0)})</option>`;
+                    });
+                    filterAccSelect.innerHTML = opts;
+                }
+
+                // Render account KPI cards
+                const kpisContainer = document.getElementById('cashbook-accounts-kpis');
+                const countBadge = document.getElementById('cashbook-accounts-count');
+                if (countBadge) countBadge.innerText = `${window.allPaymentAccounts.length} tài khoản`;
+                if (kpisContainer) {
+                    kpisContainer.innerHTML = window.allPaymentAccounts.map(a => {
+                        const isBank = a.account_type === 'bank';
+                        const isCty = a.owner_type === 'COMPANY';
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        return `
+                            <div class="bg-white p-3 rounded-lg border shadow-xs hover:shadow-md transition cursor-pointer ${a.is_default ? 'border-indigo-400 bg-indigo-50/20' : 'border-slate-200'}" onclick="filterCashbookByAccount(${a.id})">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
+                                        <span>${icon}</span>
+                                        <span class="truncate max-w-[130px]" title="${a.name}">${a.name}</span>
+                                    </span>
+                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
+                                        ${isCty ? 'Cty' : 'Cá nhân'}
+                                    </span>
+                                </div>
+                                <div class="mt-1.5 font-mono text-base font-black ${a.current_balance >= 0 ? 'text-slate-800' : 'text-rose-600'}">
+                                    ${formatMoney(a.current_balance || 0)}
+                                </div>
+                                <div class="text-[10px] text-gray-400 flex items-center justify-between mt-1">
+                                    <span class="font-mono font-semibold text-slate-500">${a.code}</span>
+                                    ${a.is_default ? '<span class="text-indigo-600 font-bold">★ Mặc định</span>' : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // 2. Fetch cashbook data with filters
+                const selectedAcc = filterAccSelect ? filterAccSelect.value : '';
+                const selectedType = document.getElementById('cashbook-filter-type')?.value || '';
                 
+                let query = `/api/cashbook?limit=150&_t=${Date.now()}`;
+                if (selectedAcc) query += `&account_id=${selectedAcc}`;
+                if (selectedType) query += `&type=${selectedType}`;
+
+                const res = await fetch(query);
+                const data = await res.json();
+                window.allCashbookData = data;
+                
+                // 3. Compute stats
                 let totalIn = 0;
                 let totalOut = 0;
                 let balanceCompany = 0;
                 let balancePersonal = 0;
 
+                // Tính tổng từ danh sách tài khoản cho chính xác
+                window.allPaymentAccounts.forEach(a => {
+                    if (a.owner_type === 'COMPANY') {
+                        balanceCompany += (a.current_balance || 0);
+                    } else {
+                        balancePersonal += (a.current_balance || 0);
+                    }
+                });
+
                 data.forEach(c => {
                     const amt = c.amount || 0;
-                    const isCty = (c.fund_source || 'COMPANY') === 'COMPANY';
-                    if (c.type === 'in') {
+                    if (c.type === 'in' || c.type === 'THU') {
                         totalIn += amt;
-                        if (isCty) balanceCompany += amt;
-                        else balancePersonal += amt;
                     } else {
                         totalOut += amt;
-                        if (isCty) balanceCompany -= amt;
-                        else balancePersonal -= amt;
                     }
                 });
 
@@ -4605,26 +5093,376 @@
                 const elPer = document.getElementById('cashbook-stat-balance-personal');
                 if (elPer) elPer.innerText = formatMoney(balancePersonal);
 
-                const tbody = document.getElementById('table-cashbook');
-                if (!tbody) return;
-                tbody.innerHTML = data.map(c => `
-                    <tr class="border-b hover:bg-slate-50">
-                        <td class="p-2.5 font-mono text-xs font-bold text-slate-800">${c.code}</td>
-                        <td class="p-2.5 text-center">
-                            ${(c.fund_source || 'COMPANY') === 'COMPANY' 
-                                ? '<span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[10px]">🏢 Quỹ Cty</span>'
-                                : '<span class="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold text-[10px]">👤 Cá Nhân</span>'
-                            }
-                        </td>
-                        <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-bold ${c.type === 'in' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${c.type === 'in' ? 'Thu' : 'Chi'}</span></td>
-                        <td class="p-2.5 font-semibold text-slate-700">${c.category}</td>
-                        <td class="p-2.5 text-right font-mono font-bold ${c.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}">${formatMoney(c.amount)}</td>
-                        <td class="p-2.5 text-slate-600 text-xs">${c.note || '-'}</td>
-                        <td class="p-2.5 text-xs text-gray-400 font-mono">${c.created_at}</td>
-                    </tr>
-                `).join('');
+                renderCashbookTable(data);
             } catch (err) {
                 console.error("Lỗi tải sổ quỹ:", err);
+            }
+        }
+
+        function filterCashbookByAccount(accId) {
+            const filterAccSelect = document.getElementById('cashbook-filter-account');
+            if (filterAccSelect) {
+                filterAccSelect.value = accId;
+                loadCashbook();
+            }
+        }
+
+        function renderCashbookTable(list) {
+            const tbody = document.getElementById('table-cashbook');
+            if (!tbody) return;
+            if (!list || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-400">Chưa có bản ghi thu chi nào.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(c => {
+                const isThu = c.type === 'in' || c.type === 'THU';
+                const ownerType = c.account_owner_type || c.fund_source || 'COMPANY';
+                const isCty = ownerType === 'COMPANY';
+                const accLabel = c.account_name || (isCty ? '🏢 Quỹ Cty' : '👤 Quỹ Cá Nhân');
+                const accCode = c.account_code ? `<span class="font-mono text-[10px] text-gray-400 block">${c.account_code}</span>` : '';
+
+                return `
+                    <tr class="border-b hover:bg-slate-50 transition">
+                        <td class="p-2.5 font-mono text-xs font-bold text-slate-800">${c.code || '-'}</td>
+                        <td class="p-2.5">
+                            <div class="flex items-center gap-1.5">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${isCty ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                                    ${isCty ? 'Cty' : 'Cá nhân'}
+                                </span>
+                                <span class="font-semibold text-slate-700 text-xs">${accLabel}</span>
+                            </div>
+                            ${accCode}
+                        </td>
+                        <td class="p-2.5 text-center">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-bold ${isThu ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${isThu ? '🟢 Thu' : '🔴 Chi'}
+                            </span>
+                        </td>
+                        <td class="p-2.5 font-semibold text-slate-700">${c.category || '-'}</td>
+                        <td class="p-2.5 text-slate-600 font-medium">${c.contact_name || '-'}</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-xs ${isThu ? 'text-emerald-600' : 'text-rose-600'}">
+                            ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
+                        </td>
+                        <td class="p-2.5 text-slate-500 text-xs max-w-[200px] truncate" title="${c.note || ''}">${c.note || '-'}</td>
+                        <td class="p-2.5 text-xs text-gray-400 font-mono">${c.created_at || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterCashbookTable() {
+            const query = (document.getElementById('cashbook-filter-search')?.value || '').trim().toLowerCase();
+            if (!query) {
+                renderCashbookTable(window.allCashbookData);
+                return;
+            }
+            const filtered = window.allCashbookData.filter(c => {
+                const code = (c.code || '').toLowerCase();
+                const cat = (c.category || '').toLowerCase();
+                const note = (c.note || '').toLowerCase();
+                const contact = (c.contact_name || '').toLowerCase();
+                const acc = (c.account_name || '').toLowerCase();
+                return code.includes(query) || cat.includes(query) || note.includes(query) || contact.includes(query) || acc.includes(query);
+            });
+            renderCashbookTable(filtered);
+        }
+
+        // --- Modal Lập Phiếu Thu / Chi Thủ Công ---
+        async function openCreateCashModal(type = 'in') {
+            try {
+                // 1. Tải danh sách tài khoản
+                const accRes = await fetch('/api/payment-accounts?_t=' + Date.now());
+                const accounts = await accRes.json();
+                window.allPaymentAccounts = accounts;
+
+                const accSelect = document.getElementById('cash-account-select');
+                if (accSelect) {
+                    accSelect.innerHTML = accounts.map(a => {
+                        const ownerBadge = a.owner_type === 'COMPANY' ? '[Quỹ Cty]' : '[Quỹ Cá Nhân]';
+                        return `<option value="${a.id}" ${a.is_default ? 'selected' : ''}>${a.code} - ${a.name} ${ownerBadge} (Số dư: ${formatMoney(a.current_balance || 0)})</option>`;
+                    }).join('');
+                }
+
+                // 2. Tải danh sách đối tác
+                const custRes = await fetch('/api/contacts?_t=' + Date.now());
+                const contacts = await custRes.json();
+                const contactSelect = document.getElementById('cash-contact-select');
+                if (contactSelect) {
+                    let cOpts = '<option value="">-- Không chọn đối tác --</option>';
+                    contacts.forEach(ct => {
+                        const typeBadge = ct.type === 'customer' ? '[Khách]' : '[NCC]';
+                        cOpts += `<option value="${ct.id}">${typeBadge} ${ct.name} (${ct.phone || 'Không SĐT'})</option>`;
+                    });
+                    contactSelect.innerHTML = cOpts;
+                }
+
+                // 3. Reset form
+                document.getElementById('cash-amount-input').value = '';
+                document.getElementById('cash-category-input').value = '';
+                document.getElementById('cash-note-input').value = '';
+
+                // 4. Set loại phiếu
+                await setCashModalType(type);
+
+                document.getElementById('modal-create-cashbook')?.classList.remove('hidden');
+            } catch (err) {
+                console.error("Lỗi mở modal lập phiếu:", err);
+                alert("Lỗi tải thông tin tài khoản!");
+            }
+        }
+
+        async function setCashModalType(type) {
+            document.getElementById('cash-type-val').value = type;
+            const btnIn = document.getElementById('btn-cash-type-in');
+            const btnOut = document.getElementById('btn-cash-type-out');
+            const titleEl = document.getElementById('cash-modal-title');
+            const iconEl = document.getElementById('cash-modal-icon');
+            const btnSubmit = document.getElementById('btn-submit-cashbook');
+
+            if (type === 'in') {
+                btnIn.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700';
+                btnOut.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600';
+                if (titleEl) titleEl.innerText = 'Lập Phiếu Thu Tiền (Vào)';
+                if (iconEl) iconEl.innerText = '🟢';
+                if (btnSubmit) {
+                    btnSubmit.className = 'px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5';
+                    btnSubmit.innerHTML = '<span>💾</span> <span>Xác Nhận Lưu Phiếu Thu</span>';
+                }
+            } else {
+                btnOut.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-rose-50 border-rose-500 text-rose-700';
+                btnIn.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600';
+                if (titleEl) titleEl.innerText = 'Lập Phiếu Chi Tiền (Ra)';
+                if (iconEl) iconEl.innerText = '🔴';
+                if (btnSubmit) {
+                    btnSubmit.className = 'px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5';
+                    btnSubmit.innerHTML = '<span>💾</span> <span>Xác Nhận Lưu Phiếu Chi</span>';
+                }
+            }
+
+            // Gợi ý mã tiếp theo
+            const prefix = type === 'in' ? 'PT-TT' : 'PC-CP';
+            try {
+                const res = await fetch(`/api/cashbook/next-code?prefix=${prefix}&_t=${Date.now()}`);
+                const d = await res.json();
+                const codeInput = document.getElementById('cash-code-input');
+                if (codeInput) codeInput.value = d.code || '';
+            } catch (e) {
+                console.error("Lỗi lấy mã gợi ý:", e);
+            }
+        }
+
+        function closeCreateCashModal() {
+            document.getElementById('modal-create-cashbook')?.classList.add('hidden');
+        }
+
+        async function submitCreateCashbook() {
+            const type = document.getElementById('cash-type-val').value;
+            const accountId = parseInt(document.getElementById('cash-account-select').value);
+            const code = document.getElementById('cash-code-input').value.trim();
+            const amount = parseFloat(document.getElementById('cash-amount-input').value);
+            const category = document.getElementById('cash-category-input').value.trim();
+            const contactIdVal = document.getElementById('cash-contact-select').value;
+            const contactId = contactIdVal ? parseInt(contactIdVal) : null;
+            const note = document.getElementById('cash-note-input').value.trim();
+
+            if (!amount || amount <= 0) {
+                alert('Vui lòng nhập số tiền hợp lệ (> 0)!');
+                document.getElementById('cash-amount-input').focus();
+                return;
+            }
+            if (!category) {
+                alert('Vui lòng chọn hoặc nhập hạng mục thu/chi!');
+                document.getElementById('cash-category-input').focus();
+                return;
+            }
+
+            const payload = {
+                code: code || null,
+                type: type,
+                category: category,
+                amount: amount,
+                account_id: accountId || null,
+                contact_id: contactId,
+                ref_type: 'manual',
+                note: note
+            };
+
+            try {
+                const res = await fetch('/api/cashbook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.detail || 'Lỗi lưu phiếu thu chi');
+                }
+                closeCreateCashModal();
+                alert(`✅ Đã lập thành công phiếu ${type === 'in' ? 'thu' : 'chi'} [${result.code}]!`);
+                await loadCashbook();
+            } catch (err) {
+                console.error(err);
+                alert(`❌ Thao tác thất bại: ${err.message}`);
+            }
+        }
+
+        // --- Modal Quản Lý Danh Mục Tài Khoản Thanh Toán ---
+        async function openPaymentAccountsModal() {
+            try {
+                const res = await fetch('/api/payment-accounts?_t=' + Date.now());
+                const accounts = await res.json();
+                window.allPaymentAccounts = accounts;
+
+                const tbody = document.getElementById('table-payment-accounts-body');
+                if (tbody) {
+                    tbody.innerHTML = accounts.map(a => {
+                        const isBank = a.account_type === 'bank';
+                        const isCty = a.owner_type === 'COMPANY';
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        const bankInfo = isBank 
+                            ? `<span class="font-bold text-slate-800">${a.bank_name || '-'}</span> - STK: <span class="font-mono font-bold">${a.account_number || '-'}</span> (${a.account_holder || '-'})`
+                            : `<span class="text-gray-400 italic">Tiền mặt / không có STK</span>`;
+
+                        return `
+                            <tr class="border-b hover:bg-slate-50 transition">
+                                <td class="p-2.5 font-mono font-bold text-xs text-indigo-700">${a.code}</td>
+                                <td class="p-2.5 font-bold text-slate-800 flex items-center gap-1.5">
+                                    <span>${icon}</span>
+                                    <span>${a.name}</span>
+                                    ${a.is_default ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">Mặc định</span>' : ''}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
+                                        ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
+                                    </span>
+                                </td>
+                                <td class="p-2.5 text-xs text-slate-600">${bankInfo}</td>
+                                <td class="p-2.5 text-right font-mono font-bold text-xs ${a.current_balance >= 0 ? 'text-emerald-700' : 'text-rose-600'}">
+                                    ${formatMoney(a.current_balance || 0)}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    <button onclick="openEditPaymentAccountModal(${a.id})" class="text-sky-600 hover:text-sky-800 font-bold text-xs px-2 py-1 rounded hover:bg-sky-50">Sửa</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('modal-payment-accounts')?.classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi tải danh mục tài khoản!");
+            }
+        }
+
+        function closePaymentAccountsModal() {
+            document.getElementById('modal-payment-accounts')?.classList.add('hidden');
+        }
+
+        function openEditPaymentAccountModal(accId = null) {
+            document.getElementById('edit-account-id').value = accId || '';
+            const titleEl = document.getElementById('account-modal-title');
+            
+            if (accId) {
+                if (titleEl) titleEl.innerText = 'Cập Nhật Tài Khoản Thanh Toán';
+                const acc = window.allPaymentAccounts.find(x => x.id === accId);
+                if (acc) {
+                    document.getElementById('acc-code-input').value = acc.code || '';
+                    document.getElementById('acc-name-input').value = acc.name || '';
+                    document.getElementById('acc-type-select').value = acc.account_type || 'cash';
+                    document.getElementById('acc-bank-name').value = acc.bank_name || '';
+                    document.getElementById('acc-bank-number').value = acc.account_number || '';
+                    document.getElementById('acc-bank-holder').value = acc.account_holder || '';
+                    document.getElementById('acc-initial-balance').value = acc.initial_balance || 0;
+                    document.getElementById('acc-is-default').checked = !!acc.is_default;
+                    
+                    const ownerRadios = document.getElementsByName('acc-owner-radio');
+                    for (const r of ownerRadios) {
+                        r.checked = (r.value === (acc.owner_type || 'COMPANY'));
+                    }
+                }
+            } else {
+                if (titleEl) titleEl.innerText = 'Thêm Tài Khoản Thanh Toán Mới';
+                document.getElementById('acc-code-input').value = 'TK-' + Math.floor(100 + Math.random() * 900);
+                document.getElementById('acc-name-input').value = '';
+                document.getElementById('acc-type-select').value = 'bank';
+                document.getElementById('acc-bank-name').value = '';
+                document.getElementById('acc-bank-number').value = '';
+                document.getElementById('acc-bank-holder').value = '';
+                document.getElementById('acc-initial-balance').value = '0';
+                document.getElementById('acc-is-default').checked = false;
+            }
+
+            toggleAccountBankFields();
+            document.getElementById('modal-edit-payment-account')?.classList.remove('hidden');
+        }
+
+        function closeEditPaymentAccountModal() {
+            document.getElementById('modal-edit-payment-account')?.classList.add('hidden');
+        }
+
+        function toggleAccountBankFields() {
+            const type = document.getElementById('acc-type-select').value;
+            const bankFields = document.getElementById('acc-bank-fields');
+            if (bankFields) {
+                if (type === 'bank') {
+                    bankFields.classList.remove('hidden');
+                } else {
+                    bankFields.classList.add('hidden');
+                }
+            }
+        }
+
+        async function savePaymentAccount() {
+            const id = document.getElementById('edit-account-id').value;
+            const code = document.getElementById('acc-code-input').value.trim().toUpperCase();
+            const name = document.getElementById('acc-name-input').value.trim();
+            const accountType = document.getElementById('acc-type-select').value;
+            let ownerType = 'COMPANY';
+            const ownerRadios = document.getElementsByName('acc-owner-radio');
+            for (const r of ownerRadios) {
+                if (r.checked) ownerType = r.value;
+            }
+            const bankName = document.getElementById('acc-bank-name').value.trim();
+            const accountNumber = document.getElementById('acc-bank-number').value.trim();
+            const accountHolder = document.getElementById('acc-bank-holder').value.trim();
+            const initialBalance = parseFloat(document.getElementById('acc-initial-balance').value) || 0;
+            const isDefault = document.getElementById('acc-is-default').checked ? 1 : 0;
+
+            if (!code || !name) {
+                alert('Vui lòng nhập đầy đủ Mã và Tên tài khoản!');
+                return;
+            }
+
+            const payload = {
+                code, name,
+                account_type: accountType,
+                owner_type: ownerType,
+                bank_name: bankName,
+                account_number: accountNumber,
+                account_holder: accountHolder,
+                initial_balance: initialBalance,
+                is_default: isDefault
+            };
+
+            try {
+                const url = id ? `/api/payment-accounts/${id}` : '/api/payment-accounts';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.detail || 'Lỗi lưu tài khoản');
+
+                closeEditPaymentAccountModal();
+                alert(`✅ Đã lưu tài khoản ${name}!`);
+                await openPaymentAccountsModal();
+                await loadCashbook();
+            } catch (err) {
+                alert(`❌ Thao tác thất bại: ${err.message}`);
             }
         }
 
@@ -4644,6 +5482,12 @@
         async function loadCompanySettings() {
             const res = await fetch('/api/settings');
             currentSettings = await res.json();
+            
+            const appName = currentSettings.app_name || '⚡ POS Offline';
+            const appNameInput = document.getElementById('comp-app-name');
+            if (appNameInput) appNameInput.value = appName;
+            updateAppTitleUI(appName);
+
             document.getElementById('comp-name').value = currentSettings.shop_name || '';
             document.getElementById('comp-address').value = currentSettings.shop_address || '';
             document.getElementById('comp-phone').value = currentSettings.shop_phone || '';
@@ -4664,6 +5508,13 @@
                 img.classList.remove('hidden');
             }
             toggleQRModeUI();
+        }
+
+        function updateAppTitleUI(name) {
+            if (!name) name = '⚡ POS Offline';
+            const sidebarEl = document.getElementById('sidebar-app-name');
+            if (sidebarEl) sidebarEl.textContent = name;
+            document.title = name;
         }
 
         function toggleQRModeUI() {
@@ -4692,7 +5543,9 @@
         async function saveCompanySettings() {
             const logoImg = document.getElementById('comp-logo-preview');
             const qrImg = document.getElementById('comp-qr-preview');
+            const appName = (document.getElementById('comp-app-name')?.value || '').trim() || '⚡ POS Offline';
             const payload = {
+                app_name: appName,
                 shop_name: document.getElementById('comp-name').value,
                 shop_address: document.getElementById('comp-address').value,
                 shop_phone: document.getElementById('comp-phone').value,
@@ -4710,7 +5563,8 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                alert('Đã lưu thông tin doanh nghiệp & cấu hình QR!');
+                alert('✅ Đã lưu thông tin doanh nghiệp, tên ứng dụng & cấu hình QR!');
+                updateAppTitleUI(appName);
                 Object.assign(currentSettings, payload);
             } else {
                 alert('Lỗi lưu thông tin!');
@@ -7462,6 +8316,8 @@
                             <button onclick="viewOEMOrderDetail(${o.id})" class="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 px-2 py-1 rounded font-bold" title="Xem chi tiết đơn và vật tư BOM">🔍 Chi tiết</button>
                             ${canReceive ? `
                                 <button onclick="openModalReceiveOEM(${o.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded font-bold shadow" title="Nhận hàng thực tế từ xưởng & trừ kho tem chai">📥 Nhận hàng</button>
+                                <button onclick="openModalEditOEM(${o.id})" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded font-bold" title="Sửa đơn đặt gia công">✏️ Sửa</button>
+                                <button onclick="deleteOEMOrder(${o.id}, '${o.code}')" class="text-xs bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 px-2 py-1 rounded font-bold" title="Hủy đơn, hoàn cọc nếu có">✕ Hủy</button>
                             ` : ''}
                         </td>
                     </tr>
@@ -7554,8 +8410,10 @@
         let allOEMFactories = [];
         let currentFactoryProducts = [];
         let selectedOEMFactory = null;
+        let editingOEMOrderId = null;
 
         async function openModalCreateOEM() {
+            editingOEMOrderId = null;
             // Tải danh bạ, kho và sản phẩm nếu chưa có
             if (!allContacts || allContacts.length === 0) {
                 if (typeof loadContacts === 'function') await loadContacts();
@@ -7606,6 +8464,11 @@
         function closeModalCreateOEM() {
             document.getElementById('modal-create-oem')?.classList.add('hidden');
             hideAllOEMPopups();
+            editingOEMOrderId = null;
+            const depositInp = document.getElementById('oem-create-deposit');
+            if (depositInp) depositInp.disabled = false;
+            const btnSubmit = document.getElementById('btn-submit-create-oem');
+            if (btnSubmit) btnSubmit.innerText = '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
         }
 
         async function loadOEMFactoriesList() {
@@ -8073,9 +8936,8 @@
                 if (prodId && qty > 0) {
                     items.push({
                         product_id: prodId,
-                        quantity: qty,
-                        unit_price: price,
-                        discount_percent: 0
+                        ordered_qty: qty,
+                        unit_price: price
                     });
                 }
             });
@@ -8091,11 +8953,12 @@
                 expected_delivery_date: expectedDate,
                 discount_percent: discountPct,
                 vat_percent: vatPct,
-                deposit_amount: depositAmount,
                 fund_source: fundSource,
                 note: note,
                 items: items
             };
+            const isEdit = !!editingOEMOrderId;
+            if (!isEdit) payload.deposit_amount = depositAmount;
 
             const btnSubmit = document.getElementById('btn-submit-create-oem');
             if (btnSubmit) {
@@ -8104,19 +8967,35 @@
             }
 
             try {
-                const res = await fetch('/api/oem/orders', {
-                    method: 'POST',
+                const url = isEdit ? `/api/oem/orders/${editingOEMOrderId}` : '/api/oem/orders';
+                const method = isEdit ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || 'Lỗi tạo đơn OEM');
+                    let errMsg = isEdit ? 'Lỗi sửa đơn OEM' : 'Lỗi tạo đơn OEM';
+                    try {
+                        const err = await res.json();
+                        if (typeof err.detail === 'string') {
+                            errMsg = err.detail;
+                        } else if (Array.isArray(err.detail)) {
+                            errMsg = err.detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+                        } else if (err.detail) {
+                            errMsg = JSON.stringify(err.detail);
+                        }
+                    } catch (_) {}
+                    throw new Error(errMsg);
                 }
 
                 const data = await res.json();
-                alert(`✅ Đã lập đơn đặt gia công OEM thành công: ${data.code}\n${depositAmount > 0 ? `Đã tự động xuất phiếu chi cọc ${formatMoney(depositAmount)} vào Sổ Quỹ (${fundSource === 'COMPANY' ? 'Quỹ Cty' : 'Quỹ Cá nhân'})` : ''}`);
+                if (isEdit) {
+                    alert(`✅ Đã cập nhật đơn OEM thành công.`);
+                } else {
+                    alert(`✅ Đã lập đơn đặt gia công OEM thành công: ${data.code}\n${depositAmount > 0 ? `Đã tự động xuất phiếu chi cọc ${formatMoney(depositAmount)} vào Sổ Quỹ (${fundSource === 'COMPANY' ? 'Quỹ Cty' : 'Quỹ Cá nhân'})` : ''}`);
+                }
 
                 closeModalCreateOEM();
                 loadOEMData();
@@ -8125,8 +9004,88 @@
             } finally {
                 if (btnSubmit) {
                     btnSubmit.disabled = false;
-                    btnSubmit.innerText = '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
+                    btnSubmit.innerText = isEdit ? '💾 Lưu Thay Đổi' : '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
                 }
+            }
+        }
+
+        async function openModalEditOEM(orderId) {
+            if (!allContacts || allContacts.length === 0) {
+                if (typeof loadContacts === 'function') await loadContacts();
+            }
+            if (!allWarehouses || allWarehouses.length === 0) {
+                try {
+                    const resWh = await fetch('/api/warehouses');
+                    if (resWh.ok) allWarehouses = await resWh.json();
+                } catch(e) {}
+            }
+            if (!allProducts || allProducts.length === 0) {
+                if (typeof loadProducts === 'function') await loadProducts();
+            }
+            await loadOEMFactoriesList();
+
+            let order;
+            try {
+                const res = await fetch(`/api/oem/orders/${orderId}`);
+                if (!res.ok) throw new Error('Không tải được đơn OEM');
+                order = await res.json();
+            } catch (e) {
+                return alert(`❌ Lỗi: ${e.message}`);
+            }
+
+            editingOEMOrderId = orderId;
+
+            const destWhSel = document.getElementById('oem-create-dest-warehouse');
+            if (destWhSel && allWarehouses) {
+                destWhSel.innerHTML = allWarehouses.map(w => `<option value="${w.id}">📦 ${w.name} ${w.is_oem ? '(Kho Xưởng)' : ''}</option>`).join('');
+            }
+
+            document.getElementById('oem-create-partner').value = order.partner_id;
+            document.getElementById('oem-create-warehouse').value = order.oem_warehouse_id;
+            document.getElementById('oem-create-dest-warehouse').value = order.dest_warehouse_id;
+            document.getElementById('oem-create-date').value = order.expected_delivery_date || '';
+            document.getElementById('oem-create-discount').value = order.discount_percent ?? 0;
+            document.getElementById('oem-create-vat').value = order.vat_percent ?? 0;
+            document.getElementById('oem-create-fund').value = order.fund_source || 'COMPANY';
+            document.getElementById('oem-create-deposit').value = order.deposit_amount ?? 0;
+            document.getElementById('oem-create-deposit').disabled = true;
+            document.getElementById('oem-create-note').value = order.note || '';
+
+            const factory = allOEMFactories.find(f => f.id === order.partner_id);
+            const searchInput = document.getElementById('oem-factory-search-input');
+            if (searchInput) searchInput.value = factory ? `🏭 ${factory.name}` : '';
+
+            const itemsBody = document.getElementById('oem-create-items-body');
+            if (itemsBody) itemsBody.innerHTML = '';
+            (order.items || []).forEach(it => {
+                addOEMProductRow();
+                const rows = document.querySelectorAll('.oem-item-row');
+                const tr = rows[rows.length - 1];
+                tr.querySelector('.oem-prod-id').value = it.product_id;
+                tr.querySelector('.oem-prod-search-input').value = `${it.product_code || ''} - ${it.product_name || ''}`;
+                tr.querySelector('.oem-prod-qty').value = it.ordered_qty;
+                tr.querySelector('.oem-prod-price').value = it.unit_price;
+            });
+            recalcCreateOEMMath();
+
+            const btnSubmit = document.getElementById('btn-submit-create-oem');
+            if (btnSubmit) btnSubmit.innerText = '💾 Lưu Thay Đổi';
+
+            document.getElementById('modal-create-oem').classList.remove('hidden');
+        }
+
+        async function deleteOEMOrder(orderId, orderCode) {
+            if (!confirm(`Hủy đơn OEM ${orderCode}?\nNếu đã cọc tiền, hệ thống sẽ tự động hoàn cọc vào Sổ Quỹ. Đơn sẽ bị XÓA HẲN, không thể khôi phục.`)) return;
+            try {
+                const res = await fetch(`/api/oem/orders/${orderId}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Lỗi hủy đơn OEM');
+                }
+                alert(`✅ Đã hủy đơn OEM ${orderCode}.`);
+                loadOEMData();
+            } catch (e) {
+                alert(`❌ Lỗi: ${e.message}`);
             }
         }
 
@@ -8598,25 +9557,25 @@
                 const dateStr = it.expected_delivery_date || 'Chưa định ngày';
                 const isCty = it.fund_source === 'COMPANY';
                 return `
-                    <div class="flex flex-wrap items-center justify-between bg-slate-800/90 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 text-xs gap-2">
+                    <div class="flex flex-wrap items-center justify-between bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-xs gap-2 transition-colors">
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-blue-900 text-blue-300 border border-blue-700' : 'bg-purple-900 text-purple-300 border border-purple-700'}">
+                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
                                 ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
                             </span>
                             <div>
-                                <span class="font-bold text-amber-300">${it.code}</span> - 
-                                <span class="text-slate-200 font-semibold">${it.partner_name || 'Nhà cung cấp'}</span>
-                                <span class="text-[10px] text-slate-400 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>
+                                <span class="font-bold text-slate-800">${it.code}</span> - 
+                                <span class="text-slate-700 font-semibold">${it.partner_name || 'Nhà cung cấp'}</span>
+                                <span class="text-[10px] text-slate-500 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-400">Hạn nhận (trừ hao ±1 ngày):</div>
-                                <div class="font-mono text-slate-200 font-bold">📅 ${dateStr}</div>
+                                <div class="text-[10px] text-slate-500">Hạn nhận (trừ hao ±1 ngày):</div>
+                                <div class="font-mono text-slate-800 font-bold">📅 ${dateStr}</div>
                             </div>
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-400">Dự kiến chi:</div>
-                                <div class="font-mono font-bold text-amber-400 text-sm">${formatMoney(it.amount)}</div>
+                                <div class="text-[10px] text-slate-500">Dự kiến chi:</div>
+                                <div class="font-mono font-black text-rose-600 text-sm">${formatMoney(it.amount)}</div>
                             </div>
                         </div>
                     </div>
@@ -8659,13 +9618,13 @@
             let filtered = allCFDSuppliers;
 
             if (currentCFDSupplierFilter === 'DEBT_ONLY') {
-                filtered = filtered.filter(s => (s.debt || 0) > 0);
+                filtered = filtered.filter(s => ((s.total_debt ?? s.debt) || 0) > 0);
             }
 
             if (q) {
                 filtered = filtered.filter(s => 
                     (s.name || '').toLowerCase().includes(q) || 
-                    (s.phone || '').toLowerCase().includes(q) ||
+                    (s.phone || '').toLowerCase().includes(q) || 
                     (s.warehouse_name || '').toLowerCase().includes(q)
                 );
             }
@@ -8680,7 +9639,8 @@
 
             tbody.innerHTML = filtered.map(s => {
                 const totalDebtOrders = (s.po_debt_count || 0) + (s.oem_debt_count || 0);
-                const hasDebt = (s.debt || 0) > 0;
+                const totalDebt = (s.total_debt ?? s.debt) || 0;
+                const hasDebt = totalDebt > 0;
                 return `
                     <tr class="border-b hover:bg-slate-50 transition">
                         <td class="p-2.5">
@@ -8708,7 +9668,7 @@
                             ${formatMoney(s.debt_personal || 0)}
                         </td>
                         <td class="p-2.5 text-right font-mono font-black text-sm ${hasDebt ? 'text-rose-600' : 'text-slate-400'}">
-                            ${formatMoney(s.debt || 0)}
+                            ${formatMoney(totalDebt)}
                         </td>
                         <td class="p-2.5 text-center">
                             <div class="flex items-center justify-center gap-1.5">
@@ -9006,6 +9966,113 @@
                 if (btn) {
                     btn.disabled = false;
                     btn.innerText = 'Xác Nhận Xuất Chi';
+                }
+            }
+        }
+
+        // --- QUẢN LÝ VÀ XÓA DỮ LIỆU ---
+        let currentResetMode = null;
+
+        function openResetDataModal(mode) {
+            currentResetMode = mode;
+            const modal = document.getElementById('modal-reset-data');
+            const desc = document.getElementById('reset-data-modal-desc');
+            const chk = document.getElementById('reset-data-check');
+            const txt = document.getElementById('reset-data-confirm-text');
+            const btn = document.getElementById('btn-confirm-reset-data');
+
+            if (chk) chk.checked = false;
+            if (txt) txt.value = '';
+            if (btn) {
+                btn.disabled = true;
+                btn.className = 'px-5 py-2 bg-slate-300 cursor-not-allowed text-white font-bold rounded shadow text-xs flex items-center gap-1.5';
+            }
+
+            if (mode === 'transactions_and_customers') {
+                desc.innerHTML = `
+                    <div class="font-bold text-amber-900 mb-1">Chế độ: XÓA GIAO DỊCH & KHÁCH HÀNG (GIỮ HÀNG HÓA)</div>
+                    <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                        <li>Hóa đơn bán lẻ, đơn hàng và lịch sử thanh toán sẽ bị xóa sạch.</li>
+                        <li>Danh bạ Khách Hàng và hồ sơ thú cưng/dịch vụ sẽ bị xóa.</li>
+                        <li>Sổ quỹ thu chi, đơn nhập hàng và số tồn kho sẽ được đưa về 0.</li>
+                        <li><strong>Giữ nguyên:</strong> Danh mục Hàng hóa, Nguyên liệu, Bảng giá, NCC, Công thức BOM và Mẫu in.</li>
+                    </ul>
+                `;
+            } else if (mode === 'factory_reset') {
+                desc.innerHTML = `
+                    <div class="font-bold text-rose-900 mb-1">Chế độ: KHÔI PHỤC CÀI ĐẶT GỐC (FACTORY RESET)</div>
+                    <ul class="list-disc pl-4 space-y-1 text-rose-800">
+                        <li><strong>CỰC KỲ NGUY HIỂM:</strong> Xóa 100% dữ liệu hàng hóa, khách hàng, nhà cung cấp, hóa đơn, tồn kho, sổ quỹ và bảng giá.</li>
+                        <li>Đưa phần mềm về trạng thái trống hoàn toàn như khi mới cài đặt.</li>
+                    </ul>
+                `;
+            }
+
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeResetDataModal() {
+            const modal = document.getElementById('modal-reset-data');
+            if (modal) modal.classList.add('hidden');
+            currentResetMode = null;
+        }
+
+        function checkResetDataInputs() {
+            const chk = document.getElementById('reset-data-check')?.checked;
+            const txt = (document.getElementById('reset-data-confirm-text')?.value || '').trim().toUpperCase();
+            const btn = document.getElementById('btn-confirm-reset-data');
+
+            if (chk && txt === 'XOA HET DU LIEU') {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.className = 'px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow text-xs flex items-center gap-1.5 cursor-pointer';
+                }
+            } else {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.className = 'px-5 py-2 bg-slate-300 cursor-not-allowed text-white font-bold rounded shadow text-xs flex items-center gap-1.5';
+                }
+            }
+        }
+
+        async function executeResetData() {
+            const chk = document.getElementById('reset-data-check')?.checked;
+            const txt = (document.getElementById('reset-data-confirm-text')?.value || '').trim().toUpperCase();
+            if (!chk || txt !== 'XOA HET DU LIEU') {
+                return alert('Vui lòng tích xác nhận và gõ chính xác: XOA HET DU LIEU');
+            }
+
+            if (!currentResetMode) return;
+
+            const btn = document.getElementById('btn-confirm-reset-data');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'Đang sao lưu và xóa dữ liệu...';
+            }
+
+            try {
+                const res = await fetch('/api/settings/reset-data', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        mode: currentResetMode,
+                        confirm_text: txt
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Lỗi khi thực hiện xóa dữ liệu');
+                }
+
+                alert(`🎉 ${data.message}\n\n🛡️ Bản snapshot an toàn đã được lưu tại:\ndata/backups/${data.backup_file}\n\nHệ thống sẽ tự động tải lại để làm mới giao diện!`);
+                closeResetDataModal();
+                window.location.reload();
+            } catch (e) {
+                alert(`❌ Thất bại: ${e.message}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '🗑️ Xác Nhận Xóa Vĩnh Viễn';
                 }
             }
         }

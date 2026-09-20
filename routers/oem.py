@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
 import datetime
 from database import get_db
 from schemas import (
-    OEMOrderCreate, OEMOrderDeposit, OEMOrderReceive
+    OEMOrderCreate, OEMOrderUpdate, OEMOrderDeposit, OEMOrderReceive
 )
 from pydantic import BaseModel
+from dependencies import require_permission
 
 class OEMStockCheckItem(BaseModel):
     product_id: int
@@ -36,6 +37,7 @@ class OrderDebtPaymentRequest(BaseModel):
     note: Optional[str] = None
 
 from logger_config import get_module_logger
+from routers.cashbook import generate_cashbook_code
 
 logger = get_module_logger("oem")
 
@@ -67,7 +69,7 @@ def list_oem_factories():
     return rows
 
 @router.post("/api/oem/factories/link-warehouse")
-def link_factory_warehouse(req: LinkWarehouseRequest):
+def link_factory_warehouse(req: LinkWarehouseRequest, user=Depends(require_permission("oem.manage"))):
     """Gán nhà máy với một kho hàng để nhận diện kho tự động"""
     conn = get_db()
     cur = conn.cursor()
@@ -83,7 +85,7 @@ def list_factory_products(supplier_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            p.id, p.code, p.name, p.unit, p.cost_price, p.sell_price,
+            p.id, p.code, p.name, p.unit, COALESCE(si.default_cost, p.cost_price) as cost_price, p.sell_price,
             (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
         FROM supplier_items si
         JOIN products p ON si.product_id = p.id
@@ -95,7 +97,7 @@ def list_factory_products(supplier_id: int):
     return rows
 
 @router.post("/api/oem/factories/{supplier_id}/link-product")
-def link_product_to_factory(supplier_id: int, req: LinkProductRequest):
+def link_product_to_factory(supplier_id: int, req: LinkProductRequest, user=Depends(require_permission("oem.manage"))):
     """Gán nhanh một sản phẩm cho nhà máy gia công"""
     conn = get_db()
     cur = conn.cursor()
@@ -265,7 +267,7 @@ def get_oem_order_detail(order_id: int):
     return order
 
 @router.post("/api/oem/orders")
-def create_oem_order(req: OEMOrderCreate):
+def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.manage"))):
     if not req.items or len(req.items) == 0:
         raise HTTPException(status_code=400, detail="Đơn hàng phải có ít nhất 1 sản phẩm")
         
@@ -311,13 +313,16 @@ def create_oem_order(req: OEMOrderCreate):
             
         # Nếu có cọc đợt 1 ngay, ghi nhận vào Sổ Quỹ (cashbook)
         if req.deposit_amount > 0:
-            cb_code = f"PC-OEM-DEP-{order_id}"
+            cb_code = generate_cashbook_code(cur, "PC-OEM")
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
             cur.execute("""
-                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source)
-                VALUES (?, 'out', 'OEM_DEPOSIT', ?, ?, 'oem_order', ?, ?, ?)
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
+                VALUES (?, 'out', 'OEM_DEPOSIT', ?, ?, 'oem_order', ?, ?, ?, ?)
             """, (
                 cb_code, req.deposit_amount, req.partner_id, order_id,
-                f"Cọc 50% đơn gia công OEM {code}", req.fund_source
+                f"Cọc 50% đơn gia công OEM {code}", req.fund_source, acc_id
             ))
             
         conn.commit()
@@ -329,8 +334,100 @@ def create_oem_order(req: OEMOrderCreate):
     finally:
         conn.close()
 
+@router.put("/api/oem/orders/{order_id}")
+def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_permission("oem.manage"))):
+    if not req.items or len(req.items) == 0:
+        raise HTTPException(status_code=400, detail="Đơn hàng phải có ít nhất 1 sản phẩm")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM oem_orders WHERE id = ?", (order_id,))
+        o = cur.fetchone()
+        if not o:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đơn gia công")
+        if o["status"] not in ("DRAFT", "DEPOSITED"):
+            raise HTTPException(status_code=400, detail="Chỉ có thể sửa đơn khi chưa nhận hàng!")
+
+        total_raw = sum(it.ordered_qty * it.unit_price for it in req.items)
+        discount_factor = 1.0 - (req.discount_percent / 100.0)
+        vat_factor = 1.0 + (req.vat_percent / 100.0)
+        total_final = total_raw * discount_factor * vat_factor
+        remaining = max(0.0, total_final - (o["deposit_amount"] or 0.0))
+
+        cur.execute("""
+            UPDATE oem_orders
+            SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
+                expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
+                total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?
+            WHERE id = ?
+        """, (
+            req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
+            req.expected_delivery_date, req.vat_percent, req.discount_percent,
+            total_raw, total_final, remaining, req.note or "", order_id
+        ))
+
+        cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
+        for it in req.items:
+            net_cost = it.unit_price * discount_factor * vat_factor
+            cur.execute("""
+                INSERT INTO oem_order_items (
+                    order_id, product_id, ordered_qty, received_qty,
+                    unit_price, final_unit_cost, full_cost_per_unit
+                ) VALUES (?, ?, ?, 0, ?, ?, 0)
+            """, (order_id, it.product_id, it.ordered_qty, it.unit_price, net_cost))
+
+        conn.commit()
+        return {"success": True, "id": order_id, "total_final": total_final}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Lỗi sửa đơn OEM: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.delete("/api/oem/orders/{order_id}")
+def delete_oem_order(order_id: int, user=Depends(require_permission("oem.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM oem_orders WHERE id = ?", (order_id,))
+        o = cur.fetchone()
+        if not o:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đơn gia công")
+        if o["status"] not in ("DRAFT", "DEPOSITED"):
+            raise HTTPException(status_code=400, detail="Chỉ có thể hủy đơn khi chưa nhận hàng!")
+
+        if o["deposit_amount"] and o["deposit_amount"] > 0:
+            cb_code = generate_cashbook_code(cur, "PT-OEM")
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (o["fund_source"],))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
+            cur.execute("""
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
+                VALUES (?, 'in', 'OEM_DEPOSIT_REFUND', ?, ?, 'oem_order', ?, ?, ?, ?)
+            """, (
+                cb_code, o["deposit_amount"], o["partner_id"], order_id,
+                f"Hoàn cọc do hủy đơn gia công OEM {o['code']}", o["fund_source"], acc_id
+            ))
+
+        cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
+        cur.execute("DELETE FROM oem_orders WHERE id = ?", (order_id,))
+        conn.commit()
+        return {"success": True, "message": "Đã hủy đơn gia công"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Lỗi hủy đơn OEM: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 @router.post("/api/oem/orders/{order_id}/deposit")
-def deposit_oem_order(order_id: int, req: OEMOrderDeposit):
+def deposit_oem_order(order_id: int, req: OEMOrderDeposit, user=Depends(require_permission("oem.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -354,15 +451,18 @@ def deposit_oem_order(order_id: int, req: OEMOrderDeposit):
         """, (new_deposit, deposit_date, remaining, fund_source, order_id))
         
         # Ghi sổ quỹ
-        cb_code = f"PC-OEM-DEP-{order_id}"
+        cb_code = generate_cashbook_code(cur, "PC-OEM")
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'oem_order' AND ref_id = ? AND category = 'OEM_DEPOSIT'", (order_id,))
+        cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
+        row_acc = cur.fetchone()
+        acc_id = row_acc[0] if row_acc else None
         cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source)
-            VALUES (?, 'out', 'OEM_DEPOSIT', ?, ?, 'oem_order', ?, ?, ?)
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
+            VALUES (?, 'out', 'OEM_DEPOSIT', ?, ?, 'oem_order', ?, ?, ?, ?)
         """, (
             cb_code, new_deposit, order["partner_id"], order_id,
             f"Thanh toán cọc đơn gia công {order['code']}" + (f": {req.note}" if req.note else ""),
-            fund_source
+            fund_source, acc_id
         ))
         
         conn.commit()
@@ -374,7 +474,7 @@ def deposit_oem_order(order_id: int, req: OEMOrderDeposit):
         conn.close()
 
 @router.post("/api/oem/orders/{order_id}/receive")
-def receive_oem_order(order_id: int, req: OEMOrderReceive):
+def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_permission("oem.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -518,33 +618,43 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive):
         # Xử lý thanh toán số tiền còn lại (nếu có yêu cầu trả ngay)
         pay_fund = req.payment_fund_source or order["fund_source"] or "COMPANY"
         if req.pay_remaining_now and remaining > 0:
-            cb_code = f"PC-OEM-FIN-{order_id}"
+            cb_code = generate_cashbook_code(cur, "PC-OEM")
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (pay_fund,))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
             cur.execute("""
-                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source)
-                VALUES (?, 'out', 'OEM_PAYMENT', ?, ?, 'oem_order', ?, ?, ?)
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
+                VALUES (?, 'out', 'OEM_PAYMENT', ?, ?, 'oem_order', ?, ?, ?, ?)
             """, (
                 cb_code, remaining, order["partner_id"], order_id,
-                f"Thanh toán đợt 2 khi nhận hàng đơn {order['code']}", pay_fund
+                f"Thanh toán đợt 2 khi nhận hàng đơn {order['code']}", pay_fund, acc_id
             ))
             payment_status = "PAID"
+            final_remaining = 0.0
+            new_deposit = total_final
         else:
             payment_status = "PARTIAL" if order["deposit_amount"] > 0 else "UNPAID"
+            final_remaining = remaining
+            new_deposit = order["deposit_amount"]
+            # Ghi nhận nợ NCC nếu nhận hàng chưa trả đủ
+            if final_remaining > 0 and order["partner_id"]:
+                cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (final_remaining, order["partner_id"]))
             
         # Cập nhật đơn OEM sang trạng thái RECEIVED
         cur.execute("""
             UPDATE oem_orders
             SET status = 'RECEIVED', total_raw_amount = ?, total_final_amount = ?,
-                remaining_payment = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP
+                deposit_amount = ?, remaining_payment = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (total_raw, total_final, remaining, payment_status, order_id))
+        """, (total_raw, total_final, new_deposit, final_remaining, payment_status, order_id))
         
         conn.commit()
         return {
             "success": True,
             "total_raw": total_raw,
             "total_final": total_final,
-            "deposit_amount": order["deposit_amount"],
-            "remaining_payment": remaining,
+            "deposit_amount": new_deposit,
+            "remaining_payment": final_remaining,
             "payment_status": payment_status
         }
     except Exception as e:
@@ -586,7 +696,7 @@ def get_cashflow_forecast(days: int = 30):
             p.id,
             p.code,
             COALESCE(p.expected_date, p.created_at) as expected_delivery_date,
-            'PERSONAL' as fund_source, -- Mua hàng lẻ mặc định theo dõi quỹ cá nhân (hoặc tùy cấu hình)
+            CASE WHEN p.fund_source = 'COMPANY' OR p.vat_rate > 0 THEN 'COMPANY' ELSE 'PERSONAL' END as fund_source,
             (p.total_amount - COALESCE(p.paid_amount, 0)) as amount,
             c.name as partner_name,
             'PURCHASE' as order_type,
@@ -619,8 +729,20 @@ def get_cashflow_debts_summary():
     conn = get_db()
     cur = conn.cursor()
     
-    # Tổng nợ NCC
-    cur.execute("SELECT COALESCE(SUM(debt), 0) FROM contacts WHERE type = 'supplier'")
+    # Tổng nợ NCC (gộp cả đơn mua PO và đơn gia công OEM còn nợ)
+    cur.execute("""
+        SELECT 
+            COALESCE((
+                SELECT SUM(p.debt_amount) 
+                FROM purchases p 
+                WHERE p.debt_amount > 0 AND p.status != 'cancelled'
+            ), 0) + 
+            COALESCE((
+                SELECT SUM(o.remaining_payment) 
+                FROM oem_orders o 
+                WHERE o.remaining_payment > 0 AND o.status != 'CANCELLED'
+            ), 0)
+    """)
     total_debt = cur.fetchone()[0]
     
     # Quỹ Cty & Quỹ Cá nhân trong cashbook
@@ -654,38 +776,44 @@ def list_debt_suppliers():
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            c.id, c.name, c.phone, c.address, c.debt,
+            c.id, c.name, c.phone, c.address,
             w.name as warehouse_name,
-            (SELECT COUNT(*) FROM purchases p WHERE p.supplier_id = c.id AND p.debt_amount > 0) as po_debt_count,
-            (SELECT COUNT(*) FROM oem_orders o WHERE o.partner_id = c.id AND o.remaining_payment > 0) as oem_debt_count,
+            (SELECT COUNT(*) FROM purchases p WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled') as po_debt_count,
+            (SELECT COUNT(*) FROM oem_orders o WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED') as oem_debt_count,
             
             -- Nợ Có Thuế (Quỹ Cty: PO có vat_rate>0 hoặc vat_amount>0, OEM có vat_percent>0 hoặc fund_source='COMPANY')
             COALESCE((
                 SELECT SUM(p.debt_amount) 
                 FROM purchases p 
-                WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND (p.vat_rate > 0 OR p.vat_amount > 0)
+                WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled' AND (p.vat_rate > 0 OR p.vat_amount > 0)
             ), 0) + COALESCE((
                 SELECT SUM(o.remaining_payment) 
                 FROM oem_orders o 
-                WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
+                WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED' AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
             ), 0) as debt_company,
             
             -- Nợ Không Thuế (Quỹ Cá Nhân: PO không vat, OEM không vat)
             COALESCE((
                 SELECT SUM(p.debt_amount) 
                 FROM purchases p 
-                WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND (p.vat_rate = 0 OR p.vat_rate IS NULL) AND (p.vat_amount = 0 OR p.vat_amount IS NULL)
+                WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled' AND (p.vat_rate = 0 OR p.vat_rate IS NULL) AND (p.vat_amount = 0 OR p.vat_amount IS NULL)
             ), 0) + COALESCE((
                 SELECT SUM(o.remaining_payment) 
                 FROM oem_orders o 
-                WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
+                WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED' AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
             ), 0) as debt_personal
         FROM contacts c
         LEFT JOIN warehouses w ON w.supplier_id = c.id
         WHERE c.type = 'supplier'
-        ORDER BY c.debt DESC, c.name ASC
     """)
-    rows = [dict(r) for r in cur.fetchall()]
+    rows = []
+    for r in cur.fetchall():
+        d = dict(r)
+        total_d = round((d.get("debt_company", 0.0) or 0.0) + (d.get("debt_personal", 0.0) or 0.0), 2)
+        d["debt"] = total_d
+        d["total_debt"] = total_d
+        rows.append(d)
+    rows.sort(key=lambda x: x["total_debt"], reverse=True)
     conn.close()
     return rows
 
@@ -734,7 +862,7 @@ def list_supplier_debt_orders(supplier_id: int):
     return all_orders
 
 @router.post("/api/cashflow-debts/pay-supplier")
-def pay_supplier_debt(req: SupplierDebtPaymentRequest):
+def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_permission("oem.manage"))):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()
@@ -811,12 +939,15 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest):
             
     cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?) WHERE id = ?", (req.amount, req.supplier_id))
     
-    cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    cb_code = generate_cashbook_code(cur, "PC-NH")
     note = req.note or f"Thanh toán nợ cho {supp['name']} ({fund_label})"
+    cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
+    row_acc = cur.fetchone()
+    acc_id = row_acc[0] if row_acc else None
     cur.execute("""
-        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note)
-        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?)
-    """, (cb_code, req.amount, req.supplier_id, req.fund_source, note))
+        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id)
+        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?)
+    """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id))
     
     conn.commit()
     conn.close()
@@ -826,7 +957,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest):
     }
 
 @router.post("/api/cashflow-debts/pay-order")
-def pay_single_order_debt(req: OrderDebtPaymentRequest):
+def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_permission("oem.manage"))):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()
@@ -883,13 +1014,17 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest):
     supp_row = cur.fetchone()
     supp_name = supp_row["name"] if supp_row else f"NCC #{supplier_id}"
     
-    cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    cb_prefix = "PC-OEM" if req.order_type.upper() == "OEM" else "PC-NH"
+    cb_code = generate_cashbook_code(cur, cb_prefix)
     fund_text = "Quỹ Cty" if req.fund_source == "COMPANY" else "Quỹ Cá Nhân"
     note = req.note or f"Thanh toán đơn {order_code} ({supp_name}) - {fund_text}"
+    cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
+    row_acc = cur.fetchone()
+    acc_id = row_acc[0] if row_acc else None
     cur.execute("""
-        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note)
-        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?)
-    """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note))
+        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id)
+        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?)
+    """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id))
     
     conn.commit()
     conn.close()

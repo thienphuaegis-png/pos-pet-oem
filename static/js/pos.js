@@ -3,6 +3,56 @@ var posProducts = [];
 var posContacts = [];
 var posStaff = [];
 var posSettings = {};
+var posPriceListsCache = {}; // Cache giá riêng theo price_list_id: { [priceListId]: { [productId]: price } }
+window.posPriceListsCache = posPriceListsCache;
+window.clearPriceListsCache = function() {
+    posPriceListsCache = {};
+    window.posPriceListsCache = posPriceListsCache;
+};
+
+async function getPriceListMap(priceListId, force = false) {
+    if (!priceListId) return {};
+    if (!force && posPriceListsCache[priceListId]) return posPriceListsCache[priceListId];
+    try {
+        const res = await fetch(`/api/price-lists/${priceListId}/products?_t=${Date.now()}`);
+        if (!res.ok) return {};
+        const items = await res.json();
+        const map = {};
+        for (const it of items) {
+            if (it.product_id && it.price !== null && it.price !== undefined) {
+                map[it.product_id] = it.price;
+            }
+        }
+        posPriceListsCache[priceListId] = map;
+        window.posPriceListsCache = posPriceListsCache;
+        return map;
+    } catch (e) {
+        console.error("Lỗi tải bảng giá POS:", e);
+        return {};
+    }
+}
+
+function getProductPriceForTab(tab, product) {
+    const plId = tab?.customer?.price_list_id;
+    if (plId && posPriceListsCache[plId] && posPriceListsCache[plId][product.id] !== undefined && posPriceListsCache[plId][product.id] > 0) {
+        return posPriceListsCache[plId][product.id];
+    }
+    return product.sell_price;
+}
+
+function applyPriceListToCart(tab) {
+    if (!tab || !tab.cart) return;
+    const plId = tab.customer?.price_list_id;
+    const priceMap = (plId && posPriceListsCache[plId]) ? posPriceListsCache[plId] : null;
+
+    for (const item of tab.cart) {
+        if (priceMap && priceMap[item.product_id] !== undefined && priceMap[item.product_id] > 0) {
+            item.price = priceMap[item.product_id];
+        } else {
+            item.price = item.original_price;
+        }
+    }
+}
 
 // Quản lý đa tab hóa đơn
 var invoiceTabs = [
@@ -23,6 +73,55 @@ var invoiceTabs = [
 ];
 var activeTabId = 1;
 var tabCounter = 1;
+
+// ── Chống mất hóa đơn khi tắt máy / mất điện ──
+const DRAFT_LOCAL_KEY = 'pos_draft_v1';
+let _draftSaveTimer = null;
+
+function scheduleDraftSave() {
+    if (_draftSaveTimer) clearTimeout(_draftSaveTimer);
+    _draftSaveTimer = setTimeout(saveDraftNow, 600);
+}
+
+function saveDraftNow() {
+    const payload = JSON.stringify({ invoiceTabs, activeTabId, tabCounter });
+    try { localStorage.setItem(DRAFT_LOCAL_KEY, payload); } catch (e) { /* quota/private mode: bỏ qua */ }
+    fetch('/api/pos/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: payload })
+    }).catch(() => { /* offline: localStorage đã đủ để khôi phục tại chỗ */ });
+}
+
+function clearDraft() {
+    try { localStorage.removeItem(DRAFT_LOCAL_KEY); } catch (e) {}
+    fetch('/api/pos/draft', { method: 'DELETE' }).catch(() => {});
+}
+
+async function restoreDraftIfAny() {
+    let raw = null;
+    try {
+        const res = await fetch('/api/pos/draft');
+        if (res.ok) {
+            const body = await res.json();
+            if (body && body.data) raw = body.data;
+        }
+    } catch (e) { /* server không tới được, thử localStorage */ }
+    if (!raw) {
+        try { raw = localStorage.getItem(DRAFT_LOCAL_KEY); } catch (e) {}
+    }
+    if (!raw) return false;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed.invoiceTabs && parsed.invoiceTabs.length) {
+            invoiceTabs = parsed.invoiceTabs;
+            activeTabId = parsed.activeTabId || invoiceTabs[0].id;
+            tabCounter = parsed.tabCounter || tabCounter;
+            return true;
+        }
+    } catch (e) { console.error('restoreDraft parse error', e); }
+    return false;
+}
 
 // Trạng thái modal chỉnh giá sản phẩm
 var editingItemIndex = -1;
@@ -62,10 +161,10 @@ async function initPOS() {
 
     try {
         const [prodRes, custRes, staffRes, setRes] = await Promise.all([
-            fetch('/api/products'),
-            fetch('/api/contacts?type=customer'),
-            fetch('/api/staff'),
-            fetch('/api/settings')
+            fetch('/api/products?_t=' + Date.now()),
+            fetch('/api/contacts?type=customer&_t=' + Date.now()),
+            fetch('/api/staff?_t=' + Date.now()),
+            fetch('/api/settings?_t=' + Date.now())
         ]);
 
         posProducts = await prodRes.json();
@@ -73,8 +172,28 @@ async function initPOS() {
         posStaff = await staffRes.json();
         posSettings = await setRes.json();
 
+        // Tải danh sách tài khoản thanh toán cho POS
+        fetch('/api/payment-accounts?_t=' + Date.now()).then(r => r.json()).then(accs => {
+            window.posPaymentAccounts = accs || [];
+            updatePosPaymentAccountsUI();
+        }).catch(err => console.error(err));
+
+        // Tải trước cache các bảng giá để POS áp dụng tức thì
+        fetch('/api/price-lists?_t=' + Date.now()).then(r => r.json()).then(pls => {
+            if (Array.isArray(pls)) {
+                pls.forEach(pl => { if (pl.is_active) getPriceListMap(pl.id, true); });
+            }
+        }).catch(err => console.error(err));
+
+        const curTab = getActiveTab();
+        if (curTab && curTab.customer && curTab.customer.price_list_id) {
+            await getPriceListMap(curTab.customer.price_list_id, true);
+            applyPriceListToCart(curTab);
+        }
+
         initPrintTemplatesFromSettings();
         renderStaffOptions();
+        await restoreDraftIfAny();
         renderInvoiceTabs();
         renderActiveTabCart();
     } catch (e) {
@@ -337,6 +456,7 @@ function addProductToActiveCart(productId) {
     if (exist) {
         exist.quantity += 1;
     } else {
+        const itemPrice = getProductPriceForTab(tab, p);
         tab.cart.push({
             product_id: p.id,
             code: p.code,
@@ -344,7 +464,7 @@ function addProductToActiveCart(productId) {
             type: p.type || 'product',
             unit: p.unit || 'cái',
             original_price: p.sell_price,
-            price: p.sell_price,
+            price: itemPrice,
             discount_val: 0,
             discount_type: 'vnd',
             quantity: 1
@@ -367,6 +487,7 @@ function renderActiveTabCart() {
     const tab = getActiveTab();
     const container = document.getElementById('cart-items-container');
     if (!container) return;
+    scheduleDraftSave();
 
     // Cập nhật ô ghi chú
     const noteInput = document.getElementById('pos-order-note');
@@ -437,6 +558,7 @@ function renderActiveTabCart() {
                         <span>${formatMoney(item.price)}</span>
                         <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                     </div>
+                    ${item.price !== item.original_price ? `<div class="text-[10px] text-indigo-600 font-bold">🏷️ Giá riêng</div>` : ''}
                     ${hasDiscount ? `<div class="text-[10px] text-rose-500 font-bold">${discountText}</div>` : ''}
                 </div>
 
@@ -593,7 +715,10 @@ function filterCustomerSearch(val) {
     dropdown.innerHTML = matches.map(c => `
         <div onclick="selectCustomerForActiveTab(${c.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
             <div>
-                <div class="font-bold text-slate-800">${c.name}</div>
+                <div class="flex items-center gap-1.5">
+                    <span class="font-bold text-slate-800">${c.name}</span>
+                    ${c.segment_name ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded text-[10px]">🏷️ ${c.segment_name}</span>` : ''}
+                </div>
                 <div class="text-[11px] text-slate-400">📞 ${c.phone || 'Không SĐT'}</div>
             </div>
             <div class="text-right">
@@ -604,7 +729,7 @@ function filterCustomerSearch(val) {
     dropdown.classList.remove('hidden');
 }
 
-function selectCustomerForActiveTab(customerId) {
+async function selectCustomerForActiveTab(customerId) {
     const cust = posContacts.find(c => c.id === customerId);
     if (!cust) return;
 
@@ -613,14 +738,24 @@ function selectCustomerForActiveTab(customerId) {
         id: cust.id,
         name: cust.name,
         phone: cust.phone || '',
-        points: cust.reward_points || 0
+        points: cust.reward_points || 0,
+        segment_id: cust.segment_id || null,
+        segment_name: cust.segment_name || null,
+        price_list_id: cust.price_list_id || null
     };
 
     const searchInput = document.getElementById('pos-customer-search');
     if (searchInput) searchInput.value = '';
     document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
 
+    if (tab.customer.price_list_id) {
+        await getPriceListMap(tab.customer.price_list_id, true);
+    }
+    applyPriceListToCart(tab);
+
     updateCustomerUI(tab.customer);
+    renderInvoiceTabs();
+    renderActiveTabCart();
     updateFinancialSummary();
 }
 
@@ -628,7 +763,10 @@ function clearSelectedCustomer() {
     const tab = getActiveTab();
     tab.customer = null;
     tab.use_points = false;
+    applyPriceListToCart(tab);
     updateCustomerUI(null);
+    renderInvoiceTabs();
+    renderActiveTabCart();
     updateFinancialSummary();
 }
 
@@ -636,6 +774,7 @@ function updateCustomerUI(cust) {
     const nameEl = document.getElementById('cust-name-display');
     const phoneEl = document.getElementById('cust-phone-display');
     const pointsEl = document.getElementById('cust-points-badge');
+    const segBadge = document.getElementById('cust-segment-badge');
     const btnClear = document.getElementById('btn-clear-customer');
 
     if (!cust) {
@@ -643,11 +782,24 @@ function updateCustomerUI(cust) {
         if (nameEl) nameEl.innerText = "Khách lẻ";
         if (phoneEl) phoneEl.innerText = "Không SĐT";
         if (pointsEl) pointsEl.innerText = "Điểm: 0";
+        if (segBadge) {
+            segBadge.innerText = '';
+            segBadge.classList.add('hidden');
+        }
         if (btnClear) btnClear.classList.add('hidden');
     } else {
         if (nameEl) nameEl.innerText = cust.name;
         if (phoneEl) phoneEl.innerText = cust.phone ? `📞 ${cust.phone}` : "Không SĐT";
         if (pointsEl) pointsEl.innerText = `Điểm: ${cust.points || 0}`;
+        if (segBadge) {
+            if (cust.segment_name) {
+                segBadge.innerText = `🏷️ ${cust.segment_name}`;
+                segBadge.classList.remove('hidden');
+            } else {
+                segBadge.innerText = '';
+                segBadge.classList.add('hidden');
+            }
+        }
         if (btnClear) btnClear.classList.remove('hidden');
     }
 }
@@ -802,6 +954,42 @@ function setPaymentMethod(method) {
             }
         }
     });
+
+    const bankBox = document.getElementById('pos-bank-account-box');
+    if (method === 'transfer' || method === 'card' || method === 'wallet') {
+        if (bankBox) bankBox.classList.remove('hidden');
+        updatePosPaymentAccountsUI();
+    } else {
+        if (bankBox) bankBox.classList.add('hidden');
+        // Gán tài khoản tiền mặt mặc định
+        const cashAcc = (window.posPaymentAccounts || []).find(a => a.account_type === 'cash' || a.is_default);
+        if (cashAcc) tab.account_id = cashAcc.id;
+    }
+}
+
+function updatePosPaymentAccountsUI() {
+    const select = document.getElementById('pos-bank-account-select');
+    if (!select || !window.posPaymentAccounts) return;
+    const tab = getActiveTab();
+    
+    // Ưu tiên tài khoản ngân hàng / ví
+    const accounts = window.posPaymentAccounts;
+    select.innerHTML = accounts.map(a => {
+        const isBank = a.account_type === 'bank';
+        const typeBadge = isBank ? '[NH]' : (a.account_type === 'ewallet' ? '[Ví]' : '[Két]');
+        const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
+        const isSel = tab.account_id ? tab.account_id === a.id : (isBank || a.is_default);
+        return `<option value="${a.id}" ${isSel ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
+    }).join('');
+
+    if (select.value) {
+        tab.account_id = parseInt(select.value);
+    }
+}
+
+function onPosBankAccountChange(accId) {
+    const tab = getActiveTab();
+    tab.account_id = parseInt(accId);
 }
 
 function toggleUsePoints() {
@@ -907,8 +1095,25 @@ function openNewCustomerModal() {
     }
     const phoneInput = document.getElementById('quick-cust-phone');
     if (phoneInput) phoneInput.value = '';
+    const emailInput = document.getElementById('quick-cust-email');
+    if (emailInput) emailInput.value = '';
     const addrInput = document.getElementById('quick-cust-address');
     if (addrInput) addrInput.value = '';
+
+    // Tải danh sách nhóm khách hàng
+    const segSelect = document.getElementById('quick-cust-segment');
+    if (segSelect) {
+        segSelect.innerHTML = '<option value="">-- Mặc định (Khách lẻ) --</option>';
+        fetch('/api/customer-segments')
+            .then(r => r.json())
+            .then(segments => {
+                if (Array.isArray(segments)) {
+                    segSelect.innerHTML = '<option value="">-- Mặc định (Khách lẻ) --</option>' +
+                        segments.map(s => `<option value="${s.id}">${s.name} (${s.discount_percent}% off)</option>`).join('');
+                }
+            })
+            .catch(e => console.error("Lỗi tải nhóm KH:", e));
+    }
 }
 
 function closeNewCustomerModal() {
@@ -922,7 +1127,10 @@ function closeNewCustomerModal() {
 async function submitQuickCustomer() {
     const name = document.getElementById('quick-cust-name')?.value.trim();
     const phone = document.getElementById('quick-cust-phone')?.value.trim();
+    const email = (document.getElementById('quick-cust-email')?.value || '').trim();
     const address = document.getElementById('quick-cust-address')?.value.trim();
+    const segmentVal = document.getElementById('quick-cust-segment')?.value;
+    const segmentId = segmentVal ? parseInt(segmentVal) : null;
 
     if (!name) {
         alert("Vui lòng nhập tên khách hàng!");
@@ -936,8 +1144,10 @@ async function submitQuickCustomer() {
             body: JSON.stringify({
                 name,
                 phone: phone || "",
+                email: email || "",
                 address: address || "",
                 type: 'customer',
+                segment_id: segmentId,
                 debt: 0
             })
         });
@@ -949,15 +1159,24 @@ async function submitQuickCustomer() {
         }
 
         const resData = await res.json();
-        const newCust = {
+        let newCust = {
             id: resData.id,
             name: name,
             phone: phone || '',
+            email: email || '',
             address: address || '',
             type: 'customer',
+            segment_id: segmentId,
             reward_points: 0,
             debt: 0
         };
+
+        try {
+            const detailRes = await fetch(`/api/contacts/${resData.id}`);
+            if (detailRes.ok) {
+                newCust = await detailRes.json();
+            }
+        } catch (_) {}
 
         posContacts.push(newCust);
         if (typeof allContacts !== 'undefined' && Array.isArray(allContacts)) {
@@ -983,6 +1202,10 @@ async function submitPOSOrder() {
     const tab = getActiveTab();
     if (!tab.cart || tab.cart.length === 0) {
         alert("Giỏ hàng đang trống! Vui lòng chọn sản phẩm trước.");
+        return;
+    }
+    if (typeof currentShift !== 'undefined' && !currentShift) {
+        alert("⚠ Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.");
         return;
     }
 
@@ -1013,6 +1236,8 @@ async function submitPOSOrder() {
             staff_id: staffId,
             discount: totalDiscount,
             paid_amount: paidAmount,
+            account_id: tab.account_id || null,
+            shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
@@ -1050,6 +1275,7 @@ async function submitPOSOrder() {
         tab.coupon_discount = 0;
         tab.paid_amount = null;
 
+        clearDraft();
         renderInvoiceTabs();
         renderActiveTabCart();
 

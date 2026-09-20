@@ -1,13 +1,54 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 import datetime
 import time
 from database import get_db
 from schemas import OrderCreate, OrderUpdate
 from logger_config import get_module_logger
+from routers.cashbook import generate_cashbook_code
+from dependencies import get_current_user, require_role, require_permission
 
 logger = get_module_logger("pos")
 
 router = APIRouter(tags=["POS & Orders"])
+
+@router.get("/api/pos/draft")
+def get_draft(current: dict = Depends(get_current_user)):
+    """Khôi phục hóa đơn đang gõ dở của nhân viên hiện tại (chống mất khi tắt máy/mất điện)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT data, updated_at FROM draft_orders WHERE staff_id=?", (current["id"],))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"data": row["data"], "updated_at": row["updated_at"]}
+
+
+@router.post("/api/pos/draft")
+def save_draft(body: dict, current: dict = Depends(get_current_user)):
+    """Lưu snapshot hóa đơn đang gõ dở — client gọi định kỳ (debounce ~3-5s)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO draft_orders (staff_id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) "
+        "ON CONFLICT(staff_id) DO UPDATE SET data=excluded.data, updated_at=CURRENT_TIMESTAMP",
+        (current["id"], body.get("data", ""))
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "saved"}
+
+
+@router.delete("/api/pos/draft")
+def clear_draft(current: dict = Depends(get_current_user)):
+    """Xóa draft sau khi thanh toán xong hoặc dọn tay — tránh khôi phục hóa đơn đã bán."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM draft_orders WHERE staff_id=?", (current["id"],))
+    conn.commit()
+    conn.close()
+    return {"message": "cleared"}
+
 
 @router.get("/api/orders")
 def list_orders(limit: int = 50):
@@ -71,7 +112,7 @@ def list_staff():
 
 # Ban hang (POS)
 @router.post("/api/orders")
-def create_order(req: OrderCreate):
+def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -87,9 +128,9 @@ def create_order(req: OrderCreate):
         code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
 
         cur.execute("""
-        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note))
+        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note, req.shift_id))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
@@ -197,11 +238,16 @@ def create_order(req: OrderCreate):
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (debt_amount, req.customer_id))
 
         if req.paid_amount > 0:
-            cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+            cb_code = generate_cashbook_code(cur, "PT-BH")
+            acc_id = getattr(req, "account_id", None)
+            if not acc_id:
+                cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+                row_acc = cur.fetchone()
+                acc_id = row_acc[0] if row_acc else None
             cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
-            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?)
-            """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}"))
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
+            """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
 
         conn.commit()
     except Exception as e:
@@ -212,7 +258,7 @@ def create_order(req: OrderCreate):
     return {"status": "ok", "order_code": code}
 
 @router.delete("/api/orders/{code}")
-def delete_order(code: str):
+def delete_order(code: str, user=Depends(require_role("owner"))):
     """
     Xoa/Huy don hang ban:
     - Hoan lai ton kho san pham (products, product_inventory)
@@ -286,7 +332,7 @@ def delete_order(code: str):
     return {"status": "ok", "message": f"Đã xóa đơn hàng {code} thành công"}
 
 @router.put("/api/orders/{code}")
-def update_order(code: str, req: OrderUpdate):
+def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("pos.edit_delete_order"))):
     """
     Sua don hang: Cap nhat thong tin khach, nhan vien, ghi chu, thanh toán / cong no.
     Neu co cap nhat danh sach items: hoan kho cũ, áp dụng kho moi.
@@ -397,10 +443,10 @@ def update_order(code: str, req: OrderUpdate):
 
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
         if new_paid > 0:
-            cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+            cb_code = generate_cashbook_code(cur, "PT-BH")
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
-            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?)
+            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?)
             """, (cb_code, new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat)"))
 
         conn.commit()

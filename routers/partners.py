@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
@@ -9,6 +9,8 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from database import get_db
 from logger_config import get_module_logger
+from routers.cashbook import generate_cashbook_code
+from dependencies import require_role, require_permission
 
 logger = get_module_logger("partners")
 
@@ -17,6 +19,7 @@ router = APIRouter(prefix="/api/contacts", tags=["Partners"])
 class ContactCreate(BaseModel):
     name: str
     phone: Optional[str] = ""
+    email: Optional[str] = ""
     address: Optional[str] = ""
     type: str = "customer" # customer | supplier
     segment_id: Optional[int] = None
@@ -24,12 +27,14 @@ class ContactCreate(BaseModel):
 class ContactUpdate(BaseModel):
     name: str
     phone: Optional[str] = ""
+    email: Optional[str] = ""
     address: Optional[str] = ""
     segment_id: Optional[int] = None
 
 class ContactPayDebt(BaseModel):
     amount: float
     note: Optional[str] = ""
+    account_id: Optional[int] = None
 
 class PetCreate(BaseModel):
     name: str
@@ -110,28 +115,28 @@ def get_contact(contact_id: int):
     return data
 
 @router.post("")
-def create_contact(req: ContactCreate):
+def create_contact(req: ContactCreate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("INSERT INTO contacts (type, name, phone, address, segment_id, debt) VALUES (?, ?, ?, ?, ?, 0)", 
-                (req.type, req.name.strip(), req.phone.strip(), req.address.strip(), req.segment_id))
+    cur.execute("INSERT INTO contacts (type, name, phone, email, address, segment_id, debt) VALUES (?, ?, ?, ?, ?, ?, 0)", 
+                (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id))
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
     return {"status": "ok", "id": new_id}
 
 @router.put("/{contact_id}")
-def update_contact(contact_id: int, req: ContactUpdate):
+def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE contacts SET name = ?, phone = ?, address = ?, segment_id = ? WHERE id = ?",
-                (req.name.strip(), req.phone.strip(), req.address.strip(), req.segment_id, contact_id))
+    cur.execute("UPDATE contacts SET name = ?, phone = ?, email = ?, address = ?, segment_id = ? WHERE id = ?",
+                (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, contact_id))
     conn.commit()
     conn.close()
     return {"status": "ok"}
 
 @router.delete("/{contact_id}")
-def delete_contact(contact_id: int):
+def delete_contact(contact_id: int, user=Depends(require_role("owner"))):
     if contact_id == 1:
         raise HTTPException(status_code=400, detail="Không được xóa đối tác mặc định")
     conn = get_db()
@@ -150,7 +155,7 @@ def delete_contact(contact_id: int):
     return {"status": "ok"}
 
 @router.post("/{contact_id}/pay-debt")
-def pay_contact_debt(contact_id: int, req: ContactPayDebt):
+def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_permission("partners.manage"))):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()
@@ -167,10 +172,18 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt):
     
     cb_type = "in" if c["type"] == "customer" else "out"
     cb_cat = "Thu nợ khách hàng" if c["type"] == "customer" else "Chi trả nợ NCC"
-    cb_code = f"CB{datetime_str()}"
+    prefix = "PT-CN" if c["type"] == "customer" else "PC-NH"
+    cb_code = generate_cashbook_code(cur, prefix)
+    
+    acc_id = req.account_id
+    if not acc_id:
+        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+        row_acc = cur.fetchone()
+        acc_id = row_acc[0] if row_acc else None
+
     note = f"Thanh toán nợ cho {c['name']} (Nợ cũ: {current_debt:,.0f} đ, Thu/Chi: {req.amount:,.0f} đ). {req.note or ''}".strip()
-    cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, note) VALUES (?, ?, ?, ?, ?, ?)",
-                (cb_code, cb_type, cb_cat, req.amount, contact_id, note))
+    cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, note, account_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (cb_code, cb_type, cb_cat, req.amount, contact_id, note, acc_id))
     conn.commit()
     conn.close()
     return {"status": "ok", "new_debt": new_debt}
@@ -703,7 +716,7 @@ def create_pet_service(ticket: PetServiceCreate):
     cur = conn.cursor()
     now = datetime.datetime.now()
     today_str = now.strftime("%Y-%m-%d")
-    code = "DV" + now.strftime("%Y%m%d%H%M%S")
+    code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}"
 
     # 1. Tính toán ticket_number tâm lý (đầu ngày random 5 - 10, sau đó +1)
     cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))

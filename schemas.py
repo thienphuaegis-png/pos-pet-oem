@@ -14,6 +14,8 @@ class OrderCreate(BaseModel):
     paid_amount: float
     note: Optional[str] = ""
     warehouse_id: Optional[int] = 1 # Kho xuất nguyên liệu
+    account_id: Optional[int] = None
+    shift_id: Optional[int] = None
     items: List[OrderItemIn]
 
 class OrderUpdate(BaseModel):
@@ -160,20 +162,49 @@ class PurchaseCreate(BaseModel):
     fund_source: Optional[str] = "PERSONAL"
     expected_date: Optional[str] = None
     note: Optional[str] = ""
+    status: Optional[str] = "pending"
     items: List[PurchaseItemIn]
 
-# --- Cashbook ---
+# --- Payment Accounts & Cashbook ---
+class PaymentAccountCreate(BaseModel):
+    code: str
+    name: str
+    account_type: str # cash, bank, ewallet
+    owner_type: Optional[str] = "COMPANY" # COMPANY, PERSONAL
+    bank_name: Optional[str] = ""
+    account_number: Optional[str] = ""
+    account_holder: Optional[str] = ""
+    initial_balance: Optional[float] = 0.0
+    is_default: Optional[int] = 0
+
+class PaymentAccountUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    account_type: Optional[str] = None
+    owner_type: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    account_holder: Optional[str] = None
+    initial_balance: Optional[float] = None
+    is_default: Optional[int] = None
+    is_active: Optional[int] = None
+
 class CashbookCreate(BaseModel):
-    type: str # THU hoac CHI
+    code: Optional[str] = None
+    type: str # in, out, THU, CHI
     category: str
     amount: float
-    description: Optional[str] = ""
-    ref_type: Optional[str] = None
+    account_id: Optional[int] = None
+    contact_id: Optional[int] = None
+    ref_type: Optional[str] = "manual"
     ref_id: Optional[int] = None
+    note: Optional[str] = ""
+    description: Optional[str] = ""
     fund_source: Optional[str] = "COMPANY"
 
 # --- Settings & Templates ---
 class CompanySettingsUpdate(BaseModel):
+    app_name: Optional[str] = "⚡ POS Offline"
     shop_name: str
     shop_address: Optional[str] = ""
     shop_phone: Optional[str] = ""
@@ -187,6 +218,20 @@ class CompanySettingsUpdate(BaseModel):
 
 class TemplateSettingsUpdate(BaseModel):
     print_blocks_config: str
+
+class RolePermissionUpdate(BaseModel):
+    role: str
+    perm_key: str
+    allowed: bool
+
+class ModuleToggleUpdate(BaseModel):
+    key: str  # module_oem | module_pet_services | module_price_lists
+    enabled: bool
+
+class StaffPermissionUpdate(BaseModel):
+    staff_id: int
+    perm_key: str
+    allowed: Optional[bool] = None  # None = xoa override, dung lai theo quyen mac dinh cua role
 
 
 # --- Price Lists ---
@@ -266,6 +311,17 @@ class OEMOrderCreate(BaseModel):
     discount_percent: float = 0.0
     deposit_amount: float = 0.0
     note: Optional[str] = ""
+    items: List[OEMOrderItemIn]
+
+class OEMOrderUpdate(BaseModel):
+    partner_id: int
+    oem_warehouse_id: int = 1
+    dest_warehouse_id: int = 1
+    expected_delivery_date: Optional[str] = None
+    vat_percent: float = 0.0
+    discount_percent: float = 0.0
+    note: Optional[str] = ""
+    fund_source: Optional[str] = "COMPANY"
     items: List[OEMOrderItemIn]
 
 class OEMOrderDeposit(BaseModel):

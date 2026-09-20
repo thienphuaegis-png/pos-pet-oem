@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 from typing import Optional
 import datetime
@@ -12,6 +12,7 @@ from schemas import (
     InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
 )
 from logger_config import get_module_logger
+from dependencies import require_permission
 
 logger = get_module_logger("inventory")
 
@@ -46,7 +47,7 @@ def list_warehouses():
     return rows
 
 @router.post("/api/warehouses")
-def create_warehouse(w: WarehouseCreate):
+def create_warehouse(w: WarehouseCreate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     code = w.code or f"WH-{int(time.time() * 1000)}"
@@ -61,7 +62,7 @@ def create_warehouse(w: WarehouseCreate):
     return {"status": "ok", "code": code}
 
 @router.put("/api/warehouses/{warehouse_id}")
-def update_warehouse(warehouse_id: int, w: WarehouseUpdate):
+def update_warehouse(warehouse_id: int, w: WarehouseUpdate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -85,7 +86,7 @@ def update_warehouse(warehouse_id: int, w: WarehouseUpdate):
     return {"status": "ok"}
 
 @router.delete("/api/warehouses/{warehouse_id}")
-def delete_warehouse(warehouse_id: int):
+def delete_warehouse(warehouse_id: int, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM warehouses WHERE id = ?", (warehouse_id,))
@@ -146,7 +147,7 @@ def list_ingredients(warehouse_id: Optional[int] = None):
     return rows
 
 @router.post("/api/ingredients")
-def create_ingredient(ing: IngredientCreate):
+def create_ingredient(ing: IngredientCreate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     code = ing.code or f"NL-{int(time.time() * 1000)}"
@@ -504,7 +505,7 @@ async def import_ingredients_excel(file: UploadFile = File(...), warehouse_id: i
     }
 
 @router.put("/api/ingredients/{ingredient_id}")
-def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
+def update_ingredient(ingredient_id: int, ing: IngredientUpdate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -532,7 +533,7 @@ def update_ingredient(ingredient_id: int, ing: IngredientUpdate):
     return {"status": "ok"}
 
 @router.delete("/api/ingredients/{ingredient_id}")
-def delete_ingredient(ingredient_id: int):
+def delete_ingredient(ingredient_id: int, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -575,7 +576,7 @@ def list_inventory(warehouse_id: Optional[int] = None):
     return rows
 
 @router.post("/api/inventory/adjust")
-def adjust_inventory(req: InventoryAdjust):
+def adjust_inventory(req: InventoryAdjust, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -919,7 +920,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     }
 
 @router.post("/api/inventory/transfer")
-def create_warehouse_transfer(req: TransferCreate):
+def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permission("inventory.manage"))):
     if req.from_warehouse_id == req.to_warehouse_id:
         raise HTTPException(status_code=400, detail="Kho xuất và kho nhận không được trùng nhau")
     if not req.items:
@@ -1070,7 +1071,7 @@ def list_transfers():
     return transfers
 
 @router.post("/api/inventory/audit")
-def create_stock_audit(req: AuditCreate):
+def create_stock_audit(req: AuditCreate, user=Depends(require_permission("inventory.manage"))):
     if not req.items:
         raise HTTPException(status_code=400, detail="Danh sách kiểm kê không được rỗng")
     conn = get_db()
@@ -1212,7 +1213,7 @@ def get_item_inventory_logs(item_type: str, item_id: int, warehouse_id: Optional
 
 # --- 5. Xuất hủy hàng hóa (Hư hỏng / Hết hạn / Mất mát) ---
 @router.post("/api/inventory/write-off")
-def write_off_items(data: WriteOffCreate):
+def write_off_items(data: WriteOffCreate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:

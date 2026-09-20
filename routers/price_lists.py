@@ -4,6 +4,8 @@ from typing import Optional
 from database import get_db
 from schemas import PriceListCreate, PriceListUpdate, ProductPriceCreate, ProductPriceUpdate, CustomerSegmentCreate, CustomerSegmentUpdate
 from logger_config import get_module_logger
+from fastapi import Depends
+from dependencies import require_permission
 
 logger = get_module_logger("price_lists")
 
@@ -25,7 +27,7 @@ def list_price_lists():
     return rows
 
 @router.post("")
-def create_price_list(p: PriceListCreate):
+def create_price_list(p: PriceListCreate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -42,7 +44,7 @@ def create_price_list(p: PriceListCreate):
     return {"status": "ok", "id": pid}
 
 @router.put("/{price_list_id}")
-def update_price_list(price_list_id: int, p: PriceListUpdate):
+def update_price_list(price_list_id: int, p: PriceListUpdate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id FROM price_lists WHERE id = ?", (price_list_id,))
@@ -67,7 +69,7 @@ def update_price_list(price_list_id: int, p: PriceListUpdate):
     return {"status": "ok"}
 
 @router.delete("/{price_list_id}")
-def delete_price_list(price_list_id: int):
+def delete_price_list(price_list_id: int, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM product_price_list WHERE price_list_id = ?", (price_list_id,))
@@ -102,11 +104,11 @@ def get_price_list_matrix(price_list_id: int, search: Optional[str] = None):
     query = """
         SELECT 
             p.id as product_id, p.code as product_code, p.name as product_name, p.unit,
-            COALESCE(p.price_sell, 0) as default_retail_price,
+            COALESCE(p.sell_price, 0) as default_retail_price,
             ppl.price as custom_price,
             CASE 
                 WHEN ppl.price IS NOT NULL AND ppl.price > 0 THEN ppl.price 
-                ELSE COALESCE(p.price_sell, 0) 
+                ELSE COALESCE(p.sell_price, 0) 
             END as effective_price,
             CASE WHEN (ppl.price IS NOT NULL AND ppl.price > 0) THEN 1 ELSE 0 END as is_custom
         FROM products p
@@ -128,8 +130,30 @@ class SetProductPriceReq(BaseModel):
     product_id: int
     custom_price: Optional[float] = None # None hoặc 0 để fallback về giá lẻ mặc định
 
+class BulkDiscountReq(BaseModel):
+    discount_percent: float
+
+@router.post("/{price_list_id}/bulk-discount")
+def apply_bulk_discount(price_list_id: int, req: BulkDiscountReq, user=Depends(require_permission("price_lists.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, sell_price FROM products WHERE (type = 'product' OR type IS NULL) AND sell_price > 0")
+    prods = cur.fetchall()
+    pct = max(0.0, min(100.0, req.discount_percent))
+    factor = (100.0 - pct) / 100.0
+    for p in prods:
+        new_price = round((p['sell_price'] or 0) * factor, -2)
+        cur.execute("""
+            INSERT INTO product_price_list (product_id, price_list_id, price, min_qty, discount_percent)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(product_id, price_list_id) DO UPDATE SET price = excluded.price, discount_percent = excluded.discount_percent
+        """, (p['id'], price_list_id, new_price, pct))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "updated_count": len(prods)}
+
 @router.post("/{price_list_id}/set-price")
-def set_single_product_price(price_list_id: int, req: SetProductPriceReq):
+def set_single_product_price(price_list_id: int, req: SetProductPriceReq, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     if req.custom_price is None or req.custom_price <= 0:
@@ -145,7 +169,7 @@ def set_single_product_price(price_list_id: int, req: SetProductPriceReq):
     return {"status": "ok"}
 
 @router.post("/{price_list_id}/products")
-def add_product_price(price_list_id: int, p: ProductPriceCreate):
+def add_product_price(price_list_id: int, p: ProductPriceCreate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id FROM price_lists WHERE id = ?", (price_list_id,))
@@ -165,7 +189,7 @@ def add_product_price(price_list_id: int, p: ProductPriceCreate):
     return {"status": "ok"}
 
 @router.put("/{price_list_id}/products/{product_id}")
-def update_product_price(price_list_id: int, product_id: int, p: ProductPriceUpdate):
+def update_product_price(price_list_id: int, product_id: int, p: ProductPriceUpdate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     fields = []
@@ -184,7 +208,7 @@ def update_product_price(price_list_id: int, product_id: int, p: ProductPriceUpd
     return {"status": "ok"}
 
 @router.delete("/{price_list_id}/products/{product_id}")
-def remove_product_price(price_list_id: int, product_id: int):
+def remove_product_price(price_list_id: int, product_id: int, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM product_price_list WHERE price_list_id = ? AND product_id = ?", (price_list_id, product_id))
@@ -211,7 +235,7 @@ def list_segments():
     return rows
 
 @router_segments.post("")
-def create_segment(s: CustomerSegmentCreate):
+def create_segment(s: CustomerSegmentCreate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -228,7 +252,7 @@ def create_segment(s: CustomerSegmentCreate):
     return {"status": "ok", "id": pid}
 
 @router_segments.put("/{segment_id}")
-def update_segment(segment_id: int, s: CustomerSegmentUpdate):
+def update_segment(segment_id: int, s: CustomerSegmentUpdate, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id FROM customer_segments WHERE id = ?", (segment_id,))
@@ -257,7 +281,7 @@ def update_segment(segment_id: int, s: CustomerSegmentUpdate):
     return {"status": "ok"}
 
 @router_segments.delete("/{segment_id}")
-def delete_segment(segment_id: int):
+def delete_segment(segment_id: int, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("UPDATE contacts SET segment_id = NULL WHERE segment_id = ?", (segment_id,))

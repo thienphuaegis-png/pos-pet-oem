@@ -13,8 +13,10 @@ def get_db_path():
     return os.path.join(data_dir, "pos.db")
 
 def get_db():
-    conn = sqlite3.connect(get_db_path(), check_same_thread=False)
+    conn = sqlite3.connect(get_db_path(), timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -40,8 +42,10 @@ def init_db():
         type TEXT NOT NULL, -- customer, supplier
         name TEXT NOT NULL,
         phone TEXT,
+        email TEXT,
         address TEXT,
         debt REAL DEFAULT 0, -- Cong no hien tai
+        segment_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -375,6 +379,20 @@ def init_db():
     if 'is_active' not in prod_table_cols:
         cur.execute("ALTER TABLE products ADD COLUMN is_active INTEGER DEFAULT 1")
 
+    # Bang lien ket NCC <-> hang hoa/nguyen lieu (bi thieu CREATE TABLE, chi ton tai qua ALTER tren may da co san du lieu cu)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS supplier_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        supplier_id INTEGER NOT NULL,
+        item_type TEXT NOT NULL,
+        product_id INTEGER,
+        ingredient_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        default_cost REAL DEFAULT 0,
+        FOREIGN KEY(supplier_id) REFERENCES contacts(id) ON DELETE CASCADE,
+        UNIQUE(supplier_id, item_type, product_id, ingredient_id)
+    )''')
+
     cur.execute("PRAGMA table_info(supplier_items)")
     si_cols = [c[1] for c in cur.fetchall()]
     if 'default_cost' not in si_cols:
@@ -417,6 +435,23 @@ def init_db():
         FOREIGN KEY(production_id) REFERENCES productions(id) ON DELETE CASCADE
     )''')
 
+    # 7.5. Tai khoan thanh toan / Nguon quy
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS payment_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        account_type TEXT NOT NULL, -- cash, bank, ewallet
+        owner_type TEXT DEFAULT 'COMPANY', -- COMPANY, PERSONAL
+        bank_name TEXT,
+        account_number TEXT,
+        account_holder TEXT,
+        initial_balance REAL DEFAULT 0,
+        is_default INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     # 8. So quy (Thu / Chi)
     cur.execute('''
     CREATE TABLE IF NOT EXISTS cashbook (
@@ -429,14 +464,93 @@ def init_db():
         ref_type TEXT, -- order, purchase, manual
         ref_id INTEGER,
         note TEXT,
+        account_id INTEGER REFERENCES payment_accounts(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
+
+    # Migration for cashbook.account_id if table already existed
+    cur.execute("PRAGMA table_info(cashbook)")
+    cb_columns = [col[1] for col in cur.fetchall()]
+    if 'account_id' not in cb_columns:
+        cur.execute("ALTER TABLE cashbook ADD COLUMN account_id INTEGER REFERENCES payment_accounts(id)")
 
     # 9. Cau hinh & Mau in tuy chinh
     cur.execute('''
     CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT
+    )''')
+
+    # 9b. Phan quyen theo role (tick-box) - owner luon full quyen, khong luu trong bang nay
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS role_permissions (
+        role TEXT NOT NULL,
+        perm_key TEXT NOT NULL,
+        allowed INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (role, perm_key)
+    )''')
+    # Seed mac dinh = giu nguyen hanh vi cu (require_role cung truoc day)
+    PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
+                 "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
+                 "reports.view", "shifts.approve", "settings.access"]
+    DEFAULT_ROLE_PERMS = {
+        "cashier": {"pos.sell"},
+        "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order"},
+        "warehouse": {"purchases.manage", "inventory.manage"},
+    }
+    for role, perms in DEFAULT_ROLE_PERMS.items():
+        for key in PERM_KEYS:
+            cur.execute("INSERT OR IGNORE INTO role_permissions (role, perm_key, allowed) VALUES (?, ?, ?)",
+                        (role, key, 1 if key in perms else 0))
+
+    # 9c. Bat/tat module theo he thong (an tab cho MOI role khi tat)
+    DEFAULT_MODULES = {"module_oem": "1", "module_pet_services": "1", "module_price_lists": "1"}
+    for key, val in DEFAULT_MODULES.items():
+        cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
+
+    # 9d. Chong brute-force dang nhap
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS login_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        ip TEXT,
+        success INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_user_time ON login_attempts(username, created_at)")
+
+    # 9d2. Quyen rieng theo TUNG nhan vien - override quyen mac dinh cua role (NULL = dung theo role)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS staff_permissions (
+        staff_id INTEGER NOT NULL,
+        perm_key TEXT NOT NULL,
+        allowed INTEGER NOT NULL,
+        PRIMARY KEY (staff_id, perm_key),
+        FOREIGN KEY(staff_id) REFERENCES staff(id) ON DELETE CASCADE
+    )''')
+
+    # 9d3. Log hoat dong: ghi lai thao tac cua tung account, giu 30 ngay
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        staff_id INTEGER,
+        staff_name TEXT,
+        role TEXT,
+        action TEXT NOT NULL,
+        method TEXT,
+        path TEXT,
+        ip TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_activity_log_staff_time ON activity_log(staff_id, created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_activity_log_time ON activity_log(created_at)")
+
+    # 9e. Luu giao dien hoa don dang go do (chong mat khi tat may / mat dien)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS draft_orders (
+        staff_id INTEGER PRIMARY KEY,
+        data TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
     # Template K80 mac dinh
@@ -743,8 +857,85 @@ def init_db():
     cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('SI', 'Sỉ', 5, 2)")
     cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('DL', 'Đại Lý', 10, 3)")
 
+    # Seed payment_accounts if empty
+    cur.execute("SELECT COUNT(*) FROM payment_accounts")
+    if cur.fetchone()[0] == 0:
+        cur.execute("""
+        INSERT INTO payment_accounts (code, name, account_type, owner_type, initial_balance, is_default)
+        VALUES ('TM-POS', 'Két tiền mặt tại quầy POS', 'cash', 'COMPANY', 0, 1)
+        """)
+        cur.execute("""
+        INSERT INTO payment_accounts (code, name, account_type, owner_type, bank_name, account_number, account_holder, initial_balance, is_default)
+        VALUES ('VCB-CTY', 'Vietcombank Công Ty', 'bank', 'COMPANY', 'Vietcombank', '9988776655', 'CTY TNHH BÁN LẺ POS', 0, 0)
+        """)
+        cur.execute("""
+        INSERT INTO payment_accounts (code, name, account_type, owner_type, bank_name, account_number, account_holder, initial_balance, is_default)
+        VALUES ('MB-CANHAN', 'MB Bank Cá Nhân (Chủ Shop)', 'bank', 'PERSONAL', 'MB Bank', '0929861468', 'Bùi Thiên Phú', 0, 0)
+        """)
+
+    # ── Auth migration: thêm cột username/password_hash/is_active vào staff ──
+    for _col in [
+        "ALTER TABLE staff ADD COLUMN username TEXT",
+        "ALTER TABLE staff ADD COLUMN password_hash TEXT",
+        "ALTER TABLE staff ADD COLUMN is_active INTEGER DEFAULT 1",
+        "ALTER TABLE staff ADD COLUMN must_change_password INTEGER DEFAULT 0",
+        "ALTER TABLE staff ADD COLUMN token_version INTEGER DEFAULT 0",
+    ]:
+        try:
+            cur.execute(_col)
+        except Exception:
+            pass  # column already exists
+
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_staff_username ON staff(username)")
+
+    # ── Bảng ca làm việc ──
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS shifts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cashier_id INTEGER NOT NULL REFERENCES staff(id),
+        open_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        close_at DATETIME,
+        status TEXT DEFAULT 'open' CHECK(status IN ('open','closed','approved')),
+        opening_cash REAL DEFAULT 0,
+        closing_cash REAL,
+        expected_cash REAL,
+        difference REAL,
+        note TEXT,
+        approved_by INTEGER REFERENCES staff(id),
+        approved_at DATETIME
+    )''')
+
+    # ── Gắn shift_id vào orders và cashbook ──
+    for _col in [
+        "ALTER TABLE orders ADD COLUMN shift_id INTEGER REFERENCES shifts(id)",
+        "ALTER TABLE cashbook ADD COLUMN shift_id INTEGER REFERENCES shifts(id)",
+    ]:
+        try:
+            cur.execute(_col)
+        except Exception:
+            pass
+
+    # ── Seed admin ──
+    from passlib.context import CryptContext
+    _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    cur.execute("SELECT COUNT(*) FROM staff WHERE username='admin'")
+    if cur.fetchone()[0] == 0:
+        cur.execute("SELECT id FROM staff WHERE role='admin' OR role='owner' LIMIT 1")
+        _existing = cur.fetchone()
+        if _existing:
+            cur.execute(
+                "UPDATE staff SET username=?, password_hash=?, is_active=1 WHERE id=?",
+                ("admin", _pwd_ctx.hash("admin123"), _existing[0])
+            )
+        else:
+            cur.execute(
+                "INSERT INTO staff (name, username, password_hash, role, is_active, commission_rate) VALUES (?,?,?,?,1,0.0)",
+                ("Quản Lý", "admin", _pwd_ctx.hash("admin123"), "owner")
+            )
+
     # Tao tai khoan mac dinh neu chua co
-    cur.execute("SELECT COUNT(*) FROM staff")
+    cur.execute("SELECT COUNT(*) FROM staff WHERE username IS NOT NULL")
     if cur.fetchone()[0] == 0:
         cur.execute("INSERT INTO staff (name, phone, role, commission_rate) VALUES ('Quản Lý', '0900000000', 'admin', 5.0)")
         cur.execute("INSERT INTO contacts (type, name, phone) VALUES ('customer', 'Khách lẻ', '')")

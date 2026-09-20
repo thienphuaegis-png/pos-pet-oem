@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -7,6 +7,8 @@ import time
 from database import get_db
 from schemas import PurchaseCreate
 from logger_config import get_module_logger
+from dependencies import require_role, require_permission
+from routers.cashbook import generate_cashbook_code
 
 logger = get_module_logger("purchases")
 
@@ -423,7 +425,7 @@ def get_purchase_detail(code: str):
     return result
 
 @router.post("/api/purchases")
-def create_purchase(req: PurchaseCreate):
+def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purchases.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -434,17 +436,19 @@ def create_purchase(req: PurchaseCreate):
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
         code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
 
+        status = 'draft' if req.status == 'draft' else 'pending'
+
         cur.execute('''
         INSERT INTO purchases (
             code, supplier_id, warehouse_id, subtotal_amount, discount, 
             shipping_fee, other_fee, vat_rate, vat_amount, total_amount, 
             paid_amount, debt_amount, status, expected_date, fund_source, note
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             code, req.supplier_id, warehouse_id, subtotal_amount, req.discount,
             req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
-            req.paid_amount, debt_amount, req.expected_date, req.fund_source or 'PERSONAL', req.note
+            req.paid_amount, debt_amount, status, req.expected_date, req.fund_source or 'PERSONAL', req.note
         ))
         purchase_id = cur.lastrowid
 
@@ -469,8 +473,65 @@ def create_purchase(req: PurchaseCreate):
     conn.close()
     return {"status": "ok", "purchase_code": code, "message": "Tạo phiếu nhập hàng ở trạng thái chờ nhận hàng"}
 
+@router.put("/api/purchases/{code}")
+def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permission("purchases.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+        if p["status"] not in ('pending', 'draft'):
+            raise HTTPException(status_code=400, detail="Chỉ có thể sửa đơn đặt hàng khi còn ở trạng thái chờ nhận hàng hoặc bản nháp!")
+
+        new_status = req.status if req.status in ('pending', 'draft') else p["status"]
+
+        purchase_id = p["id"]
+        warehouse_id = req.warehouse_id or 1
+        subtotal_amount = sum(item.quantity * item.cost_price for item in req.items)
+        vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2) if req.vat_rate > 0 else 0.0
+        total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
+        debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
+
+        cur.execute('''
+        UPDATE purchases
+        SET supplier_id = ?, warehouse_id = ?, subtotal_amount = ?, discount = ?,
+            shipping_fee = ?, other_fee = ?, vat_rate = ?, vat_amount = ?, total_amount = ?,
+            paid_amount = ?, debt_amount = ?, expected_date = ?, fund_source = ?, note = ?, status = ?
+        WHERE id = ?
+        ''', (
+            req.supplier_id, warehouse_id, subtotal_amount, req.discount,
+            req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
+            req.paid_amount, debt_amount, req.expected_date, req.fund_source or 'PERSONAL', req.note, new_status,
+            purchase_id
+        ))
+
+        cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+
+        for item in req.items:
+            subtotal = round(item.quantity * item.cost_price, 2)
+            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
+            cur.execute('''
+            INSERT INTO purchase_items (
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, quantity, cost_price, subtotal, actual_quantity
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                purchase_id, item.item_type, prod_id_val, item.ingredient_id,
+                item.item_name, item.unit, item.quantity, item.cost_price, subtotal, item.quantity
+            ))
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "purchase_code": code, "message": f"Đã cập nhật đơn đặt hàng {code} thành công"}
+
 @router.post("/api/purchases/{code}/receive")
-def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None):
+def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, user=Depends(require_permission("purchases.manage"))):
     """
     Xác nhận nhận hàng thực tế & Kiểm đếm:
     - Nếu có req.items: đối chiếu số lượng thực nhận actual_quantity
@@ -578,12 +639,15 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None):
 
         # Ghi sổ quỹ nếu có trả trước
         if paid_amount > 0:
-            cb_code = f"SQ{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+            cb_code = generate_cashbook_code(cur, "PC-NH")
             fund_source = p["fund_source"] or 'PERSONAL'
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
             cur.execute('''
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note)
-            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?)
-            ''', (cb_code, paid_amount, p["supplier_id"], purchase_id, fund_source, f"Chi thanh toán phiếu nhập {code}"))
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id)
+            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?)
+            ''', (cb_code, paid_amount, p["supplier_id"], purchase_id, fund_source, f"Chi thanh toán phiếu nhập {code}", acc_id))
 
         # Đổi trạng thái phiếu nhập sang 'received'
         cur.execute('''
@@ -617,6 +681,7 @@ def print_purchase_checklist(code: str):
     if not p:
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+    p = dict(p)
     
     cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (p["id"],))
     items = [dict(r) for r in cur.fetchall()]
@@ -731,7 +796,7 @@ def print_purchase_checklist(code: str):
     return HTMLResponse(content=html)
 
 @router.delete("/api/purchases/{code}")
-def delete_purchase(code: str):
+def delete_purchase(code: str, user=Depends(require_role("owner"))):
     """
     Xóa/Hủy phiếu nhập hàng: Hoàn lại tồn kho, công nợ NCC và xóa phiếu.
     """

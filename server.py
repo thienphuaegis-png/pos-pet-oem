@@ -1,9 +1,19 @@
 import os
 import sys
+import secrets
 import logging
 from fastapi import FastAPI, Response, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+
+# Bảo mật: tự sinh POS_JWT_SECRET vào .env nếu chưa có, load trước khi import router nào dùng SECRET
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if not os.path.exists(_env_path):
+    with open(_env_path, "w") as f:
+        f.write(f"POS_JWT_SECRET={secrets.token_hex(32)}\n")
+from dotenv import load_dotenv
+load_dotenv(_env_path)
+
 
 # Thiết lập ghi log ra file pos_app.log và console
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
@@ -57,6 +67,8 @@ from routers.bom import router as bom_router
 from routers.partners import router as partners_router, pets_router, service_router
 from routers.purchases import router as purchases_router
 from routers.production import router as production_router
+from routers.auth import router as auth_router
+from routers.shifts import router as shifts_router
 from routers.cashbook import router as cashbook_router
 from routers.combos import router as combos_router
 from routers.price_lists import router as price_lists_router
@@ -79,8 +91,24 @@ async def log_requests(request: Request, call_next):
         mod_logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
         raise exc
 
+# Middleware ghi activity_log: moi request ghi du lieu (POST/PUT/DELETE) thanh cong -> luu lai ai lam gi
+@app.middleware("http")
+async def activity_log_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if request.method in ("POST", "PUT", "DELETE") and response.status_code < 400:
+        try:
+            from activity_logger import log_activity_from_request
+            log_activity_from_request(request, response)
+        except Exception:
+            logger.error("Ghi activity_log that bai", exc_info=True)
+    return response
+
 # Khởi tạo database
 init_db()
+
+# Khởi động backup tự động (local rotating + cloud Google Drive, mỗi giờ)
+from backup_service import start_backup_scheduler
+start_backup_scheduler()
 
 # Mount static files
 def get_base_dir():
@@ -120,6 +148,8 @@ def pos_page():
     return "<h1>POS template not found</h1>"
 
 # Đăng ký toàn bộ các sub-routers
+app.include_router(auth_router)
+app.include_router(shifts_router)
 app.include_router(combos_router)
 app.include_router(settings_router)
 app.include_router(products_router)
