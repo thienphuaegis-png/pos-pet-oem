@@ -460,6 +460,7 @@ function addProductToActiveCart(productId) {
         exist.quantity += 1;
     } else {
         const itemPrice = getProductPriceForTab(tab, p);
+        const hasCustomPrice = itemPrice !== p.sell_price;
         tab.cart.push({
             product_id: p.id,
             code: p.code,
@@ -468,6 +469,7 @@ function addProductToActiveCart(productId) {
             unit: p.unit || 'cái',
             original_price: p.sell_price,
             price: itemPrice,
+            price_list_name: hasCustomPrice ? (tab.customer?.price_list_name || null) : null,
             discount_val: 0,
             discount_type: 'vnd',
             quantity: 1
@@ -537,7 +539,7 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Tên hàng hóa -->
-                <div class="col-span-4 font-semibold text-slate-800 line-clamp-1" title="${item.name}">
+                <div class="col-span-3 font-semibold text-slate-800 line-clamp-1" title="${item.name}">
                     ${comboBadge}${item.name}
                 </div>
 
@@ -556,9 +558,9 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="col-span-1 text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                <div class="col-span-2 text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
                     <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1">
-                        ${(item.price !== item.original_price) ? `<span class="text-[10px] text-slate-400 line-through font-normal">${formatMoney(item.original_price)}</span>` : ''}
+                        ${(item.price !== item.original_price) ? `<span class="text-slate-400 line-through font-normal">${formatMoney(item.original_price)}</span>` : ''}
                         <span>${formatMoney(item.price)}</span>
                         <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                     </div>
@@ -824,6 +826,7 @@ function openSelectedCustomerEdit() {
 }
 
 function openPurchaseHistoryModal() {
+    const tab = getActiveTab();
     const custId = tab && tab.customer ? tab.customer.id : null;
     if (!custId) return;
     currentPurchaseHistoryCustId = custId;
@@ -865,8 +868,12 @@ async function loadPurchaseHistory(custId) {
 }
 
 function viewPurchaseHistoryDetail(type, code, id) {
+    document.getElementById('modal-purchase-history')?.classList.add('hidden');
     if (type === 'service') { openServiceProgressModal(id); return; }
     viewOrderDetailModal(code);
+    window.orderViewOpenedFromHistory = true;
+    document.getElementById('btn-edit-order-from-view')?.classList.add('hidden');
+    document.getElementById('btn-delete-order-from-view')?.classList.add('hidden');
 }
 
 // ----------------------------------------------------
@@ -1513,6 +1520,12 @@ function initPrintTemplatesFromSettings() {
             const parsed = JSON.parse(posSettings.print_blocks_config);
             if (parsed.presets && Object.keys(parsed.presets).length > 0) {
                 posPrintConfig = parsed;
+                // Khôi phục mẫu in nhân viên đã chọn lần trước (localStorage),
+                // nếu mẫu đó vẫn còn tồn tại trong danh sách preset hiện có.
+                const savedKey = localStorage.getItem('pos_print_template');
+                if (savedKey && posPrintConfig.presets[savedKey]) {
+                    posPrintConfig.active_preset = savedKey;
+                }
             }
         } catch(e) {}
     }
@@ -1535,6 +1548,7 @@ function initPrintTemplatesFromSettings() {
 function changeActivePrintTemplate(presetKey) {
     if (!posPrintConfig.presets || !posPrintConfig.presets[presetKey]) return;
     posPrintConfig.active_preset = presetKey;
+    localStorage.setItem('pos_print_template', presetKey);
 }
 
 async function showPrintModal(orderCode) {

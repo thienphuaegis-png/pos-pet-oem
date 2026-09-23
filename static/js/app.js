@@ -6569,6 +6569,7 @@
 
         // --- XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG TỪ LOGS ---
         let currentViewedOrderCode = null;
+        window.orderViewOpenedFromHistory = false;
 
         async function viewOrderDetailModal(orderCode) {
             try {
@@ -6608,6 +6609,12 @@
         function closeModalOrderView() {
             document.getElementById('modal-order-view').classList.add('hidden');
             currentViewedOrderCode = null;
+            document.getElementById('btn-edit-order-from-view')?.classList.remove('hidden');
+            document.getElementById('btn-delete-order-from-view')?.classList.remove('hidden');
+            if (window.orderViewOpenedFromHistory) {
+                window.orderViewOpenedFromHistory = false;
+                document.getElementById('modal-purchase-history')?.classList.remove('hidden');
+            }
         }
 
         function printCurrentViewedOrder() {

@@ -8,6 +8,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         html { font-size: 17px; } /* Tăng cỡ chữ toàn hệ thống lên 1 đơn vị (base 16px -> 17px, Tailwind rem-based nên scale toàn bộ) */
+        /* Ẩn mũi tên lên/xuống mặc định của trình duyệt trên mọi ô input số */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
         .active-tab { background-color: #0284c7; color: white; }
         @media print {
             html, body {
@@ -343,10 +352,10 @@
                 <div class="col-span-1 text-center">Xóa</div>
                 <div class="col-span-1 text-center">STT</div>
                 <div class="col-span-1">Mã hàng</div>
-                <div class="col-span-4">Tên hàng hóa</div>
+                <div class="col-span-3">Tên hàng hóa</div>
                 <div class="col-span-1 text-center">ĐVT</div>
                 <div class="col-span-1 text-center">SL</div>
-                <div class="col-span-1 text-right">Đơn giá</div>
+                <div class="col-span-2 text-right">Đơn giá</div>
                 <div class="col-span-2 text-right">Thành tiền</div>
             </div>
 
@@ -3366,10 +3375,10 @@
                             <button onclick="printCurrentViewedOrder()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1">
                                 🖨️ In Lại
                             </button>
-                            <button onclick="openModalEditOrderFromView()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold flex items-center gap-1">
+                            <button id="btn-edit-order-from-view" onclick="openModalEditOrderFromView()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold flex items-center gap-1">
                                 ✏️ Sửa Hóa Đơn
                             </button>
-                            <button onclick="deleteOrderFromView()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1">
+                            <button id="btn-delete-order-from-view" onclick="deleteOrderFromView()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1">
                                 🗑️ Xóa Hóa Đơn
                             </button>
                         </div>
@@ -5245,8 +5254,8 @@
     <script src="/static/js/auth.js?v=20260920_01"></script>
     <script src="/static/js/shifts.js?v=20260920_01"></script>
     <script src="/static/js/staff.js?v=20260920_01"></script>
-    <script src="/static/js/app.js?v=20260923_05"></script>
-    <script src="/static/js/pos.js?v=20260923_06"></script>
+    <script src="/static/js/app.js?v=20260923_07"></script>
+    <script src="/static/js/pos.js?v=20260923_11"></script>
 
     <!-- MODAL: TẠO/SỬA BẢNG GIÁ -->
     <div id="modal-price-list" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
