@@ -147,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (Auth.getToken()) {
     hideLoginOverlay();
     applyRoleUI();
+    if (typeof loadCurrentShift === 'function') {
+      loadCurrentShift();
+    }
   } else {
     showLoginOverlay();
   }

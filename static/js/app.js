@@ -2737,13 +2737,22 @@
                 return;
             }
 
-            tbody.innerHTML = filtered.map((item, idx) => `
+            tbody.innerHTML = filtered.map((item, idx) => {
+                const catClass = {
+                    'Gói Combo Chó': 'bg-purple-100 text-purple-700',
+                    'Dịch Vụ Lẻ Chó': 'bg-blue-100 text-blue-700',
+                    'Spa Mèo': 'bg-pink-100 text-pink-700',
+                    'Nhuộm Lông': 'bg-amber-100 text-amber-700',
+                    'Trị Liệu & Phụ Thu': 'bg-emerald-100 text-emerald-700'
+                }[item.category] || 'bg-slate-100 text-slate-700';
+
+                return `
                 <tr class="border-b hover:bg-slate-50 transition text-xs">
                     <td class="p-2.5 text-center text-slate-500">${idx + 1}</td>
                     <td class="p-2.5 font-bold text-purple-900">${item.service_name}</td>
                     <td class="p-2.5">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.category === 'Gói Nhuộm' ? 'bg-pink-100 text-pink-700' : (item.category === 'Dịch Vụ Lẻ' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700')}">
-                            ${item.category || 'Gói Spa'}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${catClass}">
+                            ${item.category || 'Dịch Vụ'}
                         </span>
                     </td>
                     <td class="p-2.5 font-medium text-slate-700 text-center">
@@ -2758,13 +2767,13 @@
                         <button onclick="deletePetPricingItem(${item.id})" class="text-rose-600 hover:text-rose-800 px-2 py-1 border rounded text-[11px] font-bold">🗑️</button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function openAddPetPricingModal() {
             document.getElementById('pet-pricing-modal-title').textContent = 'Thêm Mức Giá Dịch Vụ Theo Cân Nặng';
             document.getElementById('pet-pricing-edit-id').value = '';
-            document.getElementById('pet-pricing-input-cat').value = 'Gói Spa';
+            document.getElementById('pet-pricing-input-cat').value = 'Gói Combo Chó';
             document.getElementById('pet-pricing-input-name').value = '';
             document.getElementById('pet-pricing-input-min').value = '0';
             document.getElementById('pet-pricing-input-max').value = '999';
@@ -3175,6 +3184,10 @@
             if (primaryPkg && Array.isArray(allPetPricingData)) {
                 const match = allPetPricingData.find(item => 
                     item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
+                    (item.min_weight === 0 ? weight >= item.min_weight : weight > item.min_weight) &&
+                    weight <= item.max_weight
+                ) || allPetPricingData.find(item => 
+                    item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
                     weight >= item.min_weight && weight <= item.max_weight
                 );
                 if (match) {
@@ -3184,12 +3197,9 @@
 
             // Tìm giá gói nhuộm theo cân nặng
             if (dyePkg && Array.isArray(allPetPricingData)) {
-                // Tên chuẩn trong pricing là 'Nhuộm: 2 Tai',... hoặc 'Nhuộm 2 Tai'
-                const dyeClean = dyePkg.replace('Nhuộm: ', '').trim().toLowerCase();
-                const matchDye = allPetPricingData.find(item => {
-                    const name = item.service_name.replace('Nhuộm: ', '').replace('Nhuộm ', '').trim().toLowerCase();
-                    return name === dyeClean && weight >= item.min_weight && weight <= item.max_weight;
-                });
+                const matchDye = allPetPricingData.find(item => 
+                    item.service_name.trim().toLowerCase() === dyePkg.trim().toLowerCase()
+                );
                 if (matchDye) {
                     total += (matchDye.price || 0);
                 }
@@ -6619,9 +6629,10 @@
 
         function printCurrentViewedOrder() {
             if (currentViewedOrderCode) {
+                const code = currentViewedOrderCode;
                 closeModalOrderView();
                 closeModalIngredientDetail();
-                showPrintModal(currentViewedOrderCode);
+                showPrintModal(code);
             }
         }
 
@@ -8313,7 +8324,9 @@
                     } catch(e) {}
                 }
             }
+            if (!orderCode) return;
             const res = await fetch(`/api/orders/${orderCode}`);
+            if (!res.ok) return;
             const ord = await res.json();
             renderAndPrint(ord);
         }
@@ -8326,6 +8339,7 @@
             if (pm) {
                 pm.classList.add('hidden');
                 pm.classList.remove('flex');
+                pm.style.display = 'none';
             }
         }
 

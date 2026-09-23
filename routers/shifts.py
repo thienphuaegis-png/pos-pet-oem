@@ -34,6 +34,53 @@ def open_shift(body: OpenShiftIn, user=Depends(require_role("cashier", "owner"))
     return {"shift_id": shift_id, "message": "Mở ca thành công"}
 
 
+def _calc_shift_summary(cur, shift_id: int):
+    cur.execute("""
+        SELECT s.*, st.name as cashier_name
+        FROM shifts s
+        JOIN staff st ON st.id = s.cashier_id
+        WHERE s.id = ?
+    """, (shift_id,))
+    shift_row = cur.fetchone()
+    if not shift_row:
+        return None
+    shift = dict(shift_row)
+
+    cur.execute("""
+        SELECT COUNT(*) as order_count,
+               COALESCE(SUM(total_amount), 0) as total_raw,
+               COALESCE(SUM(discount), 0) as total_discount,
+               COALESCE(SUM(final_amount), 0) as total_sales,
+               COALESCE(SUM(paid_amount), 0) as total_paid,
+               COALESCE(SUM(debt_amount), 0) as total_debt
+        FROM orders WHERE shift_id = ?
+    """, (shift_id,))
+    order_stats = dict(cur.fetchone())
+
+    cur.execute("""
+        SELECT
+            COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as cash_sales,
+            COALESCE(SUM(CASE WHEN pa.account_type = 'bank' AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as bank_sales,
+            COALESCE(SUM(CASE WHEN pa.account_type = 'ewallet' AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as ewallet_sales,
+            COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('in','THU') AND (cb.ref_type != 'order' OR cb.ref_type IS NULL) THEN cb.amount ELSE 0 END), 0) as other_cash_in,
+            COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('out','CHI') THEN cb.amount ELSE 0 END), 0) as cash_out
+        FROM cashbook cb
+        LEFT JOIN payment_accounts pa ON pa.id = cb.account_id
+        WHERE cb.shift_id = ?
+    """, (shift_id,))
+    cash_stats = dict(cur.fetchone())
+
+    opening_cash = float(shift.get("opening_cash") or 0)
+    expected_cash = opening_cash + cash_stats["cash_sales"] + cash_stats["other_cash_in"] - cash_stats["cash_out"]
+
+    return {
+        "shift": shift,
+        "order_stats": order_stats,
+        "cash_stats": cash_stats,
+        "expected_cash": expected_cash
+    }
+
+
 @router.get("/current")
 def current_shift(user=Depends(get_current_user)):
     db = get_db()
@@ -51,6 +98,34 @@ def current_shift(user=Depends(get_current_user)):
     return dict(row)
 
 
+@router.get("/current/summary")
+def current_shift_summary(user=Depends(get_current_user)):
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        """SELECT s.id FROM shifts s WHERE s.cashier_id=? AND s.status='open'""",
+        (user["id"],)
+    )
+    row = cur.fetchone()
+    if not row:
+        db.close()
+        raise HTTPException(404, "Không có ca đang mở")
+    summary = _calc_shift_summary(cur, row[0])
+    db.close()
+    return summary
+
+
+@router.get("/{shift_id}/summary")
+def get_shift_summary(shift_id: int, user=Depends(get_current_user)):
+    db = get_db()
+    cur = db.cursor()
+    summary = _calc_shift_summary(cur, shift_id)
+    db.close()
+    if not summary:
+        raise HTTPException(404, "Không tìm thấy ca")
+    return summary
+
+
 @router.post("/{shift_id}/close")
 def close_shift(shift_id: int, body: CloseShiftIn, user=Depends(get_current_user)):
     db = get_db()
@@ -64,17 +139,8 @@ def close_shift(shift_id: int, body: CloseShiftIn, user=Depends(get_current_user
     if shift["status"] != "open":
         db.close(); raise HTTPException(400, "Ca này đã được kết")
 
-    # Tính tiền két lý thuyết: opening_cash + net thu/chi tiền mặt trong ca
-    cur.execute("""
-        SELECT COALESCE(SUM(
-            CASE WHEN cb.type IN ('in','THU') THEN cb.amount
-                 WHEN cb.type IN ('out','CHI') THEN -cb.amount
-                 ELSE 0 END
-        ), 0)
-        FROM cashbook cb WHERE cb.shift_id=?
-    """, (shift_id,))
-    net_cash = cur.fetchone()[0]
-    expected = (shift["opening_cash"] or 0) + net_cash
+    summary_data = _calc_shift_summary(cur, shift_id)
+    expected = summary_data["expected_cash"]
     diff = body.closing_cash - expected
 
     cur.execute("""
@@ -82,11 +148,14 @@ def close_shift(shift_id: int, body: CloseShiftIn, user=Depends(get_current_user
         closing_cash=?, expected_cash=?, difference=?, note=? WHERE id=?
     """, (body.closing_cash, expected, diff, body.note, shift_id))
     db.commit()
+
+    updated_summary = _calc_shift_summary(cur, shift_id)
     db.close()
     return {
         "expected_cash": expected,
         "closing_cash": body.closing_cash,
         "difference": diff,
+        "summary": updated_summary,
         "message": "Kết ca thành công"
     }
 

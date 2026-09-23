@@ -522,34 +522,34 @@ function renderActiveTabCart() {
 
         const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
         return `
-            <div class="px-4 py-2.5 grid grid-cols-12 gap-2 items-center text-xs hover:bg-slate-50 transition group">
+            <div class="px-4 py-2.5 grid gap-2 items-center text-xs hover:bg-slate-50 transition group" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;">
                 <!-- Nút xóa -->
-                <div class="col-span-1 text-center">
+                <div class="text-center">
                     <button onclick="removeCartItem(${idx})" class="text-slate-300 hover:text-rose-600 p-1 rounded transition" title="Xóa khỏi đơn">
                         🗑️
                     </button>
                 </div>
 
                 <!-- STT -->
-                <div class="col-span-1 text-center font-bold text-slate-400">${idx + 1}</div>
+                <div class="text-center font-bold text-slate-400">${idx + 1}</div>
 
                 <!-- Mã hàng -->
-                <div class="col-span-1 font-mono font-bold text-slate-600 text-[11px] truncate" title="${item.code || '-'}">
+                <div class="font-mono font-bold text-slate-600 text-[11px] truncate" title="${item.code || '-'}">
                     ${item.code || '-'}
                 </div>
 
                 <!-- Tên hàng hóa -->
-                <div class="col-span-3 font-semibold text-slate-800 line-clamp-1" title="${item.name}">
+                <div class="font-semibold text-slate-800 line-clamp-1" title="${item.name}">
                     ${comboBadge}${item.name}
                 </div>
 
                 <!-- ĐVT -->
-                <div class="col-span-1 text-center text-slate-500 text-[11px]">
+                <div class="text-center text-slate-500 text-[11px]">
                     ${item.unit || 'cái'}
                 </div>
 
                 <!-- Số lượng (Bộ nút + -) -->
-                <div class="col-span-1 flex items-center justify-center gap-1">
+                <div class="flex items-center justify-center gap-1">
                     <button onclick="changeItemQty(${idx}, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">-</button>
                     <input type="number" min="1" value="${item.quantity}" 
                            onchange="updateItemQtyDirect(${idx}, this.value)"
@@ -558,18 +558,18 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="col-span-2 text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
-                    <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1">
-                        ${(item.price !== item.original_price) ? `<span class="text-slate-400 line-through font-normal">${formatMoney(item.original_price)}</span>` : ''}
-                        <span>${formatMoney(item.price)}</span>
+                <div class="text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                    <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1.5 flex-nowrap whitespace-nowrap">
+                        ${(item.price !== item.original_price) ? `<span class="text-slate-400 line-through font-normal text-[11px]">${formatMoney(item.original_price)}</span>` : ''}
+                        <span class="font-bold text-slate-800">${formatMoney(item.price)}</span>
+                        ${item.price !== item.original_price ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
                         <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                     </div>
-                    ${item.price !== item.original_price ? `<div class="text-[10px] text-indigo-600 font-bold">🏷️ ${item.price_list_name || 'Giá riêng'}</div>` : ''}
                     ${hasDiscount ? `<div class="text-[10px] text-rose-500 font-bold">${discountText}</div>` : ''}
                 </div>
 
                 <!-- Thành tiền -->
-                <div class="col-span-2 text-right font-black text-sky-700 text-sm">
+                <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap">
                     ${formatMoney(itemSubtotal)}
                 </div>
             </div>
@@ -1569,10 +1569,21 @@ async function showPrintModal(orderCode) {
     }
 
     try {
+        if (!orderCode) {
+            console.error("showPrintModal: orderCode is null or empty");
+            alert("Mã hóa đơn không hợp lệ!");
+            return;
+        }
         const res = await fetch(`/api/orders/${orderCode}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.detail || `Không tìm thấy hóa đơn [${orderCode}] để in!`);
+            return;
+        }
         const ord = await res.json();
         renderAndPrint(ord, false);
     } catch (e) {
+        console.error("Lỗi showPrintModal:", e);
         alert("Không thể tải thông tin để in hóa đơn");
     }
 }
@@ -1953,6 +1964,7 @@ function closePrintModal() {
     if (pm) {
         pm.classList.add('hidden');
         pm.classList.remove('flex');
+        pm.style.display = 'none';
     }
 }
 
