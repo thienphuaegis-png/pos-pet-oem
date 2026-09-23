@@ -58,9 +58,11 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
     cur = conn.cursor()
     query = """
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
+               pl.name as price_list_name,
                (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count
         FROM contacts c
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
+        LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
         WHERE 1=1
     """
     params = []
@@ -82,9 +84,11 @@ def get_contact(contact_id: int):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id
+        SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
+               pl.name as price_list_name
         FROM contacts c
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
+        LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
         WHERE c.id = ?
     """, (contact_id,))
     row = cur.fetchone()
@@ -187,6 +191,33 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
     conn.commit()
     conn.close()
     return {"status": "ok", "new_debt": new_debt}
+
+@router.get("/{contact_id}/purchase-history")
+def get_contact_purchase_history(contact_id: int, date_from: str = None, date_to: str = None, type: str = "all"):
+    conn = get_db()
+    cur = conn.cursor()
+    results = []
+    if type in ("all", "orders"):
+        q = "SELECT id, code, created_at as date, final_amount as total, status FROM orders WHERE customer_id = ?"
+        params = [contact_id]
+        if date_from:
+            q += " AND date(created_at) >= ?"; params.append(date_from)
+        if date_to:
+            q += " AND date(created_at) <= ?"; params.append(date_to)
+        cur.execute(q, params)
+        results += [dict(r, type="order") for r in cur.fetchall()]
+    if type in ("all", "services"):
+        q = "SELECT id, code, ticket_date as date, price as total, status FROM pet_service_tickets WHERE customer_id = ?"
+        params = [contact_id]
+        if date_from:
+            q += " AND ticket_date >= ?"; params.append(date_from)
+        if date_to:
+            q += " AND ticket_date <= ?"; params.append(date_to)
+        cur.execute(q, params)
+        results += [dict(r, type="service") for r in cur.fetchall()]
+    conn.close()
+    results.sort(key=lambda r: r["date"] or "", reverse=True)
+    return results
 
 # ==========================================
 # QUẢN LÝ THÚ CƯNG (PETS)
@@ -542,6 +573,7 @@ class PetServiceCreate(BaseModel):
     teeth_cleaning: Optional[float] = 0.0
     shipping_fee: Optional[float] = 0.0
     tip_amount: Optional[float] = 0.0
+    send_to_hotel: Optional[int] = 0
 
 class PetServiceStatusUpdate(BaseModel):
     status: str
@@ -684,6 +716,21 @@ def get_pet_services_kpi():
         "transport": transport
     }
 
+@service_router.get("/pets/{pet_id}/history")
+def get_pet_service_history(pet_id: int, limit: int = 10):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, code, ticket_date, service_type, price, status, dye_package
+        FROM pet_service_tickets
+        WHERE pet_id = ?
+        ORDER BY ticket_date DESC, id DESC
+        LIMIT ?
+    """, (pet_id, limit))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
 @service_router.get("")
 def list_pet_services(status: str = "all", q: str = ""):
     conn = get_db()
@@ -756,9 +803,10 @@ def create_pet_service(ticket: PetServiceCreate):
             payment_status, payment_method, services_json,
             call_status, received_time, arrival_method, checkout_time, return_method,
             staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
-            dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount
+            dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount,
+            send_to_hotel
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         code, ticket_number, today_str, ticket.customer_id, actual_pet_id, ticket.service_type,
         ticket.appointment_time or "", ticket.has_transport or 0, ticket.transport_address or "",
@@ -772,7 +820,8 @@ def create_pet_service(ticket: PetServiceCreate):
         ticket.staff_receiver or "", ticket.staff_worker_1 or "", ticket.staff_worker_2 or "",
         ticket.staff_cutter or "", ticket.staff_dyer or "",
         ticket.dye_package or "", ticket.surcharge or 0.0, ticket.art_cutting_fee or 0.0,
-        ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0
+        ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0,
+        ticket.send_to_hotel or 0
     ))
     new_id = cur.lastrowid
     conn.commit()

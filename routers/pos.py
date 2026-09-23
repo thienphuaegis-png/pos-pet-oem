@@ -90,9 +90,13 @@ def get_order_detail(code: str):
     WHERE oi.order_id = ?
     """, (order["id"],))
     items = [dict(r) for r in cur.fetchall()]
-    
+
+    cur.execute("SELECT method, amount, account_id FROM order_payments WHERE order_id = ?", (order["id"],))
+    payments = [dict(r) for r in cur.fetchall()]
+
     result = dict(order)
     result["items"] = items
+    result["payments"] = payments
     conn.close()
     return result
 
@@ -239,15 +243,30 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
         if req.paid_amount > 0:
             cb_code = generate_cashbook_code(cur, "PT-BH")
-            acc_id = getattr(req, "account_id", None)
-            if not acc_id:
-                cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                row_acc = cur.fetchone()
-                acc_id = row_acc[0] if row_acc else None
-            cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
-            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-            """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
+            if req.payments:
+                # Thanh toán tách nhiều hình thức: ghi 1 dòng order_payments/cashbook cho mỗi hình thức
+                for p in req.payments:
+                    if p.amount <= 0:
+                        continue
+                    cur.execute("""
+                    INSERT INTO order_payments (order_id, method, amount, account_id)
+                    VALUES (?, ?, ?, ?)
+                    """, (order_id, p.method, p.amount, p.account_id))
+                    sub_cb_code = generate_cashbook_code(cur, "PT-BH")
+                    cur.execute("""
+                    INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                    VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
+                    """, (sub_cb_code, p.amount, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, req.shift_id))
+            else:
+                acc_id = getattr(req, "account_id", None)
+                if not acc_id:
+                    cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+                    row_acc = cur.fetchone()
+                    acc_id = row_acc[0] if row_acc else None
+                cur.execute("""
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
+                """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
 
         conn.commit()
     except Exception as e:

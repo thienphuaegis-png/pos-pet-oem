@@ -376,3 +376,12 @@ Traceback (most recent call last):
   File "D:\Projects_Hermes\pos-offline\routers\partners.py", line 651, in create_pet_service
     cur.execute("""
 sqlite3.IntegrityError: UNIQUE constraint failed: pet_service_tickets.code
+2026-09-23 15:20:50,673 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:20:51,086 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:20:51,568 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:20:52,344 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
+2026-09-23 15:20:58,925 [WARNING] [pos_server]: POST /api/auth/login - Status: 401
+2026-09-23 15:21:35,879 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:21:36,195 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:21:36,221 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-23 15:21:37,189 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401

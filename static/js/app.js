@@ -1419,7 +1419,23 @@
             }
         }
 
+        function applyAppZoom(delta) {
+            let current = parseInt(localStorage.getItem('appZoom') || '100', 10);
+            current = Math.min(150, Math.max(80, current + delta));
+            localStorage.setItem('appZoom', String(current));
+            document.documentElement.style.fontSize = (current / 100 * 16) + 'px';
+            const disp = document.getElementById('app-zoom-display');
+            if (disp) disp.textContent = current + '%';
+        }
+        function initAppZoom() {
+            const saved = parseInt(localStorage.getItem('appZoom') || '100', 10);
+            document.documentElement.style.fontSize = (saved / 100 * 16) + 'px';
+            const disp = document.getElementById('app-zoom-display');
+            if (disp) disp.textContent = saved + '%';
+        }
+
         async function init() {
+            initAppZoom();
             // Tải cấu hình cài đặt chung trước để hiển thị tiêu đề và logo
             try {
                 const res = await fetch('/api/settings');
@@ -1627,12 +1643,34 @@
             }
         }
 
+        function addPhoneField(value = '') {
+            const wrap = document.getElementById('contact-form-phones-wrap');
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-1.5';
+            row.innerHTML = `
+                <input type="text" class="contact-phone-input border p-2 rounded w-full" placeholder="VD: 0908123456" value="${(value || '').replace(/"/g, '&quot;')}">
+                <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 hover:text-rose-700 font-bold px-1.5">✕</button>
+            `;
+            wrap.appendChild(row);
+        }
+        function getContactFormPhones() {
+            return Array.from(document.querySelectorAll('#contact-form-phones-wrap .contact-phone-input'))
+                .map(i => i.value.trim()).filter(v => v);
+        }
+        function setContactFormPhones(phoneStr) {
+            const wrap = document.getElementById('contact-form-phones-wrap');
+            wrap.innerHTML = '';
+            const phones = (phoneStr || '').split(',').map(p => p.trim()).filter(p => p);
+            if (phones.length === 0) phones.push('');
+            phones.forEach(p => addPhoneField(p));
+        }
+
         function openContactModal(defaultType = 'customer') {
             document.getElementById('contact-form-id').value = '';
             document.getElementById('modal-contact-title').textContent = defaultType === 'customer' ? 'Thêm Khách Hàng Mới' : 'Thêm Nhà Cung Cấp Mới';
             document.getElementById('contact-form-type').value = defaultType;
             document.getElementById('contact-form-name').value = '';
-            document.getElementById('contact-form-phone').value = '';
+            setContactFormPhones('');
             const emailEl = document.getElementById('contact-form-email');
             if (emailEl) emailEl.value = '';
             document.getElementById('contact-form-address').value = '';
@@ -1654,13 +1692,13 @@
         }
 
         function editContact(id) {
-            const c = (allContacts || []).find(item => item.id === id);
-            if (!c) return;
+                    const c = (allContacts || []).find(item => item.id === id) || (typeof posContacts !== 'undefined' ? (posContacts || []).find(item => item.id === id) : null);
+                    if (!c) return;
             document.getElementById('contact-form-id').value = c.id;
             document.getElementById('modal-contact-title').textContent = c.type === 'customer' ? 'Sửa Thông Tin Khách Hàng' : 'Sửa Thông Tin Nhà Cung Cấp';
             document.getElementById('contact-form-type').value = c.type;
             document.getElementById('contact-form-name').value = c.name;
-            document.getElementById('contact-form-phone').value = c.phone || '';
+            setContactFormPhones(c.phone || '');
             const emailEl = document.getElementById('contact-form-email');
             if (emailEl) emailEl.value = c.email || '';
             document.getElementById('contact-form-address').value = c.address || '';
@@ -1688,7 +1726,7 @@
             const id = document.getElementById('contact-form-id').value;
             const type = document.getElementById('contact-form-type').value;
             const name = document.getElementById('contact-form-name').value.trim();
-            const phone = document.getElementById('contact-form-phone').value.trim();
+            const phone = getContactFormPhones().join(', ');
             const email = (document.getElementById('contact-form-email')?.value || '').trim();
             const address = document.getElementById('contact-form-address').value.trim();
             const segVal = document.getElementById('contact-form-segment')?.value;
@@ -1726,6 +1764,18 @@
                 closeContactModal();
                 await loadContacts();
                 if (typeof initPOS === 'function') initPOS();
+                // Nếu vừa sửa đúng khách hàng đang chọn trong POS, cập nhật lại info hiển thị
+                if (id && typeof getActiveTab === 'function') {
+                    const tab = getActiveTab();
+                    if (tab && tab.customer && String(tab.customer.id) === String(id)) {
+                        try {
+                            const r = await fetch(`/api/contacts/${id}`);
+                            const fresh = await r.json();
+                            tab.customer = { ...tab.customer, ...fresh };
+                            if (typeof updateCustomerUI === 'function') updateCustomerUI(tab.customer);
+                        } catch (e) {}
+                    }
+                }
             } catch (e) {
                 console.error("submitContactForm err:", e);
                 alert("Lỗi kết nối máy chủ");
@@ -2296,6 +2346,7 @@
                         <div class="text-[11px] text-gray-600 flex items-center gap-1.5 mt-0.5">
                             <span>${t.pet_color || '-'}${t.pet_gender ? ' / ' + t.pet_gender : ''}</span>
                             ${t.weight_at_service ? `<span class="bg-pink-100 text-pink-800 font-bold px-1.5 py-0.2 rounded text-[11px]">${String(t.weight_at_service).replace('.', ',')} kg</span>` : ''}
+                            ${t.send_to_hotel ? `<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded text-[11px]" title="Spa xong gửi hotel">🏨</span>` : ''}
                         </div>
                     </td>
                     <!-- 5. Dịch vụ -->
@@ -2912,17 +2963,20 @@
             populateStaffSelect('svc-staff-cutter');
             populateStaffSelect('svc-staff-dyer');
 
-            // Đổ danh sách khách hàng
-            const custSel = document.getElementById('svc-customer-id');
-            if (custSel) {
-                const custs = (allContacts || []).filter(c => c.type === 'customer');
-                custSel.innerHTML = '<option value="">-- Chọn hoặc tìm khách hàng --</option>' + custs.map(c => `<option value="${c.id}">${c.name} - ${c.phone||'Chưa có SĐT'}</option>`).join('');
-            }
+            // Reset ô tìm khách hàng (dropdown popup)
+            document.getElementById('svc-customer-id').value = '';
+            const svcCustSearchEl = document.getElementById('svc-customer-search');
+            if (svcCustSearchEl) svcCustSearchEl.value = '';
+            const svcCustDropdownEl = document.getElementById('svc-customer-dropdown');
+            if (svcCustDropdownEl) svcCustDropdownEl.classList.add('hidden');
 
             // Reset form
             document.getElementById('svc-preview-phone').textContent = '-';
             document.getElementById('svc-preview-address').textContent = '-';
             document.getElementById('svc-pet-id').innerHTML = '<option value="">-- Chọn khách trước --</option>';
+            document.getElementById('svc-pet-history-panel')?.classList.add('hidden');
+            const svcPetHistoryBtn = document.getElementById('svc-pet-history-btn');
+            if (svcPetHistoryBtn) svcPetHistoryBtn.disabled = true;
             document.getElementById('svc-pet-name').value = '';
             document.getElementById('svc-pet-breed').value = 'Poodle';
             document.getElementById('svc-pet-gender').value = 'Đực';
@@ -2935,12 +2989,10 @@
             document.getElementById('svc-total-price').value = '0';
             document.getElementById('svc-customer-request').value = '';
             document.getElementById('svc-accessories').value = '';
-            document.getElementById('svc-appointment-time').value = '';
             document.getElementById('svc-note').value = '';
             document.querySelector('input[name="svc-payment-timing"][value="unpaid"]').checked = true;
             document.getElementById('svc-payment-method-wrap').classList.add('hidden');
-
-            if (document.getElementById('svc-arrival-method')) document.getElementById('svc-arrival-method').value = 'Khách chở tới';
+            if (document.getElementById('svc-send-to-hotel')) document.getElementById('svc-send-to-hotel').checked = false;
 
             modal.classList.remove('hidden');
         }
@@ -2985,8 +3037,51 @@
             }
         }
 
+        // Dropdown popup tìm khách hàng theo tên + SĐT, khớp không cần liên tục
+        // (vd "Mai 010" -> tách token, mỗi token chỉ cần xuất hiện đâu đó trong "tên sđt")
+        function onSvcCustomerSearchInput(rawQuery) {
+            const dropdown = document.getElementById('svc-customer-dropdown');
+            if (!dropdown) return;
+            const custs = (allContacts || []).filter(c => c.type === 'customer');
+            const tokens = (rawQuery || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+            const norm = s => (s || '').toString().toLowerCase();
+            const matched = tokens.length === 0 ? custs : custs.filter(c => {
+                const haystack = norm(c.name) + ' ' + norm(c.phone);
+                return tokens.every(tok => haystack.includes(tok));
+            });
+
+            if (matched.length === 0) {
+                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400">Không tìm thấy khách phù hợp</div>';
+            } else {
+                dropdown.innerHTML = matched.slice(0, 30).map(c => `
+                    <div class="px-3 py-2 text-xs hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0"
+                        onmousedown="selectSvcCustomer(${c.id})">
+                        <div class="font-semibold text-slate-700">${c.name}</div>
+                        <div class="text-slate-400">${c.phone || 'Chưa có SĐT'}</div>
+                    </div>
+                `).join('');
+            }
+            dropdown.classList.remove('hidden');
+        }
+
+        function selectSvcCustomer(custId) {
+            const cust = (allContacts || []).find(c => c.id == custId);
+            document.getElementById('svc-customer-id').value = custId;
+            const searchEl = document.getElementById('svc-customer-search');
+            if (searchEl) searchEl.value = cust ? `${cust.name} - ${cust.phone || 'Chưa có SĐT'}` : '';
+            const dropdown = document.getElementById('svc-customer-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+            onSvcCustomerChanged(custId);
+        }
+
+
         function onSvcPetChanged(petId) {
-            if (!petId || petId === '__new__') {
+                    const historyBtn = document.getElementById('svc-pet-history-btn');
+                    if (historyBtn) historyBtn.disabled = !petId || petId === '__new__';
+                    document.getElementById('svc-pet-history-panel')?.classList.add('hidden');
+
+                    if (!petId || petId === '__new__') {
                 document.getElementById('svc-pet-name').value = '';
                 document.getElementById('svc-pet-weight').value = '';
                 document.getElementById('svc-weight-badge').textContent = '0 kg';
@@ -3015,6 +3110,31 @@
                 document.getElementById('svc-weight-badge').textContent = wStr + ' kg';
             }
             autoCalculateServicePrice();
+        }
+
+        async function openPetSpaHistoryPanel() {
+            const petIdVal = document.getElementById('svc-pet-id')?.value;
+            const panel = document.getElementById('svc-pet-history-panel');
+            const list = document.getElementById('svc-pet-history-list');
+            if (!petIdVal || petIdVal === '__new__' || !panel || !list) return;
+            list.innerHTML = '<div class="text-slate-400">Đang tải...</div>';
+            panel.classList.remove('hidden');
+            try {
+                const res = await fetch(`/api/pet-services/pets/${petIdVal}/history?limit=10`);
+                const rows = await res.json();
+                if (!Array.isArray(rows) || rows.length === 0) {
+                    list.innerHTML = '<div class="text-slate-400">Chưa có lịch sử</div>';
+                    return;
+                }
+                list.innerHTML = rows.map(r => `
+                    <div class="border-b border-slate-100 pb-1">
+                        <div class="font-semibold text-slate-700">${r.ticket_date} · ${r.service_type}</div>
+                        <div class="text-slate-500">${(r.price||0).toLocaleString('vi-VN')}đ · ${r.status}</div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                list.innerHTML = '<div class="text-rose-500">Lỗi tải lịch sử</div>';
+            }
         }
 
         function openAddQuickPetForCurrentCustomer() {
@@ -3107,14 +3227,11 @@
             const totalPrice = parseFloat(document.getElementById('svc-total-price')?.value) || 0;
             const customerRequest = document.getElementById('svc-customer-request')?.value.trim() || '';
             const accessories = document.getElementById('svc-accessories')?.value.trim() || '';
-            const appointmentTime = document.getElementById('svc-appointment-time')?.value || '';
             const note = document.getElementById('svc-note')?.value.trim() || '';
 
             const paymentStatus = document.querySelector('input[name="svc-payment-timing"]:checked')?.value || 'unpaid';
             const paymentMethod = paymentStatus === 'paid' ? (document.getElementById('svc-payment-method')?.value || 'cash') : null;
-
-            // Hình thức đến (chọn khi tiếp nhận)
-            const arrivalMethod = document.getElementById('svc-arrival-method')?.value || 'Khách chở tới';
+            const sendToHotel = document.getElementById('svc-send-to-hotel')?.checked ? 1 : 0;
 
             if (!custId) { alert('Vui lòng chọn hoặc thêm khách hàng!'); return; }
             if (!petName) { alert('Vui lòng nhập tên của bé!'); return; }
@@ -3133,7 +3250,6 @@
                 accessories: accessories,
                 service_type: serviceType,
                 price: totalPrice,
-                appointment_time: appointmentTime,
                 note: note,
                 payment_status: paymentStatus,
                 payment_method: paymentMethod,
@@ -3147,9 +3263,9 @@
                 surcharge: 0,
                 shipping_fee: 0,
                 tip_amount: 0,
-                arrival_method: arrivalMethod,
                 return_method: '',
-                dye_package: dyePkg
+                dye_package: dyePkg,
+                send_to_hotel: sendToHotel
             };
 
             try {

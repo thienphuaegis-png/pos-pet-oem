@@ -7,6 +7,11 @@ class OrderItemIn(BaseModel):
     quantity: float
     price: float
 
+class PaymentSplitIn(BaseModel):
+    method: str  # cash, transfer, card, ewallet
+    amount: float
+    account_id: Optional[int] = None
+
 class OrderCreate(BaseModel):
     customer_id: int
     staff_id: int
@@ -17,6 +22,7 @@ class OrderCreate(BaseModel):
     account_id: Optional[int] = None
     shift_id: Optional[int] = None
     items: List[OrderItemIn]
+    payments: Optional[List[PaymentSplitIn]] = None
 
 class OrderUpdate(BaseModel):
     customer_id: Optional[int] = None

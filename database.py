@@ -280,22 +280,35 @@ def init_db():
     # 5. Hoa don ban hang
     cur.execute('''
     CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE,
+            customer_id INTEGER,
+            staff_id INTEGER, -- Nguoi ban
+            total_amount REAL NOT NULL,
+            discount REAL DEFAULT 0,
+            final_amount REAL NOT NULL,
+            paid_amount REAL NOT NULL, -- Khach tra
+            debt_amount REAL DEFAULT 0, -- Con no
+            commission_amount REAL DEFAULT 0, -- Hoa hong tinh cho staff
+            note TEXT,
+            status TEXT DEFAULT 'completed',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(customer_id) REFERENCES contacts(id),
+            FOREIGN KEY(staff_id) REFERENCES staff(id)
+        )''')
+
+    # Thanh toan tach nhieu hinh thuc cho 1 don hang (vd: mot phan tien mat + mot phan chuyen khoan)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS order_payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code TEXT UNIQUE,
-        customer_id INTEGER,
-        staff_id INTEGER, -- Nguoi ban
-        total_amount REAL NOT NULL,
-        discount REAL DEFAULT 0,
-        final_amount REAL NOT NULL,
-        paid_amount REAL NOT NULL, -- Khach tra
-        debt_amount REAL DEFAULT 0, -- Con no
-        commission_amount REAL DEFAULT 0, -- Hoa hong tinh cho staff
-        note TEXT,
-        status TEXT DEFAULT 'completed',
+        order_id INTEGER NOT NULL,
+        method TEXT NOT NULL,
+        amount REAL NOT NULL,
+        account_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(customer_id) REFERENCES contacts(id),
-        FOREIGN KEY(staff_id) REFERENCES staff(id)
+        FOREIGN KEY(order_id) REFERENCES orders(id)
     )''')
+
 
     # Chi tiet don hang
     cur.execute('''

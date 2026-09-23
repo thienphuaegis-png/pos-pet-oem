@@ -43,13 +43,16 @@ function getProductPriceForTab(tab, product) {
 function applyPriceListToCart(tab) {
     if (!tab || !tab.cart) return;
     const plId = tab.customer?.price_list_id;
+    const plName = tab.customer?.price_list_name || '';
     const priceMap = (plId && posPriceListsCache[plId]) ? posPriceListsCache[plId] : null;
 
     for (const item of tab.cart) {
         if (priceMap && priceMap[item.product_id] !== undefined && priceMap[item.product_id] > 0) {
             item.price = priceMap[item.product_id];
+            item.price_list_name = plName;
         } else {
             item.price = item.original_price;
+            item.price_list_name = null;
         }
     }
 }
@@ -529,12 +532,12 @@ function renderActiveTabCart() {
                 <div class="col-span-1 text-center font-bold text-slate-400">${idx + 1}</div>
 
                 <!-- Mã hàng -->
-                <div class="col-span-2 font-mono font-bold text-slate-600 text-[11px] truncate" title="${item.code || '-'}">
+                <div class="col-span-1 font-mono font-bold text-slate-600 text-[11px] truncate" title="${item.code || '-'}">
                     ${item.code || '-'}
                 </div>
 
                 <!-- Tên hàng hóa -->
-                <div class="col-span-3 font-semibold text-slate-800 line-clamp-1" title="${item.name}">
+                <div class="col-span-4 font-semibold text-slate-800 line-clamp-1" title="${item.name}">
                     ${comboBadge}${item.name}
                 </div>
 
@@ -553,12 +556,13 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="col-span-2 text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                <div class="col-span-1 text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
                     <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1">
+                        ${(item.price !== item.original_price) ? `<span class="text-[10px] text-slate-400 line-through font-normal">${formatMoney(item.original_price)}</span>` : ''}
                         <span>${formatMoney(item.price)}</span>
                         <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                     </div>
-                    ${item.price !== item.original_price ? `<div class="text-[10px] text-indigo-600 font-bold">🏷️ Giá riêng</div>` : ''}
+                    ${item.price !== item.original_price ? `<div class="text-[10px] text-indigo-600 font-bold">🏷️ ${item.price_list_name || 'Giá riêng'}</div>` : ''}
                     ${hasDiscount ? `<div class="text-[10px] text-rose-500 font-bold">${discountText}</div>` : ''}
                 </div>
 
@@ -741,7 +745,8 @@ async function selectCustomerForActiveTab(customerId) {
         points: cust.reward_points || 0,
         segment_id: cust.segment_id || null,
         segment_name: cust.segment_name || null,
-        price_list_id: cust.price_list_id || null
+        price_list_id: cust.price_list_id || null,
+        price_list_name: cust.price_list_name || null
     };
 
     const searchInput = document.getElementById('pos-customer-search');
@@ -776,6 +781,7 @@ function updateCustomerUI(cust) {
     const pointsEl = document.getElementById('cust-points-badge');
     const segBadge = document.getElementById('cust-segment-badge');
     const btnClear = document.getElementById('btn-clear-customer');
+    const btnHistory = document.getElementById('btn-purchase-history');
 
     if (!cust) {
         // Mặc định Khách lẻ
@@ -787,6 +793,7 @@ function updateCustomerUI(cust) {
             segBadge.classList.add('hidden');
         }
         if (btnClear) btnClear.classList.add('hidden');
+        if (btnHistory) btnHistory.classList.add('hidden');
     } else {
         if (nameEl) nameEl.innerText = cust.name;
         if (phoneEl) phoneEl.innerText = cust.phone ? `📞 ${cust.phone}` : "Không SĐT";
@@ -801,7 +808,65 @@ function updateCustomerUI(cust) {
             }
         }
         if (btnClear) btnClear.classList.remove('hidden');
+        if (btnHistory) btnHistory.classList.toggle('hidden', !cust.id);
     }
+}
+
+var currentPurchaseHistoryCustId = null;
+
+function openSelectedCustomerEdit() {
+    const tab = getActiveTab();
+    if (tab && tab.customer && tab.customer.id) {
+        if (typeof editContact === 'function') editContact(tab.customer.id);
+    } else if (typeof openContactModal === 'function') {
+        openContactModal('customer');
+    }
+}
+
+function openPurchaseHistoryModal() {
+    const custId = tab && tab.customer ? tab.customer.id : null;
+    if (!custId) return;
+    currentPurchaseHistoryCustId = custId;
+    document.getElementById('modal-purchase-history').classList.remove('hidden');
+    loadPurchaseHistory(custId);
+}
+
+async function loadPurchaseHistory(custId) {
+    if (!custId) return;
+    const list = document.getElementById('purchase-history-list');
+    const from = document.getElementById('ph-date-from')?.value || '';
+    const to = document.getElementById('ph-date-to')?.value || '';
+    const wantOrders = document.getElementById('ph-type-orders')?.checked;
+    const wantServices = document.getElementById('ph-type-services')?.checked;
+    const type = (wantOrders && wantServices) ? 'all' : (wantOrders ? 'orders' : (wantServices ? 'services' : 'all'));
+    list.innerHTML = '<div class="text-slate-400 p-2">Đang tải...</div>';
+    try {
+        const params = new URLSearchParams({ type });
+        if (from) params.set('date_from', from);
+        if (to) params.set('date_to', to);
+        const res = await fetch(`/api/contacts/${custId}/purchase-history?${params}`);
+        const rows = await res.json();
+        if (!Array.isArray(rows) || rows.length === 0) {
+            list.innerHTML = '<div class="text-slate-400 p-2">Chưa có lịch sử mua hàng</div>';
+            return;
+        }
+        list.innerHTML = rows.map(r => `
+            <div class="border-b p-2 text-xs cursor-pointer hover:bg-purple-50" onclick="viewPurchaseHistoryDetail('${r.type}', '${r.code}', ${r.id})">
+                <div class="flex justify-between">
+                    <span class="font-semibold">${r.code || '-'}</span>
+                    <span>${(r.total||0).toLocaleString('vi-VN')}đ</span>
+                </div>
+                <div class="text-slate-400">${r.date} · ${r.type === 'order' ? '🛒 Hàng hóa' : '🐾 Dịch vụ'} · ${r.status}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<div class="text-rose-500 p-2">Lỗi tải lịch sử</div>';
+    }
+}
+
+function viewPurchaseHistoryDetail(type, code, id) {
+    if (type === 'service') { openServiceProgressModal(id); return; }
+    viewOrderDetailModal(code);
 }
 
 // ----------------------------------------------------
@@ -941,7 +1006,35 @@ function setQuickCash(amount) {
 
 function setPaymentMethod(method) {
     const tab = getActiveTab();
+
+    const paidInput = document.getElementById('pos-paid-input');
+    const entered = parseFloat((paidInput?.value || '0').replace(/\D/g, '')) || 0;
+    const finalAmount = getPosFinalAmount(tab);
+    const hasSplit = (tab.splitLines || []).length > 0;
+    const alreadyPaid = (tab.splitLines || []).reduce((s, l) => s + l.amount, 0);
+    const stillNeeded = finalAmount - alreadyPaid;
+
+    // Tự động hiểu thanh toán nhiều hình thức: số tiền nhập nhỏ hơn số còn
+    // cần thu -> thêm 1 dòng cho hình thức này, ô nhập tự set phần còn lại.
+    // Nếu ĐÃ có dòng tách từ trước, mọi lần bấm tiếp theo luôn CỘNG THÊM dòng
+    // mới (kể cả khi số nhập vừa khớp phần còn thiếu) thay vì hiểu là chọn lại.
+    if (hasSplit || (entered > 0 && entered < stillNeeded)) {
+        if (!tab.splitLines) tab.splitLines = [];
+        const amt = entered > 0 ? Math.min(entered, stillNeeded) : stillNeeded;
+        if (amt > 0) {
+            const existing = tab.splitLines.find(l => l.method === method);
+            if (existing) existing.amount += amt; else tab.splitLines.push({ method, amount: amt, account_id: null });
+        }
+        tab.payment_method = method;
+        renderSplitPaymentLines();
+        return;
+    }
+
+    // Thanh toán đủ bằng 1 hình thức duy nhất (mặc định, không đổi hành vi cũ)
     tab.payment_method = method;
+    tab.splitLines = [];
+    const splitAutoBox = document.getElementById('pos-split-auto-box');
+    if (splitAutoBox) splitAutoBox.classList.add('hidden');
 
     const methods = ['cash', 'transfer', 'card', 'wallet'];
     methods.forEach(m => {
@@ -965,6 +1058,70 @@ function setPaymentMethod(method) {
         const cashAcc = (window.posPaymentAccounts || []).find(a => a.account_type === 'cash' || a.is_default);
         if (cashAcc) tab.account_id = cashAcc.id;
     }
+}
+
+function getPosFinalAmount(tab) {
+    const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+    const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
+    const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
+    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
+}
+
+function removeSplitPaymentLine(idx) {
+    const tab = getActiveTab();
+    tab.splitLines.splice(idx, 1);
+    renderSplitPaymentLines();
+}
+
+const SPLIT_METHOD_LABEL = { cash: '💵 Tiền mặt', transfer: '🏦 Chuyển khoản', card: '💳 Thẻ', wallet: '📱 Ví điện tử' };
+
+function renderSplitPaymentLines() {
+    const tab = getActiveTab();
+    const lines = tab.splitLines || [];
+    tab.split_payment = lines.length > 0;
+
+    const autoBox = document.getElementById('pos-split-auto-box');
+    if (autoBox) autoBox.classList.toggle('hidden', lines.length === 0);
+
+    const wrap = document.getElementById('pos-split-lines');
+    const bankAccounts = (window.posPaymentAccounts || []).filter(a => a.account_type === 'bank' || a.account_type === 'ewallet');
+
+    if (wrap) {
+        wrap.innerHTML = lines.map((l, idx) => {
+            const needsAccount = l.method === 'transfer' || l.method === 'card';
+            const accountSelect = needsAccount ? `
+                <select class="border rounded px-1 py-1 text-[10px] w-24" onchange="tab_splitLines_setAccount(${idx}, this.value)">
+                    <option value="">-- TK nhận --</option>
+                    ${bankAccounts.map(a => `<option value="${a.id}" ${l.account_id == a.id ? 'selected' : ''}>${a.name}</option>`).join('')}
+                </select>` : '';
+            return `
+            <div class="flex items-center gap-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                <span class="flex-1 font-bold text-slate-600">${SPLIT_METHOD_LABEL[l.method] || l.method}</span>
+                <span class="font-black text-emerald-600">${formatMoney(l.amount)}</span>
+                ${accountSelect}
+                <button type="button" onclick="removeSplitPaymentLine(${idx})" class="text-rose-400 hover:text-rose-600 font-bold px-1">✕</button>
+            </div>`;
+        }).join('') || '<div class="text-[11px] text-slate-400 text-center py-1">Chưa có dòng thanh toán nào</div>';
+    }
+
+    const total = lines.reduce((s, l) => s + l.amount, 0);
+    tab.paid_amount = total;
+    const paidInput = document.getElementById('pos-paid-input');
+    const finalAmount = getPosFinalAmount(tab);
+    const remain = Math.max(0, finalAmount - total);
+    if (paidInput) paidInput.value = Math.round(remain).toLocaleString('vi-VN');
+
+    const remainDisplay = document.getElementById('pos-split-remain-display');
+    if (remainDisplay) {
+        remainDisplay.innerText = formatMoney(remain);
+        remainDisplay.className = remain <= 0 ? 'text-emerald-600' : 'text-rose-600';
+    }
+    calculateChangeOrDebt(finalAmount);
+}
+
+function tab_splitLines_setAccount(idx, accId) {
+    const tab = getActiveTab();
+    if (tab.splitLines[idx]) tab.splitLines[idx].account_id = accId ? parseInt(accId) : null;
 }
 
 function updatePosPaymentAccountsUI() {
@@ -1218,7 +1375,27 @@ async function submitPOSOrder() {
 
     const paidInput = document.getElementById('pos-paid-input');
     const cleanPaid = (paidInput?.value || '0').replace(/\D/g, '');
-    const paidAmount = parseFloat(cleanPaid) || 0;
+    let paidAmount = parseFloat(cleanPaid) || 0;
+
+    let splitPayments = null;
+    if (tab.split_payment) {
+        splitPayments = (tab.splitLines || []).map(l => ({ method: l.method, amount: l.amount, account_id: l.account_id || null }));
+        if (splitPayments.length === 0) {
+            alert("Chưa có dòng thanh toán nào. Nhập số tiền rồi bấm hình thức thanh toán!");
+            return;
+        }
+        const missingAcc = splitPayments.find(p => (p.method === 'transfer' || p.method === 'card') && !p.account_id);
+        if (missingAcc) {
+            alert("Vui lòng chọn tài khoản nhận tiền cho dòng " + (SPLIT_METHOD_LABEL[missingAcc.method] || missingAcc.method) + "!");
+            return;
+        }
+        paidAmount = splitPayments.reduce((s, p) => s + p.amount, 0);
+        const finalAmount = getPosFinalAmount(tab);
+        if (paidAmount < finalAmount) {
+            alert("Tổng các hình thức thanh toán (" + formatMoney(paidAmount) + ") chưa đủ số tiền cần trả (" + formatMoney(finalAmount) + ")!");
+            return;
+        }
+    }
 
     const staffSelect = document.getElementById('pos-staff-select');
     const staffId = parseInt(staffSelect?.value) || 1;
@@ -1239,6 +1416,7 @@ async function submitPOSOrder() {
             account_id: tab.account_id || null,
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
+            payments: splitPayments,
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
                 quantity: i.quantity,
@@ -1274,6 +1452,9 @@ async function submitPOSOrder() {
         tab.coupon_code = "";
         tab.coupon_discount = 0;
         tab.paid_amount = null;
+        tab.split_payment = false;
+        tab.splitLines = [];
+        document.getElementById('pos-split-auto-box')?.classList.add('hidden');
 
         clearDraft();
         renderInvoiceTabs();
@@ -1340,11 +1521,13 @@ function initPrintTemplatesFromSettings() {
     if (!sel) return;
 
     const cur = posPrintConfig.active_preset;
+    const shortLabel = { 'A4-portrait': 'A4 dọc', 'A4-landscape': 'A4 ngang', 'A5-portrait': 'A5', 'A5-landscape': 'A5 ngang', 'K80': 'K80', 'K58': 'K58' };
     let html = '';
     for (let key in posPrintConfig.presets) {
         const p = posPrintConfig.presets[key];
         const isSel = key === cur ? 'selected' : '';
-        html += `<option value="${key}" ${isSel}>${p.name}</option>`;
+        const label = shortLabel[p.paper_size] || p.paper_size || p.name;
+        html += `<option value="${key}" ${isSel}>${label}</option>`;
     }
     sel.innerHTML = html;
 }
