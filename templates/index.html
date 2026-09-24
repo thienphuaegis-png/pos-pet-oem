@@ -327,7 +327,7 @@
             <!-- Print Template Selector -->
             <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs" title="Chọn mẫu in hóa đơn trước khi bán hàng">
                 <span class="text-slate-400">🖨️</span>
-                <select id="pos-template-select" onchange="changeActivePrintTemplate(this.value)" class="bg-transparent font-bold text-sky-700 focus:outline-none cursor-pointer w-16">
+                <select id="pos-template-select" onchange="changeActivePrintTemplate(this.value)" class="bg-transparent font-bold text-sky-700 focus:outline-none cursor-pointer max-w-[180px] w-auto">
                     <!-- Dynamic template options -->
                 </select>
             </div>
@@ -421,17 +421,31 @@
                     </div>
 
                     <!-- Selected Customer Info Card -->
-                    <div id="selected-customer-card" class="mt-2.5 pt-2.5 border-t border-slate-100 flex items-stretch justify-between text-xs">
-                        <div onclick="openSelectedCustomerEdit()" class="flex-1 cursor-pointer hover:bg-slate-50 rounded transition p-1 -m-1" title="Click để sửa thông tin khách hàng">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-bold text-slate-800" id="cust-name-display">Khách lẻ</span>
-                                <span id="cust-segment-badge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700"></span>
+                    <div id="selected-customer-card" class="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-col gap-1.5 text-xs">
+                        <div class="flex items-stretch justify-between">
+                            <div onclick="openSelectedCustomerEdit()" class="flex-1 cursor-pointer hover:bg-slate-50 rounded transition p-1 -m-1" title="Click để sửa thông tin khách hàng">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-slate-800" id="cust-name-display">Khách lẻ</span>
+                                    <span id="cust-segment-badge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700"></span>
+                                </div>
+                                <div class="text-[11px] text-slate-400" id="cust-phone-display">Không SĐT</div>
                             </div>
-                            <div class="text-[11px] text-slate-400" id="cust-phone-display">Không SĐT</div>
+                            <div class="flex items-center gap-1 pl-2 border-l border-slate-100">
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-700" id="cust-points-badge">🏆 Điểm: 0</span>
+                                <button id="btn-purchase-history" onclick="openPurchaseHistoryModal()" class="hidden px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200" title="Xem lịch sử mua hàng">📜</button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1 pl-2 border-l border-slate-100">
-                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-700" id="cust-points-badge">Điểm: 0</span>
-                            <button id="btn-purchase-history" onclick="openPurchaseHistoryModal()" class="hidden px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200" title="Xem lịch sử mua hàng">📜</button>
+                        <!-- Loyalty & Spa Wallet Bar -->
+                        <div id="cust-spa-wallet-bar" class="hidden pt-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                            <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200" id="cust-wallet-badge">💆 Ví Spa: 0 đ</span>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="showPosWalletHistory()" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold shadow-xs flex items-center gap-1 cursor-pointer" title="Xem lịch sử biến động ví Spa">
+                                    <span>👁️</span><span>Lịch sử ví</span>
+                                </button>
+                                <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded font-bold shadow-xs flex items-center gap-1 cursor-pointer">
+                                    <span>⚡</span><span>Nạp Ví Spa</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -472,6 +486,18 @@
                             <span>Dùng điểm tích lũy:</span>
                         </label>
                         <span id="pos-points-discount-display" class="font-bold text-emerald-600">0 đ</span>
+                    </div>
+
+                    <!-- Sử dụng Ví Spa cho dịch vụ Spa toggle -->
+                    <div id="pos-spa-wallet-row" class="hidden flex flex-col gap-1 pt-1 border-t border-slate-100 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                        <div class="flex justify-between items-center">
+                            <label class="flex items-center gap-1.5 cursor-pointer text-slate-700 font-medium">
+                                <input type="checkbox" id="pos-use-spa-wallet" onchange="toggleUseSpaWallet()" class="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer">
+                                <span>💆 Dùng Ví Spa trả dịch vụ:</span>
+                            </label>
+                            <span id="pos-spa-wallet-deduct-display" class="font-bold text-emerald-700">0 đ</span>
+                        </div>
+                        <div id="pos-spa-wallet-hint" class="text-[10px] text-emerald-600 italic"></div>
                     </div>
 
                     <!-- Khách cần trả (Highlight) -->
@@ -605,7 +631,10 @@
                 <i class="fa-solid fa-tags"></i> 🏷️ Bảng Giá & Ma Trận Giá SP
             </button>
             <button id="btn-subtab-pl-segments" onclick="switchPriceListSubTab('segments')" class="px-4 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition">
-                <i class="fa-solid fa-users"></i> 👥 Phân Nhóm Khách Hàng
+                <i class="fa-solid fa-users"></i> 👥 Phân Nhóm & Thăng Hạng
+            </button>
+            <button id="btn-subtab-pl-promotions" onclick="switchPriceListSubTab('promotions')" class="px-4 py-2.5 text-sm font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition">
+                <i class="fa-solid fa-percent"></i> 🎁 Chương Trình Khuyến Mãi
             </button>
         </div>
 
@@ -708,11 +737,43 @@
                                 <th class="p-2.5 text-center">Số Lượng KH</th>
                                 <th class="p-2.5 text-right">Chiết Khấu %</th>
                                 <th class="p-2.5 text-center">Ưu Tiên</th>
+                                <th class="p-2.5 text-center">Mốc Điểm</th>
+                                <th class="p-2.5 text-center">Tích Điểm</th>
                                 <th class="p-2.5 text-center">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="segments-tbody" class="divide-y divide-gray-100">
-                            <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải danh sách nhóm...</td></tr>
+                            <tr><td colspan="9" class="p-4 text-center text-gray-400">Đang tải danh sách nhóm...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUBTAB 3: CHƯƠNG TRÌNH KHUYẾN MÃI -->
+        <div id="pl-subtab-promotions" class="hidden space-y-4">
+            <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-800">Chương Trình Khuyến Mãi (Best Offer)</h3>
+                        <p class="text-xs text-gray-500">Hệ thống POS tự động áp dụng giá tốt nhất: min(Giá Niêm Yết, Giá Phân Hạng, Giá Khuyến Mãi)</p>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px]">
+                            <tr>
+                                <th class="p-2.5">ID</th>
+                                <th class="p-2.5">Tên Chương Trình</th>
+                                <th class="p-2.5 text-center">Bắt Đầu</th>
+                                <th class="p-2.5 text-center">Kết Thúc</th>
+                                <th class="p-2.5 text-center">Số SP Áp Dụng</th>
+                                <th class="p-2.5 text-center">Trạng Thái</th>
+                                <th class="p-2.5 text-center">Bật / Tắt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="promotions-tbody" class="divide-y divide-gray-100">
+                            <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2324,6 +2385,7 @@
                                     <th class="p-2.5">Địa Chỉ</th>
                                     <th class="p-2.5 text-center">🐾 Thú Cưng</th>
                                     <th class="p-2.5 text-center">Nhóm KH & Bảng Giá</th>
+                                    <th class="p-2.5 text-right">Ví Spa</th>
                                     <th class="p-2.5 text-right">Nợ Phải Thu</th>
                                     <th class="p-2.5 text-center">Thao Tác</th>
                                 </tr>
@@ -3789,6 +3851,9 @@
                         <button onclick="switchSettingsSubTab('permissions')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="permissions" data-role="owner">
                             <span>🔐 Quyền & Module</span>
                         </button>
+                        <button onclick="switchSettingsSubTab('topup-packages')" class="settings-subtab-btn px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-1.5" data-sub="topup-packages">
+                            <span>💳 Gói Topup Ví Spa</span>
+                        </button>
                         <button onclick="switchSettingsSubTab('reset-data')" class="settings-subtab-btn px-3 py-2 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 border border-rose-200" data-sub="reset-data">
                             <span>⚠️ Quản Lý & Xóa Dữ Liệu</span>
                         </button>
@@ -3934,7 +3999,7 @@
                                 </label>
                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-discount" onchange="toggleCanvasItem('discount', this.checked)" class="rounded text-emerald-600">
-                                    <span class="truncate">🏷️ Chiết khấu</span>
+                                    <span class="truncate">🏷️ Giảm giá / Chiết khấu</span>
                                 </label>
                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                     <input type="checkbox" id="chk-final" onchange="toggleCanvasItem('final', this.checked)" class="rounded text-emerald-600">
@@ -4241,6 +4306,41 @@
                 </div>
             </div>
 
+            <!-- SUB: GÓI TOPUP VÍ SPA -->
+            <div id="settings-sub-topup-packages" class="hidden space-y-4">
+                <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span>💳 Quản Lý Gói Nạp Ví Spa (Prepaid Spa Wallet)</span>
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-1">Cấu hình các gói nạp định sẵn (VD: Nộp 500.000 đ nhận 700.000 đ) để thu hút khách làm Spa/Grooming định kỳ</p>
+                        </div>
+                        <button onclick="openTopupPackageModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs shadow flex items-center gap-1.5 transition">
+                            <span>+ Thêm Gói Nạp</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px]">
+                                <tr>
+                                    <th class="p-2.5">ID</th>
+                                    <th class="p-2.5">Tên Gói Nạp</th>
+                                    <th class="p-2.5 text-right">Tiền Thực Nộp (Khách trả)</th>
+                                    <th class="p-2.5 text-right">Tiền Nhận (Vào Ví Spa)</th>
+                                    <th class="p-2.5 text-center">Trạng Thái</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topup-packages-tbody" class="divide-y divide-gray-100">
+                                <tr><td colspan="6" class="p-4 text-center text-gray-400">Đang tải danh sách gói topup...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div id="settings-sub-reset-data" class="hidden space-y-4">
                 <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
                     <div class="border-b pb-3">
@@ -4444,13 +4544,34 @@
                 <h3 id="modal-contact-detail-name" class="text-base font-bold text-slate-800">Chi Tiết Đối Tác</h3>
                 <button onclick="closeContactDetailModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
             </div>
-            <div class="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded border">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-3 rounded border">
                 <div>Loại: <span id="detail-contact-type" class="font-bold"></span></div>
                 <div>SĐT: <span id="detail-contact-phone" class="font-bold"></span></div>
                 <div>Địa chỉ: <span id="detail-contact-address" class="font-bold"></span></div>
                 <div>Công nợ: <span id="detail-contact-debt" class="font-bold text-rose-600"></span></div>
+                <div id="detail-contact-points-wrap">Điểm tích lũy: <span id="detail-contact-points" class="font-bold text-amber-600">0</span></div>
+                <div id="detail-contact-spa-wallet-wrap">Số dư Ví Spa: <span id="detail-contact-spa-wallet" class="font-bold text-emerald-600">0 đ</span></div>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3">
+                <!-- Lịch sử ví Spa cho khách hàng -->
+                <div id="detail-contact-spa-wallet-section">
+                    <h4 class="font-bold text-xs text-emerald-800 flex items-center gap-1.5 mb-1.5">
+                        <span>💆</span> <span>Lịch Sử Biến Động Ví Spa:</span>
+                    </h4>
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-emerald-50 border-b text-emerald-950">
+                            <tr>
+                                <th class="p-2">Thời Gian</th>
+                                <th class="p-2">Loại GD</th>
+                                <th class="p-2 text-right">Số Tiền</th>
+                                <th class="p-2 text-right">Số Dư Sau</th>
+                                <th class="p-2">Ghi Chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-contact-spa-wallet-history"></tbody>
+                    </table>
+                </div>
+
                 <h4 class="font-bold text-xs text-slate-700">📜 Lịch Sử Đơn Hàng / Phiếu Nhập Gần Đây:</h4>
                 <table class="w-full text-left text-xs border-collapse">
                     <thead class="bg-gray-100 border-b">
@@ -5710,10 +5831,162 @@
                         <input id="seg-priority" type="number" class="border p-2 rounded w-full text-xs" value="0">
                     </div>
                 </div>
+                <div class="flex gap-3 items-center pt-1 border-t border-slate-100">
+                    <div class="flex-1">
+                        <label class="font-bold text-slate-700">Mốc Điểm Thăng Hạng:</label>
+                        <input id="seg-min-points" type="number" min="0" class="border p-2 rounded w-full text-xs font-bold text-sky-700" value="0" placeholder="VD: 50, 100...">
+                    </div>
+                    <div class="flex-1 pt-4">
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                            <input id="seg-allow-points" type="checkbox" checked class="rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer">
+                            <span>Cho phép Tích Điểm</span>
+                        </label>
+                    </div>
+                </div>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t">
                 <button onclick="closeSegmentModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Đóng</button>
                 <button onclick="saveSegment()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold shadow">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TẠO/SỬA GÓI TOPUP VÍ SPA -->
+    <div id="modal-topup-package" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full space-y-4 p-6">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base" id="topup-pkg-modal-title">Thêm Gói Nạp Ví Spa</h3>
+                <button onclick="closeTopupPackageModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">&times;</button>
+            </div>
+            <input type="hidden" id="topup-pkg-edit-id">
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="font-bold text-slate-700">Tên gói nạp (*):</label>
+                    <input id="topup-pkg-name" class="border p-2 rounded w-full text-xs font-bold" placeholder="VD: Gói Spa Vàng (Nạp 500k tặng 200k)">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Số tiền khách nộp (đ) (*):</label>
+                    <input id="topup-pkg-pay" type="number" min="0" step="1000" class="border p-2 rounded w-full text-xs font-mono font-bold text-slate-800" placeholder="500000">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Số tiền nhận vào ví (đ) (*):</label>
+                    <input id="topup-pkg-receive" type="number" min="0" step="1000" class="border p-2 rounded w-full text-xs font-mono font-bold text-emerald-600" placeholder="700000">
+                </div>
+                <div class="pt-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                        <input id="topup-pkg-active" type="checkbox" checked class="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer">
+                        <span>Đang kích hoạt</span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closeTopupPackageModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Đóng</button>
+                <button onclick="saveTopupPackage()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold shadow">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NẠP VÍ SPA TẠI QUẦY POS -->
+    <div id="modal-topup-spa" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⚡</span>
+                    <h3 class="font-bold text-base text-slate-800">Nạp Tiền Ví Spa Khách Hàng</h3>
+                </div>
+                <button type="button" onclick="closeTopupSpaModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <!-- Thông tin khách -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-slate-500 font-medium">Khách hàng:</span>
+                        <span id="pos-topup-cust-name" class="font-bold text-slate-800 text-sm">--</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500 font-medium">Số dư ví hiện tại:</span>
+                        <span id="pos-topup-current-balance" class="font-bold text-emerald-600">0 đ</span>
+                    </div>
+                </div>
+
+                <!-- Chọn Gói Nạp -->
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Chọn Gói Nạp Định Sẵn (*):</label>
+                    <div id="pos-topup-packages-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <div class="text-center text-slate-400 py-3">Đang tải danh sách gói nạp...</div>
+                    </div>
+                </div>
+
+                <!-- Phương thức thanh toán nạp tiền -->
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Hình thức thanh toán:</label>
+                    <select id="pos-topup-pay-method" class="w-full border border-slate-300 rounded p-2 text-xs font-bold bg-white text-slate-700">
+                        <option value="cash">💵 Tiền mặt</option>
+                        <option value="transfer">🏦 Chuyển khoản ngân hàng</option>
+                        <option value="card">💳 Quẹt thẻ</option>
+                    </select>
+                </div>
+
+                <!-- Ghi chú -->
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ghi chú nạp tiền:</label>
+                    <input type="text" id="pos-topup-note" placeholder="VD: Khách nạp làm liệu trình tắm sấy..." class="border p-2 rounded w-full text-xs bg-white">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button type="button" onclick="closeTopupSpaModal()" class="px-3.5 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                <button type="button" id="btn-confirm-recharge" onclick="submitTopupSpaRecharge()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5">
+                    <span>⚡</span> <span>Xác Nhận Nạp Tiền</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: LỊCH SỬ BIẾN ĐỘNG VÍ SPA TẠI QUẦY POS -->
+    <div id="modal-pos-wallet-history" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">💆</span>
+                    <h3 class="font-bold text-base text-slate-800">Lịch Sử Biến Động Ví Spa</h3>
+                </div>
+                <button type="button" onclick="closePosWalletHistory()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+            
+            <!-- Thông tin khách & số dư hiện tại -->
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center text-xs">
+                <div>
+                    <span class="text-slate-500 font-medium">Khách hàng:</span>
+                    <span id="pos-wallet-hist-cust-name" class="font-bold text-slate-800 ml-1">--</span>
+                    <span id="pos-wallet-hist-cust-phone" class="text-slate-400 ml-2">--</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 font-medium">Số dư ví hiện tại:</span>
+                    <span id="pos-wallet-hist-current-balance" class="font-bold text-emerald-600 ml-1">0 đ</span>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách biến động -->
+            <div class="flex-1 overflow-y-auto border rounded-lg">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-100 border-b text-slate-700 font-bold sticky top-0">
+                        <tr>
+                            <th class="p-2.5">Thời Gian</th>
+                            <th class="p-2.5">Loại Giao Dịch</th>
+                            <th class="p-2.5 text-right">Số Tiền</th>
+                            <th class="p-2.5 text-right">Số Dư Sau</th>
+                            <th class="p-2.5">Ghi Chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pos-wallet-hist-table-body" class="divide-y divide-slate-100">
+                        <tr><td colspan="5" class="p-4 text-center text-slate-400">Đang tải lịch sử ví...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t">
+                <button type="button" onclick="closePosWalletHistory()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow">Đóng</button>
             </div>
         </div>
     </div>
@@ -5941,22 +6214,29 @@
     function switchPriceListSubTab(sub) {
         const tabMatrix = document.getElementById('pl-subtab-matrix');
         const tabSegments = document.getElementById('pl-subtab-segments');
+        const tabPromotions = document.getElementById('pl-subtab-promotions');
         const btnMatrix = document.getElementById('btn-subtab-pl-matrix');
         const btnSegments = document.getElementById('btn-subtab-pl-segments');
+        const btnPromotions = document.getElementById('btn-subtab-pl-promotions');
+
+        [tabMatrix, tabSegments, tabPromotions].forEach(el => el?.classList.add('hidden'));
+        [btnMatrix, btnSegments, btnPromotions].forEach(btn => {
+            btn?.classList.remove('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btn?.classList.add('text-slate-500', 'font-semibold');
+        });
 
         if (sub === 'segments') {
-            tabMatrix?.classList.add('hidden');
             tabSegments?.classList.remove('hidden');
-            btnMatrix?.classList.remove('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
-            btnMatrix?.classList.add('text-slate-500', 'font-semibold');
             btnSegments?.classList.add('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
             btnSegments?.classList.remove('text-slate-500', 'font-semibold');
             loadSegments();
+        } else if (sub === 'promotions') {
+            tabPromotions?.classList.remove('hidden');
+            btnPromotions?.classList.add('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
+            btnPromotions?.classList.remove('text-slate-500', 'font-semibold');
+            loadPromotionsList();
         } else {
             tabMatrix?.classList.remove('hidden');
-            tabSegments?.classList.add('hidden');
-            btnSegments?.classList.remove('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
-            btnSegments?.classList.add('text-slate-500', 'font-semibold');
             btnMatrix?.classList.add('border-b-2', 'border-sky-600', 'text-sky-700', 'font-bold');
             btnMatrix?.classList.remove('text-slate-500', 'font-semibold');
             loadPriceLists();
@@ -6202,6 +6482,13 @@
                 <td class="p-2.5 text-center font-bold text-indigo-700">${s.customer_count || 0} KH</td>
                 <td class="p-2.5 text-right font-medium">${s.discount_percent}%</td>
                 <td class="p-2.5 text-center text-gray-500">${s.priority}</td>
+                <td class="p-2.5 text-center font-bold text-sky-700">${s.min_points || 0} pts</td>
+                <td class="p-2.5 text-center">
+                    ${(s.allow_points === 1 || s.allow_points === true || s.allow_points === null) 
+                        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ Bật</span>`
+                        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">✕ Tắt</span>`
+                    }
+                </td>
                 <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
                     <button onclick="editSegment(${s.id})" class="text-sky-600 hover:underline text-xs font-bold">Sửa</button>
                     <button onclick="deleteSegment(${s.id})" class="text-rose-600 hover:underline text-xs font-bold">Xóa</button>
@@ -6217,6 +6504,8 @@
         document.getElementById('seg-name').value = '';
         document.getElementById('seg-discount').value = '0';
         document.getElementById('seg-priority').value = '0';
+        if (document.getElementById('seg-min-points')) document.getElementById('seg-min-points').value = '0';
+        if (document.getElementById('seg-allow-points')) document.getElementById('seg-allow-points').checked = true;
         if (document.getElementById('seg-price-list')) {
             document.getElementById('seg-price-list').value = '';
         }
@@ -6232,7 +6521,9 @@
             name: document.getElementById('seg-name').value,
             discount_percent: parseFloat(document.getElementById('seg-discount').value) || 0,
             priority: parseInt(document.getElementById('seg-priority').value) || 0,
-            price_list_id: plVal ? parseInt(plVal) : null
+            price_list_id: plVal ? parseInt(plVal) : null,
+            min_points: parseInt(document.getElementById('seg-min-points')?.value) || 0,
+            allow_points: document.getElementById('seg-allow-points')?.checked ? 1 : 0
         };
         const url = id ? `/api/customer-segments/${id}` : '/api/customer-segments';
         const method = id ? 'PUT' : 'POST';
@@ -6252,6 +6543,8 @@
         document.getElementById('seg-name').value = s.name;
         document.getElementById('seg-discount').value = s.discount_percent;
         document.getElementById('seg-priority').value = s.priority;
+        if (document.getElementById('seg-min-points')) document.getElementById('seg-min-points').value = s.min_points || 0;
+        if (document.getElementById('seg-allow-points')) document.getElementById('seg-allow-points').checked = (s.allow_points === 1 || s.allow_points === true || s.allow_points === null);
         if (document.getElementById('seg-price-list')) {
             document.getElementById('seg-price-list').value = s.price_list_id || '';
         }
@@ -6262,6 +6555,153 @@
         if(!confirm('Xóa phân loại này? KH thuộc nhóm này sẽ bị bỏ phân loại.')) return;
         await fetch(`/api/customer-segments/${id}`, { method: 'DELETE' });
         loadSegments();
+    }
+
+    // ========== QUẢN LÝ KHUYẾN MÃI (BEST OFFER) ==========
+    async function loadPromotionsList() {
+        const tbody = document.getElementById('promotions-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>';
+        try {
+            const res = await fetch('/api/promotions');
+            const data = await res.json();
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400 italic">Chưa có chương trình khuyến mãi nào</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(p => `
+                <tr class="border-b hover:bg-gray-50 text-xs">
+                    <td class="p-2.5 font-mono text-gray-500">${p.id}</td>
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800">${p.name}</div>
+                        ${p.description ? `<div class="text-[11px] text-gray-400">${p.description}</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-center text-gray-600">${p.start_date || 'Không giới hạn'}</td>
+                    <td class="p-2.5 text-center text-gray-600">${p.end_date || 'Không giới hạn'}</td>
+                    <td class="p-2.5 text-center font-bold text-sky-700">${p.item_count || 0} SP</td>
+                    <td class="p-2.5 text-center">
+                        ${p.is_active ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Đang chạy</span>' : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Tạm dừng</span>'}
+                    </td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="togglePromotionStatus(${p.id}, ${p.is_active ? 0 : 1})" class="px-2.5 py-1 rounded text-xs font-bold ${p.is_active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
+                            ${p.is_active ? 'Tắt' : 'Bật'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi khi tải khuyến mãi</td></tr>';
+        }
+    }
+
+    async function togglePromotionStatus(id, newStatus) {
+        try {
+            await fetch(`/api/promotions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: newStatus })
+            });
+            loadPromotionsList();
+        } catch (e) {
+            alert('Không thể cập nhật trạng thái khuyến mãi');
+        }
+    }
+
+    // ========== QUẢN LÝ GÓI TOPUP VÍ SPA (SETTINGS) ==========
+    async function loadTopupPackagesList() {
+        const tbody = document.getElementById('topup-packages-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Đang tải danh sách...</td></tr>';
+        try {
+            const res = await fetch('/api/topup/packages?all=true');
+            const data = await res.json();
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400 italic">Chưa có gói nạp nào. Bấm "+ Thêm Gói Nạp" để tạo mới.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(pkg => `
+                <tr class="border-b hover:bg-gray-50 text-xs">
+                    <td class="p-2.5 font-mono text-gray-500">${pkg.id}</td>
+                    <td class="p-2.5 font-bold text-slate-800">${pkg.name}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${Number(pkg.pay_amount).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${Number(pkg.receive_amount).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-center">
+                        ${pkg.is_active ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Đang dùng</span>' : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Khóa</span>'}
+                    </td>
+                    <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
+                        <button onclick="editTopupPackage(${pkg.id})" class="text-sky-600 hover:underline text-xs font-bold">Sửa</button>
+                        <button onclick="deleteTopupPackage(${pkg.id})" class="text-rose-600 hover:underline text-xs font-bold">Xóa</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-rose-500">Lỗi khi tải gói topup</td></tr>';
+        }
+    }
+
+    var _allTopupPackagesCache = [];
+    function openTopupPackageModal() {
+        document.getElementById('topup-pkg-modal-title').textContent = 'Thêm Gói Nạp Ví Spa';
+        document.getElementById('topup-pkg-edit-id').value = '';
+        document.getElementById('topup-pkg-name').value = '';
+        document.getElementById('topup-pkg-pay').value = '';
+        document.getElementById('topup-pkg-receive').value = '';
+        document.getElementById('topup-pkg-active').checked = true;
+        document.getElementById('modal-topup-package')?.classList.remove('hidden');
+    }
+
+    function closeTopupPackageModal() {
+        document.getElementById('modal-topup-package')?.classList.add('hidden');
+    }
+
+    async function editTopupPackage(id) {
+        const res = await fetch('/api/topup/packages?all=true');
+        const data = await res.json();
+        const pkg = data.find(x => x.id === id);
+        if (!pkg) return;
+        document.getElementById('topup-pkg-modal-title').textContent = 'Sửa Gói Nạp Ví Spa';
+        document.getElementById('topup-pkg-edit-id').value = pkg.id;
+        document.getElementById('topup-pkg-name').value = pkg.name;
+        document.getElementById('topup-pkg-pay').value = pkg.pay_amount;
+        document.getElementById('topup-pkg-receive').value = pkg.receive_amount;
+        document.getElementById('topup-pkg-active').checked = (pkg.is_active === 1 || pkg.is_active === true);
+        document.getElementById('modal-topup-package')?.classList.remove('hidden');
+    }
+
+    async function saveTopupPackage() {
+        const id = document.getElementById('topup-pkg-edit-id')?.value;
+        const name = document.getElementById('topup-pkg-name')?.value.trim();
+        const pay_amount = parseFloat(document.getElementById('topup-pkg-pay')?.value) || 0;
+        const receive_amount = parseFloat(document.getElementById('topup-pkg-receive')?.value) || 0;
+        const is_active = document.getElementById('topup-pkg-active')?.checked ? 1 : 0;
+
+        if (!name || pay_amount <= 0 || receive_amount <= 0) {
+            alert('Vui lòng nhập tên gói và số tiền hợp lệ (> 0)');
+            return;
+        }
+
+        const body = { name, pay_amount, receive_amount, is_active };
+        const url = id ? `/api/topup/packages/${id}` : '/api/topup/packages';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            alert('Lỗi: ' + (err.detail || 'Không thể lưu gói nạp'));
+            return;
+        }
+        closeTopupPackageModal();
+        loadTopupPackagesList();
+    }
+
+    async function deleteTopupPackage(id) {
+        if (!confirm('Bạn chắc chắn muốn xóa gói nạp này?')) return;
+        await fetch(`/api/topup/packages/${id}`, { method: 'DELETE' });
+        loadTopupPackagesList();
     }
 
     </script>

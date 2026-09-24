@@ -114,6 +114,22 @@ def get_contact(contact_id: int):
     # Lấy lịch sử thu/chi quỹ liên quan
     cur.execute("SELECT code, type, category, amount, note, created_at FROM cashbook WHERE contact_id = ? ORDER BY id DESC LIMIT 20", (contact_id,))
     data["cashbook_history"] = [dict(r) for r in cur.fetchall()]
+
+    # Lấy thông tin ví spa & lịch sử biến động ví
+    data["spa_wallet_balance"] = float(data.get("spa_wallet_balance") or 0)
+    data["points"] = int(data.get("points") or 0)
+    if data["type"] == "customer":
+        cur.execute("""
+            SELECT t.*, p.name as package_name, o.code as order_code
+            FROM spa_wallet_transactions t
+            LEFT JOIN topup_packages p ON t.package_id = p.id
+            LEFT JOIN orders o ON t.order_id = o.id
+            WHERE t.contact_id = ?
+            ORDER BY t.created_at DESC, t.id DESC
+        """, (contact_id,))
+        data["spa_wallet_history"] = [dict(r) for r in cur.fetchall()]
+    else:
+        data["spa_wallet_history"] = []
     
     conn.close()
     return data

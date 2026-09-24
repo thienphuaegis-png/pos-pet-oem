@@ -46,6 +46,9 @@ PATH_MODULE_MAP = [
     ("/api/cashbook", "cashbook"),
     ("/api/reports", "cashbook"),
     ("/api/settings", "settings"),
+    ("/api/promotions", "promotions"),
+    ("/api/pricing", "promotions"),
+    ("/api/topup", "pos"),
 ]
 
 def resolve_module_name(path: str) -> str:
@@ -73,7 +76,9 @@ from routers.cashbook import router as cashbook_router
 from routers.combos import router as combos_router
 from routers.price_lists import router as price_lists_router
 from routers.price_lists import router_segments
+from routers.promotions import router as promotions_router
 from routers.oem import router as oem_router
+from routers.topup import router as topup_router
 
 app = FastAPI(title="POS KiotViet Offline")
 
@@ -164,5 +169,7 @@ app.include_router(production_router)
 app.include_router(cashbook_router)
 app.include_router(price_lists_router)
 app.include_router(router_segments)
+app.include_router(promotions_router)
 app.include_router(oem_router)
+app.include_router(topup_router)
  

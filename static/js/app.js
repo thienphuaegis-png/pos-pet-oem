@@ -63,6 +63,7 @@
             if (subId === 'templates') loadSettings();
             if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
             if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
+            if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
         }
 
         // --- SUB 1: TỒN KHO TỔNG HỢP ---
@@ -1551,7 +1552,7 @@
             // 1. Render Customers Table
             if (tbodyCust) {
                 if (filteredCust.length === 0) {
-                    tbodyCust.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
+                    tbodyCust.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
                 } else {
                     tbodyCust.innerHTML = filteredCust.map(c => {
                         const code = c.code || ('KH' + String(c.id).padStart(4, '0'));
@@ -1561,6 +1562,10 @@
                             ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200 text-[11px]">${c.group_name}</span>`
                             : `<span class="text-gray-400 italic text-[11px]">Mặc định</span>`;
                         const debtStyle = c.debt > 0 ? 'text-rose-600 font-bold' : 'text-gray-400';
+                        const spaBal = Number(c.spa_wallet_balance || 0);
+                        const spaBalHtml = spaBal > 0
+                            ? `<span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">${formatMoney(spaBal)}</span>`
+                            : `<span class="text-gray-400 font-mono">0 đ</span>`;
 
                         return `
                         <tr class="border-b hover:bg-slate-50 transition text-xs">
@@ -1574,6 +1579,7 @@
                                     🐾 ${petCount} bé
                                 </button>
                             </td>
+                            <td class="p-2.5 text-right font-mono">${spaBalHtml}</td>
                             <td class="p-2.5 text-right font-mono ${debtStyle}">${formatMoney(c.debt || 0)}</td>
                             <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
                                 ${c.debt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">💵 Thu nợ</button>` : ''}
@@ -1855,6 +1861,53 @@
                 document.getElementById('detail-contact-phone').textContent = data.phone || 'Chưa có';
                 document.getElementById('detail-contact-address').textContent = data.address || 'Chưa có';
                 document.getElementById('detail-contact-debt').textContent = formatMoney(data.debt);
+
+                // Điểm & Ví Spa
+                const elPointsWrap = document.getElementById('detail-contact-points-wrap');
+                const elWalletWrap = document.getElementById('detail-contact-spa-wallet-wrap');
+                const elPoints = document.getElementById('detail-contact-points');
+                const elWallet = document.getElementById('detail-contact-spa-wallet');
+                const secWalletHist = document.getElementById('detail-contact-spa-wallet-section');
+                const tbWalletHist = document.getElementById('detail-contact-spa-wallet-history');
+
+                if (data.type === 'customer') {
+                    if (elPointsWrap) elPointsWrap.classList.remove('hidden');
+                    if (elWalletWrap) elWalletWrap.classList.remove('hidden');
+                    if (secWalletHist) secWalletHist.classList.remove('hidden');
+                    if (elPoints) elPoints.textContent = data.points || 0;
+                    if (elWallet) elWallet.textContent = formatMoney(data.spa_wallet_balance || 0);
+
+                    if (tbWalletHist) {
+                        if (data.spa_wallet_history && data.spa_wallet_history.length > 0) {
+                            tbWalletHist.innerHTML = data.spa_wallet_history.map(r => {
+                                const isTopup = r.type === 'topup';
+                                const isSpend = r.type === 'spend';
+                                const typeBadge = isTopup
+                                    ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
+                                    : (isSpend ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu</span>' : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
+                                const sign = isTopup ? '+' : (isSpend ? '-' : '');
+                                const amtColor = isTopup ? 'text-emerald-600 font-bold' : (isSpend ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold');
+                                const noteStr = r.note || (isTopup && r.package_name ? `Gói ${r.package_name}` : (r.order_code ? `Đơn ${r.order_code}` : '-'));
+
+                                return `
+                                    <tr class="border-b hover:bg-emerald-50/50">
+                                        <td class="p-2 text-slate-500 font-mono">${r.created_at || '-'}</td>
+                                        <td class="p-2">${typeBadge}</td>
+                                        <td class="p-2 text-right font-mono ${amtColor}">${sign}${formatMoney(r.amount)}</td>
+                                        <td class="p-2 text-right font-mono font-bold text-slate-700">${formatMoney(r.balance_after)}</td>
+                                        <td class="p-2 text-slate-600">${noteStr}</td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        } else {
+                            tbWalletHist.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-400">Chưa có biến động ví Spa</td></tr>';
+                        }
+                    }
+                } else {
+                    if (elPointsWrap) elPointsWrap.classList.add('hidden');
+                    if (elWalletWrap) elWalletWrap.classList.add('hidden');
+                    if (secWalletHist) secWalletHist.classList.add('hidden');
+                }
 
                 const tbHist = document.getElementById('detail-contact-history');
                 if (data.history && data.history.length > 0) {
@@ -6884,7 +6937,7 @@
             b2b_footer_boxes: { zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", w: 734, h: 140 },
             signatures_3col: { zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", w: 734, h: 90 },
             total: { zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 12, bold: false, align: "right", w: 280 },
-            discount: { zone: "footer", type: "text", text: "Chiết khấu: {{giam_gia}}", label: "Giảm Giá", fsz: 12, bold: false, align: "right", w: 280 },
+            discount: { zone: "footer", type: "text", text: "Giảm giá: -{{giam_gia}}", label: "Giảm Giá", fsz: 11, bold: false, align: "right", w: 270 },
             final: { zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 15, bold: true, align: "right", w: 320 },
             paid: { zone: "footer", type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 12, bold: false, align: "right", w: 280 },
             debt: { zone: "footer", type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 12, bold: false, align: "right", w: 280 },
@@ -7113,6 +7166,10 @@
 
                 const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
                 const defaultW = isThermal ? (paperSize.includes('K80') ? 270 : 195) : 734;
+                if (key === 'discount') {
+                    newElem.w = defaultW;
+                    newElem.text = isThermal ? "Giảm giá: -{{giam_gia}}" : "Chiết khấu: {{giam_gia}}";
+                }
                 if (newElem.type === 'b2b_footer_boxes' || newElem.type === 'signatures_3col') {
                     newElem.w = defaultW;
                     newElem.x = isThermal ? 10 : 30;
@@ -7193,6 +7250,7 @@
                 const proto = defaultElementCatalog[k];
                 const has = canvasElements.some(e => {
                     if (e.catalog_key === k) return true;
+                    if (k === 'discount' && e.text && (e.text.includes('giam_gia') || e.text.includes('Chiết khấu') || e.text.includes('Giảm giá'))) return true;
                     if (proto && e.type === proto.type) {
                         if (e.type === 'text') return e.label === proto.label;
                         return true;
@@ -7411,9 +7469,10 @@
                     { id: "e6", zone: "header", type: "text", text: "Khách: {{ten_khach}}", label: "Khách Hàng", x: 10, y: 110, w: 270, fsz: 10, bold: false, align: "left" },
                     { id: "e7", zone: "body", type: "table", label: "Bảng Danh Sách Món", x: 10, y: 130, w: 270, fsz: 10 },
                     { id: "e8", zone: "footer", type: "text", text: "Tổng tiền: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 200, w: 270, fsz: 11, bold: false, align: "right" },
-                    { id: "e9", zone: "footer", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 220, w: 270, fsz: 13, bold: true, align: "right" },
-                    { id: "e10", zone: "footer", type: "qr", label: "QR Code Thanh Toán", x: 75, y: 245, w: 130, h: 130 },
-                    { id: "e11", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 390, w: 270, fsz: 10, italic: true, align: "center" }
+                    { id: "e8_disc", zone: "footer", type: "text", text: "Giảm giá: -{{giam_gia}}", label: "Giảm Giá", x: 10, y: 218, w: 270, fsz: 11, bold: false, align: "right" },
+                    { id: "e9", zone: "footer", type: "text", text: "KHÁCH TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 238, w: 270, fsz: 13, bold: true, align: "right" },
+                    { id: "e10", zone: "footer", type: "qr", label: "QR Code Thanh Toán", x: 75, y: 265, w: 130, h: 130 },
+                    { id: "e11", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 410, w: 270, fsz: 10, italic: true, align: "center" }
                 ];
             } else {
                 // K58
@@ -7469,9 +7528,10 @@
                 ten_khach: "Nguyễn Văn A",
                 sdt_khach: "0987654321",
                 tong_tien: "240.000 đ",
-                giam_gia: "0 đ",
-                phai_tra: "240.000 đ",
-                khach_tra: "240.000 đ",
+                giam_gia: "40.000 đ",
+                tiet_kiem: "40.000 đ",
+                phai_tra: "200.000 đ",
+                khach_tra: "200.000 đ",
                 con_no: "0 đ"
             };
 
@@ -7582,26 +7642,62 @@
                         </div>
                     `;
                 } else if (e.type === 'table') {
-                    content = `
-                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none;">
-                            <thead style="border-bottom: 1px dashed #000;">
-                                <tr>
-                                    <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
-                                    <th style="text-align: center; width: 40px;">SL</th>
-                                    <th style="text-align: right; width: 80px;">Đơn giá</th>
-                                    <th style="text-align: right; width: 90px;">Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr style="border-bottom: 0.5px dotted #ccc;">
-                                    <td style="padding: 4px 0;">Áo Thun Basic (Demo)</td>
-                                    <td style="text-align: center;">2</td>
-                                    <td style="text-align: right;">120.000 đ</td>
-                                    <td style="text-align: right;">240.000 đ</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    `;
+                    if (isThermal) {
+                        content = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 11}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none; table-layout: fixed;">
+                                <thead style="border-bottom: 1px dashed #000;">
+                                    <tr>
+                                        <th style="text-align: left; width: 45px; padding: 4px 0;">SL</th>
+                                        <th style="text-align: right; width: 105px; padding: 4px 0;">Đơn giá</th>
+                                        <th style="text-align: right; width: 120px; padding: 4px 0;">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; line-height: 1.2;">Áo Thun Basic (Demo)</td>
+                                    </tr>
+                                    <tr style="border-bottom: 0.5px dotted #ccc;">
+                                        <td style="text-align: left; vertical-align: top; padding: 2px 0 5px 0;">2</td>
+                                        <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">
+                                            <div style="font-weight: bold; line-height: 1.1;">100.000 đ</div>
+                                            <div style="color: #666; font-size: 9px; line-height: 1.1; margin-top: 1px;">
+                                                <span style="text-decoration: line-through;">120.000 đ</span>
+                                                <span style="color: #15803d; font-weight: 500;">(Giảm 20.000 đ)</span>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">
+                                            <div style="font-weight: bold;">200.000 đ</div>
+                                            <div style="color: #15803d; font-size: 9px; line-height: 1.1;">(Giảm 40.000 đ)</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        `;
+                    } else {
+                        content = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none;">
+                                <thead style="border-bottom: 1px dashed #000;">
+                                    <tr>
+                                        <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                        <th style="text-align: center; width: 36px;">SL</th>
+                                        <th style="text-align: right; width: 84px;">Đơn giá</th>
+                                        <th style="text-align: right; width: 90px;">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 0.5px dotted #ccc;">
+                                        <td style="padding: 4px 0; vertical-align: top;">Áo Thun Basic (Demo)</td>
+                                        <td style="text-align: center; vertical-align: top;">2</td>
+                                        <td style="text-align: right; vertical-align: top;">
+                                            <div style="font-weight: bold; line-height: 1.1;">100.000 đ</div>
+                                            <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">120.000 đ</div>
+                                        </td>
+                                        <td style="text-align: right; vertical-align: top; font-weight: 500;">200.000 đ</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        `;
+                    }
                 } else {
                     let txt = e.text || '';
                     txt = txt.replace(/{{ten_cua_hang}}/g, mockData.ten_cua_hang);
@@ -7615,6 +7711,7 @@
                     txt = txt.replace(/{{sdt_khach}}/g, mockData.sdt_khach);
                     txt = txt.replace(/{{tong_tien}}/g, mockData.tong_tien);
                     txt = txt.replace(/{{giam_gia}}/g, mockData.giam_gia);
+                    txt = txt.replace(/{{tiet_kiem}}/g, mockData.tiet_kiem);
                     txt = txt.replace(/{{phai_tra}}/g, mockData.phai_tra);
                     txt = txt.replace(/{{khach_tra}}/g, mockData.khach_tra);
                     txt = txt.replace(/{{con_no}}/g, mockData.con_no);
@@ -8049,6 +8146,15 @@
         }
 
         function renderAndPrint(ord) {
+            let itemDiscountTotal = 0;
+            (ord.items || []).forEach(it => {
+                if (it.original_price && it.original_price > it.price) {
+                    itemDiscountTotal += (it.original_price - it.price) * (it.quantity || 1);
+                }
+            });
+            const billDiscount = ord.discount || 0;
+            const totalSavings = itemDiscountTotal + billDiscount;
+
             const printData = {
                 ten_cua_hang: currentSettings.shop_name || "TÊN CỬA HÀNG",
                 dia_chi: currentSettings.shop_address || "Địa chỉ shop",
@@ -8060,7 +8166,8 @@
                 ten_khach: ord.customer_name || 'Khách lẻ',
                 sdt_khach: ord.customer_phone || '-',
                 tong_tien: formatMoney(ord.total_amount),
-                giam_gia: formatMoney(ord.discount),
+                giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
+                tiet_kiem: formatMoney(totalSavings),
                 phai_tra: formatMoney(ord.final_amount),
                 khach_tra: formatMoney(ord.paid_amount),
                 con_no: formatMoney(ord.debt_amount),
@@ -8080,8 +8187,27 @@
             if (tableElem && ord.items) {
                 const isB2B = tableElem.type === 'table_b2b';
                 const headerH = isB2B ? 34 : 28;
-                const rowH = isB2B ? 28 : 28;
-                const actualTableHeight = headerH + (ord.items.length * rowH) + 10;
+                let itemsHeight = 0;
+                ord.items.forEach(it => {
+                    if (isB2B) {
+                        itemsHeight += 28;
+                    } else if (isThermal) {
+                        const nameLen = (it.product_name || '').length;
+                        const nameLines = Math.max(1, Math.ceil(nameLen / 36));
+                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                        const numH = hasItemDisc ? 28 : 18;
+                        itemsHeight += (nameLines * 16) + numH + 8;
+                    } else {
+                        const nameLen = (it.product_name || '').length;
+                        const lines = Math.max(1, Math.ceil(nameLen / 16));
+                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                        const priceLines = hasItemDisc ? 2 : 1;
+                        const rowLines = Math.max(lines, priceLines);
+                        const rowH = 8 + (rowLines * 16);
+                        itemsHeight += rowH;
+                    }
+                });
+                const actualTableHeight = headerH + itemsHeight + 10;
                 const tableBottom = (tableElem.y || 0) + actualTableHeight;
 
                 const footerElems = canvasElements.filter(e => (e.zone || 'header') === 'footer');
@@ -8216,28 +8342,76 @@
                         </div>
                     `;
                 } else if (e.type === 'table') {
-                    content = `
-                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
-                            <thead style="border-bottom: 1px dashed #000;">
-                                <tr>
-                                    <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
-                                    <th style="text-align: center; width: 40px;">SL</th>
-                                    <th style="text-align: right; width: 80px;">Đơn giá</th>
-                                    <th style="text-align: right; width: 90px;">Thành tiền</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${ord.items.map(it => `
-                                <tr style="border-bottom: 0.5px dotted #ccc;">
-                                    <td style="padding: 4px 0;">${it.product_name}</td>
-                                    <td style="text-align: center;">${it.quantity}</td>
-                                    <td style="text-align: right;">${formatMoney(it.price)}</td>
-                                    <td style="text-align: right;">${formatMoney(it.quantity * it.price)}</td>
-                                </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
+                    if (isThermal) {
+                        content = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 11}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; table-layout: fixed;">
+                                <thead style="border-bottom: 1px dashed #000;">
+                                    <tr>
+                                        <th style="text-align: left; width: 45px; padding: 4px 0;">SL</th>
+                                        <th style="text-align: right; width: 105px; padding: 4px 0;">Đơn giá</th>
+                                        <th style="text-align: right; width: 120px; padding: 4px 0;">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ord.items.map(it => {
+                                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                        const itemDiff = hasItemDisc ? (it.original_price - it.price) : 0;
+                                        const priceDisplay = hasItemDisc ? `
+                                            <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
+                                            <div style="color: #666; font-size: 9px; line-height: 1.1; margin-top: 1px;">
+                                                <span style="text-decoration: line-through;">${formatMoney(it.original_price)}</span>
+                                                <span style="color: #15803d; font-weight: 500;">(Giảm ${formatMoney(itemDiff)})</span>
+                                            </div>
+                                        ` : `<div>${formatMoney(it.price)}</div>`;
+                                        const subtotalDisplay = (hasItemDisc && it.quantity > 1) ? `
+                                            <div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>
+                                            <div style="color: #15803d; font-size: 9px; line-height: 1.1;">(Giảm ${formatMoney(itemDiff * it.quantity)})</div>
+                                        ` : `<div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>`;
+                                        return `
+                                        <tr>
+                                            <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; word-break: break-word; line-height: 1.2;">${it.product_name}</td>
+                                        </tr>
+                                        <tr style="border-bottom: 0.5px dotted #ccc;">
+                                            <td style="text-align: left; vertical-align: top; padding: 2px 0 5px 0;">${it.quantity}</td>
+                                            <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">${priceDisplay}</td>
+                                            <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">${subtotalDisplay}</td>
+                                        </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    } else {
+                        content = `
+                            <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 11}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; table-layout: fixed;">
+                                <thead style="border-bottom: 1px dashed #000;">
+                                    <tr>
+                                        <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                        <th style="text-align: center; width: 60px; padding: 4px 0;">SL</th>
+                                        <th style="text-align: right; width: 120px; padding: 4px 0;">Đơn giá</th>
+                                        <th style="text-align: right; width: 140px; padding: 4px 0;">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ord.items.map(it => {
+                                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                        const priceDisplay = hasItemDisc ? `
+                                            <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
+                                            <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">${formatMoney(it.original_price)}</div>
+                                        ` : `<div>${formatMoney(it.price)}</div>`;
+                                        return `
+                                        <tr style="border-bottom: 0.5px dotted #ccc;">
+                                            <td style="padding: 4px 2px 4px 0; vertical-align: top; word-break: break-word;">${it.product_name}</td>
+                                            <td style="text-align: center; vertical-align: top; padding: 4px 0;">${it.quantity}</td>
+                                            <td style="text-align: right; vertical-align: top; padding: 4px 0;">${priceDisplay}</td>
+                                            <td style="text-align: right; vertical-align: top; padding: 4px 0; font-weight: 500;">${formatMoney(it.quantity * it.price)}</td>
+                                        </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        `;
+                    }
                 } else {
                     let txt = e.text || '';
                     txt = txt.replace(/{{ten_cua_hang}}/g, printData.ten_cua_hang);
@@ -8251,6 +8425,7 @@
                     txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
                     txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
                     txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
+                    txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
                     txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
                     txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
                     txt = txt.replace(/{{con_no}}/g, printData.con_no);
@@ -8271,7 +8446,7 @@
                     elemW = '980px';
                 }
 
-                html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
+                html += `<div data-zone="${e.zone || 'header'}" style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
             });
 
             html += `</div></div>`;
@@ -8279,6 +8454,32 @@
             // Sau khi render, do va scale fit container
             const printArea = document.getElementById('print-area');
             printArea.innerHTML = html;
+
+            // Tu dong do dac DOM thuc te va day footer neu bang vuot uoc tinh
+            const printInner = printArea.querySelector('.print-inner');
+            const tblDom = printInner ? printInner.querySelector('table') : null;
+            if (tblDom && printInner) {
+                const domTableH = tblDom.offsetHeight;
+                const domTableBottom = (tableElem ? (tableElem.y || 0) : 0) + domTableH;
+                const footerDivs = printInner.querySelectorAll('[data-zone="footer"]');
+                if (footerDivs.length > 0) {
+                    let minDomFooterTop = Infinity;
+                    footerDivs.forEach(div => {
+                        const topVal = parseFloat(div.style.top) || 0;
+                        if (topVal < minDomFooterTop) minDomFooterTop = topVal;
+                    });
+                    const safeGap = 15;
+                    if (domTableBottom + safeGap > minDomFooterTop) {
+                        const extraShift = (domTableBottom + safeGap) - minDomFooterTop;
+                        footerDivs.forEach(div => {
+                            const curTop = parseFloat(div.style.top) || 0;
+                            div.style.top = (curTop + extraShift) + 'px';
+                        });
+                        const curInnerH = parseFloat(printInner.style.height) || 0;
+                        printInner.style.height = (curInnerH + extraShift) + 'px';
+                    }
+                }
+            }
 
             // Scale print-inner to fit print-container
             requestAnimationFrame(() => {
@@ -8297,6 +8498,7 @@
 
             const pm = document.getElementById('print-modal');
             if (pm) {
+                pm.style.display = 'flex';
                 pm.classList.remove('hidden');
                 pm.classList.add('flex');
             }

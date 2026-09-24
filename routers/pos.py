@@ -84,7 +84,7 @@ def get_order_detail(code: str):
         raise HTTPException(status_code=404, detail="Khong tim thay don hang")
     
     cur.execute("""
-    SELECT oi.*, p.name as product_name, p.code as product_code, p.unit
+    SELECT oi.*, p.name as product_name, p.code as product_code, p.unit, p.sell_price as original_price
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = ?
@@ -121,7 +121,30 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
     cur = conn.cursor()
     try:
         total_amount = sum(item.quantity * item.price for item in req.items)
-        final_amount = max(0.0, total_amount - req.discount)
+
+        # Xử lý Ví Topup Spa (nếu khách chọn dùng ví hoặc có yêu cầu trừ ví)
+        wallet_deduction = 0.0
+        if req.customer_id and (req.use_spa_wallet or (req.spa_wallet_amount and req.spa_wallet_amount > 0)):
+            # Tính T_spa: Tổng tiền dịch vụ spa/grooming (type == 'service')
+            t_spa = 0.0
+            for item in req.items:
+                cur.execute("SELECT type FROM products WHERE id = ?", (item.product_id,))
+                p_row = cur.fetchone()
+                if p_row and p_row["type"] == "service":
+                    t_spa += (item.quantity * item.price)
+
+            cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (req.customer_id,))
+            c_row = cur.fetchone()
+            b_balance = c_row["spa_wallet_balance"] if c_row and c_row["spa_wallet_balance"] else 0.0
+
+            # U = min(B, T_spa)
+            max_usable = min(b_balance, t_spa)
+            if req.spa_wallet_amount and req.spa_wallet_amount > 0:
+                wallet_deduction = min(req.spa_wallet_amount, max_usable)
+            else:
+                wallet_deduction = max_usable
+
+        final_amount = max(0.0, total_amount - req.discount - wallet_deduction)
         debt_amount = max(0.0, final_amount - req.paid_amount)
         
         cur.execute("SELECT commission_rate FROM staff WHERE id = ?", (req.staff_id,))
@@ -129,15 +152,33 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         comm_rate = staff_row["commission_rate"] if staff_row else 0
         commission_amount = (final_amount * comm_rate) / 100.0
 
-        code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        base_code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        code = base_code
+        seq = 1
+        while True:
+            cur.execute("SELECT 1 FROM orders WHERE code = ?", (code,))
+            if not cur.fetchone():
+                break
+            code = f"{base_code}_{seq}"
+            seq += 1
 
         cur.execute("""
-        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note, req.shift_id))
+        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note, req.shift_id, wallet_deduction))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
+
+        # Cấn trừ số dư ví Spa & ghi nhận lịch sử spa_wallet_transactions
+        if wallet_deduction > 0 and req.customer_id:
+            bal_before = b_balance
+            bal_after = bal_before - wallet_deduction
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (bal_after, req.customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, order_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, ?, 'spend', ?, ?, ?, ?)
+            """, (req.customer_id, order_id, wallet_deduction, bal_before, bal_after, f"Trừ ví dịch vụ Spa cho đơn hàng {code}"))
 
         for item in req.items:
             subtotal = item.quantity * item.price
@@ -268,13 +309,73 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
                 """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
 
+        # Tích điểm và thăng hạng tự động (Loyalty / Points / Auto-upgrade)
+        points_earned = 0
+        current_points = 0
+        tier_upgraded = None
+
+        if req.customer_id:
+            cur.execute("""
+                SELECT c.id, c.points, c.segment_id, cs.allow_points, cs.name as segment_name
+                FROM contacts c
+                LEFT JOIN customer_segments cs ON c.segment_id = cs.id
+                WHERE c.id = ?
+            """, (req.customer_id,))
+            cust_row = cur.fetchone()
+
+            if cust_row:
+                cust_points = cust_row["points"] or 0
+                allow_pts = cust_row["allow_points"]
+                # Khách chưa gắn phân hạng (allow_pts is None) hoặc allow_points == 1 thì cho phép tích điểm
+                can_earn_points = (allow_pts is None or allow_pts == 1)
+
+                if can_earn_points and req.paid_amount > 0:
+                    cur.execute("SELECT value FROM settings WHERE key = 'points_exchange_rate'")
+                    sett_row = cur.fetchone()
+                    try:
+                        rate = float(sett_row["value"]) if sett_row and sett_row["value"] else 1000.0
+                    except (ValueError, TypeError):
+                        rate = 1000.0
+                    if rate <= 0:
+                        rate = 1000.0
+
+                    points_earned = int(req.paid_amount // rate)
+                    current_points = cust_points + points_earned
+                    cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (current_points, req.customer_id))
+
+                    # Xét thăng hạng tự động
+                    cur.execute("""
+                        SELECT id, name, min_points, priority
+                        FROM customer_segments
+                        WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
+                        ORDER BY min_points DESC, priority DESC, id DESC
+                        LIMIT 1
+                    """, (current_points,))
+                    highest_seg = cur.fetchone()
+
+                    if highest_seg and highest_seg["id"] != cust_row["segment_id"]:
+                        cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (highest_seg["id"], req.customer_id))
+                        tier_upgraded = highest_seg["name"]
+                else:
+                    current_points = cust_points
+
         conn.commit()
     except Exception as e:
         conn.rollback()
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
-    return {"status": "ok", "order_code": code}
+    return {
+        "status": "ok",
+        "order_code": code,
+        "order_id": order_id,
+        "total_amount": total_amount,
+        "spa_wallet_deduction": wallet_deduction,
+        "final_amount": final_amount,
+        "points_earned": points_earned,
+        "current_points": current_points,
+        "tier_upgraded": tier_upgraded
+    }
 
 @router.delete("/api/orders/{code}")
 def delete_order(code: str, user=Depends(require_role("owner"))):

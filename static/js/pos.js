@@ -40,6 +40,50 @@ function getProductPriceForTab(tab, product) {
     return product.sell_price;
 }
 
+async function recalculateBestOfferForCart(tab) {
+    if (!tab || !tab.cart || tab.cart.length === 0) return;
+    try {
+        const payload = {
+            customer_id: tab.customer ? tab.customer.id : null,
+            items: tab.cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            }))
+        };
+        const res = await fetch('/api/pricing/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const calcMap = {};
+            for (const it of (data.items || [])) {
+                calcMap[it.product_id] = it;
+            }
+            for (const item of tab.cart) {
+                const info = calcMap[item.product_id];
+                if (info) {
+                    item.price = info.final_price;
+                    item.applied_rule = info.applied_rule; // 'promo' | 'tier' | 'base'
+                    if (info.applied_rule === 'promo') {
+                        item.price_list_name = `KM: ${info.promo_name || 'Khuyến mãi'}`;
+                    } else if (info.applied_rule === 'tier') {
+                        item.price_list_name = tab.customer?.price_list_name || 'Giá hạng KH';
+                    } else {
+                        item.price_list_name = null;
+                    }
+                }
+            }
+            return;
+        }
+    } catch (e) {
+        console.warn("Fallback to local price list logic:", e);
+    }
+    // Fallback nếu API pricing/calculate bị lỗi
+    applyPriceListToCart(tab);
+}
+
 function applyPriceListToCart(tab) {
     if (!tab || !tab.cart) return;
     const plId = tab.customer?.price_list_id;
@@ -63,11 +107,13 @@ var invoiceTabs = [
         id: 1,
         name: "Hóa đơn 1",
         cart: [], // { product_id, code, name, unit, price, original_price, discount_val, discount_type, quantity }
-        customer: null, // { id, name, phone, points } hoặc null (khách lẻ)
+        customer: null, // { id, name, phone, points, spa_wallet_balance } hoặc null (khách lẻ)
         note: "",
         bill_discount: 0,
         bill_discount_type: 'vnd', // 'vnd' | 'pct'
         use_points: false,
+        use_spa_wallet: false,
+        spa_wallet_amount: 0,
         coupon_code: "",
         coupon_discount: 0,
         paid_amount: null, // null nếu chưa gõ tay
@@ -87,7 +133,8 @@ function scheduleDraftSave() {
 }
 
 function saveDraftNow() {
-    const payload = JSON.stringify({ invoiceTabs, activeTabId, tabCounter });
+    reindexInvoiceTabs();
+    const payload = JSON.stringify({ invoiceTabs, activeTabId });
     try { localStorage.setItem(DRAFT_LOCAL_KEY, payload); } catch (e) { /* quota/private mode: bỏ qua */ }
     fetch('/api/pos/draft', {
         method: 'POST',
@@ -119,7 +166,7 @@ async function restoreDraftIfAny() {
         if (parsed.invoiceTabs && parsed.invoiceTabs.length) {
             invoiceTabs = parsed.invoiceTabs;
             activeTabId = parsed.activeTabId || invoiceTabs[0].id;
-            tabCounter = parsed.tabCounter || tabCounter;
+            reindexInvoiceTabs();
             return true;
         }
     } catch (e) { console.error('restoreDraft parse error', e); }
@@ -306,9 +353,17 @@ function getActiveTab() {
     return invoiceTabs.find(t => t.id === activeTabId) || invoiceTabs[0];
 }
 
+function reindexInvoiceTabs() {
+    invoiceTabs.forEach((tab, idx) => {
+        tab.name = `Hóa đơn ${idx + 1}`;
+    });
+}
+
 function renderInvoiceTabs() {
     const container = document.getElementById('invoice-tabs-bar');
     if (!container) return;
+
+    reindexInvoiceTabs();
 
     let html = invoiceTabs.map(tab => {
         const isActive = tab.id === activeTabId;
@@ -344,23 +399,27 @@ function addNewInvoiceTab() {
         alert("Đang có quá nhiều hóa đơn mở đồng thời!");
         return;
     }
-    tabCounter++;
+    const newId = (invoiceTabs.reduce((max, t) => Math.max(max, t.id || 0), 0)) + 1;
     const newTab = {
-        id: tabCounter,
-        name: `Hóa đơn ${tabCounter}`,
+        id: newId,
+        name: `Hóa đơn ${invoiceTabs.length + 1}`,
         cart: [],
         customer: null,
         note: "",
         bill_discount: 0,
         bill_discount_type: 'vnd',
         use_points: false,
+        use_spa_wallet: false,
+        spa_wallet_amount: 0,
         coupon_code: "",
         coupon_discount: 0,
         paid_amount: null,
         payment_method: 'cash'
     };
     invoiceTabs.push(newTab);
+    reindexInvoiceTabs();
     activeTabId = newTab.id;
+    scheduleDraftSave();
     renderInvoiceTabs();
     renderActiveTabCart();
 }
@@ -372,9 +431,27 @@ function closeInvoiceTab(e, tabId) {
         if (!confirm(`Hóa đơn "${tab.name}" đang có sản phẩm. Bạn có chắc muốn đóng?`)) return;
     }
     invoiceTabs = invoiceTabs.filter(t => t.id !== tabId);
-    if (activeTabId === tabId) {
+    if (invoiceTabs.length === 0) {
+        invoiceTabs = [{
+            id: 1,
+            name: "Hóa đơn 1",
+            cart: [],
+            customer: null,
+            note: "",
+            bill_discount: 0,
+            bill_discount_type: 'vnd',
+            use_points: false,
+            coupon_code: "",
+            coupon_discount: 0,
+            paid_amount: null,
+            payment_method: 'cash'
+        }];
+        activeTabId = 1;
+    } else if (activeTabId === tabId) {
         activeTabId = invoiceTabs[0]?.id || 1;
     }
+    reindexInvoiceTabs();
+    scheduleDraftSave();
     renderInvoiceTabs();
     renderActiveTabCart();
 }
@@ -449,7 +526,7 @@ function handleBarcodeOrSelectFirst(val) {
     addProductToActiveCart(found.id);
 }
 
-function addProductToActiveCart(productId) {
+async function addProductToActiveCart(productId) {
     const p = posProducts.find(x => x.id === productId);
     if (!p) return;
 
@@ -480,6 +557,8 @@ function addProductToActiveCart(productId) {
     const searchInput = document.getElementById('pos-search-input');
     if (searchInput) searchInput.value = '';
     document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+
+    await recalculateBestOfferForCart(tab);
 
     renderInvoiceTabs();
     renderActiveTabCart();
@@ -727,8 +806,9 @@ function filterCustomerSearch(val) {
                 </div>
                 <div class="text-[11px] text-slate-400">📞 ${c.phone || 'Không SĐT'}</div>
             </div>
-            <div class="text-right">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700">Điểm: ${c.reward_points || 0}</span>
+            <div class="text-right space-y-0.5">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700 block">🏆 ${c.points || c.reward_points || 0} pts</span>
+                ${(c.spa_wallet_balance && c.spa_wallet_balance > 0) ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 block">💆 ${Number(c.spa_wallet_balance).toLocaleString('vi-VN')} đ</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -744,7 +824,8 @@ async function selectCustomerForActiveTab(customerId) {
         id: cust.id,
         name: cust.name,
         phone: cust.phone || '',
-        points: cust.reward_points || 0,
+        points: cust.points !== undefined ? cust.points : (cust.reward_points || 0),
+        spa_wallet_balance: cust.spa_wallet_balance || 0,
         segment_id: cust.segment_id || null,
         segment_name: cust.segment_name || null,
         price_list_id: cust.price_list_id || null,
@@ -758,7 +839,7 @@ async function selectCustomerForActiveTab(customerId) {
     if (tab.customer.price_list_id) {
         await getPriceListMap(tab.customer.price_list_id, true);
     }
-    applyPriceListToCart(tab);
+    await recalculateBestOfferForCart(tab);
 
     updateCustomerUI(tab.customer);
     renderInvoiceTabs();
@@ -766,11 +847,13 @@ async function selectCustomerForActiveTab(customerId) {
     updateFinancialSummary();
 }
 
-function clearSelectedCustomer() {
+async function clearSelectedCustomer() {
     const tab = getActiveTab();
     tab.customer = null;
     tab.use_points = false;
-    applyPriceListToCart(tab);
+    tab.use_spa_wallet = false;
+    tab.spa_wallet_amount = 0;
+    await recalculateBestOfferForCart(tab);
     updateCustomerUI(null);
     renderInvoiceTabs();
     renderActiveTabCart();
@@ -784,22 +867,25 @@ function updateCustomerUI(cust) {
     const segBadge = document.getElementById('cust-segment-badge');
     const btnClear = document.getElementById('btn-clear-customer');
     const btnHistory = document.getElementById('btn-purchase-history');
+    const walletBar = document.getElementById('cust-spa-wallet-bar');
+    const walletBadge = document.getElementById('cust-wallet-badge');
 
     if (!cust) {
         // Mặc định Khách lẻ
         if (nameEl) nameEl.innerText = "Khách lẻ";
         if (phoneEl) phoneEl.innerText = "Không SĐT";
-        if (pointsEl) pointsEl.innerText = "Điểm: 0";
+        if (pointsEl) pointsEl.innerText = "🏆 Điểm: 0";
         if (segBadge) {
             segBadge.innerText = '';
             segBadge.classList.add('hidden');
         }
         if (btnClear) btnClear.classList.add('hidden');
         if (btnHistory) btnHistory.classList.add('hidden');
+        if (walletBar) walletBar.classList.add('hidden');
     } else {
         if (nameEl) nameEl.innerText = cust.name;
         if (phoneEl) phoneEl.innerText = cust.phone ? `📞 ${cust.phone}` : "Không SĐT";
-        if (pointsEl) pointsEl.innerText = `Điểm: ${cust.points || 0}`;
+        if (pointsEl) pointsEl.innerText = `🏆 Điểm: ${cust.points || 0}`;
         if (segBadge) {
             if (cust.segment_name) {
                 segBadge.innerText = `🏷️ ${cust.segment_name}`;
@@ -811,6 +897,13 @@ function updateCustomerUI(cust) {
         }
         if (btnClear) btnClear.classList.remove('hidden');
         if (btnHistory) btnHistory.classList.toggle('hidden', !cust.id);
+        if (walletBar) {
+            walletBar.classList.remove('hidden');
+            if (walletBadge) {
+                const bal = cust.spa_wallet_balance || 0;
+                walletBadge.innerText = `💆 Ví Spa: ${Number(bal).toLocaleString('vi-VN')} đ`;
+            }
+        }
     }
 }
 
@@ -917,8 +1010,42 @@ function updateFinancialSummary() {
     }
     document.getElementById('pos-points-discount-display').innerText = formatMoney(pointsAmount);
 
+    // Tính khấu trừ Ví Spa (cho các dịch vụ type === 'service')
+    let spaWalletDeduct = 0;
+    const spaWalletRow = document.getElementById('pos-spa-wallet-row');
+    const chkSpaWallet = document.getElementById('pos-use-spa-wallet');
+    const spaWalletHint = document.getElementById('pos-spa-wallet-hint');
+    const spaWalletDisplay = document.getElementById('pos-spa-wallet-deduct-display');
+
+    // Tổng tiền dịch vụ spa trong đơn
+    const tSpa = tab.cart
+        .filter(item => item.type === 'service')
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    const custSpaBalance = (tab.customer && tab.customer.spa_wallet_balance) ? tab.customer.spa_wallet_balance : 0;
+
+    if (tSpa > 0 && custSpaBalance > 0) {
+        if (spaWalletRow) spaWalletRow.classList.remove('hidden');
+        const maxDeductible = Math.min(custSpaBalance, tSpa);
+        if (spaWalletHint) {
+            spaWalletHint.innerText = `Ví Spa khả dụng: ${formatMoney(custSpaBalance)} (Tối đa trừ ${formatMoney(maxDeductible)} cho dịch vụ)`;
+        }
+        if (tab.use_spa_wallet) {
+            spaWalletDeduct = maxDeductible;
+            if (chkSpaWallet) chkSpaWallet.checked = true;
+        } else {
+            if (chkSpaWallet) chkSpaWallet.checked = false;
+        }
+    } else {
+        if (spaWalletRow) spaWalletRow.classList.add('hidden');
+        if (chkSpaWallet) chkSpaWallet.checked = false;
+        tab.use_spa_wallet = false;
+    }
+    tab.spa_wallet_amount = spaWalletDeduct;
+    if (spaWalletDisplay) spaWalletDisplay.innerText = `-${formatMoney(spaWalletDeduct)}`;
+
     // Khách cần trả
-    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount);
+    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount - spaWalletDeduct);
     document.getElementById('pos-final-amount-display').innerText = formatMoney(finalAmount);
 
     // Khách thanh toán (auto-fill nếu chưa gõ tay)
@@ -936,12 +1063,7 @@ function handlePaidInput(rawVal) {
     const clean = rawVal.replace(/\D/g, '');
     const num = parseFloat(clean) || 0;
     tab.paid_amount = num;
-
-    const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    let billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
-    const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
-    const finalAmount = Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
-
+    const finalAmount = getPosFinalAmount(tab);
     calculateChangeOrDebt(finalAmount);
 }
 
@@ -1004,10 +1126,7 @@ function setQuickCash(amount) {
     if (paidInput) {
         paidInput.value = Math.round(amount).toLocaleString('vi-VN');
     }
-    const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    let billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
-    const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
-    const finalAmount = Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
+    const finalAmount = getPosFinalAmount(tab);
     calculateChangeOrDebt(finalAmount);
 }
 
@@ -1071,7 +1190,8 @@ function getPosFinalAmount(tab) {
     const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
     const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
-    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
+    const walletDeduct = (tab.use_spa_wallet && tab.spa_wallet_amount) ? tab.spa_wallet_amount : 0;
+    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount - walletDeduct);
 }
 
 function removeSplitPaymentLine(idx) {
@@ -1165,6 +1285,18 @@ function toggleUsePoints() {
         return;
     }
     tab.use_points = chk.checked;
+    updateFinancialSummary();
+}
+
+function toggleUseSpaWallet() {
+    const tab = getActiveTab();
+    const chk = document.getElementById('pos-use-spa-wallet');
+    if (!tab.customer) {
+        alert("Vui lòng chọn khách hàng trước khi dùng Ví Spa!");
+        if (chk) chk.checked = false;
+        return;
+    }
+    tab.use_spa_wallet = chk ? chk.checked : false;
     updateFinancialSummary();
 }
 
@@ -1424,6 +1556,8 @@ async function submitPOSOrder() {
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
             payments: splitPayments,
+            use_spa_wallet: tab.use_spa_wallet || false,
+            spa_wallet_amount: tab.spa_wallet_amount || 0,
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
                 quantity: i.quantity,
@@ -1444,6 +1578,32 @@ async function submitPOSOrder() {
         }
         orderCode = data.order_code;
 
+        // Thông báo tích điểm & thăng hạng
+        let loyaltyMsg = "";
+        if (data.points_earned && data.points_earned > 0) {
+            loyaltyMsg += `\n🎉 Tích lũy thành công: +${data.points_earned} điểm (Tổng: ${data.current_points || 0})`;
+        }
+        if (data.tier_upgraded) {
+            loyaltyMsg += `\n🏆 CHÚC MỪNG KHÁCH ĐƯỢC THĂNG HẠNG: [${data.tier_upgraded}]!`;
+        }
+        if (loyaltyMsg) {
+            alert(loyaltyMsg.trim());
+        }
+
+        // Cập nhật lại số dư ví / điểm trong danh sách khách hàng posContacts
+        if (customerId && customerId !== 1) {
+            const cItem = posContacts.find(c => c.id === customerId);
+            if (cItem) {
+                if (data.current_points !== undefined) cItem.points = data.current_points;
+                if (data.spa_wallet_deduction && data.spa_wallet_deduction > 0) {
+                    cItem.spa_wallet_balance = Math.max(0, (cItem.spa_wallet_balance || 0) - data.spa_wallet_deduction);
+                }
+                if (data.tier_upgraded) {
+                    cItem.segment_name = data.tier_upgraded;
+                }
+            }
+        }
+
         // Lấy mẫu in đang được chọn trên giao diện
         const selTemplate = document.getElementById('pos-template-select');
         if (selTemplate && selTemplate.value) {
@@ -1456,6 +1616,8 @@ async function submitPOSOrder() {
         tab.note = "";
         tab.bill_discount = 0;
         tab.use_points = false;
+        tab.use_spa_wallet = false;
+        tab.spa_wallet_amount = 0;
         tab.coupon_code = "";
         tab.coupon_discount = 0;
         tab.paid_amount = null;
@@ -1539,7 +1701,8 @@ function initPrintTemplatesFromSettings() {
     for (let key in posPrintConfig.presets) {
         const p = posPrintConfig.presets[key];
         const isSel = key === cur ? 'selected' : '';
-        const label = shortLabel[p.paper_size] || p.paper_size || p.name;
+        const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
+        const label = p.name ? (sizeTag ? `${p.name} [${sizeTag}]` : p.name) : sizeTag;
         html += `<option value="${key}" ${isSel}>${label}</option>`;
     }
     sel.innerHTML = html;
@@ -1635,6 +1798,7 @@ function printDraftOrder() {
             product_name: i.name,
             unit: i.unit,
             price: i.price,
+            original_price: i.original_price || i.price,
             quantity: i.quantity
         }))
     };
@@ -1662,6 +1826,15 @@ function renderAndPrint(ord, isDraft = false) {
         paperSize = curPresetKey;
     }
 
+    let itemDiscountTotal = 0;
+    (ord.items || []).forEach(it => {
+        if (it.original_price && it.original_price > it.price) {
+            itemDiscountTotal += (it.original_price - it.price) * (it.quantity || 1);
+        }
+    });
+    const billDiscount = ord.discount || 0;
+    const totalSavings = itemDiscountTotal + billDiscount;
+
     const printData = {
         ten_cua_hang: posSettings.shop_name || "TÊN CỬA HÀNG",
         dia_chi: posSettings.shop_address || "Địa chỉ shop",
@@ -1673,7 +1846,8 @@ function renderAndPrint(ord, isDraft = false) {
         ten_khach: ord.customer_name || 'Khách lẻ',
         sdt_khach: ord.customer_phone || '-',
         tong_tien: formatMoney(ord.total_amount),
-        giam_gia: formatMoney(ord.discount),
+        giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
+        tiet_kiem: formatMoney(totalSavings),
         phai_tra: formatMoney(ord.final_amount),
         khach_tra: formatMoney(ord.paid_amount),
         con_no: formatMoney(ord.debt_amount),
@@ -1688,17 +1862,52 @@ function renderAndPrint(ord, isDraft = false) {
     currentPrintPaperSize = paperSize;
     currentPrintPageRule = dim.printSize || (isLandscape ? 'A4 landscape' : (isThermal ? '80mm auto' : 'A4 portrait'));
 
+    // Sao chép canvasElements để không mutate config gốc và xử lý tự ẩn dòng giảm giá K80 khi không có giảm giá
+    let effectiveElements = canvasElements.map(e => ({ ...e }));
+    const hasAnyDiscount = (totalSavings > 0);
+    const hasBillDiscount = hasAnyDiscount;
+    const discElem = effectiveElements.find(e => e.text && (e.text.includes('{{giam_gia}}') || e.text.includes('{{tiet_kiem}}') || (e.label && e.label.toLowerCase().includes('giảm giá'))));
+    if (!hasAnyDiscount && discElem && isThermal) {
+        const discY = discElem.y || 0;
+        const shiftAmount = 20;
+        effectiveElements = effectiveElements.filter(e => e !== discElem);
+        effectiveElements.forEach(e => {
+            if ((e.zone || 'header') === 'footer' && (e.y || 0) > discY) {
+                e.y = (e.y || 0) - shiftAmount;
+            }
+        });
+    }
+
     // Tính deltaY giãn chân trang theo số lượng dòng sản phẩm
-    const tableElem = canvasElements.find(e => e.type === 'table' || e.type === 'table_b2b');
+    const tableElem = effectiveElements.find(e => e.type === 'table' || e.type === 'table_b2b');
     let deltaY = 0;
     if (tableElem && ord.items) {
         const isB2B = tableElem.type === 'table_b2b';
         const headerH = isB2B ? 34 : 28;
-        const rowH = isB2B ? 28 : 28;
-        const actualTableHeight = headerH + (ord.items.length * rowH) + 10;
+        let itemsHeight = 0;
+        ord.items.forEach(it => {
+            if (isB2B) {
+                itemsHeight += 28;
+            } else if (isThermal) {
+                const nameLen = (it.product_name || '').length;
+                const nameLines = Math.max(1, Math.ceil(nameLen / 36));
+                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                const numH = hasItemDisc ? 28 : 18;
+                itemsHeight += (nameLines * 16) + numH + 8;
+            } else {
+                const nameLen = (it.product_name || '').length;
+                const lines = Math.max(1, Math.ceil(nameLen / 16));
+                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                const priceLines = hasItemDisc ? 2 : 1;
+                const rowLines = Math.max(lines, priceLines);
+                const rowH = 8 + (rowLines * 16);
+                itemsHeight += rowH;
+            }
+        });
+        const actualTableHeight = headerH + itemsHeight + 10;
         const tableBottom = (tableElem.y || 0) + actualTableHeight;
 
-        const footerElems = canvasElements.filter(e => (e.zone || 'header') === 'footer');
+        const footerElems = effectiveElements.filter(e => (e.zone || 'header') === 'footer');
         if (footerElems.length > 0) {
             const minFooterY = Math.min(...footerElems.map(e => e.y || 0));
             if (tableBottom + 15 > minFooterY) {
@@ -1709,7 +1918,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     // Tính chiều cao nội dung thực tế (đáy của phần tử thấp nhất)
     let maxContentBottom = 0;
-    canvasElements.forEach(e => {
+    effectiveElements.forEach(e => {
         let printY = e.y || 0;
         if ((e.zone || 'header') === 'footer' && deltaY > 0) {
             printY += deltaY;
@@ -1717,7 +1926,27 @@ function renderAndPrint(ord, isDraft = false) {
         let approxH = e.h || 24;
         if (e.type === 'table' || e.type === 'table_b2b') {
             const isB2B = e.type === 'table_b2b';
-            approxH = (isB2B ? 34 : 28) + ((ord.items ? ord.items.length : 1) * 28) + 10;
+            let itemsH = 0;
+            (ord.items || [{}]).forEach(it => {
+                if (isB2B) {
+                    itemsH += 28;
+                } else if (isThermal) {
+                    const nameLen = (it.product_name || '').length;
+                    const nameLines = Math.max(1, Math.ceil(nameLen / 36));
+                    const hasItemDisc = it.original_price && (it.original_price > it.price);
+                    const numH = hasItemDisc ? 28 : 18;
+                    itemsH += (nameLines * 16) + numH + 8;
+                } else {
+                    const nameLen = (it.product_name || '').length;
+                    const lines = Math.max(1, Math.ceil(nameLen / 16));
+                    const hasItemDisc = it.original_price && (it.original_price > it.price);
+                    const priceLines = hasItemDisc ? 2 : 1;
+                    const rowLines = Math.max(lines, priceLines);
+                    const rowH = 8 + (rowLines * 16);
+                    itemsH += rowH;
+                }
+            });
+            approxH = (isB2B ? 34 : 28) + itemsH + 10;
         } else if (e.type === 'qr') {
             approxH = 145;
         } else if (e.type === 'b2b_footer_boxes') {
@@ -1790,7 +2019,7 @@ function renderAndPrint(ord, isDraft = false) {
         <div class="print-container" style="width: ${dim.width}; margin: 0 auto; background: white; overflow: hidden; position: relative; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; border-radius: 4px;">
             <div class="print-inner" style="position: relative; width: ${canvasW}px; height: ${canvasH}px; font-family: Arial, sans-serif; overflow: hidden; page-break-inside: avoid; break-inside: avoid;">`;
 
-    canvasElements.forEach(e => {
+    effectiveElements.forEach(e => {
         let content = '';
         if (e.type === 'logo') {
             if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: 100%; max-width: 100%;">`;
@@ -1813,19 +2042,23 @@ function renderAndPrint(ord, isDraft = false) {
                         </tr>
                     </thead>
                     <tbody>
-                        ${ord.items.map((it, idx) => `
+                        ${ord.items.map((it, idx) => {
+                            const hasItemDisc = it.original_price && (it.original_price > it.price);
+                            const discText = hasItemDisc ? `${Math.round((1 - it.price / it.original_price) * 100)}%` : '0%';
+                            return `
                         <tr style="border-bottom: 1px solid #ccc; text-align: center;">
                             <td style="border: 1px solid #ccc; padding: 4px 2px;">${idx + 1}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px;">${it.product_code || ''}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">${it.product_name}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 2px;">${it.unit || 'Cái'}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">${formatMoney(it.price)}</td>
-                            <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>
+                            <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">${discText}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>
                         </tr>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -1874,28 +2107,76 @@ function renderAndPrint(ord, isDraft = false) {
                 </div>
             `;
         } else if (e.type === 'table') {
-            content = `
-                <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000;">
-                    <thead style="border-bottom: 1px dashed #000;">
-                        <tr>
-                            <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
-                            <th style="text-align: center; width: 40px;">SL</th>
-                            <th style="text-align: right; width: 80px;">Đơn giá</th>
-                            <th style="text-align: right; width: 90px;">Thành tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${ord.items.map(it => `
-                        <tr style="border-bottom: 0.5px dotted #ccc;">
-                            <td style="padding: 4px 0;">${it.product_name}</td>
-                            <td style="text-align: center;">${it.quantity}</td>
-                            <td style="text-align: right;">${formatMoney(it.price)}</td>
-                            <td style="text-align: right;">${formatMoney(it.quantity * it.price)}</td>
-                        </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+            if (isThermal) {
+                content = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 11}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; table-layout: fixed;">
+                        <thead style="border-bottom: 1px dashed #000;">
+                            <tr>
+                                <th style="text-align: left; width: 45px; padding: 4px 0;">SL</th>
+                                <th style="text-align: right; width: 105px; padding: 4px 0;">Đơn giá</th>
+                                <th style="text-align: right; width: 120px; padding: 4px 0;">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ord.items.map(it => {
+                                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                const itemDiff = hasItemDisc ? (it.original_price - it.price) : 0;
+                                const priceDisplay = hasItemDisc ? `
+                                    <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
+                                    <div style="color: #666; font-size: 9px; line-height: 1.1; margin-top: 1px;">
+                                        <span style="text-decoration: line-through;">${formatMoney(it.original_price)}</span>
+                                        <span style="color: #15803d; font-weight: 500;">(Giảm ${formatMoney(itemDiff)})</span>
+                                    </div>
+                                ` : `<div>${formatMoney(it.price)}</div>`;
+                                const subtotalDisplay = (hasItemDisc && it.quantity > 1) ? `
+                                    <div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>
+                                    <div style="color: #15803d; font-size: 9px; line-height: 1.1;">(Giảm ${formatMoney(itemDiff * it.quantity)})</div>
+                                ` : `<div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>`;
+                                return `
+                                <tr>
+                                    <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; word-break: break-word; line-height: 1.2;">${it.product_name}</td>
+                                </tr>
+                                <tr style="border-bottom: 0.5px dotted #ccc;">
+                                    <td style="text-align: left; vertical-align: top; padding: 2px 0 5px 0;">${it.quantity}</td>
+                                    <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">${priceDisplay}</td>
+                                    <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">${subtotalDisplay}</td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                content = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 11}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; table-layout: fixed;">
+                        <thead style="border-bottom: 1px dashed #000;">
+                            <tr>
+                                <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                <th style="text-align: center; width: 60px; padding: 4px 0;">SL</th>
+                                <th style="text-align: right; width: 120px; padding: 4px 0;">Đơn giá</th>
+                                <th style="text-align: right; width: 140px; padding: 4px 0;">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ord.items.map(it => {
+                                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                const priceDisplay = hasItemDisc ? `
+                                    <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
+                                    <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">${formatMoney(it.original_price)}</div>
+                                ` : `<div>${formatMoney(it.price)}</div>`;
+                                return `
+                                <tr style="border-bottom: 0.5px dotted #ccc;">
+                                    <td style="padding: 4px 2px 4px 0; vertical-align: top; word-break: break-word;">${it.product_name}</td>
+                                    <td style="text-align: center; vertical-align: top; padding: 4px 0;">${it.quantity}</td>
+                                    <td style="text-align: right; vertical-align: top; padding: 4px 0;">${priceDisplay}</td>
+                                    <td style="text-align: right; vertical-align: top; padding: 4px 0; font-weight: 500;">${formatMoney(it.quantity * it.price)}</td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
         } else {
             let txt = e.text || '';
             if (isDraft && (txt.includes("HÓA ĐƠN BÁN HÀNG") || txt.includes("HÓA ĐƠN"))) {
@@ -1912,6 +2193,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
             txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
+            txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
             txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
             txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
             txt = txt.replace(/{{con_no}}/g, printData.con_no);
@@ -1931,12 +2213,38 @@ function renderAndPrint(ord, isDraft = false) {
             elemW = '1043px';
         }
 
-        html += `<div style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
+        html += `<div data-zone="${e.zone || 'header'}" style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
     });
 
     html += `</div></div></div>`;
 
     printArea.innerHTML = html;
+
+    // Tự động đo đạc DOM thực tế và đẩy các phần tử chân trang nếu bảng cao hơn ước tính
+    const printInner = printArea.querySelector('.print-inner');
+    const tblDom = printInner ? printInner.querySelector('table') : null;
+    if (tblDom && printInner) {
+        const domTableH = tblDom.offsetHeight;
+        const domTableBottom = (tableElem ? (tableElem.y || 0) : 0) + domTableH;
+        const footerDivs = printInner.querySelectorAll('[data-zone="footer"]');
+        if (footerDivs.length > 0) {
+            let minDomFooterTop = Infinity;
+            footerDivs.forEach(div => {
+                const topVal = parseFloat(div.style.top) || 0;
+                if (topVal < minDomFooterTop) minDomFooterTop = topVal;
+            });
+            const safeGap = 15;
+            if (domTableBottom + safeGap > minDomFooterTop) {
+                const extraShift = (domTableBottom + safeGap) - minDomFooterTop;
+                footerDivs.forEach(div => {
+                    const curTop = parseFloat(div.style.top) || 0;
+                    div.style.top = (curTop + extraShift) + 'px';
+                });
+                const curInnerH = parseFloat(printInner.style.height) || 0;
+                printInner.style.height = (curInnerH + extraShift) + 'px';
+            }
+        }
+    }
 
     requestAnimationFrame(() => {
         const container = printArea.querySelector('.print-container');
@@ -1954,6 +2262,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     const pm = document.getElementById('print-modal');
     if (pm) {
+        pm.style.display = 'flex';
         pm.classList.remove('hidden');
         pm.classList.add('flex');
     }
@@ -2105,6 +2414,217 @@ function printInvoiceDirectly() {
         }
     }, 250);
 }
+
+// ----------------------------------------------------
+// NẠP VÍ SPA TẠI QUẦY POS (TOPUP MODAL & LOGIC)
+// ----------------------------------------------------
+var _posSelectedTopupPkgId = null;
+
+async function openTopupSpaModal() {
+    const tab = getActiveTab();
+    if (!tab.customer || !tab.customer.id) {
+        alert("Vui lòng chọn khách hàng trước khi nạp ví!");
+        return;
+    }
+
+    const modal = document.getElementById('modal-topup-spa');
+    if (!modal) return;
+
+    document.getElementById('pos-topup-cust-name').innerText = `${tab.customer.name} (${tab.customer.phone || 'Không SĐT'})`;
+    document.getElementById('pos-topup-current-balance').innerText = `${Number(tab.customer.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
+    document.getElementById('pos-topup-note').value = '';
+
+    _posSelectedTopupPkgId = null;
+    const pkgListEl = document.getElementById('pos-topup-packages-list');
+    pkgListEl.innerHTML = '<div class="text-center text-slate-400 py-3">Đang tải gói nạp...</div>';
+    modal.classList.remove('hidden');
+
+    try {
+        const res = await fetch('/api/topup/packages');
+        const pkgs = await res.json();
+        if (!pkgs || pkgs.length === 0) {
+            pkgListEl.innerHTML = '<div class="text-center text-slate-400 py-3">Chưa có gói nạp nào được kích hoạt.</div>';
+            return;
+        }
+
+        pkgListEl.innerHTML = pkgs.map((pkg, idx) => `
+            <label class="topup-pkg-item flex items-center justify-between p-2.5 border rounded-lg cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/30 transition ${idx === 0 ? 'border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-400' : 'border-slate-200'}">
+                <div class="flex items-center gap-2">
+                    <input type="radio" name="pos_topup_pkg" value="${pkg.id}" ${idx === 0 ? 'checked' : ''} onchange="onSelectTopupPackageRadio(${pkg.id})" class="text-emerald-600 focus:ring-emerald-500">
+                    <div>
+                        <div class="font-bold text-slate-800 text-xs">${pkg.name}</div>
+                        <div class="text-[11px] text-slate-500">Nộp: <strong class="text-slate-700">${Number(pkg.pay_amount).toLocaleString('vi-VN')} đ</strong></div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-emerald-700 font-black text-xs block">+${Number(pkg.receive_amount).toLocaleString('vi-VN')} đ</span>
+                    <span class="text-[10px] text-emerald-600 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">Tặng +${Number(pkg.receive_amount - pkg.pay_amount).toLocaleString('vi-VN')} đ</span>
+                </div>
+            </label>
+        `).join('');
+
+        if (pkgs.length > 0) {
+            _posSelectedTopupPkgId = pkgs[0].id;
+        }
+    } catch (e) {
+        pkgListEl.innerHTML = '<div class="text-center text-rose-500 py-3">Lỗi tải danh sách gói nạp</div>';
+    }
+}
+
+function onSelectTopupPackageRadio(pkgId) {
+    _posSelectedTopupPkgId = pkgId;
+    document.querySelectorAll('.topup-pkg-item').forEach(el => {
+        const radio = el.querySelector('input[type="radio"]');
+        if (radio && radio.checked) {
+            el.classList.add('border-emerald-500', 'bg-emerald-50/40', 'ring-1', 'ring-emerald-400');
+            el.classList.remove('border-slate-200');
+        } else {
+            el.classList.remove('border-emerald-500', 'bg-emerald-50/40', 'ring-1', 'ring-emerald-400');
+            el.classList.add('border-slate-200');
+        }
+    });
+}
+
+function closeTopupSpaModal() {
+    document.getElementById('modal-topup-spa')?.classList.add('hidden');
+}
+
+async function submitTopupSpaRecharge() {
+    const tab = getActiveTab();
+    if (!tab.customer || !tab.customer.id) {
+        alert("Vui lòng chọn khách hàng!");
+        return;
+    }
+    if (!_posSelectedTopupPkgId) {
+        alert("Vui lòng chọn một gói nạp!");
+        return;
+    }
+
+    const payMethod = document.getElementById('pos-topup-pay-method')?.value || 'cash';
+    const note = document.getElementById('pos-topup-note')?.value.trim() || '';
+
+    const btn = document.getElementById('btn-confirm-recharge');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Đang xử lý nạp tiền...";
+    }
+
+    try {
+        const body = {
+            contact_id: tab.customer.id,
+            package_id: _posSelectedTopupPkgId,
+            payment_method: payMethod,
+            note: note,
+            shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null
+        };
+
+        const res = await fetch('/api/topup/recharge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            alert("Lỗi nạp ví: " + (data.detail || "Không thành công"));
+            return;
+        }
+
+        // Cập nhật số dư trong tab và posContacts
+        tab.customer.spa_wallet_balance = data.balance_after;
+        const cInList = posContacts.find(c => c.id === tab.customer.id);
+        if (cInList) {
+            cInList.spa_wallet_balance = data.balance_after;
+        }
+
+        alert(`✅ Nạp thành công gói [${data.package_name}]!\n💰 Tiền nộp: ${Number(data.pay_amount).toLocaleString('vi-VN')} đ\n💆 Số dư Ví Spa mới: ${Number(data.balance_after).toLocaleString('vi-VN')} đ`);
+
+        closeTopupSpaModal();
+        updateCustomerUI(tab.customer);
+        updateFinancialSummary();
+    } catch (e) {
+        console.error("Topup error:", e);
+        alert("Lỗi kết nối khi nạp ví Spa!");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = "<span>⚡</span> <span>Xác Nhận Nạp Tiền</span>";
+        }
+    }
+}
+
+// ==========================================
+// POS SPA WALLET TRANSACTION HISTORY
+// ==========================================
+async function showPosWalletHistory() {
+    const tab = getActiveTab();
+    if (!tab || !tab.customer || !tab.customer.id) {
+        alert("Vui lòng chọn khách hàng để xem lịch sử ví Spa!");
+        return;
+    }
+    const cust = tab.customer;
+    const modal = document.getElementById('modal-pos-wallet-history');
+    if (!modal) return;
+
+    document.getElementById('pos-wallet-hist-cust-name').innerText = cust.name || 'Khách hàng';
+    document.getElementById('pos-wallet-hist-cust-phone').innerText = cust.phone ? `(${cust.phone})` : '';
+    document.getElementById('pos-wallet-hist-current-balance').innerText = `${Number(cust.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
+
+    const tbody = document.getElementById('pos-wallet-hist-table-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Đang tải lịch sử ví...</td></tr>';
+    modal.classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/api/topup/history/${cust.id}`);
+        if (!res.ok) throw new Error('Không thể tải lịch sử');
+        const rows = await res.json();
+
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Chưa có giao dịch biến động ví nào</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+            const isTopup = r.type === 'topup';
+            const isSpend = r.type === 'spend';
+            const typeLabel = isTopup ? '⚡ Nạp gói' : (isSpend ? '🛒 Chi tiêu bill' : 'Hoàn tiền');
+            const typeBadge = isTopup
+                ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
+                : (isSpend ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu bill</span>' : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
+            
+            const sign = isTopup ? '+' : (isSpend ? '-' : '');
+            const amountColor = isTopup ? 'text-emerald-600 font-bold' : (isSpend ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold');
+            const noteText = r.note || (isTopup && r.package_name ? `Gói ${r.package_name}` : (r.order_code ? `Đơn ${r.order_code}` : ''));
+
+            return `
+                <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
+                    <td class="p-2.5 text-slate-500 font-mono">${r.created_at || ''}</td>
+                    <td class="p-2.5">${typeBadge}</td>
+                    <td class="p-2.5 text-right font-mono ${amountColor}">${sign}${Number(r.amount || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${Number(r.balance_after || 0).toLocaleString('vi-VN')} đ</td>
+                    <td class="p-2.5 text-slate-600">${noteText}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error("Load pos wallet history error:", e);
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">Lỗi khi tải lịch sử giao dịch ví</td></tr>';
+    }
+}
+
+function closePosWalletHistory() {
+    const modal = document.getElementById('modal-pos-wallet-history');
+    if (modal) modal.classList.add('hidden');
+}
+
+window.showPosWalletHistory = showPosWalletHistory;
+window.closePosWalletHistory = closePosWalletHistory;
+
+window.openTopupSpaModal = openTopupSpaModal;
+window.closeTopupSpaModal = closeTopupSpaModal;
+window.onSelectTopupPackageRadio = onSelectTopupPackageRadio;
+window.submitTopupSpaRecharge = submitTopupSpaRecharge;
+window.toggleUseSpaWallet = toggleUseSpaWallet;
 
 // Xuất các hàm điều khiển in ấn & thanh toán ra window
 window.printDraftOrder = printDraftOrder;

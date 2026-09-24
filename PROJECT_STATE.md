@@ -1,12 +1,84 @@
 # PROJECT STATE — POS Offline (Spa Thú Cưng & Bán Lẻ Đa Kênh)
 
-**Checkpoint:** 2026-09-23 — Ca Làm Việc + Z-Report + Đếm Tiền + Chuẩn Hóa POS & Bảng Giá Spa  
+**Checkpoint:** 2026-09-24 — Hoàn thiện Bảng Giá, Khuyến Mãi (Best Offer), Tích Điểm Thăng Hạng & Ví Topup Spa Trả Trước  
 **Server:** `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
 
 ---
 
-## Phiên Này ✅ (2026-09-23)
+## Phiên Này ✅ (2026-09-24)
+
+### 1. Hệ Thống Khách Hàng Thân Thiết (Loyalty & Spa Wallet Topup)
+- **Cơ sở dữ liệu & Phân cấp nhóm khách hàng:**
+  - Bảng `contacts`: Thêm `points` (tích lũy trọn đời xét thăng hạng) và `spa_wallet_balance` (số dư ví nạp trả trước cho Spa).
+  - Bảng `customer_segments`: Thêm `min_points`, `allow_points`, `price_list_id`. Phân định rõ nhóm Khách Lẻ (`allow_points=1` - được tích điểm) và Sỉ/Đại Lý (`allow_points=0` - dùng bảng giá sỉ, không tích điểm).
+  - Bảng mới: `topup_packages`, `spa_wallet_transactions`, `promotions`, `promotion_items`. Cài đặt `points_exchange_rate = 1000` (1.000 đ = 1 điểm).
+- **Backend APIs & Nguyên tắc Best Offer:**
+  - `routers/promotions.py`: CRUD chương trình khuyến mãi và sản phẩm khuyến mãi.
+  - Hàm `calculate_effective_price()` / `POST /api/pricing/calculate`: Áp dụng nguyên tắc Best Offer $P_{final} = \min(P_{niêmyết}, P_{hạng}, P_{km})$, không cộng dồn ưu đãi gây thất thoát.
+  - `routers/topup.py`: CRUD gói nạp, endpoint nạp ví `POST /api/topup/recharge` (cộng tiền ví, ghi sổ quỹ ca làm việc, ghi lịch sử ví).
+  - `routers/pos.py`: Khấu trừ ví Spa chỉ cho mặt hàng dịch vụ (`type == 'service'`), số dư còn lại và hàng hóa bán lẻ thanh toán bằng tiền mặt/CK. Tự động cộng điểm và thăng hạng thành viên khi chạm ngưỡng `min_points`.
+- **Giao diện POS & Cài Đặt:**
+  - POS: Hiển thị điểm `🏆 {points}` và ví `💆 {balance} đ` khi chọn khách, nút `[⚡ Nạp Ví Spa]` mở modal nạp gói trực tiếp tại quầy.
+  - Tự động gợi ý checkbox trừ ví Spa khi giỏ hàng có dịch vụ Spa, tự tính $U = \min(B, T_{spa})$ hiển thị rõ ràng cho thu ngân.
+  - Cài Đặt: Tab quản lý Gói Topup Ví Spa, cấu hình mốc điểm thăng hạng và bật/tắt tích điểm theo phân nhóm khách hàng, subtab Khuyến Mãi trong Bảng Giá.
+
+### 2. In Hóa Đơn K80 Chuẩn Bán Lẻ & Chống Đè Chữ
+- **Bố cục 2 dòng:** Dòng 1 tràn 100% bề ngang cho tên món dài (`colspan="3"`), Dòng 2 chia 3 cột `SL | Đơn giá | Thành tiền`.
+- **Ghi rõ số tiền giảm:** Đơn giá hiển thị `Giá bán` và `~~Giá gốc~~ (Giảm XX.XXX đ)`. Chân trang hóa đơn hiển thị tổng tiền tiết kiệm `{{tiet_kiem}}` / `{{giam_gia}}`, tự ẩn khi đơn không giảm giá.
+- **Chống đè chữ 2 lớp (Dynamic DeltaY + DOM Auto-Shift):** Tự đo đạc DOM đáy bảng, đẩy chân trang xuống khoảng an toàn nếu bảng dài nhiều món.
+- **Reset thứ tự tab:** Re-index tab hóa đơn liên tục `Hóa đơn 1`, `Hóa đơn 2`... dựa theo số lượng tab thực tế đang mở.
+
+### 3. Theo Dõi & Quản Lý Ví Spa (POS & Hồ Sơ Khách Hàng)
+- **Màn hình POS (Đối soát nhanh tại quầy):**
+  - Thêm nút `[👁️ Lịch sử ví]` ngay cạnh số dư ví Spa của khách hàng trên thanh POS.
+  - Modal `#modal-pos-wallet-history`: Bảng biến động số dư trực quan (+ Nạp gói màu xanh lá / - Chi tiêu hóa đơn màu đỏ), hiển thị số dư trước/sau và chi tiết mã hóa đơn liên kết.
+- **Phân hệ Khách Hàng (Quản lý & Kế toán):**
+  - Bổ sung cột **Ví Spa** trong bảng danh sách khách hàng (`#table-customers`).
+  - Trong modal Chi Tiết Đối Tác (`#modal-contact-detail`): Thêm 2 thẻ hiển thị Điểm tích lũy & Số dư Ví Spa, đồng thời bổ sung bảng **"💆 Lịch Sử Biến Động Ví Spa"** đối soát toàn diện.
+- **Backend API:** Cập nhật endpoint `GET /api/contacts/{id}` trả về đầy đủ `spa_wallet_balance`, `points`, và mảng `spa_wallet_history`.
+
+---
+
+## Kết Quả Kiểm Thử (Verification Suite) 🧪
+
+1. `tests/test_spa_wallet_tracking.py`: **PASS 2/2** (API detail contact trả về lịch sử ví, tích hợp DOM/JS POS & Hồ sơ khách).
+2. `tests/test_loyalty_schema.py`: **PASS 6/6** (Schema, tables, columns, constraints, default seeds).
+3. `tests/test_best_offer_pricing.py`: **PASS 4/4** (CRUD promotion, so sánh chiết khấu Best Offer, ưu tiên giá tùy biến).
+4. `tests/test_points_and_tier_upgrade.py`: **PASS 1/1** (Tích điểm 1k=1đ, tự thăng hạng Bạc/Vàng, chặn tích điểm cho Sỉ/Đại lý).
+5. `tests/test_spa_wallet_topup.py`: **PASS 2/2** (Nạp ví, trừ ví dịch vụ Spa, giữ nguyên tiền hàng hóa).
+6. `tests/test_loyalty_frontend.py`: **PASS 2/2** (DOM modal topup, use-spa-wallet checkbox, logic Best Offer).
+7. `tests/test_k80_discount.py`: **PASS 2/2** (Bố cục 2 dòng K80, ghi rõ số tiền giảm, reindex tabs).
+8. `tests/test_html_integrity.py`: **PASS 3/3** (Toàn vẹn HTML/DOM).
+9. Cú pháp JS: `node -c static/js/pos.js && node -c static/js/app.js` **PASS**.
+
+---
+
+## Kết Quả Kiểm Thử (Verification Suite) 🧪
+
+1. `tests/test_k80_discount.py`: **PASS 2/2** (Kiểm tra API `original_price` và toàn bộ logic render frontend).
+2. `tests/test_html_integrity.py`: **PASS 3/3** (Toàn vẹn DOM).
+3. `tests/test_pet_pricing_import.py`: **PASS 6/6**.
+4. `tests/test_shift_close.py`: **PASS**.
+5. `node -c static/js/app.js && node -c static/js/pos.js && node -c static/js/shifts.js`: **PASS** (Cú pháp JS sạch).
+
+---
+
+## Files Đã Chỉnh Sửa / Tạo Mới
+
+| File | Thay đổi |
+|---|---|
+| `routers/pos.py` | Query `GET /api/orders/{code}` bổ sung `p.sell_price AS original_price` |
+| `static/js/pos.js` | Cột đơn giá 2 dòng (giá bán trên, giá gốc gạch ngang dưới), tự ẩn dòng giảm giá chân trang khi 0đ, truyền `original_price` cho hóa đơn tạm |
+| `static/js/app.js` | Preset K80 bổ sung dòng `Giảm giá: -{{giam_gia}}`, demo trực quan trên Canvas Visual Builder |
+| `docs/superpowers/specs/2026-09-24-k80-invoice-discount-display-design.md` | Tài liệu đặc tả thiết kế hiển thị giảm giá K80 |
+| `docs/superpowers/plans/2026-09-24-k80-invoice-discount-display.md` | Kế hoạch triển khai kỹ thuật chi tiết |
+| `tests/test_k80_discount.py` | Test suite kiểm thử tự động tính năng giảm giá K80 |
+| `PROJECT_STATE.md` | Cập nhật checkpoint bàn giao |
+
+---
+
+## Phiên Trước ✅ (2026-09-23)
 
 ### 1. Ca Làm Việc, Đóng Mở Ca & Z-Report
 - **Mở ca & Kết ca:**

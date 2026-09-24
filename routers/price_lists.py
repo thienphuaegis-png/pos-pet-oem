@@ -240,8 +240,8 @@ def create_segment(s: CustomerSegmentCreate, user=Depends(require_permission("pr
     cur = conn.cursor()
     try:
         cur.execute(
-            "INSERT INTO customer_segments (code, name, discount_percent, priority, price_list_id) VALUES (?, ?, ?, ?, ?)",
-            (s.code, s.name, s.discount_percent, s.priority, s.price_list_id)
+            "INSERT INTO customer_segments (code, name, discount_percent, priority, price_list_id, min_points, allow_points) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (s.code, s.name, s.discount_percent, s.priority, s.price_list_id, s.min_points or 0, 1 if s.allow_points is None or s.allow_points else 0)
         )
         pid = cur.lastrowid
         conn.commit()
@@ -273,6 +273,10 @@ def update_segment(segment_id: int, s: CustomerSegmentUpdate, user=Depends(requi
         fields.append("is_active = ?"); vals.append(s.is_active)
     if s.price_list_id is not None:
         fields.append("price_list_id = ?"); vals.append(s.price_list_id if s.price_list_id > 0 else None)
+    if s.min_points is not None:
+        fields.append("min_points = ?"); vals.append(s.min_points)
+    if s.allow_points is not None:
+        fields.append("allow_points = ?"); vals.append(1 if s.allow_points else 0)
     if fields:
         vals.append(segment_id)
         cur.execute(f"UPDATE customer_segments SET {', '.join(fields)} WHERE id = ?", vals)

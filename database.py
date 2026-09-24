@@ -46,6 +46,8 @@ def init_db():
         address TEXT,
         debt REAL DEFAULT 0, -- Cong no hien tai
         segment_id INTEGER,
+        points INTEGER DEFAULT 0,
+        spa_wallet_balance REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -747,15 +749,28 @@ def init_db():
         name TEXT NOT NULL,
         discount_percent REAL DEFAULT 0,
         priority INTEGER DEFAULT 0,
+        min_points INTEGER DEFAULT 0,
+        allow_points INTEGER DEFAULT 1,
+        price_list_id INTEGER DEFAULT NULL,
         is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    # Migration: thêm column segment_id vào contacts nếu chưa có
+    # Migration: thêm column segment_id, points, spa_wallet_balance vào contacts nếu chưa có
     cur.execute("PRAGMA table_info(contacts)")
     contact_cols = [c[1] for c in cur.fetchall()]
     if "segment_id" not in contact_cols:
         cur.execute("ALTER TABLE contacts ADD COLUMN segment_id INTEGER DEFAULT NULL")
+    if "points" not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN points INTEGER DEFAULT 0")
+    if "spa_wallet_balance" not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN spa_wallet_balance REAL DEFAULT 0")
+
+    # Migration: thêm column spa_wallet_deduction vào orders nếu chưa có
+    cur.execute("PRAGMA table_info(orders)")
+    order_cols = [c[1] for c in cur.fetchall()]
+    if "spa_wallet_deduction" not in order_cols:
+        cur.execute("ALTER TABLE orders ADD COLUMN spa_wallet_deduction REAL DEFAULT 0")
 
     # Migration: thêm column is_oem và supplier_id vào warehouses nếu chưa có
     cur.execute("PRAGMA table_info(warehouses)")
@@ -771,9 +786,13 @@ def init_db():
     if "fund_source" not in cb_cols:
         cur.execute("ALTER TABLE cashbook ADD COLUMN fund_source TEXT DEFAULT 'COMPANY'")
 
-    # Migration: thêm column price_list_id vào customer_segments nếu chưa có
+    # Migration: thêm column min_points, allow_points, price_list_id vào customer_segments nếu chưa có
     cur.execute("PRAGMA table_info(customer_segments)")
     seg_cols = [c[1] for c in cur.fetchall()]
+    if "min_points" not in seg_cols:
+        cur.execute("ALTER TABLE customer_segments ADD COLUMN min_points INTEGER DEFAULT 0")
+    if "allow_points" not in seg_cols:
+        cur.execute("ALTER TABLE customer_segments ADD COLUMN allow_points INTEGER DEFAULT 1")
     if "price_list_id" not in seg_cols:
         cur.execute("ALTER TABLE customer_segments ADD COLUMN price_list_id INTEGER DEFAULT NULL")
 
@@ -862,13 +881,77 @@ def init_db():
         FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
     )''')
 
+    # 14. Gói Topup Ví Spa định sẵn
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS topup_packages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        pay_amount REAL NOT NULL,
+        receive_amount REAL NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 15. Lịch sử giao dịch ví Topup Spa
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS spa_wallet_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contact_id INTEGER NOT NULL,
+        order_id INTEGER,
+        package_id INTEGER,
+        type TEXT NOT NULL CHECK(type IN ('topup', 'spend', 'refund')),
+        amount REAL NOT NULL,
+        balance_before REAL NOT NULL,
+        balance_after REAL NOT NULL,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
+        FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL,
+        FOREIGN KEY(package_id) REFERENCES topup_packages(id) ON DELETE SET NULL
+    )''')
+
+    # 16. Khuyến mãi & Chi tiết giảm giá theo sản phẩm
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS promotions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        name TEXT NOT NULL,
+        start_date DATE,
+        end_date DATE,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS promotion_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        promotion_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        discount_type TEXT NOT NULL CHECK(discount_type IN ('pct', 'fixed')),
+        discount_val REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+    )''')
+
     # Default data
     cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-BANLE', 'Giá Bán Lẻ', 'Giá bán lẻ mặc định')")
     cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-SI', 'Giá Sỉ', 'Giá sỉ cho đơn số lượng lớn')")
     cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-DL', 'Giá Đại Lý', 'Giá đại lý')")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('LE', 'Bán lẻ', 0, 1)")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('SI', 'Sỉ', 5, 2)")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority) VALUES ('DL', 'Đại Lý', 10, 3)")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('LE', 'Bán lẻ', 0, 1, 0, 1)")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('SI', 'Sỉ', 5, 2, 0, 0)")
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('DL', 'Đại Lý', 10, 3, 0, 0)")
+    # Đảm bảo Sỉ và Đại Lý có allow_points = 0 nếu đã tồn tại trước đó
+    cur.execute("UPDATE customer_segments SET allow_points = 0 WHERE code IN ('SI', 'DL') AND (allow_points IS NULL OR allow_points = 1)")
+
+    # Gói Topup Ví Spa mặc định
+    cur.execute("SELECT COUNT(*) FROM topup_packages")
+    if cur.fetchone()[0] == 0:
+        cur.execute("INSERT INTO topup_packages (name, pay_amount, receive_amount, is_active) VALUES ('Gói Spa 500k -> 700k', 500000, 700000, 1)")
+        cur.execute("INSERT INTO topup_packages (name, pay_amount, receive_amount, is_active) VALUES ('Gói Spa 1tr -> 1.5tr', 1000000, 1500000, 1)")
+
+    # Cấu hình tỷ lệ đổi điểm thưởng
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('points_exchange_rate', '1000')")
 
     # Seed payment_accounts if empty
     cur.execute("SELECT COUNT(*) FROM payment_accounts")

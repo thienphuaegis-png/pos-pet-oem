@@ -23,6 +23,8 @@ class OrderCreate(BaseModel):
     shift_id: Optional[int] = None
     items: List[OrderItemIn]
     payments: Optional[List[PaymentSplitIn]] = None
+    use_spa_wallet: Optional[bool] = False
+    spa_wallet_amount: Optional[float] = 0
 
 class OrderUpdate(BaseModel):
     customer_id: Optional[int] = None
@@ -271,6 +273,8 @@ class CustomerSegmentCreate(BaseModel):
     discount_percent: float = 0
     priority: int = 0
     price_list_id: Optional[int] = None
+    min_points: Optional[int] = 0
+    allow_points: Optional[int] = 1
 
 class CustomerSegmentUpdate(BaseModel):
     code: Optional[str] = None
@@ -279,6 +283,8 @@ class CustomerSegmentUpdate(BaseModel):
     priority: Optional[int] = None
     is_active: Optional[int] = None
     price_list_id: Optional[int] = None
+    min_points: Optional[int] = None
+    allow_points: Optional[int] = None
 
 
 # --- Combos ---
@@ -345,3 +351,32 @@ class OEMOrderReceive(BaseModel):
     pay_remaining_now: bool = False
     payment_fund_source: Optional[str] = "COMPANY"
     note: Optional[str] = None
+
+
+# --- Promotions & Pricing ---
+class PromotionCreate(BaseModel):
+    code: Optional[str] = None
+    name: str = Field(min_length=1)
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    is_active: Optional[int] = 1
+
+class PromotionUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    is_active: Optional[int] = None
+
+class PromotionItemCreate(BaseModel):
+    product_id: int
+    discount_type: str = Field(pattern="^(pct|fixed)$")
+    discount_val: float = Field(ge=0)
+
+class PricingCalculateItemIn(BaseModel):
+    product_id: int
+    quantity: float = 1.0
+
+class PricingCalculateRequest(BaseModel):
+    customer_id: Optional[int] = None
+    items: List[PricingCalculateItemIn]
