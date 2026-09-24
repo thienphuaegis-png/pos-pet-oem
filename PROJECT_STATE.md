@@ -1,6 +1,6 @@
 # PROJECT STATE — POS Offline (Spa Thú Cưng & Bán Lẻ Đa Kênh)
 
-**Checkpoint:** 2026-09-24 — Hoàn thiện Bảng Giá, Khuyến Mãi (Best Offer), Tích Điểm Thăng Hạng & Ví Topup Spa Trả Trước  
+**Checkpoint:** 2026-09-24 — Nhóm Hàng Hóa, Lọc Danh Mục & Giảm Giá Theo Nhóm Vào Bảng Giá / Khuyến Mãi  
 **Server:** `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
 
@@ -8,7 +8,39 @@
 
 ## Phiên Này ✅ (2026-09-24)
 
-### 1. Hệ Thống Khách Hàng Thân Thiết (Loyalty & Spa Wallet Topup)
+### 1. Phân Loại Nhóm Hàng Hóa (Product Categories)
+- **Cơ sở dữ liệu & Model:**
+  - Bảng `products`: Bổ sung cột `category TEXT DEFAULT 'Khác'`. Auto-migration trong `database.py`.
+  - Schema Pydantic: `ProductCreate` & `ProductUpdate` hỗ trợ trường `category`.
+  - Endpoint `GET /api/products/categories`: Danh sách nhóm hàng duy nhất dùng cho dropdowns / datalist.
+  - Endpoint `GET /api/products?category=...`: Lọc sản phẩm theo nhóm.
+  - Hỗ trợ nhập/xuất Excel: Cột "Nhóm hàng" tự động mapping khi import hoặc export.
+  - Bảng Tồn kho tổng hợp (`GET /api/inventory/unified`): Trả về trường `category` cho cả sản phẩm và nguyên liệu.
+
+### 2. Giảm Nhanh Theo Nhóm Vào Bảng Giá & Ma Trận Giá
+- **Áp dụng chiết khấu theo nhóm vào Bảng giá:**
+  - `POST /api/price-lists/{id}/bulk-discount`: Cho phép nhận `category` để chỉ giảm % cho nhóm sản phẩm được chọn (thay vì toàn bộ shop).
+  - Ma trận giá `GET /api/price-lists/{id}/matrix?category=...`: Hỗ trợ lọc theo nhóm hàng và hiển thị tag nhóm trực tiếp trên từng dòng sản phẩm.
+- **Áp dụng khuyến mãi hàng loạt theo nhóm:**
+  - `POST /api/promotions/{id}/items/bulk-by-category`: Tự động thêm toàn bộ sản phẩm thuộc 1 nhóm vào chương trình khuyến mãi với mức giảm định sẵn (% hoặc số tiền).
+
+### 3. Giao Diện (UI / UX Hiện Đại & Quản Lý Nhóm Tái Sử Dụng Chuẩn KiotViet)
+- **Bảng DB `product_categories` & Router `routers/categories.py`:**
+  - Bảng riêng quản lý nhóm hàng hóa 1 cấp (`id, name UNIQUE, description, sort_order`).
+  - Hỗ trợ đổi tên nhóm: tự động đồng bộ tên mới sang toàn bộ sản phẩm thuộc nhóm.
+  - Hỗ trợ xóa nhóm: bảo vệ nhóm mặc định `Khác`, tự động chuyển sản phẩm của nhóm bị xóa về `Khác`.
+- **Modal Thêm / Sửa Hàng Hóa:**
+  - Dropdown `<select id="modal-prod-category">` nạp động danh mục.
+  - Nút `[+]` cạnh dropdown mở popup mini `#modal-quick-add-category` thêm nhanh nhóm mới và tự động gán ngay vào hàng hóa.
+- **Thanh lọc & Tối ưu Giao diện:**
+  - Tối giản hàng lọc: Bỏ thanh pill ngang tránh trùng lặp; dùng dropdown `Nhóm hàng: [Tất cả nhóm v]` kết hợp nút icon `[⚙️]` kế bên để mở modal Quản lý nhóm khi cần.
+- **Modal Quản Lý Nhóm Hàng Hóa (`#modal-category-manager`):**
+  - Mở từ nút icon `[⚙️]` cạnh dropdown nhóm hàng.
+  - Thêm mới nhóm, sửa trực tiếp tên nhóm (inline edit), xóa nhóm có xác nhận an toàn.
+- **Tab Bảng Giá (Ma Trận Giá):**
+  - Thanh công cụ "⚡ Giảm nhanh": Thêm dropdown chọn phạm vi (Tất cả nhóm hoặc Nhóm cụ thể) kèm ô nhập % giảm.
+  - Bộ lọc Ma trận giá: Thêm dropdown lọc nhanh theo Nhóm hàng cạnh thanh tìm kiếm.
+  - Bảng ma trận bổ sung cột "Nhóm Hàng".
 - **Cơ sở dữ liệu & Phân cấp nhóm khách hàng:**
   - Bảng `contacts`: Thêm `points` (tích lũy trọn đời xét thăng hạng) và `spa_wallet_balance` (số dư ví nạp trả trước cho Spa).
   - Bảng `customer_segments`: Thêm `min_points`, `allow_points`, `price_list_id`. Phân định rõ nhóm Khách Lẻ (`allow_points=1` - được tích điểm) và Sỉ/Đại Lý (`allow_points=0` - dùng bảng giá sỉ, không tích điểm).
@@ -42,7 +74,8 @@
 
 ## Kết Quả Kiểm Thử (Verification Suite) 🧪
 
-1. `tests/test_spa_wallet_tracking.py`: **PASS 2/2** (API detail contact trả về lịch sử ví, tích hợp DOM/JS POS & Hồ sơ khách).
+1. `tests/test_product_category_and_bulk_pricing.py`: **PASS 1/1** (CRUD category, lọc danh mục, bulk discount bảng giá theo nhóm, thêm khuyến mãi theo nhóm).
+2. `tests/test_spa_wallet_tracking.py`: **PASS 2/2** (API detail contact trả về lịch sử ví, tích hợp DOM/JS POS & Hồ sơ khách).
 2. `tests/test_loyalty_schema.py`: **PASS 6/6** (Schema, tables, columns, constraints, default seeds).
 3. `tests/test_best_offer_pricing.py`: **PASS 4/4** (CRUD promotion, so sánh chiết khấu Best Offer, ưu tiên giá tùy biến).
 4. `tests/test_points_and_tier_upgrade.py`: **PASS 1/1** (Tích điểm 1k=1đ, tự thăng hạng Bạc/Vàng, chặn tích điểm cho Sỉ/Đại lý).

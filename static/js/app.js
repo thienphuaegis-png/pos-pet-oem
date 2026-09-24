@@ -101,9 +101,23 @@
                 document.getElementById('kpi-inv-qty').innerText = (data.total_quantity || 0).toLocaleString('vi-VN');
                 document.getElementById('kpi-inv-val').innerText = formatMoney(data.total_value || 0);
 
+                await populateUnifiedCategoryFilter();
                 renderUnifiedInventoryTable();
             } catch (e) {
                 console.error("loadUnifiedInventory error:", e);
+            }
+        }
+
+        async function populateUnifiedCategoryFilter() {
+            const sel = document.getElementById('unified-category-filter');
+            if (!sel) return;
+            try {
+                const res = await fetch('/api/products/categories');
+                const cats = await res.json();
+                const curVal = sel.value;
+                sel.innerHTML = '<option value="">Tất cả nhóm</option>' + cats.map(c => `<option value="${c}" ${c === curVal ? 'selected' : ''}>${c}</option>`).join('');
+            } catch (e) {
+                console.error("populateUnifiedCategoryFilter error:", e);
             }
         }
 
@@ -140,7 +154,7 @@
             }
 
             // Sắp xếp mảng tại frontend
-            const items = [...unifiedInventoryData].sort((a, b) => {
+            let items = [...unifiedInventoryData].sort((a, b) => {
                 let valA = a[unifiedSortColumn];
                 let valB = b[unifiedSortColumn];
                 if (valA === null || valA === undefined) valA = '';
@@ -153,6 +167,11 @@
                 const strB = String(valB).toLowerCase();
                 return unifiedSortAsc ? strA.localeCompare(strB, 'vi') : strB.localeCompare(strA, 'vi');
             });
+
+            const catFilter = currentCategoryFilter || document.getElementById('unified-category-filter')?.value || '';
+            if (catFilter) {
+                items = items.filter(item => (item.category || 'Khác') === catFilter);
+            }
 
             tbody.innerHTML = items.map(item => {
                 const isProd = item.item_type === 'product';
@@ -224,7 +243,7 @@
                 return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
-                        <td class="p-2.5 font-bold text-slate-800">${item.name}</td>
+                        <td class="p-2.5 font-bold text-slate-800">${item.name} <span class="ml-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${item.category || 'Khác'}</span></td>
                         <td class="p-2.5 text-center">${badge}</td>
                         <td class="p-2.5">${suppBadge}</td>
                         <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
@@ -1008,6 +1027,305 @@
             }
         }
 
+        async function loadProductCategoriesDropdown(selectedVal = '') {
+            try {
+                const res = await fetch('/api/categories');
+                if (!res.ok) return;
+                const categories = await res.json();
+                
+                // Cập nhật #modal-prod-category
+                const modalSel = document.getElementById('modal-prod-category');
+                if (modalSel) {
+                    const currentVal = selectedVal || modalSel.value || 'Khác';
+                    modalSel.innerHTML = categories.map(c => 
+                        `<option value="${c.name}" ${c.name === currentVal ? 'selected' : ''}>${c.name}</option>`
+                    ).join('');
+                    if (selectedVal) modalSel.value = selectedVal;
+                }
+
+                // Cập nhật #unified-category-filter nếu có trên trang
+                const unifiedSel = document.getElementById('unified-category-filter');
+                if (unifiedSel) {
+                    const curVal = unifiedSel.value;
+                    unifiedSel.innerHTML = '<option value="">Tất cả nhóm</option>' + 
+                        categories.map(c => `<option value="${c.name}" ${c.name === curVal ? 'selected' : ''}>${c.name}</option>`).join('');
+                }
+
+                // Cập nhật #pl-filter-category nếu có
+                const plSel = document.getElementById('pl-filter-category');
+                if (plSel) {
+                    const curVal = plSel.value;
+                    plSel.innerHTML = '<option value="">Tất cả nhóm</option>' + 
+                        categories.map(c => `<option value="${c.name}" ${c.name === curVal ? 'selected' : ''}>${c.name}</option>`).join('');
+                }
+            } catch (e) {
+                console.error("loadProductCategoriesDropdown error:", e);
+            }
+        }
+
+        let currentCategoryFilter = '';
+
+        async function loadCategoryPillsBar() {
+            const bar = document.getElementById('category-pills-bar');
+            if (!bar) return;
+            try {
+                const res = await fetch('/api/categories');
+                if (!res.ok) return;
+                const categories = await res.json();
+
+                // Tính tổng tất cả sản phẩm
+                const totalCount = categories.reduce((sum, c) => sum + (c.product_count || 0), 0);
+
+                let html = `
+                    <button type="button" onclick="filterUnifiedByCategory('')" 
+                        class="px-3 py-1 rounded-full text-xs font-semibold transition shadow-sm ${!currentCategoryFilter ? 'bg-emerald-600 text-white font-bold' : 'bg-white border text-slate-700 hover:bg-slate-50'}">
+                        Tất cả (${totalCount})
+                    </button>
+                `;
+
+                categories.forEach(c => {
+                    const isActive = (currentCategoryFilter === c.name);
+                    const safeName = escapeJs(c.name);
+                    html += `
+                        <button type="button" onclick="filterUnifiedByCategory('${safeName}')" 
+                            class="px-3 py-1 rounded-full text-xs font-semibold transition shadow-sm ${isActive ? 'bg-emerald-600 text-white font-bold' : 'bg-white border text-slate-700 hover:bg-slate-50'}">
+                            ${c.name} (${c.product_count || 0})
+                        </button>
+                    `;
+                });
+
+                bar.innerHTML = html;
+            } catch (e) {
+                console.error("loadCategoryPillsBar error:", e);
+            }
+        }
+
+        function filterUnifiedByCategory(categoryName) {
+            currentCategoryFilter = categoryName || '';
+            const sel = document.getElementById('unified-category-filter');
+            if (sel) {
+                sel.value = currentCategoryFilter;
+            }
+            loadCategoryPillsBar();
+            renderUnifiedInventoryTable();
+        }
+
+        function openCategoryManagerModal() {
+            const modal = document.getElementById('modal-category-manager');
+            if (modal) modal.classList.remove('hidden');
+            const input = document.getElementById('new-category-mgr-name');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 50);
+            }
+            renderCategoryManagerList();
+        }
+
+        function closeCategoryManagerModal() {
+            const modal = document.getElementById('modal-category-manager');
+            if (modal) modal.classList.add('hidden');
+            loadCategoryPillsBar();
+            loadProductCategoriesDropdown();
+        }
+
+        async function renderCategoryManagerList() {
+            const tbody = document.getElementById('category-mgr-list');
+            if (!tbody) return;
+            try {
+                tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Đang tải danh sách...</td></tr>';
+                const res = await fetch('/api/categories');
+                if (!res.ok) throw new Error('Không thể tải danh sách nhóm');
+                const categories = await res.json();
+
+                if (!categories || categories.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Chưa có nhóm hàng nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = categories.map(c => {
+                    const isKhac = (c.name === 'Khác');
+                    const safeName = escapeJs(c.name);
+                    const deleteBtn = isKhac 
+                        ? '<span class="text-slate-300 text-xs italic px-2 py-1">Mặc định</span>'
+                        : `<button type="button" onclick="deleteCategory(${c.id}, '${safeName}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-semibold transition" title="Xóa nhóm">Xóa</button>`;
+                    
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2.5 font-medium text-slate-800" id="cat-name-cell-${c.id}">
+                                ${c.name}
+                            </td>
+                            <td class="p-2.5 text-center">
+                                <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full font-bold text-xs">
+                                    ${c.product_count || 0}
+                                </span>
+                            </td>
+                            <td class="p-2.5 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <button type="button" onclick="editCategoryInline(${c.id}, '${safeName}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-xs font-semibold transition" title="Sửa tên">Sửa</button>
+                                    ${deleteBtn}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("renderCategoryManagerList error:", e);
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
+            }
+        }
+
+        async function saveCategoryFromManager() {
+            const input = document.getElementById('new-category-mgr-name');
+            const name = (input?.value || '').trim();
+            if (!name) {
+                alert('Vui lòng nhập tên nhóm hàng mới!');
+                input?.focus();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+
+                if (res.ok) {
+                    if (input) input.value = '';
+                    await renderCategoryManagerList();
+                    await loadCategoryPillsBar();
+                    await loadProductCategoriesDropdown();
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã thêm nhóm: ${name}`, 'success');
+                    }
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi: ' + (err.detail || 'Không thể tạo nhóm hàng'));
+                }
+            } catch (e) {
+                console.error("saveCategoryFromManager error:", e);
+                alert('Lỗi kết nối khi thêm nhóm hàng!');
+            }
+        }
+
+        async function editCategoryInline(id, currentName) {
+            const newName = prompt('Nhập tên mới cho nhóm hàng:', currentName);
+            if (newName === null) return; // user cancelled
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                alert('Tên nhóm không được để trống!');
+                return;
+            }
+            if (trimmed === currentName) return;
+
+            try {
+                const res = await fetch(`/api/categories/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: trimmed })
+                });
+
+                if (res.ok) {
+                    if (currentCategoryFilter === currentName) {
+                        currentCategoryFilter = trimmed;
+                    }
+                    await renderCategoryManagerList();
+                    await loadCategoryPillsBar();
+                    await loadProductCategoriesDropdown();
+                    await loadUnifiedInventory();
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã cập nhật tên nhóm: ${trimmed}`, 'success');
+                    }
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi: ' + (err.detail || 'Không thể cập nhật tên nhóm'));
+                }
+            } catch (e) {
+                console.error("editCategoryInline error:", e);
+                alert('Lỗi kết nối khi cập nhật nhóm hàng!');
+            }
+        }
+
+        async function deleteCategory(id, name) {
+            const confirmed = confirm(`Bạn có chắc muốn xóa nhóm '${name}'? Toàn bộ hàng hóa thuộc nhóm này sẽ chuyển về nhóm 'Khác'.`);
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/categories/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    if (currentCategoryFilter === name) {
+                        currentCategoryFilter = '';
+                    }
+                    await renderCategoryManagerList();
+                    await loadCategoryPillsBar();
+                    await loadProductCategoriesDropdown();
+                    await loadUnifiedInventory();
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã xóa nhóm: ${name}`, 'success');
+                    }
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi: ' + (err.detail || 'Không thể xóa nhóm hàng'));
+                }
+            } catch (e) {
+                console.error("deleteCategory error:", e);
+                alert('Lỗi kết nối khi xóa nhóm hàng!');
+            }
+        }
+
+        function openQuickAddCategoryModal() {
+            const input = document.getElementById('quick-category-name');
+            if (input) input.value = '';
+            document.getElementById('modal-quick-add-category')?.classList.remove('hidden');
+            setTimeout(() => input?.focus(), 50);
+        }
+
+        function closeQuickAddCategoryModal() {
+            document.getElementById('modal-quick-add-category')?.classList.add('hidden');
+        }
+
+        async function saveQuickCategory() {
+            const input = document.getElementById('quick-category-name');
+            const name = (input?.value || '').trim();
+            if (!name) {
+                alert('Vui lòng nhập tên nhóm hàng!');
+                input?.focus();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    closeQuickAddCategoryModal();
+                    await loadProductCategoriesDropdown(name);
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã thêm nhóm hàng: ${name}`, 'success');
+                    } else {
+                        alert(`Đã thêm nhóm hàng: ${name}`);
+                    }
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi: ' + (err.detail || 'Không thể tạo nhóm hàng'));
+                }
+            } catch (e) {
+                console.error("saveQuickCategory error:", e);
+                alert('Lỗi kết nối khi tạo nhóm hàng!');
+            }
+        }
+
+        async function loadProductCategoriesDatalist() {
+            return loadProductCategoriesDropdown();
+        }
+
         // --- MODAL PRODUCT CRUD (THÊM / SỬA / XÓA HÀNG HÓA) ---
         async function openModalProductUnified() {
             document.getElementById('modal-prod-title').innerText = 'Thêm Hàng Hóa Mới';
@@ -1022,7 +1340,7 @@
             document.getElementById('modal-prod-stock-group').classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
 
-            await populateProductSuppliersDropdown([]);
+            await Promise.all([populateProductSuppliersDropdown([]), loadProductCategoriesDropdown('Khác')]);
             document.getElementById('modal-product').classList.remove('hidden');
         }
 
@@ -1063,6 +1381,7 @@
                 } catch (e) {
                     await populateProductSuppliersDropdown([]);
                 }
+                await loadProductCategoriesDropdown(p.category || 'Khác');
 
                 document.getElementById('modal-product').classList.remove('hidden');
             } catch (e) {
@@ -1121,6 +1440,7 @@
             const name = document.getElementById('modal-prod-name').value.trim();
             const code = document.getElementById('modal-prod-code').value.trim();
             const type = document.getElementById('modal-prod-type').value;
+            const category = (document.getElementById('modal-prod-category')?.value || '').trim() || 'Khác';
             const unit = document.getElementById('modal-prod-unit').value.trim() || 'cái';
             const cost_price = parseFloat(document.getElementById('modal-prod-cost').value) || 0;
             const sell_price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
@@ -1141,14 +1461,14 @@
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, supplier_ids })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids })
                     });
                 } else {
                     // Create
                     res = await fetch('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, supplier_ids })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids })
                     });
                 }
 
@@ -1159,7 +1479,8 @@
                 }
 
                 closeModalProduct();
-                await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
+                await Promise.all([loadUnifiedInventory(), loadCostProductOptions(), loadProductCategoriesDropdown()]);
+                if (typeof loadPriceListCategories === 'function') loadPriceListCategories();
                 alert(id ? "Đã cập nhật hàng hóa thành công!" : "Đã thêm hàng hóa mới thành công!");
             } catch (e) {
                 console.error("saveProductForm error:", e);

@@ -44,6 +44,7 @@ class ProductCreate(BaseModel):
     sell_price: float = 0
     unit: str = "cái"
     stock: float = 0
+    category: Optional[str] = "Khác"
     warehouse_id: Optional[int] = 1
     supplier_ids: Optional[List[int]] = None
 
@@ -54,6 +55,7 @@ class ProductUpdate(BaseModel):
     cost_price: float = 0
     sell_price: float = 0
     unit: str = "cái"
+    category: Optional[str] = None
     supplier_ids: Optional[List[int]] = None
 
 class WriteOffItemIn(BaseModel):

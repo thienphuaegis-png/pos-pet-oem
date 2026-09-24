@@ -681,6 +681,9 @@
                     <div class="flex flex-wrap items-center gap-2.5">
                         <div class="flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded border border-sky-200">
                             <span class="text-xs text-sky-800 font-bold">⚡ Giảm nhanh:</span>
+                            <select id="bulk-discount-category" class="border p-1 rounded text-xs bg-white text-slate-800 font-medium">
+                                <option value="">Tất cả nhóm</option>
+                            </select>
                             <input type="number" id="bulk-discount-pct" placeholder="%" min="0" max="100" class="w-14 p-1 border rounded text-xs text-center font-bold bg-white" value="15">
                             <span class="text-xs font-bold text-sky-800">%</span>
                             <button onclick="applyBulkDiscountToActivePriceList()" class="px-2 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold shadow-sm transition">Áp Dụng</button>
@@ -689,6 +692,9 @@
                         <div class="flex items-center gap-1.5">
                             <label class="text-xs font-bold text-slate-700">Bảng Giá:</label>
                             <select id="pl-select-price-list" class="border p-1.5 rounded text-xs font-bold bg-white text-sky-800 min-w-[180px] shadow-sm"></select>
+                            <select id="pl-matrix-category" onchange="debounceLoadPriceMatrix()" class="border p-1.5 rounded text-xs font-medium bg-white text-slate-700 shadow-sm">
+                                <option value="">Tất cả nhóm</option>
+                            </select>
                             <input type="text" id="pl-matrix-search" oninput="debounceLoadPriceMatrix()" placeholder="🔍 Tìm kiếm sản phẩm..." class="border p-1.5 rounded text-xs w-48 shadow-sm">
                         </div>
                     </div>
@@ -700,6 +706,7 @@
                             <tr>
                                 <th class="p-2.5">Mã SP</th>
                                 <th class="p-2.5">Tên Sản Phẩm</th>
+                                <th class="p-2.5">Nhóm Hàng</th>
                                 <th class="p-2.5 text-center">ĐVT</th>
                                 <th class="p-2.5 text-right">Giá Lẻ Mặc Định</th>
                                 <th class="p-2.5 text-right w-44">Giá Riêng Theo Bảng</th>
@@ -708,7 +715,7 @@
                             </tr>
                         </thead>
                         <tbody id="product-prices-tbody" class="divide-y divide-gray-100">
-                            <tr><td colspan="7" class="p-6 text-center text-gray-400">Chọn bảng giá phía trên để xem ma trận giá</td></tr>
+                            <tr><td colspan="8" class="p-6 text-center text-gray-400">Chọn bảng giá phía trên để xem ma trận giá</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -851,6 +858,15 @@
                                     <option value="ingredient">Chỉ Nguyên Vật Liệu</option>
                                     <option value="hidden">👁️ Hàng Hóa Đã Ẩn</option>
                                 </select>
+                                <span class="font-bold text-gray-700 ml-2">Nhóm hàng:</span>
+                                <div class="inline-flex items-center gap-1">
+                                    <select id="unified-category-filter" class="border p-1.5 rounded font-medium" onchange="filterUnifiedByCategory(this.value)">
+                                        <option value="">Tất cả nhóm</option>
+                                    </select>
+                                    <button type="button" onclick="openCategoryManagerModal()" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs transition border flex items-center gap-1 shadow-sm" title="Quản lý danh mục nhóm hàng">
+                                        ⚙️
+                                    </button>
+                                </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <input type="text" id="unified-search" oninput="loadUnifiedInventory()" placeholder="🔍 Tìm tên hoặc mã..." class="border p-1.5 rounded w-48 text-xs">
@@ -3597,9 +3613,18 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block font-bold mb-1">Đơn vị tính:</label>
-                            <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, gói, lon...">
+                            <label class="block font-bold mb-1">Nhóm hàng hóa:</label>
+                            <div class="flex gap-2">
+                                <select id="modal-prod-category" class="w-full border rounded-lg p-2 font-medium bg-white focus:ring-2 focus:ring-emerald-500">
+                                    <!-- Options populated dynamically from /api/categories -->
+                                </select>
+                                <button type="button" onclick="openQuickAddCategoryModal()" class="px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold rounded-lg transition" title="Thêm nhanh nhóm hàng">+</button>
+                            </div>
                         </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">Đơn vị tính:</label>
+                        <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, gói, lon...">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
@@ -3626,6 +3651,68 @@
                         </button>
                         <button onclick="closeModalProduct()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
                         <button onclick="saveProductForm()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow-sm">Lưu Sản Phẩm</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: THÊM NHANH NHÓM HÀNG -->
+            <div id="modal-quick-add-category" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in border border-slate-200">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <span>🏷️</span> Thêm Nhanh Nhóm Hàng
+                        </h3>
+                        <button type="button" onclick="closeQuickAddCategoryModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition">✕</button>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Tên nhóm hàng <span class="text-rose-500">*</span></label>
+                            <input id="quick-category-name" type="text" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="VD: Thức ăn hạt, Sữa tắm..." onkeydown="if(event.key === 'Enter') saveQuickCategory()">
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" onclick="closeQuickAddCategoryModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                            <button type="button" onclick="saveQuickCategory()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition">Lưu</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: QUẢN LÝ NHÓM HÀNG HÓA -->
+            <div id="modal-category-manager" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in border border-slate-200">
+                    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <span>⚙️</span> Quản Lý Nhóm Hàng Hóa
+                        </h3>
+                        <button type="button" onclick="closeCategoryManagerModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition">✕</button>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- Thêm nhóm mới -->
+                        <div class="flex items-center gap-2">
+                            <input id="new-category-mgr-name" type="text" placeholder="Tên nhóm mới..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" onkeydown="if(event.key === 'Enter') saveCategoryFromManager()">
+                            <button type="button" onclick="saveCategoryFromManager()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-sm transition whitespace-nowrap">
+                                + Thêm nhóm
+                            </button>
+                        </div>
+
+                        <!-- Danh sách nhóm container -->
+                        <div class="overflow-x-auto max-h-[360px] border rounded-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 sticky top-0 border-b">
+                                    <tr class="text-slate-600">
+                                        <th class="p-2.5 font-bold">Tên nhóm</th>
+                                        <th class="p-2.5 font-bold text-center w-28">Số lượng món</th>
+                                        <th class="p-2.5 font-bold text-center w-28">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="category-mgr-list" class="divide-y divide-slate-100">
+                                    <tr><td colspan="3" class="p-4 text-center text-slate-400">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                        <button type="button" onclick="closeCategoryManagerModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -6350,6 +6437,7 @@
         if (selSeg) {
             selSeg.innerHTML = '<option value="">-- Mặc định (Không gán) --</option>' + data.filter(d=>d.is_active).map(pl => `<option value="${pl.id}">${pl.name}</option>`).join('');
         }
+        await loadPriceListCategories();
     }
 
     function selectPriceListForMatrix(id) {
@@ -6386,12 +6474,15 @@
             return;
         }
         const selName = sel.options[sel.selectedIndex]?.text || '';
-        if (!confirm(`Áp dụng giảm ${pct}% so với giá lẻ mặc định cho TẤT CẢ sản phẩm trong "${selName}"?`)) return;
+        const catSelect = document.getElementById('bulk-discount-category');
+        const selectedCat = catSelect ? catSelect.value : '';
+        const targetLabel = selectedCat ? `nhóm "${selectedCat}"` : 'TẤT CẢ sản phẩm';
+        if (!confirm(`Áp dụng giảm ${pct}% so với giá lẻ mặc định cho ${targetLabel} trong "${selName}"?`)) return;
 
         const res = await fetch(`/api/price-lists/${plId}/bulk-discount`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ discount_percent: pct })
+            body: JSON.stringify({ discount_percent: pct, category: selectedCat || null })
         });
         if (res.ok) {
             const data = await res.json();
@@ -6406,12 +6497,16 @@
 
     async function loadPriceMatrix(priceListId) {
         const search = document.getElementById('pl-matrix-search') ? document.getElementById('pl-matrix-search').value : '';
-        const url = `/api/price-lists/${priceListId}/matrix` + (search ? `?search=${encodeURIComponent(search)}` : '');
+        const category = document.getElementById('pl-matrix-category') ? document.getElementById('pl-matrix-category').value : '';
+        let url = `/api/price-lists/${priceListId}/matrix?`;
+        if (search) url += `search=${encodeURIComponent(search)}&`;
+        if (category) url += `category=${encodeURIComponent(category)}&`;
+
         const res = await fetch(url);
         const data = await res.json();
         const tbody = document.getElementById('product-prices-tbody');
         if (!data || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400">Không tìm thấy sản phẩm nào</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-gray-400">Không tìm thấy sản phẩm nào</td></tr>';
             return;
         }
 
@@ -6419,6 +6514,7 @@
             <tr class="border-b hover:bg-gray-50 text-xs">
                 <td class="p-2.5 font-mono text-gray-500 font-semibold">${p.product_code || '-'}</td>
                 <td class="p-2.5 font-bold text-slate-800">${p.product_name}</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${p.category || 'Khác'}</span></td>
                 <td class="p-2.5 text-center text-gray-500">${p.unit || 'Cái'}</td>
                 <td class="p-2.5 text-right font-medium text-slate-600">${(p.default_retail_price || 0).toLocaleString('vi-VN')} đ</td>
                 <td class="p-2.5 text-right">
@@ -6440,6 +6536,30 @@
                 </td>
             </tr>
         `).join('');
+    }
+
+    async function loadPriceListCategories() {
+        try {
+            const res = await fetch('/api/products/categories');
+            const cats = await res.json();
+            const matrixCatSel = document.getElementById('pl-matrix-category');
+            const bulkCatSel = document.getElementById('bulk-discount-category');
+            const dl = document.getElementById('list-product-categories');
+            
+            if (matrixCatSel) {
+                const curVal = matrixCatSel.value;
+                matrixCatSel.innerHTML = '<option value="">-- Tất cả nhóm --</option>' + cats.map(c => `<option value="${c}" ${c === curVal ? 'selected' : ''}>${c}</option>`).join('');
+            }
+            if (bulkCatSel) {
+                const curVal = bulkCatSel.value;
+                bulkCatSel.innerHTML = '<option value="">Tất cả nhóm</option>' + cats.map(c => `<option value="${c}" ${c === curVal ? 'selected' : ''}>${c}</option>`).join('');
+            }
+            if (dl) {
+                dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+            }
+        } catch (e) {
+            console.error('loadPriceListCategories error:', e);
+        }
     }
 
     async function saveSingleProductPrice(priceListId, productId) {

@@ -784,6 +784,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
             p.name,
             p.unit,
             p.type as sub_type,
+            COALESCE(p.category, 'Khác') as category,
             p.cost_price,
             p.sell_price,
             COALESCE(p.is_active, 1) as is_active,
@@ -810,6 +811,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
             i.name,
             i.unit,
             i.type as sub_type,
+            'Nguyên liệu' as category,
             COALESCE(
                 (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
             ) as cost_price,
@@ -840,6 +842,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
             p.name,
             p.unit,
             p.type as sub_type,
+            COALESCE(p.category, 'Khác') as category,
             p.cost_price,
             p.sell_price,
             COALESCE(p.is_active, 1) as is_active,
@@ -863,6 +866,7 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
             i.name,
             i.unit,
             i.type as sub_type,
+            'Nguyên liệu' as category,
             COALESCE(
                 (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0
             ) as cost_price,

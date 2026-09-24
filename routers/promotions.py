@@ -1,5 +1,6 @@
 import datetime
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from typing import Optional, List
 from database import get_db
 from schemas import (
@@ -327,6 +328,40 @@ def add_promotion_item(promo_id: int, req: PromotionItemCreate, user=Depends(req
         raise HTTPException(status_code=400, detail=str(e))
     db.close()
     return {"status": "ok", "id": item_id}
+
+class PromotionBulkCategoryReq(BaseModel):
+    category: str
+    discount_type: str = "pct" # 'pct' or 'fixed'
+    discount_val: float
+
+@router.post("/api/promotions/{promo_id}/items/bulk-by-category")
+def add_promotion_items_by_category(promo_id: int, req: PromotionBulkCategoryReq, user=Depends(require_permission("price_lists.manage"))):
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id FROM promotions WHERE id = ?", (promo_id,))
+    if not cur.fetchone():
+        db.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy chương trình khuyến mãi")
+
+    cur.execute("SELECT id FROM products WHERE COALESCE(category, 'Khác') = ? AND COALESCE(is_active, 1) = 1", (req.category,))
+    prods = cur.fetchall()
+    if not prods:
+        db.close()
+        return {"status": "ok", "added_count": 0, "message": "Không tìm thấy sản phẩm nào trong nhóm này"}
+
+    added_count = 0
+    for p in prods:
+        pid = p["id"]
+        cur.execute("DELETE FROM promotion_items WHERE promotion_id = ? AND product_id = ?", (promo_id, pid))
+        cur.execute("""
+            INSERT INTO promotion_items (promotion_id, product_id, discount_type, discount_val)
+            VALUES (?, ?, ?, ?)
+        """, (promo_id, pid, req.discount_type, req.discount_val))
+        added_count += 1
+
+    db.commit()
+    db.close()
+    return {"status": "ok", "added_count": added_count}
 
 @router.delete("/api/promotions/{promo_id}/items/{item_id}")
 def delete_promotion_item(promo_id: int, item_id: int, user=Depends(require_permission("price_lists.manage"))):

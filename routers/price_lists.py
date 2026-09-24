@@ -98,12 +98,13 @@ def list_product_prices(price_list_id: int):
     return rows
 
 @router.get("/{price_list_id}/matrix")
-def get_price_list_matrix(price_list_id: int, search: Optional[str] = None):
+def get_price_list_matrix(price_list_id: int, search: Optional[str] = None, category: Optional[str] = None):
     conn = get_db()
     cur = conn.cursor()
     query = """
         SELECT 
             p.id as product_id, p.code as product_code, p.name as product_name, p.unit,
+            COALESCE(p.category, 'Khác') as category,
             COALESCE(p.sell_price, 0) as default_retail_price,
             ppl.price as custom_price,
             CASE 
@@ -113,13 +114,16 @@ def get_price_list_matrix(price_list_id: int, search: Optional[str] = None):
             CASE WHEN (ppl.price IS NOT NULL AND ppl.price > 0) THEN 1 ELSE 0 END as is_custom
         FROM products p
         LEFT JOIN product_price_list ppl ON ppl.product_id = p.id AND ppl.price_list_id = ?
-        WHERE (p.type = 'product' OR p.type IS NULL)
+        WHERE (p.type = 'product' OR p.type IS NULL) AND COALESCE(p.is_active, 1) = 1
     """
     params = [price_list_id]
     if search:
         query += " AND (p.name LIKE ? OR p.code LIKE ?)"
         s = f"%{search}%"
         params.extend([s, s])
+    if category:
+        query += " AND COALESCE(p.category, 'Khác') = ?"
+        params.append(category)
     query += " ORDER BY p.name ASC"
     cur.execute(query, tuple(params))
     rows = [dict(r) for r in cur.fetchall()]
@@ -132,12 +136,18 @@ class SetProductPriceReq(BaseModel):
 
 class BulkDiscountReq(BaseModel):
     discount_percent: float
+    category: Optional[str] = None
 
 @router.post("/{price_list_id}/bulk-discount")
 def apply_bulk_discount(price_list_id: int, req: BulkDiscountReq, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, sell_price FROM products WHERE (type = 'product' OR type IS NULL) AND sell_price > 0")
+    query = "SELECT id, sell_price FROM products WHERE (type = 'product' OR type IS NULL) AND sell_price > 0 AND COALESCE(is_active, 1) = 1"
+    params = []
+    if req.category:
+        query += " AND COALESCE(category, 'Khác') = ?"
+        params.append(req.category)
+    cur.execute(query, tuple(params))
     prods = cur.fetchall()
     pct = max(0.0, min(100.0, req.discount_percent))
     factor = (100.0 - pct) / 100.0

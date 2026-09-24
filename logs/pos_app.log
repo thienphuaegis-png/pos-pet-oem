@@ -8518,3 +8518,410 @@ sqlite3.IntegrityError: UNIQUE constraint failed: pet_service_tickets.code
 2026-09-24 17:16:21,080 [INFO] [watchfiles.main]: 1 change detected
 2026-09-24 17:16:21,439 [INFO] [watchfiles.main]: 4 changes detected
 2026-09-24 17:36:23,022 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 17:36:23,933 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 17:36:23,983 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:24,955 [WARNING] [pos_server]: GET /api/shifts/current - Status: 401
+2026-09-24 17:36:25,104 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:25,133 [WARNING] [pos_server]: GET /api/shifts/current - Status: 401
+2026-09-24 17:36:25,257 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-24 17:36:25,467 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 17:36:25,824 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:25,828 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-24 17:36:25,829 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-24 17:36:26,181 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 17:36:26,461 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
+2026-09-24 17:36:26,541 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 17:36:38,068 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 17:36:38,679 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 17:36:39,286 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 17:36:39,640 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:46,457 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:47,982 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:48,739 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:50,161 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:36:57,195 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:00,080 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:05,737 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:14,826 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:18,567 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:26,560 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:28,885 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:33,176 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:37:42,321 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 17:38:24,747 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 17:38:34,845 [INFO] [watchfiles.main]: 23 changes detected
+2026-09-24 17:38:35,464 [INFO] [watchfiles.main]: 136 changes detected
+2026-09-24 17:38:35,830 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 17:38:52,573 [INFO] [watchfiles.main]: 80 changes detected
+2026-09-24 17:38:52,940 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 18:18:34,617 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 18:36:23,109 [INFO] [backup]: Backup local thanh cong: D:\Projects_Hermes\pos-offline-petcare2\data\backups\auto_20260924_1836.db
+2026-09-24 18:36:23,183 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 18:36:23,229 [INFO] [backup]: Backup cloud thanh cong: G:\Drive của tôi\backup POS\cloud_20260924_1836.db
+2026-09-24 18:36:23,544 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:36:24,045 [INFO] [backup]: Backup local thanh cong: D:\Projects_Hermes\pos-offline-petcare2\data\backups\auto_20260924_1836.db
+2026-09-24 18:36:24,155 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 18:36:24,162 [INFO] [backup]: Backup cloud thanh cong: G:\Drive của tôi\backup POS\cloud_20260924_1836.db
+2026-09-24 18:36:24,508 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:37,189 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:39,623 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:42,104 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:44,844 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:49,348 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:51,525 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:50:56,325 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 18:52:20,227 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 18:53:38,947 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 18:53:53,911 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 18:55:22,855 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:01,236 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:01,639 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:02,006 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 19:13:03,102 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:03,759 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:13:04,530 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:13:04,583 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:13:13,597 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:13,964 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 19:13:14,773 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:13:15,382 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:13:15,931 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:13:15,989 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:13:52,450 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:13:52,816 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:13:53,563 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:13:54,382 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:13:54,770 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:13:54,840 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:14:34,677 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:14:35,031 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:14:35,873 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:14:36,631 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:14:37,051 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:14:37,141 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:14:59,525 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:14:59,884 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:00,736 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:15:01,497 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:01,911 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:15:01,963 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:15:11,638 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:15:11,992 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:12,810 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:15:13,470 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:13,860 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:15:13,934 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:15:23,956 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:15:24,310 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:25,085 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:15:26,070 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:15:26,151 [INFO] [watchfiles.main]: 11 changes detected
+2026-09-24 19:15:35,222 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:15:35,590 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:36,413 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:15:37,376 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:37,736 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:15:50,124 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:15:50,487 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:51,887 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:15:52,244 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:17:31,935 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:17:32,287 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:17:46,650 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:17:47,004 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:18:09,158 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:18:09,521 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:19:14,665 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:19:15,023 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:19:33,147 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:19:33,510 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:19:49,989 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:19:50,343 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:20:05,888 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:20:06,249 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:20:28,281 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:20:28,633 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:20:40,297 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:20:40,664 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:20:51,678 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:04,699 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:05,563 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:21:07,391 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:21:07,754 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:08,111 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:21:28,762 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:21:29,118 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:31,019 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:21:31,112 [INFO] [watchfiles.main]: 11 changes detected
+2026-09-24 19:21:38,841 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:21:39,202 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:39,557 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:21:40,514 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 19:21:40,868 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:41,224 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:41,584 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 19:21:41,655 [WARNING] [cashbook]: POST /api/cashbook - Status: 401
+2026-09-24 19:21:41,938 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:42,040 [WARNING] [pos]: POST /api/orders - Status: 401
+2026-09-24 19:21:42,239 [WARNING] [partners]: POST /api/contacts/6/pay-debt - Status: 401
+2026-09-24 19:21:42,292 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:42,652 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:43,008 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:21:43,367 [INFO] [watchfiles.main]: 8 changes detected
+2026-09-24 19:21:43,724 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:21:55,305 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:21:55,665 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 19:21:56,420 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:21:57,580 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:21:57,636 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:02,533 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:22:03,044 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:22:04,214 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:04,574 [INFO] [watchfiles.main]: 9 changes detected
+2026-09-24 19:22:04,932 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:22:35,715 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:22:36,067 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:22:36,799 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:22:37,942 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:22:38,015 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:42,056 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:42,520 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:22:43,539 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:43,897 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 19:22:44,251 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:44,608 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:22:51,642 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:22:51,731 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:22:51,914 [WARNING] [products]: POST /api/products - Status: 400
+2026-09-24 19:22:51,917 [INFO] [httpx2]: HTTP Request: POST http://testserver/api/products "HTTP/1.1 400 Bad Request"
+2026-09-24 19:22:52,090 [INFO] [watchfiles.main]: 8 changes detected
+2026-09-24 19:22:59,817 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:00,175 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:23:00,903 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:23:02,204 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:23:02,269 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:23:08,774 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:09,134 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:23:09,930 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:23:11,128 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:23:11,206 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:23:19,531 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:23:20,138 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:21,251 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:23:21,608 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 19:23:21,968 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:23:22,327 [INFO] [watchfiles.main]: 11 changes detected
+2026-09-24 19:23:27,991 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:28,348 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:32,034 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 19:23:42,127 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:42,487 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 19:23:43,248 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:48,246 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 19:23:48,610 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 19:31:18,932 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:31:19,793 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:31:19,874 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:20,289 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 19:31:20,645 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:21,002 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:21,357 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:21,915 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:31:26,015 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:31:27,179 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 19:31:27,229 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:27,841 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:28,197 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:28,554 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:29,113 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 19:31:33,059 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:40,861 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:48,495 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:31:50,874 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:32:06,557 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:32:30,259 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 19:32:34,764 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:30:49,072 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:30:49,444 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:30:59,698 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:31:00,059 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:31:26,053 [INFO] [backup]: Backup local thanh cong: D:\Projects_Hermes\pos-offline-petcare2\data\backups\auto_20260924_2031.db
+2026-09-24 20:31:26,122 [INFO] [backup]: Backup cloud thanh cong: G:\Drive của tôi\backup POS\cloud_20260924_2031.db
+2026-09-24 20:31:26,139 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:31:26,494 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:31:27,194 [INFO] [backup]: Backup local thanh cong: D:\Projects_Hermes\pos-offline-petcare2\data\backups\auto_20260924_2031.db
+2026-09-24 20:31:27,244 [INFO] [backup]: Backup cloud thanh cong: G:\Drive của tôi\backup POS\cloud_20260924_2031.db
+2026-09-24 20:31:27,356 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:33:22,873 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:33:23,237 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:33:28,485 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:33:28,837 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:33:38,279 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:33:59,404 [INFO] [watchfiles.main]: 11 changes detected
+2026-09-24 20:34:32,808 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:34:33,163 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:34:33,985 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:34:34,490 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:34:34,969 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:34:35,055 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:34:37,384 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:34:37,746 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:34:38,522 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:34:38,980 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:34:39,380 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:34:39,446 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:34:41,727 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:34:42,090 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:34:47,195 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:34:52,815 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:34:56,251 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:34:56,604 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:35:03,785 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:35:04,145 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:35:11,479 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:35:11,835 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:35:23,839 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:35:40,508 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:35:59,723 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:36:00,086 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:36:00,844 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:36:01,597 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:36:01,657 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:36:03,031 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:03,391 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:36:04,218 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:36:05,051 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:36:05,133 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:07,009 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:07,360 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:36:08,103 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:36:08,558 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:36:08,925 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:36:09,012 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:13,617 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:13,975 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:36:14,643 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:36:15,054 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:15,446 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:36:15,507 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:37,854 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:36:38,213 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:36:39,025 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:36:39,755 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)
+2026-09-24 20:36:39,835 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:40,996 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:36:41,403 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:42,416 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:36:42,818 [INFO] [watchfiles.main]: 9 changes detected
+2026-09-24 20:36:45,643 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:36:50,542 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:36:51,046 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:57,227 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:36:57,584 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:37:03,854 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:37:04,211 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:37:31,808 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:37:38,620 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:38:19,751 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:38:32,430 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:38:48,948 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:38:51,980 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:38:56,170 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:12,692 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:13,056 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:39:20,181 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:20,537 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:39:26,450 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:41,167 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:41,532 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:39:55,627 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:39:55,986 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:40:18,153 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:40:21,092 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:21,445 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:40:31,565 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:31,927 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:37,035 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:40:37,397 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:37,857 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:38,223 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:38,577 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:38,618 [WARNING] [cashbook]: POST /api/cashbook - Status: 401
+2026-09-24 20:40:38,934 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:39,026 [WARNING] [pos]: POST /api/orders - Status: 401
+2026-09-24 20:40:39,182 [WARNING] [partners]: POST /api/contacts/6/pay-debt - Status: 401
+2026-09-24 20:40:39,295 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:40:39,649 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:40,007 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:40,369 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:40,726 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:41,084 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:41,443 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:41,801 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:40:42,157 [INFO] [watchfiles.main]: 8 changes detected
+2026-09-24 20:40:42,515 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:40:49,485 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:49,850 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:40:50,357 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:40:50,816 [INFO] [watchfiles.main]: 8 changes detected
+2026-09-24 20:40:51,183 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:40:58,934 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:40:59,293 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:41:09,106 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:41:09,475 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:41:18,637 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:41:19,006 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:41:34,739 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:42:13,456 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:42:16,953 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:42:17,462 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:42:17,872 [INFO] [watchfiles.main]: 9 changes detected
+2026-09-24 20:42:44,020 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:42:44,379 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:43:55,074 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:43:55,429 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:44:04,983 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:44:05,346 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:44:09,738 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:13,519 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:13,879 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:45:25,149 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:25,509 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:45:32,758 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:33,121 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:45:40,165 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:40,526 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:45:49,333 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:54,335 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:45:55,149 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:45:55,554 [INFO] [watchfiles.main]: 9 changes detected
+2026-09-24 20:45:58,687 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:45:59,202 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:45:59,562 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:04,881 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:05,238 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:47:05,590 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:47:05,950 [INFO] [watchfiles.main]: 8 changes detected
+2026-09-24 20:47:06,312 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:12,080 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:12,544 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:13,415 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:47:13,816 [INFO] [watchfiles.main]: 6 changes detected
+2026-09-24 20:47:14,169 [INFO] [watchfiles.main]: 9 changes detected
+2026-09-24 20:47:21,347 [INFO] [watchfiles.main]: 2 changes detected
+2026-09-24 20:47:21,714 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:47:32,883 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:33,245 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:47:40,823 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:41,180 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:41,992 [INFO] [watchfiles.main]: 5 changes detected
+2026-09-24 20:47:42,345 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:47:42,698 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:47:43,057 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:47:43,465 [INFO] [watchfiles.main]: 7 changes detected
+2026-09-24 20:47:43,831 [INFO] [watchfiles.main]: 3 changes detected
+2026-09-24 20:47:50,196 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:48:00,856 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:48:01,222 [INFO] [watchfiles.main]: 4 changes detected
+2026-09-24 20:48:02,033 [INFO] [watchfiles.main]: 1 change detected
+2026-09-24 20:48:39,937 [INFO] [backup]: Da khoi dong backup scheduler (moi 3600s, retention local 7 ngay)

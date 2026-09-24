@@ -53,6 +53,15 @@ def init_db():
 
     # 3. Danh muc san pham / dich vu / nguyen lieu
     cur.execute('''
+    CREATE TABLE IF NOT EXISTS product_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
@@ -62,9 +71,27 @@ def init_db():
         sell_price REAL DEFAULT 0, -- Gia ban
         stock REAL DEFAULT 0, -- Ton kho
         unit TEXT DEFAULT 'cái',
+        category TEXT DEFAULT 'Khác',
         is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
+
+    cur.execute("PRAGMA table_info(products)")
+    prod_cols = [c[1] for c in cur.fetchall()]
+    if 'category' not in prod_cols:
+        cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Khác'")
+
+    # Seed product_categories if empty & migrate existing categories
+    cur.execute("SELECT COUNT(*) FROM product_categories")
+    if cur.fetchone()[0] == 0:
+        default_categories = ['Thức ăn', 'Phụ kiện', 'Vệ sinh', 'Thuốc & Thú y', 'Khác']
+        for idx, cat_name in enumerate(default_categories, start=1):
+            cur.execute("INSERT OR IGNORE INTO product_categories (name, sort_order) VALUES (?, ?)", (cat_name, idx))
+    
+    cur.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ''")
+    existing_cats = [r[0] for r in cur.fetchall()]
+    for cat_name in existing_cats:
+        cur.execute("INSERT OR IGNORE INTO product_categories (name) VALUES (?)", (cat_name,))
 
     # 3.1. Module Cost: Nguyen lieu & Dich vu thanh phan (ingredients)
     cur.execute('''

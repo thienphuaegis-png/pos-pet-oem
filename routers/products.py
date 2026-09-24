@@ -33,20 +33,41 @@ def clean_num(val):
         return 0.0
 
 @router.get("")
-def list_products():
+def list_products(category: Optional[str] = None):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('''
+    query = '''
     SELECT p.*,
            GROUP_CONCAT(DISTINCT c.name) as supplier_names
     FROM products p
     LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
     LEFT JOIN contacts c ON si.supplier_id = c.id
     WHERE COALESCE(p.is_active, 1) = 1 AND p.type != 'material'
+    '''
+    params = []
+    if category:
+        query += ' AND COALESCE(p.category, "Khác") = ?'
+        params.append(category)
+    query += '''
     GROUP BY p.id
     ORDER BY p.id DESC
-    ''')
+    '''
+    cur.execute(query, tuple(params))
     rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@router.get("/categories")
+def list_product_categories():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT DISTINCT COALESCE(category, 'Khác') as category
+        FROM products
+        WHERE COALESCE(is_active, 1) = 1 AND type != 'material'
+        ORDER BY category ASC
+    ''')
+    rows = [r["category"] for r in cur.fetchall() if r["category"]]
     conn.close()
     return rows
 
@@ -60,6 +81,7 @@ def export_products(warehouse_id: Optional[int] = None):
         cur.execute('''
         SELECT 
             p.id, p.code, p.name, p.unit, p.type, p.cost_price, p.sell_price,
+            COALESCE(p.category, 'Khác') as category,
             COALESCE(pi.quantity, 0) as stock,
             w.name as warehouse_name,
             (SELECT GROUP_CONCAT(DISTINCT c.name) 
@@ -76,6 +98,7 @@ def export_products(warehouse_id: Optional[int] = None):
         cur.execute('''
         SELECT 
             p.id, p.code, p.name, p.unit, p.type, p.cost_price, p.sell_price,
+            COALESCE(p.category, 'Khác') as category,
             COALESCE((SELECT SUM(quantity) FROM product_inventory pi WHERE pi.product_id = p.id), 0) as stock,
             'Tất cả kho' as warehouse_name,
             (SELECT GROUP_CONCAT(DISTINCT c.name) 
@@ -100,7 +123,7 @@ def export_products(warehouse_id: Optional[int] = None):
     align_left = Alignment(horizontal="left", vertical="center")
 
     headers = [
-        "STT", "Mã hàng", "Tên hàng hóa", "Phân loại", 
+        "STT", "Mã hàng", "Tên hàng hóa", "Nhóm hàng", "Phân loại", 
         "ĐVT", "Giá vốn", "Giá bán", "Tồn kho", "Kho lưu trữ", "Nhà cung cấp"
     ]
     ws.append(headers)
@@ -116,6 +139,7 @@ def export_products(warehouse_id: Optional[int] = None):
             idx,
             r["code"] or "",
             r["name"] or "",
+            r["category"] or "Khác",
             type_str,
             r["unit"] or "cái",
             r["cost_price"] or 0,
@@ -129,12 +153,13 @@ def export_products(warehouse_id: Optional[int] = None):
     for row_idx in range(2, len(rows) + 2):
         ws.cell(row=row_idx, column=1).alignment = align_center
         ws.cell(row=row_idx, column=2).alignment = align_left
-        ws.cell(row=row_idx, column=4).alignment = align_center
+        ws.cell(row=row_idx, column=4).alignment = align_left
         ws.cell(row=row_idx, column=5).alignment = align_center
-        ws.cell(row=row_idx, column=6).number_format = "#,##0"
+        ws.cell(row=row_idx, column=6).alignment = align_center
         ws.cell(row=row_idx, column=7).number_format = "#,##0"
         ws.cell(row=row_idx, column=8).number_format = "#,##0"
-        ws.cell(row=row_idx, column=9).alignment = align_left
+        ws.cell(row=row_idx, column=9).number_format = "#,##0"
+        ws.cell(row=row_idx, column=10).alignment = align_left
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -163,7 +188,7 @@ def get_template_excel():
     align_center = Alignment(horizontal="center", vertical="center")
 
     headers = [
-        "Mã hàng (để trống tự sinh)", "Tên hàng hóa (*bắt buộc)", "Phân loại (Hàng hóa/Dịch vụ)",
+        "Mã hàng (để trống tự sinh)", "Tên hàng hóa (*bắt buộc)", "Nhóm hàng", "Phân loại (Hàng hóa/Dịch vụ)",
         "Đơn vị tính", "Giá vốn (đ)", "Giá bán (đ)", "Tồn kho ban đầu", "Nhà cung cấp"
     ]
     ws.append(headers)
@@ -174,9 +199,9 @@ def get_template_excel():
         cell.alignment = align_center
 
     sample_rows = [
-        ["SP001", "Thức ăn hạt cho chó 500g", "Hàng hóa", "gói", 45000, 70000, 50, "Công ty ABC"],
-        ["SP002", "Dung dịch sữa tắm dưỡng lông 250ml", "Hàng hóa", "chai", 80000, 120000, 20, "Công ty Hevico"],
-        ["DV001", "Cắt tỉa lông và tắm vệ sinh", "Dịch vụ", "lần", 0, 150000, 0, ""]
+        ["SP001", "Thức ăn hạt cho chó 500g", "Thức ăn", "Hàng hóa", "gói", 45000, 70000, 50, "Công ty ABC"],
+        ["SP002", "Dung dịch sữa tắm dưỡng lông 250ml", "Sữa tắm", "Hàng hóa", "chai", 80000, 120000, 20, "Công ty Hevico"],
+        ["DV001", "Cắt tỉa lông và tắm vệ sinh", "Dịch vụ Spa", "Dịch vụ", "lần", 0, 150000, 0, ""]
     ]
     for r in sample_rows:
         ws.append(r)
@@ -232,6 +257,7 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
 
     idx_code = find_col(["mã", "code", "sku"])
     idx_name = find_col(["tên", "name", "sản phẩm"])
+    idx_cat = find_col(["nhóm", "group", "category", "danh mục"])
     idx_type = find_col(["loại", "type", "phân loại"])
     idx_unit = find_col(["đvt", "đơn vị", "unit"])
     idx_cost = find_col(["giá vốn", "vốn", "giá nhập", "cost"])
@@ -262,6 +288,7 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
             continue
 
         code = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) and r[idx_code] is not None else ""
+        category_val = str(r[idx_cat] or "").strip() if idx_cat != -1 and idx_cat < len(r) and r[idx_cat] is not None else ""
         raw_type = str(r[idx_type] or "").strip().lower() if idx_type != -1 and idx_type < len(r) and r[idx_type] is not None else ""
         item_type = "service" if ("dịch vụ" in raw_type or "service" in raw_type) else "product"
         unit = str(r[idx_unit] or "cái").strip() if idx_unit != -1 and idx_unit < len(r) and r[idx_unit] is not None else "cái"
@@ -281,11 +308,18 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
 
             if existing:
                 pid = existing["id"]
-                cur.execute("""
-                    UPDATE products 
-                    SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, is_active = 1
-                    WHERE id = ?
-                """, (name, unit, item_type, cost_price, sell_price, pid))
+                if category_val:
+                    cur.execute("""
+                        UPDATE products 
+                        SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, category = ?, is_active = 1
+                        WHERE id = ?
+                    """, (name, unit, item_type, cost_price, sell_price, category_val, pid))
+                else:
+                    cur.execute("""
+                        UPDATE products 
+                        SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, is_active = 1
+                        WHERE id = ?
+                    """, (name, unit, item_type, cost_price, sell_price, pid))
 
                 if item_type != "service" and stock_qty != 0:
                     cur.execute("""
@@ -310,10 +344,11 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
             else:
                 if not code:
                     code = f"SP-{int(time.time() * 1000) % 1000000:06d}"
+                cat = category_val or "Khác"
                 cur.execute("""
-                    INSERT INTO products (code, name, type, unit, cost_price, sell_price, stock, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-                """, (code, name, item_type, unit, cost_price, sell_price, stock_qty if item_type != "service" else 0))
+                    INSERT INTO products (code, name, type, unit, cost_price, sell_price, stock, category, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (code, name, item_type, unit, cost_price, sell_price, stock_qty if item_type != "service" else 0, cat))
                 pid = cur.lastrowid
 
                 if item_type != "service":
@@ -362,9 +397,10 @@ def create_product(p: ProductCreate):
     conn = get_db()
     cur = conn.cursor()
     try:
+        cat = p.category or "Khác"
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -395,18 +431,19 @@ def update_product(product_id: int, p: ProductUpdate):
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id, code FROM products WHERE id = ?", (product_id,))
+        cur.execute("SELECT id, code, category FROM products WHERE id = ?", (product_id,))
         existing = cur.fetchone()
         if not existing:
             conn.close()
             raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
         
         code = p.code if p.code else existing["code"]
+        category = p.category if p.category is not None else (existing["category"] if "category" in existing.keys() else "Khác")
         cur.execute('''
             UPDATE products 
-            SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?
+            SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?
             WHERE id = ?
-        ''', (code, p.name, p.type, p.cost_price, p.sell_price, p.unit, product_id))
+        ''', (code, p.name, p.type, p.cost_price, p.sell_price, p.unit, category, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
