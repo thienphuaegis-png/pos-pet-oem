@@ -108,7 +108,14 @@ const appCode = fs.readFileSync(appJsPath, 'utf8');
 const context = vm.createContext(sandbox);
 vm.runInContext(appCode, context);
 
-console.log('✅ app.js loaded into VM without parse errors.');
+// Load Lego module: static/js/modules/spa.js
+const spaJsPath = path.join(__dirname, '..', 'static', 'js', 'modules', 'spa.js');
+if (fs.existsSync(spaJsPath)) {
+    const spaCode = fs.readFileSync(spaJsPath, 'utf8');
+    vm.runInContext(spaCode, context);
+}
+
+console.log('✅ app.js & modules/spa.js loaded into VM without parse errors.');
 
 // Provide sample tickets covering all 4 statuses
 context.allPetServiceTickets = [

@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup: Tiếp Nhận Dịch Vụ Spa 3 Cột & Nhập Hàng Loạt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .money-input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+</head>
+<body class="bg-slate-100 p-4 min-h-screen text-slate-800 text-xs">
+    <div class="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[96vh]">
+        
+        <!-- HEADER -->
+        <div class="px-5 py-3.5 bg-gradient-to-r from-purple-800 to-indigo-900 text-white flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="text-xl">🐾</span>
+                <div>
+                    <h2 class="text-sm font-black uppercase tracking-wide">Tiếp Nhận Dịch Vụ Spa & Làm Đẹp Thú Cưng</h2>
+                    <p class="text-[11px] text-purple-200">Giao diện 3 cột luôn mở • Nhập nhanh Google Sheet hàng loạt bé • Cảnh báo danh sách đỏ</p>
+                </div>
+            </div>
+            
+            <!-- CHỌN CHẾ ĐỘ NHẬP -->
+            <div class="flex items-center gap-2 bg-purple-950/60 p-1 rounded-lg border border-purple-400/30">
+                <button type="button" id="tab-btn-single" onclick="switchMode('single')" class="px-3 py-1.5 rounded-md font-bold text-xs bg-white text-purple-950 shadow-sm transition">
+                    🐾 Tiếp Nhận 1 Bé (3 Cột)
+                </button>
+                <button type="button" id="tab-btn-batch" onclick="switchMode('batch')" class="px-3 py-1.5 rounded-md font-bold text-xs text-purple-200 hover:text-white transition flex items-center gap-1.5">
+                    <span>⚡ Nhập Hàng Loạt Nhiều Bé</span>
+                    <span class="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded font-black">Sheets</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TOP BAR: KHÁCH HÀNG & CẢNH BÁO DANH SÁCH ĐỎ (ALWAYS VISIBLE) -->
+        <div class="p-4 bg-slate-50 border-b space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-1 min-w-[320px] max-w-xl">
+                    <label class="font-bold text-xs text-slate-700 whitespace-nowrap">👤 Khách hàng (*):</label>
+                    <div class="relative flex-1">
+                        <select id="mock-customer-select" onchange="changeCustomer(this.value)" class="w-full border border-purple-300 rounded-lg p-2 text-xs font-bold bg-white focus:ring-2 focus:ring-purple-500">
+                            <option value="cust_1">Chị Mai (0908 123 456) - 3 Bé (Bông, Lu, Miu) 🚨 CẦN LƯU Ý</option>
+                            <option value="cust_2">Anh Hoàng (0912 888 999) - 1 Bé (Corgi Mập)</option>
+                            <option value="cust_3">Cô Lan (0987 654 321) - 4 Bé Poodle Đỏ 🚨 VIP CỰC KỸ TÍNH</option>
+                        </select>
+                    </div>
+                    <button class="px-2.5 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded-lg border border-purple-200 text-xs">➕ Khách Mới</button>
+                </div>
+
+                <div class="flex items-center gap-4 text-xs font-medium text-slate-600 bg-white px-3 py-1.5 rounded-lg border">
+                    <span>Điểm tích lũy: <strong class="text-amber-600 font-bold">120 điểm</strong></span>
+                    <span>Số dư ví Spa: <strong class="text-emerald-600 font-bold">850.000 đ</strong></span>
+                </div>
+            </div>
+
+            <!-- BANNER CẢNH BÁO DANH SÁCH ĐỎ / LƯU Ý KHÁCH HÀNG -->
+            <div id="red-flag-banner" class="bg-rose-50 border-l-4 border-rose-500 p-2.5 rounded-r-lg flex items-start justify-between shadow-sm animate-pulse">
+                <div class="flex items-start gap-2">
+                    <span class="text-base text-rose-600">🚨</span>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-rose-700 text-xs uppercase tracking-wide">CẢNH BÁO LƯU Ý ĐẶC BIỆT:</span>
+                            <span class="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">DANH SÁCH ĐỎ</span>
+                        </div>
+                        <p class="text-rose-900 font-bold text-xs mt-0.5" id="red-flag-text">
+                            Khách cực kỳ khó tính về phom mặt tròn. Bé Bông bị tim nhẹ và hay cắn người lạ khi sấy tai! Không dùng máy sấy công suất lớn.
+                        </p>
+                    </div>
+                </div>
+                <button onclick="editWarningNote()" class="text-rose-700 hover:text-rose-900 underline font-bold text-[11px] whitespace-nowrap ml-2">Sửa lưu ý</button>
+            </div>
+        </div>
+
+        <!-- BODY CONTAINER -->
+        <div class="flex-1 overflow-hidden p-4">
+            
+            <!-- CHẾ ĐỘ 1: BỐ CỤC 3 CỘT (SINGLE PET DETAIL) -->
+            <div id="view-single-pet" class="grid grid-cols-12 gap-4 h-full">
+                
+                <!-- CỘT 1: THÔNG TIN BÉ & DỊCH VỤ (4.5 / 12) -->
+                <div class="col-span-12 lg:col-span-5 bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col space-y-3 overflow-y-auto shadow-sm">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <span class="font-bold text-purple-900 text-xs flex items-center gap-1.5">
+                            <span>🐩</span> 1. THÔNG TIN BÉ & DỊCH VỤ SPA
+                        </span>
+                        <span class="bg-pink-100 text-pink-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Giá tự nhảy theo kg</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="col-span-2">
+                            <label class="block font-bold text-slate-700 mb-1">Chọn thú cưng của khách:</label>
+                            <select id="single-pet-select" class="w-full border p-2 rounded-lg bg-pink-50/50 font-bold text-pink-900 text-xs border-pink-200">
+                                <option value="Bông">🐶 Bé Bông (Poodle Trắng, 3.2 kg)</option>
+                                <option value="Lu">🐶 Bé Lu (Poodle Nâu, 4.8 kg)</option>
+                                <option value="Miu">🐱 Bé Miu (Mèo ALN Xám, 4.0 kg)</option>
+                                <option value="__new__">➕ Thêm bé mới cho khách này...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Cân nặng (kg) (*):</label>
+                            <input type="text" value="3.2" class="w-full border-2 border-pink-400 p-2 rounded-lg font-black text-pink-700 text-sm bg-white" placeholder="3.2">
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Cạo bàn (*):</label>
+                            <select class="w-full border p-2 rounded-lg font-medium bg-white text-xs">
+                                <option>Không cạo bàn</option>
+                                <option selected>Cạo bàn sạch</option>
+                                <option>Cạo bàn cao</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- GÓI DỊCH VỤ CHÍNH -->
+                    <div class="space-y-2 pt-1 border-t">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Gói Dịch Vụ Chính:</label>
+                            <select class="w-full border p-2 rounded-lg bg-white font-bold text-slate-800 text-xs border-purple-200">
+                                <optgroup label="🐶 Gói Combo Chó">
+                                    <option>CB Tắm (1+2+3)</option>
+                                    <option>CB Cạo (1+2+3+4)</option>
+                                    <option selected>CB Cắt Tỉa (1+2+3+5)</option>
+                                </optgroup>
+                                <optgroup label="✂️ Dịch Vụ Lẻ Chó">
+                                    <option>Cạo lông toàn thân</option>
+                                    <option>Cắt lông tạo kiểu</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Dịch Vụ Nhuộm (Tùy chọn):</label>
+                            <select class="w-full border p-2 rounded-lg bg-white font-medium text-slate-700 text-xs">
+                                <option>-- Không nhuộm --</option>
+                                <option selected>Nhuộm: 1 Màu (2 Tai + Đuôi)</option>
+                                <option>Nhuộm: Trên 2 Màu (2 Tai + Đuôi + 4 Chân)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Yêu cầu cắt tỉa của khách:</label>
+                            <textarea rows="2" class="w-full border p-2 rounded-lg bg-white text-xs" placeholder="VD: Mặt tròn teddy bear, tai ngắn bo tròn, giữ đuôi bông...">Cắt đầu tròn teddy bear, giữ đuôi bông, tỉa tai ngắn.</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT 2: PHỤ THU & TÀI CHÍNH THANH TOÁN (3.5 / 12) -->
+                <div class="col-span-12 lg:col-span-4 bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col space-y-3 overflow-y-auto shadow-sm">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <span class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                            <span>💵</span> 2. PHỤ THU & TÀI CHÍNH
+                        </span>
+                        <span class="text-slate-400 text-[11px] italic">Tự động cộng dồn</span>
+                    </div>
+
+                    <!-- DANH SÁCH CÁC MỤC PHỤ THU -->
+                    <div class="space-y-2 bg-amber-50/40 p-2.5 rounded-lg border border-amber-200/60">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-medium text-slate-700">Giá Gói Chính:</span>
+                            <span class="font-bold font-mono text-slate-800">250.000 đ</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-medium text-slate-700">Gói Nhuộm Tai/Đuôi:</span>
+                            <span class="font-bold font-mono text-slate-800">100.000 đ</span>
+                        </div>
+                        
+                        <div class="border-t border-amber-200/80 pt-2 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-[11px] font-bold text-slate-700">Đánh Răng:</label>
+                                <input type="text" value="30.000" class="money-input w-28 border rounded p-1 text-right font-bold text-slate-800 text-xs bg-white">
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-[11px] font-bold text-slate-700">Cắt Nghệ Thuật:</label>
+                                <input type="text" value="50.000" class="money-input w-28 border rounded p-1 text-right font-bold text-slate-800 text-xs bg-white">
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-[11px] font-bold text-slate-700">Phụ thu (Gỡ rối/Ghẻ):</label>
+                                <input type="text" value="0" class="money-input w-28 border rounded p-1 text-right font-bold text-slate-800 text-xs bg-white">
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-[11px] font-bold text-slate-700">Cước Vận Chuyển:</label>
+                                <input type="text" value="20.000" class="money-input w-28 border rounded p-1 text-right font-bold text-slate-800 text-xs bg-white">
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="text-[11px] font-bold text-emerald-800" title="Cho riêng thợ">🎁 Tip Thợ (ko vào bill):</label>
+                                <input type="text" value="20.000" class="money-input w-28 border rounded p-1 text-right font-bold text-emerald-700 text-xs bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TỔNG CỘNG & THANH TOÁN -->
+                    <div class="p-3 bg-slate-50 rounded-xl border space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-black text-xs text-sky-950 uppercase">TỔNG CỘNG:</span>
+                            <span class="text-base font-black font-mono text-sky-700">450.000 đ</span>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] pt-1 border-t">
+                            <span class="font-bold text-slate-700">Thanh toán:</span>
+                            <div class="flex items-center gap-2">
+                                <label class="flex items-center gap-1 cursor-pointer font-semibold">
+                                    <input type="radio" name="pay-timing" checked> Khi đón
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer font-bold text-emerald-700">
+                                    <input type="radio" name="pay-timing"> Trả trước
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT 3: LỊCH SỬ SPA CỦA KHÁCH HÀNG (4 / 12 - LUÔN HIỂN THỊ) -->
+                <div class="col-span-12 lg:col-span-3 bg-white rounded-xl border border-slate-200 p-3.5 flex flex-col space-y-2.5 overflow-hidden shadow-sm">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                            <span>📜</span> 3. LỊCH SỬ SPA CỦA KHÁCH
+                        </span>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">5 lượt gần nhất</span>
+                    </div>
+
+                    <!-- BỘ LỌC THEO THÚ CƯNG -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] font-bold text-slate-500 whitespace-nowrap">Lọc bé:</span>
+                        <select class="w-full border rounded p-1 text-[11px] bg-slate-50 font-medium">
+                            <option>-- Tất cả thú cưng của khách --</option>
+                            <option selected>🐶 Bé Bông (3 lần)</option>
+                            <option>🐶 Bé Lu (1 lần)</option>
+                            <option>🐱 Bé Miu (1 lần)</option>
+                        </select>
+                    </div>
+
+                    <!-- TIMELINE LỊCH SỬ -->
+                    <div class="flex-1 overflow-y-auto space-y-2 pr-1">
+                        <!-- Lần 1 -->
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50/70 hover:bg-purple-50/50 transition">
+                            <div class="flex justify-between items-center text-[10px] text-slate-400">
+                                <span>18/09/2026 • 14:30</span>
+                                <span class="text-emerald-600 font-bold">Hoàn tất</span>
+                            </div>
+                            <div class="font-bold text-slate-800 text-xs mt-0.5">🐶 Bé Bông (3.1 kg)</div>
+                            <div class="text-[11px] text-purple-700 font-medium">CB Cắt Tỉa + Nhuộm 2 Tai</div>
+                            <div class="text-[10px] text-slate-500 italic mt-1 bg-white p-1 rounded border border-slate-100">
+                                💬 Thợ Huy: "Bé hơi nhát tiếng sấy tai, khách dặn giữ chỏm lông đuôi."
+                            </div>
+                            <div class="flex justify-between items-center mt-1 text-[10px] font-mono font-bold text-slate-600">
+                                <span>Thợ: Huy (Cắt)</span>
+                                <span>420.000 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Lần 2 -->
+                        <div class="p-2 rounded-lg border border-slate-100 bg-slate-50/70 hover:bg-purple-50/50 transition">
+                            <div class="flex justify-between items-center text-[10px] text-slate-400">
+                                <span>02/09/2026 • 09:15</span>
+                                <span class="text-emerald-600 font-bold">Hoàn tất</span>
+                            </div>
+                            <div class="font-bold text-slate-800 text-xs mt-0.5">🐶 Bé Bông (3.0 kg)</div>
+                            <div class="text-[11px] text-purple-700 font-medium">CB Tắm Massage</div>
+                            <div class="text-[10px] text-slate-500 italic mt-1 bg-white p-1 rounded border border-slate-100">
+                                💬 Thợ Lan: "Tắm sạch, khách hài lòng."
+                            </div>
+                            <div class="flex justify-between items-center mt-1 text-[10px] font-mono font-bold text-slate-600">
+                                <span>Thợ: Lan (Tắm)</span>
+                                <span>180.000 đ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHẾ ĐỘ 2: BẢNG NHẬP HÀNG LOẠT NHIỀU BÉ (GOOGLE SHEETS STYLE) -->
+            <div id="view-batch-pets" class="hidden h-full flex flex-col space-y-3 bg-white rounded-xl border border-slate-200 p-4 shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between border-b pb-2.5">
+                    <div>
+                        <span class="font-bold text-indigo-950 text-sm flex items-center gap-2">
+                            <span>⚡</span> BẢNG TIẾP NHẬN HÀNG LOẠT NHIỀU THÚ CƯNG CỦA KHÁCH
+                        </span>
+                        <p class="text-[11px] text-slate-500">Nhập nhanh dạng lưới tương tự Google Sheets • Chọn nhanh dịch vụ & phụ thu từng bé • Bấm 1 nút lập tất cả phiếu</p>
+                    </div>
+                    <button type="button" onclick="addBatchRow()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm">
+                        <span>➕ Thêm Dòng Bé</span>
+                    </button>
+                </div>
+
+                <!-- GRID TABLE -->
+                <div class="flex-1 overflow-x-auto overflow-y-auto border rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 border-b">
+                            <tr>
+                                <th class="p-2 w-10 text-center">STT</th>
+                                <th class="p-2 w-48">Tên Bé & Giống</th>
+                                <th class="p-2 w-20 text-center">Kg (*)</th>
+                                <th class="p-2 w-28">Cạo Bàn</th>
+                                <th class="p-2 w-44">Gói Chính</th>
+                                <th class="p-2 w-40">Nhuộm</th>
+                                <th class="p-2 w-24 text-right">Phụ Thu (đ)</th>
+                                <th class="p-2 w-28 text-right font-black text-sky-800">Thành Tiền (đ)</th>
+                                <th class="p-2">Yêu Cầu / Ghi Chú</th>
+                                <th class="p-2 w-12 text-center">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batch-table-body" class="divide-y divide-slate-100">
+                            <!-- Dòng 1 -->
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="p-2 text-center font-mono text-slate-400">1</td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1 font-bold text-pink-900 bg-white">
+                                        <option>🐶 Bé Bông (Poodle Trắng)</option>
+                                        <option>🐶 Bé Lu (Poodle Nâu)</option>
+                                        <option>🐱 Bé Miu (Mèo ALN)</option>
+                                        <option>+ Nhập bé mới...</option>
+                                    </select>
+                                </td>
+                                <td class="p-2"><input type="text" value="3.2" class="w-full border p-1 rounded text-center font-bold text-pink-700"></td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1">
+                                        <option>Cạo bàn sạch</option>
+                                        <option>Không cạo</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1 font-semibold text-slate-800">
+                                        <option>CB Cắt Tỉa (1+2+3+5)</option>
+                                        <option>CB Tắm (1+2+3)</option>
+                                        <option>Cạo lông toàn thân</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1">
+                                        <option>Nhuộm 2 Tai + Đuôi</option>
+                                        <option selected>-- Không nhuộm --</option>
+                                    </select>
+                                </td>
+                                <td class="p-2"><input type="text" value="50.000" class="money-input w-full border rounded p-1 text-right font-medium"></td>
+                                <td class="p-2 text-right font-mono font-black text-sky-700 text-xs">300.000 đ</td>
+                                <td class="p-2"><input type="text" value="Mặt tròn, tỉa tai ngắn" class="w-full border rounded p-1"></td>
+                                <td class="p-2 text-center"><button class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                            </tr>
+
+                            <!-- Dòng 2 -->
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="p-2 text-center font-mono text-slate-400">2</td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1 font-bold text-pink-900 bg-white">
+                                        <option>🐶 Bé Bông (Poodle Trắng)</option>
+                                        <option selected>🐶 Bé Lu (Poodle Nâu)</option>
+                                        <option>🐱 Bé Miu (Mèo ALN)</option>
+                                        <option>+ Nhập bé mới...</option>
+                                    </select>
+                                </td>
+                                <td class="p-2"><input type="text" value="4.8" class="w-full border p-1 rounded text-center font-bold text-pink-700"></td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1">
+                                        <option selected>Cạo bàn sạch</option>
+                                        <option>Không cạo</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1 font-semibold text-slate-800">
+                                        <option selected>CB Tắm (1+2+3)</option>
+                                        <option>CB Cắt Tỉa (1+2+3+5)</option>
+                                        <option>Cạo lông toàn thân</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border rounded p-1">
+                                        <option>Nhuộm 2 Tai + Đuôi</option>
+                                        <option selected>-- Không nhuộm --</option>
+                                    </select>
+                                </td>
+                                <td class="p-2"><input type="text" value="30.000" class="money-input w-full border rounded p-1 text-right font-medium"></td>
+                                <td class="p-2 text-right font-mono font-black text-sky-700 text-xs">210.000 đ</td>
+                                <td class="p-2"><input type="text" value="Tắm sạch ve rận" class="w-full border rounded p-1"></td>
+                                <td class="p-2 text-center"><button class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- FOOTER TỔNG KẾT BATCH -->
+                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
+                    <div class="flex items-center gap-4 text-xs font-bold">
+                        <span>Số lượng thú cưng tiếp nhận: <span class="text-purple-800 font-black text-sm">2 bé</span></span>
+                        <span>Tổng tạm tính cả đợt: <span class="text-emerald-700 font-black text-sm font-mono">510.000 đ</span></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg shadow-sm">🖨️ Lưu & In Hàng Loạt Phiếu K80</button>
+                        <button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-sm">💾 Lập 2 Phiếu Cùng Lúc</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER DIALOG -->
+        <div class="p-3 bg-slate-100 border-t flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">💡 Mẹo: Nhấn Tab để di chuyển nhanh giữa các ô nhập liệu giống Google Sheets.</span>
+            <div class="flex items-center gap-2">
+                <button type="button" class="px-4 py-2 border rounded-lg font-bold bg-white text-slate-700 hover:bg-slate-50">Đóng</button>
+                <button type="button" class="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg font-bold shadow">
+                    💾 Hoàn Tất Tiếp Nhận
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function switchMode(mode) {
+            const btnSingle = document.getElementById('tab-btn-single');
+            const btnBatch = document.getElementById('tab-btn-batch');
+            const viewSingle = document.getElementById('view-single-pet');
+            const viewBatch = document.getElementById('view-batch-pets');
+
+            if (mode === 'single') {
+                btnSingle.className = 'px-3 py-1.5 rounded-md font-bold text-xs bg-white text-purple-950 shadow-sm transition';
+                btnBatch.className = 'px-3 py-1.5 rounded-md font-bold text-xs text-purple-200 hover:text-white transition flex items-center gap-1.5';
+                viewSingle.classList.remove('hidden');
+                viewBatch.classList.add('hidden');
+            } else {
+                btnBatch.className = 'px-3 py-1.5 rounded-md font-bold text-xs bg-white text-purple-950 shadow-sm transition flex items-center gap-1.5';
+                btnSingle.className = 'px-3 py-1.5 rounded-md font-bold text-xs text-purple-200 hover:text-white transition';
+                viewSingle.classList.add('hidden');
+                viewBatch.classList.remove('hidden');
+            }
+        }
+
+        function changeCustomer(val) {
+            const banner = document.getElementById('red-flag-banner');
+            const text = document.getElementById('red-flag-text');
+            if (val === 'cust_1') {
+                banner.classList.remove('hidden');
+                text.textContent = 'Khách cực kỳ khó tính về phom mặt tròn. Bé Bông bị tim nhẹ và hay cắn người lạ khi sấy tai! Không dùng máy sấy công suất lớn.';
+            } else if (val === 'cust_3') {
+                banner.classList.remove('hidden');
+                text.textContent = 'Khách VIP dắt 4 bé poodle đỏ một lúc. Luôn yêu cầu thợ bậc cao cắt tỉa, không nhận thợ phụ cắt form!';
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function addBatchRow() {
+            const tbody = document.getElementById('batch-table-body');
+            const rowCount = tbody.children.length + 1;
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition';
+            tr.innerHTML = `
+                <td class="p-2 text-center font-mono text-slate-400">${rowCount}</td>
+                <td class="p-2">
+                    <select class="w-full border rounded p-1 font-bold text-pink-900 bg-white">
+                        <option>🐱 Bé Miu (Mèo ALN Xám)</option>
+                        <option>+ Nhập bé mới...</option>
+                    </select>
+                </td>
+                <td class="p-2"><input type="text" value="4.0" class="w-full border p-1 rounded text-center font-bold text-pink-700"></td>
+                <td class="p-2">
+                    <select class="w-full border rounded p-1">
+                        <option>Không cạo</option>
+                        <option>Cạo bàn sạch</option>
+                    </select>
+                </td>
+                <td class="p-2">
+                    <select class="w-full border rounded p-1 font-semibold text-slate-800">
+                        <option>Combo Tắm Vệ Sinh Mèo</option>
+                        <option>Cạo lông toàn thân mèo</option>
+                    </select>
+                </td>
+                <td class="p-2">
+                    <select class="w-full border rounded p-1">
+                        <option selected>-- Không nhuộm --</option>
+                    </select>
+                </td>
+                <td class="p-2"><input type="text" value="0" class="money-input w-full border rounded p-1 text-right font-medium"></td>
+                <td class="p-2 text-right font-mono font-black text-sky-700 text-xs">150.000 đ</td>
+                <td class="p-2"><input type="text" value="Tắm nhẹ nhàng" class="w-full border rounded p-1"></td>
+                <td class="p-2 text-center"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function editWarningNote() {
+            const current = document.getElementById('red-flag-text').textContent.trim();
+            const updated = prompt('Sửa nội dung lưu ý / cảnh báo khách hàng này:', current);
+            if (updated !== null) {
+                document.getElementById('red-flag-text').textContent = updated;
+            }
+        }
+    </script>
+</body>
+</html>
