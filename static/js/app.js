@@ -1697,6 +1697,31 @@
         }
         window.renderTableSkeleton = renderTableSkeleton;
 
+        /* Modern Top Slim Loading Progress Bar Helpers */
+        let pageLoaderTimeout = null;
+        function startPageLoader() {
+            const l = document.getElementById('global-page-loader');
+            if (!l) return;
+            if (pageLoaderTimeout) clearTimeout(pageLoaderTimeout);
+            l.classList.remove('finishing');
+            l.classList.add('loading');
+        }
+        window.startPageLoader = startPageLoader;
+
+        function stopPageLoader(delay = 200) {
+            const l = document.getElementById('global-page-loader');
+            if (!l) return;
+            if (pageLoaderTimeout) clearTimeout(pageLoaderTimeout);
+            pageLoaderTimeout = setTimeout(() => {
+                l.classList.remove('loading');
+                l.classList.add('finishing');
+                setTimeout(() => {
+                    l.classList.remove('finishing');
+                }, 250);
+            }, delay);
+        }
+        window.stopPageLoader = stopPageLoader;
+
         function renderPaginationBar(containerId, currentPage, totalPages, totalItems, onPageChangeName) {
             const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
             if (!container) return;
@@ -1725,6 +1750,7 @@
 
         function switchTab(tabId, subTabId) {
             console.log("switchTab activated:", tabId, subTabId);
+            startPageLoader();
             // Map legacy ids
             if (tabId === 'products') { tabId = 'inventory'; subTabId = 'products'; }
             else if (tabId === 'cost-management') { tabId = 'inventory'; subTabId = 'cost'; }
@@ -1738,6 +1764,7 @@
             const targetTab = document.getElementById('tab-' + tabId);
             if (targetTab) {
                 targetTab.classList.remove('hidden');
+                void targetTab.offsetWidth; // Trigger reflow để animation tabContentSmoothIn chạy mượt mà không giật
                 targetTab.classList.add('tab-pane-content');
             }
 
@@ -1807,6 +1834,7 @@
             } else if (tabId === 'cashflow-debts') {
                 if(typeof loadCashflowDebtsData === 'function') loadCashflowDebtsData();
             }
+            stopPageLoader(220);
         }
 
         function applyAppZoom(delta) {
