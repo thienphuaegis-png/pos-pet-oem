@@ -371,9 +371,30 @@ class PromotionUpdate(BaseModel):
     is_active: Optional[int] = None
 
 class PromotionItemCreate(BaseModel):
-    product_id: int
+    product_id: Optional[int] = None
+    target_type: Optional[str] = "product" # 'product', 'spa_service', 'spa_category'
+    service_name: Optional[str] = None
+    spa_category: Optional[str] = None
     discount_type: str = Field(pattern="^(pct|fixed)$")
     discount_val: float = Field(ge=0)
+
+class PromotionSpaItemCreate(BaseModel):
+    target_type: str = Field(pattern="^(spa_service|spa_category)$")
+    service_name: Optional[str] = None
+    spa_category: Optional[str] = None
+    discount_type: str = Field(pattern="^(pct|fixed)$")
+    discount_val: float = Field(ge=0)
+
+class PriceListSpaItemCreate(BaseModel):
+    target_type: str = Field(pattern="^(service|category)$")
+    service_name: Optional[str] = None
+    spa_category: Optional[str] = None
+    discount_percent: float = Field(ge=0, le=100)
+
+class PricingSpaCalculateRequest(BaseModel):
+    customer_id: Optional[int] = None
+    service_name: str
+    weight: float = Field(ge=0)
 
 class PricingCalculateItemIn(BaseModel):
     product_id: int

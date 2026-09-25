@@ -898,7 +898,7 @@ function updateCustomerUI(cust) {
         if (btnClear) btnClear.classList.remove('hidden');
         if (btnHistory) btnHistory.classList.toggle('hidden', !cust.id);
         if (walletBar) {
-            walletBar.classList.remove('hidden');
+            walletBar.classList.add('hidden');
             if (walletBadge) {
                 const bal = cust.spa_wallet_balance || 0;
                 walletBadge.innerText = `💆 Ví Spa: ${Number(bal).toLocaleString('vi-VN')} đ`;
@@ -2418,11 +2418,29 @@ function printInvoiceDirectly() {
 // ----------------------------------------------------
 // NẠP VÍ SPA TẠI QUẦY POS (TOPUP MODAL & LOGIC)
 // ----------------------------------------------------
+// NẠP VÍ SPA (QUẦY POS & PHIẾU DỊCH VỤ SPA)
+// ----------------------------------------------------
 var _posSelectedTopupPkgId = null;
 
+function getActiveTopupCustomer() {
+    // 1. Nếu đang mở modal tiếp nhận dịch vụ Spa
+    const svcModal = document.getElementById('modal-create-service-ticket');
+    if (svcModal && !svcModal.classList.contains('hidden')) {
+        const svcCustId = document.getElementById('svc-customer-id')?.value;
+        if (svcCustId) {
+            return (typeof allContacts !== 'undefined' ? allContacts : []).find(c => c.id == svcCustId) || null;
+        }
+        return null; // Đang ở trong modal Spa mà chưa chọn khách -> null, không fallback sang khách bên POS
+    }
+    // 2. Nếu đang ở tab POS bán lẻ
+    const tab = (typeof getActiveTab === 'function') ? getActiveTab() : null;
+    if (tab && tab.customer && tab.customer.id) return tab.customer;
+    return null;
+}
+
 async function openTopupSpaModal() {
-    const tab = getActiveTab();
-    if (!tab.customer || !tab.customer.id) {
+    const cust = getActiveTopupCustomer();
+    if (!cust || !cust.id) {
         alert("Vui lòng chọn khách hàng trước khi nạp ví!");
         return;
     }
@@ -2430,8 +2448,9 @@ async function openTopupSpaModal() {
     const modal = document.getElementById('modal-topup-spa');
     if (!modal) return;
 
-    document.getElementById('pos-topup-cust-name').innerText = `${tab.customer.name} (${tab.customer.phone || 'Không SĐT'})`;
-    document.getElementById('pos-topup-current-balance').innerText = `${Number(tab.customer.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
+    modal.dataset.customerId = cust.id;
+    document.getElementById('pos-topup-cust-name').innerText = `${cust.name} (${cust.phone || 'Không SĐT'})`;
+    document.getElementById('pos-topup-current-balance').innerText = `${Number(cust.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
     document.getElementById('pos-topup-note').value = '';
 
     _posSelectedTopupPkgId = null;
@@ -2486,12 +2505,23 @@ function onSelectTopupPackageRadio(pkgId) {
 }
 
 function closeTopupSpaModal() {
-    document.getElementById('modal-topup-spa')?.classList.add('hidden');
+    const modal = document.getElementById('modal-topup-spa');
+    if (modal) {
+        modal.classList.add('hidden');
+        delete modal.dataset.customerId;
+    }
+    const nameEl = document.getElementById('pos-topup-cust-name');
+    if (nameEl) nameEl.innerText = '--';
+    const balEl = document.getElementById('pos-topup-current-balance');
+    if (balEl) balEl.innerText = '0 đ';
 }
 
 async function submitTopupSpaRecharge() {
-    const tab = getActiveTab();
-    if (!tab.customer || !tab.customer.id) {
+    const modal = document.getElementById('modal-topup-spa');
+    const targetCustId = modal?.dataset?.customerId;
+    let cust = (typeof allContacts !== 'undefined' ? allContacts : []).find(c => c.id == targetCustId) || getActiveTopupCustomer();
+
+    if (!cust || !cust.id) {
         alert("Vui lòng chọn khách hàng!");
         return;
     }
@@ -2511,7 +2541,7 @@ async function submitTopupSpaRecharge() {
 
     try {
         const body = {
-            contact_id: tab.customer.id,
+            contact_id: cust.id,
             package_id: _posSelectedTopupPkgId,
             payment_method: payMethod,
             note: note,
@@ -2530,18 +2560,42 @@ async function submitTopupSpaRecharge() {
             return;
         }
 
-        // Cập nhật số dư trong tab và posContacts
-        tab.customer.spa_wallet_balance = data.balance_after;
-        const cInList = posContacts.find(c => c.id === tab.customer.id);
-        if (cInList) {
-            cInList.spa_wallet_balance = data.balance_after;
+        // Cập nhật số dư trong cust và allContacts
+        cust.spa_wallet_balance = data.balance_after;
+        if (typeof allContacts !== 'undefined') {
+            const cAll = allContacts.find(c => c.id === cust.id);
+            if (cAll) cAll.spa_wallet_balance = data.balance_after;
+        }
+        if (typeof posContacts !== 'undefined') {
+            const pAll = posContacts.find(c => c.id === cust.id);
+            if (pAll) pAll.spa_wallet_balance = data.balance_after;
+        }
+
+        // Cập nhật giao diện modal tiếp nhận dịch vụ Spa
+        const previewWallet = document.getElementById('svc-preview-wallet');
+        if (previewWallet) {
+            previewWallet.textContent = Number(data.balance_after).toLocaleString('vi-VN') + ' đ';
+        }
+        const optWallet = document.getElementById('svc-opt-pay-wallet');
+        if (optWallet) {
+            optWallet.textContent = `💆 Trừ Ví Spa (Số dư: ${Number(data.balance_after).toLocaleString('vi-VN')} đ)`;
+        }
+        const batchOptWallet = document.getElementById('batch-opt-pay-wallet');
+        if (batchOptWallet) {
+            batchOptWallet.textContent = `💆 Trừ Ví Spa (Số dư: ${Number(data.balance_after).toLocaleString('vi-VN')} đ)`;
+        }
+
+        // Cập nhật tab POS bán lẻ nếu cùng khách hàng
+        const tab = (typeof getActiveTab === 'function') ? getActiveTab() : null;
+        if (tab && tab.customer && tab.customer.id === cust.id) {
+            tab.customer.spa_wallet_balance = data.balance_after;
+            if (typeof updateCustomerUI === 'function') updateCustomerUI(tab.customer);
+            if (typeof updateFinancialSummary === 'function') updateFinancialSummary();
         }
 
         alert(`✅ Nạp thành công gói [${data.package_name}]!\n💰 Tiền nộp: ${Number(data.pay_amount).toLocaleString('vi-VN')} đ\n💆 Số dư Ví Spa mới: ${Number(data.balance_after).toLocaleString('vi-VN')} đ`);
 
         closeTopupSpaModal();
-        updateCustomerUI(tab.customer);
-        updateFinancialSummary();
     } catch (e) {
         console.error("Topup error:", e);
         alert("Lỗi kết nối khi nạp ví Spa!");
@@ -2557,12 +2611,11 @@ async function submitTopupSpaRecharge() {
 // POS SPA WALLET TRANSACTION HISTORY
 // ==========================================
 async function showPosWalletHistory() {
-    const tab = getActiveTab();
-    if (!tab || !tab.customer || !tab.customer.id) {
+    const cust = getActiveTopupCustomer();
+    if (!cust || !cust.id) {
         alert("Vui lòng chọn khách hàng để xem lịch sử ví Spa!");
         return;
     }
-    const cust = tab.customer;
     const modal = document.getElementById('modal-pos-wallet-history');
     if (!modal) return;
 

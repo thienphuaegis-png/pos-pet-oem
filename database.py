@@ -48,12 +48,30 @@ def init_db():
         segment_id INTEGER,
         points INTEGER DEFAULT 0,
         spa_wallet_balance REAL DEFAULT 0,
+        is_flagged INTEGER DEFAULT 0,
+        warning_note TEXT DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
+
+    cur.execute("PRAGMA table_info(contacts)")
+    contact_cols = [c[1] for c in cur.fetchall()]
+    if 'is_flagged' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN is_flagged INTEGER DEFAULT 0")
+    if 'warning_note' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN warning_note TEXT DEFAULT ''")
 
     # 3. Danh muc san pham / dich vu / nguyen lieu
     cur.execute('''
     CREATE TABLE IF NOT EXISTS product_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS pet_service_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         description TEXT,
@@ -92,6 +110,20 @@ def init_db():
     existing_cats = [r[0] for r in cur.fetchall()]
     for cat_name in existing_cats:
         cur.execute("INSERT OR IGNORE INTO product_categories (name) VALUES (?)", (cat_name,))
+
+    # Seed pet_service_categories if empty & migrate existing categories
+    cur.execute("SELECT COUNT(*) FROM pet_service_categories")
+    if cur.fetchone()[0] == 0:
+        default_spa_cats = ['Gói Combo Chó', 'Dịch Vụ Lẻ Chó', 'Spa Mèo', 'Nhuộm Lông', 'Trị Liệu & Phụ Thu']
+        for idx, cat_name in enumerate(default_spa_cats, start=1):
+            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name, sort_order) VALUES (?, ?)", (cat_name, idx))
+
+    # Đảm bảo nếu bảng pet_service_pricing đã có dữ liệu thì nạp vào pet_service_categories
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pet_service_pricing'")
+    if cur.fetchone():
+        cur.execute("SELECT DISTINCT category FROM pet_service_pricing WHERE category IS NOT NULL AND category != ''")
+        for r in cur.fetchall():
+            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name) VALUES (?)", (r[0],))
 
     # 3.1. Module Cost: Nguyen lieu & Dich vu thanh phan (ingredients)
     cur.execute('''
@@ -869,6 +901,11 @@ def init_db():
         FOREIGN KEY(pet_id) REFERENCES pets(id) ON DELETE SET NULL
     )''')
 
+    cur.execute("PRAGMA table_info(pet_service_tickets)")
+    ticket_cols = [c[1] for c in cur.fetchall()]
+    if 'batch_code' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN batch_code TEXT DEFAULT ''")
+
     # 13. Phân hệ Gia Công OEM
     cur.execute('''
     CREATE TABLE IF NOT EXISTS oem_orders (
@@ -953,12 +990,65 @@ def init_db():
     CREATE TABLE IF NOT EXISTS promotion_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         promotion_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
+        product_id INTEGER,
+        target_type TEXT NOT NULL DEFAULT 'product',
+        service_name TEXT,
+        spa_category TEXT,
         discount_type TEXT NOT NULL CHECK(discount_type IN ('pct', 'fixed')),
         discount_val REAL NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
         FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+    )''')
+
+    # Migration for promotion_items new columns & allow product_id NULL
+    for _col in [
+        "ALTER TABLE promotion_items ADD COLUMN target_type TEXT NOT NULL DEFAULT 'product'",
+        "ALTER TABLE promotion_items ADD COLUMN service_name TEXT",
+        "ALTER TABLE promotion_items ADD COLUMN spa_category TEXT",
+    ]:
+        try:
+            cur.execute(_col)
+        except Exception:
+            pass
+
+    # Nếu promotion_items đã tạo trước đó có constraint NOT NULL cho product_id, recreate table an toàn
+    cur.execute("PRAGMA table_info(promotion_items)")
+    pi_cols = {dict(r)["name"]: dict(r) for r in cur.fetchall()}
+    if pi_cols.get("product_id", {}).get("notnull") == 1:
+        cur.execute('''
+        CREATE TABLE promotion_items_dg_tmp (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            promotion_id INTEGER NOT NULL,
+            product_id INTEGER,
+            target_type TEXT NOT NULL DEFAULT 'product',
+            service_name TEXT,
+            spa_category TEXT,
+            discount_type TEXT NOT NULL CHECK(discount_type IN ('pct', 'fixed')),
+            discount_val REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        )''')
+        cur.execute('''
+        INSERT INTO promotion_items_dg_tmp (id, promotion_id, product_id, target_type, service_name, spa_category, discount_type, discount_val, created_at)
+        SELECT id, promotion_id, product_id, COALESCE(target_type, 'product'), service_name, spa_category, discount_type, discount_val, created_at
+        FROM promotion_items
+        ''')
+        cur.execute("DROP TABLE promotion_items")
+        cur.execute("ALTER TABLE promotion_items_dg_tmp RENAME TO promotion_items")
+
+    # Bảng chiết khấu Dịch Vụ Spa theo Bảng Giá
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS price_list_spa_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        price_list_id INTEGER NOT NULL,
+        target_type TEXT NOT NULL, -- 'service' hoặc 'category'
+        service_name TEXT,
+        spa_category TEXT,
+        discount_percent REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(price_list_id) REFERENCES price_lists(id) ON DELETE CASCADE
     )''')
 
     # Default data

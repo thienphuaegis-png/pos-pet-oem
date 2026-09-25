@@ -31,6 +31,10 @@ class ContactUpdate(BaseModel):
     address: Optional[str] = ""
     segment_id: Optional[int] = None
 
+class CustomerWarningUpdate(BaseModel):
+    is_flagged: bool = False
+    warning_note: Optional[str] = ""
+
 class ContactPayDebt(BaseModel):
     amount: float
     note: Optional[str] = ""
@@ -154,6 +158,20 @@ def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_per
     conn.commit()
     conn.close()
     return {"status": "ok"}
+
+@router.put("/{contact_id}/warning")
+def update_contact_warning(contact_id: int, req: CustomerWarningUpdate, user=Depends(require_permission("partners.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM contacts WHERE id = ?", (contact_id,))
+    if not cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
+    cur.execute("UPDATE contacts SET is_flagged = ?, warning_note = ? WHERE id = ?",
+                (1 if req.is_flagged else 0, (req.warning_note or "").strip(), contact_id))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "is_flagged": req.is_flagged, "warning_note": req.warning_note}
 
 @router.delete("/{contact_id}")
 def delete_contact(contact_id: int, user=Depends(require_role("owner"))):
@@ -590,6 +608,13 @@ class PetServiceCreate(BaseModel):
     shipping_fee: Optional[float] = 0.0
     tip_amount: Optional[float] = 0.0
     send_to_hotel: Optional[int] = 0
+    batch_code: Optional[str] = ""
+    ticket_date: Optional[str] = None
+
+class PetServiceBatchCreate(BaseModel):
+    customer_id: int
+    batch_code: Optional[str] = ""
+    tickets: List[PetServiceCreate]
 
 class PetServiceStatusUpdate(BaseModel):
     status: str
@@ -614,6 +639,36 @@ class PetServiceProgressUpdate(BaseModel):
     checkout_time: Optional[str] = ""
     note: Optional[str] = ""
     price: Optional[float] = None
+
+class PetServiceTicketBulkItem(BaseModel):
+    id: int
+    status: Optional[str] = None
+    staff_cutter: Optional[str] = None
+    staff_worker_1: Optional[str] = None
+    staff_worker_2: Optional[str] = None
+    staff_dyer: Optional[str] = None
+    staff_receiver: Optional[str] = None
+    weight_at_service: Optional[float] = None
+    service_type: Optional[str] = None
+    dye_package: Optional[str] = None
+    shaving_feet: Optional[str] = None
+    accessories: Optional[str] = None
+    send_to_hotel: Optional[int] = None
+    surcharge: Optional[float] = None
+    teeth_cleaning: Optional[float] = None
+    art_cutting_fee: Optional[float] = None
+    shipping_fee: Optional[float] = None
+    tip_amount: Optional[float] = None
+    price: Optional[float] = None
+    payment_status: Optional[str] = None
+    payment_method: Optional[str] = None
+    note: Optional[str] = None
+    customer_request: Optional[str] = None
+    received_time: Optional[str] = None
+    checkout_time: Optional[str] = None
+
+class PetServiceTicketBulkUpdate(BaseModel):
+    tickets: List[PetServiceTicketBulkItem]
 
 class SpaStaffCreate(BaseModel):
     staff_code: Optional[str] = ""
@@ -781,13 +836,13 @@ def create_pet_service(ticket: PetServiceCreate):
     today_str = now.strftime("%Y-%m-%d")
     code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}"
 
-    # 1. Tính toán ticket_number tâm lý (đầu ngày random 5 - 10, sau đó +1)
+    # 1. Tính toán ticket_number reset theo ngày (bắt đầu từ 1 mỗi ngày mới, sau đó +1)
     cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
     row = cur.fetchone()
     if row and row["max_num"] is not None:
         ticket_number = row["max_num"] + 1
     else:
-        ticket_number = random.randint(5, 10)
+        ticket_number = 1
 
     # 2. Xử lý thú cưng: Nếu có pet_id thì update cân nặng; Nếu chưa có pet_id nhưng có pet_name thì tự tạo bé mới cho khách
     actual_pet_id = ticket.pet_id
@@ -820,9 +875,9 @@ def create_pet_service(ticket: PetServiceCreate):
             call_status, received_time, arrival_method, checkout_time, return_method,
             staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
             dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount,
-            send_to_hotel
+            send_to_hotel, batch_code
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         code, ticket_number, today_str, ticket.customer_id, actual_pet_id, ticket.service_type,
         ticket.appointment_time or "", ticket.has_transport or 0, ticket.transport_address or "",
@@ -837,12 +892,186 @@ def create_pet_service(ticket: PetServiceCreate):
         ticket.staff_cutter or "", ticket.staff_dyer or "",
         ticket.dye_package or "", ticket.surcharge or 0.0, ticket.art_cutting_fee or 0.0,
         ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0,
-        ticket.send_to_hotel or 0
+        ticket.send_to_hotel or 0, ticket.batch_code or ""
     ))
     new_id = cur.lastrowid
+
+    # 4. Xử lý trừ ví Spa nếu thanh toán trả trước bằng ví
+    if ticket.payment_status == "paid" and ticket.payment_method == "wallet" and (ticket.price or 0.0) > 0:
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (ticket.customer_id,))
+        c_row = cur.fetchone()
+        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
+        charge_amount = ticket.price or 0.0
+        if current_wallet < charge_amount:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Số dư ví Spa không đủ ({current_wallet:,.0f} đ, cần trừ {charge_amount:,.0f} đ)"
+            )
+        new_wallet = current_wallet - charge_amount
+        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
+        cur.execute("""
+            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+            VALUES (?, 'spend', ?, ?, ?, ?)
+        """, (ticket.customer_id, charge_amount, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
+
     conn.commit()
     conn.close()
-    return {"status": "ok", "id": new_id, "code": code, "ticket_number": ticket_number}
+    return {"status": "ok", "id": new_id, "code": code, "ticket_number": ticket_number, "batch_code": ticket.batch_code or ""}
+
+@service_router.post("/batch")
+def create_pet_services_batch(batch_req: PetServiceBatchCreate):
+    if not batch_req.tickets:
+        raise HTTPException(status_code=400, detail="Danh sách phiếu trống")
+
+    conn = get_db()
+    cur = conn.cursor()
+    now = datetime.datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    batch_code = batch_req.batch_code or f"BATCH{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}"
+
+    # Lấy ticket_number cơ sở cho ngày hôm nay (reset bắt đầu từ 1 nếu chưa có phiếu nào)
+    cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
+    row = cur.fetchone()
+    base_number = (row["max_num"] + 1) if (row and row["max_num"] is not None) else 1
+
+    cur.execute("SELECT id, name, phone FROM contacts WHERE id = ?", (batch_req.customer_id,))
+    cust = cur.fetchone()
+
+    created_tickets = []
+
+    for idx, t in enumerate(batch_req.tickets):
+        t_number = base_number + idx
+        t_code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}{idx}"
+        
+        actual_pet_id = t.pet_id
+        if not actual_pet_id and t.pet_name and t.pet_name.strip():
+            cur.execute("""
+                INSERT INTO pets (customer_id, name, species, breed, color, weight, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                batch_req.customer_id,
+                t.pet_name.strip(),
+                "Chó",
+                t.pet_breed or "",
+                t.pet_color or "",
+                t.weight_at_service or 0.0,
+                f"Tự động tạo từ phiếu Spa hàng loạt ngày {today_str}"
+            ))
+            actual_pet_id = cur.lastrowid
+        elif actual_pet_id and t.weight_at_service is not None:
+            cur.execute("UPDATE pets SET weight = ? WHERE id = ?", (t.weight_at_service, actual_pet_id))
+
+        received_time = t.received_time or now.strftime("%H:%M")
+
+        cur.execute("""
+            INSERT INTO pet_service_tickets (
+                code, ticket_number, ticket_date, customer_id, pet_id, service_type,
+                appointment_time, has_transport, transport_address, price, status, note,
+                weight_at_service, shaving_feet, customer_request, accessories,
+                payment_status, payment_method, services_json,
+                call_status, received_time, arrival_method, checkout_time, return_method,
+                staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
+                dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount,
+                send_to_hotel, batch_code
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            t_code, t_number, today_str, batch_req.customer_id, actual_pet_id, t.service_type,
+            t.appointment_time or "", t.has_transport or 0, t.transport_address or "",
+            t.price or 0.0, t.status or "pending", t.note or "",
+            t.weight_at_service, t.shaving_feet or "Không cạo bàn",
+            t.customer_request or "", t.accessories or "",
+            t.payment_status or "unpaid", t.payment_method or "",
+            t.services_json or "[]",
+            t.call_status or "Chưa gọi", received_time, t.arrival_method or "Khách chở tới",
+            t.checkout_time or "", t.return_method or "Khách đón",
+            t.staff_receiver or "", t.staff_worker_1 or "", t.staff_worker_2 or "",
+            t.staff_cutter or "", t.staff_dyer or "",
+            t.dye_package or "", t.surcharge or 0.0, t.art_cutting_fee or 0.0,
+            t.teeth_cleaning or 0.0, t.shipping_fee or 0.0, t.tip_amount or 0.0,
+            t.send_to_hotel or 0, batch_code
+        ))
+        t_id = cur.lastrowid
+        created_tickets.append({
+            "id": t_id,
+            "code": t_code,
+            "ticket_number": t_number,
+            "pet_id": actual_pet_id,
+            "pet_name": t.pet_name or "",
+            "pet_breed": t.pet_breed or "",
+            "pet_gender": t.pet_gender or "",
+            "pet_color": t.pet_color or "",
+            "weight_at_service": t.weight_at_service,
+            "shaving_feet": t.shaving_feet or "Không cạo bàn",
+            "service_type": t.service_type,
+            "price": t.price or 0.0,
+            "customer_id": batch_req.customer_id,
+            "customer_name": cust["name"] if cust else "",
+            "customer_phone": cust["phone"] if cust else "",
+            "customer_request": t.customer_request or "",
+            "accessories": t.accessories or "",
+            "note": t.note or "",
+            "services_json": t.services_json or "[]",
+            "staff_receiver": t.staff_receiver or "",
+            "staff_cutter": t.staff_cutter or "",
+            "staff_worker_1": t.staff_worker_1 or "",
+            "staff_dyer": t.staff_dyer or "",
+            "dye_package": t.dye_package or "",
+            "surcharge": t.surcharge or 0.0,
+            "art_cutting_fee": t.art_cutting_fee or 0.0,
+            "teeth_cleaning": t.teeth_cleaning or 0.0,
+            "shipping_fee": t.shipping_fee or 0.0,
+            "tip_amount": t.tip_amount or 0.0,
+            "received_time": received_time,
+            "payment_status": t.payment_status or "unpaid",
+            "batch_code": batch_code
+        })
+
+    # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví
+    wallet_batch_total = sum(t.price or 0.0 for t in batch_req.tickets if (t.payment_status == "paid" and t.payment_method == "wallet"))
+    if wallet_batch_total > 0:
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
+        c_row = cur.fetchone()
+        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
+        if current_wallet < wallet_batch_total:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Số dư ví Spa không đủ thanh toán cả đợt ({current_wallet:,.0f} đ, cần trừ {wallet_batch_total:,.0f} đ)"
+            )
+        new_wallet = current_wallet - wallet_batch_total
+        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, batch_req.customer_id))
+        cur.execute("""
+            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+            VALUES (?, 'spend', ?, ?, ?, ?)
+        """, (batch_req.customer_id, wallet_batch_total, current_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
+
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "batch_code": batch_code, "tickets": created_tickets, "count": len(created_tickets)}
+
+@service_router.get("/history/customer/{customer_id}")
+def get_customer_spa_history(customer_id: int, pet_id: Optional[int] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    sql = """
+        SELECT s.*, p.name as pet_name, p.breed as pet_breed, p.weight as pet_weight,
+               c.name as customer_name, c.phone as customer_phone
+        FROM pet_service_tickets s
+        JOIN contacts c ON c.id = s.customer_id
+        LEFT JOIN pets p ON p.id = s.pet_id
+        WHERE s.customer_id = ?
+    """
+    params = [customer_id]
+    if pet_id:
+        sql += " AND s.pet_id = ?"
+        params.append(pet_id)
+    sql += " ORDER BY s.id DESC LIMIT 100"
+    cur.execute(sql, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
 
 @service_router.put("/{ticket_id}/status")
 def update_pet_service_status(ticket_id: int, req: PetServiceStatusUpdate):
@@ -911,6 +1140,115 @@ def update_pet_service_progress(ticket_id: int, req: PetServiceProgressUpdate):
     conn.commit()
     conn.close()
     return {"status": "ok"}
+
+@service_router.put("/tickets/bulk-update")
+def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
+    if not payload.tickets:
+        return {"success": True, "updated_count": 0, "message": "Không có phiếu nào cần cập nhật"}
+    conn = get_db()
+    cur = conn.cursor()
+    updated_count = 0
+    try:
+        for t in payload.tickets:
+            updates = []
+            params = []
+            if t.status is not None:
+                updates.append("status = ?")
+                params.append(t.status)
+                if t.status in ["completed", "done", "checked_out"]:
+                    now_str = datetime.datetime.now().strftime("%H:%M")
+                    updates.append("checkout_time = CASE WHEN checkout_time = '' OR checkout_time IS NULL THEN ? ELSE checkout_time END")
+                    params.append(now_str)
+            if t.staff_cutter is not None:
+                updates.append("staff_cutter = ?")
+                params.append(t.staff_cutter)
+            if t.staff_worker_1 is not None:
+                updates.append("staff_worker_1 = ?")
+                params.append(t.staff_worker_1)
+            if t.staff_worker_2 is not None:
+                updates.append("staff_worker_2 = ?")
+                params.append(t.staff_worker_2)
+            if t.staff_dyer is not None:
+                updates.append("staff_dyer = ?")
+                params.append(t.staff_dyer)
+            if t.staff_receiver is not None:
+                updates.append("staff_receiver = ?")
+                params.append(t.staff_receiver)
+            if t.weight_at_service is not None:
+                updates.append("weight_at_service = ?")
+                params.append(t.weight_at_service)
+            if t.service_type is not None:
+                updates.append("service_type = ?")
+                params.append(t.service_type)
+            if t.dye_package is not None:
+                updates.append("dye_package = ?")
+                params.append(t.dye_package)
+            if t.shaving_feet is not None:
+                updates.append("shaving_feet = ?")
+                params.append(t.shaving_feet)
+            if t.accessories is not None:
+                updates.append("accessories = ?")
+                params.append(t.accessories)
+            if t.send_to_hotel is not None:
+                updates.append("send_to_hotel = ?")
+                params.append(t.send_to_hotel)
+            if t.received_time is not None:
+                updates.append("received_time = ?")
+                params.append(t.received_time)
+            if t.checkout_time is not None:
+                updates.append("checkout_time = ?")
+                params.append(t.checkout_time)
+            if t.surcharge is not None:
+                updates.append("surcharge = ?")
+                params.append(t.surcharge)
+            if t.teeth_cleaning is not None:
+                updates.append("teeth_cleaning = ?")
+                params.append(t.teeth_cleaning)
+            if t.art_cutting_fee is not None:
+                updates.append("art_cutting_fee = ?")
+                params.append(t.art_cutting_fee)
+            if t.shipping_fee is not None:
+                updates.append("shipping_fee = ?")
+                params.append(t.shipping_fee)
+            if t.tip_amount is not None:
+                updates.append("tip_amount = ?")
+                params.append(t.tip_amount)
+            if t.price is not None:
+                updates.append("price = ?")
+                params.append(t.price)
+            if t.payment_status is not None:
+                updates.append("payment_status = ?")
+                params.append(t.payment_status)
+            if t.payment_method is not None:
+                updates.append("payment_method = ?")
+                params.append(t.payment_method)
+            if t.note is not None:
+                updates.append("note = ?")
+                params.append(t.note)
+            if t.customer_request is not None:
+                updates.append("customer_request = ?")
+                params.append(t.customer_request)
+
+            if updates:
+                params.append(t.id)
+                sql = f"UPDATE pet_service_tickets SET {', '.join(updates)} WHERE id = ?"
+                cur.execute(sql, tuple(params))
+                updated_count += 1
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        logger.error(f"Error in bulk_update_pet_service_tickets: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+    return {
+        "success": True,
+        "updated_count": updated_count,
+        "message": f"Đã cập nhật thành công {updated_count} phiếu dịch vụ Spa"
+    }
 
 @service_router.delete("/{ticket_id}")
 def delete_pet_service(ticket_id: int):

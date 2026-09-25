@@ -1,21 +1,17 @@
 @echo off
 chcp 65001 >nul
-title POS OFFLINE - CHIA SẺ TRUY CẬP TỪ XA (CLOUDFLARE TUNNEL)
+title POS OFFLINE - CHIA SẺ TRUY CẬP ONLINE
 cd /d "%~dp0"
 
-echo ======================================================================
-echo    POS OFFLINE - TAO DUONG LINK CHO NGUOI KHAC TRUY CAP VAO TEST
-echo ======================================================================
-echo.
-echo  1. Hay dam bao ban da bat "chay_ngay.bat" truoc!
-echo  2. He thong dang khoi tao duong dan HTTPS truc tiep qua Cloudflare...
-echo  3. Tim dong chu co dang:
-echo     https://xxxx-xxxx-xxxx.trycloudflare.com
-echo  4. Copy link do gui cho nguoi khac de ho vao thao tac truc tiep.
-echo  5. KHONG DONG cua so nay neu muon duy tri ket noi cho ho test.
-echo ======================================================================
-echo.
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" scripts\share_online.py
+) else (
+    python scripts\share_online.py
+)
 
-cloudflared.exe tunnel --protocol http2 --url http://127.0.0.1:8999
-
-pause
+if %errorlevel% neq 0 (
+    echo.
+    echo Dự phòng: Chạy trực tiếp qua cloudflared.exe...
+    cloudflared.exe tunnel --protocol http2 --url http://127.0.0.1:8999
+    pause
+)

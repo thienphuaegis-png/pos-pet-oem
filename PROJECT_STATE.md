@@ -1,8 +1,144 @@
 # PROJECT STATE — POS Offline (Spa Thú Cưng & Bán Lẻ Đa Kênh)
 
-**Checkpoint:** 2026-09-24 — Nhóm Hàng Hóa, Lọc Danh Mục & Giảm Giá Theo Nhóm Vào Bảng Giá / Khuyến Mãi  
+**Checkpoint:** 2026-09-25 — Tối Ưu Cuộn Bảng Nhập Hàng Loạt, In Ấn Nhiệt Siêu Nét, In Hàng Loạt 1 Lần & Dữ Liệu Khách 10 Bé x 5 Lần Spa  
 **Server:** `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
+
+---
+
+## Phiên Hôm Nay ✅ (2026-09-25)
+
+### 7. Tối Ưu Cuộn Bảng Nhập Hàng Loạt & Chuẩn Hóa In Ấn Nhiệt Toàn Diện
+- **Khắc Phục Cuộn Trang Modal Nhập Hàng Loạt (Batch Sheets Mode):**
+  - **Nguyên nhân:** Khung chứa bảng thiếu `min-h-0` trong CSS flexbox và div con chỉ có `overflow-x-auto` mà không có `overflow-y-auto` kèm giới hạn chiều cao, dẫn đến việc khi có từ 4 đến 10 bé thì bảng bị tràn ra ngoài và bị cắt mất các dòng bên dưới, không thể cuộn xuống xem được.
+  - **Giải pháp:**
+    - Cấu hình `min-h-0 flex-1 overflow-hidden` cho khung flex cha.
+    - Đặt `overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[52vh] sm:max-h-[56vh]` cho khung bao quanh bảng.
+    - Cố định tiêu đề bảng `thead` với `sticky top-0 z-20 bg-slate-100 shadow-sm` giúp nhân viên cuộn mượt mà từ bé 1 đến bé 10 (hoặc nhiều hơn) mà vẫn nhìn thấy rõ tiêu đề cột.
+- **Tối Ưu In Ấn Nhiệt Toàn Hệ Thống (K80 / K57):**
+  - Chuyển toàn bộ màu xám, xanh nhạt thành màu đen tuyền `#000000 !important` chống mờ nét khi in nhiệt.
+  - In đậm `font-weight: 800 / 900` cho tất cả thông tin quan trọng: Số phiếu `#...`, Tên shop, Tên khách, Tên bé, Cân nặng, Cạo bàn, Dịch vụ, Tổng cộng thanh toán và 2 ô chữ ký xác nhận.
+- **In Hàng Loạt Phiếu Spa (1 Phiếu = 1 Trang, Bấm In 1 Lần):**
+  - Khắc phục lỗi in đè iframe làm mất phiếu bé thứ 2 trở đi.
+  - Gom toàn bộ các phiếu trong đợt tiếp nhận vào một tài liệu in duy nhất.
+  - Mỗi phiếu là 1 trang in riêng biệt nhờ CSS `@media print { .thermal-ticket-page { page-break-after: always; break-after: page; } }`, phiếu cuối cùng `break-after: auto`.
+  - Chỉ gọi lệnh in đúng 1 lần duy nhất, máy in nhiệt in lần lượt từng phiếu của từng bé và cắt giấy sạch sẽ.
+- **Seed Dữ Liệu Test Mẫu: Khách Hàng 10 Bé x 5 Lần Làm Spa:**
+  - Tạo khách hàng VIP: **Bùi Thiên Phú (VIP 10 Bé)** - `0988101010` (Địa chỉ: Bến Tre).
+  - Có 10 thú cưng trong hồ sơ và đã thực hiện 5 đợt Spa (50 phiếu tiếp nhận) với 10 gói dịch vụ, phụ thu và phân công thợ khác nhau.
+  - Nâng giới hạn API `/api/pet-services/history/customer/{id}` lên `LIMIT 100` để hiển thị trọn vẹn toàn bộ lịch sử.
+- **Bấm Xem Chi Tiết Lịch Sử Spa (Accordion) & Nút Tiện Ích:**
+  - Click vào từng thẻ lịch sử trong Cột 3 để mở rộng chi tiết: Mã phiếu, đợt, cân nặng, cạo bàn, chi tiết 5 khoản phụ thu, thợ làm, giờ nhận/về, yêu cầu khách.
+  - Bổ sung 3 nút thao tác: `[🖨️ In Phiếu Nhận]`, `[🧾 In Hóa Đơn Trả]`, `[📋 Dùng Lại Form]` (tự điền lại gói dịch vụ của bé).
+- **Thêm Ô Bán Hàng Sản Phẩm Kèm Theo (Retail Upsell):**
+  - Bổ sung ô tìm kiếm sản phẩm từ kho hàng (`allProducts`) ngay tại Cột 1 modal tiếp nhận Spa.
+  - Hỗ trợ thêm sản phẩm, tăng giảm số lượng (+/-), tự động tính thành tiền và cộng vào Tổng tiền thanh toán.
+  - Đồng bộ sản phẩm mua kèm vào phiếu in hóa đơn K80.
+
+---
+
+### 6. Khắc Phục & Tối Ưu Tự Động Hóa Chia Sẻ Online (`chia_se_online.bat`)
+- **Nguyên nhân gốc rễ lỗi không mở được:**
+  1. Tiến trình `cloudflared.exe` cũ bị treo chạy ngầm (zombie process PID 16248) chặn kết nối mới.
+  2. Máy chủ POS (cổng 8999) chưa được bật từ trước, dẫn đến việc Cloudflare Tunnel trỏ vào cổng rỗng -> người ngoài truy cập bị lỗi `502 Bad Gateway`.
+  3. File `.bat` cũ in ra hàng chục dòng log debug khiến link bị trôi mất, người dùng khó tìm link để copy.
+- **Giải pháp xử lý:**
+  - Viết script `scripts/share_online.py` và tối ưu `chia_se_online.bat`:
+    - Tự động diệt sạch các tiến trình `cloudflared.exe` cũ đang chạy ngầm.
+    - Tự động kiểm tra cổng 8999: Nếu POS chưa bật, tự động khởi động máy chủ POS trong cửa sổ riêng và đợi máy chủ sẵn sàng.
+    - Khởi tạo Cloudflare Tunnel, tự động trích xuất link `https://*.trycloudflare.com`.
+    - **Tự động copy link vào Clipboard (bộ nhớ tạm):** Chỉ cần sang Zalo/Facebook nhấn `Ctrl + V` là dán được ngay.
+    - **Tự động mở trình duyệt:** Mở thẳng đường link online để kiểm tra ngay lập tức.
+    - Giao diện console sạch sẽ, hiển thị rõ ràng duy nhất link truy cập và hướng dẫn.
+
+### 5. Tối Ưu Cột Thao Tác Cột 1 & Đầy Đủ Thông Tin Nhập/Sửa Hàng Loạt
+- **Di chuyển Cụm Nút Thao Tác Về Cột 1:**
+  - Chuyển toàn bộ các nút `[✏️ Sửa]`, `[🖨️]`, `[🧾]`, `[🗑️]` vào ngay bên dưới Số thứ tự `#` và Mã hóa đơn ở Cột 1.
+  - Bỏ hoàn toàn Cột 13 ở mép phải ngoài cùng bảng danh sách Spa, loại bỏ triệt để việc nhân viên phải cuộn ngang màn hình để tìm nút in/sửa.
+- **Mở rộng Đầy Đủ Thông Tin Cho Nhập Hàng Loạt (Batch Intake Modal):**
+  - Giống loài, Giới tính, Màu lông cho từng bé.
+  - Tách bạch chi tiết từng khoản phụ thu: Đánh răng, Cắt tạo kiểu nghệ thuật, Phụ thu gỡ rối/thêm, Cước xe đưa đón, Tip thợ.
+  - Lưu ý yêu cầu, Phụ kiện gửi lại (dây dắt, chuồng...), Thợ cắt và Checkbox gửi Khách sạn thú cưng (`send_to_hotel`).
+  - Tự động cộng tổng tiền từng bé và toàn đợt tiếp nhận.
+- **Mở rộng Đầy Đủ Thông Tin Cho Sửa Bảng Tính (Spreadsheet Inline Edit Mode):**
+  - Sửa trực tiếp Cân nặng (kg) và Checkbox Hotel ngay tại Cột Thú cưng.
+  - Sửa trực tiếp Yêu cầu, Phụ kiện gửi lại, Ghi chú thợ ngay tại Cột Yêu cầu.
+  - Sửa trực tiếp Đội ngũ thợ: Thợ cắt, Thợ tắm, Thợ nhận.
+  - Sửa trực tiếp Từng khoản phụ thu chi tiết (Răng, Cắt NT, Gỡ rối, Ship, Tip) với định dạng phân cách hàng nghìn, tự động nhảy lại cột Tổng Tiền.
+  - Sửa trực tiếp Giờ nhận & Giờ hẹn trả ngay tại Cột Đưa đón.
+- **Kiểm thử tự động:**
+  - `tests/test_spa_render.js`: **PASS 9/9 tests**.
+  - `PYTHONPATH=. uv run pytest`: **PASS 17/17 tests**.
+
+### 4. Chế Độ Sửa Trực Tiếp Dạng Bảng Tính Cho Phiếu Spa (Spreadsheet Inline Edit Mode)
+- **Giao diện & Nút điều khiển Toolbar:**
+  - Nút `[📝 Sửa Bảng Tính]` trên thanh công cụ Spa Table View.
+  - Khi bật: Các ô trên toàn bộ bảng chuyển thành ô nhập liệu inline (Input/Select):
+    - **Trạng thái:** Dropdown chuyển nhanh `Chờ làm` / `Đang làm` / `Đã xong` / `Đã về` (tự động đổi màu badge).
+    - **Thợ làm:** Ô nhập thợ cắt và thợ tắm/làm.
+    - **Yêu cầu & Ghi chú:** Ô nhập text trực tiếp yêu cầu khách & ghi chú thợ.
+    - **Phụ thu:** Ô nhập tiền tệ có dấu phân cách hàng nghìn (`50.000 đ`), tự động tính lại cột **Tổng Tiền** ngay lập tức.
+    - **Thanh toán:** Dropdown đổi nhanh `Chưa TT` / `Đã TT`.
+  - Dòng nào có chỉnh sửa tự động gắn viền vàng hổ phách (`.bg-amber-50/70 border-amber-400`).
+  - Thanh Action bar nổi: `[💾 Lưu Thay Đổi (N)]` (màu xanh lá, có bộ đếm số phiếu đã sửa) và `[❌ Thoát]`.
+- **Backend & Transaction an toàn:**
+  - Endpoint `PUT /api/pet-services/tickets/bulk-update` nhận danh sách phiếu sửa và cập nhật tất cả trong 1 SQLite transaction an toàn.
+  - Tự động ghi nhận `checkout_time` khi chuyển sang `completed`.
+- **Kiểm thử tự động:**
+  - `tests/test_spa_bulk_update.py`: Test backend API bulk update **PASS**.
+  - `tests/test_spa_render.js`: Bổ sung Test 9 kiểm tra toggle spreadsheet mode và dirty state tracking **PASS 9/9**.
+  - Toàn bộ suite pytest: **PASS 17/17**.
+
+### 3. Modal Tiếp Nhận Spa 3 Cột Luôn Mở & Tiếp Nhận Hàng Loạt (Multi-pet Batch Intake)
+- **Modal Tiếp Nhận Spa `#modal-create-service-ticket`:**
+  - Thiết kế rộng toàn màn hình (`w-[96vw] max-w-7xl h-[92vh]`), bố cục 3 cột trực quan luôn mở song song:
+    - **Cột 1 (Dịch Vụ & Thú Cưng):** Chọn bé, cân nặng (badge màu), cạo bàn, gói combo chính & dịch vụ nhuộm lông nạp động 100% theo DB, đồng bộ tên tức thì.
+    - **Cột 2 (Phụ Thu Gom Tầng & Tài Chính):** Chuyển toàn bộ phụ thu (Đánh răng, Cắt tạo kiểu nghệ thuật, Phụ thu gỡ rối, Vận chuyển đưa đón, Tip) từ popup sửa sang tiếp nhận ban đầu. Tất cả các ô tiền tệ tự động có dấu phân tách hàng nghìn (`150.000 đ`).
+    - **Cột 3 (Lịch Sử Spa Theo Khách Hàng):** Tự động tải lịch sử làm đẹp của khách hàng khi chọn khách; dropdown lọc theo từng bé hoặc xem toàn bộ thú cưng của khách; hiển thị ngày làm, thợ cắt, gói dịch vụ, giá tiền và yêu cầu cũ.
+- **Danh Sách Đỏ / Cờ Đỏ Khách Hàng Cần Lưu Ý:**
+  - Bổ sung `is_flagged` và `warning_note` trong DB `contacts` và API `PUT /api/contacts/{id}/warning`.
+  - Banner đỏ rực rỡ hiển thị ngay đầu phiếu tiếp nhận khi chọn khách có lưu ý/danh sách đen, kèm nút `[✏️ Sửa Lưu Ý]` cập nhật nhanh.
+  - Dropdown tìm kiếm khách hàng hiển thị huy hiệu `[Lưu ý]` đỏ nổi bật.
+- **Tiếp Nhận Nhiều Bé Dạng Bảng Tính Google Sheets (Batch Mode):**
+  - Chuyển đổi mượt mà giữa tab `[🐾 1 Bé Đơn Lẻ]` và `[⚡ Nhập Hàng Loạt (Sheets)]`.
+  - Bảng lưới cho phép nhập liên tục nhiều dòng bằng phím Tab: Chọn bé / Bé mới, Cân nặng, Cạo bàn, Gói chính, Nhuộm, Phụ thu, Thành tiền tự tính, Yêu cầu.
+  - API `POST /api/pet-services/batch` lưu toàn bộ vé trong 1 transaction, sinh mã `batch_code` gộp đợt, hỗ trợ in K80 liên tục.
+- **Bộ Kiểm Thử Hoàn Hảo:**
+  - `tests/test_spa_batch_intake.py`: Kiểm thử API batch và warning note **PASS**.
+  - `tests/test_spa_render.js`: Bổ sung Test 8 kiểm thử giao diện 3 cột, format tiền tệ và chế độ batch **PASS 8/8**.
+  - Toàn bộ suite pytest: **PASS 16/16**.
+
+### 2. Nạp Động 100% Gói Dịch Vụ Spa Theo Phân Loại (`<optgroup>`)
+- Dọn dẹp toàn bộ option gắn cứng tĩnh trong `#svc-primary-package` và `#svc-dye-package`.
+- Hàm `populateServicePackageDropdowns()` tự động quét DB bảng giá, nhóm `<optgroup>` theo danh mục (`category`), tự động cập nhật khi đổi tên dịch vụ.
+
+### 1. Hoàn Thiện Giao Diện Quản Lý Khuyến Mãi (Promotions UI)
+- **Giao diện danh sách chương trình (`#pl-subtab-promotions`):**
+  - Thêm nút `+ Thêm Chương Trình` mở modal tạo nhanh.
+  - Bảng 8 cột chuẩn hóa: `ID | Mã KM | Tên Chương Trình | Bắt Đầu | Kết Thúc | Số SP Áp Dụng | Trạng Thái | Thao Tác`.
+  - Bộ nút thao tác trực quan trên từng dòng: `[⚙️ Quản Lý SP]`, `[✏️ Sửa]`, `[Bật/Tắt]`, `[🗑️ Xóa]`.
+- **Modal Tạo / Sửa Chương Trình Khuyến Mãi (`#modal-promotion`):**
+  - Form nhập liệu: Mã khuyến mãi (tự sinh mã chuẩn `KM-...` nếu để trống), Tên chương trình (*), Ngày bắt đầu, Ngày kết thúc, Trạng thái kích hoạt.
+  - Xử lý đồng bộ qua API `POST /api/promotions` và `PUT /api/promotions/{id}`.
+- **Modal Quản Lý Sản Phẩm Trong Khuyến Mãi (`#modal-promotion-items`):**
+  - **Thêm lẻ từng sản phẩm:** Chọn sản phẩm từ danh mục, chọn loại giảm (`%` hoặc `tiền mặt đ`), nhập mức giảm.
+  - **Thêm hàng loạt theo nhóm hàng:** Chọn nhóm hàng (Thức ăn, Vệ sinh...), chọn loại giảm và mức giảm $
+ightarrow$ Tự động gán cho toàn bộ sản phẩm trong nhóm qua API `POST /api/promotions/{id}/items/bulk-by-category`.
+  - **Bảng đối soát trực quan:** Hiển thị STT, Mã SP, Tên SP, Giá niêm yết, Mức giảm, Giá sau KM tự động tính, Nút xóa từng món.
+- **Bộ test kiểm thử tự động:**
+  - File mới `tests/test_promotion_ui.py`: Kiểm tra toàn vẹn DOM, các trường input, modal và 13 hàm JavaScript.
+  - Toàn bộ test suites liên quan: **PASS 9/9**. Cú pháp JS: **PASS**.
+
+---
+
+## Việc Còn Dang Dở Đã Thống Nhất Thiết Kế 📌
+
+### Khuyến Mãi & Bảng Giá Cho Cả Dịch Vụ Spa (Pet Services)
+- **Quyết định kiến trúc:**
+  - **Tách biệt dữ liệu:** Giữ Dịch Vụ Spa ở bảng riêng `pet_service_pricing` (79 mức giá theo cân nặng), KHÔNG ép vào bảng `products` để tránh làm bẩn danh mục bán lẻ.
+  - **Quản lý tập trung:** Toàn bộ chính sách giá & khuyến mãi nằm tại một nơi duy nhất: **Tab Khuyến Mãi & Bảng Giá (`tab-price-lists`)**.
+  - **Hình thức áp dụng cho Spa:** Cấu hình theo **Tên Dịch Vụ** (VD: *CB Tắm (1+2+3)*, *Nhuộm...*) hoặc theo **Nhóm Dịch Vụ** (VD: *Dịch Vụ Lẻ Chó*, *Spa Mèo...*).
+  - **Cơ chế tính giá Best Offer tự động:** Khi lập phiếu tiếp nhận Spa (`pet_service_tickets`) hoặc tính tiền vé dịch vụ, hệ thống dựa theo cân nặng thú cưng lấy giá gốc từ `pet_service_pricing`, sau đó tự áp dụng mức giảm tốt nhất: $\min(P_{niêmyết}, P_{hạng}, P_{km})$.
 
 ---
 
@@ -184,6 +320,13 @@
 
 ## Việc Tiếp Theo
 
+- [x] **Triển khai Khuyến Mãi & Bảng Giá cho Dịch Vụ Spa:**
+  - Mở rộng model & API khuyến mãi / bảng giá hỗ trợ thêm mục tiêu Dịch Vụ Spa (theo `service_name` hoặc `category` của `pet_service_pricing`).
+  - Cập nhật giao diện modal Khuyến Mãi / Bảng Giá cho phép chọn tab "Hàng Hóa" hoặc "Dịch Vụ Spa".
+  - Tự động áp dụng giá Best Offer khi tạo/thanh toán phiếu Spa (`pet_service_tickets`).
+- [x] **Định dạng phiếu in K80 tiếp nhận & trả pet chuẩn POS (SL, Đơn giá, Giảm giá, Thành tiền).**
+- [x] **Sửa lệch cột bảng giá Dịch Vụ Spa & quản lý toàn diện phân loại Dịch Vụ Spa (Thêm, Sửa đổi tên đồng bộ giá, Xóa an toàn chuyển về mặc định, modal quản lý `#modal-spa-category-manager`).**
+- [x] **Nạp động 100% gói dịch vụ Spa vào form tạo phiếu tiếp nhận (`#svc-primary-package`, `#svc-dye-package`):** Tự động đồng bộ ngay khi đổi tên dịch vụ hoặc thêm phân loại/dịch vụ mới trong Bảng Giá.
 - [ ] Tab UI quản lý nhân viên (Cài Đặt > Nhân Viên)
 - [ ] Tab UI lịch sử ca + duyệt ca (cho role `accountant`)
 - [ ] Báo cáo doanh thu và chênh lệch két theo ca trong tab Báo Cáo

@@ -18,6 +18,80 @@
             -moz-appearance: textfield;
         }
         .active-tab { background-color: #0284c7; color: white; }
+        /* Sidebar Flat UI & Collapse */
+        #main-sidebar {
+            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #main-sidebar.collapsed {
+            width: 4.5rem !important; /* 72px */
+        }
+        #main-sidebar.collapsed .sidebar-text,
+        #main-sidebar.collapsed .sidebar-badge,
+        #main-sidebar.collapsed #sidebar-user-top,
+        #main-sidebar.collapsed #sidebar-user-details,
+        #main-sidebar.collapsed .sidebar-footer-btn-text {
+            display: none !important;
+        }
+        #main-sidebar.collapsed .tab-btn {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-bottom: 0.35rem !important;
+        }
+        #main-sidebar.collapsed #sidebar-header {
+            justify-content: center !important;
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
+        }
+        #main-sidebar.collapsed #sidebar-user-footer {
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
+        }
+        .sidebar-icon {
+            font-size: 1.25rem; /* 20px */
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            flex-shrink: 0;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .tab-btn:hover .sidebar-icon {
+            transform: scale(1.15);
+        }
+        #main-sidebar.collapsed .sidebar-icon {
+            width: 2.6rem;
+            height: 2.6rem;
+            font-size: 1.45rem; /* Biểu tượng lớn và rõ nét khi thu gọn */
+            background-color: rgba(241, 245, 249, 0.8);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 0.75rem;
+        }
+        #main-sidebar.collapsed .tab-btn.active-tab .sidebar-icon {
+            background-color: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .tab-btn {
+            transition: all 0.15s ease-in-out;
+        }
+        .tab-btn.active-tab {
+            background-color: #0284c7 !important; /* sky-600 */
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .tab-btn:not(.active-tab) {
+            color: #475569; /* slate-600 */
+            background-color: transparent;
+        }
+        .tab-btn:not(.active-tab):hover {
+            background-color: #f1f5f9; /* slate-100 */
+            color: #0f172a; /* slate-900 */
+        }
         @media print {
             html, body {
                 margin: 0 !important;
@@ -222,58 +296,116 @@
 </div>
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <div class="w-64 bg-slate-900 text-white flex flex-col justify-between">
-            <div>
-                <div class="p-4 border-b border-slate-800 flex items-center gap-2">
-                    <span id="sidebar-app-name" class="text-xl font-bold text-sky-400">⚡ POS Offline</span>
-                </div>
-                <nav class="p-2 space-y-1">
-                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between bg-sky-600 hover:bg-sky-500 text-white font-bold mb-2 shadow transition active-tab" data-tab="pos" data-role="cashier,owner">
-                        <span class="flex items-center gap-2">🛒 Bán Hàng (POS)</span>
-                        <span class="text-[10px] bg-sky-700 px-1.5 py-0.5 rounded font-mono">BÁN</span>
+        <div id="main-sidebar" class="w-60 bg-white border-r border-slate-200 text-slate-700 flex flex-col justify-between shrink-0 select-none z-30 transition-all duration-200">
+            <div class="flex flex-col min-h-0 flex-1">
+                <!-- Header Logo & Toggle Button -->
+                <div id="sidebar-header" class="p-3 border-b border-slate-100 flex items-center justify-between gap-1 shrink-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-xl shrink-0">⚡</span>
+                        <span id="sidebar-app-name" class="sidebar-text text-base font-extrabold text-sky-600 truncate">POS Offline</span>
+                    </div>
+                    <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">
+                        ◀
                     </button>
-                    <button onclick="switchTab('pet-services')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-pink-400 font-semibold" data-tab="pet-services" data-role="cashier,owner" data-module="module_pet_services">🐾 Dịch Vụ & Thú Cưng</button>
-                    <button onclick="switchTab('orders')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-slate-300 font-semibold" data-tab="orders" data-role="cashier,accountant,owner">🧾 Hóa Đơn</button>
-                    <button onclick="switchTab('price-lists')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-emerald-400 font-semibold" data-tab="price-lists" data-role="owner,accountant" data-module="module_price_lists">🏷️ Bảng Giá</button>
-                    <button onclick="switchTab('inventory')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-sky-400 font-semibold" data-tab="inventory" data-role="warehouse,owner,cashier">📦 Hàng Hóa & Kho</button>
-                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="purchases" data-role="warehouse,owner">📥 Nhập Hàng</button>
-                    <button onclick="switchTab('oem')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-amber-400 font-semibold" data-tab="oem" data-role="warehouse,owner" data-module="module_oem">🏭 Gia Công OEM</button>
-                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="contacts" data-role="owner,accountant">👥 Khách Hàng & Đối Tác</button>
-                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="cashbook" data-role="accountant,owner">💰 Sổ Quỹ Thu Chi</button>
-                    <button onclick="switchTab('cashflow-debts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-yellow-400 font-semibold" data-tab="cashflow-debts" data-role="accountant,owner">📊 Dòng Tiền & Nợ NCC</button>
-                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="reports" data-role="accountant,owner">📈 Báo Cáo Tổng Hợp</button>
-                    <button onclick="switchTab('shifts')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800 text-cyan-400 font-semibold" data-tab="shifts" data-role="accountant,owner">🕒 Ca Làm Việc</button>
-                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded flex items-center gap-2 hover:bg-slate-800" data-tab="settings" data-role="owner">⚙️ Cài Đặt Hệ Thống</button>
+                </div>
+                <!-- Navigation Tabs (Flat UI) -->
+                <nav class="p-2 space-y-1 overflow-y-auto flex-1">
+                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold mb-1 transition active-tab cursor-pointer" data-tab="pos" data-role="cashier,owner" data-tooltip="Bán Hàng (POS)">
+                        <span class="flex items-center gap-2.5 min-w-0">
+                            <span class="sidebar-icon">🛒</span>
+                            <span class="sidebar-text truncate font-bold">Bán Hàng (POS)</span>
+                        </span>
+                        <span class="sidebar-badge text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-mono font-bold">BÁN</span>
+                    </button>
+                    <button onclick="switchTab('pet-services')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="pet-services" data-role="cashier,owner" data-module="module_pet_services" data-tooltip="Dịch Vụ & Thú Cưng">
+                        <span class="sidebar-icon">🐾</span>
+                        <span class="sidebar-text truncate">Dịch Vụ & Thú Cưng</span>
+                    </button>
+                    <button onclick="switchTab('orders')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="orders" data-role="cashier,accountant,owner" data-tooltip="Hóa Đơn">
+                        <span class="sidebar-icon">🧾</span>
+                        <span class="sidebar-text truncate">Hóa Đơn</span>
+                    </button>
+                    <button onclick="switchTab('price-lists')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="price-lists" data-role="owner,accountant" data-module="module_price_lists" data-tooltip="Bảng Giá">
+                        <span class="sidebar-icon">🏷️</span>
+                        <span class="sidebar-text truncate">Bảng Giá</span>
+                    </button>
+                    <button onclick="switchTab('inventory')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="inventory" data-role="warehouse,owner,cashier" data-tooltip="Hàng Hóa & Kho">
+                        <span class="sidebar-icon">📦</span>
+                        <span class="sidebar-text truncate">Hàng Hóa & Kho</span>
+                    </button>
+                    <button onclick="switchTab('purchases')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="purchases" data-role="warehouse,owner" data-tooltip="Nhập Hàng">
+                        <span class="sidebar-icon">📥</span>
+                        <span class="sidebar-text truncate">Nhập Hàng</span>
+                    </button>
+                    <button onclick="switchTab('oem')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="oem" data-role="warehouse,owner" data-module="module_oem" data-tooltip="Gia Công OEM">
+                        <span class="sidebar-icon">🏭</span>
+                        <span class="sidebar-text truncate">Gia Công OEM</span>
+                    </button>
+                    <button onclick="switchTab('contacts')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="contacts" data-role="owner,accountant" data-tooltip="Khách Hàng & Đối Tác">
+                        <span class="sidebar-icon">👥</span>
+                        <span class="sidebar-text truncate">Khách Hàng & Đối Tác</span>
+                    </button>
+                    <button onclick="switchTab('cashbook')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="cashbook" data-role="accountant,owner" data-tooltip="Sổ Quỹ Thu Chi">
+                        <span class="sidebar-icon">💰</span>
+                        <span class="sidebar-text truncate">Sổ Quỹ Thu Chi</span>
+                    </button>
+                    <button onclick="switchTab('cashflow-debts')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="cashflow-debts" data-role="accountant,owner" data-tooltip="Dòng Tiền & Nợ NCC">
+                        <span class="sidebar-icon">📊</span>
+                        <span class="sidebar-text truncate">Dòng Tiền & Nợ NCC</span>
+                    </button>
+                    <button onclick="switchTab('reports')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="reports" data-role="accountant,owner" data-tooltip="Báo Cáo Tổng Hợp">
+                        <span class="sidebar-icon">📈</span>
+                        <span class="sidebar-text truncate">Báo Cáo Tổng Hợp</span>
+                    </button>
+                    <button onclick="switchTab('shifts')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="shifts" data-role="accountant,owner" data-tooltip="Ca Làm Việc">
+                        <span class="sidebar-icon">🕒</span>
+                        <span class="sidebar-text truncate">Ca Làm Việc</span>
+                    </button>
+                    <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="settings" data-role="owner" data-tooltip="Cài Đặt Hệ Thống">
+                        <span class="sidebar-icon">⚙️</span>
+                        <span class="sidebar-text truncate">Cài Đặt Hệ Thống</span>
+                    </button>
                 </nav>
             </div>
-            <div class="p-4 text-xs text-slate-400 border-t border-slate-800">
-                <!-- User info + shift controls -->
-                <div id="sidebar-user-info" class="mb-3 text-slate-200">
-                    <div class="flex items-center justify-between">
-                        <div class="font-semibold text-sm" id="header-username">—</div>
-                        <div class="flex items-center gap-0.5 bg-slate-800 border border-slate-700 rounded px-1 py-0.5" title="Cỡ chữ giao diện">
-                            <button onclick="applyAppZoom(-10)" class="px-1 hover:bg-slate-700 rounded font-bold text-slate-300 text-[11px]">A−</button>
-                            <span id="app-zoom-display" class="w-7 text-center font-bold text-slate-400 text-[10px]">100%</span>
-                            <button onclick="applyAppZoom(10)" class="px-1 hover:bg-slate-700 rounded font-bold text-slate-300 text-[11px]">A+</button>
+            <!-- Bottom User & Shift footer -->
+            <div id="sidebar-user-footer" class="p-2.5 text-xs bg-slate-50 border-t border-slate-200 shrink-0">
+                <div id="sidebar-user-info" class="space-y-1.5">
+                    <div id="sidebar-user-top" class="flex items-center justify-between gap-1">
+                        <div class="font-bold text-slate-700 text-xs truncate" id="header-username">—</div>
+                        <div class="flex items-center gap-0.5 bg-white border border-slate-200 rounded-md px-1 py-0.5 shrink-0" title="Cỡ chữ giao diện">
+                            <button onclick="applyAppZoom(-10)" class="px-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-[11px] cursor-pointer">A−</button>
+                            <span id="app-zoom-display" class="w-6 text-center font-bold text-slate-500 text-[10px]">100%</span>
+                            <button onclick="applyAppZoom(10)" class="px-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-[11px] cursor-pointer">A+</button>
                         </div>
                     </div>
-                    <div class="text-xs mt-0.5" id="header-role-badge"></div>
-                    <div class="text-xs mt-1 text-yellow-300" id="header-shift-status"></div>
-                    <div id="shift-action-container" class="mt-2">
-                        <button id="btn-open-shift" onclick="openShiftModal()" class="w-full text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-2 py-1.5 rounded font-medium shadow-sm transition flex items-center justify-center gap-1.5">
-                            <span>▶</span> Mở Ca
+                    <div class="sidebar-text text-[11px] text-slate-500 flex items-center justify-between" id="sidebar-user-details">
+                        <span id="header-role-badge" class="font-medium text-slate-500"></span>
+                        <span id="header-shift-status" class="font-semibold text-amber-600"></span>
+                    </div>
+                    <div id="shift-action-container" class="pt-0.5">
+                        <button id="btn-open-shift" onclick="openShiftModal()" class="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded-lg font-bold shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer" data-tooltip="Mở Ca Làm Việc">
+                            <span>▶</span> <span class="sidebar-footer-btn-text">Mở Ca</span>
                         </button>
-                        <button id="btn-close-shift" onclick="closeShiftModal()" class="w-full text-xs bg-amber-600 hover:bg-amber-500 text-white px-2 py-1.5 rounded font-medium shadow-sm transition flex items-center justify-center gap-1.5" style="display:none">
-                            <span>⏹</span> Kết Ca
+                        <button id="btn-close-shift" onclick="closeShiftModal()" class="w-full text-xs bg-amber-500 hover:bg-amber-600 text-white px-2 py-1.5 rounded-lg font-bold shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer" style="display:none" data-tooltip="Kết Thúc Ca">
+                            <span>⏹</span> <span class="sidebar-footer-btn-text">Kết Ca</span>
                         </button>
                     </div>
-                    <button type="button" onclick="openCashCounterModal()" class="w-full mt-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1.5 rounded flex items-center justify-center gap-1.5 font-medium shadow-sm transition" title="Kiểm đếm tiền mặt theo từng mệnh giá">
-                        <span>🧮</span> Đếm Tiền Mặt
-                    </button>
-                    <button onclick="handleLogout()" class="w-full mt-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2 py-1 rounded">🚪 Đăng Xuất</button>
+                    <div class="flex items-center gap-1 pt-0.5">
+                        <button type="button" onclick="openCashCounterModal()" class="flex-1 text-xs bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 font-semibold shadow-2xs transition cursor-pointer" data-tooltip="Kiểm Đếm Tiền Mặt">
+                            <span>🧮</span> <span class="sidebar-footer-btn-text">Đếm Tiền</span>
+                        </button>
+                        <button onclick="handleLogout()" class="text-xs bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 px-2 py-1.5 rounded-lg font-semibold transition cursor-pointer" data-tooltip="Đăng Xuất">
+                            <span>🚪</span>
+                        </button>
+                    </div>
                 </div>
-                Chế độ Offline 100%<br>Dữ liệu: SQLite Local
             </div>
+        </div>
+
+        <!-- Floating Tooltip for Collapsed Sidebar -->
+        <div id="sidebar-floating-tooltip" class="fixed hidden z-50 pointer-events-none px-3 py-1.5 bg-slate-900/95 text-white text-xs font-bold rounded-lg shadow-xl border border-slate-700 whitespace-nowrap">
+            <span id="sidebar-tooltip-text"></span>
+            <div class="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 border-l border-b border-slate-700"></div>
         </div>
 
         <!-- Main Content -->
@@ -435,8 +567,8 @@
                                 <button id="btn-purchase-history" onclick="openPurchaseHistoryModal()" class="hidden px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 hover:bg-purple-200" title="Xem lịch sử mua hàng">📜</button>
                             </div>
                         </div>
-                        <!-- Loyalty & Spa Wallet Bar -->
-                        <div id="cust-spa-wallet-bar" class="hidden pt-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <!-- Loyalty & Spa Wallet Bar (Đã di chuyển sang modal Tiếp nhận dịch vụ Spa) -->
+                        <div id="cust-spa-wallet-bar" class="hidden pt-1 border-t border-slate-100 flex items-center justify-between text-[11px]" style="display: none !important;">
                             <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200" id="cust-wallet-badge">💆 Ví Spa: 0 đ</span>
                             <div class="flex items-center gap-1.5">
                                 <button type="button" onclick="showPosWalletHistory()" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold shadow-xs flex items-center gap-1 cursor-pointer" title="Xem lịch sử biến động ví Spa">
@@ -765,22 +897,26 @@
                         <h3 class="font-bold text-base text-slate-800">Chương Trình Khuyến Mãi (Best Offer)</h3>
                         <p class="text-xs text-gray-500">Hệ thống POS tự động áp dụng giá tốt nhất: min(Giá Niêm Yết, Giá Phân Hạng, Giá Khuyến Mãi)</p>
                     </div>
+                    <button onclick="openPromotionModal()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs shadow flex items-center gap-1.5 transition">
+                        <span>+ Thêm Chương Trình</span>
+                    </button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-xs">
                         <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px]">
                             <tr>
                                 <th class="p-2.5">ID</th>
+                                <th class="p-2.5">Mã KM</th>
                                 <th class="p-2.5">Tên Chương Trình</th>
                                 <th class="p-2.5 text-center">Bắt Đầu</th>
                                 <th class="p-2.5 text-center">Kết Thúc</th>
                                 <th class="p-2.5 text-center">Số SP Áp Dụng</th>
                                 <th class="p-2.5 text-center">Trạng Thái</th>
-                                <th class="p-2.5 text-center">Bật / Tắt</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody id="promotions-tbody" class="divide-y divide-gray-100">
-                            <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>
+                            <tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1498,6 +1634,18 @@
                                     <button onclick="switchSpaView('table')" id="btn-spa-view-table" class="px-3 py-1.5 font-bold rounded-l-lg bg-purple-700 text-white">📋 Bảng</button>
                                     <button onclick="switchSpaView('kanban')" id="btn-spa-view-kanban" class="px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 border-l rounded-r-lg">📌 Kanban</button>
                                 </div>
+                                <!-- Nút bật chế độ Sửa trực tiếp Excel & Action bar lưu -->
+                                <button onclick="toggleSpaSpreadsheetMode()" id="btn-toggle-spa-spreadsheet" class="px-3 py-1.5 font-bold rounded-lg bg-white border border-purple-300 text-purple-700 hover:bg-purple-50 shadow-sm text-xs flex items-center gap-1.5" title="Bật chế độ sửa trực tiếp dạng bảng tính">
+                                    <span>📝</span> <span>Sửa Bảng Tính</span>
+                                </button>
+                                <div id="spa-spreadsheet-actions" class="hidden items-center gap-2">
+                                    <button onclick="saveSpaSpreadsheetChanges()" id="btn-save-spa-spreadsheet" class="px-3 py-1.5 font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow text-xs flex items-center gap-1.5 animate-pulse">
+                                        <span>💾</span> <span>Lưu Thay Đổi (<span id="dirty-ticket-count">0</span>)</span>
+                                    </button>
+                                    <button onclick="toggleSpaSpreadsheetMode(false)" id="btn-cancel-spa-spreadsheet" class="px-2.5 py-1.5 font-bold rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs">
+                                        ❌ Thoát
+                                    </button>
+                                </div>
                                 <!-- Bộ lọc trạng thái -->
                                 <div class="inline-flex rounded-md shadow-sm text-xs">
                                     <button onclick="filterPetServices('all')" id="btn-svc-filter-all" class="px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow">Tất Cả</button>
@@ -1518,8 +1666,8 @@
                             <table class="w-full min-w-[1350px] text-[13px] border-collapse text-left">
                                 <thead class="bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[11px] tracking-wide">
                                     <tr>
-                                        <!-- CỤM TRÁI: THỢ SPA -->
-                                        <th class="p-3 text-center border-r border-slate-200 w-16" title="Số thứ tự phiếu">#</th>
+                                        <!-- CỤM TRÁI: THỢ SPA & THAO TÁC TRỰC TIẾP -->
+                                        <th class="p-3 text-center border-r border-slate-200 min-w-[135px]" title="Số thứ tự phiếu, mã hóa đơn & các nút in/sửa thao tác nhanh"># Phiếu & Thao Tác</th>
                                         <th class="p-3 min-w-[130px]" title="Tên khách & SĐT">Khách Hàng</th>
                                         <th class="p-3 text-center min-w-[110px]" title="Trạng thái gọi điện">📞 Gọi Điện</th>
                                         <th class="p-3 min-w-[160px]" title="Tên bé, giống, màu, kg, giới tính">Thú Cưng & Thông Tin</th>
@@ -1532,7 +1680,6 @@
                                         <th class="p-3 text-right min-w-[95px]" title="Tổng tiền phải thu">💰 Tổng</th>
                                         <th class="p-3 text-center min-w-[70px]" title="Đã thanh toán / Chưa">TT</th>
                                         <th class="p-3 text-center min-w-[140px]" title="Giờ nhận & Giờ về">Đưa Đón</th>
-                                        <th class="p-3 text-center min-w-[140px]" title="Cập nhật, In, Xóa">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-pet-services" class="divide-y divide-slate-100 bg-white">
@@ -1590,6 +1737,12 @@
                                     <option value="Nhuộm Lông">🎨 Nhuộm Lông</option>
                                     <option value="Trị Liệu & Phụ Thu">💊 Trị Liệu & Phụ Thu</option>
                                 </select>
+                                <button type="button" onclick="openQuickAddSpaCategoryModal()" title="Thêm phân loại dịch vụ mới" class="p-1.5 px-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-bold flex items-center gap-1 transition shadow-sm">
+                                    <span>➕ Phân loại</span>
+                                </button>
+                                <button type="button" onclick="openSpaCategoryManagerModal()" title="Quản lý, đổi tên, xóa phân loại dịch vụ" class="p-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold flex items-center gap-1 transition shadow-sm">
+                                    <span>⚙️ Quản lý</span>
+                                </button>
                             </div>
                             <button onclick="openAddPetPricingModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1">
                                 <span>➕ Thêm Mức Giá Dịch Vụ</span>
@@ -1599,15 +1752,16 @@
                             <table class="w-full text-xs border-collapse text-left">
                                 <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
                                     <tr>
+                                        <th class="p-2.5 text-center w-12">STT</th>
                                         <th class="p-2.5">Phân Loại</th>
                                         <th class="p-2.5">Tên Dịch Vụ</th>
-                                        <th class="p-2.5 text-center">Khoảng Cân Nặng (kg)</th>
+                                        <th class="p-2.5 text-center">Khoảng Cân Nặng</th>
                                         <th class="p-2.5 text-right">Đơn Giá (VNĐ)</th>
-                                        <th class="p-2.5 text-center">Thao Tác</th>
+                                        <th class="p-2.5 text-center w-28">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-pet-pricing" class="divide-y divide-gray-100">
-                                    <tr><td colspan="5" class="p-6 text-center text-gray-400">Đang tải bảng giá dịch vụ...</td></tr>
+                                    <tr><td colspan="6" class="p-6 text-center text-gray-400">Đang tải bảng giá dịch vụ...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -4732,269 +4886,546 @@
         </div>
     </div>
 
-    <!-- MODAL: TẠO PHIẾU DỊCH VỤ SPA THÔNG MINH -->
-    <div id="modal-create-service-ticket" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
-        <div id="svc-pet-history-panel" class="hidden fixed top-1/2 right-4 -translate-y-1/2 w-72 max-h-[70vh] overflow-y-auto bg-white border border-purple-200 rounded-lg shadow-2xl z-[60] p-3">
-            <div class="flex justify-between items-center mb-2 border-b pb-1.5">
-                <strong class="text-xs text-purple-700">📜 Lịch sử spa gần đây</strong>
-                <button type="button" onclick="document.getElementById('svc-pet-history-panel').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-            </div>
-            <div id="svc-pet-history-list" class="space-y-1.5 text-[11px]"></div>
-        </div>
-        <div class="bg-white rounded-xl p-5 max-w-3xl w-full space-y-3.5 shadow-2xl max-h-[95vh] flex flex-col">
-            <div class="flex justify-between items-center border-b pb-2.5">
-                <div>
-                    <h3 class="text-base font-black text-purple-800 flex items-center gap-2">
-                        <span>🐾</span>
-                        <span>Lập Phiếu Tiếp Nhận Dịch Vụ Spa & Làm Đẹp</span>
-                    </h3>
-                    <p class="text-[11px] text-slate-500">Tiếp nhận thông tin bé, tự động áp giá theo cân nặng & chọn thanh toán trước/sau</p>
-                </div>
-                <button type="button" onclick="closeCreateServiceTicketModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none">&times;</button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
-                <!-- KHỐI 1: KHÁCH HÀNG -->
-                <div class="bg-purple-50/50 p-3 rounded-lg border border-purple-100 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-purple-900 text-xs flex items-center gap-1">👤 1. Khách Hàng:</span>
-                        <button type="button" onclick="openNewCustomerModal()" class="text-sky-600 hover:text-sky-800 font-bold text-[11px]">➕ Khách Mới</button>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div class="relative">
-                            <input type="text" id="svc-customer-search" autocomplete="off"
-                                oninput="onSvcCustomerSearchInput(this.value)"
-                                onfocus="onSvcCustomerSearchInput(this.value)"
-                                onblur="setTimeout(()=>{const d=document.getElementById('svc-customer-dropdown'); if(d) d.classList.add('hidden');}, 150)"
-                                placeholder="🔍 Gõ tên hoặc SĐT (vd: Mai 010)..."
-                                class="w-full border border-purple-200 p-2 rounded text-xs bg-white font-medium focus:ring-1 focus:ring-purple-500">
-                            <input type="hidden" id="svc-customer-id" value="">
-                            <div id="svc-customer-dropdown" class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-lg max-h-56 overflow-y-auto"></div>
-                        </div>
-                        <div class="flex items-center text-slate-600 text-[11px] bg-white px-2.5 py-1 rounded border border-purple-100" id="svc-customer-info-preview">
-                            <span>SĐT: <strong id="svc-preview-phone">-</strong> | Địa chỉ: <span id="svc-preview-address">-</span></span>
-                        </div>
+    <!-- MODAL: TẠO PHIẾU DỊCH VỤ SPA THÔNG MINH (3 CỘT & NHẬP HÀNG LOẠT) -->
+    <div id="modal-create-service-ticket" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4">
+        <div class="bg-white rounded-2xl p-4 sm:p-5 max-w-7xl w-full shadow-2xl max-h-[96vh] flex flex-col space-y-3">
+            
+            <!-- HEADER & CHUYỂN CHẾ ĐỘ -->
+            <div class="flex flex-wrap justify-between items-center border-b pb-2.5 gap-2">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl p-2 bg-purple-100 rounded-xl">🐾</span>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-black text-purple-900 leading-tight">Tiếp Nhận Dịch Vụ Spa & Làm Đẹp Thú Cưng</h3>
+                        <p class="text-[11px] text-slate-500">Bố cục 3 phần trực quan, tự động áp giá cân nặng, phụ thu & hỗ trợ nhập hàng loạt</p>
                     </div>
                 </div>
 
-                <!-- KHỐI 2: THÔNG TIN THÚ CƯNG -->
-                <div class="bg-pink-50/40 p-3 rounded-lg border border-pink-100 space-y-2.5">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-pink-900 text-xs flex items-center gap-1">🐕 2. Hồ Sơ Thú Cưng:</span>
-                        <button type="button" onclick="openAddQuickPetForCurrentCustomer()" class="text-pink-600 hover:text-pink-800 font-bold text-[11px]">➕ Thêm Bé Mới Cho Khách Này</button>
+                <!-- Chuyển chế độ 1 bé vs Nhiều bé -->
+                <div class="flex items-center gap-2">
+                    <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200">
+                        <button type="button" id="btn-mode-single-pet" onclick="setSvcIntakeMode('single')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-800 shadow-sm border border-purple-200">
+                            🐾 1 Bé Đơn Lẻ (3 Cột)
+                        </button>
+                        <button type="button" id="btn-mode-batch-pets" onclick="setSvcIntakeMode('batch')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-purple-700">
+                            ⚡ Nhập Hàng Loạt (Sheets)
+                        </button>
                     </div>
+                    <button type="button" onclick="closeCreateServiceTicketModal()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none p-1">&times;</button>
+                </div>
+            </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        <div class="col-span-2 sm:col-span-1">
-                            <label class="block font-bold text-slate-700 mb-0.5">Chọn Bé Cũ / Nhập Mới:</label>
-                            <div class="flex items-center gap-1.5">
-                                <select id="svc-pet-id" onchange="onSvcPetChanged(this.value)" class="w-full border p-1.5 rounded bg-white text-xs font-bold text-pink-700">
-                                    <option value="">-- Chọn khách trước --</option>
-                                </select>
-                                <button type="button" id="svc-pet-history-btn" onclick="openPetSpaHistoryPanel()" disabled
-                                    class="shrink-0 text-[11px] text-purple-600 font-semibold underline disabled:text-slate-300 disabled:no-underline disabled:cursor-not-allowed"
-                                    title="Bé mới chưa có lịch sử">📜</button>
+            <!-- THANH TÌM KHÁCH HÀNG & CẢNH BÁO DANH SÁCH ĐỎ -->
+            <div class="space-y-2">
+                <div class="bg-purple-50/70 p-3 rounded-xl border border-purple-100 flex flex-wrap sm:flex-nowrap gap-3 items-center justify-between">
+                    <div class="flex-1 min-w-[280px] relative">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="font-bold text-purple-950 text-xs flex items-center gap-1">👤 Khách Hàng (*):</label>
+                            <button type="button" onclick="openNewCustomerModal()" class="text-sky-600 hover:text-sky-800 font-bold text-[11px]">➕ Khách Mới</button>
+                        </div>
+                        <input type="text" id="svc-customer-search" autocomplete="off"
+                            oninput="onSvcCustomerSearchInput(this.value)"
+                            onfocus="onSvcCustomerSearchInput(this.value)"
+                            onblur="setTimeout(()=>{const d=document.getElementById('svc-customer-dropdown'); if(d) d.classList.add('hidden');}, 150)"
+                            placeholder="🔍 Gõ tên hoặc SĐT khách (vd: Mai 010)..."
+                            class="w-full border border-purple-200 p-2 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-purple-500">
+                        <input type="hidden" id="svc-customer-id" value="">
+                        <div id="svc-customer-dropdown" class="hidden absolute z-40 left-0 right-0 mt-1 bg-white border border-purple-200 rounded-lg shadow-xl max-h-56 overflow-y-auto"></div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 text-slate-600 text-[11px] bg-white px-3 py-2 rounded-lg border border-purple-100 shrink-0">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span>📞 SĐT: <strong id="svc-preview-phone" class="text-slate-800">-</strong></span>
+                            <span class="text-slate-300">|</span>
+                            <span>🏠 Địa chỉ: <span id="svc-preview-address" class="text-slate-700">-</span></span>
+                            <span class="text-slate-300">|</span>
+                            <span>⭐ Điểm: <strong id="svc-preview-points" class="text-amber-600">0</strong></span>
+                        </div>
+                        <!-- Cụm Nạp Ví & Lịch Sử Ví Spa Ngay Trong Tiếp Nhận Dịch Vụ (Chỉ hiện khi đã chọn khách) -->
+                        <div id="svc-spa-wallet-bar" class="hidden flex items-center gap-2 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                            <span class="font-bold text-emerald-800 flex items-center gap-1">
+                                <span>💆 Ví Spa:</span>
+                                <strong id="svc-preview-wallet" class="text-emerald-700 font-mono text-xs">0 đ</strong>
+                            </span>
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="showPosWalletHistory()" class="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 rounded font-bold border border-slate-200 shadow-xs flex items-center gap-1 cursor-pointer text-[10px]" title="Xem lịch sử biến động ví Spa">
+                                    <span>👁️</span><span>Lịch sử ví</span>
+                                </button>
+                                <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded font-bold shadow-xs flex items-center gap-1 cursor-pointer text-[10px]">
+                                    <span>⚡</span><span>Nạp Ví Spa</span>
+                                </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BANNER CẢNH BÁO LƯU Ý / DANH SÁCH ĐỎ -->
+                <div id="svc-customer-red-flag" class="hidden bg-rose-50 border-2 border-rose-400 p-2.5 rounded-xl flex items-center justify-between gap-3 text-rose-900">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">🚨</span>
+                        <div>
+                            <span class="text-[11px] font-black tracking-wider uppercase bg-rose-600 text-white px-2 py-0.5 rounded-full mr-1.5">KHÁCH HÀNG CẦN LƯU Ý ĐẶC BIỆT</span>
+                            <span id="svc-customer-warning-text" class="text-xs font-bold text-rose-800"></span>
+                        </div>
+                    </div>
+                    <button type="button" onclick="editCurrentCustomerWarning()" class="shrink-0 px-2.5 py-1 bg-white border border-rose-300 hover:bg-rose-100 rounded-lg text-rose-700 text-xs font-bold shadow-sm">
+                        ✏️ Sửa Lưu Ý
+                    </button>
+                </div>
+            </div>
+
+            <!-- CHẾ ĐỘ 1: TIẾP NHẬN 1 BÉ (3 CỘT LUÔN HIỂN THỊ) -->
+            <div id="svc-single-pet-view" class="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-3 pr-1 text-xs">
+                
+                <!-- CỘT 1: THÔNG TIN BÉ, DỊCH VỤ CHÍNH & HÀNG HÓA POS (4 CỘT GRID) -->
+                <div class="lg:col-span-4 flex flex-col gap-2.5 bg-slate-50/60 p-3 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center border-b pb-1.5">
+                        <span class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">1</span>
+                            <span>Hồ Sơ Bé & Dịch Vụ Chính</span>
+                        </span>
+                        <button type="button" onclick="openAddQuickPetForCurrentCustomer()" class="text-pink-600 hover:text-pink-800 font-bold text-[11px]">➕ Thêm Bé Mới</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="col-span-2">
+                            <label class="block font-bold text-slate-700 mb-0.5">Chọn Bé Của Khách:</label>
+                            <select id="svc-pet-id" onchange="onSvcPetChanged(this.value)" class="w-full border p-1.5 rounded-lg bg-white text-xs font-bold text-purple-800">
+                                <option value="">-- Chọn khách trước --</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-0.5">Tên Bé (*):</label>
-                            <input type="text" id="svc-pet-name" placeholder="VD: Bông, Milu..." class="w-full border p-1.5 rounded bg-white text-xs font-medium">
+                            <input type="text" id="svc-pet-name" placeholder="VD: Bông, Lu..." class="w-full border p-1.5 rounded-lg bg-white text-xs font-medium">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-pink-900 mb-0.5">Cân Nặng (kg) (*):</label>
+                            <input type="text" id="svc-pet-weight" oninput="onSvcWeightInputChanged(this.value)" placeholder="VD: 3.5" class="w-full border-2 border-pink-300 p-1.5 rounded-lg bg-white text-xs font-bold text-pink-700">
                         </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-0.5">Giống Loài (*):</label>
-                            <select id="svc-pet-breed" class="w-full border p-1.5 rounded bg-white text-xs font-medium">
+                            <select id="svc-pet-breed" class="w-full border p-1.5 rounded-lg bg-white text-xs">
                                 <option value="Poodle">🐩 Poodle</option>
                                 <option value="Phốc Sóc">🦊 Phốc Sóc (Pomeranian)</option>
                                 <option value="Corgi">🍑 Corgi</option>
-                                <option value="Sammoyed">🐻‍❄️ Samoyed</option>
+                                <option value="Samoyed">🐻‍❄️ Samoyed</option>
                                 <option value="Alaska">🐺 Alaska</option>
                                 <option value="Husky">🐺 Husky</option>
                                 <option value="Golden">🦮 Golden Retriever</option>
-                                <option value="Labrador / Chó săn mồi">🐕‍🦺 Labrador</option>
+                                <option value="Labrador">🐕‍🦺 Labrador</option>
                                 <option value="Bichon">☁️ Bichon Frise</option>
                                 <option value="Shiba">🐕 Shiba Inu</option>
-                                <option value="Akita">🐕 Akita</option>
-                                <option value="Bull Pháp">🐾 Bull Pháp (French Bulldog)</option>
+                                <option value="Bull Pháp">🐾 Bull Pháp</option>
                                 <option value="Pug">🐶 Pug</option>
-                                <option value="Bull Anh">🐶 Bull Anh</option>
-                                <option value="Lạp xưởng">🌭 Lạp Xưởng (Dachshund)</option>
-                                <option value="Bắc Kinh">🦁 Bắc Kinh</option>
-                                <option value="Chó Nhật">🐕 Chó Nhật</option>
                                 <option value="Chó Cảnh Khác">🐶 Chó Cảnh Khác</option>
-                                <option value="Mèo ALN">🐱 Mèo ALN (Anh Lông Ngắn)</option>
-                                <option value="Mèo ALD">🐱 Mèo ALD (Anh Lông Dài)</option>
+                                <option value="Mèo ALN">🐱 Mèo ALN</option>
+                                <option value="Mèo ALD">🐱 Mèo ALD</option>
                                 <option value="Mèo Cảnh Khác">🐾 Mèo Cảnh Khác</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block font-bold text-slate-700 mb-0.5">Giới Tính:</label>
-                            <select id="svc-pet-gender" class="w-full border p-1.5 rounded bg-white text-xs">
-                                <option value="Đực">♂️ Đực</option>
-                                <option value="Cái">♀️ Cái</option>
+                            <label class="block font-bold text-slate-700 mb-0.5">Màu Lông / Giới Tính:</label>
+                            <div class="flex gap-1">
+                                <select id="svc-pet-gender" class="w-1/2 border p-1.5 rounded-lg bg-white text-xs">
+                                    <option value="Đực">♂️ Đực</option>
+                                    <option value="Cái">♀️ Cái</option>
+                                </select>
+                                <select id="svc-pet-color" class="w-1/2 border p-1.5 rounded-lg bg-white text-xs">
+                                    <option value="Trắng">Trắng</option>
+                                    <option value="Đen">Đen</option>
+                                    <option value="Nâu">Nâu</option>
+                                    <option value="Kem">Kem</option>
+                                    <option value="Vàng">Vàng</option>
+                                    <option value="Xám">Xám</option>
+                                    <option value="Bò sữa">Bò sữa</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cạo bàn & Gửi hotel -->
+                    <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-lg border border-slate-200">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[11px] font-bold text-slate-700">Cạo bàn:</span>
+                            <label class="inline-flex items-center text-[11px] font-semibold text-slate-600 gap-1 cursor-pointer">
+                                <input type="radio" name="svc-shaving-feet" value="Không cạo bàn" checked> Không
+                            </label>
+                            <label class="inline-flex items-center text-[11px] font-semibold text-slate-600 gap-1 cursor-pointer">
+                                <input type="radio" name="svc-shaving-feet" value="Cạo bàn"> Có
+                            </label>
+                            <label class="inline-flex items-center text-[11px] font-semibold text-slate-600 gap-1 cursor-pointer">
+                                <input type="radio" name="svc-shaving-feet" value="Cạo bàn cao"> Cao
+                            </label>
+                        </div>
+                        <label class="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 cursor-pointer">
+                            <input type="checkbox" id="svc-send-to-hotel" class="rounded text-sky-600">
+                            <span>🏨 Gửi hotel</span>
+                        </label>
+                    </div>
+
+                    <!-- Gói dịch vụ chính & Nhuộm -->
+                    <div class="space-y-2 bg-purple-50/50 p-2.5 rounded-lg border border-purple-100">
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5">
+                                <label class="text-[11px] font-bold text-purple-900">Gói Dịch Vụ Chính (*):</label>
+                                <span class="text-[10px] text-purple-600 font-mono italic" id="svc-weight-badge">0 kg</span>
+                            </div>
+                            <select id="svc-primary-package" onchange="autoCalculateServicePrice()" class="w-full border p-1.5 rounded-lg bg-white text-xs font-bold text-slate-800">
+                                <option value="">-- Chọn gói chính --</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block font-bold text-pink-900 mb-0.5">Cân Nặng (kg) (*):</label>
-                            <input type="text" id="svc-pet-weight" oninput="onSvcWeightInputChanged(this.value)" placeholder="VD: 3.5 hoặc 3,5" class="w-full border-2 border-pink-300 p-1.5 rounded bg-white text-xs font-bold text-pink-700 focus:outline-none focus:border-pink-500">
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-0.5">Màu Lông:</label>
-                            <select id="svc-pet-color" class="w-full border p-1.5 rounded bg-white text-xs font-medium">
-                                <option value="Trắng">⚪ Trắng</option>
-                                <option value="Đen">⚫ Đen</option>
-                                <option value="Nâu">🟤 Nâu</option>
-                                <option value="Socola">🍫 Socola</option>
-                                <option value="Kem">🧈 Kem</option>
-                                <option value="Vàng">🟡 Vàng</option>
-                                <option value="Vàng mơ">🌾 Vàng Mơ</option>
-                                <option value="Xám">🔘 Xám</option>
-                                <option value="Silver">🥈 Silver / Ánh Bạc</option>
-                                <option value="Phantom">🎭 Phantom (Đen điểm)</option>
-                                <option value="Bò sữa">🥛 Bò Sữa (Trắng - Đen)</option>
-                                <option value="Bò nâu">🐄 Bò Nâu (Trắng - Nâu)</option>
-                                <option value="Bò xám">🦭 Bò Xám (Trắng - Xám)</option>
-                                <option value="Trắng - Xám">⚪ Trắng - Xám</option>
-                                <option value="Vàng - Đen">🐅 Vàng - Đen</option>
-                                <option value="Vàng - Xám">🐆 Vàng - Xám</option>
-                                <option value="Bicolor (Nhị thể)">🎨 Bicolor (Nhị thể)</option>
-                                <option value="Tricolor (Tam thể)">🎨 Tricolor (Tam thể)</option>
-                                <option value="Tabbi (Mướp)">🐯 Tabby (Vằn Mướp)</option>
-                                <option value="Sọc dưa">🍉 Sọc Dưa</option>
+                            <label class="block text-[11px] font-bold text-slate-700 mb-0.5">Dịch Vụ Nhuộm (Tùy chọn):</label>
+                            <select id="svc-dye-package" onchange="autoCalculateServicePrice()" class="w-full border p-1.5 rounded-lg bg-white text-xs text-slate-800">
+                                <option value="">-- Không nhuộm --</option>
                             </select>
                         </div>
-                        <div class="col-span-2">
-                            <label class="block font-bold text-slate-700 mb-0.5">Lưu Ý Cạo Bàn (*):</label>
+                    </div>
+
+                    <!-- Yêu cầu khách & ghi chú thợ -->
+                    <div class="space-y-1.5">
+                        <input type="text" id="svc-customer-request" placeholder="📝 Yêu cầu khách: Cắt tròn, tai ngắn..." class="w-full border p-1.5 rounded-lg text-xs bg-white">
+                        <div class="flex gap-2">
+                            <input type="text" id="svc-accessories" placeholder="🎒 Phụ kiện: Vòng cổ, dây dắt..." class="w-1/2 border p-1.5 rounded-lg text-xs bg-white">
+                            <input type="text" id="svc-note" placeholder="⚠️ Lưu ý bé: Nhát nước, da nhạy cảm..." class="w-1/2 border p-1.5 rounded-lg text-xs bg-white">
+                        </div>
+                    </div>
+
+                    <!-- Mua hàng hóa POS kèm theo (Chuyển sang Cột 1) -->
+                    <div class="space-y-1.5 bg-sky-50/80 p-2.5 rounded-lg border border-sky-200">
+                        <div class="flex justify-between items-center">
+                            <label class="font-bold text-sky-950 text-[11px] flex items-center gap-1">
+                                <span>🛒 Thêm Hàng Hóa POS (Mua Kèm):</span>
+                            </label>
+                            <span id="svc-retail-count-badge" class="text-[10px] text-sky-700 font-bold bg-sky-100 px-1.5 py-0.5 rounded-full">0 món</span>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="svc-retail-search" autocomplete="off"
+                                oninput="onSvcRetailSearchInput(this.value)"
+                                onfocus="onSvcRetailSearchInput(this.value)"
+                                onblur="setTimeout(()=>{const d=document.getElementById('svc-retail-dropdown'); if(d) d.classList.add('hidden');}, 250)"
+                                placeholder="🔍 Tìm hàng hóa POS (vd: Hạt, Pate, Xịt ve...)..."
+                                class="w-full border border-sky-300 p-1.5 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-sky-500">
+                            <!-- Dropdown mở ngược lên trên (bottom-full) để không bị che khuất hoặc tràn màn hình -->
+                            <div id="svc-retail-dropdown" class="hidden absolute z-50 left-0 right-0 bottom-full mb-1.5 bg-white border border-sky-300 rounded-lg shadow-2xl max-h-60 overflow-y-auto"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- CỘT 2: PHỤ THU & TÀI CHÍNH THANH TOÁN (4 CỘT GRID) -->
+                <div class="lg:col-span-4 flex flex-col gap-2.5 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
+                    <div class="border-b pb-1.5">
+                        <span class="font-black text-amber-900 text-xs flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">2</span>
+                            <span>Phụ Thu & Tài Chính Thanh Toán</span>
+                        </span>
+                    </div>
+
+                    <!-- DANH SÁCH CHECKBOX PHỤ THU (GIÁ THIẾT LẬP TRONG DỊCH VỤ) -->
+                    <div class="space-y-1 bg-white p-2.5 rounded-lg border border-amber-200">
+                        <div class="font-bold text-slate-800 text-[11px] mb-1">Các Khoản Phụ Thu (Tích Chọn):</div>
+                        
+                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
+                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
+                                <input type="checkbox" id="svc-cb-teeth" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🦷 Đánh răng</span>
+                            </span>
+                            <span id="svc-cb-teeth-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">30.000 đ</span>
+                        </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
+                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
+                                <input type="checkbox" id="svc-cb-art" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>✂️ Cắt nghệ thuật</span>
+                            </span>
+                            <span id="svc-cb-art-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">50.000 đ</span>
+                        </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
+                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
+                                <input type="checkbox" id="svc-cb-surch" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🌀 Phụ thu gỡ rối</span>
+                            </span>
+                            <span id="svc-cb-surch-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">40.000 đ</span>
+                        </label>
+
+                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
+                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
+                                <input type="checkbox" id="svc-cb-ship" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🚗 Đưa đón tận nơi</span>
+                            </span>
+                            <span id="svc-cb-ship-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">50.000 đ</span>
+                        </label>
+
+                        <!-- Tip thợ: Checkbox + ô nhập tiền tùy tâm -->
+                        <div class="flex items-center justify-between text-xs p-1 rounded hover:bg-amber-50">
+                            <label class="flex items-center gap-1.5 font-medium text-slate-800 cursor-pointer select-none">
+                                <input type="checkbox" id="svc-cb-tip" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🎁 Tip thợ</span>
+                            </label>
+                            <input type="text" id="svc-tip-amount" oninput="onMoneyInputChange(this); onSvcSurchargeCheckboxChanged();" placeholder="0" class="w-20 border p-0.5 rounded text-xs text-right font-mono font-bold text-slate-700 bg-white">
+                        </div>
+
+                        <!-- Phụ thu khác: Checkbox + ô nhập tiền -->
+                        <div class="flex items-center justify-between text-xs p-1 rounded hover:bg-amber-50">
+                            <label class="flex items-center gap-1.5 font-medium text-slate-800 cursor-pointer select-none">
+                                <input type="checkbox" id="svc-cb-other" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🏷️ Phụ thu khác</span>
+                            </label>
+                            <input type="text" id="svc-other-surch-amount" oninput="onMoneyInputChange(this); onSvcSurchargeCheckboxChanged();" placeholder="0" class="w-20 border p-0.5 rounded text-xs text-right font-mono font-bold text-slate-700 bg-white">
+                        </div>
+                    </div>
+
+                    <!-- KHỐI HÀNG HÓA POS ĐÃ CHỌN (CHỈ HIỂN THỊ KHI CÓ HÀNG ĐƯỢC CHỌN) -->
+                    <div id="svc-retail-selected-box" class="hidden space-y-1.5 bg-sky-50/80 p-2.5 rounded-lg border border-sky-200">
+                        <div class="flex justify-between items-center border-b border-sky-200 pb-1">
+                            <span class="font-bold text-sky-950 text-[11px] flex items-center gap-1">
+                                <span>🛒 Hàng Hóa POS Mua Kèm:</span>
+                            </span>
+                            <span id="svc-retail-total-badge" class="font-mono font-bold text-sky-800 text-[11px]">0 đ</span>
+                        </div>
+                        <!-- Danh sách sản phẩm mua kèm -->
+                        <div id="svc-retail-items-list" class="space-y-1 max-h-24 overflow-y-auto pr-0.5">
+                            <div class="text-[10px] text-slate-400 italic text-center py-1">Chưa chọn hàng hóa POS</div>
+                        </div>
+                    </div>
+
+                    <!-- BẢNG TÍNH TỔNG TIỀN CHI TIẾT -->
+                    <div class="bg-amber-100/70 p-2.5 rounded-lg border border-amber-200 space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Giá dịch vụ Spa:</span>
+                            <span id="svc-base-price-display" class="font-mono font-bold text-slate-800">0 đ</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Tổng phụ thu:</span>
+                            <span id="svc-surcharges-total-display" class="font-mono font-bold text-slate-800">0 đ</span>
+                        </div>
+                        <div id="svc-retail-price-row" class="hidden flex justify-between text-[11px] text-slate-600">
+                            <span>Hàng hóa POS:</span>
+                            <span id="svc-retail-price-display" class="font-mono font-bold text-sky-800">0 đ</span>
+                        </div>
+                        <div class="border-t border-amber-200 pt-1 flex justify-between items-center">
+                            <span class="font-bold text-amber-950 text-xs">TỔNG CỘNG:</span>
+                            <span id="svc-total-price-display" class="font-black text-sm text-rose-700 font-mono">0 đ</span>
+                        </div>
+                        <input type="hidden" id="svc-total-price" value="0">
+                    </div>
+
+                    <!-- Thanh toán tiếp nhận -->
+                    <div class="bg-white p-2.5 rounded-lg border border-amber-200 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs text-slate-700">Thanh toán:</span>
                             <div class="flex gap-2">
-                                <label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 rounded border text-[11px] font-bold text-slate-700">
-                                    <input type="radio" name="svc-shaving-feet" value="Không cạo bàn" checked> Không cạo bàn
+                                <label class="inline-flex items-center text-xs cursor-pointer">
+                                    <input type="radio" name="svc-payment-timing" value="unpaid" checked onchange="onSvcPaymentTimingChanged(this.value)" class="text-amber-600">
+                                    <span class="ml-1 font-semibold text-slate-700">Khi đón</span>
                                 </label>
-                                <label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 rounded border text-[11px] font-bold text-slate-700">
-                                    <input type="radio" name="svc-shaving-feet" value="Cạo bàn"> Cạo bàn
-                                </label>
-                                <label class="flex items-center gap-1 cursor-pointer bg-white px-2 py-1 rounded border text-[11px] font-bold text-slate-700">
-                                    <input type="radio" name="svc-shaving-feet" value="Cạo bàn cao"> Cạo bàn cao
+                                <label class="inline-flex items-center text-xs cursor-pointer">
+                                    <input type="radio" name="svc-payment-timing" value="paid" onchange="onSvcPaymentTimingChanged(this.value)" class="text-amber-600">
+                                    <span class="ml-1 font-bold text-emerald-700">Trả trước</span>
                                 </label>
                             </div>
                         </div>
-                        <div class="col-span-2">
-                            <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-sky-50 border border-sky-200 rounded px-2 py-1.5 cursor-pointer w-fit">
-                                <input type="checkbox" id="svc-send-to-hotel" class="w-3.5 h-3.5">
-                                🏨 Spa xong gửi hotel
-                            </label>
+                        <div id="svc-payment-method-wrap" class="hidden">
+                            <select id="svc-payment-method" class="w-full text-xs border p-1.5 rounded-lg bg-white font-semibold text-slate-700">
+                                <option value="cash">💵 Tiền mặt</option>
+                                <option value="transfer">💳 Chuyển khoản (VietQR)</option>
+                                <option value="card">💳 Quẹt thẻ POS</option>
+                                <option value="wallet" id="svc-opt-pay-wallet">💆 Trừ Ví Spa (Số dư: 0 đ)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <!-- KHỐI 3: CHỌN DỊCH VỤ & TỰ ĐỘNG TÍNH GIÁ THEO CÂN NẶNG -->
-                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1">✂️ 3. Dịch Vụ Spa Lựa Chọn:</span>
-                        <span class="text-[11px] text-slate-500 italic">Giá tự động nhảy theo cân nặng (<span id="svc-weight-badge" class="font-bold text-pink-600">0 kg</span>)</span>
+                <!-- CỘT 3: LỊCH SỬ SPA CỦA KHÁCH HÀNG (4 CỘT GRID - LUÔN HIỂN THỊ) -->
+                <div class="lg:col-span-4 flex flex-col gap-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 max-h-[580px]">
+                    <div class="flex justify-between items-center border-b pb-1.5">
+                        <span class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">3</span>
+                            <span>Lịch Sử Spa Khách Hàng</span>
+                        </span>
+                        <select id="svc-history-pet-filter" onchange="filterCustomerSpaHistory(this.value)" class="text-[11px] border border-slate-200 rounded px-1.5 py-0.5 bg-white font-medium text-slate-700">
+                            <option value="">🐾 Tất cả các bé</option>
+                        </select>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Gói Dịch Vụ Chính:</label>
-                            <select id="svc-primary-package" onchange="autoCalculateServicePrice()" class="w-full border p-1.5 rounded bg-white text-xs font-bold text-slate-800">
-                                <option value="">-- Chọn gói chính --</option>
-                                <optgroup label="🐶 Gói Combo Chó">
-                                    <option value="CB Tắm (1+2+3)">CB Tắm (1+2+3)</option>
-                                    <option value="CB Cạo (1+2+3+4)">CB Cạo (1+2+3+4)</option>
-                                    <option value="CB Cắt Tỉa (1+2+3+5)">CB Cắt Tỉa (1+2+3+5)</option>
-                                </optgroup>
-                                <optgroup label="✂️ Dịch Vụ Lẻ Chó">
-                                    <option value="Tắm + Massage">Tắm + Massage</option>
-                                    <option value="Vệ sinh tai">Vệ sinh tai</option>
-                                    <option value="Cắt móng + cạo cợ bàn">Cắt móng + cạo cợ bàn</option>
-                                    <option value="Cạo lông toàn thân">Cạo lông toàn thân</option>
-                                    <option value="Cắt lông tạo kiểu">Cắt lông tạo kiểu</option>
-                                </optgroup>
-                                <optgroup label="🐱 Spa Mèo">
-                                    <option value="Combo Tắm Vệ Sinh Mèo">Combo Tắm Vệ Sinh Mèo</option>
-                                </optgroup>
-                                <optgroup label="💊 Trị Liệu & Phụ Thu">
-                                    <option value="Tắm trị liệu / Nấm da">Tắm trị liệu / Nấm da</option>
-                                    <option value="Phụ thu gỡ rối lông">Phụ thu gỡ rối lông</option>
-                                    <option value="Cắt tỉa đầu">Cắt tỉa đầu</option>
-                                    <option value="Tẩy lông (Dưới 5kg)">Tẩy lông (Dưới 5kg)</option>
-                                    <option value="Tẩy lông (Trên 5kg)">Tẩy lông (Trên 5kg)</option>
-                                    <option value="Đánh răng">Đánh răng</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Dịch Vụ Nhuộm (Tùy chọn):</label>
-                            <select id="svc-dye-package" onchange="autoCalculateServicePrice()" class="w-full border p-1.5 rounded bg-white text-xs font-medium text-slate-800">
-                                <option value="">-- Không nhuộm --</option>
-                                <option value="Nhuộm: 1 Màu (2 Tai + Đuôi)">Nhuộm: 1 Màu (2 Tai + Đuôi)</option>
-                                <option value="Nhuộm: 1 Màu (2 Tai + Đuôi + 4 Chân)">Nhuộm: 1 Màu (2 Tai + Đuôi + 4 Chân)</option>
-                                <option value="Nhuộm: Trên 2 Màu (2 Tai + Đuôi)">Nhuộm: Trên 2 Màu (2 Tai + Đuôi)</option>
-                                <option value="Nhuộm: Trên 2 Màu (2 Tai + Đuôi + 4 Chân)">Nhuộm: Trên 2 Màu (2 Tai + Đuôi + 4 Chân)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-sky-800 mb-0.5">Tổng Tiền Dịch Vụ (đ):</label>
-                            <input type="number" id="svc-total-price" min="0" step="1000" class="w-full border-2 border-sky-400 p-1.5 rounded bg-white text-xs font-black text-sky-700 text-right">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- KHỐI 4: YÊU CẦU, PHỤ KIỆN & GHI CHÚ -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                        <label class="font-bold text-slate-700 block mb-0.5">Yêu Cầu Của Khách:</label>
-                        <input type="text" id="svc-customer-request" placeholder="VD: Cắt đầu tròn, tỉa tai ngắn, giữ đuôi bông..." class="w-full border p-1.5 rounded text-xs bg-white">
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-700 block mb-0.5">Phụ Kiện Mang Theo:</label>
-                        <input type="text" id="svc-accessories" placeholder="VD: Dây dắt đỏ, vòng cổ chuông, lồng nhựa..." class="w-full border p-1.5 rounded text-xs bg-white">
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-700 block mb-0.5">Ghi Chú Thêm Cho Thợ:</label>
-                        <input type="text" id="svc-note" placeholder="Bé nhát nước, da nhạy cảm..." class="w-full border p-1.5 rounded text-xs bg-white">
-                    </div>
-                </div>
-
-                <!-- KHỐI 5: THANH TOÁN TIẾP NHẬN (Hình thức đến chuyển sang cập nhật sau khi tạo phiếu) -->
-                <div class="grid grid-cols-1 gap-2.5">
-                    <div class="bg-amber-50 p-2.5 rounded-lg border border-amber-300 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-xs text-amber-900">💰 TT:</span>
-                            <label class="inline-flex items-center text-xs cursor-pointer">
-                                <input type="radio" name="svc-payment-timing" value="unpaid" checked onchange="onSvcPaymentTimingChanged(this.value)" class="text-amber-600">
-                                <span class="ml-1 font-semibold text-slate-700">Khi đón</span>
-                            </label>
-                            <label class="inline-flex items-center text-xs cursor-pointer">
-                                <input type="radio" name="svc-payment-timing" value="paid" onchange="onSvcPaymentTimingChanged(this.value)" class="text-amber-600">
-                                <span class="ml-1 font-bold text-emerald-700">Trước</span>
-                            </label>
-                        </div>
-                        <div id="svc-payment-method-wrap" class="hidden flex items-center gap-1">
-                            <select id="svc-payment-method" class="text-xs border p-1 rounded bg-white font-semibold text-slate-700">
-                                <option value="cash">Tiền mặt</option>
-                                <option value="transfer">Chuyển khoản</option>
-                                <option value="card">Thẻ</option>
-                            </select>
+                    <div id="svc-customer-history-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                        <div class="text-center py-10 text-slate-400">
+                            <span>🔍 Chọn khách hàng để tải lịch sử làm Spa</span>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- CHẾ ĐỘ 2: NHẬP HÀNG LOẠT (GOOGLE SHEETS STYLE) -->
+            <div id="svc-batch-pets-view" class="hidden flex-1 min-h-0 overflow-y-auto flex flex-col space-y-2.5 pr-1 text-xs">
+                <div class="bg-sky-50 border border-sky-200 p-2 rounded-xl flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">⚡</span>
+                        <span class="text-xs text-sky-900 font-medium">Nhập nhanh nhiều bé của khách theo hàng ngang (dùng phím Tab để nhảy ô). Phiếu sẽ tự động tạo hàng loạt và liên kết cùng một mã đợt tiếp nhận.</span>
+                    </div>
+                </div>
+
+                <!-- THANH CHỌN BÉ CỦA KHÁCH (CHỌN TỪNG CON HOẶC CHỌN HẾT) -->
+                <div id="batch-pet-selection-bar" class="bg-purple-50/70 border border-purple-200 p-2.5 rounded-xl flex flex-col gap-1.5 shrink-0">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">🐾</span>
+                            <span class="text-xs font-bold text-purple-950">Chọn bé làm Spa hôm nay:</span>
+                            <span id="batch-selected-pet-count" class="bg-purple-200 text-purple-900 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">0 bé</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="selectAllBatchPets(true)" class="px-2.5 py-1 bg-white hover:bg-purple-100 text-purple-700 border border-purple-300 rounded text-[11px] font-bold shadow-xs transition-all flex items-center gap-1">
+                                <span>☑️</span> Chọn hết
+                            </button>
+                            <button type="button" onclick="selectAllBatchPets(false)" class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 rounded text-[11px] font-medium shadow-xs transition-all flex items-center gap-1">
+                                <span>◻️</span> Bỏ chọn hết
+                            </button>
+                            <button type="button" onclick="addBatchPetRow()" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-[11px] font-bold shadow-xs transition-all flex items-center gap-1">
+                                <span>➕</span> Thêm bé mới
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Danh sách Checkboxes từng bé của khách -->
+                    <div id="batch-pet-checkboxes-container" class="flex flex-wrap items-center gap-2 max-h-24 overflow-y-auto pt-0.5">
+                        <div class="text-[11px] text-slate-400 italic">Vui lòng chọn khách hàng ở trên để hiển thị danh sách các bé</div>
+                    </div>
+                </div>
+
+                <!-- THANH THIẾT LẬP NHANH CHO CÁC BÉ (BULK APPLY BAR) -->
+                <div class="bg-amber-50/80 border border-amber-200 p-2.5 rounded-xl flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <span class="text-xs font-bold text-amber-950 flex items-center gap-1">
+                            <span>⚡</span><span>Gói Mẫu:</span>
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[11px] text-slate-700 font-bold">Gói Chính:</label>
+                            <select id="batch-bulk-primary-package" class="border border-amber-300 p-1 rounded-lg bg-white text-xs font-bold text-slate-800">
+                                <option value="">-- Chọn gói dịch vụ chung --</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[11px] text-slate-700 font-bold">Cạo Bàn:</label>
+                            <select id="batch-bulk-shaving" class="border border-amber-300 p-1 rounded-lg bg-white text-xs text-slate-800">
+                                <option value="">(Không đổi)</option>
+                                <option value="Không cạo bàn">Không cạo bàn</option>
+                                <option value="Cạo bàn">Có cạo bàn</option>
+                                <option value="Cạo bàn cao">Cạo bàn cao</option>
+                            </select>
+                        </div>
+                        <!-- Checkbox phụ thu hàng loạt -->
+                        <div class="flex items-center gap-2 border-l border-amber-300/80 pl-2">
+                            <span class="text-[11px] text-slate-700 font-bold">Phụ thu:</span>
+                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
+                                <input type="checkbox" id="batch-bulk-cb-teeth" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🦷 Răng</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
+                                <input type="checkbox" id="batch-bulk-cb-art" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>✂️ Cắt NT</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
+                                <input type="checkbox" id="batch-bulk-cb-surch" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🌀 Gỡ rối</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
+                                <input type="checkbox" id="batch-bulk-cb-ship" class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span>🚗 Ship</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="applyBulkPackageToBatchPets(false)" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer" title="Áp dụng gói mẫu & phụ thu cho toàn bộ các bé trong bảng">
+                            <span>⚡</span><span>Tất Cả Các Bé</span>
+                        </button>
+                        <button type="button" onclick="applyBulkPackageToBatchPets(true)" class="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer" title="Chỉ áp dụng gói mẫu & phụ thu cho các dòng bé đang được tích chọn">
+                            <span>🎯</span><span>Chỉ Bé Đã Tích</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border rounded-xl bg-white shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
+                    <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[52vh] sm:max-h-[56vh] relative">
+                        <table class="w-full border-collapse text-left text-xs" id="table-batch-pets">
+                            <thead class="bg-slate-100 border-b text-slate-700 uppercase font-bold text-[11px] sticky top-0 z-20 shadow-sm">
+                                <tr>
+                                    <th class="p-2 w-12 text-center bg-slate-100">
+                                        <div class="flex items-center justify-center gap-1">
+                                            <input type="checkbox" id="batch-check-all-rows" onchange="toggleAllBatchRowChecks(this.checked)" checked title="Chọn / bỏ chọn tất cả dòng" class="w-3.5 h-3.5 text-purple-600 rounded cursor-pointer">
+                                            <span>#</span>
+                                        </div>
+                                    </th>
+                                    <th class="p-2 min-w-[170px] bg-slate-100">Thú Cưng & Chi Tiết (*)</th>
+                                    <th class="p-2 w-20 text-center bg-slate-100">Kg (*)</th>
+                                    <th class="p-2 w-24 text-center bg-slate-100">Cạo Bàn</th>
+                                    <th class="p-2 min-w-[160px] bg-slate-100">Gói Dịch Vụ Chính (*)</th>
+                                    <th class="p-2 min-w-[130px] bg-slate-100">Nhuộm Lông</th>
+                                    <th class="p-2 min-w-[170px] bg-slate-100">Phụ Thu (Tích Chọn)</th>
+                                    <th class="p-2 w-28 text-right bg-slate-100">Thành Tiền (đ)</th>
+                                    <th class="p-2 min-w-[160px] bg-slate-100">Lưu Ý, Phụ Kiện & Thợ</th>
+                                    <th class="p-2 w-10 text-center bg-slate-100">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-batch-pets" class="divide-y divide-slate-100">
+                                <!-- Dòng động sinh từ addBatchPetRow() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tổng kết đợt tiếp nhận hàng loạt -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                        <span>Tổng số bé tiếp nhận: <span id="batch-total-pets" class="text-purple-700 font-black text-sm">0</span> bé</span>
+                        <span class="text-slate-300">|</span>
+                        <span>Tổng tiền đợt này: <span id="batch-grand-total" class="text-rose-700 font-black text-base font-mono">0 đ</span></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-600">Thanh toán:</label>
+                        <select id="batch-payment-timing" class="border p-1 rounded bg-white text-xs font-semibold">
+                            <option value="unpaid">Khi đón</option>
+                            <option value="paid">Trả trước</option>
+                        </select>
+                        <select id="batch-payment-method" class="border p-1 rounded bg-white text-xs font-semibold">
+                            <option value="cash">Tiền mặt</option>
+                            <option value="transfer">Chuyển khoản</option>
+                            <option value="wallet" id="batch-opt-pay-wallet">💆 Trừ Ví Spa (Số dư: 0 đ)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER HÀNH ĐỘNG -->
             <div class="flex justify-between items-center pt-2.5 border-t">
                 <div class="text-[11px] text-slate-500 font-medium">
-                    Số phiếu tiếp nhận sẽ được cấp tự động theo hệ thống
+                    Hệ thống tự động cấp số phiếu theo quy tắc nghiệp vụ
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" onclick="closeCreateServiceTicketModal()" class="px-3.5 py-2 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
-                    <button type="button" onclick="submitCreateServiceTicket(true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1">
-                        <span>🖨️</span>
-                        <span>Lưu & In Phiếu K80</span>
-                    </button>
-                    <button type="button" onclick="submitCreateServiceTicket(false)" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow">
-                        <span>💾 Lưu Phiếu</span>
-                    </button>
+                    <button type="button" onclick="closeCreateServiceTicketModal()" class="px-3.5 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                    
+                    <!-- Nút chế độ 1 bé -->
+                    <div id="footer-single-actions" class="flex gap-2">
+                        <button type="button" onclick="submitCreateServiceTicket(true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow flex items-center gap-1">
+                            <span>🖨️</span>
+                            <span>Lưu & In Phiếu K80</span>
+                        </button>
+                        <button type="button" onclick="submitCreateServiceTicket(false)" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow">
+                            <span>💾 Lưu Phiếu</span>
+                        </button>
+                    </div>
+
+                    <!-- Nút chế độ hàng loạt -->
+                    <div id="footer-batch-actions" class="hidden flex gap-2">
+                        <button type="button" onclick="submitBatchServiceTickets(true)" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer" title="In dồn thành 1 phiếu tổng hợp K80 tiết kiệm giấy">
+                            <span>🖨️</span>
+                            <span>Lưu & In Phiếu Tổng (K80)</span>
+                        </button>
+                        <button type="button" onclick="submitBatchServiceTickets(false)" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow cursor-pointer">
+                            <span>💾 Lưu Hàng Loạt</span>
+                        </button>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -5059,30 +5490,51 @@
                     <span>💵 Phụ Thu & Dịch Vụ Phát Sinh Trong Khi Làm:</span>
                     <span class="text-[11px] font-normal text-amber-700 italic">(Tự động cộng dồn vào tổng tiền)</span>
                 </div>
+                <!-- DANH SÁCH CHECKBOX PHỤ THU & Ô NHẬP TÙY CHỌN -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-0.5">Đánh Răng (đ):</label>
-                        <input type="number" id="prog-teeth-cleaning" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-0.5">PT Cắt Nghệ Thuật (đ):</label>
-                        <input type="number" id="prog-art-cutting" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-0.5">Phụ Thu Khác (Gỡ rối, ghẻ...) (đ):</label>
-                        <input type="number" id="prog-surcharge" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 mb-0.5">Cước Ship Đưa Về (đ):</label>
-                        <input type="number" id="prog-shipping-fee" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-emerald-800 mb-0.5" title="Khách cho riêng thợ - Không tính vào bill và không in ra phiếu">🎁 Tip Thợ (đ) <span class="text-[10px] text-gray-500 font-normal">(cho riêng, không vào bill)</span>:</label>
-                        <input type="number" id="prog-tip-amount" oninput="calculateProgTotal()" placeholder="0" class="border p-1.5 rounded w-full bg-white text-right font-bold text-emerald-700">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-sky-800 mb-0.5">Tổng Tiền Cập Nhật (đ):</label>
-                        <input type="number" id="prog-final-price" class="border-2 border-sky-400 p-1.5 rounded w-full bg-white text-right font-black text-sky-700 text-xs">
+                    <label class="flex items-center justify-between p-1.5 rounded bg-white border border-amber-200 cursor-pointer select-none">
+                        <span class="flex items-center gap-1.5 font-bold text-slate-700">
+                            <input type="checkbox" id="prog-cb-teeth" onchange="onProgSurchargeCheckboxChanged('teeth')" class="w-3.5 h-3.5 text-purple-600 rounded">
+                            <span>🦷 Đánh Răng</span>
+                        </span>
+                        <input type="number" id="prog-teeth-cleaning" oninput="calculateProgTotal()" placeholder="0" class="border p-0.5 rounded w-16 bg-white text-right font-bold text-purple-700">
+                    </label>
+
+                    <label class="flex items-center justify-between p-1.5 rounded bg-white border border-amber-200 cursor-pointer select-none">
+                        <span class="flex items-center gap-1.5 font-bold text-slate-700">
+                            <input type="checkbox" id="prog-cb-art" onchange="onProgSurchargeCheckboxChanged('art')" class="w-3.5 h-3.5 text-purple-600 rounded">
+                            <span>✂️ Cắt NT</span>
+                        </span>
+                        <input type="number" id="prog-art-cutting" oninput="calculateProgTotal()" placeholder="0" class="border p-0.5 rounded w-16 bg-white text-right font-bold text-purple-700">
+                    </label>
+
+                    <label class="flex items-center justify-between p-1.5 rounded bg-white border border-amber-200 cursor-pointer select-none">
+                        <span class="flex items-center gap-1.5 font-bold text-slate-700">
+                            <input type="checkbox" id="prog-cb-surch" onchange="onProgSurchargeCheckboxChanged('surch')" class="w-3.5 h-3.5 text-purple-600 rounded">
+                            <span>🌀 Gỡ Rối/Khác</span>
+                        </span>
+                        <input type="number" id="prog-surcharge" oninput="calculateProgTotal()" placeholder="0" class="border p-0.5 rounded w-16 bg-white text-right font-bold text-purple-700">
+                    </label>
+
+                    <label class="flex items-center justify-between p-1.5 rounded bg-white border border-amber-200 cursor-pointer select-none">
+                        <span class="flex items-center gap-1.5 font-bold text-slate-700">
+                            <input type="checkbox" id="prog-cb-ship" onchange="onProgSurchargeCheckboxChanged('ship')" class="w-3.5 h-3.5 text-purple-600 rounded">
+                            <span>🚗 Cước Ship</span>
+                        </span>
+                        <input type="number" id="prog-shipping-fee" oninput="calculateProgTotal()" placeholder="0" class="border p-0.5 rounded w-16 bg-white text-right font-bold text-purple-700">
+                    </label>
+
+                    <label class="flex items-center justify-between p-1.5 rounded bg-white border border-emerald-200 cursor-pointer select-none" title="Khách cho riêng thợ - Không tính vào bill và không in ra phiếu">
+                        <span class="flex items-center gap-1.5 font-bold text-emerald-800">
+                            <input type="checkbox" id="prog-cb-tip" onchange="onProgSurchargeCheckboxChanged('tip')" class="w-3.5 h-3.5 text-emerald-600 rounded">
+                            <span>🎁 Tip Thợ</span>
+                        </span>
+                        <input type="number" id="prog-tip-amount" oninput="calculateProgTotal()" placeholder="0" class="border p-0.5 rounded w-16 bg-white text-right font-bold text-emerald-700">
+                    </label>
+
+                    <div class="flex items-center justify-between p-1.5 rounded bg-sky-50 border-2 border-sky-300">
+                        <span class="font-bold text-sky-900 text-xs">Tổng Tiền:</span>
+                        <input type="number" id="prog-final-price" class="border border-sky-400 p-0.5 rounded w-24 bg-white text-right font-black text-sky-700 text-xs">
                     </div>
                 </div>
             </div>
@@ -5198,13 +5650,22 @@
             <div class="space-y-3 text-xs">
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Phân Loại (*):</label>
-                    <select id="pet-pricing-input-cat" class="border p-2 rounded w-full bg-white font-medium">
-                        <option value="Gói Combo Chó">Gói Combo Chó</option>
-                        <option value="Dịch Vụ Lẻ Chó">Dịch Vụ Lẻ Chó</option>
-                        <option value="Spa Mèo">Spa Mèo</option>
-                        <option value="Nhuộm Lông">Nhuộm Lông</option>
-                        <option value="Trị Liệu & Phụ Thu">Trị Liệu & Phụ Thu</option>
-                    </select>
+                    <div class="flex items-center gap-1.5">
+                        <select id="pet-pricing-input-cat" class="border p-2 rounded flex-1 bg-white font-medium text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="Gói Combo Chó">🐶 Gói Combo Chó</option>
+                            <option value="Dịch Vụ Lẻ Chó">✂️ Dịch Vụ Lẻ Chó</option>
+                            <option value="Spa Mèo">🐱 Spa Mèo</option>
+                            <option value="Nhuộm Lông">🎨 Nhuộm Lông</option>
+                            <option value="Trị Liệu & Phụ Thu">💊 Trị Liệu & Phụ Thu</option>
+                        </select>
+                        <button type="button" onclick="openQuickAddSpaCategoryModal()" title="Thêm phân loại dịch vụ mới" class="px-2.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm transition whitespace-nowrap">
+                            <span>➕ Tạo Mới</span>
+                        </button>
+                        <button type="button" onclick="openSpaCategoryManagerModal()" title="Quản lý sửa xóa phân loại" class="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold flex items-center gap-1 shadow-sm transition whitespace-nowrap">
+                            <span>⚙️ Quản Lý</span>
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1">💡 Chọn phân loại có sẵn hoặc bấm "Tạo Mới" để thêm phân loại chuẩn</p>
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Tên Dịch Vụ (*):</label>
@@ -5228,6 +5689,71 @@
             <div class="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onclick="closePetPricingModal()" class="px-3.5 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
                 <button type="button" onclick="savePetPricingItem()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">Lưu Mức Giá</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUB-POPUP: THÊM NHANH PHÂN LOẠI DỊCH VỤ SPA -->
+    <div id="modal-quick-add-spa-category" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[70] p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span>🏷️</span> Thêm Phân Loại Dịch Vụ Spa Mới
+                </h3>
+                <button type="button" onclick="closeQuickAddSpaCategoryModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tên phân loại dịch vụ <span class="text-rose-500">*</span></label>
+                    <input id="quick-spa-category-name" type="text" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="VD: Khách Sạn Thú Cưng, Cắt Tỉa VIP..." onkeydown="if(event.key === 'Enter') saveQuickSpaCategory()">
+                    <p class="text-[11px] text-slate-400 mt-1">Phân loại này sẽ được lưu vào danh sách chọn để dùng lại mọi lúc, tránh nhập sai ký tự.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeQuickAddSpaCategoryModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                    <button type="button" onclick="saveQuickSpaCategory()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition">Lưu & Chọn</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUẢN LÝ PHÂN LOẠI DỊCH VỤ SPA (SỬA, XÓA, THÊM) -->
+    <div id="modal-spa-category-manager" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[75] p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                    <span>⚙️</span> Quản Lý Phân Loại Dịch Vụ Spa
+                </h3>
+                <button type="button" onclick="closeSpaCategoryManagerModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- Thêm phân loại mới -->
+                <div class="flex items-center gap-2">
+                    <input id="new-spa-category-mgr-name" type="text" placeholder="Nhập tên phân loại mới..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" onkeydown="if(event.key === 'Enter') saveSpaCategoryFromManager()">
+                    <button type="button" onclick="saveSpaCategoryFromManager()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-sm transition whitespace-nowrap">
+                        <span>➕ Thêm</span>
+                    </button>
+                </div>
+
+                <!-- Danh sách phân loại -->
+                <div class="overflow-x-auto max-h-[360px] border rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-50 sticky top-0 border-b">
+                            <tr class="text-slate-600 font-bold">
+                                <th class="p-2.5">Tên Phân Loại</th>
+                                <th class="p-2.5 text-center w-28">Số Mức Giá</th>
+                                <th class="p-2.5 text-center w-32">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="spa-category-mgr-list" class="divide-y divide-slate-100">
+                            <tr><td colspan="3" class="p-4 text-center text-slate-400">Đang tải danh sách...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-between items-center pt-2 border-t">
+                    <span class="text-[11px] text-slate-400">💡 Sửa tên sẽ tự động cập nhật toàn bộ mức giá thuộc phân loại đó.</span>
+                    <button type="button" onclick="closeSpaCategoryManagerModal()" class="px-4 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">Đóng</button>
+                </div>
             </div>
         </div>
     </div>
@@ -5677,8 +6203,8 @@
     </div>
 
     <!-- ==================== MODAL: MỞ CA LÀM VIỆC ==================== -->
-    <div id="modal-open-shift" onclick="if(event.target === this) closeShiftOpenModal()" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs border border-slate-200 overflow-hidden">
+    <div id="modal-open-shift" onclick="if(event.target === this) closeShiftOpenModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-50 p-3">
+        <div onclick="event.stopPropagation()" class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs border border-slate-200 overflow-hidden">
             <!-- Header -->
             <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-emerald-800 to-slate-900 text-white">
                 <div class="flex items-center gap-2">
@@ -5718,10 +6244,10 @@
     </div>
 
     <!-- ==================== MODAL: KẾT CA LÀM VIỆC (Z-REPORT) ==================== -->
-    <div id="modal-close-shift" onclick="if(event.target === this) closeShiftCloseModal()" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col text-xs border border-slate-200 overflow-hidden">
+    <div id="modal-close-shift" onclick="if(event.target === this) closeShiftCloseModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-50 p-3">
+        <div onclick="event.stopPropagation()" class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[88vh] flex flex-col text-xs border border-slate-200 overflow-hidden">
             <!-- Header -->
-            <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-amber-700 via-amber-800 to-slate-900 text-white">
+            <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-amber-700 via-amber-800 to-slate-900 text-white shrink-0">
                 <div class="flex items-center gap-2">
                     <span class="text-base">⏹</span>
                     <div>
@@ -5733,7 +6259,7 @@
             </div>
 
             <!-- Body -->
-            <div class="p-4 overflow-y-auto space-y-3.5 flex-1 bg-slate-50/50">
+            <div class="p-4 overflow-y-auto space-y-3.5 flex-1 min-h-0 bg-slate-50/50" style="scrollbar-gutter: stable;">
                 <!-- Info banner -->
                 <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div>
@@ -5934,6 +6460,211 @@
             <div class="flex justify-end gap-2 pt-2 border-t">
                 <button onclick="closeSegmentModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Đóng</button>
                 <button onclick="saveSegment()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold shadow">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TẠO/SỬA CHƯƠNG TRÌNH KHUYẾN MÃI -->
+    <div id="modal-promotion" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full space-y-4 p-6">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-base text-slate-800" id="promo-modal-title">Thêm Chương Trình Khuyến Mãi</h3>
+                <button onclick="closePromotionModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">&times;</button>
+            </div>
+            <input type="hidden" id="promo-edit-id">
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="font-bold text-slate-700">Mã chương trình:</label>
+                    <input id="promo-code" class="border p-2 rounded w-full text-xs font-mono" placeholder="Để trống hệ thống sẽ tự sinh (VD: KM-2026...)">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Tên chương trình (*):</label>
+                    <input id="promo-name" class="border p-2 rounded w-full text-xs font-bold text-slate-800" placeholder="VD: Khuyến Mãi Mùa Hè 2026">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày bắt đầu:</label>
+                        <input id="promo-start-date" type="date" class="border p-2 rounded w-full text-xs">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày kết thúc:</label>
+                        <input id="promo-end-date" type="date" class="border p-2 rounded w-full text-xs">
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700">
+                        <input id="promo-active" type="checkbox" checked class="rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer">
+                        <span>Đang kích hoạt</span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closePromotionModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Đóng</button>
+                <button onclick="savePromotion()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold shadow">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUẢN LÝ SẢN PHẨM KHUYẾN MÃI -->
+    <div id="modal-promotion-items" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div>
+                    <h3 class="font-bold text-base text-slate-800 flex items-center gap-2">
+                        <span>🏷️ Danh Sách Sản Phẩm Khuyến Mãi:</span>
+                        <span id="promo-items-title" class="text-sky-700 font-black"></span>
+                    </h3>
+                    <p class="text-xs text-gray-500 mt-0.5">Thêm lẻ sản phẩm hoặc áp dụng hàng loạt theo nhóm hàng</p>
+                </div>
+                <button onclick="closePromotionItemsModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <input type="hidden" id="promo-items-promo-id">
+
+            <!-- Subtabs chọn loại đối tượng KM -->
+            <div class="flex border-b text-xs font-bold gap-2">
+                <button id="promo-target-tab-prod" onclick="switchPromoTargetTab('product')" class="pb-2 border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition">
+                    <span>📦 Hàng Hóa Bán Lẻ</span>
+                </button>
+                <button id="promo-target-tab-spa" onclick="switchPromoTargetTab('spa')" class="pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
+                    <span>💆 Dịch Vụ Spa Thú Cưng</span>
+                </button>
+            </div>
+
+            <!-- Khu vực thêm sản phẩm Hàng Hóa -->
+            <div id="promo-target-box-product" class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs">
+                <!-- Box 1: Thêm lẻ từng sản phẩm -->
+                <div class="bg-white p-3 rounded border space-y-2">
+                    <div class="font-bold text-slate-700 flex items-center gap-1.5">
+                        <span class="text-sky-600">➕</span> Thêm Lẻ Từng Sản Phẩm
+                    </div>
+                    <div>
+                        <select id="promo-item-prod-select" class="border p-1.5 rounded w-full text-xs font-medium">
+                            <option value="">-- Chọn sản phẩm --</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="w-1/2">
+                            <select id="promo-item-discount-type" class="border p-1.5 rounded w-full text-xs font-bold">
+                                <option value="pct">Giảm %</option>
+                                <option value="fixed">Giảm Tiền Mặt (đ)</option>
+                            </select>
+                        </div>
+                        <div class="w-1/2">
+                            <input id="promo-item-discount-val" type="number" min="0" step="any" class="border p-1.5 rounded w-full text-xs font-mono font-bold" placeholder="VD: 10 hoặc 20000">
+                        </div>
+                    </div>
+                    <button onclick="addSinglePromotionItem()" class="w-full py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded shadow-sm transition">
+                        + Thêm Sản Phẩm
+                    </button>
+                </div>
+
+                <!-- Box 2: Thêm hàng loạt theo nhóm hàng -->
+                <div class="bg-white p-3 rounded border space-y-2">
+                    <div class="font-bold text-slate-700 flex items-center gap-1.5">
+                        <span class="text-amber-500">⚡</span> Thêm Nhanh Theo Nhóm Hàng
+                    </div>
+                    <div>
+                        <select id="promo-bulk-category-select" class="border p-1.5 rounded w-full text-xs font-medium">
+                            <option value="">-- Chọn nhóm hàng --</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="w-1/2">
+                            <select id="promo-bulk-discount-type" class="border p-1.5 rounded w-full text-xs font-bold">
+                                <option value="pct">Giảm %</option>
+                                <option value="fixed">Giảm Tiền Mặt (đ)</option>
+                            </select>
+                        </div>
+                        <div class="w-1/2">
+                            <input id="promo-bulk-discount-val" type="number" min="0" step="any" class="border p-1.5 rounded w-full text-xs font-mono font-bold" placeholder="VD: 15 hoặc 50000">
+                        </div>
+                    </div>
+                    <button onclick="bulkAddPromotionCategory()" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded shadow-sm transition">
+                        ⚡ Áp Dụng Cho Cả Nhóm Hàng
+                    </button>
+                </div>
+            </div>
+
+            <!-- Khu vực thêm Dịch Vụ Spa -->
+            <div id="promo-target-box-spa" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3 bg-purple-50 p-3.5 rounded-lg border border-purple-200 text-xs">
+                <!-- Box 1: Thêm theo Tên Dịch Vụ Spa -->
+                <div class="bg-white p-3 rounded border space-y-2">
+                    <div class="font-bold text-purple-800 flex items-center gap-1.5">
+                        <span>💆</span> Thêm Theo Tên Gói Dịch Vụ
+                    </div>
+                    <div>
+                        <select id="promo-spa-service-select" class="border p-1.5 rounded w-full text-xs font-bold text-slate-800">
+                            <option value="">-- Chọn gói dịch vụ Spa --</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="w-1/2">
+                            <select id="promo-spa-service-discount-type" class="border p-1.5 rounded w-full text-xs font-bold">
+                                <option value="pct">Giảm %</option>
+                                <option value="fixed">Giảm Tiền Mặt (đ)</option>
+                            </select>
+                        </div>
+                        <div class="w-1/2">
+                            <input id="promo-spa-service-discount-val" type="number" min="0" step="any" class="border p-1.5 rounded w-full text-xs font-mono font-bold" placeholder="VD: 15 hoặc 30000">
+                        </div>
+                    </div>
+                    <button onclick="addSinglePromotionSpaService()" class="w-full py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded shadow-sm transition">
+                        + Thêm Gói Spa Vào KM
+                    </button>
+                </div>
+
+                <!-- Box 2: Thêm theo Cả Nhóm Dịch Vụ Spa -->
+                <div class="bg-white p-3 rounded border space-y-2">
+                    <div class="font-bold text-purple-800 flex items-center gap-1.5">
+                        <span>⚡</span> Áp Dụng Theo Nhóm Dịch Vụ Spa
+                    </div>
+                    <div>
+                        <select id="promo-spa-category-select" class="border p-1.5 rounded w-full text-xs font-bold text-slate-800">
+                            <option value="">-- Chọn nhóm Spa (VD: Dịch Vụ Lẻ Chó, Spa Mèo...) --</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="w-1/2">
+                            <select id="promo-spa-category-discount-type" class="border p-1.5 rounded w-full text-xs font-bold">
+                                <option value="pct">Giảm %</option>
+                                <option value="fixed">Giảm Tiền Mặt (đ)</option>
+                            </select>
+                        </div>
+                        <div class="w-1/2">
+                            <input id="promo-spa-category-discount-val" type="number" min="0" step="any" class="border p-1.5 rounded w-full text-xs font-mono font-bold" placeholder="VD: 20 hoặc 50000">
+                        </div>
+                    </div>
+                    <button onclick="addPromotionSpaCategory()" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded shadow-sm transition">
+                        ⚡ Áp Dụng Cho Cả Nhóm Spa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách sản phẩm trong CTKM -->
+            <div class="flex-1 overflow-y-auto border rounded-lg max-h-64">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 border-b text-slate-700 uppercase text-[11px] sticky top-0">
+                        <tr>
+                            <th class="p-2.5">STT</th>
+                            <th class="p-2.5">Mã SP</th>
+                            <th class="p-2.5">Tên Sản Phẩm</th>
+                            <th class="p-2.5 text-right">Giá Gốc</th>
+                            <th class="p-2.5 text-center">Mức Giảm</th>
+                            <th class="p-2.5 text-right">Giá Sau KM</th>
+                            <th class="p-2.5 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="promo-items-tbody" class="divide-y divide-gray-100">
+                        <tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào trong chương trình</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t text-xs">
+                <span id="promo-items-summary" class="font-bold text-slate-600">Tổng cộng: 0 sản phẩm</span>
+                <button onclick="closePromotionItemsModal()" class="px-4 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-bold shadow">
+                    Đóng
+                </button>
             </div>
         </div>
     </div>
@@ -6681,20 +7412,20 @@
     async function loadPromotionsList() {
         const tbody = document.getElementById('promotions-tbody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải khuyến mãi...</td></tr>';
         try {
             const res = await fetch('/api/promotions');
             const data = await res.json();
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400 italic">Chưa có chương trình khuyến mãi nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400 italic">Chưa có chương trình khuyến mãi nào. Bấm "+ Thêm Chương Trình" để tạo mới!</td></tr>';
                 return;
             }
             tbody.innerHTML = data.map(p => `
                 <tr class="border-b hover:bg-gray-50 text-xs">
                     <td class="p-2.5 font-mono text-gray-500">${p.id}</td>
+                    <td class="p-2.5 font-mono font-bold text-slate-700">${p.code || '-'}</td>
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800">${p.name}</div>
-                        ${p.description ? `<div class="text-[11px] text-gray-400">${p.description}</div>` : ''}
                     </td>
                     <td class="p-2.5 text-center text-gray-600">${p.start_date || 'Không giới hạn'}</td>
                     <td class="p-2.5 text-center text-gray-600">${p.end_date || 'Không giới hạn'}</td>
@@ -6702,15 +7433,114 @@
                     <td class="p-2.5 text-center">
                         ${p.is_active ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Đang chạy</span>' : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Tạm dừng</span>'}
                     </td>
-                    <td class="p-2.5 text-center">
-                        <button onclick="togglePromotionStatus(${p.id}, ${p.is_active ? 0 : 1})" class="px-2.5 py-1 rounded text-xs font-bold ${p.is_active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
+                    <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
+                        <button onclick="openPromotionItemsModal(${p.id})" class="bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 px-2 py-1 rounded text-xs font-bold transition">
+                            ⚙️ Quản Lý SP
+                        </button>
+                        <button onclick="editPromotion(${p.id})" class="text-sky-600 hover:underline font-semibold text-xs px-1">
+                            ✏️ Sửa
+                        </button>
+                        <button onclick="togglePromotionStatus(${p.id}, ${p.is_active ? 0 : 1})" class="px-2 py-1 rounded text-xs font-bold ${p.is_active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
                             ${p.is_active ? 'Tắt' : 'Bật'}
+                        </button>
+                        <button onclick="deletePromotion(${p.id})" class="text-rose-600 hover:underline font-semibold text-xs px-1">
+                            🗑️ Xóa
                         </button>
                     </td>
                 </tr>
             `).join('');
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi khi tải khuyến mãi</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-rose-500">Lỗi khi tải khuyến mãi</td></tr>';
+        }
+    }
+
+    function openPromotionModal() {
+        document.getElementById('promo-modal-title').textContent = 'Thêm Chương Trình Khuyến Mãi';
+        document.getElementById('promo-edit-id').value = '';
+        document.getElementById('promo-code').value = '';
+        document.getElementById('promo-name').value = '';
+        document.getElementById('promo-start-date').value = '';
+        document.getElementById('promo-end-date').value = '';
+        document.getElementById('promo-active').checked = true;
+        document.getElementById('modal-promotion')?.classList.remove('hidden');
+    }
+
+    function closePromotionModal() {
+        document.getElementById('modal-promotion')?.classList.add('hidden');
+    }
+
+    async function editPromotion(id) {
+        try {
+            const res = await fetch(`/api/promotions/${id}`);
+            if (!res.ok) {
+                alert('Không thể tải thông tin khuyến mãi');
+                return;
+            }
+            const p = await res.json();
+            document.getElementById('promo-modal-title').textContent = 'Sửa Chương Trình Khuyến Mãi';
+            document.getElementById('promo-edit-id').value = p.id;
+            document.getElementById('promo-code').value = p.code || '';
+            document.getElementById('promo-name').value = p.name || '';
+            document.getElementById('promo-start-date').value = p.start_date || '';
+            document.getElementById('promo-end-date').value = p.end_date || '';
+            document.getElementById('promo-active').checked = (p.is_active === 1 || p.is_active === true);
+            document.getElementById('modal-promotion')?.classList.remove('hidden');
+        } catch (e) {
+            alert('Lỗi kết nối khi tải khuyến mãi');
+        }
+    }
+
+    async function savePromotion() {
+        const id = document.getElementById('promo-edit-id')?.value;
+        const code = document.getElementById('promo-code')?.value.trim();
+        const name = document.getElementById('promo-name')?.value.trim();
+        const start_date = document.getElementById('promo-start-date')?.value || null;
+        const end_date = document.getElementById('promo-end-date')?.value || null;
+        const is_active = document.getElementById('promo-active')?.checked ? 1 : 0;
+
+        if (!name) {
+            alert('Vui lòng nhập tên chương trình khuyến mãi');
+            return;
+        }
+
+        const body = { name, start_date, end_date, is_active };
+        if (code) body.code = code;
+
+        const url = id ? `/api/promotions/${id}` : '/api/promotions';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert('Lỗi: ' + (err.detail || 'Không thể lưu chương trình khuyến mãi'));
+                return;
+            }
+
+            closePromotionModal();
+            loadPromotionsList();
+        } catch (e) {
+            alert('Lỗi kết nối khi lưu chương trình khuyến mãi');
+        }
+    }
+
+    async function deletePromotion(id) {
+        if (!confirm('Bạn có chắc chắn muốn xóa chương trình khuyến mãi này? Toàn bộ danh sách sản phẩm khuyến mãi bên trong sẽ bị xóa.')) return;
+        try {
+            const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Không thể xóa khuyến mãi');
+                return;
+            }
+            loadPromotionsList();
+        } catch (e) {
+            alert('Lỗi kết nối khi xóa khuyến mãi');
         }
     }
 
@@ -6724,6 +7554,343 @@
             loadPromotionsList();
         } catch (e) {
             alert('Không thể cập nhật trạng thái khuyến mãi');
+        }
+    }
+
+    // Modal quản lý sản phẩm khuyến mãi
+    var _promoProductsCache = [];
+    var _promoCategoriesCache = [];
+    var _promoSpaPricingCache = [];
+
+    async function openPromotionItemsModal(promoId) {
+        document.getElementById('promo-items-promo-id').value = promoId;
+        document.getElementById('promo-items-title').textContent = 'Đang tải...';
+        switchPromoTargetTab('product');
+        document.getElementById('modal-promotion-items')?.classList.remove('hidden');
+
+        try {
+            if (!_promoProductsCache || _promoProductsCache.length === 0) {
+                const pRes = await fetch('/api/products');
+                _promoProductsCache = await pRes.json();
+            }
+            const selProd = document.getElementById('promo-item-prod-select');
+            if (selProd) {
+                selProd.innerHTML = '<option value="">-- Chọn sản phẩm --</option>' +
+                    _promoProductsCache.filter(p => p.type === 'product' || !p.type).map(p =>
+                        `<option value="${p.id}">[${p.code || 'SP'}] ${p.name} - Giá: ${(p.sell_price || 0).toLocaleString('vi-VN')} đ</option>`
+                    ).join('');
+            }
+
+            if (!_promoCategoriesCache || _promoCategoriesCache.length === 0) {
+                const cRes = await fetch('/api/products/categories');
+                _promoCategoriesCache = await cRes.json();
+            }
+            const selCat = document.getElementById('promo-bulk-category-select');
+            if (selCat) {
+                selCat.innerHTML = '<option value="">-- Chọn nhóm hàng --</option>' +
+                    _promoCategoriesCache.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            }
+
+            // Tải danh mục Spa
+            if (!_promoSpaPricingCache || _promoSpaPricingCache.length === 0) {
+                const spRes = await fetch('/api/pet-services/pricing');
+                _promoSpaPricingCache = await spRes.json();
+            }
+            const selSpaService = document.getElementById('promo-spa-service-select');
+            const selSpaCat = document.getElementById('promo-spa-category-select');
+            if (selSpaService && Array.isArray(_promoSpaPricingCache)) {
+                const uniqueServices = [...new Set(_promoSpaPricingCache.map(x => x.service_name).filter(Boolean))];
+                selSpaService.innerHTML = '<option value="">-- Chọn gói dịch vụ Spa --</option>' +
+                    uniqueServices.map(s => `<option value="${s}">${s}</option>`).join('');
+            }
+            if (selSpaCat && Array.isArray(_promoSpaPricingCache)) {
+                const uniqueCats = [...new Set(_promoSpaPricingCache.map(x => x.category).filter(Boolean))];
+                selSpaCat.innerHTML = '<option value="">-- Chọn nhóm Spa (VD: Dịch Vụ Lẻ Chó, Spa Mèo...) --</option>' +
+                    uniqueCats.map(c => `<option value="${c}">${c}</option>`).join('');
+            }
+        } catch (e) {
+            console.error('Lỗi khi nạp danh mục cho modal KM:', e);
+        }
+
+        loadPromotionItems(promoId);
+    }
+
+    function closePromotionItemsModal() {
+        document.getElementById('modal-promotion-items')?.classList.add('hidden');
+        loadPromotionsList();
+    }
+
+    async function loadPromotionItems(promoId) {
+        const tbody = document.getElementById('promo-items-tbody');
+        const summary = document.getElementById('promo-items-summary');
+        const titleEl = document.getElementById('promo-items-title');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải danh sách sản phẩm...</td></tr>';
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}`);
+            if (!res.ok) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi khi tải thông tin khuyến mãi</td></tr>';
+                return;
+            }
+            const promo = await res.json();
+            if (titleEl) titleEl.textContent = promo.name || `#${promoId}`;
+
+            const items = promo.items || [];
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">Chưa có sản phẩm nào trong chương trình. Hãy thêm sản phẩm ở trên!</td></tr>';
+                if (summary) summary.textContent = 'Tổng cộng: 0 sản phẩm';
+                return;
+            }
+
+            if (summary) summary.textContent = `Tổng cộng: ${items.length} sản phẩm`;
+
+            tbody.innerHTML = items.map((it, idx) => {
+                const basePrice = Number(it.base_price || 0);
+                const val = Number(it.discount_val || 0);
+                let discountText = '';
+                let finalPrice = basePrice;
+                if (it.discount_type === 'pct') {
+                    discountText = `<span class="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded text-[11px]">Giảm ${val}%</span>`;
+                    finalPrice = Math.max(0, basePrice * (1 - val / 100));
+                } else {
+                    discountText = `<span class="bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded text-[11px]">Giảm ${val.toLocaleString('vi-VN')} đ</span>`;
+                    finalPrice = Math.max(0, basePrice - val);
+                }
+
+                const isSpa = (it.target_type === 'spa_service' || it.target_type === 'spa_category');
+                const displayName = it.display_name || it.product_name || (isSpa ? (it.service_name || it.spa_category) : 'Sản phẩm');
+                const tagBadge = isSpa ? '<span class="bg-purple-100 text-purple-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">SPA</span>' : '<span class="bg-sky-100 text-sky-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">HÀNG HÓA</span>';
+                const priceDisplay = isSpa ? '<span class="text-gray-400 italic">Theo cân</span>' : `${basePrice.toLocaleString('vi-VN')} đ`;
+                const finalDisplay = isSpa ? (it.discount_type === 'pct' ? `<span class="text-purple-700 font-bold font-mono">- ${val}%</span>` : `<span class="text-purple-700 font-bold font-mono">- ${val.toLocaleString('vi-VN')} đ</span>`) : `${Math.round(finalPrice).toLocaleString('vi-VN')} đ`;
+
+                return `
+                    <tr class="border-b hover:bg-gray-50 text-xs">
+                        <td class="p-2.5 text-center text-gray-400 font-mono">${idx + 1}</td>
+                        <td class="p-2.5 font-mono font-bold text-slate-700">${it.product_code || (isSpa ? 'SPA' : '-')}</td>
+                        <td class="p-2.5 font-bold text-slate-800">${tagBadge} ${displayName}</td>
+                        <td class="p-2.5 text-right font-mono text-gray-500">${priceDisplay}</td>
+                        <td class="p-2.5 text-center">${discountText}</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${finalDisplay}</td>
+                        <td class="p-2.5 text-center">
+                            <button onclick="deletePromotionItem(${promoId}, ${it.id})" class="text-rose-600 hover:text-rose-800 font-bold text-xs p-1" title="Xóa khỏi KM">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi khi tải sản phẩm khuyến mãi</td></tr>';
+        }
+    }
+
+    async function addSinglePromotionItem() {
+        const promoId = document.getElementById('promo-items-promo-id')?.value;
+        const prodId = document.getElementById('promo-item-prod-select')?.value;
+        const discountType = document.getElementById('promo-item-discount-type')?.value;
+        const discountVal = parseFloat(document.getElementById('promo-item-discount-val')?.value);
+
+        if (!promoId) return;
+        if (!prodId) {
+            alert('Vui lòng chọn sản phẩm');
+            return;
+        }
+        if (isNaN(discountVal) || discountVal < 0) {
+            alert('Vui lòng nhập mức giảm hợp lệ (>= 0)');
+            return;
+        }
+        if (discountType === 'pct' && discountVal > 100) {
+            alert('Giảm giá phần trăm không được vượt quá 100%');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: parseInt(prodId),
+                    discount_type: discountType,
+                    discount_val: discountVal
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert('Lỗi: ' + (err.detail || 'Không thể thêm sản phẩm vào khuyến mãi'));
+                return;
+            }
+            document.getElementById('promo-item-discount-val').value = '';
+            loadPromotionItems(promoId);
+        } catch (e) {
+            alert('Lỗi kết nối khi thêm sản phẩm vào khuyến mãi');
+        }
+    }
+
+    async function bulkAddPromotionCategory() {
+        const promoId = document.getElementById('promo-items-promo-id')?.value;
+        const category = document.getElementById('promo-bulk-category-select')?.value;
+        const discountType = document.getElementById('promo-bulk-discount-type')?.value;
+        const discountVal = parseFloat(document.getElementById('promo-bulk-discount-val')?.value);
+
+        if (!promoId) return;
+        if (!category) {
+            alert('Vui lòng chọn nhóm hàng');
+            return;
+        }
+        if (isNaN(discountVal) || discountVal < 0) {
+            alert('Vui lòng nhập mức giảm hợp lệ (>= 0)');
+            return;
+        }
+        if (discountType === 'pct' && discountVal > 100) {
+            alert('Giảm giá phần trăm không được vượt quá 100%');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items/bulk-by-category`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: category,
+                    discount_type: discountType,
+                    discount_val: discountVal
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert('Lỗi: ' + (data.detail || 'Không thể áp dụng khuyến mãi cho nhóm'));
+                return;
+            }
+            alert(`Đã áp dụng khuyến mãi cho ${data.added_count || 0} sản phẩm trong nhóm "${category}"!`);
+            document.getElementById('promo-bulk-discount-val').value = '';
+            loadPromotionItems(promoId);
+        } catch (e) {
+            alert('Lỗi kết nối khi áp dụng nhóm hàng vào khuyến mãi');
+        }
+    }
+
+    // Chuyển tab trong modal khuyến mãi
+    function switchPromoTargetTab(tab) {
+        const tabProd = document.getElementById('promo-target-tab-prod');
+        const tabSpa = document.getElementById('promo-target-tab-spa');
+        const boxProd = document.getElementById('promo-target-box-product');
+        const boxSpa = document.getElementById('promo-target-box-spa');
+
+        if (tab === 'spa') {
+            boxProd?.classList.add('hidden');
+            boxSpa?.classList.remove('hidden');
+            tabSpa?.classList.add('border-purple-600', 'text-purple-700');
+            tabSpa?.classList.remove('border-transparent', 'text-slate-500');
+            tabProd?.classList.remove('border-sky-600', 'text-sky-700');
+            tabProd?.classList.add('border-transparent', 'text-slate-500');
+        } else {
+            boxSpa?.classList.add('hidden');
+            boxProd?.classList.remove('hidden');
+            tabProd?.classList.add('border-sky-600', 'text-sky-700');
+            tabProd?.classList.remove('border-transparent', 'text-slate-500');
+            tabSpa?.classList.remove('border-purple-600', 'text-purple-700');
+            tabSpa?.classList.add('border-transparent', 'text-slate-500');
+        }
+    }
+
+    async function addSinglePromotionSpaService() {
+        const promoId = document.getElementById('promo-items-promo-id')?.value;
+        const svcName = document.getElementById('promo-spa-service-select')?.value;
+        const discountType = document.getElementById('promo-spa-service-discount-type')?.value;
+        const discountVal = parseFloat(document.getElementById('promo-spa-service-discount-val')?.value);
+
+        if (!promoId || !svcName) {
+            alert('Vui lòng chọn gói dịch vụ Spa');
+            return;
+        }
+        if (isNaN(discountVal) || discountVal < 0) {
+            alert('Vui lòng nhập mức giảm hợp lệ (>= 0)');
+            return;
+        }
+        if (discountType === 'pct' && discountVal > 100) {
+            alert('Giảm giá % không được vượt quá 100%');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items/spa`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_type: 'spa_service',
+                    service_name: svcName,
+                    discount_type: discountType,
+                    discount_val: discountVal
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert('Lỗi: ' + (err.detail || 'Không thể thêm gói Spa vào KM'));
+                return;
+            }
+            document.getElementById('promo-spa-service-discount-val').value = '';
+            loadPromotionItems(promoId);
+        } catch (e) {
+            alert('Lỗi kết nối khi thêm gói Spa vào KM');
+        }
+    }
+
+    async function addPromotionSpaCategory() {
+        const promoId = document.getElementById('promo-items-promo-id')?.value;
+        const catName = document.getElementById('promo-spa-category-select')?.value;
+        const discountType = document.getElementById('promo-spa-category-discount-type')?.value;
+        const discountVal = parseFloat(document.getElementById('promo-spa-category-discount-val')?.value);
+
+        if (!promoId || !catName) {
+            alert('Vui lòng chọn nhóm dịch vụ Spa');
+            return;
+        }
+        if (isNaN(discountVal) || discountVal < 0) {
+            alert('Vui lòng nhập mức giảm hợp lệ (>= 0)');
+            return;
+        }
+        if (discountType === 'pct' && discountVal > 100) {
+            alert('Giảm giá % không được vượt quá 100%');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items/spa`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_type: 'spa_category',
+                    spa_category: catName,
+                    discount_type: discountType,
+                    discount_val: discountVal
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert('Lỗi: ' + (err.detail || 'Không thể áp dụng KM cho nhóm Spa'));
+                return;
+            }
+            alert(`Đã áp dụng khuyến mãi cho toàn bộ nhóm dịch vụ "${catName}"!`);
+            document.getElementById('promo-spa-category-discount-val').value = '';
+            loadPromotionItems(promoId);
+        } catch (e) {
+            alert('Lỗi kết nối khi áp dụng nhóm Spa vào KM');
+        }
+    }
+
+    async function deletePromotionItem(promoId, itemId) {
+        if (!confirm('Xóa sản phẩm này khỏi chương trình khuyến mãi?')) return;
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items/${itemId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Không thể xóa sản phẩm khỏi khuyến mãi');
+                return;
+            }
+            loadPromotionItems(promoId);
+        } catch (e) {
+            alert('Lỗi kết nối khi xóa sản phẩm khỏi khuyến mãi');
         }
     }
 

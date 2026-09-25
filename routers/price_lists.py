@@ -226,6 +226,63 @@ def remove_product_price(price_list_id: int, product_id: int, user=Depends(requi
     conn.close()
     return {"status": "ok"}
 
+# ========== PRICE LIST SPA ITEMS ==========
+from schemas import PriceListSpaItemCreate
+
+@router.get("/{price_list_id}/spa-items")
+def list_price_list_spa_items(price_list_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM price_list_spa_items WHERE price_list_id = ? ORDER BY id ASC", (price_list_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@router.post("/{price_list_id}/spa-items")
+def add_price_list_spa_item(price_list_id: int, req: PriceListSpaItemCreate, user=Depends(require_permission("price_lists.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM price_lists WHERE id = ?", (price_list_id,))
+    if not cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy bảng giá")
+
+    if req.target_type == "service":
+        if not req.service_name:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp service_name")
+        cur.execute("DELETE FROM price_list_spa_items WHERE price_list_id = ? AND target_type = 'service' AND service_name = ?", (price_list_id, req.service_name))
+        cur.execute("""
+            INSERT INTO price_list_spa_items (price_list_id, target_type, service_name, discount_percent)
+            VALUES (?, 'service', ?, ?)
+        """, (price_list_id, req.service_name, req.discount_percent))
+    elif req.target_type == "category":
+        if not req.spa_category:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp spa_category")
+        cur.execute("DELETE FROM price_list_spa_items WHERE price_list_id = ? AND target_type = 'category' AND spa_category = ?", (price_list_id, req.spa_category))
+        cur.execute("""
+            INSERT INTO price_list_spa_items (price_list_id, target_type, spa_category, discount_percent)
+            VALUES (?, 'category', ?, ?)
+        """, (price_list_id, req.spa_category, req.discount_percent))
+    else:
+        conn.close()
+        raise HTTPException(status_code=400, detail="target_type không hợp lệ")
+
+    item_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "id": item_id}
+
+@router.delete("/{price_list_id}/spa-items/{item_id}")
+def delete_price_list_spa_item(price_list_id: int, item_id: int, user=Depends(require_permission("price_lists.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM price_list_spa_items WHERE id = ? AND price_list_id = ?", (item_id, price_list_id))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
 # ========== CUSTOMER SEGMENTS ==========
 router_segments = APIRouter(prefix="/api/customer-segments", tags=["Customer Segments"])
 

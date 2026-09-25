@@ -7,7 +7,9 @@ from schemas import (
     PromotionCreate,
     PromotionUpdate,
     PromotionItemCreate,
+    PromotionSpaItemCreate,
     PricingCalculateRequest,
+    PricingSpaCalculateRequest,
 )
 from logger_config import get_module_logger
 from dependencies import require_permission
@@ -146,7 +148,170 @@ def calculate_effective_price(product_id: int, customer_id: Optional[int] = None
             db.close()
 
 
+def calculate_effective_spa_price(service_name: str, weight: float, customer_id: Optional[int] = None, db=None) -> dict:
+    """
+    Tính giá tốt nhất (Best Offer) cho Dịch Vụ Spa:
+    a) P_goc: Lấy từ pet_service_pricing theo service_name và dải cân nặng (min_weight <= weight < max_weight)
+    b) P_hang: Giá theo phân khúc khách (price_list_spa_items theo service_name hoặc spa_category, hoặc % giảm phân khúc)
+    c) P_km: Giá khuyến mãi tốt nhất (promotion_items với target_type IN ('spa_service', 'spa_category'))
+    d) Best offer: min(P_goc, P_hang, P_km)
+    """
+    close_db = False
+    if db is None:
+        db = get_db()
+        close_db = True
+
+    try:
+        cur = db.cursor()
+
+        # 1. Base price từ pet_service_pricing
+        cur.execute("""
+            SELECT id, service_name, category, min_weight, max_weight, price
+            FROM pet_service_pricing
+            WHERE service_name = ?
+              AND min_weight <= ?
+              AND (max_weight > ? OR max_weight IS NULL OR max_weight = 0)
+            ORDER BY min_weight DESC
+            LIMIT 1
+        """, (service_name, weight, weight))
+        sp_row = cur.fetchone()
+
+        # Fallback: nếu max_weight = 0 hoặc dải cân rộng hơn
+        if not sp_row:
+            cur.execute("""
+                SELECT id, service_name, category, min_weight, max_weight, price
+                FROM pet_service_pricing
+                WHERE service_name = ?
+                ORDER BY ABS(min_weight - ?) ASC
+                LIMIT 1
+            """, (service_name, weight))
+            sp_row = cur.fetchone()
+
+        if not sp_row:
+            p_goc = 0.0
+            category = ""
+        else:
+            p_goc = float(sp_row["price"] or 0.0)
+            category = sp_row["category"] or ""
+
+        p_hang = p_goc
+        segment_price_list_id = None
+
+        # 2. Customer segment / price list
+        if customer_id:
+            cur.execute("""
+                SELECT c.segment_id, cs.discount_percent, cs.price_list_id
+                FROM contacts c
+                LEFT JOIN customer_segments cs ON c.segment_id = cs.id
+                WHERE c.id = ?
+            """, (customer_id,))
+            c_row = cur.fetchone()
+            if c_row and c_row["segment_id"]:
+                seg_disc = float(c_row["discount_percent"] or 0.0)
+                pl_id = c_row["price_list_id"]
+
+                matched_price_list = False
+                if pl_id:
+                    # Check bảng price_list_spa_items khớp service_name hoặc category
+                    cur.execute("""
+                        SELECT discount_percent
+                        FROM price_list_spa_items
+                        WHERE price_list_id = ?
+                          AND (
+                              (target_type = 'service' AND service_name = ?) OR
+                              (target_type = 'category' AND spa_category = ?)
+                          )
+                        ORDER BY (CASE WHEN target_type = 'service' THEN 1 ELSE 2 END) ASC
+                        LIMIT 1
+                    """, (pl_id, service_name, category))
+                    pl_spa = cur.fetchone()
+                    if pl_spa:
+                        matched_price_list = True
+                        segment_price_list_id = pl_id
+                        d_pct = float(pl_spa["discount_percent"] or 0.0)
+                        if d_pct > 0:
+                            p_hang = max(0.0, p_goc * (1.0 - d_pct / 100.0))
+
+                if not matched_price_list and seg_disc > 0:
+                    p_hang = max(0.0, p_goc * (1.0 - seg_disc / 100.0))
+
+        # 3. Promotions pricing
+        today_str = datetime.date.today().isoformat()
+        cur.execute("""
+            SELECT pi.discount_type, pi.discount_val, p.id as promo_id
+            FROM promotion_items pi
+            JOIN promotions p ON pi.promotion_id = p.id
+            WHERE (
+                (pi.target_type = 'spa_service' AND pi.service_name = ?) OR
+                (pi.target_type = 'spa_category' AND pi.spa_category = ?)
+            )
+              AND COALESCE(p.is_active, 1) = 1
+              AND (p.start_date IS NULL OR p.start_date = '' OR p.start_date <= ?)
+              AND (p.end_date IS NULL OR p.end_date = '' OR p.end_date >= ?)
+        """, (service_name, category, today_str, today_str))
+        promos = cur.fetchall()
+
+        best_p_km = p_goc
+        best_promo_id = None
+
+        for pr in promos:
+            dtype = pr["discount_type"]
+            dval = float(pr["discount_val"] or 0.0)
+            if dtype == "pct":
+                calc_p = max(0.0, p_goc * (1.0 - dval / 100.0))
+            elif dtype == "fixed":
+                calc_p = max(0.0, p_goc - dval)
+            else:
+                calc_p = p_goc
+
+            if calc_p < best_p_km:
+                best_p_km = calc_p
+                best_promo_id = pr["promo_id"]
+
+        # 4. Best Offer rule: min(P_goc, P_hang, P_km)
+        final_price = p_goc
+        applied_source = "original"
+        applied_promo_id = None
+        applied_price_list_id = None
+
+        if p_hang < final_price:
+            final_price = p_hang
+            applied_source = "segment_price_list"
+            applied_price_list_id = segment_price_list_id
+
+        if best_p_km < final_price:
+            final_price = best_p_km
+            applied_source = "promotion"
+            applied_promo_id = best_promo_id
+            applied_price_list_id = None
+
+        discount_applied = max(0.0, p_goc - final_price)
+
+        return {
+            "service_name": service_name,
+            "category": category,
+            "weight": weight,
+            "base_price": p_goc,
+            "final_price": round(final_price, 2),
+            "discount_applied": round(discount_applied, 2),
+            "applied_source": applied_source,
+            "promo_id": applied_promo_id,
+            "price_list_id": applied_price_list_id
+        }
+    finally:
+        if close_db:
+            db.close()
+
+
 # ==================== PRICING ENDPOINT ====================
+
+@router.post("/api/pricing/calculate-spa")
+def calculate_spa_pricing(req: PricingSpaCalculateRequest):
+    return calculate_effective_spa_price(
+        service_name=req.service_name,
+        weight=req.weight,
+        customer_id=req.customer_id
+    )
 
 @router.post("/api/pricing/calculate")
 def calculate_pricing(req: PricingCalculateRequest):
@@ -198,13 +363,26 @@ def get_promotion(promo_id: int):
         raise HTTPException(status_code=404, detail="Không tìm thấy chương trình khuyến mãi")
     result = dict(row)
     cur.execute("""
-        SELECT pi.*, p.name as product_name, p.code as product_code, p.sell_price as base_price
+        SELECT pi.*, 
+               p.name as product_name, 
+               p.code as product_code, 
+               p.sell_price as base_price
         FROM promotion_items pi
-        JOIN products p ON pi.product_id = p.id
+        LEFT JOIN products p ON pi.product_id = p.id
         WHERE pi.promotion_id = ?
         ORDER BY pi.id ASC
     """, (promo_id,))
-    result["items"] = [dict(r) for r in cur.fetchall()]
+    items = []
+    for r in cur.fetchall():
+        d = dict(r)
+        if d.get("target_type") == "spa_service":
+            d["display_name"] = f"💆 [Spa] {d['service_name']}"
+        elif d.get("target_type") == "spa_category":
+            d["display_name"] = f"💆 [Nhóm Spa] {d['spa_category']}"
+        else:
+            d["display_name"] = d.get("product_name") or "Sản phẩm"
+        items.append(d)
+    result["items"] = items
     db.close()
     return result
 
@@ -275,6 +453,44 @@ def delete_promotion(promo_id: int, user=Depends(require_permission("price_lists
     db.commit()
     db.close()
     return {"status": "ok"}
+
+
+@router.post("/api/promotions/{promo_id}/items/spa")
+def add_promotion_spa_item(promo_id: int, req: PromotionSpaItemCreate, user=Depends(require_permission("price_lists.manage"))):
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id FROM promotions WHERE id = ?", (promo_id,))
+    if not cur.fetchone():
+        db.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy chương trình khuyến mãi")
+
+    if req.target_type == "spa_service":
+        if not req.service_name:
+            db.close()
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp service_name")
+        # Xóa cấu hình cũ của cùng service trong KM này nếu có
+        cur.execute("DELETE FROM promotion_items WHERE promotion_id = ? AND target_type = 'spa_service' AND service_name = ?", (promo_id, req.service_name))
+        cur.execute("""
+            INSERT INTO promotion_items (promotion_id, target_type, service_name, discount_type, discount_val)
+            VALUES (?, 'spa_service', ?, ?, ?)
+        """, (promo_id, req.service_name, req.discount_type, req.discount_val))
+    elif req.target_type == "spa_category":
+        if not req.spa_category:
+            db.close()
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp spa_category")
+        cur.execute("DELETE FROM promotion_items WHERE promotion_id = ? AND target_type = 'spa_category' AND spa_category = ?", (promo_id, req.spa_category))
+        cur.execute("""
+            INSERT INTO promotion_items (promotion_id, target_type, spa_category, discount_type, discount_val)
+            VALUES (?, 'spa_category', ?, ?, ?)
+        """, (promo_id, req.spa_category, req.discount_type, req.discount_val))
+    else:
+        db.close()
+        raise HTTPException(status_code=400, detail="target_type không hợp lệ")
+
+    item_id = cur.lastrowid
+    db.commit()
+    db.close()
+    return {"status": "ok", "id": item_id}
 
 
 # ==================== PROMOTION ITEMS ====================

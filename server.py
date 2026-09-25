@@ -64,7 +64,7 @@ from database import init_db
 
 # Import các Router nghiệp vụ
 from routers.settings import router as settings_router
-from routers.categories import router as categories_router
+from routers.categories import router as categories_router, spa_cat_router
 from routers.products import router as products_router
 from routers.pos import router as pos_router
 from routers.inventory import router as inventory_router
@@ -160,6 +160,7 @@ app.include_router(shifts_router)
 app.include_router(combos_router)
 app.include_router(settings_router)
 app.include_router(categories_router)
+app.include_router(spa_cat_router)
 app.include_router(products_router)
 app.include_router(pos_router)
 app.include_router(inventory_router)
