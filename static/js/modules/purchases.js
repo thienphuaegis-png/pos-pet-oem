@@ -895,7 +895,7 @@
                         `;
 
                     return `
-                    <tr class="border-b hover:bg-gray-50 text-xs stagger-row" style="--row-idx: ${idx};">
+                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
                         <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
                         <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>

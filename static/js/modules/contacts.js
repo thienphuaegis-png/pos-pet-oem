@@ -76,7 +76,7 @@
                 if (filteredCust.length === 0) {
                     tbodyCust.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
                 } else {
-                    tbodyCust.innerHTML = filteredCust.map(c => {
+                    tbodyCust.innerHTML = filteredCust.map((c, idx) => {
                         const code = c.code || ('KH' + String(c.id).padStart(4, '0'));
                         const safeName = escapeJs(c.name || '');
                         const petCount = c.pets_count || c.pet_count || 0;
@@ -90,7 +90,7 @@
                             : `<span class="text-gray-400 font-mono">0 đ</span>`;
 
                         return `
-                        <tr class="border-b hover:bg-slate-50 transition text-xs">
+                        <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                             <td class="p-2.5 font-mono font-bold text-sky-700">${code}</td>
                             <td class="p-2.5 font-bold text-slate-800">${c.name}</td>
                             <td class="p-2.5 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">---</span>'}</td>
@@ -120,7 +120,7 @@
                 if (filteredSupp.length === 0) {
                     tbodySupp.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-gray-400">Không tìm thấy nhà cung cấp nào</td></tr>';
                 } else {
-                    tbodySupp.innerHTML = filteredSupp.map(c => {
+                    tbodySupp.innerHTML = filteredSupp.map((c, idx) => {
                         const code = c.code || ('NCC' + String(c.id).padStart(4, '0'));
                         const debtCompany = c.debt_company || 0;
                         const debtPersonal = c.debt_personal || 0;
@@ -128,7 +128,7 @@
                         const debtStyle = totalDebt > 0 ? 'text-amber-700 font-bold' : 'text-gray-400';
 
                         return `
-                        <tr class="border-b hover:bg-slate-50 transition text-xs">
+                        <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                             <td class="p-2.5 font-mono font-bold text-amber-700">${code}</td>
                             <td class="p-2.5 font-bold text-slate-800">${c.name}</td>
                             <td class="p-2.5 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">---</span>'}</td>
@@ -537,4 +537,4 @@
 
         function closeContactDetailModal() {
             document.getElementById('modal-contact-detail').classList.add('hidden');
-        }
+        }

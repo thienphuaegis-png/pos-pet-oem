@@ -579,7 +579,7 @@
                 if (isSpaSpreadsheetMode) {
                     // CHẾ ĐỘ SỬA TRỰC TIẾP NHƯ EXCEL
                     return `
-                    <tr class="${dirtyClass} transition text-[13px] stagger-row" style="--row-idx: ${idx};">
+                    <tr class="card-row card-row-anim ${dirtyClass} transition text-[13px]" style="--row-idx: ${idx};">
                         <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                         <td class="p-2 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                             <div class="flex items-center justify-center gap-1">
@@ -717,7 +717,7 @@
                 const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 return `
-                <tr class="border-b border-slate-200 hover:bg-purple-50/40 transition text-[13px] stagger-row" style="--row-idx: ${idx};">
+                <tr class="card-row card-row-anim text-[13px]" style="--row-idx: ${idx};">
                     <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                     <td class="p-2.5 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                         <div class="flex items-center justify-center gap-1">

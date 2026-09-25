@@ -216,20 +216,61 @@
             }
         }
 
-        /* Staggered Waterfall Row Animation (hiện từng dòng lướt mượt mà) */
+        /* Floating Card Table Layout & Physical Card Rows */
+        .table-floating-cards {
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+        .table-floating-cards thead th {
+            border: none !important;
+            background: transparent !important;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .table-floating-cards tr.card-row td,
+        tr.card-row td {
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+            transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .table-floating-cards tr.card-row td:first-child,
+        tr.card-row td:first-child {
+            border-left: 1px solid #e2e8f0;
+            border-top-left-radius: 0.75rem;
+            border-bottom-left-radius: 0.75rem;
+        }
+        .table-floating-cards tr.card-row td:last-child,
+        tr.card-row td:last-child {
+            border-right: 1px solid #e2e8f0;
+            border-top-right-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+        }
+        .table-floating-cards tr.card-row:hover td,
+        tr.card-row:hover td {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* GPU-Accelerated Physical Card Row Slide Up */
+        .card-row-anim,
         .stagger-row {
-            animation: staggerRowIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
-            animation-delay: calc(var(--row-idx, 0) * 30ms);
+            animation: cardRowSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+            animation-delay: calc(var(--row-idx, 0) * 35ms);
             will-change: transform, opacity;
         }
-        @keyframes staggerRowIn {
+        @keyframes cardRowSlideUp {
             0% {
                 opacity: 0;
-                transform: translateY(8px);
+                transform: translate3d(0, 22px, 0) scale(0.985);
             }
             100% {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translate3d(0, 0, 0) scale(1);
             }
         }
 
@@ -1815,9 +1856,9 @@
                         </div>
 
                         <!-- VIEW: BẢNG CHI TIẾT GOM CỤM (Mặc định) -->
-                        <div id="spa-view-table" class="overflow-x-auto rounded-lg border border-slate-200">
-                            <table class="w-full min-w-[1350px] text-[13px] border-collapse text-left">
-                                <thead class="bg-slate-100 border-b-2 border-slate-300 text-slate-700 font-bold uppercase text-[11px] tracking-wide">
+                        <div id="spa-view-table" class="overflow-x-auto p-1">
+                            <table class="w-full min-w-[1350px] text-[13px] text-left table-floating-cards">
+                                <thead class="bg-slate-100/70 text-slate-700 font-bold uppercase text-[11px] tracking-wide">
                                     <tr>
                                         <!-- CỤM TRÁI: THỢ SPA & THAO TÁC TRỰC TIẾP -->
                                         <th class="p-3 text-center border-r border-slate-200 min-w-[135px]" title="Số thứ tự phiếu, mã hóa đơn & các nút in/sửa thao tác nhanh"># Phiếu & Thao Tác</th>
@@ -2040,10 +2081,10 @@
                     </div>
 
                     <!-- Bảng Danh Sách Đơn Nhập Chuẩn -->
-                    <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-xs border-collapse text-left">
-                                <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
+                    <div class="overflow-hidden">
+                        <div class="overflow-x-auto p-1">
+                            <table class="w-full text-xs text-left table-floating-cards">
+                                <thead class="bg-slate-100/70 text-slate-700 font-bold uppercase text-[11px]">
                                     <tr>
                                         <th class="p-2.5">Mã Đơn</th>
                                         <th class="p-2.5">Nhà Cung Cấp</th>
@@ -2698,9 +2739,9 @@
                     </div>
 
                     <!-- BẢNG 1: KHÁCH HÀNG (CÓ NHÓM KH & THÚ CƯNG) -->
-                    <div id="view-contacts-customer" class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
+                    <div id="view-contacts-customer" class="overflow-x-auto p-1">
+                        <table class="w-full text-left text-xs table-floating-cards">
+                            <thead class="bg-slate-100/70 text-slate-700 font-bold uppercase text-[11px]">
                                 <tr>
                                     <th class="p-2.5">Mã KH</th>
                                     <th class="p-2.5">Họ Tên Khách Hàng</th>
@@ -2713,16 +2754,16 @@
                                     <th class="p-2.5 text-center">Thao Tác</th>
                                 </tr>
                             </thead>
-                            <tbody id="table-customers" class="divide-y divide-gray-100">
+                            <tbody id="table-customers">
                                 <tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải danh sách khách hàng...</td></tr>
                             </tbody>
                         </table>
                     </div>
 
                     <!-- BẢNG 2: NHÀ CUNG CẤP (PHÂN TÁCH RỔ NỢ CÔNG TY / CÁ NHÂN) -->
-                    <div id="view-contacts-supplier" class="hidden overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
+                    <div id="view-contacts-supplier" class="hidden overflow-x-auto p-1">
+                        <table class="w-full text-left text-xs table-floating-cards">
+                            <thead class="bg-slate-100/70 text-slate-700 font-bold uppercase text-[11px]">
                                 <tr>
                                     <th class="p-2.5">Mã NCC</th>
                                     <th class="p-2.5">Tên Đơn Vị / Nhà Cung Cấp</th>

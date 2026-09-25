@@ -1671,7 +1671,7 @@
             const widths = ['w-16', 'w-32', 'w-24', 'w-28', 'w-20', 'w-24', 'w-16', 'w-20', 'w-28', 'w-24', 'w-16', 'w-20', 'w-16'];
             let html = '';
             for (let r = 0; r < rows; r++) {
-                html += '<tr class="border-b border-slate-100">';
+                html += `<tr class="card-row card-row-anim" style="--row-idx: ${r};">`;
                 for (let c = 0; c < cols; c++) {
                     const w = widths[(r + c) % widths.length];
                     html += `<td class="p-3"><div class="skeleton-bar h-4 ${w}"></div></td>`;
