@@ -601,7 +601,7 @@ function renderActiveTabCart() {
 
         const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
         return `
-            <div class="px-4 py-2.5 grid gap-2 items-center text-xs hover:bg-slate-50 transition group" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;">
+            <div class="px-4 py-2.5 grid gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px; --row-idx: ${idx};">
                 <!-- Nút xóa -->
                 <div class="text-center">
                     <button onclick="removeCartItem(${idx})" class="text-slate-300 hover:text-rose-600 p-1 rounded transition" title="Xóa khỏi đơn">

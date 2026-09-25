@@ -17,7 +17,6 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
-        .active-tab { background-color: #0284c7; color: white; }
         /* Sidebar Flat UI & Collapse Smooth Animation */
         #main-sidebar {
             width: 15rem; /* 240px */
@@ -160,29 +159,34 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .tab-btn {
-            transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-right: 0.5rem;
+            transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin 0.2s ease;
             position: relative;
         }
         /* Seamless Folder Tab Effect */
         .tab-btn.active-tab {
-            background-color: #f1f5f9 !important; /* bg-slate-100: trùng màu nền vùng nội dung */
+            background-color: #f1f5f9 !important; /* bg-slate-100: trùng 100% màu nền vùng nội dung */
             color: #0284c7 !important; /* sky-600 */
             font-weight: 700 !important;
-            border-radius: 0.75rem 0 0 0.75rem !important; /* Mép phải phẳng liền mạch sang nội dung */
-            margin-right: -0.5rem !important; /* Vượt qua padding nav để chạm viền */
-            padding-right: 0.85rem !important;
+            border-radius: 0.75rem 0 0 0.75rem !important; /* Mép phải phẳng hoàn toàn để tràn nối liền sang nội dung */
+            margin-right: 0 !important; /* Liền mạch sang nội dung không còn line ngăn cách */
+            padding-right: 1.25rem !important;
             border-left: 4px solid #0284c7 !important; /* Accent vạch xanh nổi bật */
-            box-shadow: -2px 1px 4px rgba(0, 0, 0, 0.02) !important;
-            z-index: 20;
+            border-right: none !important;
+            box-shadow: none !important;
+            z-index: 40 !important;
         }
         .tab-btn.active-tab .sidebar-icon {
             background-color: #e0f2fe !important; /* sky-100 */
             border-color: #bae6fd !important;
             color: #0284c7 !important;
         }
+        #main-sidebar.collapsed .tab-btn {
+            margin-right: 0.25rem;
+        }
         #main-sidebar.collapsed .tab-btn.active-tab {
             border-radius: 0.75rem !important;
-            margin-right: 0 !important;
+            margin-right: 0.25rem !important;
             padding-right: 0.25rem !important;
             border-left: none !important;
             background-color: #e0f2fe !important;
@@ -490,7 +494,7 @@
 </div>
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <div id="main-sidebar" class="w-60 bg-white border-r border-slate-200 text-slate-700 flex flex-col justify-between shrink-0 select-none z-30">
+        <div id="main-sidebar" class="w-60 bg-white text-slate-700 flex flex-col justify-between shrink-0 select-none z-30">
             <div class="flex flex-col min-h-0 flex-1">
                 <!-- Header Logo & Toggle Button -->
                 <div id="sidebar-header" class="p-3 border-b border-slate-100 flex items-center justify-between gap-1 shrink-0">
@@ -503,7 +507,7 @@
                     </button>
                 </div>
                 <!-- Navigation Tabs (Flat UI) -->
-                <nav class="p-2 space-y-1 overflow-y-auto flex-1">
+                <nav class="pl-2 py-2 pr-0 space-y-1 overflow-y-auto overflow-x-visible flex-1">
                     <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold mb-1 transition active-tab cursor-pointer" data-tab="pos" data-role="cashier,owner" data-tooltip="Bán Hàng (POS)">
                         <span class="flex items-center gap-2.5 min-w-0">
                             <span class="sidebar-icon">🛒</span>
@@ -574,7 +578,7 @@
                     </div>
                     <div class="sidebar-text text-[11px] text-slate-500 flex items-center justify-between" id="sidebar-user-details">
                         <span id="header-role-badge" class="font-medium text-slate-500"></span>
-                        <span id="header-shift-status" class="font-semibold text-amber-600"></span>
+                        <span id="header-shift-status" class="font-bold text-rose-600"></span>
                     </div>
                     <div id="shift-action-container" class="pt-0.5">
                         <button id="btn-open-shift" onclick="openShiftModal()" class="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1.5 rounded-lg font-bold shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer" data-tooltip="Mở Ca Làm Việc">
@@ -675,13 +679,13 @@
     </header>
 
     <!-- ==================== MAIN CONTENT AREA ==================== -->
-    <main class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex overflow-hidden bg-slate-100">
 
         <!-- LEFT & CENTER: CART PRODUCT TABLE (65% width) -->
-        <section class="flex-1 flex flex-col bg-white border-r border-slate-200 overflow-hidden">
+        <section class="flex-1 flex flex-col p-2.5 pr-1.5 overflow-hidden">
             
             <!-- Table Header -->
-            <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 grid gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;">
+            <div class="px-4 py-2 grid gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;">
                 <div class="text-center">Xóa</div>
                 <div class="text-center">STT</div>
                 <div>Mã hàng</div>
@@ -692,18 +696,18 @@
                 <div class="text-right">Thành tiền</div>
             </div>
 
-            <!-- Table Rows (Scrollable) -->
-            <div id="cart-items-container" class="flex-1 overflow-y-auto divide-y divide-slate-100">
+            <!-- Table Rows (Scrollable Cards) -->
+            <div id="cart-items-container" class="flex-1 overflow-y-auto space-y-2 pr-1">
                 <!-- Cart item rows injected here -->
             </div>
 
             <!-- Footer of Left Area: Order Note & Item Counter -->
-            <div class="bg-slate-50 border-t border-slate-200 p-3 flex items-center justify-between gap-4 shrink-0">
+            <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-4 shrink-0 shadow-2xs mt-2">
                 <div class="flex-1 flex items-center gap-2">
                     <span class="text-slate-400 text-sm">✏️</span>
                     <input type="text" id="pos-order-note" 
                            placeholder="Ghi chú đơn hàng..." 
-                           class="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500">
+                           class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500">
                 </div>
                 <div class="text-xs font-semibold text-slate-500 flex items-center gap-3">
                     <span>Mặt hàng: <b id="lbl-item-types" class="text-slate-800">0</b></span>
@@ -714,12 +718,12 @@
         </section>
 
         <!-- RIGHT SIDEBAR: PAYMENT & CUSTOMER (35% width, min 360px, max 420px) -->
-        <aside class="w-96 lg:w-[410px] bg-slate-50 flex flex-col justify-between overflow-y-auto shrink-0 shadow-inner">
+        <aside class="w-96 lg:w-[410px] p-2.5 pl-1.5 flex flex-col justify-between overflow-y-auto shrink-0">
             
-            <div class="p-4 space-y-3.5">
+            <div class="space-y-2.5">
 
                 <!-- 1. Customer Section -->
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative">
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs relative">
                     <div class="flex items-center justify-between mb-2">
                         <div class="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
                             <span>👤</span>
@@ -888,8 +892,8 @@
 
             </div>
 
-            <!-- 3. Bottom Action Buttons: In Tạm Tính & Thanh Toán -->
-            <div class="p-3 bg-white border-t border-slate-200 shrink-0 space-y-2">
+            <!-- 3. Bottom Action Buttons: In Tạm Tính & Thanh Toán (Khối thẻ nổi đồng bộ) -->
+            <div class="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs shrink-0 space-y-2 mt-2">
                 <!-- Nút in hóa đơn mẫu / tạm tính (không tính tiền) -->
                 <button onclick="printDraftOrder()" id="btn-print-draft" class="w-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs shadow-sm transition">
                     <span>📄</span>
@@ -897,7 +901,7 @@
                 </button>
 
                 <!-- Nút thanh toán & in -->
-                <button onclick="submitPOSOrder()" id="btn-submit-order" class="w-full bg-sky-600 hover:bg-sky-700 active:scale-[0.99] text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-sky-200 flex items-center justify-center gap-2 text-base tracking-wide transition">
+                <button onclick="submitPOSOrder()" id="btn-submit-order" class="w-full bg-sky-600 hover:bg-sky-700 active:scale-[0.99] text-white font-black py-3 px-4 rounded-xl shadow-md shadow-sky-200 flex items-center justify-center gap-2 text-base tracking-wide transition">
                     <span>💳</span>
                     <span>THANH TOÁN (F9)</span>
                 </button>
@@ -921,10 +925,10 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-                    <div class="overflow-x-auto max-h-[650px]">
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 border-b text-slate-600 font-bold sticky top-0 z-10 shadow-sm">
+                <div class="overflow-hidden">
+                    <div class="overflow-x-auto p-1">
+                        <table class="w-full text-left text-xs table-floating-cards">
+                            <thead class="bg-slate-50/70 text-slate-600 font-bold">
                                 <tr>
                                     <th class="p-3">Mã Đơn</th>
                                     <th class="p-3">Thời Gian</th>
@@ -945,6 +949,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="pagination-orders"></div>
                 </div>
             </div>
             
@@ -1217,10 +1222,10 @@
                         </div>
 
                         <!-- Table -->
-                        <div class="overflow-x-auto max-h-[520px]">
-                            <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-gray-50 sticky top-0 border-b">
-                                    <tr class="select-none">
+                        <div class="overflow-x-auto p-1">
+                            <table class="w-full text-left text-xs table-floating-cards">
+                                <thead class="bg-gray-50/70 select-none">
+                                    <tr>
                                         <th class="p-2.5 cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('code')">
                                             Mã hàng <span id="sort-icon-code" class="text-gray-400">↕</span>
                                         </th>
@@ -1252,6 +1257,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="pagination-unified-inventory"></div>
                     </div>
                 </div>
 
@@ -1876,11 +1882,12 @@
                                         <th class="p-3 text-center min-w-[140px]" title="Giờ nhận & Giờ về">Đưa Đón</th>
                                     </tr>
                                 </thead>
-                                <tbody id="table-pet-services" class="divide-y divide-slate-100 bg-white">
+                                <tbody id="table-pet-services">
                                     <tr><td colspan="13" class="p-8 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
                                 </tbody>
                             </table>
                         </div>
+                        <div id="pagination-pet-services"></div>
 
                         <!-- VIEW: KANBAN BOARD -->
                         <div id="spa-view-kanban" class="hidden">

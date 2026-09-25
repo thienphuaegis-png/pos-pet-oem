@@ -1793,25 +1793,43 @@
             renderOrdersTable(filtered);
         }
 
+        let ordersCurrentPage = 1;
+        let allCachedOrders = [];
+
+        function changeOrdersPage(newPage) {
+            ordersCurrentPage = newPage;
+            renderOrdersTable(allCachedOrders);
+        }
+        window.changeOrdersPage = changeOrdersPage;
+
         function renderOrdersTable(orders) {
             const tbody = document.getElementById('orders-table-body');
+            allCachedOrders = orders || [];
             const badge = document.getElementById('orders-count-badge');
-            if (badge) badge.textContent = `${orders.length} hóa đơn`;
+            if (badge) badge.textContent = `${allCachedOrders.length} hóa đơn`;
             if (!tbody) return;
 
-            if (!orders || orders.length === 0) {
+            if (!allCachedOrders || allCachedOrders.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
+                const pContainer = document.getElementById('pagination-orders');
+                if (pContainer) pContainer.innerHTML = '';
                 return;
             }
 
-            tbody.innerHTML = orders.map(ord => {
+            const totalItems = allCachedOrders.length;
+            const totalPages = Math.ceil(totalItems / 20) || 1;
+            if (ordersCurrentPage > totalPages) ordersCurrentPage = totalPages;
+            if (ordersCurrentPage < 1) ordersCurrentPage = 1;
+            const pagedOrders = allCachedOrders.slice((ordersCurrentPage - 1) * 20, ordersCurrentPage * 20);
+
+            tbody.innerHTML = pagedOrders.map((ord, idx) => {
                 const debt = ord.debt_amount || 0;
                 const debtHtml = debt > 0 
                     ? `<span class="text-rose-600 font-bold">${formatMoney(debt)}</span>` 
                     : `<span class="text-emerald-600 font-medium">0 đ</span>`;
 
                 return `
-                    <tr class="border-b hover:bg-sky-50 transition-colors">
+                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                         <td class="p-3 font-mono font-bold text-sky-700 cursor-pointer hover:underline" onclick="viewOrderDetailModal('${ord.code}')">
                             ${ord.code}
                         </td>
@@ -1840,6 +1858,10 @@
                     </tr>
                 `;
             }).join('');
+
+            if (typeof renderPaginationBar === 'function') {
+                renderPaginationBar('pagination-orders', ordersCurrentPage, totalPages, totalItems, 'changeOrdersPage');
+            }
         }
 
         // --- XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG TỪ LOGS ---
@@ -5021,4 +5043,4 @@
         function closeModalDetailOEM() {
             document.getElementById('modal-detail-oem')?.classList.add('hidden');
         }
-
+

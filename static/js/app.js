@@ -10,6 +10,13 @@
         let unifiedInventoryData = [];
         let unifiedSortColumn = 'name';
         let unifiedSortAsc = true;
+        let unifiedInventoryPage = 1;
+
+        function changeUnifiedInventoryPage(newPage) {
+            unifiedInventoryPage = newPage;
+            renderUnifiedInventoryTable();
+        }
+        window.changeUnifiedInventoryPage = changeUnifiedInventoryPage;
         let selectedBOMProductIds = [];
         let allBOMProductsList = [];
         let transferSourceItems = [];
@@ -173,7 +180,13 @@
                 items = items.filter(item => (item.category || 'Khác') === catFilter);
             }
 
-            tbody.innerHTML = items.map(item => {
+            const totalItems = items.length;
+            const totalPages = Math.ceil(totalItems / 20) || 1;
+            if (unifiedInventoryPage > totalPages) unifiedInventoryPage = totalPages;
+            if (unifiedInventoryPage < 1) unifiedInventoryPage = 1;
+            const pagedItems = items.slice((unifiedInventoryPage - 1) * 20, unifiedInventoryPage * 20);
+
+            tbody.innerHTML = pagedItems.map((item, idx) => {
                 const isProd = item.item_type === 'product';
                 let badge = '';
                 if (isProd) {
@@ -241,7 +254,7 @@
                 }
 
                 return `
-                    <tr class="border-b hover:bg-gray-50 text-xs">
+                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                         <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
                         <td class="p-2.5 font-bold text-slate-800">${item.name} <span class="ml-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${item.category || 'Khác'}</span></td>
                         <td class="p-2.5 text-center">${badge}</td>
@@ -255,6 +268,8 @@
                     </tr>
                 `;
             }).join('');
+
+            renderPaginationBar('pagination-unified-inventory', unifiedInventoryPage, totalPages, totalItems, 'changeUnifiedInventoryPage');
         }
 
         // --- MODAL: THẺ KHO / NHẬT KÝ BIẾN ĐỘNG ---
@@ -1681,6 +1696,32 @@
             tbody.innerHTML = html;
         }
         window.renderTableSkeleton = renderTableSkeleton;
+
+        function renderPaginationBar(containerId, currentPage, totalPages, totalItems, onPageChangeName) {
+            const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
+            if (!container) return;
+            if (totalItems <= 20) {
+                container.innerHTML = totalItems > 0 ? `<div class="text-xs text-slate-500 font-medium py-2 px-1">Tổng cộng <b>${totalItems}</b> dòng</div>` : '';
+                return;
+            }
+            
+            const start = (currentPage - 1) * 20 + 1;
+            const end = Math.min(currentPage * 20, totalItems);
+            
+            container.innerHTML = `
+                <div class="flex flex-wrap items-center justify-between gap-2 py-3 px-2 text-xs border-t border-slate-200 select-none">
+                    <div class="text-slate-600 font-medium">
+                        Hiển thị <b>${start} - ${end}</b> / <b>${totalItems}</b> dòng
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="${onPageChangeName}(${currentPage - 1})" ${currentPage <= 1 ? 'disabled class="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"' : 'class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold shadow-2xs cursor-pointer transition"'} title="Trang trước">◀ Trước</button>
+                        <span class="px-3 py-1 font-bold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg">Trang ${currentPage} / ${totalPages}</span>
+                        <button onclick="${onPageChangeName}(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled class="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50"' : 'class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold shadow-2xs cursor-pointer transition"'} title="Trang sau">Sau ▶</button>
+                    </div>
+                </div>
+            `;
+        }
+        window.renderPaginationBar = renderPaginationBar;
 
         function switchTab(tabId, subTabId) {
             console.log("switchTab activated:", tabId, subTabId);

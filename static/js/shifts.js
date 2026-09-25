@@ -33,10 +33,10 @@ function updateShiftUI() {
       const t = new Date(currentShift.open_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
       const cash = (currentShift.opening_cash || 0).toLocaleString('vi-VN');
       statusEl.textContent = `⏱ Ca từ ${t} | Đầu ca: ${cash}đ`;
-      statusEl.style.color = '#fde047';
+      statusEl.style.color = '#0284c7';
     } else {
       statusEl.textContent = '⚠ Chưa mở ca';
-      statusEl.style.color = '#f97316';
+      statusEl.style.color = '#e11d48';
     }
   }
 }

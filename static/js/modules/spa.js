@@ -556,6 +556,14 @@
         }
         window.saveSpaSpreadsheetChanges = saveSpaSpreadsheetChanges;
 
+        let petServicesCurrentPage = 1;
+
+        function changePetServicesPage(newPage) {
+            petServicesCurrentPage = newPage;
+            renderPetServicesTable();
+        }
+        window.changePetServicesPage = changePetServicesPage;
+
         function renderPetServicesTable() {
             const tbody = document.getElementById('table-pet-services');
             if (!tbody) return;
@@ -569,10 +577,18 @@
 
             if (filtered.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
+                const pContainer = document.getElementById('pagination-pet-services');
+                if (pContainer) pContainer.innerHTML = '';
                 return;
             }
 
-            tbody.innerHTML = filtered.map((t, idx) => {
+            const totalItems = filtered.length;
+            const totalPages = Math.ceil(totalItems / 20) || 1;
+            if (petServicesCurrentPage > totalPages) petServicesCurrentPage = totalPages;
+            if (petServicesCurrentPage < 1) petServicesCurrentPage = 1;
+            const pagedFiltered = filtered.slice((petServicesCurrentPage - 1) * 20, petServicesCurrentPage * 20);
+
+            tbody.innerHTML = pagedFiltered.map((t, idx) => {
                 const isDirty = spaSpreadsheetDirtyMap.has(t.id);
                 const dirtyClass = isDirty ? 'bg-amber-50/70 border-2 border-amber-400' : 'border-b border-slate-200 hover:bg-purple-50/40';
 
@@ -780,6 +796,10 @@
                 </tr>
                 `;
             }).join('');
+
+            if (typeof renderPaginationBar === 'function') {
+                renderPaginationBar('pagination-pet-services', petServicesCurrentPage, totalPages, totalItems, 'changePetServicesPage');
+            }
         }
 
         function renderKanbanBoard() {
