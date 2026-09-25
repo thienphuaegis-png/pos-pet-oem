@@ -277,6 +277,9 @@
 
         async function loadPetServicesList() {
             try {
+                if (typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
+                    renderTableSkeleton('table-pet-services', 6, 13);
+                }
                 const res = await fetch('/api/pet-services');
                 if (!res.ok) {
                     allPetServiceTickets = [];
@@ -569,14 +572,14 @@
                 return;
             }
 
-            tbody.innerHTML = filtered.map(t => {
+            tbody.innerHTML = filtered.map((t, idx) => {
                 const isDirty = spaSpreadsheetDirtyMap.has(t.id);
                 const dirtyClass = isDirty ? 'bg-amber-50/70 border-2 border-amber-400' : 'border-b border-slate-200 hover:bg-purple-50/40';
 
                 if (isSpaSpreadsheetMode) {
                     // CHẾ ĐỘ SỬA TRỰC TIẾP NHƯ EXCEL
                     return `
-                    <tr class="${dirtyClass} transition text-[13px]">
+                    <tr class="${dirtyClass} transition text-[13px] stagger-row" style="--row-idx: ${idx};">
                         <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                         <td class="p-2 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                             <div class="flex items-center justify-center gap-1">
@@ -714,7 +717,7 @@
                 const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 return `
-                <tr class="border-b border-slate-200 hover:bg-purple-50/40 transition text-[13px]">
+                <tr class="border-b border-slate-200 hover:bg-purple-50/40 transition text-[13px] stagger-row" style="--row-idx: ${idx};">
                     <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                     <td class="p-2.5 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                         <div class="flex items-center justify-center gap-1">
@@ -4033,4 +4036,4 @@
             }, 450);
         }
         window.printBatchPetServiceTickets = printBatchPetServiceTickets;
-
+

@@ -821,6 +821,11 @@
 
         async function loadPurchasesList() {
             try {
+                const tbody = document.getElementById('table-purchases-history');
+                if (tbody && typeof renderTableSkeleton === 'function') {
+                    renderTableSkeleton(tbody, 5, 10);
+                }
+
                 // Tải KPI số liệu
                 fetch('/api/purchases/kpi').then(r => r.json()).then(kpi => {
                     const elPending = document.getElementById('kpi-po-pending');
@@ -835,7 +840,6 @@
 
                 const res = await fetch('/api/purchases');
                 let list = await res.json();
-                const tbody = document.getElementById('table-purchases-history');
                 if (!tbody) return;
 
                 // Lọc theo trạng thái
@@ -863,7 +867,7 @@
                     return;
                 }
 
-                tbody.innerHTML = list.map(p => {
+                tbody.innerHTML = list.map((p, idx) => {
                     const statusBadge = p.status === 'received' 
                         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đã Nhập Kho</span>' 
                         : (p.status === 'cancelled'
@@ -891,7 +895,7 @@
                         `;
 
                     return `
-                    <tr class="border-b hover:bg-gray-50 text-xs">
+                    <tr class="border-b hover:bg-gray-50 text-xs stagger-row" style="--row-idx: ${idx};">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
                         <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
                         <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>
@@ -1054,4 +1058,4 @@
                 }, 300);
             }
         }
-
+

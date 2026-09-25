@@ -1665,6 +1665,23 @@
             return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
         }
 
+        function renderTableSkeleton(tbodyOrId, rows = 5, cols = 8) {
+            const tbody = typeof tbodyOrId === 'string' ? document.getElementById(tbodyOrId) : tbodyOrId;
+            if (!tbody) return;
+            const widths = ['w-16', 'w-32', 'w-24', 'w-28', 'w-20', 'w-24', 'w-16', 'w-20', 'w-28', 'w-24', 'w-16', 'w-20', 'w-16'];
+            let html = '';
+            for (let r = 0; r < rows; r++) {
+                html += '<tr class="border-b border-slate-100">';
+                for (let c = 0; c < cols; c++) {
+                    const w = widths[(r + c) % widths.length];
+                    html += `<td class="p-3"><div class="skeleton-bar h-4 ${w}"></div></td>`;
+                }
+                html += '</tr>';
+            }
+            tbody.innerHTML = html;
+        }
+        window.renderTableSkeleton = renderTableSkeleton;
+
         function switchTab(tabId, subTabId) {
             console.log("switchTab activated:", tabId, subTabId);
             // Map legacy ids
@@ -1673,16 +1690,22 @@
             else if (tabId === 'production') { tabId = 'inventory'; subTabId = 'production'; }
             else if (tabId === 'company') { tabId = 'settings'; subTabId = 'company'; }
 
-            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('[id^="tab-"]').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('tab-pane-content');
+            });
             const targetTab = document.getElementById('tab-' + tabId);
-            if (targetTab) targetTab.classList.remove('hidden');
+            if (targetTab) {
+                targetTab.classList.remove('hidden');
+                targetTab.classList.add('tab-pane-content');
+            }
 
             const mainContainer = document.getElementById('main-content-area');
             if (mainContainer) {
                 if (tabId === 'pos') {
-                    mainContainer.className = "flex-1 overflow-hidden p-0 flex flex-col";
+                    mainContainer.className = "flex-1 overflow-hidden p-0 flex flex-col bg-slate-100";
                 } else {
-                    mainContainer.className = "flex-1 overflow-y-auto p-6";
+                    mainContainer.className = "flex-1 overflow-y-auto p-6 bg-slate-100";
                 }
             }
 
@@ -1696,24 +1719,30 @@
             });
 
             if (tabId === 'inventory') {
+                renderTableSkeleton('table-products', 6, 8);
                 if (subTabId) switchInvSubTab(subTabId);
                 else switchInvSubTab('unified');
             } else if (tabId === 'settings') {
                 if (subTabId) switchSettingsSubTab(subTabId);
                 else switchSettingsSubTab('templates');
             } else if (tabId === 'pet-services') {
+                renderTableSkeleton('table-pet-services', 6, 13);
                 if (typeof loadAllPetsList === 'function') loadAllPetsList();
                 if (typeof loadPetServicesKPI === 'function') loadPetServicesKPI();
                 if (typeof loadPetServicesList === 'function') loadPetServicesList();
             } else if (tabId === 'contacts') {
+                renderTableSkeleton('table-customers', 5, 6);
+                renderTableSkeleton('table-suppliers', 5, 6);
                 loadContacts();
             } else if (tabId === 'cashbook') {
+                renderTableSkeleton('table-cashbook', 6, 8);
                 loadCashbook();
             } else if (tabId === 'reports') {
                 loadReports();
             } else if (tabId === 'shifts') {
                 if (typeof loadShiftsHistory === 'function') loadShiftsHistory();
             } else if (tabId === 'purchases') {
+                renderTableSkeleton('table-purchases-history', 5, 10);
                 initPurchases();
                 loadPurchasesList();
             } else if (tabId === 'pos') {
