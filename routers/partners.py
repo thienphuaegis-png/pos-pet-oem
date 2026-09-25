@@ -938,11 +938,24 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
     cur.execute("SELECT id, name, phone FROM contacts WHERE id = ?", (batch_req.customer_id,))
     cust = cur.fetchone()
 
+    # Kiểm tra số dư ví Spa trước khi bắt đầu tạo phiếu
+    wallet_batch_total = sum(t.price or 0.0 for t in batch_req.tickets if (t.payment_status == "paid" and t.payment_method == "wallet"))
+    if wallet_batch_total > 0:
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
+        c_row = cur.fetchone()
+        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
+        if current_wallet < wallet_batch_total:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Số dư ví Spa không đủ thanh toán cả đợt ({current_wallet:,.0f} đ, cần trừ {wallet_batch_total:,.0f} đ)"
+            )
+
     created_tickets = []
 
     for idx, t in enumerate(batch_req.tickets):
         t_number = base_number + idx
-        t_code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}{idx}"
+        t_code = f"DV{now.strftime('%y%m%d%H%M%S%f')[:16]}{random.randint(100, 999)}{idx}"
         
         actual_pet_id = t.pet_id
         if not actual_pet_id and t.pet_name and t.pet_name.strip():
@@ -1028,18 +1041,8 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
             "batch_code": batch_code
         })
 
-    # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví
-    wallet_batch_total = sum(t.price or 0.0 for t in batch_req.tickets if (t.payment_status == "paid" and t.payment_method == "wallet"))
+    # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví (đã validate số dư ở trên)
     if wallet_batch_total > 0:
-        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
-        c_row = cur.fetchone()
-        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-        if current_wallet < wallet_batch_total:
-            conn.close()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Số dư ví Spa không đủ thanh toán cả đợt ({current_wallet:,.0f} đ, cần trừ {wallet_batch_total:,.0f} đ)"
-            )
         new_wallet = current_wallet - wallet_batch_total
         cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, batch_req.customer_id))
         cur.execute("""

@@ -18,34 +18,118 @@
             -moz-appearance: textfield;
         }
         .active-tab { background-color: #0284c7; color: white; }
-        /* Sidebar Flat UI & Collapse */
+        /* Sidebar Flat UI & Collapse Smooth Animation */
         #main-sidebar {
-            transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 15rem; /* 240px */
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: width;
+            overflow-x: hidden;
         }
         #main-sidebar.collapsed {
-            width: 4.5rem !important; /* 72px */
+            width: 5.5rem !important; /* 88px - rộng rãi, không bị tràn nút đăng xuất */
+        }
+
+        /* Smooth text & element transitions (tránh giật đột ngột khi co giãn) */
+        .sidebar-text,
+        .sidebar-badge,
+        .sidebar-footer-btn-text,
+        #sidebar-app-name {
+            white-space: nowrap !important;
+            opacity: 1;
+            max-width: 180px;
+            overflow: hidden;
+            display: inline-block;
+            transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                        max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #main-sidebar.collapsed .sidebar-text,
         #main-sidebar.collapsed .sidebar-badge,
-        #main-sidebar.collapsed #sidebar-user-top,
-        #main-sidebar.collapsed #sidebar-user-details,
-        #main-sidebar.collapsed .sidebar-footer-btn-text {
-            display: none !important;
+        #main-sidebar.collapsed .sidebar-footer-btn-text,
+        #main-sidebar.collapsed #sidebar-app-name {
+            opacity: 0;
+            max-width: 0;
+            transform: translateX(-8px);
+            pointer-events: none;
+            margin: 0 !important;
+            padding: 0 !important;
         }
+
+        #sidebar-header .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 0;
+            max-width: 140px;
+            overflow: hidden;
+            transition: opacity 0.2s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #main-sidebar.collapsed #sidebar-header .logo-box {
+            max-width: 0;
+            opacity: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            pointer-events: none;
+        }
+
+        #sidebar-user-top,
+        #sidebar-user-details {
+            overflow: hidden;
+            max-height: 3rem;
+            opacity: 1;
+            transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                        margin 0.28s ease;
+        }
+        #main-sidebar.collapsed #sidebar-user-top,
+        #main-sidebar.collapsed #sidebar-user-details {
+            max-height: 0;
+            opacity: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            pointer-events: none;
+        }
+
         #main-sidebar.collapsed .tab-btn {
             justify-content: center !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
             margin-bottom: 0.35rem !important;
+        }
+        #main-sidebar.collapsed .tab-btn > span.flex {
+            justify-content: center !important;
+            width: 100% !important;
         }
         #main-sidebar.collapsed #sidebar-header {
             justify-content: center !important;
-            padding-left: 0.25rem !important;
-            padding-right: 0.25rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
         }
         #main-sidebar.collapsed #sidebar-user-footer {
-            padding-left: 0.25rem !important;
-            padding-right: 0.25rem !important;
+            padding: 0.5rem 0.4rem !important;
+        }
+        #main-sidebar.collapsed #sidebar-footer-actions {
+            display: flex;
+            gap: 0.35rem;
+            width: 100%;
+        }
+        #main-sidebar.collapsed #sidebar-footer-actions button {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            height: 2.25rem;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.6rem;
+        }
+        #main-sidebar.collapsed #shift-action-container button {
+            height: 2.25rem;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.6rem;
         }
         .sidebar-icon {
             font-size: 1.25rem; /* 20px */
@@ -53,19 +137,19 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 2rem;
-            height: 2rem;
+            width: 2.25rem;
+            height: 2.25rem;
             border-radius: 0.5rem;
             flex-shrink: 0;
-            transition: transform 0.15s ease, background-color 0.15s ease;
+            transition: transform 0.15s ease, background-color 0.15s ease, width 0.28s ease, height 0.28s ease;
         }
         .tab-btn:hover .sidebar-icon {
             transform: scale(1.15);
         }
         #main-sidebar.collapsed .sidebar-icon {
-            width: 2.6rem;
-            height: 2.6rem;
-            font-size: 1.45rem; /* Biểu tượng lớn và rõ nét khi thu gọn */
+            width: 2.75rem;
+            height: 2.75rem;
+            font-size: 1.5rem; /* Biểu tượng lớn và rõ nét khi thu gọn */
             background-color: rgba(241, 245, 249, 0.8);
             border: 1px solid rgba(226, 232, 240, 0.8);
             border-radius: 0.75rem;
@@ -76,7 +160,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         .tab-btn {
-            transition: all 0.15s ease-in-out;
+            transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .tab-btn.active-tab {
             background-color: #0284c7 !important; /* sky-600 */
@@ -296,15 +380,15 @@
 </div>
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <div id="main-sidebar" class="w-60 bg-white border-r border-slate-200 text-slate-700 flex flex-col justify-between shrink-0 select-none z-30 transition-all duration-200">
+        <div id="main-sidebar" class="w-60 bg-white border-r border-slate-200 text-slate-700 flex flex-col justify-between shrink-0 select-none z-30">
             <div class="flex flex-col min-h-0 flex-1">
                 <!-- Header Logo & Toggle Button -->
                 <div id="sidebar-header" class="p-3 border-b border-slate-100 flex items-center justify-between gap-1 shrink-0">
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="logo-box flex items-center gap-2 min-w-0">
                         <span class="text-xl shrink-0">⚡</span>
                         <span id="sidebar-app-name" class="sidebar-text text-base font-extrabold text-sky-600 truncate">POS Offline</span>
                     </div>
-                    <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">
+                    <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">
                         ◀
                     </button>
                 </div>
@@ -390,11 +474,11 @@
                             <span>⏹</span> <span class="sidebar-footer-btn-text">Kết Ca</span>
                         </button>
                     </div>
-                    <div class="flex items-center gap-1 pt-0.5">
+                    <div id="sidebar-footer-actions" class="flex items-center gap-1 pt-0.5">
                         <button type="button" onclick="openCashCounterModal()" class="flex-1 text-xs bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-2 py-1.5 rounded-lg flex items-center justify-center gap-1 font-semibold shadow-2xs transition cursor-pointer" data-tooltip="Kiểm Đếm Tiền Mặt">
                             <span>🧮</span> <span class="sidebar-footer-btn-text">Đếm Tiền</span>
                         </button>
-                        <button onclick="handleLogout()" class="text-xs bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 px-2 py-1.5 rounded-lg font-semibold transition cursor-pointer" data-tooltip="Đăng Xuất">
+                        <button onclick="handleLogout()" class="text-xs bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 px-2 py-1.5 rounded-lg font-semibold transition cursor-pointer shrink-0" data-tooltip="Đăng Xuất">
                             <span>🚪</span>
                         </button>
                     </div>
