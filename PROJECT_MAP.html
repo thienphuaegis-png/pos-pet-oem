@@ -1,369 +1,526 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bản Đồ Dự Án - POS Offline Portable</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .task-done { text-decoration: line-through; opacity: 0.6; }
-    </style>
+<meta charset="utf-8">
+<style>
+/* ══════ Linear / Vercel style ══════
+   dark · hairline border · 1 accent · typography chặt · hover subtle · no gradient */
+:root{
+  --f:var(--foreground); --m:var(--muted-foreground); --a:var(--accent);
+  --h:color-mix(in srgb,var(--f) 9%,transparent);    /* hairline */
+  --h2:color-mix(in srgb,var(--f) 14%,transparent);  /* hairline mạnh */
+  --s1:color-mix(in srgb,var(--f) 3.5%,transparent); /* surface hover */
+  --s2:color-mix(in srgb,var(--f) 6%,transparent);
+  --a10:color-mix(in srgb,var(--a) 10%,transparent);
+  --a20:color-mix(in srgb,var(--a) 20%,transparent);
+  --a40:color-mix(in srgb,var(--a) 40%,transparent);
+}
+*{box-sizing:border-box;margin:0}
+body{color:var(--f);font-size:13px;line-height:1.5;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+.wrap{width:1000px}
+.mono{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding-bottom:14px;border-bottom:1px solid var(--h);margin-bottom:0}
+h1{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.eyebrow{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--m);margin-bottom:3px}
+.stats{display:flex;gap:18px;font-size:11.5px;color:var(--m)}
+.stats b{color:var(--f);font-weight:550;font-variant-numeric:tabular-nums}
+
+/* tabs — underline style */
+nav{display:flex;gap:2px;border-bottom:1px solid var(--h);margin-bottom:16px;overflow-x:auto}
+nav button{appearance:none;background:none;border:0;border-bottom:1px solid transparent;
+  color:var(--m);font:inherit;font-size:12.5px;font-weight:500;padding:9px 11px;cursor:pointer;
+  white-space:nowrap;margin-bottom:-1px;transition:color .15s,border-color .15s}
+nav button:hover{color:var(--f)}
+nav button.on{color:var(--f);border-bottom-color:var(--f)}
+nav button em{font-style:normal;font-size:10px;opacity:.4;margin-right:6px;font-variant-numeric:tabular-nums}
+
+.view{display:none}
+.view.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0}}
+
+/* card / panel — hairline, no gradient */
+.box{border:1px solid var(--h);border-radius:8px;overflow:hidden}
+.bh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
+  border-bottom:1px solid var(--h)}
+.bh .t{font-size:11.5px;font-weight:550}
+.bh .d{font-size:11px;color:var(--m)}
+.bb{padding:12px}
+
+/* lane */
+#stage{position:relative}
+#wires{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:visible}
+#wires path{fill:none;stroke:var(--f);stroke-opacity:.11;stroke-width:1;stroke-linecap:round;
+  transition:stroke-opacity .25s,stroke-width .25s}
+#wires path.hot{stroke:var(--a);stroke-opacity:1;stroke-width:1.6}
+#wires path.cold{stroke-opacity:.03}
+.lane{position:relative;z-index:2;border:1px solid var(--h);border-radius:8px;padding:9px 11px;
+  margin-bottom:28px;background:color-mix(in srgb,var(--f) 1.5%,transparent)}
+.lane:last-child{margin-bottom:0}
+.lh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.lh .tier{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;font-weight:600;
+  color:var(--m);border:1px solid var(--h);border-radius:4px;padding:1px 5px}
+.lh .nm{font-size:11.5px;font-weight:550}
+.lh .sub{font-size:11px;color:var(--m);margin-left:auto}
+.row{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--h);border-radius:6px;
+  padding:3.5px 8px;font-family:ui-monospace,Consolas,monospace;font-size:11px;
+  letter-spacing:-.02em;white-space:nowrap;transition:background .13s,border-color .13s,color .13s}
+.chip .n{color:var(--m);font-size:9.5px;font-variant-numeric:tabular-nums}
+.chip.mod{cursor:pointer}
+.chip.mod:hover{background:var(--s1);border-color:var(--h2)}
+.chip.on{background:var(--a);border-color:var(--a);color:#fff;font-weight:600}
+.chip.on .n{color:rgba(255,255,255,.72)}
+.chip.dim{opacity:.16}
+.chip.hub{border-color:var(--a40)}
+
+/* metric row */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--h);border-radius:8px;
+  overflow:hidden;margin-bottom:14px}
+.kpi{padding:12px 14px;border-right:1px solid var(--h)}
+.kpi:last-child{border-right:0}
+.kpi .l{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--m);margin-bottom:8px}
+.kpi .v{font-size:26px;font-weight:550;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .v s{text-decoration:none;font-size:13px;font-weight:450;opacity:.35}
+.kpi .d{font-size:10.5px;color:var(--m);margin-top:7px;font-variant-numeric:tabular-nums}
+.track{height:3px;border-radius:99px;background:var(--h);overflow:hidden;margin-top:9px}
+.track i{display:block;height:100%;background:var(--a);transform-origin:left;animation:g .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes g{from{transform:scaleX(0)}}
+
+/* table */
+table{border-collapse:collapse;width:100%;font-size:11.5px}
+th{text-align:left;padding:6px 10px;font-size:10px;font-weight:500;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--m);border-bottom:1px solid var(--h)}
+td{padding:5.5px 10px;border-bottom:1px solid color-mix(in srgb,var(--f) 4%,transparent)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--s1)}
+tr.off td{color:var(--m)}
+.mini{height:3px;border-radius:99px;background:var(--h);overflow:hidden}
+.mini i{display:block;height:100%;background:var(--a40)}
+.st{display:inline-block;width:14px;text-align:center;font-size:10px;font-weight:700}
+.st.y{color:var(--a)}
+.st.n{color:var(--m);opacity:.5}
+.tag{font-family:ui-monospace,Consolas,monospace;font-size:9px;font-weight:600;
+  padding:1px 4px;border-radius:3px;border:1px solid var(--h);color:var(--m)}
+.tag.be{border-color:var(--a40);color:var(--a)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:14px}
+.sec{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--m);
+  margin:0 0 7px;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:var(--h)}
+
+/* matrix */
+.mx{border-collapse:separate;border-spacing:0;font-size:10.5px}
+.mx th.rot{height:88px;vertical-align:bottom;padding:0 0 6px}
+.mx th.rot div{transform:rotate(-90deg);transform-origin:left bottom;width:16px;
+  font-family:ui-monospace,Consolas,monospace;font-size:10px;font-weight:500;
+  white-space:nowrap;text-transform:none;letter-spacing:-.02em;color:var(--m);text-align:left}
+.mx td.rn{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;padding-right:10px;
+  white-space:nowrap;border:0;text-align:right}
+.mx td.rn s{text-decoration:none;color:var(--m);font-size:9.5px;margin-left:5px}
+.mx td.c{width:26px;height:22px;text-align:center;border:0;position:relative}
+.mx td.c::before{content:'';position:absolute;inset:3px;border-radius:3px;background:var(--s1)}
+.mx td.c.on::before{background:var(--a);opacity:.85}
+.mx tr:hover td.c::before{background:var(--s2)}
+.mx tr:hover td.c.on::before{background:var(--a);opacity:1}
+.mx td.rn,.mx th{color:var(--f)}
+.mx .tot{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--m);
+  text-align:center;border:0;padding-top:5px}
+
+svg text{font-family:ui-monospace,"SF Mono",Consolas,monospace;fill:var(--f);letter-spacing:-.02em}
+.note{font-size:11.5px;color:var(--m);line-height:1.65;margin-top:12px;padding:9px 11px;
+  border:1px solid var(--h);border-radius:8px}
+.note b{color:var(--f);font-weight:550}
+.note code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;
+  background:var(--s2);padding:1px 4px;border-radius:3px}
+.note.warn{border-left:2px solid var(--a)}
+
+.btn-export{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--h);background:var(--s1);color:var(--f);cursor:pointer;transition:all .15s}
+.btn-export:hover{background:var(--a);color:#fff;border-color:var(--a)}
+</style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen p-6">
-    <div class="max-w-6xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="bg-white rounded-xl shadow-sm border p-6 flex flex-wrap justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-                    <span>⚡ BẢN ĐỒ DỰ ÁN: POS OFFLINE PORTABLE</span>
-                </h1>
-                <p class="text-sm text-slate-500 mt-1">Hệ thống quản trị bán hàng, gia công OEM & thiết kế mẫu in hóa đơn đa khổ giấy trên Windows</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="exportMarkdown()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow flex items-center gap-2">
-                    <i class="fa-solid fa-download"></i> Xuất File Markdown (.md)
-                </button>
-            </div>
-        </div>
+<body>
+<div class="wrap">
 
-        <!-- Grid 3 cột -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Cây Thư Mục & Tài Nguyên -->
-            <div class="bg-white rounded-xl shadow-sm border p-5 space-y-4">
-                <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-folder-tree text-amber-500"></i> Cấu Trúc Mã Nguồn
-                </h2>
-                <div class="text-xs font-mono bg-slate-900 text-emerald-400 p-3.5 rounded-lg overflow-x-auto space-y-1">
-                    <div>📁 pos-offline/</div>
-                    <div class="pl-3">├── 📄 chay_ngay.bat (Dọn cổng 8999 & khởi động)</div>
-                    <div class="pl-3">├── 📄 chia_se_online.bat (Cloudflare tunnel)</div>
-                    <div class="pl-3">├── 📄 build_exe.bat (Đóng gói PyInstaller)</div>
-                    <div class="pl-3">├── 🐍 main.py (Entrypoint Uvicorn)</div>
-                    <div class="pl-3">├── 🐍 server.py (FastAPI, 144 API routes)</div>
-                    <div class="pl-3">├── 🐍 database.py (Schema 35 bảng SQLite)</div>
-                    <div class="pl-3">├── 📁 routers/ (12 module nghiệp vụ)</div>
-                    <div class="pl-6">├── 🐍 pos.py (API bán hàng & đơn hàng)</div>
-                    <div class="pl-6">├── 🐍 products.py (Sản phẩm & Excel import/export)</div>
-                    <div class="pl-6">├── 🐍 inventory.py (Kho hợp nhất, kiểm kê, thẻ kho)</div>
-                    <div class="pl-6">├── 🐍 bom.py (Định mức NVL & sửa inline)</div>
-                    <div class="pl-6">├── 🐍 combos.py (Combo rã trừ kho & NVL BOM)</div>
-                    <div class="pl-6">├── 🐍 purchases.py (PO 2 bước, kiểm tay, nhận kho)</div>
-                    <div class="pl-6">├── 🐍 oem.py (Gia công xưởng, cọc, dòng tiền)</div>
-                    <div class="pl-6">├── 🐍 price_lists.py (Bảng giá & nhóm KH)</div>
-                    <div class="pl-6">├── 🐍 partners.py (KH, NCC, Thú cưng, Dịch vụ)</div>
-                    <div class="pl-6">├── 🐍 production.py (Lệnh sản xuất đa thành phẩm)</div>
-                    <div class="pl-6">├── 🐍 cashbook.py (Sổ quỹ đa quỹ & báo cáo)</div>
-                    <div class="pl-6">└── 🐍 settings.py (Cấu hình shop & mẫu in)</div>
-                    <div class="pl-3">├── 📁 static/</div>
-                    <div class="pl-6">├── 📄 app.js (SPA quản trị toàn diện)</div>
-                    <div class="pl-6">└── 📄 pos.js (Logic màn bán hàng chuyên dụng)</div>
-                    <div class="pl-3">├── 📁 templates/</div>
-                    <div class="pl-6">├── 🌐 index.html (Route / Quản trị & Canvas)</div>
-                    <div class="pl-6">└── 🌐 pos.html (Route /pos Màn thu ngân)</div>
-                    <div class="pl-3">├── 📁 data/</div>
-                    <div class="pl-6">└── 🗄️ pos.db (SQLite 35 bảng)</div>
-                    <div class="pl-3">├── 📁 plans/ (14 tài liệu đặc tả & plan)</div>
-                    <div class="pl-3">└── 📁 logs/ (pos_app.log & 12 file module)</div>
-                </div>
-                <div class="border-t pt-3 space-y-2 text-xs">
-                    <div class="flex justify-between"><span class="text-slate-500">Quản trị URL:</span><a href="http://127.0.0.1:8999" target="_blank" class="text-sky-600 font-bold hover:underline">127.0.0.1:8999</a></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Màn hình POS:</span><a href="http://127.0.0.1:8999/pos" target="_blank" class="text-emerald-600 font-bold hover:underline">127.0.0.1:8999/pos</a></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Database:</span><span class="font-mono text-slate-700">SQLite (Local 35 bảng)</span></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Khổ giấy in:</span><span class="font-bold text-slate-700">K80, K58, A4, A5</span></div>
-                </div>
-            </div>
+<header>
+  <div><div class="eyebrow">Module map · kiến trúc &amp; tiến độ</div><h1>pos-offline-petcare2</h1></div>
+  <div class="stats" style="align-items:center">
+    <span><b>17</b> router</span><span><b>12</b> bảng</span><span><b>38.679</b> dòng</span><span><b>18</b> backlog</span>
+    <button class="btn-export" onclick="exportMarkdown()">↓ Export .MD</button>
+  </div>
+</header>
 
-            <!-- Tiến Độ Tính Năng -->
-            <div class="bg-white rounded-xl shadow-sm border p-5 md:col-span-2 space-y-4">
-                <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center justify-between">
-                    <span class="flex items-center gap-2"><i class="fa-solid fa-list-check text-sky-500"></i> Danh Sách Tính Năng & Trạng Thái</span>
-                    <span class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Click để đánh dấu</span>
-                </h2>
+<nav id="nav">
+  <button class="on" data-v="a"><em>A</em>Lane + dây cong</button>
+  <button data-v="b"><em>B</em>Bó dây tròn</button>
+  <button data-v="c"><em>C</em>Sankey</button>
+  <button data-v="d"><em>D</em>Matrix</button>
+  <button data-v="e"><em>E</em>Vòng cung</button>
+  <button data-v="f"><em>F</em>Cây dọc</button>
+  <button data-v="g"><em>G</em>Tiến độ</button>
+</nav>
 
-                <div class="space-y-3 text-xs" id="task-list">
-                    <!-- Phân hệ Bán Hàng POS -->
-                    <div class="font-bold text-sky-700 bg-sky-50 p-1.5 rounded">🛒 Phân Hệ Bán Hàng & Thu Ngân (Nhúng Native SPA & Đa Tab Hóa Đơn)</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Nhúng màn hình POS trực tiếp vào tab Quản trị (SPA), tự động tràn viền không cuộn kép</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Sắp xếp lại luồng Sidebar ưu tiên thu ngân: 🛒 Bán Hàng &rarr; 🐾 Dịch Vụ &rarr; 🧾 Hóa Đơn</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Đa tab hóa đơn đồng thời (Hóa đơn 1, Hóa đơn 2...), phím tắt F1 tạo tab</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Bảng sản phẩm giỏ hàng 12 cột (STT, Mã, Tên, ĐVT, SL tăng giảm [-][+], Đơn giá, Thành tiền)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Tìm kiếm hàng hóa thông minh (F3), barcode scanner tự động nhảy sản phẩm</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Bán Combo sản phẩm: tự rã tồn kho SP con và trừ NVL con theo BOM</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">In tạm tính (Draft Order) & In thanh toán chốt đơn theo mẫu được chọn (A4 B2B, K80)</span>
-                    </label>
+<!-- ═══ A ═══ -->
+<div class="view on" id="v-a">
+  <div id="stage">
+    <svg id="wires"></svg>
+    <div class="lane"><div class="lh"><span class="tier">T1</span><span class="nm">Entry</span><span class="sub">khởi động &amp; đóng gói</span></div>
+      <div class="row"><span class="chip">main.py<span class="n">31</span></span><span class="chip">server.py<span class="n">179 · ×21 router</span></span><span class="chip">chay_ngay.bat</span><span class="chip">build_exe.bat</span><span class="chip">chia_se_online.bat<span class="n">cloudflared</span></span></div></div>
+    <div class="lane"><div class="lh"><span class="tier">T2</span><span class="nm">Routers</span><span class="sub" id="hint">bấm 1 router để tách dây</span></div>
+      <div class="row" id="mods"></div></div>
+    <div class="lane"><div class="lh"><span class="tier">T3</span><span class="nm">Core dùng chung</span><span class="sub">mọi router đều import</span></div>
+      <div class="row" id="cores"></div></div>
+    <div class="lane"><div class="lh"><span class="tier">T4</span><span class="nm">Bảng SQLite</span><span class="sub">viền sáng = HUB ≥4 module</span></div>
+      <div class="row" id="tbls"></div></div>
+  </div>
+  <div class="note">Router <b>không gọi nhau</b>, chỉ gặp nhau ở tầng DB. Sửa <code>spa</code> không vỡ <code>purchases</code>.</div>
+</div>
 
-                    <!-- Phân hệ Gia Công OEM & Dòng Tiền -->
-                    <div class="font-bold text-amber-700 bg-amber-50 p-1.5 rounded mt-3">🏭 Phân Hệ Gia Công OEM & Quản Trị Dòng Tiền</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Đặt hàng gia công xưởng OEM: Chọn sản phẩm, số lượng, % VAT, % CK, tự tính cọc 50%</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Nhận hàng thực tế: Cập nhật SL thực nhận, quyết toán tiền đợt 2, tự trừ tem/vỏ chai kho xưởng theo BOM</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Tự động cập nhật giá vốn thành phẩm sau khi nhận hàng OEM (tiền công ròng + tem + chai)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Dự báo dòng tiền chi theo 2 nguồn riêng biệt: 🏢 Quỹ Cty (Có VAT) vs 👤 Quỹ Cá Nhân (Ko VAT)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Tách biệt công nợ NCC theo nguồn tiền, ngăn cản cấn trừ nhầm quỹ thuế</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Sửa & Hủy đơn OEM: Sửa items/chiết khấu đơn Draft/Deposited, Hủy đơn tự động hoàn cọc vào sổ quỹ</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Tích hợp công nợ OEM vào Tổng nợ NCC & Danh sách nợ từng xưởng/nhà máy trên trang Dòng tiền</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-amber-600">
-                        <span class="task-done">Bộ dữ liệu Lucky Star: 4 mã nước lau sàn, 3 NVL tồn xưởng 5.000 cái & cấu hình BOM 18.000 đ</span>
-                    </label>
+<!-- ═══ B ═══ -->
+<div class="view" id="v-b">
+  <div class="box"><div class="bh"><span class="t">Hierarchical edge bundling</span><span class="d">dây bó thành cáp · hover node để rút 1 sợi</span></div>
+  <div class="bb" style="padding:2px"><svg id="bsvg" width="1000" height="660"></svg></div></div>
+  <div class="note">Dây đi theo đường bó như cáp mạng. Sợi cáp dày nhất đổ về <b>contacts</b>.</div>
+</div>
 
-                    <!-- Phân hệ Nhập Hàng & Bảng Giá -->
-                    <div class="font-bold text-emerald-700 bg-emerald-50 p-1.5 rounded mt-3">📥 Nhập Hàng (PO), Bảng Giá & Khách Hàng</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
-                        <span class="task-done">Quy trình PO 2 bước: Lập đơn chờ nhận → In phiếu kiểm tay → Xác nhận kiểm đếm thực nhận</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
-                        <span class="task-done">Bảng Giá Đa Cấp: Tạo bảng giá sỉ/lẻ, gán nhóm khách hàng, cài giá riêng từng SP + fallback giá lẻ</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
-                        <span class="task-done">Tách danh bạ Đối Tác: Khách Hàng (kèm Thú Cưng) vs Nhà Cung Cấp (theo dõi nợ riêng)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-emerald-600">
-                        <span class="task-done">Import / Export Excel danh mục Hàng Hóa, Nguyên Liệu, BOM, Khách Hàng & NCC</span>
-                    </label>
+<!-- ═══ C ═══ -->
+<div class="view" id="v-c">
+  <div class="box"><div class="bh"><span class="t">Sankey</span><span class="d">độ dày = số dòng code · hover để soi</span></div>
+  <div class="bb" style="padding:2px"><svg id="ssvg" width="1000" height="700"></svg></div></div>
+</div>
 
-                    <!-- Phân hệ Kho & In Ấn -->
-                    <div class="font-bold text-slate-700 bg-slate-100 p-1.5 rounded mt-3">📦 Phân Hệ Kho Hàng & Canvas In Ấn</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
-                        <span class="task-done">Tồn kho hợp nhất 435 mặt hàng, Điều chuyển nội bộ, Kiểm kê cân bằng tồn, Thẻ kho</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
-                        <span class="task-done">Lệnh Sản Xuất đa thành phẩm theo định mức BOM, tự tính tổng NVL và trừ kho đồng loạt</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
-                        <span class="task-done">Mẫu in A4 B2B đại lý 9 cột, 3 ô chân trang (Bank, VietQR động, Tổng kết), 3 chữ ký</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-slate-600">
-                        <span class="task-done">Canvas Designer: Kéo thả tự do, snap-to-grid 10px, snap gióng đỏ, deltaY đẩy chân trang tự động</span>
-                    </label>
+<!-- ═══ D ═══ -->
+<div class="view" id="v-d">
+  <div class="box"><div class="bh"><span class="t">Adjacency matrix</span><span class="d">không dây, không chồng chéo — đọc chính xác nhất</span></div>
+  <div class="bb"><table class="mx" id="mxt"></table></div></div>
+  <div class="note">Đọc theo <b>hàng</b> = router chạm bảng nào. Theo <b>cột</b> = bảng bị bao nhiêu module dùng. Cột đặc nhất là điểm nghẽn.</div>
+</div>
 
-                    <!-- Phân hệ Giao Diện Siêu Mượt (Smooth Folder Tab & Fluid UI Motion) -->
-                    <div class="font-bold text-sky-800 bg-sky-100/70 p-1.5 rounded mt-3">✨ Phân Hệ Giao Diện Siêu Mượt (Folder Tab & Fluid UI Motion)</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Thẻ tab active bo cong lõm ngược 20px (Inverted Curved Scoop), hòa liền 100% vào canvas nội dung</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Đồng bộ cho cả Menu thu nhỏ (5.5rem / 88px) với đường lượn cong 16px và vạch xanh accent</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar), triệt tiêu hoàn toàn thanh cuộn ngang</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Thanh tải tiến trình siêu mảnh (Top Slim Loader - Linear Style) phát sáng gradient chạy khi chuyển tab</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Thẻ dòng nổi độc lập (Floating Card-Row Flow) tăng tốc phần cứng GPU translate3d 60-120fps</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Giỏ hàng POS thành thẻ nổi độc lập bo góc mềm mại, cụm thanh toán gom thành 3 khối thẻ trắng</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Quy chuẩn phân trang 20 dòng/trang cho bảng Dịch vụ Spa, Hàng hóa kho, Hóa đơn bán hàng</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
-                        <span class="task-done">Đổi màu chữ trạng thái "Chưa mở ca" sang màu đỏ mận tương phản cao text-rose-600</span>
-                    </label>
+<!-- ═══ E ═══ -->
+<div class="view" id="v-e">
+  <div class="box"><div class="bh"><span class="t">Arc diagram</span><span class="d">1 hàng node · dây vòng cung · hover để soi</span></div>
+  <div class="bb" style="padding:2px"><svg id="esvg" width="1000" height="420"></svg></div></div>
+  <div class="note">Cung ngắn = quan hệ gần (module &amp; bảng cùng cụm). Cung dài bắc ngang cả sơ đồ = coupling xa, chỗ nên để ý.</div>
+</div>
 
-                    <!-- Kế hoạch đang triển khai (Checkpoint Backlog) -->
-                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Tiếp Theo (Checkpoint Backlog - Đã Lưu Để Làm Tiếp)</div>
-                    
-                    <!-- Nhóm 1: Nghiệp Vụ Spa & Dịch Vụ -->
-                    <div class="font-semibold text-sky-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">🐾 Phân Hệ Dịch Vụ Spa:</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng phần dịch vụ, cọc, tip hoặc nhiều hình thức)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Phiếu dịch vụ in dư dòng cắt nghệ thuật (xử lý dọn dòng trống chân trang & đường cắt giấy thẩm mỹ)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Thay chế độ bảng tính bằng tính năng "Chỉnh sửa hàng loạt" (Bulk Update) cập nhật nhanh nhiều phiếu spa</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Chỉnh sửa nhanh dạng Droplist Popup cho 3 cột: <b>Dịch Vụ</b>, <b>Lưu Ý & Yêu Cầu</b>, <b>Thợ Phụ Trách</b></span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Tab Spa chỉ hiển thị danh sách phiếu trong ngày hiện tại (mặc định hôm nay để tập trung xử lý)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Gom 4 nút lọc trạng thái dịch vụ rời rạc về chung 1 nút Dropdown gọn gàng</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Bổ sung chỉ số KPI trên header Spa: <b>Số lượng chưa gọi</b> và <b>Số lượng chưa về</b></span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Sửa lỗi sửa 1 ô bị tải lại cả trang dữ liệu (chuyển sang Optimistic Local Cell Update mượt mà)</span>
-                    </label>
+<!-- ═══ F ═══ -->
+<div class="view" id="v-f">
+  <div class="box"><div class="bh"><span class="t">Tree · elbow connector</span><span class="d">dây vuông góc kiểu sơ đồ mạch · click nhánh để mở/gập</span></div>
+  <div class="bb" style="padding:2px"><svg id="fsvg" width="1000" height="760"></svg></div></div>
+  <div class="note">Dạng này đọc <b>thứ bậc</b> tốt nhất: entry → router → bảng. Đổi lại bảng bị lặp ở nhiều nhánh (vì thật sự dùng chung).</div>
+</div>
 
-                    <!-- Nhóm 2: Hóa Đơn, Bảng Giá & Khách Hàng -->
-                    <div class="font-semibold text-emerald-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">💳 Hóa Đơn, Bảng Giá & Khách Hàng:</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Xây dựng logic tách riêng dòng tiền khách thanh toán Topup với dòng tiền bán hàng hóa</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Tab Hóa Đơn bổ sung thêm 1 sub-tab <b>Lịch Sử Spa</b> để tra cứu riêng bill dịch vụ</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Bảo mật số điện thoại khách hàng: mặc định ẩn dạng <code>**** *** ###</code>, chỉ rê chuột (hover) mới hiện</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Di chuyển cấu hình Bảng Gói Topup vào phân hệ Bảng Giá (`price-lists`) cho tập trung</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Khắc phục lỗi hiển thị layout trên mẫu hóa đơn in ấn và xem trước</span>
-                    </label>
-
-                    <!-- Nhóm 3: Khách Sạn Thú Cưng, Hệ Thống & AI -->
-                    <div class="font-semibold text-purple-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">🏨 Hotel Thú Cưng, Hệ Thống & AI:</div>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Thêm bảng và giao diện Quản Lý Hotel thú cưng (phòng/chuồng, check-in, check-out, lưu trú)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Thay đổi toàn bộ popup mặc định trình duyệt (`alert`, `confirm`, `prompt`) sang Toast / Modal chuẩn UI POS</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Bổ sung hệ thống phím tắt (Hotkeys: ESC đóng, Enter xác nhận, F-keys) cho các popup</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Chuẩn bị hạ tầng & API hooks cho các tính năng Trợ Lý AI (gợi ý dịch vụ, phân tích thông minh)</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Đóng gói file EXE hoàn chỉnh (PyInstaller qua `build_exe.bat`) và test máy độc lập</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-
-        <!-- Nhật Ký Commit -->
-        <div class="bg-white rounded-xl shadow-sm border p-5 space-y-3">
-            <h2 class="font-bold text-base text-slate-800 border-b pb-2 flex items-center gap-2">
-                <i class="fa-solid fa-code-commit text-indigo-500"></i> Nhật Ký Commit & Cập Nhật Gần Nhất
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">8fc6b74</span> Feature: Tab bo cong lõm ngược cả khi thu nhỏ + Thanh cuộn mép trái + Thanh load Top Slim chống giật</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">7a37c82</span> Feature: Triển khai Thẻ Tab Bo Cong Ngược (Inverted Curved Scoop) liền mạch 100% canvas</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">eba2735</span> Feature: Xóa đường line phân cách Sidebar, gom cụm thanh toán thành khối thẻ và phân trang 20 dòng Spa</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">c9fb1bb</span> Feature: Floating card-row flow tăng tốc GPU 3D transform chống giật</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">f040257</span> Feature: Folder tab liền mạch, skeleton shimmer loader và hiệu ứng thác nước</div>
-                <div class="p-2 border rounded bg-emerald-50"><span class="font-mono font-bold text-emerald-700">FIX-POS</span> Fix: Khôi phục điều hướng nút Sidebar trỏ trực tiếp về route chuyên dụng `/pos`, dẹp bỏ tab-pos phôi cũ</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">OEM-CF</span> Feature: Hoàn thiện Router OEM gia công, trừ tem chai kho xưởng và dự báo dòng tiền 2 quỹ Cty/Cá nhân</div>
-                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">PRICE-PETS</span> Feature: Bổ sung Bảng giá đa cấp, Phân nhóm KH, Hồ sơ Thú cưng và Import/Export Excel</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">e325689</span> Fix: Sửa lỗi tham số query kho hợp nhất & cập nhật kho</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">5ae1a4a</span> Feature: CRUD sản phẩm & nguyên liệu, modal xuất hủy kho, combo BOM</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">146af24</span> Fix: Kho hợp nhất hiển thị đầy đủ 435 mặt hàng và nhà cung cấp</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">9408b8d</span> Feature: Bổ sung cột nhà cung cấp cho sản phẩm, nguyên liệu và kho hợp nhất</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">467e7f7</span> Feature: Fuzzy search + PO chờ nhận + Lệnh SX đa thành phẩm BOM</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">a4c92e1</span> Feature: Quản lý kho đa kho trọn gói + Tinh gọn sidebar sub-tabs</div>
-                <div class="p-2 border rounded bg-slate-50"><span class="font-mono font-bold text-indigo-600">fe2b8a1</span> Feature: Mẫu A4 B2B 9 cột + Quản lý Presets + Bật/Tắt 3 phân vùng</div>
-            </div>
-        </div>
+<!-- ═══ G ═══ -->
+<div class="view" id="v-g">
+  <div class="kpis">
+    <div class="kpi"><div class="l">Task hoàn thành</div><div class="v">19<s>/21</s></div><div class="track"><i style="width:90.5%"></i></div><div class="d">90,5% · còn 2 việc</div></div>
+    <div class="kpi"><div class="l">Dòng code</div><div class="v">38,7<s>k</s></div><div class="track"><i style="width:66.4%"></i></div><div class="d">FE 25.689 · BE 12.034 · Test 2.956</div></div>
+    <div class="kpi"><div class="l">Router có test</div><div class="v">9<s>/17</s></div><div class="track"><i style="width:52.9%"></i></div><div class="d">8 router chưa phủ test</div></div>
+    <div class="kpi"><div class="l">Plan không rõ</div><div class="v">9<s>/23</s></div><div class="track"><i style="width:39%"></i></div><div class="d">nhóm print / template builder</div></div>
+  </div>
+  <div class="g2">
+    <div class="stack">
+      <div><div class="sec">Tiến độ theo phân hệ</div><div class="box"><table id="t-phase"></table></div></div>
+<div><div class="sec">Checklist Backlog Đang Chờ Triển Khai · 17 task</div><div class="box" style="max-height:480px;overflow:auto"><table>
+<thead><tr><th>Trạng thái</th><th>Nhiệm vụ</th><th>Phân hệ</th></tr></thead>
+<tbody>
+  <!-- Spa -->
+  <tr><td><span class="st n">☐</span></td><td><b>Tạo phiếu dịch vụ tách tiền</b> (tách bill thanh toán riêng phần tiền dịch vụ, cọc, tip)</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Phiếu dịch vụ in dư dòng cắt nghệ thuật</b> (dọn khoảng cách dòng cắt giấy thẩm mỹ)</td><td><span class="tag">PRINT</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Chỉnh sửa hàng loạt (Bulk Update)</b> thay thế bảng tính inline cho phiếu Spa</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Droplist Popup</b> cho 3 cột: Dịch Vụ, Lưu Ý &amp; Yêu Cầu, Thợ Phụ Trách</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Tab Spa chỉ hiện spa trong ngày</b> hôm nay (mặc định)</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Gom 4 nút lọc trạng thái dịch vụ về 1 nút</b> (Dropdown phân loại)</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Thêm hiển thị KPI: Chưa gọi đón &amp; Chưa về</b> trên header Spa</td><td><span class="tag">SPA</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Sửa lỗi giật tải lại trang khi sửa 1 ô</b> (chuyển sang Optimistic Local Update)</td><td><span class="tag">FE BUG</span></td></tr>
+  <!-- Hóa đơn & Bảng giá -->
+  <tr><td><span class="st n">☐</span></td><td><b>Logic tách khách thanh toán topup với hàng hóa</b> (dòng tiền ví độc lập)</td><td><span class="tag">CASH</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa</b> tra cứu riêng</td><td><span class="tag">INVOICE</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Bảo mật số điện thoại</b> (ẩn dạng **** *** ###, rê chuột mới hiện)</td><td><span class="tag">SECURITY</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Di chuyển bảng gói Topup vào Bảng Giá</b> (price-lists)</td><td><span class="tag">PRICING</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Sửa lỗi hiển thị mẫu hóa đơn</b> preview &amp; in ấn</td><td><span class="tag">PRINT</span></td></tr>
+  <!-- Khách sạn, Hệ thống & AI -->
+  <tr><td><span class="st n">☐</span></td><td><b>Bảng Quản Lý Hotel (Khách Sạn Chó Mèo)</b> thiết kế schema &amp; layout</td><td><span class="tag">HOTEL</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Thay đổi popup mặc định trình duyệt</b> (alert/confirm) thành Toast &amp; Modal</td><td><span class="tag">UI/UX</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Thêm phím tắt cho popup</b> (ESC đóng, Enter xác nhận, hotkeys)</td><td><span class="tag">HOTKEYS</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Chuẩn bị kiến trúc schema &amp; hook cho chức năng AI</b></td><td><span class="tag">AI</span></td></tr>
+  <tr><td><span class="st n">☐</span></td><td><b>Đóng gói EXE</b> — <code>build_exe.bat</code> + test trên máy độc lập</td><td><span class="tag">BUILD</span></td></tr>
+</tbody></table></div></div>
+      <div><div class="sec">Độ phủ test theo router</div><div class="box"><table id="t-cov"></table></div></div>
     </div>
+    <div class="stack">
+      <div><div class="sec">Khối lượng code · top 14</div><div class="box"><table id="t-loc"></table></div></div>
+      <div><div class="sec">Plans · 23 file</div><div class="box" style="max-height:388px;overflow:auto"><table id="t-plan"></table></div></div>
+    </div>
+  </div>
+  <div class="note warn">
+    <b>Rủi ro từ số liệu thật:</b> frontend <b>25.689</b> dòng = <b>2,1×</b> backend. <code>templates/index.html</code> 8.085 + <code>modules/productions.js</code> 5.023 + <code>modules/spa.js</code> 4.035 = <b>67%</b> frontend gói trong 3 file.<br>
+    <b>8 router trắng test:</b> bom, combos, inventory, oem, partners, production, purchases, settings — trong đó <code>inventory.py</code> (1.291d) và <code>partners.py</code> (1.262d) là 2 router nặng nhất.<br>
+    <b>4 file <code>test_*.py</code> ở root</b> ngoài <code>tests/</code> — pytest dễ bỏ sót.
+  </div>
+</div>
+</div>
 
-    <script>
-        function toggleTask(checkbox) {
-            const span = checkbox.nextElementSibling;
-            if (checkbox.checked) {
-                span.classList.add('task-done');
-            } else {
-                span.classList.remove('task-done');
-            }
-        }
+<script>
+/* ═══ DATA — quét thật ═══ */
+const R=[["auth",185,["login_attempts"]],["shifts",200,["cashbook","orders","payment_accounts"]],["topup",208,["cashbook","contacts"]],["categories",219,["pet_service_categories","pet_service_pricing"]],["production",248,["bom","ingredients","inventory"]],["cashbook",268,["cashbook","contacts"]],["settings",268,["activity_log","contacts"]],["price_lists",361,["contacts","customer_segments"]],["combos",431,["combos","combo_items","cashbook","contacts"]],["bom",447,["bom","ingredients"]],["products",571,["contacts","ingredients","inventory"]],["pos",579,["cashbook","combos","combo_items","contacts"]],["promotions",588,["contacts","customer_segments"]],["purchases",864,["cashbook","contacts"]],["oem",1035,["cashbook","contacts"]],["partners",1262,["cashbook","contacts","customer_segments"]],["inventory",1291,["contacts","inventory"]]];
+const CORE=[["database.py",1168],["schemas.py",405],["backup_service.py",94],["activity_logger.py",79],["dependencies.py",72],["logger_config.py",35]];
+const PHASE=[["A · Bán hàng &amp; Thu ngân",7,7],["B · OEM &amp; Dòng tiền đa quỹ",5,5],["C · Nhập hàng, Bảng giá, Đối tác",4,4],["D · Kho hàng &amp; Mẫu in",3,5]];
+const LOC=[["templates/index.html",8085,"FE"],["modules/productions.js",5023,"FE"],["modules/spa.js",4035,"FE"],["js/pos.js",2698,"FE"],["js/app.js",2152,"FE"],["routers/inventory.py",1291,"BE"],["routers/partners.py",1262,"BE"],["database.py",1168,"BE"],["modules/purchases.js",1056,"FE"],["routers/oem.py",1035,"BE"],["routers/purchases.py",864,"BE"],["js/shifts.js",711,"FE"],["routers/promotions.py",588,"BE"],["routers/pos.py",579,"BE"]];
+const COV=[["auth","test_auth"],["cashbook","test_cashbook_api"],["categories","test_categories_api · test_pet_pricing_×2"],["pos","test_k80_discount"],["price_lists","test_best_offer_pricing"],["products","test_product_category_and_bulk_pricing"],["promotions","test_promotion_ui"],["shifts","test_shift_close · test_payment_accounts_db"],["topup","test_points_and_tier_upgrade · test_loyalty_×2"]];
+const NOCOV=["bom","combos","inventory","oem","partners","production","purchases","settings"];
+const PLAN=[["2026-09-20-auth-rbac-shift",667,1],["bảng_giá_và_phân_loại_kh",140,1],["oem-manufacturing-and-cashflow-design",90,1],["spa-staff-and-call-status",72,1],["native-pos-spa-integration-plan",72,1],["pet-spa-services-pricing-design",71,1],["native-pos-spa-integration-design",69,1],["pet-spa-kanban-calendar-print-design",66,1],["oem-manufacturing-and-cashflow-plan",52,1],["purchasing-pricing-pets-plan",51,1],["visual_builder",51,0],["vat-fund-debt-separation-design",49,1],["pet-spa-services-pricing-plan",37,1],["canvas_drag_drop",31,0],["multi_paper_templates",26,0],["company_and_qr",25,0],["zone_flow_layout",24,0],["pos_print",22,0],["resize_and_zones",19,0],["pet-spa-kanban-calendar-print-plan",18,1],["a4_b2b_template",14,0],["dynamic_table_expansion",14,0],["contacts-split-pet-services-oem",14,1]];
 
-        function exportMarkdown() {
-            let md = "# ⚡ BẢN ĐỒ DỰ ÁN: POS OFFLINE PORTABLE (WINDOWS)\n\n";
-            md += "Ngày xuất: " + new Date().toLocaleString('vi-VN') + "\n\n";
-            md += "## Danh Sách Tính Năng & Trạng Thái:\n\n";
+const cnt={};R.forEach(([,,t])=>t.forEach(x=>cnt[x]=(cnt[x]||0)+1));
+const TBL=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
+const acc=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#5e9eff';
 
-            document.querySelectorAll('#task-list > div, #task-list > label').forEach(el => {
-                if (el.tagName === 'DIV') {
-                    md += "\n### " + el.innerText.trim() + "\n";
-                } else if (el.tagName === 'LABEL') {
-                    const cb = el.querySelector('input[type=\"checkbox\"]');
-                    const text = el.querySelector('span').innerText.trim();
-                    md += `- [${cb.checked ? 'x' : ' '}] ${text}\n`;
-                }
-            });
+/* ═══ A lane ═══ */
+const mods=document.getElementById('mods'),tbls=document.getElementById('tbls'),cores=document.getElementById('cores');
+R.slice().sort((a,b)=>a[1]-b[1]).forEach(([n,l,t])=>{const e=document.createElement('span');
+  e.className='chip mod';e.dataset.k=n;e.dataset.t=t.join('|');
+  e.innerHTML=`${n}<span class="n">${l}</span>`;mods.appendChild(e);});
+CORE.forEach(([n,l])=>{const e=document.createElement('span');e.className='chip';
+  e.innerHTML=`${n}<span class="n">${l}</span>`;cores.appendChild(e);});
+TBL.forEach(t=>{const e=document.createElement('span');e.className='chip tbl'+(cnt[t]>=4?' hub':'');
+  e.dataset.n=t;e.innerHTML=`${t}<span class="n">×${cnt[t]}</span>`;tbls.appendChild(e);});
+const stage=document.getElementById('stage'),wires=document.getElementById('wires');
+function draw(){const sb=stage.getBoundingClientRect();
+  wires.setAttribute('width',sb.width);wires.setAttribute('height',sb.height);
+  wires.setAttribute('viewBox',`0 0 ${sb.width} ${sb.height}`);let h='';
+  mods.querySelectorAll('.mod').forEach(m=>{const a=m.getBoundingClientRect(),
+    x1=a.left-sb.left+a.width/2,y1=a.bottom-sb.top;
+    m.dataset.t.split('|').forEach(tn=>{const t=tbls.querySelector(`[data-n="${tn}"]`);if(!t)return;
+      const b=t.getBoundingClientRect(),x2=b.left-sb.left+b.width/2,y2=b.top-sb.top,my=(y1+y2)/2;
+      h+=`<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" data-k="${m.dataset.k}"/>`;});});
+  wires.innerHTML=h;}
+let cur=null;
+mods.addEventListener('click',ev=>{const c=ev.target.closest('.mod');if(!c)return;
+  const same=cur===c;cur=same?null:c;
+  mods.querySelectorAll('.mod').forEach(m=>m.classList.toggle('on',!same&&m===c));
+  const set=same?null:new Set(c.dataset.t.split('|'));
+  tbls.querySelectorAll('.tbl').forEach(t=>{t.classList.toggle('on',!!set&&set.has(t.dataset.n));
+    t.classList.toggle('dim',!!set&&!set.has(t.dataset.n));});
+  wires.querySelectorAll('path').forEach(p=>{const hot=!same&&p.dataset.k===c.dataset.k;
+    p.classList.toggle('hot',hot);p.classList.toggle('cold',!same&&!hot);});
+  document.getElementById('hint').textContent=same?'bấm 1 router để tách dây'
+    :`${c.dataset.k}.py → ${c.dataset.t.split('|').length} bảng`;});
 
-            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'PROJECT_MAP_EXPORT.md';
-            link.click();
-        }
-    </script>
+/* ═══ B bundling ═══ */
+function bundle(){
+  const W=1000,H=660,cx=W/2,cy=H/2,Rr=250,Rt=118,β=.88;
+  const rp={},tp={};
+  R.forEach(([n],i)=>{const a=-Math.PI/2+i/R.length*2*Math.PI;rp[n]={x:cx+Rr*Math.cos(a),y:cy+Rr*Math.sin(a),a};});
+  TBL.forEach((t,i)=>{const a=-Math.PI/2+i/TBL.length*2*Math.PI;tp[t]={x:cx+Rt*Math.cos(a),y:cy+Rt*Math.sin(a),a};});
+  const pol=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
+  let e='';
+  R.forEach(([n,,ts])=>ts.forEach(t=>{
+    const A=rp[n],B=tp[t];
+    // bó: đi vào theo bán kính, men theo cung, rồi bung ra
+    const [ax,ay]=pol(Rr*.72,A.a),[bx,by]=pol(Rt*1.5,B.a);
+    const [mx,my]=pol(Rt*.42,(A.a+B.a)/2 + (Math.abs(A.a-B.a)>Math.PI?Math.PI:0));
+    e+=`<path class="ed" data-k="${n}" data-t="${t}" fill="none" stroke="currentColor" stroke-opacity=".13" stroke-width="1" stroke-linecap="round"
+      d="M${A.x},${A.y} C${ax},${ay} ${mx},${my} ${mx},${my} S${bx},${by} ${B.x},${B.y}"/>`;}));
+  let nd=`<circle cx="${cx}" cy="${cy}" r="${Rt}" fill="none" stroke="currentColor" stroke-opacity=".05" stroke-dasharray="1 5"/>`
+   +`<circle cx="${cx}" cy="${cy}" r="${Rr}" fill="none" stroke="currentColor" stroke-opacity=".05" stroke-dasharray="1 5"/>`;
+  TBL.forEach(t=>{const p=tp[t],r=3.5+cnt[t]*1.2;
+    nd+=`<g class="nt" data-t="${t}"><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${acc}"/>`
+     +`<text x="${p.x}" y="${p.y-r-6}" font-size="9.5" text-anchor="middle" opacity=".78">${t}</text></g>`;});
+  R.forEach(([n,l])=>{const p=rp[n],r=2.8+Math.sqrt(l)/8,s=Math.cos(p.a)>=0;
+    nd+=`<g class="nr" data-k="${n}"><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".75"/>`
+     +`<text x="${p.x+(s?r+6:-r-6)}" y="${p.y+3.5}" font-size="10.5" text-anchor="${s?'start':'end'}">${n}<tspan opacity=".38" font-size="9"> ${l}</tspan></text></g>`;});
+  const sv=document.getElementById('bsvg');sv.innerHTML=e+nd;
+  const eds=[...sv.querySelectorAll('.ed')];
+  const set=f=>eds.forEach(p=>{const on=f&&f(p);p.setAttribute('stroke',on?acc:'currentColor');
+    p.setAttribute('stroke-opacity',f?(on?'.95':'.028'):'.13');p.setAttribute('stroke-width',on?'1.8':'1');});
+  sv.querySelectorAll('.nr,.nt').forEach(g=>{g.style.cursor='pointer';
+    g.onmouseenter=()=>set(p=>g.dataset.k?p.dataset.k===g.dataset.k:p.dataset.t===g.dataset.t);
+    g.onmouseleave=()=>set(null);});
+}
+
+/* ═══ C sankey ═══ */
+function sankey(){
+  const TOP=18,LX=215,RX=665,BW=9,tot=R.reduce((s,[,l])=>s+l,0);
+  const sc=(636-TOP-6*(R.length-1))/tot,Rs=R.slice().sort((a,b)=>b[1]-a[1]);
+  let y=TOP,LP={},out='';
+  Rs.forEach(([n,l,ts])=>{const h=Math.max(3.5,l*sc);LP[n]={y,h,n:ts.length};
+    out+=`<rect x="${LX}" y="${y}" width="${BW}" height="${h}" fill="currentColor" fill-opacity=".3" rx="2"/>`
+      +`<text x="${LX-8}" y="${y+h/2+3.5}" font-size="10.5" text-anchor="end">${n}<tspan opacity=".38" font-size="9"> ${l}</tspan></text>`;y+=h+6;});
+  const rIn={};TBL.forEach(t=>rIn[t]=0);
+  R.forEach(([n,l,ts])=>ts.forEach(t=>rIn[t]+=l/ts.length));
+  let ry=TOP,RP={};
+  TBL.slice().sort((a,b)=>rIn[b]-rIn[a]).forEach(t=>{const h=Math.max(3.5,rIn[t]*sc);RP[t]={cur:ry};
+    out+=`<rect x="${RX}" y="${ry}" width="${BW}" height="${h}" fill="${acc}" fill-opacity=".6" rx="2"/>`
+      +`<text x="${RX+BW+8}" y="${ry+h/2+3.5}" font-size="10.5">${t}<tspan opacity=".38" font-size="9"> ×${cnt[t]}</tspan></text>`;ry+=h+7;});
+  let bands='';
+  Rs.forEach(([n,l,ts])=>{const L=LP[n];let ly=L.y;
+    ts.forEach(t=>{const bh=L.h/L.n,Rt=RP[t],rh=(l/ts.length)*sc,x1=LX+BW,x2=RX,mx=(x1+x2)/2;
+      bands+=`<path data-k="${n}" d="M${x1},${ly} C${mx},${ly} ${mx},${Rt.cur} ${x2},${Rt.cur} L${x2},${Rt.cur+rh} C${mx},${Rt.cur+rh} ${mx},${ly+bh} ${x1},${ly+bh} Z" fill="currentColor" fill-opacity=".08"/>`;
+      Rt.cur+=rh;ly+=bh;});});
+  const sv=document.getElementById('ssvg');sv.setAttribute('height',Math.max(ry,y)+16);sv.innerHTML=bands+out;
+  const bs=[...sv.querySelectorAll('path')];
+  bs.forEach(p=>{p.style.cursor='pointer';p.style.transition='fill-opacity .16s';
+    p.onmouseenter=()=>bs.forEach(q=>{const on=q.dataset.k===p.dataset.k;
+      q.setAttribute('fill',on?acc:'currentColor');q.setAttribute('fill-opacity',on?'.42':'.022');});
+    p.onmouseleave=()=>bs.forEach(q=>{q.setAttribute('fill','currentColor');q.setAttribute('fill-opacity','.08');});});
+}
+
+/* ═══ D matrix ═══ */
+function matrix(){
+  const Rs=R.slice().sort((a,b)=>b[1]-a[1]);
+  let h='<thead><tr><th style="border:0"></th>'+TBL.map(t=>`<th class="rot"><div>${t}</div></th>`).join('')
+    +'<th style="border:0"></th></tr></thead><tbody>';
+  Rs.forEach(([n,l,ts])=>{const s=new Set(ts);
+    h+=`<tr><td class="rn">${n}<s>${l}</s></td>`+TBL.map(t=>`<td class="c${s.has(t)?' on':''}"></td>`).join('')
+      +`<td class="rn" style="padding-left:8px;color:var(--m);font-size:9.5px">${ts.length}</td></tr>`;});
+  h+=`<tr><td style="border:0"></td>`+TBL.map(t=>`<td class="tot">${cnt[t]}</td>`).join('')+'<td></td></tr></tbody>';
+  document.getElementById('mxt').innerHTML=h;
+}
+
+/* ═══ E arc ═══ */
+function arc(){
+  const W=1000,H=420,BASE=300,PAD=26;
+  // xen kẽ: bảng ở giữa cụm router dùng nó nhiều nhất → giảm cung dài
+  const order=[];const used=new Set();
+  R.slice().sort((a,b)=>b[1]-a[1]).forEach(([n,,ts])=>{order.push({k:'r',n});
+    ts.forEach(t=>{if(!used.has(t)){used.add(t);order.push({k:'t',n:t});}});});
+  const step=(W-PAD*2)/(order.length-1),P={};
+  order.forEach((o,i)=>P[o.k+':'+o.n]={x:PAD+i*step,o});
+  let e='';
+  R.forEach(([n,,ts])=>ts.forEach(t=>{const A=P['r:'+n].x,B=P['t:'+t].x,d=Math.abs(B-A);
+    const hh=Math.min(d*.52,190);
+    e+=`<path class="ed" data-k="${n}" data-t="${t}" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="1" stroke-linecap="round"
+      d="M${A},${BASE} C${A},${BASE-hh} ${B},${BASE-hh} ${B},${BASE}"/>`;}));
+  let nd=`<line x1="${PAD-8}" y1="${BASE}" x2="${W-PAD+8}" y2="${BASE}" stroke="currentColor" stroke-opacity=".08"/>`;
+  order.forEach(o=>{const x=P[o.k+':'+o.n].x,isT=o.k==='t';
+    const r=isT?3.2+cnt[o.n]*1:2.6;
+    nd+=`<g class="${isT?'nt':'nr'}" data-${isT?'t':'k'}="${o.n}" style="cursor:pointer">`
+     +`<circle cx="${x}" cy="${BASE}" r="${r}" ${isT?`fill="${acc}"`:'fill="none" stroke="currentColor" stroke-width="1.3" opacity=".75"'}/>`
+     +`<g transform="translate(${x},${BASE+9}) rotate(48)"><text font-size="${isT?10:10.5}" ${isT?`fill="${acc}" opacity=".95"`:'opacity=".85"'}>${o.n}</text></g></g>`;});
+  const sv=document.getElementById('esvg');sv.innerHTML=e+nd;
+  const eds=[...sv.querySelectorAll('.ed')];
+  const set=f=>eds.forEach(p=>{const on=f&&f(p);p.setAttribute('stroke',on?acc:'currentColor');
+    p.setAttribute('stroke-opacity',f?(on?'.95':'.03'):'.14');p.setAttribute('stroke-width',on?'1.8':'1');});
+  sv.querySelectorAll('.nr,.nt').forEach(g=>{
+    g.onmouseenter=()=>set(p=>g.dataset.k?p.dataset.k===g.dataset.k:p.dataset.t===g.dataset.t);
+    g.onmouseleave=()=>set(null);});
+}
+
+/* ═══ F tree elbow ═══ */
+function tree(){
+  const X0=26,X1=132,X2=430,W=1000;
+  const Rs=R.slice().sort((a,b)=>b[1]-a[1]);
+  let y=26,rows=[],lines='',nodes='';
+  Rs.forEach(([n,l,ts])=>{
+    const ry=y,cs=ts.map(t=>{const cy=y;y+=21;return{t,cy};});
+    const my=(cs[0].cy+cs[cs.length-1].cy)/2;rows.push({n,l,my,cs});y+=9;});
+  const H=y+10;
+  const spine=26+8;
+  // entry → router
+  const first=rows[0].my,last=rows[rows.length-1].my;
+  lines+=`<path d="M${X0+6},${(first+last)/2} H${X0+22} V${first} M${X0+22},${last} V${(first+last)/2}" fill="none" stroke="currentColor" stroke-opacity=".14"/>`;
+  rows.forEach(r=>{
+    lines+=`<path d="M${X0+22},${r.my} H${X1-8}" fill="none" stroke="currentColor" stroke-opacity=".14"/>`;
+    nodes+=`<circle cx="${X0+22}" cy="${r.my}" r="2" fill="currentColor" opacity=".3"/>`;
+    nodes+=`<text x="${X1}" y="${r.my+3.5}" font-size="11">${r.n}<tspan opacity=".38" font-size="9"> ${r.l}</tspan></text>`;
+    const bx=X1+112;
+    r.cs.forEach(c=>{
+      lines+=`<path class="br" data-k="${r.n}" d="M${bx},${r.my} C${bx+34},${r.my} ${X2-42},${c.cy} ${X2-8},${c.cy}" fill="none" stroke="currentColor" stroke-opacity=".16" stroke-width="1"/>`;
+      nodes+=`<g><rect x="${X2}" y="${c.cy-8}" width="${c.t.length*6.4+16}" height="16" rx="4" fill="${acc}" fill-opacity="${cnt[c.t]>=4?.22:.1}" stroke="${acc}" stroke-opacity="${cnt[c.t]>=4?.55:.25}"/>`
+       +`<text x="${X2+8}" y="${c.cy+3.5}" font-size="10">${c.t}<tspan opacity=".45" font-size="8.5"> ×${cnt[c.t]}</tspan></text></g>`;});
+  });
+  nodes=`<rect x="${X0-8}" y="${(first+last)/2-9}" width="46" height="18" rx="4" fill="none" stroke="currentColor" stroke-opacity=".3"/>`
+   +`<text x="${X0-1}" y="${(first+last)/2+3.5}" font-size="10">server</text>`+nodes;
+  const sv=document.getElementById('fsvg');sv.setAttribute('height',H);sv.innerHTML=lines+nodes;
+  const brs=[...sv.querySelectorAll('.br')];
+  brs.forEach(p=>{p.style.cursor='pointer';p.style.transition='stroke-opacity .16s';
+    p.onmouseenter=()=>brs.forEach(q=>{const on=q.dataset.k===p.dataset.k;
+      q.setAttribute('stroke',on?acc:'currentColor');q.setAttribute('stroke-opacity',on?'.95':'.04');
+      q.setAttribute('stroke-width',on?'1.7':'1');});
+    p.onmouseleave=()=>brs.forEach(q=>{q.setAttribute('stroke','currentColor');
+      q.setAttribute('stroke-opacity','.16');q.setAttribute('stroke-width','1');});});
+}
+
+/* ═══ G tables ═══ */
+const B=p=>`<div class="mini"><i style="width:${p}%"></i></div>`;
+document.getElementById('t-phase').innerHTML='<thead><tr><th>Phân hệ</th><th style="width:44px">Xong</th><th style="width:92px"></th></tr></thead><tbody>'
+ +PHASE.map(([n,d,t])=>`<tr${d===t?'':' class="off"'}><td><span class="st ${d===t?'y':'n'}">${d===t?'✓':'·'}</span> ${n}</td><td class="mono">${d}/${t}</td><td>${B(d/t*100)}</td></tr>`).join('')+'</tbody>';
+document.getElementById('t-cov').innerHTML='<tbody>'
+ +COV.map(([m,f])=>`<tr><td style="width:24px"><span class="st y">✓</span></td><td class="mono" style="width:82px">${m}.py</td><td class="mono" style="color:var(--m);font-size:10px">${f}</td></tr>`).join('')
+ +NOCOV.map(m=>`<tr class="off"><td><span class="st n">·</span></td><td class="mono">${m}.py</td><td class="mono" style="font-size:10px;opacity:.6">chưa có test</td></tr>`).join('')+'</tbody>';
+const mx=LOC[0][1];
+document.getElementById('t-loc').innerHTML='<thead><tr><th>File</th><th style="width:28px"></th><th style="width:46px">Dòng</th><th style="width:66px"></th></tr></thead><tbody>'
+ +LOC.map(([f,l,k])=>`<tr><td class="mono">${f}</td><td><span class="tag ${k==='BE'?'be':''}">${k}</span></td><td class="mono">${l.toLocaleString('vi')}</td><td>${B(l/mx*100)}</td></tr>`).join('')+'</tbody>';
+document.getElementById('t-plan').innerHTML='<thead><tr><th style="width:24px"></th><th>Plan</th><th style="width:36px">Dòng</th></tr></thead><tbody>'
+ +PLAN.map(([n,l,t])=>`<tr${t?'':' class="off"'}><td><span class="st ${t?'y':'n'}">${t?'✓':'?'}</span></td><td class="mono" style="font-size:10.5px">${n}</td><td class="mono">${l}</td></tr>`).join('')+'</tbody>';
+
+/* ═══ nav ═══ */
+const built={};
+const BUILD={b:bundle,c:sankey,d:matrix,e:arc,f:tree};
+const nav=document.getElementById('nav');
+nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  const v=b.dataset.v;
+  nav.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
+  requestAnimationFrame(()=>{if(v==='a')draw();else if(BUILD[v]&&!built[v]){BUILD[v]();built[v]=1;}});
+});
+requestAnimationFrame(draw);
+addEventListener('resize',()=>{if(document.getElementById('v-a').classList.contains('on'))draw();});
+
+function exportMarkdown() {
+  const md = `# BẢN ĐỒ KIẾN TRÚC & TIẾN ĐỘ DỰ ÁN POS-OFFLINE-PETCARE2
+Cập nhật: 2026-09-26 | Checkpoint: checkpoint-20260926-ui-scoop
+
+## 1. THÔNG SỐ KIẾN TRÚC TỔNG QUAN
+- **Kiến trúc:** FastAPI Backend (17 Routers) + SQLite (12 Bảng) + Vanilla JS / Tailwind Frontend (38.679 dòng code)
+- **Tầng Entry:** main.py, server.py, chay_ngay.bat, build_exe.bat
+- **Core:** database.py, schemas.py, backup_service.py, activity_logger.py
+
+## 2. CHECKLIST BACKLOG ĐANG CHỜ TRIỂN KHAI (18 TASKS)
+### A. Phân Hệ Dịch Vụ Spa:
+- [ ] Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng phần tiền dịch vụ, cọc, tip)
+- [ ] Phiếu dịch vụ in dư dòng cắt nghệ thuật (dọn khoảng cách dòng cắt giấy thẩm mỹ)
+- [ ] Chỉnh sửa hàng loạt (Bulk Update) thay thế bảng tính inline cho phiếu Spa
+- [ ] Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách
+- [ ] Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định)
+- [ ] Gom 4 nút lọc trạng thái dịch vụ về 1 nút (Dropdown phân loại)
+- [ ] Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa
+- [ ] Sửa lỗi giật tải lại trang khi sửa 1 ô (chuyển sang Optimistic Local Update)
+
+### B. Hóa Đơn, Bảng Giá & Khách Hàng:
+- [ ] Logic tách khách thanh toán topup với hàng hóa (dòng tiền ví độc lập)
+- [ ] Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa tra cứu riêng
+- [ ] Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)
+- [ ] Di chuyển bảng gói Topup vào Bảng Giá (price-lists)
+- [ ] Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn
+
+### C. Khách Sạn Thú Cưng, Hệ Thống, AI & Đóng Gói:
+- [ ] Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout
+- [ ] Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal
+- [ ] Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)
+- [ ] Chuẩn bị kiến trúc schema & hook cho chức năng AI
+- [ ] Đóng gói EXE — build_exe.bat + test trên máy độc lập
+
+## 3. CHECKPOINT ĐÃ HOÀN THÀNH
+- [x] Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch 100% với canvas nội dung
+- [x] Đồng bộ bo cong lõm ngược cho Menu Thu Nhỏ (Collapsed Sidebar 5.5rem)
+- [x] Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar), triệt tiêu thanh cuộn ngang
+- [x] Top Slim Progress Bar (Linear/Next.js style) phát sáng gradient chạy khi chuyển tab
+- [x] Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc phần cứng GPU translate3d
+- [x] Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom thành 3 khối thẻ trắng nổi
+- [x] Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Hàng hóa kho, Hóa đơn
+- [x] Đổi màu chữ trạng thái "Chưa mở ca" sang đỏ mận text-rose-600
+`;
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'PROJECT_MAP_CHECKPOINT_2026-09-26.md';
+  a.click();
+}
+</script>
 </body>
 </html>
