@@ -163,18 +163,50 @@
             transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, padding 0.28s cubic-bezier(0.4, 0, 0.2, 1), margin 0.2s ease;
             position: relative;
         }
-        /* Seamless Folder Tab Effect */
+        /* Seamless Folder Tab Effect - Mẫu 1: Inverted Curved Scoop */
         .tab-btn.active-tab {
             background-color: #f1f5f9 !important; /* bg-slate-100: trùng 100% màu nền vùng nội dung */
             color: #0284c7 !important; /* sky-600 */
             font-weight: 700 !important;
-            border-radius: 0.75rem 0 0 0.75rem !important; /* Mép phải phẳng hoàn toàn để tràn nối liền sang nội dung */
+            border-top-left-radius: 1rem !important;
+            border-bottom-left-radius: 1rem !important;
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
             margin-right: 0 !important; /* Liền mạch sang nội dung không còn line ngăn cách */
             padding-right: 1.25rem !important;
             border-left: 4px solid #0284c7 !important; /* Accent vạch xanh nổi bật */
             border-right: none !important;
             box-shadow: none !important;
             z-index: 40 !important;
+            position: relative;
+        }
+        /* ĐƯỜNG CONG LÕM TRÊN (Top Scoop) */
+        .tab-btn.active-tab::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background-color: transparent;
+            border-bottom-right-radius: 20px;
+            box-shadow: 6px 6px 0 6px #f1f5f9;
+            pointer-events: none;
+            z-index: 40;
+        }
+        /* ĐƯỜNG CONG LÕM DƯỚI (Bottom Scoop) */
+        .tab-btn.active-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background-color: transparent;
+            border-top-right-radius: 20px;
+            box-shadow: 6px -6px 0 6px #f1f5f9;
+            pointer-events: none;
+            z-index: 40;
         }
         .tab-btn.active-tab .sidebar-icon {
             background-color: #e0f2fe !important; /* sky-100 */
@@ -190,6 +222,10 @@
             padding-right: 0.25rem !important;
             border-left: none !important;
             background-color: #e0f2fe !important;
+        }
+        #main-sidebar.collapsed .tab-btn.active-tab::before,
+        #main-sidebar.collapsed .tab-btn.active-tab::after {
+            display: none !important;
         }
         #main-sidebar.collapsed .tab-btn.active-tab .sidebar-icon {
             background-color: #0284c7 !important;
@@ -506,8 +542,8 @@
                         ◀
                     </button>
                 </div>
-                <!-- Navigation Tabs (Flat UI) -->
-                <nav class="pl-2 py-2 pr-0 space-y-1 overflow-y-auto overflow-x-visible flex-1">
+                <!-- Navigation Tabs (Flat UI - Inverted Curved Scoop) -->
+                <nav class="pl-2.5 pt-5 pb-5 pr-0 space-y-1 overflow-y-auto overflow-x-visible flex-1">
                     <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold mb-1 transition active-tab cursor-pointer" data-tab="pos" data-role="cashier,owner" data-tooltip="Bán Hàng (POS)">
                         <span class="flex items-center gap-2.5 min-w-0">
                             <span class="sidebar-icon">🛒</span>
