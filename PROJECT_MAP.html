@@ -186,6 +186,41 @@
                         <span class="task-done">Canvas Designer: Kéo thả tự do, snap-to-grid 10px, snap gióng đỏ, deltaY đẩy chân trang tự động</span>
                     </label>
 
+                    <!-- Phân hệ Giao Diện Siêu Mượt (Smooth Folder Tab & Fluid UI Motion) -->
+                    <div class="font-bold text-sky-800 bg-sky-100/70 p-1.5 rounded mt-3">✨ Phân Hệ Giao Diện Siêu Mượt (Folder Tab & Fluid UI Motion)</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Thẻ tab active bo cong lõm ngược 20px (Inverted Curved Scoop), hòa liền 100% vào canvas nội dung</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Đồng bộ cho cả Menu thu nhỏ (5.5rem / 88px) với đường lượn cong 16px và vạch xanh accent</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar), triệt tiêu hoàn toàn thanh cuộn ngang</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Thanh tải tiến trình siêu mảnh (Top Slim Loader - Linear Style) phát sáng gradient chạy khi chuyển tab</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Thẻ dòng nổi độc lập (Floating Card-Row Flow) tăng tốc phần cứng GPU translate3d 60-120fps</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Giỏ hàng POS thành thẻ nổi độc lập bo góc mềm mại, cụm thanh toán gom thành 3 khối thẻ trắng</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Quy chuẩn phân trang 20 dòng/trang cho bảng Dịch vụ Spa, Hàng hóa kho, Hóa đơn bán hàng</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleTask(this)" class="rounded text-sky-600">
+                        <span class="task-done">Đổi màu chữ trạng thái "Chưa mở ca" sang màu đỏ mận tương phản cao text-rose-600</span>
+                    </label>
+
                     <!-- Kế hoạch đang triển khai -->
                     <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Tiếp Theo (Backlog)</div>
                     <label class="flex items-center gap-2 cursor-pointer">
@@ -206,6 +241,11 @@
                 <i class="fa-solid fa-code-commit text-indigo-500"></i> Nhật Ký Commit & Cập Nhật Gần Nhất
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">8fc6b74</span> Feature: Tab bo cong lõm ngược cả khi thu nhỏ + Thanh cuộn mép trái + Thanh load Top Slim chống giật</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">7a37c82</span> Feature: Triển khai Thẻ Tab Bo Cong Ngược (Inverted Curved Scoop) liền mạch 100% canvas</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">eba2735</span> Feature: Xóa đường line phân cách Sidebar, gom cụm thanh toán thành khối thẻ và phân trang 20 dòng Spa</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">c9fb1bb</span> Feature: Floating card-row flow tăng tốc GPU 3D transform chống giật</div>
+                <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">f040257</span> Feature: Folder tab liền mạch, skeleton shimmer loader và hiệu ứng thác nước</div>
                 <div class="p-2 border rounded bg-emerald-50"><span class="font-mono font-bold text-emerald-700">FIX-POS</span> Fix: Khôi phục điều hướng nút Sidebar trỏ trực tiếp về route chuyên dụng `/pos`, dẹp bỏ tab-pos phôi cũ</div>
                 <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">OEM-CF</span> Feature: Hoàn thiện Router OEM gia công, trừ tem chai kho xưởng và dự báo dòng tiền 2 quỹ Cty/Cá nhân</div>
                 <div class="p-2 border rounded bg-sky-50"><span class="font-mono font-bold text-sky-700">PRICE-PETS</span> Feature: Bổ sung Bảng giá đa cấp, Phân nhóm KH, Hồ sơ Thú cưng và Import/Export Excel</div>
