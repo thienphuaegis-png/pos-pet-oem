@@ -221,11 +221,84 @@
                         <span class="task-done">Đổi màu chữ trạng thái "Chưa mở ca" sang màu đỏ mận tương phản cao text-rose-600</span>
                     </label>
 
-                    <!-- Kế hoạch đang triển khai -->
-                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Tiếp Theo (Backlog)</div>
+                    <!-- Kế hoạch đang triển khai (Checkpoint Backlog) -->
+                    <div class="font-bold text-purple-700 bg-purple-50 p-1.5 rounded mt-3">🚀 Kế Hoạch Tiếp Theo (Checkpoint Backlog - Đã Lưu Để Làm Tiếp)</div>
+                    
+                    <!-- Nhóm 1: Nghiệp Vụ Spa & Dịch Vụ -->
+                    <div class="font-semibold text-sky-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">🐾 Phân Hệ Dịch Vụ Spa:</div>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
-                        <span>Hoàn thiện quy trình Hóa đơn Dịch vụ Pet Spa & Đặt lịch hẹn (`pet_service_tickets`)</span>
+                        <span>Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng phần dịch vụ, cọc, tip hoặc nhiều hình thức)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Phiếu dịch vụ in dư dòng cắt nghệ thuật (xử lý dọn dòng trống chân trang & đường cắt giấy thẩm mỹ)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Thay chế độ bảng tính bằng tính năng "Chỉnh sửa hàng loạt" (Bulk Update) cập nhật nhanh nhiều phiếu spa</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Chỉnh sửa nhanh dạng Droplist Popup cho 3 cột: <b>Dịch Vụ</b>, <b>Lưu Ý & Yêu Cầu</b>, <b>Thợ Phụ Trách</b></span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Tab Spa chỉ hiển thị danh sách phiếu trong ngày hiện tại (mặc định hôm nay để tập trung xử lý)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Gom 4 nút lọc trạng thái dịch vụ rời rạc về chung 1 nút Dropdown gọn gàng</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Bổ sung chỉ số KPI trên header Spa: <b>Số lượng chưa gọi</b> và <b>Số lượng chưa về</b></span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Sửa lỗi sửa 1 ô bị tải lại cả trang dữ liệu (chuyển sang Optimistic Local Cell Update mượt mà)</span>
+                    </label>
+
+                    <!-- Nhóm 2: Hóa Đơn, Bảng Giá & Khách Hàng -->
+                    <div class="font-semibold text-emerald-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">💳 Hóa Đơn, Bảng Giá & Khách Hàng:</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Xây dựng logic tách riêng dòng tiền khách thanh toán Topup với dòng tiền bán hàng hóa</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Tab Hóa Đơn bổ sung thêm 1 sub-tab <b>Lịch Sử Spa</b> để tra cứu riêng bill dịch vụ</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Bảo mật số điện thoại khách hàng: mặc định ẩn dạng <code>**** *** ###</code>, chỉ rê chuột (hover) mới hiện</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Di chuyển cấu hình Bảng Gói Topup vào phân hệ Bảng Giá (`price-lists`) cho tập trung</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Khắc phục lỗi hiển thị layout trên mẫu hóa đơn in ấn và xem trước</span>
+                    </label>
+
+                    <!-- Nhóm 3: Khách Sạn Thú Cưng, Hệ Thống & AI -->
+                    <div class="font-semibold text-purple-700 text-[11px] pt-1 border-t border-purple-100 flex items-center gap-1">🏨 Hotel Thú Cưng, Hệ Thống & AI:</div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Thêm bảng và giao diện Quản Lý Hotel thú cưng (phòng/chuồng, check-in, check-out, lưu trú)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Thay đổi toàn bộ popup mặc định trình duyệt (`alert`, `confirm`, `prompt`) sang Toast / Modal chuẩn UI POS</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Bổ sung hệ thống phím tắt (Hotkeys: ESC đóng, Enter xác nhận, F-keys) cho các popup</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
+                        <span>Chuẩn bị hạ tầng & API hooks cho các tính năng Trợ Lý AI (gợi ý dịch vụ, phân tích thông minh)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" onchange="toggleTask(this)" class="rounded text-purple-600">
