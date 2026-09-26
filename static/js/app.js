@@ -1,5 +1,263 @@
 
 
+        // =========================================================================
+        // HỆ THỐNG THÔNG BÁO & MODAL ALERT / TOAST ĐỒNG BỘ GIAO DIỆN HIỆN ĐẠI
+        // Thay thế hoàn toàn alert() mặc định trình duyệt (Chromium popup xám)
+        // =========================================================================
+
+        (function() {
+            // Container chứa Toast thông báo nổi góc phải
+            function ensureToastContainer() {
+                let container = document.getElementById('custom-toast-container');
+                if (!container && document.body) {
+                    container = document.createElement('div');
+                    container.id = 'custom-toast-container';
+                    container.className = 'fixed top-5 right-5 z-[999999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none transition-all';
+                    document.body.appendChild(container);
+                }
+                return container;
+            }
+
+            window.showToast = function(message, type = 'info', duration = 3200) {
+                if (!document.body) {
+                    window.addEventListener('DOMContentLoaded', () => window.showToast(message, type, duration));
+                    return;
+                }
+                const container = ensureToastContainer();
+                if (!container) return;
+
+                const toast = document.createElement('div');
+                toast.className = 'pointer-events-auto flex items-center gap-3 p-3.5 rounded-xl bg-white shadow-xl border border-slate-200/80 transition-all duration-300 transform translate-x-8 opacity-0 hover:shadow-2xl';
+
+                let iconHtml = 'ℹ️';
+                let iconClass = 'bg-sky-50 text-sky-600 border border-sky-200';
+                const lower = String(message).toLowerCase();
+
+                if (type === 'success' || lower.includes('thành công') || lower.includes('hoàn tất') || lower.includes('đã sao chép')) {
+                    iconHtml = '✅';
+                    iconClass = 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+                } else if (type === 'error' || lower.includes('lỗi') || lower.includes('thất bại') || lower.includes('không thể')) {
+                    iconHtml = '⚠️';
+                    iconClass = 'bg-rose-50 text-rose-600 border border-rose-200';
+                } else if (type === 'warning' || lower.includes('chú ý') || lower.includes('cảnh báo')) {
+                    iconHtml = '⚡';
+                    iconClass = 'bg-amber-50 text-amber-600 border border-amber-200';
+                }
+
+                toast.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 shadow-2xs ${iconClass}">
+                        ${iconHtml}
+                    </div>
+                    <div class="text-xs font-semibold text-slate-800 flex-1 leading-snug break-words">
+                        ${message}
+                    </div>
+                    <button type="button" class="text-slate-400 hover:text-slate-600 p-1 text-xs cursor-pointer rounded transition" onclick="this.parentElement.remove()">
+                        ✕
+                    </button>
+                `;
+
+                container.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-x-8', 'opacity-0');
+                    toast.classList.add('translate-x-0', 'opacity-100');
+                });
+
+                setTimeout(() => {
+                    toast.classList.add('translate-x-8', 'opacity-0');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            };
+
+            // Hàng đợi hiển thị Alert Modal
+            const alertQueue = [];
+            let isAlertShowing = false;
+
+            function processAlertQueue() {
+                if (alertQueue.length === 0) {
+                    isAlertShowing = false;
+                    return;
+                }
+                if (!document.body) {
+                    window.addEventListener('DOMContentLoaded', processAlertQueue);
+                    return;
+                }
+                isAlertShowing = true;
+                const current = alertQueue.shift();
+                renderAlertModal(current.message, current.title, current.resolve);
+            }
+
+            function renderAlertModal(message, customTitle, resolve) {
+                const backdrop = document.createElement('div');
+                backdrop.id = 'custom-alert-modal-backdrop';
+                backdrop.className = 'fixed inset-0 z-[9999999] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200 opacity-0';
+
+                const lower = String(message).toLowerCase();
+                let iconHtml = 'ℹ️';
+                let iconBadgeClass = 'bg-indigo-50 border border-indigo-200 text-indigo-600';
+                let defaultTitle = 'Thông báo hệ thống';
+
+                if (lower.includes('lỗi') || lower.includes('thất bại') || lower.includes('không thể') || lower.includes('vui lòng') || lower.includes('chưa') || lower.includes('bị xóa')) {
+                    iconHtml = '⚠️';
+                    iconBadgeClass = 'bg-rose-50 border border-rose-200 text-rose-600';
+                    defaultTitle = 'Thông báo chú ý';
+                } else if (lower.includes('thành công') || lower.includes('hoàn tất') || lower.includes('đã lưu') || lower.includes('đã cập nhật')) {
+                    iconHtml = '✅';
+                    iconBadgeClass = 'bg-emerald-50 border border-emerald-200 text-emerald-600';
+                    defaultTitle = 'Thành công';
+                }
+
+                const title = customTitle || defaultTitle;
+
+                backdrop.innerHTML = `
+                    <div id="custom-alert-card" class="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-md w-full overflow-hidden transform transition-all duration-200 scale-95 opacity-0 flex flex-col">
+                        <div class="p-5 flex items-start gap-3.5">
+                            <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs ${iconBadgeClass}">
+                                ${iconHtml}
+                            </div>
+                            <div class="flex-1 min-w-0 pt-0.5">
+                                <h4 class="text-sm font-bold text-slate-900 tracking-tight">${title}</h4>
+                                <div class="mt-2 text-xs text-slate-600 leading-relaxed break-words whitespace-pre-line">${message}</div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50/80 px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
+                            <button type="button" id="btn-custom-alert-ok" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs shadow-sm shadow-indigo-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+                                Đã hiểu
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(backdrop);
+
+                const card = backdrop.querySelector('#custom-alert-card');
+                const okBtn = backdrop.querySelector('#btn-custom-alert-ok');
+
+                requestAnimationFrame(() => {
+                    backdrop.classList.remove('opacity-0');
+                    backdrop.classList.add('opacity-100');
+                    card.classList.remove('scale-95', 'opacity-0');
+                    card.classList.add('scale-100', 'opacity-100');
+                    if (okBtn) okBtn.focus();
+                });
+
+                function closeModal() {
+                    card.classList.remove('scale-100', 'opacity-100');
+                    card.classList.add('scale-95', 'opacity-0');
+                    backdrop.classList.remove('opacity-100');
+                    backdrop.classList.add('opacity-0');
+                    document.removeEventListener('keydown', handleKey);
+                    setTimeout(() => {
+                        backdrop.remove();
+                        if (resolve) resolve();
+                        processAlertQueue();
+                    }, 180);
+                }
+
+                function handleKey(e) {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                        e.preventDefault();
+                        closeModal();
+                    }
+                }
+
+                if (okBtn) okBtn.addEventListener('click', closeModal);
+                backdrop.addEventListener('click', (e) => {
+                    if (e.target === backdrop) closeModal();
+                });
+                document.addEventListener('keydown', handleKey);
+            }
+
+            window.customAlert = function(message, title = null) {
+                return new Promise((resolve) => {
+                    alertQueue.push({ message, title, resolve });
+                    if (!isAlertShowing) {
+                        processAlertQueue();
+                    }
+                });
+            };
+
+            // Ghi đè toàn bộ window.alert mặc định của trình duyệt
+            window.alert = window.customAlert;
+
+            // Modal Xác Nhận (Confirm) Đồng Bộ
+            window.customConfirm = function(message, title = 'Xác nhận thao tác') {
+                return new Promise((resolve) => {
+                    if (!document.body) {
+                        resolve(false);
+                        return;
+                    }
+                    const backdrop = document.createElement('div');
+                    backdrop.id = 'custom-confirm-modal-backdrop';
+                    backdrop.className = 'fixed inset-0 z-[9999999] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200 opacity-0';
+
+                    backdrop.innerHTML = `
+                        <div id="custom-confirm-card" class="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-md w-full overflow-hidden transform transition-all duration-200 scale-95 opacity-0 flex flex-col">
+                            <div class="p-5 flex items-start gap-3.5">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs bg-amber-50 border border-amber-200 text-amber-600">
+                                    ❓
+                                </div>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <h4 class="text-sm font-bold text-slate-900 tracking-tight">${title}</h4>
+                                    <div class="mt-2 text-xs text-slate-600 leading-relaxed break-words whitespace-pre-line">${message}</div>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50/80 px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
+                                <button type="button" id="btn-custom-confirm-cancel" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-300 shadow-2xs transition active:scale-95">
+                                    Hủy bỏ
+                                </button>
+                                <button type="button" id="btn-custom-confirm-ok" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm shadow-indigo-100 transition active:scale-95">
+                                    Đồng ý
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(backdrop);
+                    const card = backdrop.querySelector('#custom-confirm-card');
+                    const cancelBtn = backdrop.querySelector('#btn-custom-confirm-cancel');
+                    const okBtn = backdrop.querySelector('#btn-custom-confirm-ok');
+
+                    requestAnimationFrame(() => {
+                        backdrop.classList.remove('opacity-0');
+                        backdrop.classList.add('opacity-100');
+                        card.classList.remove('scale-95', 'opacity-0');
+                        card.classList.add('scale-100', 'opacity-100');
+                        if (okBtn) okBtn.focus();
+                    });
+
+                    function closeConfirm(result) {
+                        card.classList.remove('scale-100', 'opacity-100');
+                        card.classList.add('scale-95', 'opacity-0');
+                        backdrop.classList.remove('opacity-100');
+                        backdrop.classList.add('opacity-0');
+                        document.removeEventListener('keydown', handleKey);
+                        setTimeout(() => {
+                            backdrop.remove();
+                            resolve(result);
+                        }, 180);
+                    }
+
+                    function handleKey(e) {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            closeConfirm(false);
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            closeConfirm(true);
+                        }
+                    }
+
+                    if (cancelBtn) cancelBtn.addEventListener('click', () => closeConfirm(false));
+                    if (okBtn) okBtn.addEventListener('click', () => closeConfirm(true));
+                    backdrop.addEventListener('click', (e) => {
+                        if (e.target === backdrop) closeConfirm(false);
+                    });
+                    document.addEventListener('keydown', handleKey);
+                });
+            };
+        })();
+
         function escapeJs(str) {
             if (!str) return '';
             return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1679,6 +1937,17 @@
         function formatMoney(num) {
             return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
         }
+
+        function formatMaskedPhone(phone) {
+            if (!phone) return '<span class="text-slate-400 italic">Chưa có</span>';
+            const clean = String(phone).trim();
+            if (clean.length < 6) return `<span class="font-mono text-slate-700">${clean}</span>`;
+            const prefix = clean.slice(0, 3);
+            const suffix = clean.slice(-3);
+            const masked = `${prefix}****${suffix}`;
+            return `<span class="masked-phone font-mono cursor-pointer text-slate-700 hover:text-indigo-600 transition-colors select-none" title="${clean} (Rê chuột xem, Click để sao chép)" data-full-phone="${clean}" onmouseenter="this.textContent=this.dataset.fullPhone" onmouseleave="this.textContent='${masked}'" onclick="if(navigator.clipboard){navigator.clipboard.writeText('${clean}');if(window.showToast)showToast('Đã sao chép SĐT: ${clean}');}">${masked}</span>`;
+        }
+        window.formatMaskedPhone = formatMaskedPhone;
 
         function renderTableSkeleton(tbodyOrId, rows = 5, cols = 8) {
             const tbody = typeof tbodyOrId === 'string' ? document.getElementById(tbodyOrId) : tbodyOrId;

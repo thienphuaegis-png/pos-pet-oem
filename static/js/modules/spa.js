@@ -1,7 +1,134 @@
         // ==========================================
-        // QUẢN LÝ THÚ CƯNG THEO KHÁCH HÀNG
+        // QUẢN LÝ THÚ CƯNG THEO KHÁCH HÀNG & XEM NHANH KHÁCH HÀNG
         // ==========================================
         let currentPetCustomerId = null;
+        let currentQuickViewCustomerId = null;
+
+        async function openQuickCustomerInfoModal(customerId, customerName = '') {
+            if (!customerId) return;
+            currentQuickViewCustomerId = customerId;
+
+            const modal = document.getElementById('modal-quick-customer-info');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const qcName = document.getElementById('qc-name');
+            const qcPhone = document.getElementById('qc-phone');
+            const qcWallet = document.getElementById('qc-wallet');
+            const qcPoints = document.getElementById('qc-points');
+            const qcSegment = document.getElementById('qc-segment');
+            const qcAddress = document.getElementById('qc-address');
+            const qcNote = document.getElementById('qc-note');
+            const qcPetsList = document.getElementById('qc-pets-list');
+            const qcSpaHistory = document.getElementById('qc-spa-history');
+            const qcPetCount = document.getElementById('qc-pet-count');
+
+            if (qcName) qcName.textContent = customerName || 'Đang tải...';
+            if (qcPhone) qcPhone.textContent = '...';
+            if (qcWallet) qcWallet.textContent = '... đ';
+            if (qcPoints) qcPoints.textContent = '... điểm';
+            if (qcPetsList) qcPetsList.innerHTML = '<div class="p-3 text-center text-slate-400">Đang tải thú cưng...</div>';
+            if (qcSpaHistory) qcSpaHistory.innerHTML = '<div class="p-3 text-center text-slate-400">Đang tải lịch sử...</div>';
+
+            try {
+                const res = await fetch(`/api/contacts/${customerId}`);
+                if (!res.ok) throw new Error('Không tải được thông tin khách');
+                const data = await res.json();
+
+                if (qcName) qcName.textContent = data.name || customerName || 'Khách lẻ';
+                const phoneClean = data.phone || '';
+                const phoneMasked = typeof formatMaskedPhone === 'function' ? formatMaskedPhone(phoneClean) : phoneClean;
+                if (qcPhone) qcPhone.textContent = phoneMasked || 'Chưa có SĐT';
+
+                if (qcWallet) qcWallet.textContent = formatMoney(data.spa_wallet_balance || 0);
+                if (qcPoints) qcPoints.textContent = `${data.points || 0} điểm`;
+                if (qcSegment) qcSegment.textContent = `Hạng: ${data.segment_name || 'Khách Chuẩn'}${data.segment_discount ? ` (Giảm ${data.segment_discount}%)` : ''}`;
+                if (qcAddress) qcAddress.textContent = data.address || '(Chưa có địa chỉ)';
+                if (qcNote) qcNote.textContent = data.note || '(Không có ghi chú)';
+
+                // Render danh sách thú cưng
+                const pets = data.pets || [];
+                if (qcPetCount) qcPetCount.textContent = pets.length;
+                if (qcPetsList) {
+                    if (pets.length === 0) {
+                        qcPetsList.innerHTML = '<div class="p-3 text-center text-slate-400">Khách chưa đăng ký thú cưng nào.</div>';
+                    } else {
+                        qcPetsList.innerHTML = pets.map(p => `
+                            <div class="flex items-center justify-between p-2 hover:bg-slate-50 transition">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base">${p.species === 'Mèo' ? '🐱' : '🐶'}</span>
+                                    <div>
+                                        <div class="font-bold text-slate-800 text-xs">${escapeSpaHtml(p.name)} <span class="font-normal text-slate-500">(${escapeSpaHtml(p.breed || p.species || 'Cún')})</span></div>
+                                        <div class="text-[10px] text-slate-400">Màu: ${escapeSpaHtml(p.color || '-')} | Cân nặng: <strong class="text-purple-700">${p.weight ? p.weight + ' kg' : '-'}</strong></div>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-pink-50 text-pink-700 border border-pink-200">#${p.id}</span>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                // Render lịch sử dịch vụ Spa của khách
+                if (qcSpaHistory) {
+                    const custTickets = (allPetServiceTickets || []).filter(t => t.customer_id === customerId).slice(0, 5);
+                    if (custTickets.length === 0) {
+                        qcSpaHistory.innerHTML = '<div class="p-3 text-center text-slate-400">Chưa có lịch sử làm Spa hôm nay.</div>';
+                    } else {
+                        qcSpaHistory.innerHTML = custTickets.map(t => `
+                            <div class="flex items-center justify-between p-2 hover:bg-slate-50 transition text-[11px]">
+                                <div>
+                                    <div class="font-bold text-slate-800">
+                                        <span class="font-mono text-purple-700 font-bold">${t.code || '#' + t.id}</span> · ${escapeSpaHtml(t.pet_name || 'Bé cưng')}
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">${escapeSpaHtml(t.service_type || 'Spa')} · ${t.ticket_date || ''}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono font-bold text-slate-800">${formatMoney(t.price || 0)}</div>
+                                    <span class="text-[9px] px-1.5 py-0.2 rounded font-bold ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}">${t.status}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                // Nút liên kết mở hồ sơ thú cưng
+                const btnAddPet = document.getElementById('btn-qc-add-pet');
+                if (btnAddPet) {
+                    btnAddPet.onclick = function() {
+                        closeQuickCustomerInfoModal();
+                        openCustomerPetsModal(customerId, data.name || customerName);
+                    };
+                }
+
+                // Nút xem lịch sử mua hàng POS
+                const btnViewPurchases = document.getElementById('btn-qc-view-purchase-history');
+                if (btnViewPurchases) {
+                    btnViewPurchases.onclick = function() {
+                        closeQuickCustomerInfoModal();
+                        if (typeof window.openPurchaseHistoryModal === 'function') {
+                            window.openPurchaseHistoryModal(customerId);
+                        } else {
+                            const modalHist = document.getElementById('modal-purchase-history');
+                            if (modalHist) {
+                                modalHist.classList.remove('hidden');
+                                if (typeof loadPurchaseHistory === 'function') loadPurchaseHistory(customerId);
+                            }
+                        }
+                    };
+                }
+            } catch(e) {
+                console.error("Lỗi xem nhanh khách hàng:", e);
+                if (qcName) qcName.textContent = customerName || 'Khách lẻ';
+            }
+        }
+        window.openQuickCustomerInfoModal = openQuickCustomerInfoModal;
+
+        function closeQuickCustomerInfoModal() {
+            const modal = document.getElementById('modal-quick-customer-info');
+            if (modal) modal.classList.add('hidden');
+            currentQuickViewCustomerId = null;
+        }
+        window.closeQuickCustomerInfoModal = closeQuickCustomerInfoModal;
 
         function openCustomerPetsModal(customerId, customerName) {
             currentPetCustomerId = customerId;
@@ -197,7 +324,7 @@
                     <td class="p-2.5 text-gray-600">${p.color || '-'}</td>
                     <td class="p-2.5 text-center font-bold text-purple-700 font-mono">${p.weight ? p.weight + ' kg' : '-'}</td>
                     <td class="p-2.5 font-bold text-sky-700">${p.customer_name || '-'}</td>
-                    <td class="p-2.5 font-mono text-gray-600">${p.customer_phone || '-'}</td>
+                    <td class="p-2.5 font-mono text-gray-600">${formatMaskedPhone(p.customer_phone)}</td>
                     <td class="p-2.5 text-gray-500 max-w-xs truncate">${p.note || '-'}</td>
                     <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
                         <button onclick="openCustomerPetsModal(${p.customer_id}, '${escapeJs(p.customer_name || '')}')" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded border border-sky-200 text-[10px] font-bold">🐾 Chi tiết</button>
@@ -221,6 +348,50 @@
         // ==========================================
         var allPetServiceTickets = [];
         var petServiceFilterStatus = 'all';
+        var petServiceFilterDate = 'today'; // 'today' | 'all' | 'YYYY-MM-DD'
+        var petServiceFilterKpiMode = null; // null | 'uncalled' | 'not_checked_out' | 'transport'
+        var selectedSpaTicketIds = new Set();
+
+        function formatPhoneBadge(phone) {
+            if (!phone) return '<span class="text-slate-400 italic text-[11px] whitespace-nowrap">Chưa có SĐT</span>';
+            const clean = String(phone).replace(/\s+/g, '').trim();
+            if (!clean) return '<span class="text-slate-400 italic text-[11px] whitespace-nowrap">Chưa có SĐT</span>';
+
+            let formatted = clean;
+            let masked = clean;
+            if (clean.length === 10) {
+                formatted = `${clean.slice(0, 4)} ${clean.slice(4, 7)} ${clean.slice(7)}`;
+                masked = `${clean.slice(0, 4)} ••• ${clean.slice(7)}`;
+            } else if (clean.length === 11) {
+                formatted = `${clean.slice(0, 4)} ${clean.slice(4, 7)} ${clean.slice(7)}`;
+                masked = `${clean.slice(0, 4)} •••• ${clean.slice(8)}`;
+            } else if (clean.length > 6) {
+                masked = `${clean.slice(0, 3)}••••${clean.slice(-3)}`;
+            }
+
+            return `
+                <div class="inline-flex items-center px-2 py-0.5 mt-0.5 bg-purple-50/90 hover:bg-purple-100 border border-purple-200/80 rounded-md transition shadow-2xs cursor-pointer select-none group/phone whitespace-nowrap"
+                     title="Rê chuột để xem số thật • Bấm để sao chép: ${clean}"
+                     onclick="event.stopPropagation(); if(navigator.clipboard){navigator.clipboard.writeText('${clean}');if(window.showToast)showToast('Đã sao chép SĐT: ${clean}');}">
+                    <span class="font-mono text-sm font-black text-purple-950 tracking-wide inline group-hover/phone:hidden whitespace-nowrap">${masked}</span>
+                    <span class="font-mono text-sm font-black text-purple-700 tracking-wide hidden group-hover/phone:inline whitespace-nowrap">${formatted}</span>
+                </div>
+            `.trim();
+        }
+        window.formatPhoneBadge = formatPhoneBadge;
+
+        function formatMaskedPhone(phone) {
+            return formatPhoneBadge(phone);
+        }
+        if (!window.formatMaskedPhone) window.formatMaskedPhone = formatMaskedPhone;
+
+        function getLocalTodayDateStr() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         async function loadPetServicesKPI() {
             try {
@@ -230,6 +401,8 @@
                 el('kpi-pets-total', kpi.total_pets || 0);
                 el('kpi-pets-appointments-today', kpi.appointments_today || 0);
                 el('kpi-pets-in-progress', kpi.in_progress || 0);
+                el('kpi-pets-uncalled', kpi.uncalled || 0);
+                el('kpi-pets-not-checked-out', kpi.not_checked_out || 0);
                 el('kpi-pets-transport', kpi.transport || 0);
             } catch(e) { console.error('loadPetServicesKPI error:', e); }
         }
@@ -264,20 +437,81 @@
             renderKanbanBoard();
         }
 
-        function filterPetServices(status) {
-            petServiceFilterStatus = status;
+        function updateFilterStatusButtons(status) {
+            const sel = document.getElementById('select-svc-filter-status');
+            if (sel) sel.value = status;
             ['all','pending','in_progress','completed','checked_out'].forEach(s => {
                 const btn = document.getElementById('btn-svc-filter-' + s);
                 if (btn) btn.className = s === status
                     ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow'
                     : 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50';
             });
+        }
+
+        function filterPetServices(status) {
+            petServiceFilterStatus = status;
+            petServiceFilterKpiMode = null;
+            updateFilterStatusButtons(status);
             renderActiveSpaView();
         }
 
-        async function loadPetServicesList() {
+        function setPetServiceDateFilter(mode) {
+            petServiceFilterDate = mode;
+            const btnToday = document.getElementById('btn-spa-date-today');
+            const btnAll = document.getElementById('btn-spa-date-all');
+            const inputCustom = document.getElementById('input-spa-date-custom');
+            if (btnToday) {
+                btnToday.className = (mode === 'today') 
+                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-purple-700 text-white shadow'
+                    : 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-white text-slate-700 hover:bg-gray-50';
+            }
+            if (btnAll) {
+                btnAll.className = (mode === 'all')
+                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-purple-700 shadow border-r border-purple-700'
+                    : 'px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-gray-50 border-r border-slate-200';
+            }
+            if (inputCustom && mode !== 'today' && mode !== 'all') {
+                inputCustom.value = mode;
+            } else if (inputCustom && (mode === 'today' || mode === 'all')) {
+                inputCustom.value = '';
+            }
+            petServicesCurrentPage = 1;
+            renderActiveSpaView();
+        }
+
+        function filterPetServicesByKpi(kpiType) {
+            if (kpiType === 'total') {
+                setPetServiceDateFilter('all');
+                filterPetServices('all');
+            } else if (kpiType === 'today') {
+                setPetServiceDateFilter('today');
+                filterPetServices('all');
+            } else if (kpiType === 'in_progress') {
+                setPetServiceDateFilter('today');
+                filterPetServices('in_progress');
+            } else if (kpiType === 'uncalled') {
+                setPetServiceDateFilter('today');
+                petServiceFilterStatus = 'completed';
+                petServiceFilterKpiMode = 'uncalled';
+                updateFilterStatusButtons('completed');
+                renderActiveSpaView();
+            } else if (kpiType === 'not_checked_out') {
+                setPetServiceDateFilter('today');
+                petServiceFilterStatus = 'all';
+                petServiceFilterKpiMode = 'not_checked_out';
+                updateFilterStatusButtons('all');
+                renderActiveSpaView();
+            } else if (kpiType === 'transport') {
+                setPetServiceDateFilter('today');
+                filterPetServices('all');
+                petServiceFilterKpiMode = 'transport';
+                renderActiveSpaView();
+            }
+        }
+
+        async function loadPetServicesList(showSkeleton = true) {
             try {
-                if (typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
+                if (showSkeleton && typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
                     renderTableSkeleton('table-pet-services', 6, 13);
                 }
                 const res = await fetch('/api/pet-services');
@@ -305,7 +539,7 @@
             if (s === 'checked_out') colorClass = 'bg-purple-50 text-purple-800 border-purple-300';
 
             return `
-                <select onchange="updateServiceStatus(${t.id}, this.value)" class="text-[11px] font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
+                <select onchange="updateServiceStatus(${t.id}, this.value, this)" class="text-[11px] font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
                     <option value="pending" ${s === 'pending' ? 'selected' : ''}>⏳ Chờ</option>
                     <option value="in_progress" ${s === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
                     <option value="completed" ${s === 'completed' ? 'selected' : ''}>✅ Xong</option>
@@ -323,7 +557,7 @@
             if (cs === 'Hẹn giờ đón') csClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
 
             return `
-                <select onchange="updateServiceCallStatus(${t.id}, this.value)" class="text-[10px] py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
+                <select onchange="updateServiceCallStatus(${t.id}, this.value, this)" class="text-[10px] py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
                     <option value="Chưa gọi" ${cs === 'Chưa gọi' ? 'selected' : ''}>📞 Chưa gọi</option>
                     <option value="Đã gọi đón" ${cs === 'Đã gọi đón' ? 'selected' : ''}>✅ Đã gọi đón</option>
                     <option value="Không nghe máy" ${cs === 'Không nghe máy' ? 'selected' : ''}>❌ Không nghe</option>
@@ -332,6 +566,637 @@
             `;
         }
         var callStatusSelector = getSpaCallStatusSelectorHtml;
+
+        // ==========================================
+        // THAO TÁC HÀNG LOẠT (BULK UPDATE & SELECTION)
+        // ==========================================
+        function onSpaRowCheckboxChange(cb, ticketId) {
+            if (cb.checked) {
+                selectedSpaTicketIds.add(ticketId);
+            } else {
+                selectedSpaTicketIds.delete(ticketId);
+            }
+            updateSpaBulkToolbar();
+        }
+        window.onSpaRowCheckboxChange = onSpaRowCheckboxChange;
+
+        function toggleSelectAllSpaTickets(checked) {
+            const checkboxes = document.querySelectorAll('.spa-row-select');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const tid = parseInt(cb.value);
+                if (checked) {
+                    selectedSpaTicketIds.add(tid);
+                } else {
+                    selectedSpaTicketIds.delete(tid);
+                }
+            });
+            updateSpaBulkToolbar();
+        }
+        window.toggleSelectAllSpaTickets = toggleSelectAllSpaTickets;
+
+        function populateBulkCutterSelect() {
+            const el = document.getElementById('spa-bulk-cutter-select');
+            if (!el) return;
+            const staffList = (Array.isArray(allSpaStaffList) && allSpaStaffList.length > 0)
+                ? allSpaStaffList
+                : ((window.allSpaStaffList && window.allSpaStaffList.length > 0) ? window.allSpaStaffList : []);
+
+            let opts = '<option value="">-- Chọn Thợ Cắt --</option>';
+            staffList.forEach(s => {
+                const name = s.name || s;
+                opts += `<option value="${escapeSpaHtml(name)}">✂️ ${escapeSpaHtml(name)}</option>`;
+            });
+            el.innerHTML = opts;
+
+            if (staffList.length === 0) {
+                fetch('/api/pet-services/staff').then(r => r.json()).then(data => {
+                    allSpaStaffList = data || [];
+                    populateBulkCutterSelect();
+                }).catch(() => {});
+            }
+        }
+        window.populateBulkCutterSelect = populateBulkCutterSelect;
+
+        async function applyBulkPetServiceStaffCutter(staffName) {
+            if (!staffName || selectedSpaTicketIds.size === 0) return;
+            const targetIds = Array.from(selectedSpaTicketIds);
+
+            // Optimistic local update
+            targetIds.forEach(id => {
+                const t = (allPetServiceTickets || []).find(item => item.id === id);
+                if (t) t.staff_cutter = staffName;
+            });
+            renderActiveSpaView();
+
+            try {
+                const payload = {
+                    tickets: targetIds.map(id => ({ id, staff_cutter: staffName }))
+                };
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    if (window.showToast) {
+                        showToast(`Đã gán thợ cắt [${staffName}] cho ${targetIds.length} phiếu!`, 'success');
+                    }
+                } else {
+                    console.error('Lỗi bulk-update staff_cutter:', await res.text());
+                }
+            } catch(err) {
+                console.error('Lỗi mạng khi bulk-update staff_cutter:', err);
+            }
+        }
+        window.applyBulkPetServiceStaffCutter = applyBulkPetServiceStaffCutter;
+
+        function updateSpaBulkToolbar() {
+            const toolbar = document.getElementById('spa-bulk-actions-toolbar');
+            const countEl = document.getElementById('spa-bulk-selected-count');
+            const selectAllCb = document.getElementById('spa-select-all-tickets');
+
+            const count = selectedSpaTicketIds.size;
+            if (countEl) countEl.textContent = count;
+
+            if (toolbar) {
+                if (count > 0) {
+                    toolbar.classList.remove('hidden');
+                    toolbar.classList.add('flex');
+                    populateBulkCutterSelect();
+                } else {
+                    toolbar.classList.add('hidden');
+                    toolbar.classList.remove('flex');
+                }
+            }
+
+            if (selectAllCb) {
+                const visibleCheckboxes = document.querySelectorAll('.spa-row-select');
+                if (visibleCheckboxes.length > 0) {
+                    selectAllCb.checked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+                    selectAllCb.indeterminate = (!selectAllCb.checked && count > 0);
+                } else {
+                    selectAllCb.checked = false;
+                    selectAllCb.indeterminate = false;
+                }
+            }
+        }
+        window.updateSpaBulkToolbar = updateSpaBulkToolbar;
+
+        function clearSelectedSpaTickets() {
+            selectedSpaTicketIds.clear();
+            const checkboxes = document.querySelectorAll('.spa-row-select');
+            checkboxes.forEach(cb => { cb.checked = false; });
+            const selectAllCb = document.getElementById('spa-select-all-tickets');
+            if (selectAllCb) {
+                selectAllCb.checked = false;
+                selectAllCb.indeterminate = false;
+            }
+            updateSpaBulkToolbar();
+        }
+        window.clearSelectedSpaTickets = clearSelectedSpaTickets;
+
+        async function applyBulkPetServiceStatus(newStatus) {
+            if (!newStatus || selectedSpaTicketIds.size === 0) return;
+            const targetIds = Array.from(selectedSpaTicketIds);
+            
+            targetIds.forEach(id => {
+                const t = (allPetServiceTickets || []).find(item => item.id === id);
+                if (t) t.status = newStatus;
+            });
+            renderActiveSpaView();
+            loadPetServicesKPI();
+
+            try {
+                const payload = {
+                    tickets: targetIds.map(id => ({ id, status: newStatus }))
+                };
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    console.error('Lỗi bulk-update status:', await res.text());
+                    await loadPetServicesList();
+                    await loadPetServicesKPI();
+                }
+            } catch (err) {
+                console.error('Lỗi kết nối bulk-update status:', err);
+                await loadPetServicesList();
+                await loadPetServicesKPI();
+            }
+        }
+        window.applyBulkPetServiceStatus = applyBulkPetServiceStatus;
+
+        async function applyBulkPetServiceCallStatus(newCallStatus) {
+            if (!newCallStatus || selectedSpaTicketIds.size === 0) return;
+            const targetIds = Array.from(selectedSpaTicketIds);
+
+            targetIds.forEach(id => {
+                const t = (allPetServiceTickets || []).find(item => item.id === id);
+                if (t) t.call_status = newCallStatus;
+            });
+            renderActiveSpaView();
+            loadPetServicesKPI();
+
+            try {
+                const payload = {
+                    tickets: targetIds.map(id => ({ id, call_status: newCallStatus }))
+                };
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    console.error('Lỗi bulk-update call_status:', await res.text());
+                    await loadPetServicesList();
+                    await loadPetServicesKPI();
+                }
+            } catch (err) {
+                console.error('Lỗi kết nối bulk-update call_status:', err);
+                await loadPetServicesList();
+                await loadPetServicesKPI();
+            }
+        }
+        window.applyBulkPetServiceCallStatus = applyBulkPetServiceCallStatus;
+
+        function openSpaBulkAssignStaffModal() {
+            if (selectedSpaTicketIds.size === 0) {
+                alert('Vui lòng chọn ít nhất 1 phiếu để gán thợ!');
+                return;
+            }
+            const countEl = document.getElementById('spa-bulk-modal-count');
+            if (countEl) countEl.textContent = selectedSpaTicketIds.size;
+
+            const populateSelect = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const staffList = (Array.isArray(allSpaStaffList) && allSpaStaffList.length > 0)
+                    ? allSpaStaffList
+                    : ((window.allSpaStaffList && window.allSpaStaffList.length > 0) ? window.allSpaStaffList : [{ name: 'Nhân viên 1' }]);
+                let opts = '<option value="">-- Không phân công / Để trống --</option>';
+                staffList.forEach(s => {
+                    const name = s.name || s;
+                    opts += `<option value="${escapeSpaHtml(name)}">${escapeSpaHtml(name)}</option>`;
+                });
+                el.innerHTML = opts;
+            };
+
+            populateSelect('spa-bulk-staff-cutter');
+            populateSelect('spa-bulk-staff-worker');
+            populateSelect('spa-bulk-staff-receiver');
+
+            const modal = document.getElementById('modal-spa-bulk-assign-staff');
+            if (modal) modal.classList.remove('hidden');
+        }
+        window.openSpaBulkAssignStaffModal = openSpaBulkAssignStaffModal;
+
+        function closeSpaBulkAssignStaffModal() {
+            const modal = document.getElementById('modal-spa-bulk-assign-staff');
+            if (modal) modal.classList.add('hidden');
+        }
+        window.closeSpaBulkAssignStaffModal = closeSpaBulkAssignStaffModal;
+
+        async function saveSpaBulkAssignStaff() {
+            if (selectedSpaTicketIds.size === 0) return;
+            const targetIds = Array.from(selectedSpaTicketIds);
+
+            const checkCutter = document.getElementById('spa-bulk-check-cutter')?.checked;
+            const valCutter = document.getElementById('spa-bulk-staff-cutter')?.value || '';
+
+            const checkWorker = document.getElementById('spa-bulk-check-worker')?.checked;
+            const valWorker = document.getElementById('spa-bulk-staff-worker')?.value || '';
+
+            const checkReceiver = document.getElementById('spa-bulk-check-receiver')?.checked;
+            const valReceiver = document.getElementById('spa-bulk-staff-receiver')?.value || '';
+
+            targetIds.forEach(id => {
+                const t = (allPetServiceTickets || []).find(item => item.id === id);
+                if (t) {
+                    if (checkCutter) t.staff_cutter = valCutter;
+                    if (checkWorker) t.staff_worker_1 = valWorker;
+                    if (checkReceiver) t.staff_receiver = valReceiver;
+                }
+            });
+            renderActiveSpaView();
+            closeSpaBulkAssignStaffModal();
+
+            try {
+                const ticketUpdates = targetIds.map(id => {
+                    const item = { id };
+                    if (checkCutter) item.staff_cutter = valCutter;
+                    if (checkWorker) item.staff_worker_1 = valWorker;
+                    if (checkReceiver) item.staff_receiver = valReceiver;
+                    return item;
+                });
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tickets: ticketUpdates })
+                });
+                if (!res.ok) {
+                    console.error('Lỗi bulk-update staff:', await res.text());
+                    await loadPetServicesList();
+                }
+            } catch (err) {
+                console.error('Lỗi kết nối bulk-update staff:', err);
+                await loadPetServicesList();
+            }
+        }
+        window.saveSpaBulkAssignStaff = saveSpaBulkAssignStaff;
+
+        function printSelectedSpaTicketsConsolidated() {
+            if (selectedSpaTicketIds.size === 0) {
+                alert('Vui lòng chọn ít nhất 1 phiếu để in gộp!');
+                return;
+            }
+            const selectedTickets = (allPetServiceTickets || []).filter(t => selectedSpaTicketIds.has(t.id));
+            if (!selectedTickets.length) {
+                alert('Không tìm thấy dữ liệu các phiếu đã chọn');
+                return;
+            }
+            printBatchPetServiceTickets(selectedTickets, 'invoice', true);
+        }
+        window.printSelectedSpaTicketsConsolidated = printSelectedSpaTicketsConsolidated;
+
+        // ==========================================
+        // POPUP SỬA & PHÂN CÔNG HÀNG LOẠT GỌN (COMPACT BULK EDIT)
+        // ==========================================
+        let compactBulkStateMap = new Map();
+
+        async function openSpaBulkEditModal() {
+            const modal = document.getElementById('modal-spa-bulk-edit-compact');
+            if (!modal) return;
+
+            // Đảm bảo có danh sách nhân viên spa
+            if (!allSpaStaffList || allSpaStaffList.length === 0) {
+                try {
+                    const r = await fetch('/api/pet-services/staff');
+                    if (r.ok) allSpaStaffList = await r.json();
+                } catch(e) {}
+            }
+
+            const staffList = (Array.isArray(allSpaStaffList) && allSpaStaffList.length > 0)
+                ? allSpaStaffList
+                : ((window.allSpaStaffList && window.allSpaStaffList.length > 0) ? window.allSpaStaffList : []);
+
+            // Đổ dữ liệu vào 2 dropdown thợ cắt và thợ tắm
+            const populateSelect = (selectId) => {
+                const el = document.getElementById(selectId);
+                if (!el) return;
+                let opts = '<option value="__keep__">-- Giữ nguyên --</option>';
+                opts += '<option value="__empty__">-- Để trống / Bỏ gán --</option>';
+                staffList.forEach(s => {
+                    const name = s.name || s;
+                    opts += `<option value="${escapeSpaHtml(name)}">${escapeSpaHtml(name)}</option>`;
+                });
+                el.innerHTML = opts;
+                el.value = '__keep__';
+            };
+
+            populateSelect('compact-bulk-select-cutter');
+            populateSelect('compact-bulk-select-worker');
+            populateSelect('compact-bulk-select-worker2');
+
+            const statusEl = document.getElementById('compact-bulk-select-status');
+            if (statusEl) statusEl.value = '__keep__';
+
+            // Lấy danh sách phiếu hiện tại (theo bộ lọc ngày hoặc tất cả)
+            compactBulkStateMap.clear();
+            const sourceTickets = (allPetServiceTickets || []);
+            const totalEl = document.getElementById('compact-bulk-total-tickets');
+            if (totalEl) totalEl.textContent = `${sourceTickets.length} phiếu`;
+
+            sourceTickets.forEach(t => {
+                const isPreSelected = selectedSpaTicketIds && selectedSpaTicketIds.has(t.id);
+                compactBulkStateMap.set(t.id, {
+                    id: t.id,
+                    ticket: t,
+                    checked: !!isPreSelected,
+                    staff_cutter: t.staff_cutter || '',
+                    staff_worker_1: t.staff_worker_1 || '',
+                    staff_worker_2: t.staff_worker_2 || '',
+                    status: t.status || 'pending',
+                    isDirty: false
+                });
+            });
+
+            renderCompactBulkTable();
+            modal.classList.remove('hidden');
+        }
+        window.openSpaBulkEditModal = openSpaBulkEditModal;
+
+        function closeSpaBulkEditModal() {
+            const modal = document.getElementById('modal-spa-bulk-edit-compact');
+            if (modal) modal.classList.add('hidden');
+        }
+        window.closeSpaBulkEditModal = closeSpaBulkEditModal;
+
+        function renderCompactBulkTable() {
+            const tbody = document.getElementById('compact-bulk-tbody');
+            if (!tbody) return;
+
+            const items = Array.from(compactBulkStateMap.values());
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">Không có phiếu dịch vụ nào để cập nhật</td></tr>';
+                updateCompactBulkCounts();
+                return;
+            }
+
+            const staffList = Array.isArray(window.currentSpaStaff) ? window.currentSpaStaff : [];
+
+            tbody.innerHTML = items.map(item => {
+                const t = item.ticket;
+                const rowBg = item.isDirty ? 'bg-amber-50/80 font-medium' : 'hover:bg-slate-50';
+
+                // Dropdown thợ cắt
+                let cutterOptions = `<option value="">-- Chưa gán --</option>`;
+                staffList.forEach(s => {
+                    const sel = (item.staff_cutter === s.name) ? 'selected' : '';
+                    cutterOptions += `<option value="${escapeSpaHtml(s.name)}" ${sel}>${escapeSpaHtml(s.name)}</option>`;
+                });
+                if (item.staff_cutter && !staffList.some(s => s.name === item.staff_cutter)) {
+                    cutterOptions += `<option value="${escapeSpaHtml(item.staff_cutter)}" selected>${escapeSpaHtml(item.staff_cutter)}</option>`;
+                }
+
+                // Dropdown thợ tắm 1
+                let workerOptions = `<option value="">-- Chưa gán --</option>`;
+                staffList.forEach(s => {
+                    const sel = (item.staff_worker_1 === s.name) ? 'selected' : '';
+                    workerOptions += `<option value="${escapeSpaHtml(s.name)}" ${sel}>${escapeSpaHtml(s.name)}</option>`;
+                });
+                if (item.staff_worker_1 && !staffList.some(s => s.name === item.staff_worker_1)) {
+                    workerOptions += `<option value="${escapeSpaHtml(item.staff_worker_1)}" selected>${escapeSpaHtml(item.staff_worker_1)}</option>`;
+                }
+
+                // Dropdown thợ tắm 2 (phụ)
+                let worker2Options = `<option value="">-- Không có --</option>`;
+                staffList.forEach(s => {
+                    const sel = (item.staff_worker_2 === s.name) ? 'selected' : '';
+                    worker2Options += `<option value="${escapeSpaHtml(s.name)}" ${sel}>${escapeSpaHtml(s.name)}</option>`;
+                });
+                if (item.staff_worker_2 && !staffList.some(s => s.name === item.staff_worker_2)) {
+                    worker2Options += `<option value="${escapeSpaHtml(item.staff_worker_2)}" selected>${escapeSpaHtml(item.staff_worker_2)}</option>`;
+                }
+
+                // Dropdown trạng thái
+                const statusOptions = `
+                    <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>⏳ Chờ làm</option>
+                    <option value="in_progress" ${item.status === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
+                    <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>✅ Đã xong</option>
+                    <option value="checked_out" ${item.status === 'checked_out' ? 'selected' : ''}>🏠 Đã về</option>
+                `;
+
+                return `
+                    <tr class="border-b transition ${rowBg}">
+                        <td class="p-2.5 text-center">
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="onCompactBulkCheckboxToggle(${item.id}, this.checked)" class="compact-bulk-row-cb rounded text-purple-600 cursor-pointer">
+                        </td>
+                        <td class="p-2.5 text-center font-mono">
+                            <div class="font-extrabold text-purple-700">#${t.ticket_number || t.id}</div>
+                            <div class="text-[10px] text-slate-500">${t.code || ''}</div>
+                        </td>
+                        <td class="p-2.5">
+                            <div class="font-bold text-slate-800">${escapeSpaHtml(t.customer_name || 'Khách lẻ')}</div>
+                            <div>${formatPhoneBadge(t.customer_phone)}</div>
+                        </td>
+                        <td class="p-2.5">
+                            <div class="font-bold text-pink-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
+                            <div class="text-[11px] text-slate-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
+                        </td>
+                        <td class="p-2.5">
+                            <div class="font-bold text-slate-800">${escapeSpaHtml(t.service_type || '-')}</div>
+                            ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-medium">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                        </td>
+                        <td class="p-2.5">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_cutter', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_cutter !== (t.staff_cutter || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                                ${cutterOptions}
+                            </select>
+                        </td>
+                        <td class="p-2.5">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_1', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_1 !== (t.staff_worker_1 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                                ${workerOptions}
+                            </select>
+                        </td>
+                        <td class="p-2.5">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_2', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_2 !== (t.staff_worker_2 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                                ${worker2Options}
+                            </select>
+                        </td>
+                        <td class="p-2.5 text-center">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'status', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.status !== (t.status || 'pending') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                                ${statusOptions}
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            updateCompactBulkCounts();
+        }
+        window.renderCompactBulkTable = renderCompactBulkTable;
+
+        function onCompactBulkRowChange(ticketId, field, value) {
+            const item = compactBulkStateMap.get(ticketId);
+            if (!item) return;
+
+            item[field] = value;
+            const t = item.ticket;
+
+            const isDirty = (
+                item.staff_cutter !== (t.staff_cutter || '') ||
+                item.staff_worker_1 !== (t.staff_worker_1 || '') ||
+                item.staff_worker_2 !== (t.staff_worker_2 || '') ||
+                item.status !== (t.status || 'pending')
+            );
+            item.isDirty = isDirty;
+
+            renderCompactBulkTable();
+        }
+        window.onCompactBulkRowChange = onCompactBulkRowChange;
+
+        function updateCompactBulkCounts() {
+            const items = Array.from(compactBulkStateMap.values());
+            const selectedCount = items.filter(i => i.checked).length;
+            const dirtyCount = items.filter(i => i.isDirty).length;
+
+            const selectedCountEl = document.getElementById('compact-bulk-selected-count');
+            if (selectedCountEl) selectedCountEl.textContent = selectedCount;
+
+            const masterCb = document.getElementById('compact-bulk-master-cb');
+            if (masterCb) {
+                masterCb.checked = (items.length > 0 && selectedCount === items.length);
+                masterCb.indeterminate = (selectedCount > 0 && selectedCount < items.length);
+            }
+
+            const dirtyInfoEl = document.getElementById('compact-bulk-dirty-info');
+            const saveBtn = document.getElementById('btn-save-compact-bulk');
+            if (dirtyInfoEl) {
+                if (dirtyCount > 0) {
+                    dirtyInfoEl.textContent = `⚡ Có ${dirtyCount} phiếu đã được cập nhật nháp (bấm Lưu để xác nhận)`;
+                    dirtyInfoEl.className = 'font-bold text-amber-700 animate-pulse';
+                } else {
+                    dirtyInfoEl.textContent = 'Chưa có thay đổi nào';
+                    dirtyInfoEl.className = 'font-medium text-slate-500';
+                }
+            }
+            if (saveBtn) {
+                saveBtn.innerHTML = `<span>💾</span> <span>Lưu Thay Đổi ${dirtyCount > 0 ? `(${dirtyCount})` : ''}</span>`;
+            }
+        }
+        window.updateCompactBulkCounts = updateCompactBulkCounts;
+
+        function compactBulkSelectAll(checked) {
+            compactBulkStateMap.forEach(item => {
+                item.checked = !!checked;
+            });
+            renderCompactBulkTable();
+        }
+        window.compactBulkSelectAll = compactBulkSelectAll;
+
+        function onCompactBulkCheckboxToggle(ticketId, checked) {
+            const item = compactBulkStateMap.get(ticketId);
+            if (item) {
+                item.checked = !!checked;
+            }
+            updateCompactBulkCounts();
+        }
+        window.onCompactBulkCheckboxToggle = onCompactBulkCheckboxToggle;
+
+        function applyCompactBulkChanges() {
+            const selectedItems = Array.from(compactBulkStateMap.values()).filter(i => i.checked);
+            if (selectedItems.length === 0) {
+                if (window.showToast) showToast('Vui lòng tick chọn ít nhất 1 phiếu để áp dụng!', 'warning');
+                else alert('Vui lòng tick chọn ít nhất 1 phiếu để áp dụng!');
+                return;
+            }
+
+            const cutterVal = document.getElementById('compact-bulk-select-cutter')?.value || '__keep__';
+            const workerVal = document.getElementById('compact-bulk-select-worker')?.value || '__keep__';
+            const worker2Val = document.getElementById('compact-bulk-select-worker2')?.value || '__keep__';
+            const statusVal = document.getElementById('compact-bulk-select-status')?.value || '__keep__';
+
+            if (cutterVal === '__keep__' && workerVal === '__keep__' && worker2Val === '__keep__' && statusVal === '__keep__') {
+                if (window.showToast) showToast('Vui lòng chọn Thợ cắt, Thợ tắm hoặc Trạng thái để áp dụng!', 'warning');
+                else alert('Vui lòng chọn Thợ cắt, Thợ tắm hoặc Trạng thái để áp dụng!');
+                return;
+            }
+
+            selectedItems.forEach(item => {
+                if (cutterVal !== '__keep__') {
+                    item.staff_cutter = (cutterVal === '__empty__' ? '' : cutterVal);
+                    item.isDirty = true;
+                }
+                if (workerVal !== '__keep__') {
+                    item.staff_worker_1 = (workerVal === '__empty__' ? '' : workerVal);
+                    item.isDirty = true;
+                }
+                if (worker2Val !== '__keep__') {
+                    item.staff_worker_2 = (worker2Val === '__empty__' ? '' : worker2Val);
+                    item.isDirty = true;
+                }
+                if (statusVal !== '__keep__') {
+                    item.status = statusVal;
+                    item.isDirty = true;
+                }
+            });
+
+            renderCompactBulkTable();
+            if (window.showToast) {
+                showToast(`Đã áp dụng thay đổi cho ${selectedItems.length} phiếu! Bấm [Lưu Thay Đổi] để hoàn tất.`, 'info');
+            }
+        }
+        window.applyCompactBulkChanges = applyCompactBulkChanges;
+
+        async function saveCompactBulkEdit() {
+            const dirtyItems = Array.from(compactBulkStateMap.values()).filter(i => i.isDirty);
+            if (dirtyItems.length === 0) {
+                closeSpaBulkEditModal();
+                return;
+            }
+
+            // Optimistic update vào danh sách allPetServiceTickets
+            dirtyItems.forEach(item => {
+                const t = (allPetServiceTickets || []).find(x => x.id === item.id);
+                if (t) {
+                    t.staff_cutter = item.staff_cutter;
+                    t.staff_worker_1 = item.staff_worker_1;
+                    t.staff_worker_2 = item.staff_worker_2;
+                    t.status = item.status;
+                }
+            });
+
+            renderActiveSpaView();
+            loadPetServicesKPI();
+            closeSpaBulkEditModal();
+
+            try {
+                const payload = {
+                    tickets: dirtyItems.map(i => ({
+                        id: i.id,
+                        staff_cutter: i.staff_cutter,
+                        staff_worker_1: i.staff_worker_1,
+                        staff_worker_2: i.staff_worker_2,
+                        status: i.status
+                    }))
+                };
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    if (window.showToast) showToast(`Đã lưu thành công thay đổi cho ${dirtyItems.length} phiếu!`, 'success');
+                } else {
+                    console.error('Lỗi bulk-update:', await res.text());
+                }
+            } catch(e) {
+                console.error('Lỗi mạng khi bulk-update:', e);
+            }
+        }
+        window.saveCompactBulkEdit = saveCompactBulkEdit;
 
         // ==========================================
         // CHẾ ĐỘ SỬA TRỰC TIẾP DẠNG BẢNG TÍNH (EXCEL)
@@ -346,7 +1211,7 @@
                 isSpaSpreadsheetMode = !isSpaSpreadsheetMode;
             }
 
-            const btnToggle = document.getElementById('btn-toggle-spa-spreadsheet');
+            const btnToggle = document.getElementById('btn-toggle-spa-spreadsheet') || document.getElementById('btn-toggle-spa-bulk');
             const actionsWrap = document.getElementById('spa-spreadsheet-actions');
             const dirtyBadge = document.getElementById('dirty-ticket-count');
 
@@ -371,6 +1236,9 @@
             renderPetServicesTable();
         }
         window.toggleSpaSpreadsheetMode = toggleSpaSpreadsheetMode;
+        window.toggleSpaBulkEditMode = function() {
+            toggleSpaSpreadsheetMode();
+        };
 
         function markTicketDirty(ticketId, field, value, el) {
             let item = spaSpreadsheetDirtyMap.get(ticketId) || { id: ticketId };
@@ -437,6 +1305,10 @@
                 const cb = document.getElementById('prog-cb-tip');
                 const inp = document.getElementById('prog-tip-amount');
                 if (cb && inp) inp.value = cb.checked ? (parseFloat(inp.value) || 20000) : 0;
+            } else if (key === 'deposit') {
+                const cb = document.getElementById('prog-cb-deposit');
+                const inp = document.getElementById('prog-deposit-amount');
+                if (cb && inp) inp.value = cb.checked ? (parseFloat(inp.value) || 50000) : 0;
             }
             calculateProgTotal();
         }
@@ -569,8 +1441,29 @@
             if (!tbody) return;
             if (!Array.isArray(allPetServiceTickets)) allPetServiceTickets = [];
             const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
+            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
             let filtered = allPetServiceTickets.filter(t => {
+                // Date filter (t.ticket_date check: if missing in unit test mock, keep it)
+                if (petServiceFilterDate === 'today') {
+                    if (t.ticket_date && t.ticket_date !== todayStr) return false;
+                } else if (petServiceFilterDate !== 'all') {
+                    if (t.ticket_date && t.ticket_date !== petServiceFilterDate) return false;
+                }
+                
+                // Status filter
                 if (petServiceFilterStatus !== 'all' && t.status !== petServiceFilterStatus) return false;
+
+                // KPI quick filter mode
+                if (petServiceFilterKpiMode === 'uncalled') {
+                    if (t.status !== 'completed') return false;
+                    const cs = t.call_status || 'Chưa gọi';
+                    if (cs === 'Đã gọi đón') return false;
+                } else if (petServiceFilterKpiMode === 'not_checked_out') {
+                    if (t.status === 'checked_out') return false;
+                } else if (petServiceFilterKpiMode === 'transport') {
+                    if (!t.has_transport && !t.shipping_fee) return false;
+                }
+
                 if (q && !(t.code||'').toLowerCase().includes(q) && !(t.customer_name||'').toLowerCase().includes(q) && !(t.customer_phone||'').includes(q) && !(t.pet_name||'').toLowerCase().includes(q) && !(t.service_type||'').toLowerCase().includes(q) && !(t.staff_cutter||'').toLowerCase().includes(q) && !(t.staff_receiver||'').toLowerCase().includes(q)) return false;
                 return true;
             });
@@ -610,9 +1503,12 @@
                             </div>
                         </td>
                         <!-- 2. Khách hàng -->
-                        <td class="p-2">
-                            <div class="font-bold text-slate-800">${t.customer_name || '-'}</div>
-                            <div class="font-mono text-xs text-gray-500">${t.customer_phone || ''}</div>
+                        <td class="p-2 whitespace-nowrap min-w-[150px]">
+                            <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-purple-700 hover:underline flex items-center gap-1 group transition" title="Bấm để xem nhanh hồ sơ khách, ví Spa & các bé cưng">
+                                <span>${t.customer_name || '-'}</span>
+                                <span class="text-[10px] text-purple-500 opacity-0 group-hover:opacity-100 transition">👁️</span>
+                            </button>
+                            <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
                         </td>
                         <!-- 3. Gọi điện -->
                         <td class="p-2 text-center">${callStatusSelector(t)}</td>
@@ -729,14 +1625,16 @@
                 if (t.art_cutting_fee) extraFees.push(`Cắt NT: ${formatMoney(t.art_cutting_fee)}`);
                 if (t.surcharge) extraFees.push(`Phụ thu: ${formatMoney(t.surcharge)}`);
                 if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
-                if (t.tip_amount) extraFees.push(`<span class="text-emerald-700 font-bold">🎁 Tip thợ: ${formatMoney(t.tip_amount)}</span>`);
+                if (t.tip_amount) extraFees.push(`<span class="text-emerald-700 font-bold">🎁 Tip: ${formatMoney(t.tip_amount)}</span>`);
+                if (t.deposit_amount) extraFees.push(`<span class="text-sky-700 font-bold">💳 Đã cọc: ${formatMoney(t.deposit_amount)}</span>`);
                 const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 return `
                 <tr class="card-row card-row-anim text-[13px]" style="--row-idx: ${idx};">
                     <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                     <td class="p-2.5 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
-                        <div class="flex items-center justify-center gap-1">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <input type="checkbox" class="spa-row-select w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer" value="${t.id}" onchange="onSpaRowCheckboxChange(this, ${t.id})" ${selectedSpaTicketIds && selectedSpaTicketIds.has(t.id) ? 'checked' : ''} title="Chọn phiếu #${t.ticket_number || t.id}">
                             ${t.ticket_number ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
                         </div>
                         <div class="text-[10px] text-gray-400 font-mono my-1">${t.code || ''}</div>
@@ -744,14 +1642,16 @@
                         <div class="flex flex-wrap items-center justify-center gap-1 pt-1 border-t border-slate-200">
                             <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Cập nhật thợ làm, phụ thu & trả bé">✏️ Sửa</button>
                             <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tiếp nhận (2 chữ ký)">🖨️</button>
-                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In hóa đơn thanh toán K80">🧾</button>
+                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In hóa đơn thanh toán K80 (Tách Dịch Vụ, Cọc, Tip)">🧾</button>
+                            ${t.tip_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'tip_slip')" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tip riêng cho thợ">🎁</button>` : ''}
+                            ${t.deposit_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'deposit_slip')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In biên nhận cọc">💳</button>` : ''}
                             <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa phiếu">🗑️</button>
                         </div>
                     </td>
                     <!-- 2. Khách hàng -->
-                    <td class="p-3">
+                    <td class="p-3 whitespace-nowrap min-w-[150px]">
                         <div class="font-bold text-slate-800">${t.customer_name || '-'}</div>
-                        <div class="font-mono text-xs text-gray-500">${t.customer_phone || ''}</div>
+                        <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
                     </td>
                     <!-- 3. Trạng thái gọi điện -->
                     <td class="p-3 text-center">${callStatusSelector(t)}</td>
@@ -765,25 +1665,66 @@
                         </div>
                     </td>
                     <!-- 5. Dịch vụ -->
-                    <td class="p-3">
-                        <div class="font-bold text-slate-800">${t.service_type || '-'}</div>
-                        ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${t.dye_package}</div>` : ''}
+                    <td class="p-3 cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'service')" title="Bấm để chọn hoặc đổi gói dịch vụ">
+                        <div class="flex items-center justify-between gap-1">
+                            <div>
+                                ${t.original_service_type && t.original_service_type !== t.service_type ? `
+                                    <div class="text-[11px] text-slate-400 line-through decoration-rose-500 font-medium">
+                                        ${escapeSpaHtml(t.original_service_type)} ${t.original_price ? `(${formatMoney(t.original_price)})` : ''}
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs text-rose-600 font-bold">👉</span>
+                                        <span class="font-extrabold text-purple-900 group-hover:text-purple-700 transition">${escapeSpaHtml(t.service_type || '-')}</span>
+                                    </div>
+                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black mt-0.5" title="${escapeSpaHtml(t.service_change_reason || 'Đổi dịch vụ')}">
+                                        <span>🔄 Đổi DV:</span>
+                                        <span class="truncate max-w-[120px]">${escapeSpaHtml(t.service_change_reason || 'Theo hiện trạng')}</span>
+                                    </div>
+                                ` : `
+                                    <div class="font-bold text-slate-800 group-hover:text-purple-700 transition">${escapeSpaHtml(t.service_type || '-')}</div>
+                                `}
+                                ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                            </div>
+                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                        </div>
                     </td>
                     <!-- 6. Lưu ý & Yêu cầu -->
-                    <td class="p-3 text-xs text-gray-700 max-w-xs">
-                        ${t.shaving_feet ? `<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${t.shaving_feet}</span>` : ''}
-                        ${t.customer_request ? `<div class="font-medium text-slate-700">${t.customer_request}</div>` : ''}
-                        ${t.accessories ? `<div class="text-[11px] text-amber-700 font-medium">🎒 ${t.accessories}</div>` : ''}
-                        ${t.note ? `<div class="text-[11px] italic text-gray-500">📝 ${t.note}</div>` : ''}
+                    <td class="p-3 text-xs text-gray-700 max-w-xs cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'request')" title="Bấm để sửa nhanh yêu cầu & phụ kiện">
+                        <div class="flex items-start justify-between gap-1">
+                            <div>
+                                ${t.shaving_feet ? `<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${t.shaving_feet}</span>` : ''}
+                                ${t.customer_request ? `<div class="font-medium text-slate-700">${t.customer_request}</div>` : ''}
+                                ${t.accessories ? `<div class="text-[11px] text-amber-700 font-medium">🎒 ${t.accessories}</div>` : ''}
+                                ${t.note ? `<div class="text-[11px] italic text-gray-500">📝 ${t.note}</div>` : ''}
+                                ${(!t.shaving_feet && !t.customer_request && !t.accessories && !t.note) ? '<span class="text-gray-400 italic">Không có yêu cầu</span>' : ''}
+                            </div>
+                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                        </div>
                     </td>
                     <!-- 7. Thợ phụ trách -->
-                    <td class="p-3 text-xs">${staffHtml}</td>
+                    <td class="p-3 text-xs cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'staff')" title="Bấm để phân công thợ làm">
+                        <div class="flex items-center justify-between gap-1">
+                            <div>${staffHtml}</div>
+                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                        </div>
+                    </td>
                     <!-- 8. Trạng thái làm -->
                     <td class="p-3 text-center border-r-2 border-purple-300">${statusSelector(t)}</td>
                     <!-- 9. Phụ thu -->
                     <td class="p-3 text-right font-medium">${extraFeesHtml}</td>
-                    <!-- 10. Tổng tiền -->
-                    <td class="p-3 text-right font-mono font-black text-sky-700 text-sm">${formatMoney(t.price || 0)}</td>
+                    <!-- 10. Tổng tiền & Thực thu tách bạch -->
+                    <td class="p-3 text-right">
+                        <div class="font-mono font-black text-sky-700 text-sm">${formatMoney(t.price || 0)}</div>
+                        ${(t.tip_amount || t.deposit_amount) ? `
+                            <div class="text-[10px] text-gray-500 font-mono mt-0.5">
+                                ${t.tip_amount ? `<span class="text-emerald-700 font-bold">+${formatMoney(t.tip_amount)} tip</span> ` : ''}
+                                ${t.deposit_amount ? `<span class="text-sky-700 font-bold">-${formatMoney(t.deposit_amount)} cọc</span>` : ''}
+                            </div>
+                            <div class="text-[11.5px] font-black text-slate-800 font-mono mt-0.5" title="Thực thu tại quầy (Dịch vụ + Tip - Cọc)">
+                                👉 ${formatMoney(Math.max(0, (t.price || 0) + (t.tip_amount || 0) - (t.deposit_amount || 0)))}
+                            </div>
+                        ` : ''}
+                    </td>
                     <!-- 11. Thanh toán -->
                     <td class="p-3 text-center">
                         ${t.payment_status === 'paid' ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Đã TT</span>' : '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Chưa TT</span>'}
@@ -808,7 +1749,22 @@
             if (!Array.isArray(allPetServiceTickets)) allPetServiceTickets = [];
 
             const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
+            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
             let filtered = allPetServiceTickets.filter(t => {
+                if (petServiceFilterDate === 'today') {
+                    if (t.ticket_date && t.ticket_date !== todayStr) return false;
+                } else if (petServiceFilterDate !== 'all') {
+                    if (t.ticket_date && t.ticket_date !== petServiceFilterDate) return false;
+                }
+                if (petServiceFilterKpiMode === 'uncalled') {
+                    if (t.status !== 'completed') return false;
+                    const cs = t.call_status || 'Chưa gọi';
+                    if (cs === 'Đã gọi đón') return false;
+                } else if (petServiceFilterKpiMode === 'not_checked_out') {
+                    if (t.status === 'checked_out') return false;
+                } else if (petServiceFilterKpiMode === 'transport') {
+                    if (!t.has_transport && !t.shipping_fee) return false;
+                }
                 if (q && !(t.code||'').toLowerCase().includes(q) && !(t.customer_name||'').toLowerCase().includes(q) && !(t.customer_phone||'').includes(q) && !(t.pet_name||'').toLowerCase().includes(q) && !(t.service_type||'').toLowerCase().includes(q) && !(t.staff_cutter||'').toLowerCase().includes(q) && !(t.staff_receiver||'').toLowerCase().includes(q)) return false;
                 return true;
             });
@@ -865,8 +1821,10 @@
                             <!-- Khách hàng & Cập nhật Gọi Điện Ngay Tại Thẻ -->
                             <div class="flex items-center justify-between gap-2 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
                                 <div class="min-w-0 flex-1">
-                                    <div class="font-bold text-slate-800 text-xs truncate">👤 ${t.customer_name || 'Khách lẻ'}</div>
-                                    <div class="font-mono text-[11px] text-gray-500">${t.customer_phone || ''}</div>
+                                    <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-purple-700 hover:underline text-xs truncate block" title="Xem nhanh hồ sơ khách">
+                                        👤 ${t.customer_name || 'Khách lẻ'}
+                                    </button>
+                                    <div class="font-mono text-[11px] text-gray-500 mt-0.5">${formatMaskedPhone(t.customer_phone)}</div>
                                 </div>
                                 <div class="flex-shrink-0">
                                     ${callStatusSelector(t)}
@@ -951,28 +1909,77 @@
             });
         }
 
-        async function updateServiceCallStatus(ticketId, callStatus) {
+        async function updateServiceCallStatus(ticketId, callStatus, selectElem) {
+            const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId));
+            const oldStatus = ticket ? ticket.call_status : 'Chưa gọi';
+            if (ticket) ticket.call_status = callStatus;
+
+            // 1. Cập nhật DOM tức thì (0ms, không giật màn hình)
+            if (selectElem) {
+                let csClass = 'text-[10px] py-0.5 px-1 rounded border outline-none cursor-pointer ';
+                if (callStatus === 'Đã gọi đón') csClass += 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
+                else if (callStatus === 'Không nghe máy') csClass += 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
+                else if (callStatus === 'Hẹn giờ đón') csClass += 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
+                else csClass += 'bg-gray-50 text-slate-700 border-gray-200';
+                selectElem.className = csClass;
+            }
+            if (petServiceFilterKpiMode === 'uncalled') {
+                renderActiveSpaView();
+            }
+            loadPetServicesKPI();
+
+            // 2. Gửi ngầm tới backend, tự động rollback nếu lỗi
             try {
-                await fetch(`/api/pet-services/${ticketId}/call-status`, {
+                const res = await fetch(`/api/pet-services/${ticketId}/call-status`, {
                     method: 'PUT',
                     headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ call_status: callStatus })
                 });
-                await loadPetServicesList();
-            } catch(e) { alert('Lỗi cập nhật trạng thái gọi điện'); }
+                if (!res.ok) throw new Error('API failed');
+            } catch(e) {
+                console.error('Lỗi cập nhật trạng thái gọi điện:', e);
+                if (ticket) ticket.call_status = oldStatus;
+                renderActiveSpaView();
+                loadPetServicesKPI();
+                alert('Lỗi cập nhật trạng thái gọi điện');
+            }
         }
 
-        async function updateServiceStatus(ticketId, newStatus) {
+        async function updateServiceStatus(ticketId, newStatus, selectElem) {
+            const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId));
+            const oldStatus = ticket ? ticket.status : 'pending';
+            const oldCheckout = ticket ? ticket.checkout_time : '';
+            const nowTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+
+            if (ticket) {
+                ticket.status = newStatus;
+                if (newStatus === 'completed' || newStatus === 'checked_out') {
+                    if (!ticket.checkout_time) ticket.checkout_time = nowTime;
+                }
+            }
+
+            // 1. Cập nhật DOM ngay lập tức từ bộ nhớ local (0ms, không reload lại toàn bộ danh sách)
+            renderActiveSpaView();
+            loadPetServicesKPI();
+
+            // 2. Gửi ngầm tới backend, tự động rollback nếu lỗi
             try {
-                const nowTime = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
-                await fetch(`/api/pet-services/${ticketId}/status`, {
+                const res = await fetch(`/api/pet-services/${ticketId}/status`, {
                     method: 'PUT',
                     headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ status: newStatus, checkout_time: nowTime })
                 });
-                await loadPetServicesList();
-                await loadPetServicesKPI();
-            } catch(e) { alert('Lỗi cập nhật trạng thái'); }
+                if (!res.ok) throw new Error('API failed');
+            } catch(e) {
+                console.error('Lỗi cập nhật trạng thái:', e);
+                if (ticket) {
+                    ticket.status = oldStatus;
+                    ticket.checkout_time = oldCheckout;
+                }
+                renderActiveSpaView();
+                loadPetServicesKPI();
+                alert('Lỗi cập nhật trạng thái');
+            }
         }
 
         async function deletePetService(ticketId) {
@@ -993,7 +2000,18 @@
             const modal = document.getElementById('modal-service-progress');
             if (!modal) return;
 
-            const ticket = (allPetServiceTickets || []).find(t => t.id === ticketId);
+            let ticket = (allPetServiceTickets || []).find(t => String(t.id) === String(ticketId) || t.code === ticketId);
+            if (!ticket) {
+                try {
+                    const res = await fetch(`/api/pet-services/${ticketId}`);
+                    if (res.ok) {
+                        ticket = await res.json();
+                        if (Array.isArray(allPetServiceTickets)) {
+                            allPetServiceTickets.push(ticket);
+                        }
+                    }
+                } catch(e){}
+            }
             if (!ticket) { alert('Không tìm thấy thông tin phiếu'); return; }
 
             // Đảm bảo danh sách thợ được load
@@ -1032,6 +2050,15 @@
             document.getElementById('prog-surcharge').value = ticket.surcharge || '0';
             document.getElementById('prog-shipping-fee').value = ticket.shipping_fee || '0';
             document.getElementById('prog-tip-amount').value = ticket.tip_amount || '0';
+            if (document.getElementById('prog-cb-tip')) {
+                document.getElementById('prog-cb-tip').checked = Boolean(ticket.tip_amount && ticket.tip_amount > 0);
+            }
+            if (document.getElementById('prog-deposit-amount')) {
+                document.getElementById('prog-deposit-amount').value = ticket.deposit_amount || '0';
+            }
+            if (document.getElementById('prog-cb-deposit')) {
+                document.getElementById('prog-cb-deposit').checked = Boolean(ticket.deposit_amount && ticket.deposit_amount > 0);
+            }
 
             // Giá gốc dịch vụ = Tổng tiền hiện tại trừ đi các phụ phí hiện tại (Tiền tip là ghi chú riêng, không tính vào bill)
             const currentExtras = (ticket.teeth_cleaning || 0) + (ticket.art_cutting_fee || 0) + (ticket.surcharge || 0) + (ticket.shipping_fee || 0);
@@ -1085,6 +2112,7 @@
                 surcharge: parseFloat(document.getElementById('prog-surcharge')?.value) || 0,
                 shipping_fee: parseFloat(document.getElementById('prog-shipping-fee')?.value) || 0,
                 tip_amount: parseFloat(document.getElementById('prog-tip-amount')?.value) || 0,
+                deposit_amount: parseFloat(document.getElementById('prog-deposit-amount')?.value) || 0,
                 arrival_method: document.getElementById('prog-arrival-method')?.value || '',
                 return_method: document.getElementById('prog-return-method')?.value || '',
                 checkout_time: document.getElementById('prog-checkout-time')?.value || '',
@@ -2687,11 +3715,18 @@
             if (!petName) { alert('Vui lòng nhập tên của bé!'); return; }
             if (weight <= 0) { alert('Vui lòng nhập cân nặng của bé (VD: 3.5 hoặc 3,5)!'); return; }
 
+            // Tính phân tách tiền Dịch vụ Spa vs Tiền Hàng hóa Retail bán kèm
+            let totalRetail = 0;
+            if (Array.isArray(currentSvcRetailProducts)) {
+                totalRetail = currentSvcRetailProducts.reduce((acc, it) => acc + ((it.price || 0) * (it.quantity || 1)), 0);
+            }
+            const totalSpaService = Math.max(0, totalPrice - totalRetail);
+
             if (paymentStatus === 'paid' && paymentMethod === 'wallet') {
                 const cust = (allContacts || []).find(c => c.id == custId);
                 const bal = (cust && cust.spa_wallet_balance) ? parseFloat(cust.spa_wallet_balance) : 0;
-                if (bal < totalPrice) {
-                    alert(`Số dư ví Spa không đủ thanh toán! (Số dư: ${formatMoneyString(bal)} đ, Cần thanh toán: ${formatMoneyString(totalPrice)} đ).\nVui lòng nạp thêm ví hoặc chọn phương thức khác.`);
+                if (bal < totalSpaService) {
+                    alert(`Số dư ví Spa không đủ thanh toán cho dịch vụ Spa!\n(Số dư ví: ${formatMoneyString(bal)} đ, Tiền dịch vụ Spa: ${formatMoneyString(totalSpaService)} đ).\nVui lòng nạp thêm ví hoặc chọn phương thức khác.`);
                     return;
                 }
             }
@@ -3435,16 +4470,16 @@
             const extraShip = ticket.shipping_fee || 0;
 
             if (Array.isArray(items) && items.length > 0) {
-                if (extraTeeth > 0 && !items.some(it => it.name.includes('Đánh răng'))) {
+                if (extraTeeth > 0 && !items.some(it => (it.name || '').toLowerCase().includes('răng'))) {
                     items.push({ name: 'Đánh răng', quantity: 1, price: extraTeeth, original_price: extraTeeth });
                 }
-                if (extraArt > 0 && !items.some(it => it.name.includes('Cắt nghệ thuật'))) {
+                if (extraArt > 0 && !items.some(it => (it.name || '').toLowerCase().includes('nghệ thuật'))) {
                     items.push({ name: 'PT Cắt nghệ thuật', quantity: 1, price: extraArt, original_price: extraArt });
                 }
-                if (extraSurch > 0 && !items.some(it => it.name.includes('Phụ thu'))) {
+                if (extraSurch > 0 && !items.some(it => (it.name || '').toLowerCase().includes('phụ thu') || (it.name || '').toLowerCase().includes('gỡ rối'))) {
                     items.push({ name: 'Phụ thu khác', quantity: 1, price: extraSurch, original_price: extraSurch });
                 }
-                if (extraShip > 0 && !items.some(it => it.name.includes('Cước giao') || it.name.includes('vận chuyển'))) {
+                if (extraShip > 0 && !items.some(it => (it.name || '').toLowerCase().includes('giao') || (it.name || '').toLowerCase().includes('vận chuyển') || (it.name || '').toLowerCase().includes('ship'))) {
                     items.push({ name: 'Cước giao bé về', quantity: 1, price: extraShip, original_price: extraShip });
                 }
                 return items;
@@ -3520,6 +4555,8 @@
             const items = getTicketLineItems(ticket);
             let totalOriginal = 0;
             let totalFinal = 0;
+            let totalService = 0;
+            let totalProducts = 0;
 
             const rowsHtml = items.map(it => {
                 const qty = it.quantity || 1;
@@ -3531,6 +4568,11 @@
 
                 totalOriginal += (origPrice * qty);
                 totalFinal += subtotal;
+                if (it.is_retail) {
+                    totalProducts += subtotal;
+                } else {
+                    totalService += subtotal;
+                }
 
                 const priceDisplay = hasDiscount ? `
                     <div style="font-weight: 800; line-height: 1.1; color: #000;">${formatMoney(price)}</div>
@@ -3545,10 +4587,14 @@
                     <div style="font-size: 9px; line-height: 1.1; font-weight: 800; color: #000;">(Giảm ${formatMoney(diff * qty)})</div>
                 ` : `<div style="font-weight: 900; font-family: monospace; color: #000;">${formatMoney(subtotal)}</div>`;
 
+                const typeTag = it.is_retail 
+                    ? '<span style="border: 1px solid #000; font-size: 9px; font-weight: 900; padding: 0 3px; margin-right: 4px; border-radius: 2px;">SP</span>'
+                    : '<span style="border: 1px solid #000; font-size: 9px; font-weight: 900; padding: 0 3px; margin-right: 4px; border-radius: 2px; background: #000; color: #fff;">SPA</span>';
+
                 return `
                     <tr>
                         <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 900; font-size: 12px; color: #000; text-align: left; word-break: break-word; line-height: 1.2;">
-                            ${it.name}
+                            ${typeTag}${it.name}
                         </td>
                     </tr>
                     <tr style="border-bottom: 1px dashed #000;">
@@ -3559,11 +4605,109 @@
                 `;
             }).join('');
 
-            const hasAnyDiscount = totalOriginal > (ticket.price || totalFinal);
-            const totalDiscount = Math.max(0, totalOriginal - (ticket.price || totalFinal));
+            const servicePrice = Number(ticket.price || totalFinal || 0);
+            if (totalService === 0 && totalProducts === 0) {
+                totalService = servicePrice;
+            }
+            const hasAnyDiscount = totalOriginal > servicePrice;
+            const totalDiscount = Math.max(0, totalOriginal - servicePrice);
+            const tipAmount = Number(ticket.tip_amount || 0);
+            const depositAmount = Number(ticket.deposit_amount || 0);
+            const walletDeduction = Number(ticket.spa_wallet_deduction !== undefined && ticket.spa_wallet_deduction !== null 
+                ? ticket.spa_wallet_deduction 
+                : (ticket.payment_method === 'wallet' ? totalService : 0));
+            const cashPayable = Math.max(0, (totalService - walletDeduction) + totalProducts + tipAmount - depositAmount);
+            const finalPayable = cashPayable;
+
+            if (type === 'tip_slip') {
+                // PHIẾU TIỀN TIP CHO THỢ (SLIP ĐỐI SOÁT CUỐI CA)
+                return `
+                    <div class="thermal-k80-wrapper" style="width: 72mm; max-width: 72mm; margin: 0 auto; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11.5px; line-height: 1.35; color: #000; padding: 1mm 1mm;">
+                        <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                            <h2 style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase; color: #000;">🐾 PET SPA & GROOMING</h2>
+                            <div style="font-size: 13px; font-weight: 900; margin-top: 4px; color: #000;">PHIẾU TIỀN TIP CHO THỢ</div>
+                            <div style="font-size: 10px; font-weight: 700; color: #000; margin-top: 2px;">(Thu hộ thợ - Đối soát cuối ca)</div>
+                            <div style="display: inline-block; border: 1.5px solid #000; color: #000; font-size: 14px; font-weight: 900; padding: 2px 8px; border-radius: 4px; margin-top: 5px;">
+                                SỐ PHIẾU: #${ticket.ticket_number || ticket.id}
+                            </div>
+                            <div style="font-size: 10px; font-weight: 700; color: #000; margin-top: 2px;">Mã: ${ticket.code} · Ngày: ${dateStr}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 12px;">
+                            <div><strong>Bé:</strong> <span style="font-weight: 800;">${ticket.pet_name || 'Bé cưng'}</span> (${ticket.customer_name || 'Khách lẻ'})</div>
+                            <div><strong>Thợ cắt:</strong> <span style="font-weight: 800;">${ticket.staff_cutter || '-'}</span></div>
+                            <div><strong>Thợ tắm / làm:</strong> <span style="font-weight: 800;">${ticket.staff_worker_1 || '-'}</span></div>
+                        </div>
+
+                        <div style="border: 2px solid #000; border-radius: 4px; padding: 8px; text-align: center; margin-bottom: 8px;">
+                            <div style="font-size: 11px; font-weight: 700;">TIỀN TIP NHẬN ĐƯỢC:</div>
+                            <div style="font-size: 20px; font-weight: 900; font-family: monospace; margin: 4px 0;">${formatMoney(tipAmount)}</div>
+                            <div style="font-size: 10px; font-style: italic;">(Khách hàng thưởng dịch vụ chu đáo)</div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 10px; margin-top: 10px; margin-bottom: 15px;">
+                            <div style="width: 48%;">
+                                <div style="font-weight: 800;">Thu Ngân / Kế Toán</div>
+                                <div style="height: 35px;"></div>
+                                <div>(Ký giao)</div>
+                            </div>
+                            <div style="width: 48%;">
+                                <div style="font-weight: 800;">Thợ Nhận Tip</div>
+                                <div style="height: 35px;"></div>
+                                <div>${ticket.staff_cutter || ticket.staff_worker_1 || '(Ký nhận)'}</div>
+                            </div>
+                        </div>
+                        <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt -->
+                        <div style="height: 18mm; width: 100%;"></div>
+                    </div>
+                `;
+            }
+
+            if (type === 'deposit_slip') {
+                // PHIẾU BIÊN NHẬN ĐẶT CỌC
+                return `
+                    <div class="thermal-k80-wrapper" style="width: 72mm; max-width: 72mm; margin: 0 auto; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11.5px; line-height: 1.35; color: #000; padding: 1mm 1mm;">
+                        <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                            <h2 style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase; color: #000;">🐾 PET SPA & GROOMING</h2>
+                            <div style="font-size: 13px; font-weight: 900; margin-top: 4px; color: #000;">BIÊN NHẬN TIỀN ĐẶT CỌC</div>
+                            <div style="font-size: 10px; font-weight: 700; color: #000; margin-top: 2px;">(Giữ đối chiếu khi đón bé thanh toán)</div>
+                            <div style="display: inline-block; border: 1.5px solid #000; color: #000; font-size: 14px; font-weight: 900; padding: 2px 8px; border-radius: 4px; margin-top: 5px;">
+                                SỐ PHIẾU: #${ticket.ticket_number || ticket.id}
+                            </div>
+                            <div style="font-size: 10px; font-weight: 700; color: #000; margin-top: 2px;">Mã: ${ticket.code} · Ngày: ${dateStr}</div>
+                        </div>
+
+                        <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 12px;">
+                            <div><strong>Khách hàng:</strong> <span style="font-weight: 800;">${ticket.customer_name || 'Khách lẻ'}</span> (${ticket.customer_phone || '-'})</div>
+                            <div><strong>Bé cưng:</strong> <span style="font-weight: 800;">${ticket.pet_name || 'Bé cưng'}</span> - ${ticket.service_type || '-'}</div>
+                        </div>
+
+                        <div style="border: 2px solid #000; border-radius: 4px; padding: 8px; text-align: center; margin-bottom: 8px;">
+                            <div style="font-size: 11px; font-weight: 700;">SỐ TIỀN ĐÃ ĐẶT CỌC:</div>
+                            <div style="font-size: 20px; font-weight: 900; font-family: monospace; margin: 4px 0;">${formatMoney(depositAmount)}</div>
+                            <div style="font-size: 10px; font-style: italic;">(Được trừ trực tiếp khi thanh toán lúc trả bé)</div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 10px; margin-top: 10px; margin-bottom: 15px;">
+                            <div style="width: 48%;">
+                                <div style="font-weight: 800;">Thu Ngân Nhận Cọc</div>
+                                <div style="height: 35px;"></div>
+                                <div>${ticket.staff_receiver || '(Ký nhận)'}</div>
+                            </div>
+                            <div style="width: 48%;">
+                                <div style="font-weight: 800;">Khách Gửi Cọc</div>
+                                <div style="height: 35px;"></div>
+                                <div>(Ký xác nhận)</div>
+                            </div>
+                        </div>
+                        <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt -->
+                        <div style="height: 18mm; width: 100%;"></div>
+                    </div>
+                `;
+            }
 
             if (type === 'invoice') {
-                // PHIẾU THANH TOÁN / TRẢ BÉ (K80)
+                // PHIẾU THANH TOÁN / TRẢ BÉ (K80) - TÁCH TIỀN MINH BẠCH (DỊCH VỤ, CỌC, TIP)
                 return `
                     <div class="thermal-k80-wrapper" style="width: 72mm; max-width: 72mm; margin: 0 auto; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; font-size: 11.5px; line-height: 1.35; color: #000; padding: 1mm 1mm;">
                         <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
@@ -3606,10 +4750,25 @@
                             </table>
                         </div>
 
+                        ${ticket.original_service_type && ticket.original_service_type !== ticket.service_type ? `
+                        <!-- KHỐI LỊCH SỬ ĐIỀU CHỈNH GÓI DỊCH VỤ CHỐNG GIAN LẬN -->
+                        <div style="border: 1.5px solid #000; border-radius: 4px; padding: 6px; margin-bottom: 6px; background-color: #fff;">
+                            <div style="font-weight: 900; font-size: 11px; text-transform: uppercase; border-bottom: 1px dashed #000; padding-bottom: 3px; margin-bottom: 4px;">
+                                ⚠️ LỊCH SỬ ĐIỀU CHỈNH DỊCH VỤ:
+                            </div>
+                            <div style="font-size: 11px; line-height: 1.4;">
+                                <div>• Gói ban đầu: <strong style="text-decoration: line-through;">${escapeSpaHtml(ticket.original_service_type)}</strong> ${ticket.original_price ? `(${formatMoney(ticket.original_price)})` : ''}</div>
+                                <div>• Đổi sang gói: <strong>${escapeSpaHtml(ticket.service_type)}</strong></div>
+                                <div>• Lý do đổi: <strong>${escapeSpaHtml(ticket.service_change_reason || 'Lông rối bết / Hiện trạng bé')}</strong></div>
+                                ${ticket.service_changed_at ? `<div style="font-size: 10px; color: #333;">• Thời gian: ${escapeSpaHtml(ticket.service_changed_at)}</div>` : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+
                         <div style="border-bottom: 2px dashed #000; padding-bottom: 6px; margin-bottom: 6px;">
                             ${hasAnyDiscount ? `
                             <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 700;">
-                                <span>Tổng tiền dịch vụ:</span>
+                                <span>Tổng tiền dịch vụ gốc:</span>
                                 <span style="font-family: monospace; font-weight: 800;">${formatMoney(totalOriginal)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 3px;">
@@ -3617,13 +4776,62 @@
                                 <span style="font-family: monospace;">- ${formatMoney(totalDiscount)}</span>
                             </div>
                             ` : ''}
-                            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 900; margin-top: 4px; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0;">
-                                <span>TỔNG CỘNG:</span>
-                                <span style="font-family: monospace;">${formatMoney(ticket.price || totalFinal)}</span>
+
+                            <!-- 1. Tiền dịch vụ spa -->
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>1. Tiền Dịch Vụ Spa:</span>
+                                <span style="font-family: monospace; font-weight: 900;">${formatMoney(totalService)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 900; margin-top: 3px;">
+
+                            <!-- 2. Tiền Sản Phẩm Hàng Hóa Mua Kèm (nếu có) -->
+                            ${totalProducts > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>2. Tiền Sản Phẩm Mua Kèm:</span>
+                                <span style="font-family: monospace; font-weight: 900;">${formatMoney(totalProducts)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- 3. Khấu trừ Ví Spa (cho dịch vụ) -->
+                            ${walletDeduction > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>3. Đã Trừ Ví Spa (dịch vụ):</span>
+                                <span style="font-family: monospace; font-weight: 900;">- ${formatMoney(walletDeduction)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- 4. Tiền Tip Thợ (nếu có) -->
+                            ${tipAmount > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 800; color: #000;">
+                                <span>${(totalProducts > 0 || walletDeduction > 0) ? 'Tiền Tip Thợ (thu hộ):' : '2. Tiền Tip Thợ (thu hộ):'}</span>
+                                <span style="font-family: monospace; font-weight: 900;">+ ${formatMoney(tipAmount)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- 5. Tiền Đã Đặt Cọc (nếu có) -->
+                            ${depositAmount > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 800; color: #000;">
+                                <span>${type === 'intake' ? 'ĐÃ ĐẶT CỌC TRƯỚC:' : ((totalProducts > 0 || walletDeduction > 0) ? 'Đã Đặt Cọc Trước:' : '3. Đã Đặt Cọc Trước:')}</span>
+                                <span style="font-family: monospace; font-weight: 900;">- ${formatMoney(depositAmount)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- TỔNG CỘNG THỰC THU TIỀN MẶT / CHUYỂN KHOẢN -->
+                            <div style="display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 900; margin-top: 4px; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0;">
+                                <span>${walletDeduction > 0 ? 'THỰC THU (TIỀN MẶT / CK):' : (type === 'intake' ? (depositAmount > 0 ? 'CÒN LẠI KHI NHẬN BÉ:' : 'TỔNG CỘNG:') : ((depositAmount > 0 || tipAmount > 0) ? 'THỰC THU TẠI QUẦY:' : 'TỔNG CỘNG:'))}</span>
+                                <span style="font-family: monospace;">${formatMoney(cashPayable)}</span>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; margin-top: 4px; line-height: 1.3;">
                                 <span>Trạng thái TT:</span>
-                                <span>${ticket.payment_status === 'paid' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}</span>
+                                <span style="text-align: right;">${
+                                    ticket.payment_status === 'paid'
+                                        ? (walletDeduction > 0 
+                                            ? (totalProducts > 0 
+                                                ? `ĐÃ TRỪ VÍ (${formatMoney(walletDeduction)}) + THU TM/CK (${formatMoney(cashPayable)})` 
+                                                : `ĐÃ TRỪ VÍ SPA (${formatMoney(walletDeduction)})`)
+                                            : 'ĐÃ THANH TOÁN')
+                                        : 'CHƯA THANH TOÁN'
+                                }</span>
                             </div>
                         </div>
 
@@ -3637,6 +4845,8 @@
                             <div>Cảm ơn Quý khách đã tin tưởng & chăm sóc bé tại Mastercare!</div>
                             <div style="font-weight: 900; margin-top: 2px;">Chúc bé luôn khỏe mạnh & hẹn gặp lại! ❤️</div>
                         </div>
+                        <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt (chống cắt phạm chữ) -->
+                        <div style="height: 18mm; width: 100%;"></div>
                     </div>
                 `;
             } else {
@@ -3682,6 +4892,13 @@
                                     ${rowsHtml}
                                 </tbody>
                             </table>
+                            ${ticket.original_service_type && ticket.original_service_type !== ticket.service_type ? `
+                            <div style="border: 1px solid #000; border-radius: 3px; padding: 4px 6px; margin-top: 4px; font-size: 10px; line-height: 1.35;">
+                                <div>• Gói gốc: <span style="text-decoration: line-through;">${escapeSpaHtml(ticket.original_service_type)}</span></div>
+                                <div>• Đổi sang: <strong>${escapeSpaHtml(ticket.service_type)}</strong></div>
+                                <div>• Lý do: <strong>${escapeSpaHtml(ticket.service_change_reason || 'Hiện trạng bé')}</strong></div>
+                            </div>
+                            ` : ''}
                             ${ticket.customer_request ? `<div style="font-size: 11px; margin-top: 4px; font-weight: 800;">✂️ Y/c: ${ticket.customer_request}</div>` : ''}
                             ${ticket.accessories ? `<div style="font-size: 11px; margin-top: 2px; font-weight: 800;">🎒 PK kèm: ${ticket.accessories}</div>` : ''}
                             ${ticket.note ? `<div style="font-size: 11px; margin-top: 2px; font-weight: 800;">📝 Lưu ý: ${ticket.note}</div>` : ''}
@@ -3693,7 +4910,7 @@
                         <div style="border-bottom: 1.5px solid #000; padding-bottom: 6px; margin-bottom: 6px;">
                             ${hasAnyDiscount ? `
                             <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-weight: 700;">
-                                <span>Tổng tiền dịch vụ:</span>
+                                <span>Tổng tiền dịch vụ gốc:</span>
                                 <span style="font-family: monospace; font-weight: 800;">${formatMoney(totalOriginal)}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 3px;">
@@ -3701,13 +4918,56 @@
                                 <span style="font-family: monospace;">- ${formatMoney(totalDiscount)}</span>
                             </div>
                             ` : ''}
-                            <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 900; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0;">
-                                <span>TỔNG TẠM TÍNH:</span>
-                                <span style="font-family: monospace;">${formatMoney(ticket.price || totalFinal)}</span>
+
+                            <!-- 1. Tiền Dịch Vụ Spa -->
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>1. Tiền Dịch Vụ Spa:</span>
+                                <span style="font-family: monospace; font-weight: 900;">${formatMoney(totalService)}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; margin-top: 3px;">
+
+                            <!-- 2. Tiền Sản Phẩm Hàng Hóa Mua Kèm (nếu có) -->
+                            ${totalProducts > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>2. Tiền Sản Phẩm Mua Kèm:</span>
+                                <span style="font-family: monospace; font-weight: 900;">${formatMoney(totalProducts)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- 3. Khấu trừ Ví Spa (cho dịch vụ) -->
+                            ${walletDeduction > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>3. Đã Trừ Ví Spa (dịch vụ):</span>
+                                <span style="font-family: monospace; font-weight: 900;">- ${formatMoney(walletDeduction)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- 4. Tiền Đã Đặt Cọc (nếu có) -->
+                            ${depositAmount > 0 ? `
+                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 3px; font-weight: 800;">
+                                <span>ĐÃ ĐẶT CỌC TRƯỚC:</span>
+                                <span style="font-family: monospace; font-weight: 900;">- ${formatMoney(depositAmount)}</span>
+                            </div>
+                            ` : ''}
+
+                            <!-- TỔNG CẦN THANH TOÁN (TIỀN MẶT / CK) -->
+                            <div style="display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 900; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0; margin-top: 3px;">
+                                <span>${walletDeduction > 0 ? 'PHẢI THU (TIỀN MẶT / CK):' : (depositAmount > 0 ? 'CÒN LẠI KHI NHẬN BÉ:' : 'TỔNG TẠM TÍNH:')}</span>
+                                <span style="font-family: monospace;">${formatMoney(cashPayable)}</span>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 900; margin-top: 4px; line-height: 1.3;">
                                 <span>Trạng thái thanh toán:</span>
-                                <span>${ticket.payment_status === 'paid' ? 'ĐÃ THANH TOÁN TRƯỚC' : 'THANH TOÁN KHI NHẬN BÉ'}</span>
+                                <span style="text-align: right;">${
+                                    ticket.payment_status === 'paid'
+                                        ? (walletDeduction > 0 
+                                            ? (totalProducts > 0 
+                                                ? `ĐÃ TRỪ VÍ (${formatMoney(walletDeduction)}) + THU TM/CK (${formatMoney(cashPayable)})` 
+                                                : `ĐÃ TRỪ VÍ SPA (${formatMoney(walletDeduction)})`)
+                                            : 'ĐÃ THANH TOÁN TRƯỚC')
+                                        : (depositAmount > 0 
+                                            ? `ĐÃ CỌC (${formatMoney(depositAmount)}) - THU CÒN LẠI KHI NHẬN` 
+                                            : 'THANH TOÁN KHI NHẬN BÉ')
+                                }</span>
                             </div>
                         </div>
 
@@ -3731,6 +4991,8 @@
                             <div>Quý khách vui lòng kiểm tra phụ kiện & giữ phiếu đối chiếu khi đón bé!</div>
                             <div style="font-weight: 900; margin-top: 2px;">Xin cảm ơn Quý khách! 💖</div>
                         </div>
+                        <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt (chống cắt phạm chữ) -->
+                        <div style="height: 18mm; width: 100%;"></div>
                     </div>
                 `;
             }
@@ -3764,6 +5026,13 @@
                 document.body.appendChild(iframe);
             }
 
+            const printTitles = {
+                invoice: 'In Hóa Đơn Thanh Toán Spa (Tách Dịch Vụ, Cọc, Tip)',
+                intake: 'In Phiếu Tiếp Nhận Spa',
+                tip_slip: 'In Phiếu Tip Cho Thợ',
+                deposit_slip: 'In Biên Nhận Đặt Cọc'
+            };
+
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(`
@@ -3771,7 +5040,7 @@
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <title>${type === 'invoice' ? 'In Hóa Đơn Thanh Toán Spa' : 'In Phiếu Tiếp Nhận Spa'}</title>
+                    <title>${printTitles[type] || 'In Phiếu Dịch Vụ'}</title>
                     <style>
                         @page { size: auto; margin: 0mm; }
                         body { margin: 0; padding: 0; background: #fff; color: #000; }
@@ -3793,6 +5062,8 @@
                 }
             }, 350);
         }
+        window.printPetServiceTicketDirectly = printPetServiceTicketDirectly;
+        window.openServiceProgressModal = openServiceProgressModal;
 
         // =========================================================================
         // IN HÀNG LOẠT NHIỀU PHIẾU SPA - GỘP 1 PHIẾU TỔNG HOẶC IN TÁCH LẺ TỪNG BÉ
@@ -3961,6 +5232,8 @@
                             <div style="font-weight: 900; margin-top: 2px;">Chúc các bé luôn khỏe mạnh & hẹn gặp lại! ❤️</div>
                         </div>
                     `}
+                    <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt (chống cắt phạm chữ) -->
+                    <div style="height: 18mm; width: 100%;"></div>
                 </div>
             `;
         }
@@ -4056,4 +5329,380 @@
             }, 450);
         }
         window.printBatchPetServiceTickets = printBatchPetServiceTickets;
+        window.setPetServiceDateFilter = setPetServiceDateFilter;
+        window.filterPetServicesByKpi = filterPetServicesByKpi;
+
+        // ---------------------------------------------------------
+        // DROPLIST POPUP CHO 3 CỘT (DỊCH VỤ, YÊU CẦU & LƯU Ý, THỢ)
+        // ---------------------------------------------------------
+        function escapeSpaHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function openSpaCellDroplist(event, ticketId, fieldType) {
+            if (event) event.stopPropagation();
+            const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId));
+            if (!ticket) return;
+
+            // Nạp danh sách thợ nếu chưa có
+            if (!allSpaStaffList || allSpaStaffList.length === 0) {
+                try {
+                    const r = await fetch('/api/pet-services/staff');
+                    if (r.ok) allSpaStaffList = await r.json();
+                } catch(e) {}
+            }
+            // Nạp bảng giá nếu chưa có
+            if (!allPetPricingData || allPetPricingData.length === 0) {
+                try {
+                    const r = await fetch('/api/pet-services/pricing');
+                    if (r.ok) allPetPricingData = await r.json();
+                } catch(e) {}
+            }
+
+            const modal = document.getElementById('modal-spa-cell-quick-edit');
+            const titleEl = document.getElementById('quick-edit-title');
+            const subtitleEl = document.getElementById('quick-edit-subtitle');
+            const iconEl = document.getElementById('quick-edit-icon');
+            const contentEl = document.getElementById('quick-edit-content');
+            const ticketIdInput = document.getElementById('quick-edit-ticket-id');
+            const fieldTypeInput = document.getElementById('quick-edit-field-type');
+
+            if (!modal || !contentEl) return;
+
+            ticketIdInput.value = ticket.id;
+            fieldTypeInput.value = fieldType;
+
+            const petTitle = `${ticket.pet_name || 'Bé cưng'} (#${ticket.ticket_number || ticket.id})`;
+
+            if (fieldType === 'service') {
+                if (iconEl) iconEl.textContent = '🏷️';
+                if (titleEl) titleEl.textContent = `Gói Dịch Vụ: ${petTitle}`;
+                if (subtitleEl) subtitleEl.textContent = 'Chọn nhanh gói dịch vụ spa chính và gói nhuộm';
+
+                // Gom nhóm các dịch vụ chính theo category từ allPetPricingData
+                const catMap = {};
+                (allPetPricingData || []).forEach(item => {
+                    const cat = item.category || 'Dịch Vụ Khác';
+                    if (!catMap[cat]) catMap[cat] = new Set();
+                    if (item.service_name) catMap[cat].add(item.service_name.trim());
+                });
+
+                let optionsHtml = '';
+                if (Object.keys(catMap).length === 0 && ticket.service_type) {
+                    optionsHtml = `<option value="${escapeSpaHtml(ticket.service_type)}" selected>${escapeSpaHtml(ticket.service_type)}</option>`;
+                } else {
+                    for (const cat in catMap) {
+                        optionsHtml += `<optgroup label="📂 ${escapeSpaHtml(cat)}">`;
+                        Array.from(catMap[cat]).forEach(sName => {
+                            const sel = (ticket.service_type === sName) ? 'selected' : '';
+                            optionsHtml += `<option value="${escapeSpaHtml(sName)}" ${sel}>${escapeSpaHtml(sName)}</option>`;
+                        });
+                        optionsHtml += `</optgroup>`;
+                    }
+                }
+
+                // Gói nhuộm lông
+                const dyeOptions = [
+                    'Không nhuộm',
+                    'Nhuộm 1 Màu (Tai + Đuôi)',
+                    'Nhuộm Nhiều Màu (Tai + Đuôi)',
+                    'Nhuộm 4 Chân (1 Màu)',
+                    'Nhuộm 4 Chân (Nhiều Màu)',
+                    'Nhuộm Toàn Thân'
+                ];
+                let dyeHtml = dyeOptions.map(d => {
+                    const val = d === 'Không nhuộm' ? '' : d;
+                    const sel = (ticket.dye_package || '') === val ? 'selected' : '';
+                    return `<option value="${escapeSpaHtml(val)}" ${sel}>${d}</option>`;
+                }).join('');
+
+                contentEl.innerHTML = `
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Gói Dịch Vụ Chính:</label>
+                        <select id="quick-edit-val-service" onchange="onQuickEditServiceChange(${ticket.id})" class="w-full border p-2 rounded bg-white text-xs font-bold text-slate-800 focus:border-purple-600 outline-none">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">🎨 Gói Nhuộm Lông (nếu có):</label>
+                        <select id="quick-edit-val-dye" class="w-full border p-2 rounded bg-white text-xs text-purple-700 font-semibold focus:border-purple-600 outline-none">
+                            ${dyeHtml}
+                        </select>
+                    </div>
+
+                    <!-- Khối xác nhận lý do đổi dịch vụ (chỉ hiện khi khác gói ban đầu) -->
+                    <div id="quick-edit-service-change-box" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-300 space-y-2 text-xs">
+                        <div class="flex items-center gap-1.5 font-bold text-amber-900">
+                            <span>⚠️</span> <span>XÁC NHẬN ĐIỀU CHỈNH GÓI DỊCH VỤ</span>
+                        </div>
+                        <div class="text-[11px] text-amber-800" id="quick-edit-service-change-diff">
+                            <!-- Chênh lệch giá -->
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Lý do điều chỉnh (in lên bill & lưu đối soát):</label>
+                            <input type="text" id="quick-edit-service-change-reason" class="w-full border border-amber-300 rounded p-1.5 bg-white text-xs font-medium text-slate-800" placeholder="VD: Lông rối bết nhiều, Khách đổi ý...">
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Lông rối bết nhiều không gỡ được'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Lông rối bết</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Viêm da / Ve rận phát sinh'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Viêm da/Ve rận</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Bé hung dữ / không hợp tác cắt'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Bé khó làm</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Khách đổi ý theo hiện trạng bé'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Khách đổi ý</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (fieldType === 'request') {
+                if (iconEl) iconEl.textContent = '📝';
+                if (titleEl) titleEl.textContent = `Lưu Ý & Yêu Cầu: ${petTitle}`;
+                if (subtitleEl) subtitleEl.textContent = 'Cạo bàn, yêu cầu tạo kiểu, phụ kiện gửi lại và lưu ý thợ';
+
+                const shavingOptions = ['Không cạo bàn', 'Cạo 4 bàn', 'Cạo bàn + cắt móng', 'Cạo đệm chân'];
+                const shavingHtml = shavingOptions.map(opt => `
+                    <option value="${opt}" ${ticket.shaving_feet === opt ? 'selected' : ''}>${opt}</option>
+                `).join('');
+
+                contentEl.innerHTML = `
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Cạo Bàn:</label>
+                        <select id="quick-edit-val-shaving" class="w-full border p-1.5 rounded bg-white text-xs font-bold text-purple-800">
+                            ${shavingHtml}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">✂️ Yêu Cầu Cắt Tỉa:</label>
+                        <input type="text" id="quick-edit-val-req" class="w-full border p-1.5 rounded bg-white text-xs font-medium text-slate-800" value="${escapeSpaHtml(ticket.customer_request || '')}" placeholder="VD: Cắt tròn mặt teddy, bo chân bông...">
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Mặt tròn teddy')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Mặt teddy</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Cắt ngắn gọn mát mẻ')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Ngắn mát</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Bo tròn chân bông')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Chân bông</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Tỉa phom gọn gàng')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Tỉa gọn</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">🎒 Phụ Kiện Gửi Lại:</label>
+                        <input type="text" id="quick-edit-val-acc" class="w-full border p-1.5 rounded bg-white text-xs font-medium text-amber-800" value="${escapeSpaHtml(ticket.accessories || '')}" placeholder="VD: Dây dắt, chuồng xách tay...">
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Dây dắt')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Dây dắt</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Vòng cổ')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Vòng cổ</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Chuồng xách tay')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Chuồng</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Balo')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Balo</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">📝 Ghi Chú Thợ / Sức Khỏe:</label>
+                        <input type="text" id="quick-edit-val-note" class="w-full border p-1.5 rounded bg-white text-xs text-slate-600" value="${escapeSpaHtml(ticket.note || '')}" placeholder="Lưu ý bé nhát, đau chân...">
+                    </div>
+                `;
+            } else if (fieldType === 'staff') {
+                if (iconEl) iconEl.textContent = '👥';
+                if (titleEl) titleEl.textContent = `Phân Công Thợ: ${petTitle}`;
+                if (subtitleEl) subtitleEl.textContent = 'Chỉ định thợ tiếp nhận, thợ tắm và thợ cắt tạo kiểu';
+
+                let staffOpts = '<option value="">-- Chưa chọn thợ --</option>';
+                (allSpaStaffList || []).forEach(s => {
+                    const label = (s.staff_code ? s.staff_code + ' - ' : '') + (s.name || '');
+                    staffOpts += `<option value="${escapeSpaHtml(s.name)}">${escapeSpaHtml(label)}</option>`;
+                });
+
+                contentEl.innerHTML = `
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">✂️ Thợ Cắt Tỉa / Tạo Kiểu:</label>
+                        <select id="quick-edit-val-cutter" class="w-full border p-2 rounded bg-white text-xs font-bold text-pink-700">
+                            ${staffOpts}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">🛁 Thợ Tắm / Sấy / Vệ Sinh:</label>
+                        <select id="quick-edit-val-worker1" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
+                            ${staffOpts}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">📥 Thợ Tiếp Nhận / Trả Bé:</label>
+                        <select id="quick-edit-val-receiver" class="w-full border p-2 rounded bg-white text-xs font-bold text-purple-700">
+                            ${staffOpts}
+                        </select>
+                    </div>
+                `;
+
+                // Set selected values
+                const cutterEl = document.getElementById('quick-edit-val-cutter');
+                const worker1El = document.getElementById('quick-edit-val-worker1');
+                const receiverEl = document.getElementById('quick-edit-val-receiver');
+                if (cutterEl) cutterEl.value = ticket.staff_cutter || '';
+                if (worker1El) worker1El.value = ticket.staff_worker_1 || '';
+                if (receiverEl) receiverEl.value = ticket.staff_receiver || '';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function findServicePriceByWeight(serviceName, weight) {
+            const w = parseFloat(weight) || 0;
+            if (!Array.isArray(allPetPricingData) || !serviceName) return 0;
+            const sClean = serviceName.trim().toLowerCase();
+            const match = allPetPricingData.find(item => 
+                item.service_name.trim().toLowerCase() === sClean &&
+                (item.min_weight === 0 ? w >= item.min_weight : w > item.min_weight) &&
+                w <= item.max_weight
+            ) || allPetPricingData.find(item => 
+                item.service_name.trim().toLowerCase() === sClean &&
+                w >= item.min_weight && w <= item.max_weight
+            );
+            return match ? match.price : 0;
+        }
+        window.findServicePriceByWeight = findServicePriceByWeight;
+
+        function onQuickEditServiceChange(ticketId) {
+            const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId));
+            if (!ticket) return;
+
+            const newService = document.getElementById('quick-edit-val-service')?.value || '';
+            const box = document.getElementById('quick-edit-service-change-box');
+            const diffEl = document.getElementById('quick-edit-service-change-diff');
+            if (!box || !diffEl) return;
+
+            const origService = ticket.original_service_type || ticket.service_type || '';
+            if (newService && newService !== origService) {
+                const w = ticket.weight_at_service || 0;
+                const oldPrice = ticket.original_price || findServicePriceByWeight(origService, w) || ticket.price || 0;
+                const newPrice = findServicePriceByWeight(newService, w);
+                const diff = newPrice - oldPrice;
+
+                let diffText = `Gói gốc: <strong>${escapeSpaHtml(origService)}</strong> (${formatMoney(oldPrice)}) ➔ Gói mới: <strong>${escapeSpaHtml(newService)}</strong> (${formatMoney(newPrice)}).`;
+                if (diff < 0) {
+                    diffText += ` <span class="text-emerald-700 font-bold">Chênh lệch: Giảm ${formatMoney(Math.abs(diff))}</span>`;
+                } else if (diff > 0) {
+                    diffText += ` <span class="text-rose-700 font-bold">Chênh lệch: Tăng ${formatMoney(diff)}</span>`;
+                } else {
+                    diffText += ` <span class="text-slate-700 font-bold">Giá gói không đổi</span>`;
+                }
+                diffEl.innerHTML = diffText;
+                box.classList.remove('hidden');
+            } else {
+                box.classList.add('hidden');
+            }
+        }
+        window.onQuickEditServiceChange = onQuickEditServiceChange;
+
+        async function saveSpaCellQuickEdit() {
+            const ticketId = Number(document.getElementById('quick-edit-ticket-id')?.value);
+            const fieldType = document.getElementById('quick-edit-field-type')?.value;
+            const ticket = (allPetServiceTickets || []).find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            const changes = { id: ticketId };
+            const oldSnapshot = { ...ticket };
+
+            if (fieldType === 'service') {
+                const sVal = document.getElementById('quick-edit-val-service')?.value || '';
+                const dVal = document.getElementById('quick-edit-val-dye')?.value || '';
+                const changeReason = document.getElementById('quick-edit-service-change-reason')?.value?.trim() || '';
+
+                const origService = ticket.original_service_type || ticket.service_type || '';
+                const w = ticket.weight_at_service || 0;
+
+                // Nếu đổi sang gói khác với gói gốc ban đầu
+                if (sVal && sVal !== origService) {
+                    if (!ticket.original_service_type) {
+                        changes.original_service_type = ticket.service_type;
+                        changes.original_price = ticket.original_price || findServicePriceByWeight(ticket.service_type, w) || ticket.price || 0;
+                        ticket.original_service_type = ticket.service_type;
+                        ticket.original_price = changes.original_price;
+                    }
+                    const reasonToSave = changeReason || 'Lông rối bết / Hiện trạng bé';
+                    changes.service_change_reason = reasonToSave;
+                    changes.service_changed_at = new Date().toLocaleString('vi-VN');
+                    ticket.service_change_reason = reasonToSave;
+                    ticket.service_changed_at = changes.service_changed_at;
+
+                    // Tính lại giá mới cho ticket
+                    const newBasePrice = findServicePriceByWeight(sVal, w);
+                    if (newBasePrice > 0) {
+                        const totalExtras = (ticket.teeth_cleaning || 0) + (ticket.art_cutting_fee || 0) + (ticket.surcharge || 0) + (ticket.shipping_fee || 0);
+                        let dyePrice = 0;
+                        if (dVal && Array.isArray(allPetPricingData)) {
+                            const matchDye = allPetPricingData.find(item => item.service_name.trim().toLowerCase() === dVal.trim().toLowerCase());
+                            if (matchDye) dyePrice = matchDye.price;
+                        }
+                        const recalculatedTotal = newBasePrice + totalExtras + dyePrice;
+                        changes.price = recalculatedTotal;
+                        ticket.price = recalculatedTotal;
+                    }
+                }
+
+                changes.service_type = sVal;
+                changes.dye_package = dVal;
+                ticket.service_type = sVal;
+                ticket.dye_package = dVal;
+            } else if (fieldType === 'request') {
+                const shVal = document.getElementById('quick-edit-val-shaving')?.value || '';
+                const reqVal = document.getElementById('quick-edit-val-req')?.value || '';
+                const accVal = document.getElementById('quick-edit-val-acc')?.value || '';
+                const noteVal = document.getElementById('quick-edit-val-note')?.value || '';
+                changes.shaving_feet = shVal;
+                changes.customer_request = reqVal;
+                changes.accessories = accVal;
+                changes.note = noteVal;
+                ticket.shaving_feet = shVal;
+                ticket.customer_request = reqVal;
+                ticket.accessories = accVal;
+                ticket.note = noteVal;
+            } else if (fieldType === 'staff') {
+                const cVal = document.getElementById('quick-edit-val-cutter')?.value || '';
+                const wVal = document.getElementById('quick-edit-val-worker1')?.value || '';
+                const rVal = document.getElementById('quick-edit-val-receiver')?.value || '';
+                changes.staff_cutter = cVal;
+                changes.staff_worker_1 = wVal;
+                changes.staff_receiver = rVal;
+                ticket.staff_cutter = cVal;
+                ticket.staff_worker_1 = wVal;
+                ticket.staff_receiver = rVal;
+            }
+
+            // 1. Optimistic UI update: render ngay và đóng popup
+            closeSpaCellQuickEditModal();
+            renderActiveSpaView();
+
+            // 2. Gọi backend bulk-update ngầm
+            try {
+                const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ tickets: [changes] })
+                });
+                if (!res.ok) throw new Error('Cập nhật thất bại');
+            } catch(e) {
+                console.error('saveSpaCellQuickEdit error:', e);
+                Object.assign(ticket, oldSnapshot);
+                renderActiveSpaView();
+                alert('Lỗi khi lưu thay đổi lên máy chủ!');
+            }
+        }
+
+        function closeSpaCellQuickEditModal() {
+            const m = document.getElementById('modal-spa-cell-quick-edit');
+            if (m) m.classList.add('hidden');
+        }
+
+        function setQuickInput(inputId, val) {
+            const el = document.getElementById(inputId);
+            if (el) el.value = val;
+        }
+
+        function appendQuickInput(inputId, val) {
+            const el = document.getElementById(inputId);
+            if (el) {
+                const cur = el.value.trim();
+                el.value = cur ? `${cur}, ${val}` : val;
+            }
+        }
+
+        window.openSpaCellDroplist = openSpaCellDroplist;
+        window.closeSpaCellQuickEditModal = closeSpaCellQuickEditModal;
+        window.saveSpaCellQuickEdit = saveSpaCellQuickEdit;
+        window.setQuickInput = setQuickInput;
+        window.appendQuickInput = appendQuickInput;
+        window.escapeSpaHtml = escapeSpaHtml;
+
 

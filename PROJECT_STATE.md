@@ -1,12 +1,110 @@
 # PROJECT STATE — POS Offline (Spa Thú Cưng & Bán Lẻ Đa Kênh)
 
-**Checkpoint:** 2026-09-25 — Tối Ưu Cuộn Bảng Nhập Hàng Loạt, In Ấn Nhiệt Siêu Nét, In Hàng Loạt 1 Lần & Dữ Liệu Khách 10 Bé x 5 Lần Spa  
+**Checkpoint:** 2026-09-26 — Rà soát & Thiết kế chi tiết Phân hệ Hóa Đơn & Dòng Tiền (BILL: Tách dòng tiền Ví Topup, Sub-tab Hóa đơn Spa, Gom Gói Topup về Bảng Giá)  
 **Server:** `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
 
 ---
 
-## Phiên Hôm Nay ✅ (2026-09-25)
+## Phiên Hôm Nay ✅ (2026-09-26)
+
+### 1. Vận Hành Tab Spa, Lọc Hôm Nay & KPI Header Mới
+- **Lưu Vết Điều Chỉnh Gói Dịch Vụ Minh Bạch (Hiển Thị Bảng & Xuất Bill K80):**
+  - **Schema DB & API:** Mở rộng 4 trường trong `pet_service_tickets`: `original_service_type`, `original_price`, `service_change_reason`, `service_changed_at`. Cập nhật migration tự động và endpoint `/api/pet-services/tickets/bulk-update`.
+  - **Popup Sửa Dịch Vụ Thông Minh:** Khi chọn đổi sang gói khác với gói ban đầu, tự động bung box `⚠️ XÁC NHẬN ĐIỀU CHỈNH GÓI DỊCH VỤ`, tính toán chênh lệch giá (Tăng/Giảm bao nhiêu tiền) và cung cấp chips chọn nhanh lý do (Lông rối bết, Viêm da/ve rận, Bé khó làm, Khách đổi ý).
+  - **Hiển Thị 2 Tầng Tại Cột 5 (DỊCH VỤ):** Gói ban đầu bị gạch ngang `line-through` kèm giá cũ $
+ightarrow$ Mũi tên `👉` chỉ sang gói mới kèm badge nổi bật `🔄 Đổi DV: [Lý do]` để chủ tiệm lướt bảng nhận biết ngay.
+  - **Xuất Lịch Sử Lên Hóa Đơn Nhiệt K80:** Cả phiếu thanh toán trả bé (`invoice`) và phiếu tiếp nhận (`intake`) đều in rõ ràng khối `⚠️ LỊCH SỬ ĐIỀU CHỈNH DỊCH VỤ` (Gói gốc $
+ightarrow$ Gói mới $
+ightarrow$ Lý do đổi $
+ightarrow$ Thời gian) giúp khách và kế toán đối soát minh bạch 100%.
+- **Popup Bảng Phân Công & Sửa Phiếu Hàng Loạt Trực Tiếp (`#modal-spa-bulk-edit-compact`):**
+  - **Bảo mật SĐT (Hover to Reveal):** Số điện thoại mặc định được che giấu các số ở giữa dạng `🔒 0988 ••• 456` chống bị chụp trộm danh bạ. Khi rê chuột (`hover`) vào thẻ số thì bung số thật `0988 123 456` tức thì mà không cần click chuột. Bấm vào thẻ thì tự động sao chép SĐT vào clipboard.
+  - **Hỗ trợ kíp 1 Thợ Cắt + 2 Thợ Tắm:** Bổ sung đầy đủ cột `🛁 Thợ Tắm 2 (Phụ)` bên cạnh `✂️ Thợ Cắt` và `🛁 Thợ Tắm 1`. Thanh header áp dụng hàng loạt cũng hỗ trợ gán nhanh cả 3 vị trí thợ này.
+  - **Cơ chế chọn trực tiếp trong bảng:** Mỗi dòng phiếu hiển thị trực tiếp 4 dropdown `Thợ Cắt`, `Thợ Tắm 1`, `Thợ Tắm 2`, `Trạng Thái`. Người dùng có thể click đổi trực tiếp từng phiếu ngay trong bảng.
+  - **Lưu 1 lần an toàn:** Các dòng thay đổi đổi màu nền vàng nhạt `bg-amber-50`, bấm `💾 Lưu Thay Đổi` để gửi batch request lên server (`/api/pet-services/tickets/bulk-update`).
+  - **Unit tests:** Bổ sung kiểm thử Test 14 & 15. Node.js VM: PASS 16/16 (100%), Pytest: PASS 2/2 (100%).
+- **Gán Thợ Cắt Hàng Loạt 1 Click Trên Floating Toolbar:**
+  - Tích hợp trực tiếp dropdown `✂️ Thợ cắt` vào thanh công cụ nổi (Floating Bulk Toolbar).
+  - Thao tác 1 click: Chọn các vé cần gán $
+ightarrow$ Chọn tên thợ cắt $
+ightarrow$ Tự động cập nhật tức thì (Optimistic 0ms) và đồng bộ ngầm qua API `/api/pet-services/tickets/bulk-update`.
+- **Badge Số Điện Thoại To Rõ Dễ Nhìn Tại Quầy (`formatPhoneBadge`):**
+  - Chuyển toàn bộ hiển thị SĐT khách hàng sang dạng badge nổi bật: `font-mono text-sm font-black text-purple-950 bg-purple-100/90 border border-purple-200 px-2 py-0.5 rounded-md`.
+  - Tự động tách khoảng trắng dễ đọc (`0988 101 010`), kèm icon `📞` và tính năng click sao chép / gọi điện tức thì.
+- **Lọc Mặc Định Phiếu Hôm Nay (`petServiceFilterDate = 'today'`):**
+  - Mặc định chỉ hiển thị danh sách phiếu trong ngày, giúp thu ngân và thợ tập trung vào ca làm việc hiện tại, giảm tải render DOM.
+  - Bộ nút điều khiển trực quan: `[📅 Hôm Nay]` (mặc định), `[Tất Cả]`, kèm ô chọn ngày tùy biến `input type="date"`.
+- **Bổ Sung 2 Chỉ Số KPI Quan Trọng Trên Header Spa:**
+  - `Chưa Gọi Đón` (`uncalled`): Vé đã làm xong (`status = 'completed'`) nhưng chưa gọi đón (`call_status = 'Chưa gọi'`).
+  - `Chưa Về` (`not_checked_out`): Vé còn tại cơ sở trong ngày (`status != 'checked_out'`).
+  - Hỗ trợ click trực tiếp vào thẻ KPI để lọc nhanh danh sách tương ứng.
+- **Gom 5 Nút Lọc Trạng Thái Về 1 Dropdown:**
+  - Thu gọn các nút bấm ngang thành dropdown `Trạng thái: [⚡ Tất Cả / ⏳ Chờ / 🔄 Đang Làm / ✅ Xong / 🏠 Đã Về]`.
+- **Cập Nhật Tức Thì Không Giật Trang (Optimistic Local Update):**
+  - Đổi trạng thái (`status`) và gọi điện (`call_status`) cập nhật DOM ngay lập tức (0ms).
+  - Loại bỏ hoàn toàn skeleton loading giật màn hình khi thay đổi từng ô. Gửi API ngầm trong nền, tự động rollback nếu gặp lỗi mạng.
+- **Khắc Phục In Trùng Dòng Cắt Nghệ Thuật & Dọn Khoảng Cách Cắt Giấy Nhiệt K80:**
+  - Sửa lỗi regex so khớp `Cắt tạo kiểu nghệ thuật` bị lặp thêm 1 dòng `PT Cắt nghệ thuật` trên hóa đơn K80.
+  - Bổ sung khoảng đệm chân trang `height: 18mm` ở cuối mẫu in K80 (cả phiếu đơn và in gộp hàng loạt), triệt tiêu lỗi dao cắt máy in nhiệt xén phạm vào lời cảm ơn và chữ ký.
+- **Droplist Popup 3 Cột (Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách):**
+  - Click trực tiếp vào từng ô trên bảng Spa hiển thị popup / popover sửa nhanh:
+    - **Dịch vụ:** Chọn nhanh gói dịch vụ chính (nhóm theo danh mục từ bảng giá) + gói nhuộm lông.
+    - **Lưu ý & Yêu cầu:** Cạo bàn (dropdown), Yêu cầu cắt tỉa (chips gợi ý nhanh: teddy, ngắn mát, chân bông, tỉa gọn + input), Phụ kiện kèm (chips: dây dắt, vòng cổ, chuồng, balo + input), Ghi chú thợ.
+    - **Thợ phụ trách:** Dropdown chọn nhanh Thợ cắt tỉa (`✂️`), Thợ tắm sấy (`🛁`), Thợ tiếp nhận (`📥`) từ danh sách nhân viên spa.
+  - Cập nhật Optimistic Local Update 0ms trên giao diện và đồng bộ ngầm lên backend qua `/api/pet-services/tickets/bulk-update`.
+- **Phiếu Dịch Vụ Tách Tiền Minh Bạch (Dịch Vụ, Cọc, Tip):**
+  - **Schema DB & API:** Bổ sung trường `deposit_amount REAL DEFAULT 0.0` trong bảng `pet_service_tickets`, cập nhật migration `database.py` và các Pydantic schema / endpoint trong `routers/partners.py`.
+  - **Giao diện Modal Tiến Độ:** Thêm checkbox & ô nhập tiền cọc (`prog-deposit-amount`), tự động hạch toán tiền cọc khi mở phiếu.
+  - **Hóa đơn K80 tách 3 phần:**
+    - 1. Tiền Dịch Vụ Spa: tính từ đơn giá dịch vụ gốc và các phụ thu.
+    - 2. Tiền Tip Thợ (thu hộ): hiển thị riêng nếu có, không tính vào doanh thu dịch vụ.
+    - 3. Tiền Đã Đặt Cọc: trừ trực tiếp vào số tiền cần thu tại quầy.
+    - TỔNG CỘNG THỰC THU: `Max(0, Dịch Vụ + Tip - Cọc)`.
+  - **Phiếu In Riêng Biệt (Dedicated Slips):**
+    - Phiếu Tip Thợ (`tip_slip`): In phiếu riêng đối soát cuối ca kèm chữ ký Thu Ngân & Thợ nhận tip (`staff_cutter` / `staff_worker_1`).
+    - Biên Nhận Đặt Cọc (`deposit_slip`): In phiếu khi tiếp nhận bé kèm chữ ký Thu Ngân & Khách gửi cọc.
+    - Phiếu Tiếp Nhận (`intake`): Hiển thị dòng ĐÃ ĐẶT CỌC TRƯỚC và CÒN LẠI KHI NHẬN BÉ.
+  - **Bảng Spa Cột 1 & Cột 10:** Thêm nút in nhanh `[🎁]` (khi có tip) và `[💳]` (khi có cọc) tại Cột 1; Cột 10 hiển thị dòng chi tiết phụ thu `+tip` / `-cọc` và tổng thực thu `👉 ... đ`.
+- **Thao Tác Hàng Loạt (Bulk Actions Toolbar & Checkboxes) Thay Thế Sửa Bảng Tính Inline:**
+  - Cột 1 trang bị checkbox `spa-select-all-tickets` và checkbox trên từng dòng (`spa-row-select`).
+  - Thanh floating toolbar nổi bật tự động xuất hiện ở mép dưới khi có phiếu được tick:
+    - Huy hiệu đếm số lượng vé đã chọn.
+    - Đổi trạng thái hàng loạt (`status`): Chờ làm / Đang làm / Đã xong / Đã về.
+    - Đổi trạng thái gọi điện hàng loạt (`call_status`): Chưa gọi / Đã gọi đón / Không nghe máy.
+    - Gán thợ hàng loạt qua `#modal-spa-bulk-assign-staff` (Thợ cắt, Thợ tắm, Thợ tiếp nhận).
+    - In gộp K80 tất cả phiếu đã chọn chung 1 hóa đơn tổng.
+- **Tái Cấu Trúc Toàn Bộ `PROJECT_MAP.html` Sang Tailwind UI (Chỉ Giữ Bảng Tiến Độ):**
+  - Xóa bỏ toàn bộ các tab đồ thị và thống kê phức tạp cũ (Lane A, Bundling B, Sankey C, Matrix D, Arc E, Tree F).
+  - Áp dụng 100% phong cách thiết kế **Tailwind UI** hiện đại:
+    - Header ứng dụng chuyên nghiệp kèm trạng thái hệ thống và logo gradient.
+    - Lưới 4 Thẻ Thống Kê (Stats Grid): Tổng nhiệm vụ, Đã xong (% kèm progress bar động), Chờ triển khai, Tình trạng kiểm thử hệ thống.
+    - Thanh điều khiển lọc: Lọc theo phân hệ (🐾 Spa, 🧾 Hóa Đơn, 🏨 Hệ Thống, 🎨 Giao Diện), Lọc theo trạng thái, Ô tìm kiếm realtime.
+- **Phương Án C: Drawer Trượt Phải Đối Soát Nguồn Gốc Thu/Chi Sổ Quỹ (Chỉ Đọc):**
+  - Khi click vào bất kỳ dòng nào hoặc badge `🧾 HD...` / `🐾 DV...` trên bảng Sổ Quỹ:
+    - Mở Drawer trượt mềm mại từ mép phải (`#drawer-cashbook-origin`) thay vì modal che khuất màn hình hoặc popup sửa.
+    - Giữ nguyên bảng Sổ Quỹ để người dùng có thể duyệt liên tục từng phiếu.
+    - Hiển thị đầy đủ nguồn gốc giao dịch dạng **Read-Only**:
+      - Bán lẻ POS: Bảng kê sản phẩm, đơn giá, chiết khấu, khách thực trả.
+      - Dịch vụ Spa: Bảng kê dịch vụ `[SPA]` và sản phẩm bán kèm `[SP]`, thợ cắt/tắm/tiếp nhận, trừ ví Spa, cọc, tip và thực thu TM/CK.
+      - Nạp ví: Số tiền nộp vào quỹ và số dư tích lũy cộng ví.
+      - Thu/chi nội bộ: Diễn giải chi phí vận hành.
+    - Nút `🖨️ In Phiếu Thu/Chi (K80)` và đóng bằng nút bấm hoặc phím `Esc`. Khóa hoàn toàn mọi hành vi sửa/thanh toán lại.
+- **Hệ Thống Thông Báo & Modal Alert/Toast Đồng Bộ Giao Diện:**
+  - Thay thế 100% hộp thoại `alert()` xám mặc định của trình duyệt (`127.0.0.1:8999`) bằng Modal Tailwind CSS hiện đại:
+    - Backdrop làm mờ (`backdrop-blur-xs`), bo góc lớn (`rounded-2xl`), đổ bóng chiều sâu (`shadow-2xl`).
+    - Biểu tượng nhận diện trực quan phân loại tự động: Lỗi/Chú ý (⚠️ đỏ/cam), Thành công (✅ xanh lá), Thông tin (ℹ️ xanh tím).
+    - Hỗ trợ phím tắt `Enter` / `Escape` hoặc bấm ra ngoài để đóng nhanh.
+  - Tích hợp `showToast(msg, type)` nổi ở góc trên bên phải màn hình với hiệu ứng trượt mượt mà.
+- **Chế Độ Xem Lại (Read-Only) Khi Bấm Phiếu Sổ Quỹ Thu - Chi:**
+  - **Khắc phục lỗi mở form chỉnh sửa:** Khi nhân viên/kế toán bấm vào phiếu thu/chi trong Sổ Quỹ, hệ thống chuyển sang 100% chế độ **Chỉ Đọc (Read-Only)** để đối soát, tuyệt đối không mở form chỉnh sửa dữ liệu làm lệch quỹ.
+  - **Modal Chi Tiết Phiếu Thu/Chi (`#modal-cashbook-view`):** Hiển thị số tiền giao dịch (+/-), hạng mục, tài khoản/két tiền, người nộp/nhận, thời gian và ghi chú rõ ràng. Cho phép in phiếu K80 ngay tại chỗ.
+  - **Modal Chi Tiết Phiếu Dịch Vụ Spa (`#modal-pet-service-view`):** Xem lại toàn bộ thông tin phiếu Spa (thông tin bé cưng, bảng kê dịch vụ & hàng hóa bán kèm, thợ phụ trách, chi tiết trừ ví/cọc/tip và tiền thực thu) mà không có bất kỳ ô input hay nút sửa nào.
+  - **Xem Hóa Đơn Bán Lẻ POS (`modal-order-view`):** Tự động ẩn các nút `[✏️ Sửa Hóa Đơn]` và `[🗑️ Xóa Hóa Đơn]` khi mở từ Sổ Quỹ đối soát.
+    - Bảng dữ liệu Tailwind UI Data Table: Checkbox tick trực tiếp (tự động gạch ngang khi hoàn thành, lưu LocalStorage), Badge màu riêng từng phân hệ, Ghi chú kỹ thuật.
+    - Modal Thêm Task Mới và nút Xuất Markdown (.md) tải về máy người dùng.
+
+---
 
 ### 7. Tối Ưu Cuộn Bảng Nhập Hàng Loạt & Chuẩn Hóa In Ấn Nhiệt Toàn Diện
 - **Khắc Phục Cuộn Trang Modal Nhập Hàng Loạt (Batch Sheets Mode):**
@@ -318,15 +416,19 @@ ightarrow$ Tự động gán cho toàn bộ sản phẩm trong nhóm qua API `PO
 
 ---
 
-## Việc Tiếp Theo
+## Việc Tiếp Theo (Ưu Tiên Phiên Tiếp Theo: Hóa Đơn & Dòng Tiền - BILL)
 
-- [x] **Triển khai Khuyến Mãi & Bảng Giá cho Dịch Vụ Spa:**
-  - Mở rộng model & API khuyến mãi / bảng giá hỗ trợ thêm mục tiêu Dịch Vụ Spa (theo `service_name` hoặc `category` của `pet_service_pricing`).
-  - Cập nhật giao diện modal Khuyến Mãi / Bảng Giá cho phép chọn tab "Hàng Hóa" hoặc "Dịch Vụ Spa".
-  - Tự động áp dụng giá Best Offer khi tạo/thanh toán phiếu Spa (`pet_service_tickets`).
-- [x] **Định dạng phiếu in K80 tiếp nhận & trả pet chuẩn POS (SL, Đơn giá, Giảm giá, Thành tiền).**
-- [x] **Sửa lệch cột bảng giá Dịch Vụ Spa & quản lý toàn diện phân loại Dịch Vụ Spa (Thêm, Sửa đổi tên đồng bộ giá, Xóa an toàn chuyển về mặc định, modal quản lý `#modal-spa-category-manager`).**
-- [x] **Nạp động 100% gói dịch vụ Spa vào form tạo phiếu tiếp nhận (`#svc-primary-package`, `#svc-dye-package`):** Tự động đồng bộ ngay khi đổi tên dịch vụ hoặc thêm phân loại/dịch vụ mới trong Bảng Giá.
+- [ ] **bill-1: Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư:**
+  - Hoàn trả số dư ví vào `contacts.spa_wallet_balance` và ghi log `refund` trong `spa_wallet_transactions` khi hủy đơn hàng (`delete_order` trong `routers/pos.py`).
+  - Bổ sung nút in Phiếu Thu Nạp Ví K80 tại quầy POS (`#modal-topup-spa`).
+  - Hiển thị dòng giải trình `💳 Trừ Ví Spa: -{{tru_vi}}` trên hóa đơn in nhiệt K80 và mẫu A4 B2B.
+  - Bóc tách dòng trừ ví trong Drawer Sổ Quỹ (`openCashbookDrawer`) khi xem đơn bán lẻ.
+- [ ] **bill-2: Kích hoạt Sub-tab Lịch Sử Spa tại Tab Hóa Đơn (`tab-orders`):**
+  - Viết logic `switchOrderSubTab('retail' | 'spa')`, `loadSpaInvoicesList()`, `filterSpaInvoicesList()`.
+  - Hiển thị bảng chi tiết: Mã vé, Khách, Bé, Dịch vụ, Thợ, Tiền DV, Tip, Cọc, Thực thu, Badge thanh toán, Nút xem chi tiết & In lại K80.
+- [ ] **bill-4: Di chuyển bảng quản lý Gói Topup vào Tab Bảng Giá (`tab-price-lists`):**
+  - Bổ sung sub-tab `💳 Gói Nạp Ví Spa (Topup)` vào `#tab-price-lists`, hỗ trợ xem, thêm, sửa, bật/tắt gói nạp.
+- [ ] **bill-5: Kiểm tra và chuẩn hóa mẫu in K80/A4 B2B trên các trình duyệt.**
 - [ ] Tab UI quản lý nhân viên (Cài Đặt > Nhân Viên)
 - [ ] Tab UI lịch sử ca + duyệt ca (cho role `accountant`)
 - [ ] Báo cáo doanh thu và chênh lệch két theo ca trong tab Báo Cáo

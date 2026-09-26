@@ -21,6 +21,7 @@ function getOrCreateElement(id) {
             querySelectorAll: () => [],
             querySelector: () => ({ value: '', textContent: '', closest: () => null }),
             closest: () => null,
+            remove: function() {},
             addEventListener: () => {},
             removeEventListener: () => {},
             classList: {
@@ -54,7 +55,10 @@ function getOrCreateElement(id) {
     'svc-teeth-cleaning', 'svc-art-cutting', 'svc-surcharge', 'svc-shipping-fee', 'svc-tip-amount',
     'svc-customer-id', 'svc-pet-weight', 'svc-total-price',
     'btn-toggle-spa-spreadsheet', 'spa-spreadsheet-actions', 'dirty-ticket-count',
-    'btn-save-spa-spreadsheet', 'btn-cancel-spa-spreadsheet'
+    'btn-save-spa-spreadsheet', 'btn-cancel-spa-spreadsheet',
+    'modal-spa-bulk-edit-compact', 'compact-bulk-total-tickets', 'compact-bulk-selected-count',
+    'compact-bulk-select-cutter', 'compact-bulk-select-worker', 'compact-bulk-select-status',
+    'compact-bulk-master-cb', 'compact-bulk-tbody', 'compact-bulk-dirty-info', 'btn-save-compact-bulk'
 ].forEach(id => getOrCreateElement(id));
 
 const mockIframe = {
@@ -73,6 +77,7 @@ const mockIframe = {
 
 const sandbox = {
     console: console,
+    requestAnimationFrame: (cb) => setTimeout(cb, 0),
     document: {
         getElementById: (id) => {
             if (id === 'print-service-iframe') return mockIframe;
@@ -496,4 +501,237 @@ if (!consolidatedHtml.includes('NV Tiếp Nhận') || !consolidatedHtml.includes
 context.printBatchPetServiceTickets(sampleBatchTickets, 'intake', true);
 console.log('✅ TEST 10 PASSED: Consolidated K80 batch ticket generated with all pets grouped into 1 receipt.');
 
-console.log('\n🎉 TOÀN BỘ 10 TEST CASES ĐÃ PASS 100%! ĐẢM BẢO QUY TẮC NGHIỆP VỤ!');
+// Test 11: Deduplication of art cutting fee and paper cut spacing
+console.log('\n--- TEST 11: Art cutting fee deduplication and paper cut spacing ---');
+const testTicketWithArt = {
+    id: 99,
+    ticket_number: 99,
+    code: 'DV999',
+    customer_name: 'Anh Nam',
+    customer_phone: '0988000999',
+    pet_name: 'Bé Xù',
+    service_type: 'Combo Tắm Cắt',
+    price: 350000,
+    art_cutting_fee: 50000,
+    services_json: JSON.stringify([
+        { name: 'Combo Tắm Cắt', quantity: 1, price: 300000, original_price: 300000 },
+        { name: 'Cắt tạo kiểu nghệ thuật', quantity: 1, price: 50000, original_price: 50000 }
+    ])
+};
+
+const lineItems = context.getTicketLineItems(testTicketWithArt);
+const artCount = lineItems.filter(it => it.name.includes('nghệ thuật')).length;
+if (artCount !== 1) {
+    throw new Error(`Expected exactly 1 art cutting line item, found ${artCount}!`);
+}
+
+const singleTicketHtml = context.generateSinglePetTicketHtml(testTicketWithArt, 'invoice');
+if (!singleTicketHtml.includes('height: 18mm')) {
+    throw new Error('Single ticket HTML missing 18mm paper cut spacing buffer!');
+}
+if (!consolidatedHtml.includes('height: 18mm')) {
+    throw new Error('Consolidated ticket HTML missing 18mm paper cut spacing buffer!');
+}
+console.log('✅ TEST 11 PASSED: Art cutting fee is deduplicated (exactly 1 line) and paper cut spacing buffer is 18mm.');
+
+// Test 12: Droplist Popup for 3 Columns (Service, Request, Staff)
+console.log('\n--- TEST 12: Droplist Popup for 3 Columns (Service, Request, Staff) ---');
+if (typeof context.openSpaCellDroplist !== 'function') {
+    throw new Error('openSpaCellDroplist is not exported to window!');
+}
+if (typeof context.saveSpaCellQuickEdit !== 'function') {
+    throw new Error('saveSpaCellQuickEdit is not exported to window!');
+}
+
+// Check table rendering contains click handlers for the 3 columns
+context.renderPetServicesTable();
+const tableDroplistHtml = elements['table-pet-services'].innerHTML;
+if (!tableDroplistHtml.includes("openSpaCellDroplist(event,") || !tableDroplistHtml.includes("'service'") || !tableDroplistHtml.includes("'request'") || !tableDroplistHtml.includes("'staff'")) {
+    throw new Error('Table rows missing openSpaCellDroplist triggers for 3 columns!');
+}
+console.log('✅ TEST 12 PASSED: openSpaCellDroplist triggers for Service, Request, and Staff verified in table HTML.');
+
+// Test 13: Split Ticket (Service, Tip, Deposit, Payable) and dedicated slips
+console.log('\n--- TEST 13: Split Ticket (Service, Tip, Deposit) & Dedicated Slips ---');
+const testSplitTicket = {
+    id: 105,
+    ticket_number: 105,
+    code: 'DV260925105',
+    customer_name: 'Chị Mai',
+    customer_phone: '0909123456',
+    pet_name: 'Bé Miu Miu',
+    service_type: 'Combo Tắm Vệ Sinh',
+    price: 300000,
+    tip_amount: 50000,
+    deposit_amount: 100000,
+    staff_cutter: 'Thợ Tâm',
+    staff_worker_1: 'Thợ Lan',
+    staff_receiver: 'Lễ Tân Thảo',
+    services_json: JSON.stringify([
+        { name: 'Combo Tắm Vệ Sinh', quantity: 1, price: 300000, original_price: 300000 }
+    ])
+};
+
+// 1. Invoice breakdown
+const splitInvoiceHtml = context.generateSinglePetTicketHtml(testSplitTicket, 'invoice');
+if (!splitInvoiceHtml.includes('1. Tiền Dịch Vụ Spa:') || !splitInvoiceHtml.includes('300.000')) {
+    throw new Error('Invoice missing service price line!');
+}
+if (!splitInvoiceHtml.includes('2. Tiền Tip Thợ (thu hộ):') || !splitInvoiceHtml.includes('+ 50.000')) {
+    throw new Error('Invoice missing tip breakdown line!');
+}
+if (!splitInvoiceHtml.includes('3. Đã Đặt Cọc Trước:') || !splitInvoiceHtml.includes('- 100.000')) {
+    throw new Error('Invoice missing deposit deduction line!');
+}
+if (!splitInvoiceHtml.includes('THỰC THU TẠI QUẦY:') || !splitInvoiceHtml.includes('250.000')) {
+    throw new Error('Invoice missing or incorrect payable amount (300k + 50k - 100k = 250k)!');
+}
+
+// 2. Tip slip
+const tipSlipHtml = context.generateSinglePetTicketHtml(testSplitTicket, 'tip_slip');
+if (!tipSlipHtml.includes('PHIẾU TIỀN TIP CHO THỢ') || !tipSlipHtml.includes('50.000') || !tipSlipHtml.includes('Thợ Nhận Tip')) {
+    throw new Error('Tip slip missing required title, amount or recipient signature block!');
+}
+
+// 3. Deposit slip
+const depositSlipHtml = context.generateSinglePetTicketHtml(testSplitTicket, 'deposit_slip');
+if (!depositSlipHtml.includes('BIÊN NHẬN TIỀN ĐẶT CỌC') || !depositSlipHtml.includes('100.000') || !depositSlipHtml.includes('Thu Ngân Nhận Cọc')) {
+    throw new Error('Deposit slip missing required title, amount or receiver signature block!');
+}
+
+// 4. Intake ticket with deposit
+const intakeDepositHtml = context.generateSinglePetTicketHtml(testSplitTicket, 'intake');
+if (!intakeDepositHtml.includes('ĐÃ ĐẶT CỌC TRƯỚC:') || !intakeDepositHtml.includes('100.000') || !intakeDepositHtml.includes('CÒN LẠI KHI NHẬN BÉ:')) {
+    throw new Error('Intake ticket missing deposit display or remaining balance!');
+}
+
+// 5. Table row rendering with tip / deposit buttons and Column 10 breakdown
+context.allPetServiceTickets.push(testSplitTicket);
+context.renderPetServicesTable();
+const tableWithSplitHtml = elements['table-pet-services'].innerHTML;
+if (!tableWithSplitHtml.includes("printPetServiceTicketDirectly(105, 'tip_slip')")) {
+    throw new Error('Table row missing print tip slip button!');
+}
+if (!tableWithSplitHtml.includes("printPetServiceTicketDirectly(105, 'deposit_slip')")) {
+    throw new Error('Table row missing print deposit slip button!');
+}
+if (!tableWithSplitHtml.includes('+50.000') || !tableWithSplitHtml.includes('-100.000') || !tableWithSplitHtml.includes('250.000')) {
+    throw new Error('Table row Column 10 missing tip/deposit breakdown or final payable!');
+}
+console.log('✅ TEST 13 PASSED: Split ticket, Tip slip, Deposit slip, and table breakdown verified 100%.');
+
+// Test 14: Phone Badge & Bulk Staff Cutter Assignment
+console.log('\n--- TEST 14: Phone Badge & Bulk Staff Cutter Assignment ---');
+const badgeHtml = context.formatPhoneBadge('0988101010');
+if (!badgeHtml.includes('0988 101 010') || !badgeHtml.includes('0988 ••• 010') || !badgeHtml.includes('group-hover/phone')) {
+    throw new Error('Phone badge does not properly format or mask phone number!');
+}
+
+context.selectedSpaTicketIds.clear();
+context.selectedSpaTicketIds.add(1);
+context.selectedSpaTicketIds.add(2);
+context.allSpaStaffList = [{ name: 'Thợ Kiệt', role: 'Thợ Cắt' }];
+context.applyBulkPetServiceStaffCutter('Thợ Kiệt');
+
+const t1 = context.allPetServiceTickets.find(t => t.id === 1);
+const t2 = context.allPetServiceTickets.find(t => t.id === 2);
+if (t1.staff_cutter !== 'Thợ Kiệt' || t2.staff_cutter !== 'Thợ Kiệt') {
+    throw new Error('Bulk staff cutter assignment failed to update target tickets!');
+}
+console.log('✅ TEST 14 PASSED: Phone badge and bulk staff cutter assignment verified 100%.');
+
+// Test 15: Compact Bulk Edit Modal Workflow
+console.log('\n--- TEST 15: Compact Bulk Edit Modal Workflow ---');
+context.allSpaStaffList = [
+    { name: 'Thợ Kiệt', role: 'Thợ Cắt' },
+    { name: 'Thợ Vân', role: 'Thợ Tắm' }
+];
+
+context.openSpaBulkEditModal();
+const modalEl = elements['modal-spa-bulk-edit-compact'];
+if (modalEl.classList.contains('hidden')) {
+    throw new Error('openSpaBulkEditModal should remove hidden class from modal!');
+}
+
+// Select all tickets in modal
+context.compactBulkSelectAll(true);
+if (elements['compact-bulk-selected-count'].textContent === '0') {
+    throw new Error('compactBulkSelectAll(true) should select all tickets!');
+}
+
+// Set bulk values: Cutter = Thợ Kiệt, Worker 1 = Thợ Vân, Worker 2 = Thợ Lan, Status = in_progress
+elements['compact-bulk-select-cutter'].value = 'Thợ Kiệt';
+elements['compact-bulk-select-worker'].value = 'Thợ Vân';
+if (elements['compact-bulk-select-worker2']) elements['compact-bulk-select-worker2'].value = 'Thợ Lan';
+elements['compact-bulk-select-status'].value = 'in_progress';
+
+context.applyCompactBulkChanges();
+
+// Verify tbody rendered changes
+const compactTbodyHtml = elements['compact-bulk-tbody'].innerHTML;
+if (!compactTbodyHtml.includes('Thợ Kiệt') || !compactTbodyHtml.includes('Thợ Vân') || !compactTbodyHtml.includes('Đang làm')) {
+    throw new Error('Compact bulk table does not show applied cutter, worker or status!');
+}
+
+// Save compact bulk changes
+context.saveCompactBulkEdit();
+const updatedTicket = context.allPetServiceTickets.find(t => t.id === 1);
+if (updatedTicket.staff_cutter !== 'Thợ Kiệt' || updatedTicket.staff_worker_1 !== 'Thợ Vân' || updatedTicket.status !== 'in_progress') {
+    throw new Error('saveCompactBulkEdit failed to commit changes to local tickets array!');
+}
+// Test individual row dropdown change inside table
+if (typeof context.onCompactBulkRowChange === 'function') {
+    context.onCompactBulkRowChange(1, 'staff_cutter', 'Thợ Kiệt Pro');
+    const tableHtmlAfterRowChange = elements['compact-bulk-tbody'].innerHTML;
+    if (!tableHtmlAfterRowChange.includes('Thợ Kiệt Pro')) {
+        throw new Error('Compact bulk table does not reflect individual row change!');
+    }
+}
+
+console.log('✅ TEST 15 PASSED: Compact bulk edit modal workflow (Cutter, Worker, Status & Row Dropdowns) verified 100%.');
+
+// Test 16: Service Change Audit & K80 Print Output
+console.log('\n--- TEST 16: Service Change Audit & K80 Print Output ---');
+const changedTicket = {
+    id: 999,
+    code: 'DV20260926099',
+    ticket_number: 99,
+    customer_name: 'Anh Phú',
+    customer_phone: '0988101010',
+    pet_name: 'Bé Phốc Sóc',
+    pet_breed: 'Pomeranian',
+    pet_color: 'Vàng cam',
+    pet_gender: 'Đực',
+    weight_at_service: 2.8,
+    original_service_type: 'Cắt Tỉa Tạo Kiểu Phốc Sóc',
+    original_price: 300000,
+    service_type: 'Tắm Cạo Sạch Sẽ',
+    service_change_reason: 'Lông rối bết nhiều không gỡ được',
+    service_changed_at: '26/09/2026 15:30',
+    price: 200000,
+    payment_status: 'paid'
+};
+
+// 1. Verify Table rendering with strikethrough and change reason badge
+context.allPetServiceTickets.unshift(changedTicket);
+context.renderPetServicesTable();
+const tableWithChangedSvcHtml = elements['table-pet-services'].innerHTML;
+if (!tableWithChangedSvcHtml.includes('line-through decoration-rose-500') || !tableWithChangedSvcHtml.includes('Cắt Tỉa Tạo Kiểu Phốc Sóc') || !tableWithChangedSvcHtml.includes('🔄 Đổi DV:')) {
+    throw new Error('Table does not show original service strikethrough or change badge!');
+}
+
+// 2. Verify K80 Invoice Print contains service change history box
+const k80InvoiceHtml = context.generateSinglePetTicketHtml(changedTicket, 'invoice');
+if (!k80InvoiceHtml.includes('LỊCH SỬ ĐIỀU CHỈNH DỊCH VỤ') || !k80InvoiceHtml.includes('Lông rối bết nhiều không gỡ được') || !k80InvoiceHtml.includes('Tắm Cạo Sạch Sẽ')) {
+    throw new Error('K80 invoice does not print service change history block!');
+}
+
+// 3. Verify K80 Intake Print contains service change history box
+const k80IntakeHtml = context.generateSinglePetTicketHtml(changedTicket, 'intake');
+if (!k80IntakeHtml.includes('Gói gốc:') || !k80IntakeHtml.includes('Đổi sang:') || !k80IntakeHtml.includes('Lông rối bết nhiều không gỡ được')) {
+    throw new Error('K80 intake ticket does not print service change summary!');
+}
+
+console.log('✅ TEST 16 PASSED: Service change audit display in table and K80 receipts verified 100%.');
+
+console.log('\n🎉 TOÀN BỘ 16 TEST CASES ĐÃ PASS 100%! ĐẢM BẢO QUY TẮC NGHIỆP VỤ!');

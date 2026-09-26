@@ -498,6 +498,728 @@
             }
         }
 
+        let currentViewedCashbookItem = null;
+        let currentViewedPetTicketId = null;
+
+        // =============================================================
+        // PHƯƠNG ÁN C: DRAWER TRƯỢT BÊN PHẢI XEM NGUỒN GỐC THU/CHI (READ ONLY)
+        // =============================================================
+        window.openCashbookDrawer = async function(voucherIdOrObj) {
+            let c = null;
+            if (typeof voucherIdOrObj === 'object' && voucherIdOrObj !== null) {
+                c = voucherIdOrObj;
+            } else if (Array.isArray(window.allCashbookData)) {
+                c = window.allCashbookData.find(item => item.id === voucherIdOrObj || item.code === voucherIdOrObj);
+            }
+            if (!c) {
+                if (window.showToast) window.showToast('Không tìm thấy thông tin phiếu thu chi!', 'error');
+                return;
+            }
+
+            currentViewedCashbookItem = c;
+            const isThu = c.type === 'in' || c.type === 'THU';
+
+            const elCode = document.getElementById('drawer-cash-code');
+            if (elCode) elCode.textContent = c.code || '-';
+            const elTitle = document.getElementById('drawer-cash-title');
+            if (elTitle) elTitle.textContent = isThu ? 'Nguồn Gốc Phiếu Thu' : 'Nguồn Gốc Phiếu Chi';
+
+            const badgeType = document.getElementById('drawer-cash-badge-type');
+            if (badgeType) {
+                badgeType.textContent = isThu ? '🟢 Thu Tiền' : '🔴 Chi Tiền';
+                badgeType.className = isThu ? 'px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800';
+            }
+
+            const ownerType = c.account_owner_type || c.fund_source || 'COMPANY';
+            const isCty = ownerType === 'COMPANY';
+            const accLabel = (c.account_name || (isCty ? 'Quỹ Cty' : 'Quỹ Cá Nhân')) + (c.account_code ? ` (${c.account_code})` : '');
+
+            // Phát hiện chứng từ liên kết
+            let linkedType = c.ref_type || '';
+            let linkedTarget = c.ref_order_code || c.ref_pet_service_code || c.ref_id || '';
+
+            if (!linkedType && c.note) {
+                if (c.note.match(/HD\d+(_\d+)?/i)) {
+                    linkedType = 'order';
+                    linkedTarget = c.note.match(/HD\d+(_\d+)?/i)[0];
+                } else if (c.note.match(/DV\d+/i)) {
+                    linkedType = 'pet_service';
+                    linkedTarget = c.note.match(/DV\d+/i)[0];
+                }
+            } else if (linkedType === 'order' && !linkedTarget && c.note) {
+                const m = c.note.match(/HD\d+(_\d+)?/i);
+                if (m) linkedTarget = m[0];
+            } else if (linkedType === 'pet_service' && !linkedTarget && c.note) {
+                const m = c.note.match(/DV\d+/i);
+                if (m) linkedTarget = m[0];
+            }
+
+            const drawerBody = document.getElementById('drawer-cash-body');
+            if (!drawerBody) return;
+
+            // Render khung tóm tắt phiếu thu chi trước
+            const amountHtml = `
+                <div class="p-3.5 rounded-xl border text-center ${isThu ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50/70 border-rose-200'}">
+                    <div class="text-[10px] font-bold uppercase tracking-wider ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
+                        SỐ TIỀN THỰC TẾ GHI NHẬN SỔ QUỸ
+                    </div>
+                    <div class="text-2xl font-black font-mono mt-1 ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
+                        ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
+                    </div>
+                </div>
+            `;
+
+            const infoGridHtml = `
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-[11px]">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Hạng Mục:</span>
+                        <span class="font-bold text-slate-800 block truncate mt-0.5">${c.category || '-'}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Tài Khoản / Két:</span>
+                        <span class="font-semibold text-slate-800 block truncate mt-0.5">${accLabel}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Người Nộp / Nhận:</span>
+                        <span class="font-bold text-slate-800 block truncate mt-0.5">${c.contact_name || 'Khách lẻ / Nội bộ'}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Thời Gian Ghi Sổ:</span>
+                        <span class="font-mono text-slate-600 block mt-0.5">${c.created_at || '-'}</span>
+                    </div>
+                </div>
+            `;
+
+            const noteHtml = `
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px]">
+                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Ghi Chú Sổ Quỹ:</span>
+                    <p class="text-slate-700 mt-0.5 font-medium whitespace-pre-line">${c.note || '(Không có ghi chú)'}</p>
+                </div>
+            `;
+
+            const originLoadingHtml = `
+                <div id="drawer-origin-content" class="border border-indigo-200 bg-indigo-50/40 p-3 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                            <span>🔗</span> <span>Nguồn Gốc Giao Dịch</span>
+                        </span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC (READ-ONLY)</span>
+                    </div>
+                    <div class="py-4 text-center text-slate-400 text-xs">
+                        <span class="animate-spin inline-block mr-1">🔄</span> Đang đối soát chứng từ gốc...
+                    </div>
+                </div>
+            `;
+
+            drawerBody.innerHTML = amountHtml + infoGridHtml + originLoadingHtml + noteHtml;
+
+            // Mở Drawer ra ngay lập tức
+            const drawer = document.getElementById('drawer-cashbook-origin');
+            const backdrop = document.getElementById('drawer-cashbook-backdrop');
+            if (drawer) {
+                drawer.classList.remove('translate-x-full');
+                drawer.classList.add('translate-x-0');
+            }
+            if (backdrop) {
+                backdrop.classList.remove('hidden');
+            }
+
+            // Bắt đầu bóc tách và nạp dữ liệu chi tiết nguồn gốc chứng từ
+            const originBox = document.getElementById('drawer-origin-content');
+            if (!originBox) return;
+
+            try {
+                if (linkedType === 'pet_service' && (linkedTarget || c.ref_id)) {
+                    // Fetch Phiếu Spa
+                    const res = await fetch(`/api/pet-services/${linkedTarget || c.ref_id}`);
+                    if (!res.ok) throw new Error('Không tìm thấy phiếu Spa');
+                    const ticket = await res.json();
+
+                    let items = [];
+                    try {
+                        if (typeof ticket.services_json === 'string') items = JSON.parse(ticket.services_json);
+                        else if (Array.isArray(ticket.services_json)) items = ticket.services_json;
+                    } catch(e) { items = []; }
+
+                    if (items.length === 0) {
+                        items = [{ name: ticket.service_type || 'Gói dịch vụ Spa', quantity: 1, price: ticket.price || 0, is_retail: false }];
+                    }
+
+                    let totalProducts = 0;
+                    let totalServices = 0;
+
+                    const rowsHtml = items.map((it, idx) => {
+                        const qty = it.quantity || 1;
+                        const price = it.price || 0;
+                        const subtotal = qty * price;
+                        const isRetail = it.is_retail || it.type === 'product';
+                        if (isRetail) totalProducts += subtotal;
+                        else totalServices += subtotal;
+
+                        const typeBadge = isRetail
+                            ? '<span class="px-1 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-700">SP</span>'
+                            : '<span class="px-1 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-700">SPA</span>';
+
+                        return `
+                            <tr class="border-b border-slate-100">
+                                <td class="p-1.5 text-center text-slate-400 font-mono">${idx + 1}</td>
+                                <td class="p-1.5 font-bold text-slate-800">${it.name}</td>
+                                <td class="p-1.5 text-center">${typeBadge}</td>
+                                <td class="p-1.5 text-right font-mono font-bold">${qty}</td>
+                                <td class="p-1.5 text-right font-mono text-slate-600">${formatMoney(price)}</td>
+                                <td class="p-1.5 text-right font-mono font-bold text-slate-900">${formatMoney(subtotal)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    if (totalServices === 0 && totalProducts === 0) totalServices = Number(ticket.price || 0);
+
+                    const phoneClean = ticket.customer_phone || '';
+                    const phoneMasked = typeof formatMaskedPhone === 'function' ? formatMaskedPhone(phoneClean) : phoneClean;
+                    const walletDeduct = Number(ticket.spa_wallet_deduction || 0);
+                    const depositAmt = Number(ticket.deposit_amount || 0);
+                    const tipAmt = Number(ticket.tip_amount || 0);
+                    const finalCash = Math.max(0, (totalServices - walletDeduct) + totalProducts + tipAmt - depositAmt);
+
+                    originBox.innerHTML = `
+                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                            <div>
+                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                    <span>🐾</span> <span>Phiếu Spa: ${ticket.code || 'DV#' + ticket.id}</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                    Khách: <strong>${ticket.customer_name || 'Khách lẻ'}</strong> (${phoneMasked}) | Bé: <strong>${ticket.pet_name || 'Bé cưng'}</strong> (${ticket.pet_breed || '-'})
+                                </div>
+                            </div>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC</span>
+                        </div>
+
+                        <!-- Bảng chi tiết dịch vụ & sản phẩm -->
+                        <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
+                            <table class="w-full text-left border-collapse text-[10px]">
+                                <thead class="bg-slate-100 border-b text-slate-600 font-bold">
+                                    <tr>
+                                        <th class="p-1.5 text-center w-6">#</th>
+                                        <th class="p-1.5">Dịch Vụ / Sản Phẩm</th>
+                                        <th class="p-1.5 text-center w-10">Loại</th>
+                                        <th class="p-1.5 text-right w-7">SL</th>
+                                        <th class="p-1.5 text-right w-14">Đơn Giá</th>
+                                        <th class="p-1.5 text-right w-16">Thành Tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Thợ phụ trách -->
+                        <div class="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap gap-x-3 gap-y-1">
+                            <span>✂️ Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong></span>
+                            <span>🛁 Thợ tắm: <strong>${ticket.staff_worker_1 || '-'}</strong></span>
+                            <span>👋 Tiếp nhận: <strong>${ticket.staff_receiver || '-'}</strong></span>
+                        </div>
+
+                        <!-- Phân bổ dòng tiền minh bạch -->
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                            <div class="flex justify-between items-center text-slate-600">
+                                <span>💆 Tiền dịch vụ Spa:</span>
+                                <span class="font-mono font-bold text-slate-800">${formatMoney(totalServices)}</span>
+                            </div>
+                            ${totalProducts > 0 ? `
+                                <div class="flex justify-between items-center text-slate-600">
+                                    <span>📦 Tiền sản phẩm mua kèm:</span>
+                                    <span class="font-mono font-bold text-slate-800">${formatMoney(totalProducts)}</span>
+                                </div>
+                            ` : ''}
+                            ${walletDeduct > 0 ? `
+                                <div class="flex justify-between items-center text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                                    <span>💳 Khấu trừ Ví Spa (dịch vụ):</span>
+                                    <span class="font-mono font-bold">-${formatMoney(walletDeduct)}</span>
+                                </div>
+                            ` : ''}
+                            ${depositAmt > 0 ? `
+                                <div class="flex justify-between items-center text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                    <span>💰 Đã đặt cọc trước:</span>
+                                    <span class="font-mono font-bold">-${formatMoney(depositAmt)}</span>
+                                </div>
+                            ` : ''}
+                            ${tipAmt > 0 ? `
+                                <div class="flex justify-between items-center text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    <span>🎁 Tip thợ:</span>
+                                    <span class="font-mono font-bold">+${formatMoney(tipAmt)}</span>
+                                </div>
+                            ` : ''}
+                            <div class="flex justify-between items-center font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 mt-1">
+                                <span>👉 Thực thu Tiền Mặt / CK:</span>
+                                <span class="font-mono text-xs">${formatMoney(finalCash)}</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (linkedType === 'order' && (linkedTarget || c.ref_id)) {
+                    // Fetch Hóa đơn bán lẻ POS
+                    const res = await fetch(`/api/orders/${linkedTarget || c.ref_id}`);
+                    if (!res.ok) throw new Error('Không tìm thấy hóa đơn POS');
+                    const ord = await res.json();
+
+                    let items = ord.items || [];
+                    const rowsHtml = items.map((it, idx) => `
+                        <tr class="border-b border-slate-100">
+                            <td class="p-1.5 text-center text-slate-400 font-mono">${idx + 1}</td>
+                            <td class="p-1.5 font-bold text-slate-800">${it.product_name || it.name}</td>
+                            <td class="p-1.5 text-right font-mono font-bold">${it.quantity}</td>
+                            <td class="p-1.5 text-right font-mono text-slate-600">${formatMoney(it.price)}</td>
+                            <td class="p-1.5 text-right font-mono font-bold text-slate-900">${formatMoney((it.quantity * it.price) - (it.discount || 0))}</td>
+                        </tr>
+                    `).join('');
+
+                    originBox.innerHTML = `
+                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                            <div>
+                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                    <span>🧾</span> <span>Hóa Đơn Bán Lẻ: #${ord.code}</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                    Khách: <strong>${ord.customer_name || 'Khách lẻ'}</strong> | Thu ngân: <strong>${ord.cashier_name || 'Admin'}</strong>
+                                </div>
+                            </div>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC</span>
+                        </div>
+
+                        <!-- Bảng chi tiết sản phẩm -->
+                        <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
+                            <table class="w-full text-left border-collapse text-[10px]">
+                                <thead class="bg-slate-100 border-b text-slate-600 font-bold">
+                                    <tr>
+                                        <th class="p-1.5 text-center w-6">#</th>
+                                        <th class="p-1.5">Tên Sản Phẩm</th>
+                                        <th class="p-1.5 text-right w-8">SL</th>
+                                        <th class="p-1.5 text-right w-16">Đơn Giá</th>
+                                        <th class="p-1.5 text-right w-20">Thành Tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Dòng tiền đơn hàng -->
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                            <div class="flex justify-between items-center text-slate-600">
+                                <span>📦 Tổng tiền hàng:</span>
+                                <span class="font-mono font-bold text-slate-800">${formatMoney(ord.total_amount || 0)}</span>
+                            </div>
+                            ${(ord.discount_amount || 0) > 0 ? `
+                                <div class="flex justify-between items-center text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                    <span>🎁 Giảm giá hóa đơn:</span>
+                                    <span class="font-mono font-bold">-${formatMoney(ord.discount_amount)}</span>
+                                </div>
+                            ` : ''}
+                            <div class="flex justify-between items-center font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 mt-1">
+                                <span>👉 Khách thực trả (Đã vào quỹ):</span>
+                                <span class="font-mono text-xs">${formatMoney(ord.paid_amount || ord.final_amount || 0)}</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (linkedType === 'topup') {
+                    originBox.innerHTML = `
+                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                            <div>
+                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                    <span>💳</span> <span>Giao Dịch Nạp Tiền Vào Ví Spa</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                    Khách hàng: <strong>${c.contact_name || 'Khách tích lũy'}</strong>
+                                </div>
+                            </div>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200">VÍ TÍCH LŨY</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                            <div class="flex justify-between items-center text-slate-600">
+                                <span>Khách nộp tiền vào quỹ:</span>
+                                <span class="font-mono font-bold text-emerald-700">+${formatMoney(c.amount || 0)}</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500 italic mt-1">
+                                * Tiền nạp ví được cộng vào số dư Ví Spa của khách để khấu trừ khi dùng dịch vụ làm đẹp.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    originBox.innerHTML = `
+                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                            <div>
+                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                    <span>📌</span> <span>Chứng Từ Thu Chi Nội Bộ</span>
+                                </span>
+                            </div>
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">NỘI BỘ</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                            <p class="text-slate-600">${c.note || 'Khoản thu chi nội bộ cửa hàng, không phát sinh từ đơn bán lẻ hay vé dịch vụ Spa.'}</p>
+                        </div>
+                    `;
+                }
+            } catch(e) {
+                console.error('Lỗi khi nạp chi tiết chứng từ:', e);
+                originBox.innerHTML = `
+                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800">
+                        ⚠️ Không tìm thấy chi tiết hóa đơn/vé gốc liên kết (Mã: ${linkedTarget || c.ref_id || 'N/A'}).
+                    </div>
+                `;
+            }
+        };
+
+        window.closeCashbookDrawer = function() {
+            const drawer = document.getElementById('drawer-cashbook-origin');
+            const backdrop = document.getElementById('drawer-cashbook-backdrop');
+            if (drawer) {
+                drawer.classList.add('translate-x-full');
+                drawer.classList.remove('translate-x-0');
+            }
+            if (backdrop) {
+                backdrop.classList.add('hidden');
+            }
+        };
+
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.closeCashbookDrawer?.();
+            }
+        });
+
+        window.openCashbookVoucherDetail = function(voucherIdOrObj) {
+            // Chuyển hướng sang mở Drawer phương án C
+            window.openCashbookDrawer(voucherIdOrObj);
+        };
+
+        window.closeCashbookViewModal = function() {
+            document.getElementById('modal-cashbook-view')?.classList.add('hidden');
+            currentViewedCashbookItem = null;
+        };
+
+        window.viewPetServiceDetailModal = async function(ticketIdOrCode) {
+            try {
+                const res = await fetch(`/api/pet-services/${ticketIdOrCode}`);
+                if (!res.ok) return alert(`Không tìm thấy phiếu dịch vụ Spa [${ticketIdOrCode}]!`);
+                const ticket = await res.json();
+                currentViewedPetTicketId = ticket.id;
+
+                const elCode = document.getElementById('svcview-code');
+                if (elCode) elCode.textContent = ticket.code || `DV#${ticket.id}`;
+                
+                const elDate = document.getElementById('svcview-date');
+                if (elDate) elDate.textContent = ticket.created_at || ticket.ticket_date || '';
+                
+                const statusMap = {
+                    'waiting': '⏳ Chờ làm',
+                    'in_progress': '🔄 Đang làm',
+                    'completed': '✅ Đã xong',
+                    'checked_out': '🏠 Đã về'
+                };
+                const stBadge = document.getElementById('svcview-status-badge');
+                if (stBadge) {
+                    stBadge.textContent = statusMap[ticket.status] || ticket.status || 'Đã xong';
+                }
+
+                const phoneClean = ticket.customer_phone || '';
+                const phoneMasked = typeof formatMaskedPhone === 'function' ? formatMaskedPhone(phoneClean) : phoneClean;
+                const elCust = document.getElementById('svcview-customer');
+                if (elCust) elCust.textContent = ticket.customer_name || 'Khách lẻ';
+                const elPhone = document.getElementById('svcview-phone');
+                if (elPhone) elPhone.textContent = phoneMasked;
+                const elPet = document.getElementById('svcview-pet');
+                if (elPet) elPet.textContent = '🐕 ' + (ticket.pet_name || 'Bé cưng');
+                
+                const petSpecies = ticket.pet_species || 'Chó cảnh';
+                const petBreed = ticket.pet_breed || '-';
+                const petWeight = ticket.weight_at_service || ticket.pet_weight ? (ticket.weight_at_service || ticket.pet_weight) + ' kg' : '-';
+                const elPetInfo = document.getElementById('svcview-pet-info');
+                if (elPetInfo) elPetInfo.textContent = `${petSpecies} | ${petBreed} | ${petWeight}`;
+
+                // Bóc tách items
+                let items = [];
+                try {
+                    if (typeof ticket.services_json === 'string') {
+                        items = JSON.parse(ticket.services_json);
+                    } else if (Array.isArray(ticket.services_json)) {
+                        items = ticket.services_json;
+                    }
+                } catch(e) { items = []; }
+
+                if (items.length === 0) {
+                    items = [{
+                        name: ticket.service_type || 'Gói dịch vụ Spa',
+                        quantity: 1,
+                        price: ticket.price || 0,
+                        is_retail: false
+                    }];
+                }
+
+                let totalProducts = 0;
+                let totalServices = 0;
+
+                const tbody = document.getElementById('svcview-items-body');
+                if (tbody) {
+                    tbody.innerHTML = items.map((it, idx) => {
+                        const qty = it.quantity || 1;
+                        const price = it.price || 0;
+                        const subtotal = qty * price;
+                        const isRetail = it.is_retail || it.type === 'product';
+
+                        if (isRetail) {
+                            totalProducts += subtotal;
+                        } else {
+                            totalServices += subtotal;
+                        }
+
+                        const typeBadge = isRetail
+                            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">📦 SP</span>'
+                            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">💆 SPA</span>';
+
+                        return `
+                            <tr class="border-b border-slate-100 hover:bg-slate-50/80">
+                                <td class="p-2 text-center text-slate-400 font-mono">${idx + 1}</td>
+                                <td class="p-2 font-bold text-slate-800">${it.name}</td>
+                                <td class="p-2 text-center">${typeBadge}</td>
+                                <td class="p-2 text-right font-mono font-bold">${qty}</td>
+                                <td class="p-2 text-right font-mono text-slate-600">${formatMoney(price)}</td>
+                                <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(subtotal)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+                if (totalServices === 0 && totalProducts === 0) {
+                    totalServices = Number(ticket.price || 0);
+                }
+
+                const elCutter = document.getElementById('svcview-staff-cutter');
+                if (elCutter) elCutter.textContent = ticket.staff_cutter || '-';
+                const elWorker = document.getElementById('svcview-staff-worker');
+                if (elWorker) elWorker.textContent = ticket.staff_worker_1 || '-';
+                const elRec = document.getElementById('svcview-staff-receiver');
+                if (elRec) elRec.textContent = ticket.staff_receiver || '-';
+
+                const elProdT = document.getElementById('svcview-prod-total');
+                if (elProdT) elProdT.textContent = formatMoney(totalProducts);
+                const elSvcT = document.getElementById('svcview-svc-total');
+                if (elSvcT) elSvcT.textContent = formatMoney(totalServices);
+
+                const walletDeduct = Number(ticket.spa_wallet_deduction || 0);
+                const elWalletRow = document.getElementById('svcview-wallet-row');
+                if (elWalletRow) {
+                    if (walletDeduct > 0) {
+                        elWalletRow.classList.remove('hidden');
+                        const elW = document.getElementById('svcview-wallet-deduct');
+                        if (elW) elW.textContent = `-${formatMoney(walletDeduct)}`;
+                    } else {
+                        elWalletRow.classList.add('hidden');
+                    }
+                }
+
+                const depositAmt = Number(ticket.deposit_amount || 0);
+                const elDepositRow = document.getElementById('svcview-deposit-row');
+                if (elDepositRow) {
+                    if (depositAmt > 0) {
+                        elDepositRow.classList.remove('hidden');
+                        const elD = document.getElementById('svcview-deposit');
+                        if (elD) elD.textContent = `-${formatMoney(depositAmt)}`;
+                    } else {
+                        elDepositRow.classList.add('hidden');
+                    }
+                }
+
+                const tipAmt = Number(ticket.tip_amount || 0);
+                const elTipRow = document.getElementById('svcview-tip-row');
+                if (elTipRow) {
+                    if (tipAmt > 0) {
+                        elTipRow.classList.remove('hidden');
+                        const elT = document.getElementById('svcview-tip');
+                        if (elT) elT.textContent = `+${formatMoney(tipAmt)}`;
+                    } else {
+                        elTipRow.classList.add('hidden');
+                    }
+                }
+
+                const finalCash = Math.max(0, (totalServices - walletDeduct) + totalProducts + tipAmt - depositAmt);
+                const elCash = document.getElementById('svcview-final-cash');
+                if (elCash) elCash.textContent = formatMoney(finalCash);
+
+                const elPayStatus = document.getElementById('svcview-pay-status');
+                if (elPayStatus) {
+                    if (ticket.payment_status === 'paid') {
+                        elPayStatus.textContent = walletDeduct > 0 
+                            ? (totalProducts > 0 
+                                ? `ĐÃ TRỪ VÍ (${formatMoney(walletDeduct)}) + THU TM/CK (${formatMoney(finalCash)})` 
+                                : `ĐÃ TRỪ VÍ SPA (${formatMoney(walletDeduct)})`)
+                            : 'ĐÃ THANH TOÁN';
+                        elPayStatus.className = 'font-bold text-emerald-700';
+                    } else {
+                        elPayStatus.textContent = 'CHƯA THANH TOÁN';
+                        elPayStatus.className = 'font-bold text-rose-600';
+                    }
+                }
+
+                document.getElementById('modal-pet-service-view')?.classList.remove('hidden');
+            } catch(err) {
+                console.error('Lỗi khi mở chi tiết phiếu Spa:', err);
+                alert('Lỗi tải thông tin phiếu dịch vụ Spa!');
+            }
+        };
+
+        window.closeModalPetServiceView = function() {
+            document.getElementById('modal-pet-service-view')?.classList.add('hidden');
+            currentViewedPetTicketId = null;
+        };
+
+        window.printCurrentViewedPetTicket = function() {
+            if (currentViewedPetTicketId && typeof window.printPetServiceTicketDirectly === 'function') {
+                window.printPetServiceTicketDirectly(currentViewedPetTicketId, 'invoice');
+            }
+        };
+
+        window.printCurrentCashbookVoucher = function() {
+            if (!currentViewedCashbookItem) return;
+            const c = currentViewedCashbookItem;
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const title = isThu ? 'PHIẾU THU TIỀN' : 'PHIẾU CHI TIỀN';
+            const dateStr = c.created_at || new Date().toLocaleString('vi-VN');
+
+            const printHtml = `
+                <div style="width: 72mm; max-width: 72mm; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; line-height: 1.35; color: #000; padding: 2mm 1mm;">
+                    <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                        <h2 style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase;">🐾 PET CARE & SPA</h2>
+                        <div style="font-size: 14px; font-weight: 900; margin-top: 4px;">${title}</div>
+                        <div style="display: inline-block; border: 1.5px solid #000; font-size: 13px; font-weight: 900; padding: 2px 8px; border-radius: 4px; margin-top: 4px;">
+                            MÃ: ${c.code || '-'}
+                        </div>
+                        <div style="font-size: 10px; font-weight: 700; margin-top: 3px;">Ngày ghi sổ: ${dateStr}</div>
+                    </div>
+
+                    <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 11.5px;">
+                        <div><strong>Người nộp/nhận:</strong> <span style="font-weight: 800;">${c.contact_name || 'Khách lẻ / Nội bộ'}</span></div>
+                        <div><strong>Hạng mục:</strong> <span style="font-weight: 800;">${c.category || '-'}</span></div>
+                        <div><strong>Tài khoản quỹ:</strong> <span style="font-weight: 800;">${c.account_name || 'Két tiền'}</span></div>
+                    </div>
+
+                    <div style="border: 2px solid #000; border-radius: 4px; padding: 8px; text-align: center; margin-bottom: 8px;">
+                        <div style="font-size: 11px; font-weight: 700;">SỐ TIỀN THỰC ${isThu ? 'THU' : 'CHI'}:</div>
+                        <div style="font-size: 20px; font-weight: 900; font-family: monospace; margin: 4px 0;">${formatMoney(c.amount || 0)}</div>
+                    </div>
+
+                    <div style="font-size: 11px; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 6px;">
+                        <strong>Diễn giải:</strong> ${c.note || '-'}
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; text-align: center; font-size: 10px; margin-top: 10px; margin-bottom: 15px;">
+                        <div style="width: 48%;">
+                            <div style="font-weight: 800;">Người Nộp / Nhận</div>
+                            <div style="height: 35px;"></div>
+                            <div>(Ký & họ tên)</div>
+                        </div>
+                        <div style="width: 48%;">
+                            <div style="font-weight: 800;">Người Lập Phiếu</div>
+                            <div style="height: 35px;"></div>
+                            <div>(Ký & họ tên)</div>
+                        </div>
+                    </div>
+                    <div style="height: 18mm; width: 100%;"></div>
+                </div>
+            `;
+
+            let iframe = document.getElementById('iframe-cashbook-print');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'iframe-cashbook-print';
+                iframe.style.position = 'fixed';
+                iframe.style.left = '-9999px';
+                iframe.style.top = '-9999px';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                document.body.appendChild(iframe);
+            }
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>${title} - ${c.code}</title>
+                    <style>
+                        @page { size: 80mm auto; margin: 0; }
+                        body { margin: 0; padding: 0; background: #fff; }
+                    </style>
+                </head>
+                <body>
+                    ${printHtml}
+                </body>
+                </html>
+            `);
+            doc.close();
+
+            setTimeout(() => {
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch(e) {
+                    console.error('Lỗi in phiếu thu chi:', e);
+                }
+            }, 300);
+        };
+
+        window.openCashbookLinkedDoc = async function(refType, refTarget, note = '') {
+            try {
+                let orderCode = null;
+                let petServiceTarget = null;
+
+                if (refType === 'order') {
+                    orderCode = refTarget;
+                } else if (refType === 'pet_service') {
+                    petServiceTarget = refTarget;
+                }
+
+                // Quét mã HĐ hoặc DV từ ghi chú nếu có
+                const hdMatch = note ? note.match(/HD\d+(_\d+)?/i) : null;
+                const dvMatch = note ? note.match(/DV\d+/i) : null;
+
+                if (!orderCode && hdMatch) orderCode = hdMatch[0];
+                if (!petServiceTarget && dvMatch) petServiceTarget = dvMatch[0];
+
+                // 1. Mở Hóa Đơn Bán Lẻ POS (CHẾ ĐỘ CHỈ ĐỌC - READ ONLY)
+                if (orderCode || hdMatch) {
+                    const targetCode = orderCode || (hdMatch ? hdMatch[0] : null);
+                    if (typeof viewOrderDetailModal === 'function') {
+                        await viewOrderDetailModal(targetCode, true);
+                        return;
+                    } else if (typeof window.viewOrderDetailModal === 'function') {
+                        await window.viewOrderDetailModal(targetCode, true);
+                        return;
+                    }
+                }
+
+                // 2. Mở Phiếu Dịch Vụ Spa (CHẾ ĐỘ CHỈ ĐỌC - READ ONLY)
+                if (petServiceTarget || dvMatch) {
+                    const targetTicket = petServiceTarget || (dvMatch ? dvMatch[0] : null);
+                    await window.viewPetServiceDetailModal(targetTicket);
+                    return;
+                }
+
+                // 3. Nếu là nạp ví Spa
+                if (refType === 'topup') {
+                    if (window.showToast) window.showToast('Giao dịch nạp ví Spa tích lũy khách hàng.', 'info');
+                    return;
+                }
+
+                alert('Phiếu thu chi nội bộ hoặc không có hóa đơn/phiếu Spa liên kết trực tiếp.', 'Chứng Từ Nội Bộ');
+            } catch (err) {
+                console.error('Lỗi khi mở chứng từ liên kết:', err);
+                alert('Không thể mở chứng từ liên kết: ' + (err.message || 'Lỗi không xác định'), 'Lỗi Mở Chứng Từ');
+            }
+        };
+
         function renderCashbookTable(list) {
             const tbody = document.getElementById('table-cashbook');
             if (!tbody) return;
@@ -513,9 +1235,63 @@
                 const accLabel = c.account_name || (isCty ? '🏢 Quỹ Cty' : '👤 Quỹ Cá Nhân');
                 const accCode = c.account_code ? `<span class="font-mono text-[10px] text-gray-400 block">${c.account_code}</span>` : '';
 
+                // Phát hiện chứng từ liên kết
+                let linkedType = c.ref_type || '';
+                let linkedTarget = c.ref_order_code || c.ref_pet_service_code || c.ref_id || '';
+
+                if (!linkedType && c.note) {
+                    if (c.note.match(/HD\d+(_\d+)?/i)) {
+                        linkedType = 'order';
+                        linkedTarget = c.note.match(/HD\d+(_\d+)?/i)[0];
+                    } else if (c.note.match(/DV\d+/i)) {
+                        linkedType = 'pet_service';
+                        linkedTarget = c.note.match(/DV\d+/i)[0];
+                    }
+                } else if (linkedType === 'order' && !linkedTarget && c.note) {
+                    const m = c.note.match(/HD\d+(_\d+)?/i);
+                    if (m) linkedTarget = m[0];
+                } else if (linkedType === 'pet_service' && !linkedTarget && c.note) {
+                    const m = c.note.match(/DV\d+/i);
+                    if (m) linkedTarget = m[0];
+                }
+
+                let linkedBadge = '';
+                if (linkedType === 'order') {
+                    const dispCode = c.ref_order_code || (typeof linkedTarget === 'string' && linkedTarget.startsWith('HD') ? linkedTarget : `Đơn #${c.ref_id}`);
+                    linkedBadge = `
+                        <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})" 
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs transition" 
+                                title="Bấm xem nguồn gốc hóa đơn ${dispCode}">
+                            <span>🧾</span> <span>${dispCode}</span> <span class="text-[9px]">↗</span>
+                        </button>
+                    `;
+                } else if (linkedType === 'pet_service') {
+                    const dispCode = c.ref_pet_service_code || (typeof linkedTarget === 'string' && linkedTarget.startsWith('DV') ? linkedTarget : `Phiếu #${c.ref_id}`);
+                    linkedBadge = `
+                        <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})" 
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs transition" 
+                                title="Bấm xem nguồn gốc phiếu dịch vụ Spa ${dispCode}">
+                            <span>🐾</span> <span>${dispCode}</span> <span class="text-[9px]">↗</span>
+                        </button>
+                    `;
+                } else if (linkedType === 'topup') {
+                    linkedBadge = `
+                        <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})"
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" title="Bấm xem chi tiết phiếu thu nạp ví">
+                            <span>💳 Nạp ví</span>
+                        </button>
+                    `;
+                }
+
                 return `
-                    <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="p-2.5 font-mono text-xs font-bold text-slate-800">${c.code || '-'}</td>
+                    <tr onclick="openCashbookDrawer(${c.id})" class="border-b hover:bg-indigo-50/60 cursor-pointer transition">
+                        <td class="p-2.5">
+                            <div class="font-mono text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                <span>${c.code || '-'}</span>
+                                <span class="text-[10px] text-indigo-500 font-normal" title="Bấm dòng để xem nguồn gốc chứng từ (Drawer)">📑</span>
+                            </div>
+                            ${linkedBadge ? `<div class="mt-1">${linkedBadge}</div>` : ''}
+                        </td>
                         <td class="p-2.5">
                             <div class="flex items-center gap-1.5">
                                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${isCty ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
@@ -1868,28 +2644,73 @@
         let currentViewedOrderCode = null;
         window.orderViewOpenedFromHistory = false;
 
-        async function viewOrderDetailModal(orderCode) {
+        async function viewOrderDetailModal(orderCode, readOnly = false) {
+            window.viewOrderDetailModal = viewOrderDetailModal;
             try {
                 const res = await fetch(`/api/orders/${orderCode}`);
                 if (!res.ok) return alert(`Không tìm thấy hóa đơn [${orderCode}]!`);
                 const ord = await res.json();
                 currentViewedOrderCode = orderCode;
 
+                if (readOnly) {
+                    document.getElementById('btn-edit-order-from-view')?.classList.add('hidden');
+                    document.getElementById('btn-delete-order-from-view')?.classList.add('hidden');
+                } else {
+                    document.getElementById('btn-edit-order-from-view')?.classList.remove('hidden');
+                    document.getElementById('btn-delete-order-from-view')?.classList.remove('hidden');
+                }
+
                 document.getElementById('view-order-code').textContent = ord.code;
                 document.getElementById('view-order-date').textContent = ord.created_at || '';
-                document.getElementById('view-order-cust').textContent = (ord.customer_name || 'Khách lẻ') + (ord.customer_phone ? ' (' + ord.customer_phone + ')' : '');
+                const custPhoneHtml = ord.customer_phone ? ' (' + (typeof formatMaskedPhone === 'function' ? formatMaskedPhone(ord.customer_phone) : ord.customer_phone) + ')' : '';
+                document.getElementById('view-order-cust').innerHTML = (ord.customer_name || 'Khách lẻ') + custPhoneHtml;
                 document.getElementById('view-order-staff').textContent = ord.staff_name || 'Thu ngân';
 
+                let prodTotal = 0;
+                let svcTotal = 0;
+
                 const tbody = document.getElementById('view-order-items');
-                tbody.innerHTML = (ord.items || []).map((item, idx) => `
+                tbody.innerHTML = (ord.items || []).map((item, idx) => {
+                    const sub = item.subtotal || ((item.quantity || 0) * (item.price || 0));
+                    const isSvc = item.product_type === 'service' || (item.product_name && (item.product_name.toLowerCase().includes('spa') || item.product_name.toLowerCase().includes('tắm') || item.product_name.toLowerCase().includes('cắt')));
+                    if (isSvc) {
+                        svcTotal += sub;
+                    } else {
+                        prodTotal += sub;
+                    }
+                    const typeBadge = isSvc 
+                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
+
+                    return `
                     <tr class="border-b hover:bg-gray-50">
                         <td class="p-2 text-center text-gray-500">${idx + 1}</td>
-                        <td class="p-2 font-medium text-slate-800">${item.product_name}</td>
+                        <td class="p-2 font-medium text-slate-800 flex items-center">
+                            ${typeBadge} <span>${item.product_name}</span>
+                        </td>
                         <td class="p-2 text-right font-mono font-bold">${item.quantity} ${item.unit || ''}</td>
                         <td class="p-2 text-right font-mono">${formatMoney(item.price)}</td>
-                        <td class="p-2 text-right font-mono font-bold text-slate-800">${formatMoney(item.subtotal)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-slate-800">${formatMoney(sub)}</td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
+
+                const elProdTotal = document.getElementById('view-order-prod-total');
+                if (elProdTotal) elProdTotal.textContent = formatMoney(prodTotal);
+                const elSvcTotal = document.getElementById('view-order-svc-total');
+                if (elSvcTotal) elSvcTotal.textContent = formatMoney(svcTotal);
+
+                const walletDeduct = ord.spa_wallet_deduction || 0;
+                const elWalletRow = document.getElementById('view-order-wallet-row');
+                const elWalletDeduct = document.getElementById('view-order-wallet-deduct');
+                if (elWalletRow && elWalletDeduct) {
+                    if (walletDeduct > 0) {
+                        elWalletRow.classList.remove('hidden');
+                        elWalletDeduct.textContent = `-${formatMoney(walletDeduct)}`;
+                    } else {
+                        elWalletRow.classList.add('hidden');
+                    }
+                }
 
                 document.getElementById('view-order-total').textContent = formatMoney(ord.total_amount);
                 document.getElementById('view-order-discount').textContent = formatMoney(ord.discount || 0);
@@ -2005,9 +2826,17 @@
             const tbody = document.getElementById('edit-order-items-tbody');
             if (!tbody || !editingOrderData || !editingOrderData.items) return;
 
-            tbody.innerHTML = editingOrderData.items.map((item, idx) => `
-                <tr class="border-b">
-                    <td class="p-2 font-medium text-slate-800">${item.product_name}</td>
+            tbody.innerHTML = editingOrderData.items.map((item, idx) => {
+                const isSvc = item.product_type === 'service' || (item.product_name && (item.product_name.toLowerCase().includes('spa') || item.product_name.toLowerCase().includes('tắm') || item.product_name.toLowerCase().includes('cắt')));
+                const typeBadge = isSvc 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
+
+                return `
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2 font-medium text-slate-800 flex items-center">
+                        ${typeBadge} <span>${item.product_name}</span>
+                    </td>
                     <td class="p-2 text-right">
                         <input type="number" step="any" min="0.01" value="${item.quantity}" 
                                onchange="updateEditOrderItemQty(${idx}, this.value)" 
@@ -2025,7 +2854,8 @@
                         <button onclick="removeEditOrderItem(${idx})" class="text-rose-500 hover:text-rose-700 font-bold text-sm">✕</button>
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function updateEditOrderItemQty(idx, val) {
@@ -2061,14 +2891,49 @@
 
         function calcEditOrderTotals() {
             if (!editingOrderData || !editingOrderData.items) return;
-            const total = editingOrderData.items.reduce((sum, it) => sum + (it.quantity * it.price), 0);
+            let prodTotal = 0;
+            let svcTotal = 0;
+
+            editingOrderData.items.forEach(it => {
+                const sub = (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0);
+                const isSvc = it.product_type === 'service' || (it.product_name && (it.product_name.toLowerCase().includes('spa') || it.product_name.toLowerCase().includes('tắm') || it.product_name.toLowerCase().includes('cắt')));
+                if (isSvc) {
+                    svcTotal += sub;
+                } else {
+                    prodTotal += sub;
+                }
+            });
+
+            const total = prodTotal + svcTotal;
             const discount = parseFloat(document.getElementById('edit-order-discount').value) || 0;
-            const final = Math.max(0, total - discount);
+
+            // Khấu trừ ví Spa chỉ cho phép áp dụng trên tiền dịch vụ Spa
+            const rawWalletDeduct = editingOrderData.spa_wallet_deduction || 0;
+            const walletDeduct = Math.min(rawWalletDeduct, svcTotal);
+
+            // Tiền mặt / Chuyển khoản phải trả = Tiền sản phẩm + Tiền dịch vụ còn lại sau trừ ví - Giảm giá
+            const cashPayable = Math.max(0, prodTotal + Math.max(0, svcTotal - walletDeduct) - discount);
             const paid = parseFloat(document.getElementById('edit-order-paid').value) || 0;
-            const debt = Math.max(0, final - paid);
+            const debt = Math.max(0, cashPayable - paid);
+
+            const elProdTotal = document.getElementById('edit-order-prod-total');
+            if (elProdTotal) elProdTotal.textContent = formatMoney(prodTotal);
+            const elSvcTotal = document.getElementById('edit-order-svc-total');
+            if (elSvcTotal) elSvcTotal.textContent = formatMoney(svcTotal);
+
+            const elWalletRow = document.getElementById('edit-order-wallet-row');
+            const elWalletDeduct = document.getElementById('edit-order-wallet-deduct');
+            if (elWalletRow && elWalletDeduct) {
+                if (walletDeduct > 0) {
+                    elWalletRow.classList.remove('hidden');
+                    elWalletDeduct.textContent = `-${formatMoney(walletDeduct)}`;
+                } else {
+                    elWalletRow.classList.add('hidden');
+                }
+            }
 
             document.getElementById('edit-order-total').textContent = formatMoney(total);
-            document.getElementById('edit-order-final').textContent = formatMoney(final);
+            document.getElementById('edit-order-final').textContent = formatMoney(cashPayable);
             document.getElementById('edit-order-debt').textContent = formatMoney(debt);
         }
 
@@ -5043,4 +5908,15 @@
         function closeModalDetailOEM() {
             document.getElementById('modal-detail-oem')?.classList.add('hidden');
         }
+
+        window.viewOrderDetailModal = viewOrderDetailModal;
+        window.openCashbookLinkedDoc = openCashbookLinkedDoc;
+        window.openCashbookDrawer = openCashbookDrawer;
+        window.closeCashbookDrawer = closeCashbookDrawer;
+        window.openCashbookVoucherDetail = openCashbookVoucherDetail;
+        window.closeCashbookViewModal = closeCashbookViewModal;
+        window.viewPetServiceDetailModal = viewPetServiceDetailModal;
+        window.closeModalPetServiceView = closeModalPetServiceView;
+        window.printCurrentViewedPetTicket = printCurrentViewedPetTicket;
+        window.printCurrentCashbookVoucher = printCurrentCashbookVoucher;
 

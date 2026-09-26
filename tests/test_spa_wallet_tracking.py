@@ -75,7 +75,7 @@ def test_html_and_js_elements_presence():
     assert "function closePosWalletHistory" in pos_js
     assert "window.showPosWalletHistory" in pos_js
 
-    with open("static/js/app.js", "r", encoding="utf-8") as f:
-        app_js = f.read()
-    assert "detail-contact-spa-wallet" in app_js
-    assert "detail-contact-spa-wallet-history" in app_js
+    with open("static/js/modules/contacts.js", "r", encoding="utf-8") as f:
+        contacts_js = f.read()
+    assert "detail-contact-spa-wallet" in contacts_js
+    assert "detail-contact-spa-wallet-history" in contacts_js

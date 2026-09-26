@@ -1,526 +1,569 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<style>
-/* ══════ Linear / Vercel style ══════
-   dark · hairline border · 1 accent · typography chặt · hover subtle · no gradient */
-:root{
-  --f:var(--foreground); --m:var(--muted-foreground); --a:var(--accent);
-  --h:color-mix(in srgb,var(--f) 9%,transparent);    /* hairline */
-  --h2:color-mix(in srgb,var(--f) 14%,transparent);  /* hairline mạnh */
-  --s1:color-mix(in srgb,var(--f) 3.5%,transparent); /* surface hover */
-  --s2:color-mix(in srgb,var(--f) 6%,transparent);
-  --a10:color-mix(in srgb,var(--a) 10%,transparent);
-  --a20:color-mix(in srgb,var(--a) 20%,transparent);
-  --a40:color-mix(in srgb,var(--a) 40%,transparent);
-}
-*{box-sizing:border-box;margin:0}
-body{color:var(--f);font-size:13px;line-height:1.5;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
-.wrap{width:1000px}
-.mono{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.num{font-variant-numeric:tabular-nums}
-
-/* header */
-header{display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding-bottom:14px;border-bottom:1px solid var(--h);margin-bottom:0}
-h1{font-size:16px;font-weight:600;letter-spacing:-.02em}
-.eyebrow{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--m);margin-bottom:3px}
-.stats{display:flex;gap:18px;font-size:11.5px;color:var(--m)}
-.stats b{color:var(--f);font-weight:550;font-variant-numeric:tabular-nums}
-
-/* tabs — underline style */
-nav{display:flex;gap:2px;border-bottom:1px solid var(--h);margin-bottom:16px;overflow-x:auto}
-nav button{appearance:none;background:none;border:0;border-bottom:1px solid transparent;
-  color:var(--m);font:inherit;font-size:12.5px;font-weight:500;padding:9px 11px;cursor:pointer;
-  white-space:nowrap;margin-bottom:-1px;transition:color .15s,border-color .15s}
-nav button:hover{color:var(--f)}
-nav button.on{color:var(--f);border-bottom-color:var(--f)}
-nav button em{font-style:normal;font-size:10px;opacity:.4;margin-right:6px;font-variant-numeric:tabular-nums}
-
-.view{display:none}
-.view.on{display:block;animation:fade .25s ease}
-@keyframes fade{from{opacity:0}}
-
-/* card / panel — hairline, no gradient */
-.box{border:1px solid var(--h);border-radius:8px;overflow:hidden}
-.bh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
-  border-bottom:1px solid var(--h)}
-.bh .t{font-size:11.5px;font-weight:550}
-.bh .d{font-size:11px;color:var(--m)}
-.bb{padding:12px}
-
-/* lane */
-#stage{position:relative}
-#wires{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:visible}
-#wires path{fill:none;stroke:var(--f);stroke-opacity:.11;stroke-width:1;stroke-linecap:round;
-  transition:stroke-opacity .25s,stroke-width .25s}
-#wires path.hot{stroke:var(--a);stroke-opacity:1;stroke-width:1.6}
-#wires path.cold{stroke-opacity:.03}
-.lane{position:relative;z-index:2;border:1px solid var(--h);border-radius:8px;padding:9px 11px;
-  margin-bottom:28px;background:color-mix(in srgb,var(--f) 1.5%,transparent)}
-.lane:last-child{margin-bottom:0}
-.lh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.lh .tier{font-family:ui-monospace,Consolas,monospace;font-size:9.5px;font-weight:600;
-  color:var(--m);border:1px solid var(--h);border-radius:4px;padding:1px 5px}
-.lh .nm{font-size:11.5px;font-weight:550}
-.lh .sub{font-size:11px;color:var(--m);margin-left:auto}
-.row{display:flex;flex-wrap:wrap;gap:5px}
-.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--h);border-radius:6px;
-  padding:3.5px 8px;font-family:ui-monospace,Consolas,monospace;font-size:11px;
-  letter-spacing:-.02em;white-space:nowrap;transition:background .13s,border-color .13s,color .13s}
-.chip .n{color:var(--m);font-size:9.5px;font-variant-numeric:tabular-nums}
-.chip.mod{cursor:pointer}
-.chip.mod:hover{background:var(--s1);border-color:var(--h2)}
-.chip.on{background:var(--a);border-color:var(--a);color:#fff;font-weight:600}
-.chip.on .n{color:rgba(255,255,255,.72)}
-.chip.dim{opacity:.16}
-.chip.hub{border-color:var(--a40)}
-
-/* metric row */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--h);border-radius:8px;
-  overflow:hidden;margin-bottom:14px}
-.kpi{padding:12px 14px;border-right:1px solid var(--h)}
-.kpi:last-child{border-right:0}
-.kpi .l{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--m);margin-bottom:8px}
-.kpi .v{font-size:26px;font-weight:550;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
-.kpi .v s{text-decoration:none;font-size:13px;font-weight:450;opacity:.35}
-.kpi .d{font-size:10.5px;color:var(--m);margin-top:7px;font-variant-numeric:tabular-nums}
-.track{height:3px;border-radius:99px;background:var(--h);overflow:hidden;margin-top:9px}
-.track i{display:block;height:100%;background:var(--a);transform-origin:left;animation:g .7s cubic-bezier(.2,.8,.2,1)}
-@keyframes g{from{transform:scaleX(0)}}
-
-/* table */
-table{border-collapse:collapse;width:100%;font-size:11.5px}
-th{text-align:left;padding:6px 10px;font-size:10px;font-weight:500;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--m);border-bottom:1px solid var(--h)}
-td{padding:5.5px 10px;border-bottom:1px solid color-mix(in srgb,var(--f) 4%,transparent)}
-tbody tr:last-child td{border-bottom:0}
-tbody tr{transition:background .12s}
-tbody tr:hover{background:var(--s1)}
-tr.off td{color:var(--m)}
-.mini{height:3px;border-radius:99px;background:var(--h);overflow:hidden}
-.mini i{display:block;height:100%;background:var(--a40)}
-.st{display:inline-block;width:14px;text-align:center;font-size:10px;font-weight:700}
-.st.y{color:var(--a)}
-.st.n{color:var(--m);opacity:.5}
-.tag{font-family:ui-monospace,Consolas,monospace;font-size:9px;font-weight:600;
-  padding:1px 4px;border-radius:3px;border:1px solid var(--h);color:var(--m)}
-.tag.be{border-color:var(--a40);color:var(--a)}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
-.stack{display:flex;flex-direction:column;gap:14px}
-.sec{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--m);
-  margin:0 0 7px;display:flex;align-items:center;gap:8px}
-.sec::after{content:'';flex:1;height:1px;background:var(--h)}
-
-/* matrix */
-.mx{border-collapse:separate;border-spacing:0;font-size:10.5px}
-.mx th.rot{height:88px;vertical-align:bottom;padding:0 0 6px}
-.mx th.rot div{transform:rotate(-90deg);transform-origin:left bottom;width:16px;
-  font-family:ui-monospace,Consolas,monospace;font-size:10px;font-weight:500;
-  white-space:nowrap;text-transform:none;letter-spacing:-.02em;color:var(--m);text-align:left}
-.mx td.rn{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;padding-right:10px;
-  white-space:nowrap;border:0;text-align:right}
-.mx td.rn s{text-decoration:none;color:var(--m);font-size:9.5px;margin-left:5px}
-.mx td.c{width:26px;height:22px;text-align:center;border:0;position:relative}
-.mx td.c::before{content:'';position:absolute;inset:3px;border-radius:3px;background:var(--s1)}
-.mx td.c.on::before{background:var(--a);opacity:.85}
-.mx tr:hover td.c::before{background:var(--s2)}
-.mx tr:hover td.c.on::before{background:var(--a);opacity:1}
-.mx td.rn,.mx th{color:var(--f)}
-.mx .tot{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--m);
-  text-align:center;border:0;padding-top:5px}
-
-svg text{font-family:ui-monospace,"SF Mono",Consolas,monospace;fill:var(--f);letter-spacing:-.02em}
-.note{font-size:11.5px;color:var(--m);line-height:1.65;margin-top:12px;padding:9px 11px;
-  border:1px solid var(--h);border-radius:8px}
-.note b{color:var(--f);font-weight:550}
-.note code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;
-  background:var(--s2);padding:1px 4px;border-radius:3px}
-.note.warn{border-left:2px solid var(--a)}
-
-.btn-export{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--h);background:var(--s1);color:var(--f);cursor:pointer;transition:all .15s}
-.btn-export:hover{background:var(--a);color:#fff;border-color:var(--a)}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Đồ Tiến Độ POS Petcare — Tailwind UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
 </head>
-<body>
-<div class="wrap">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-16">
 
-<header>
-  <div><div class="eyebrow">Module map · kiến trúc &amp; tiến độ</div><h1>pos-offline-petcare2</h1></div>
-  <div class="stats" style="align-items:center">
-    <span><b>17</b> router</span><span><b>12</b> bảng</span><span><b>38.679</b> dòng</span><span><b>18</b> backlog</span>
-    <button class="btn-export" onclick="exportMarkdown()">↓ Export .MD</button>
-  </div>
-</header>
+  <!-- TOP HEADER (Tailwind UI App Header) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs backdrop-blur bg-white/90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-200">
+            <span class="text-xl">🐾</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                v2.6 Master
+              </span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                ● 100% Offline
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Hệ thống quản lý chuỗi Bán hàng, Spa & Khách sạn Thú cưng</p>
+          </div>
+        </div>
 
-<nav id="nav">
-  <button class="on" data-v="a"><em>A</em>Lane + dây cong</button>
-  <button data-v="b"><em>B</em>Bó dây tròn</button>
-  <button data-v="c"><em>C</em>Sankey</button>
-  <button data-v="d"><em>D</em>Matrix</button>
-  <button data-v="e"><em>E</em>Vòng cung</button>
-  <button data-v="f"><em>F</em>Cây dọc</button>
-  <button data-v="g"><em>G</em>Tiến độ</button>
-</nav>
+        <!-- Top Actions -->
+        <div class="flex items-center gap-2.5">
+          <button onclick="openAddTaskModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors">
+            <span>➕</span> Thêm Task
+          </button>
+          <button onclick="exportToMarkdown()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm shadow-purple-200 transition-colors">
+            <span>📥</span> Xuất Markdown (.md)
+          </button>
+        </div>
 
-<!-- ═══ A ═══ -->
-<div class="view on" id="v-a">
-  <div id="stage">
-    <svg id="wires"></svg>
-    <div class="lane"><div class="lh"><span class="tier">T1</span><span class="nm">Entry</span><span class="sub">khởi động &amp; đóng gói</span></div>
-      <div class="row"><span class="chip">main.py<span class="n">31</span></span><span class="chip">server.py<span class="n">179 · ×21 router</span></span><span class="chip">chay_ngay.bat</span><span class="chip">build_exe.bat</span><span class="chip">chia_se_online.bat<span class="n">cloudflared</span></span></div></div>
-    <div class="lane"><div class="lh"><span class="tier">T2</span><span class="nm">Routers</span><span class="sub" id="hint">bấm 1 router để tách dây</span></div>
-      <div class="row" id="mods"></div></div>
-    <div class="lane"><div class="lh"><span class="tier">T3</span><span class="nm">Core dùng chung</span><span class="sub">mọi router đều import</span></div>
-      <div class="row" id="cores"></div></div>
-    <div class="lane"><div class="lh"><span class="tier">T4</span><span class="nm">Bảng SQLite</span><span class="sub">viền sáng = HUB ≥4 module</span></div>
-      <div class="row" id="tbls"></div></div>
-  </div>
-  <div class="note">Router <b>không gọi nhau</b>, chỉ gặp nhau ở tầng DB. Sửa <code>spa</code> không vỡ <code>purchases</code>.</div>
-</div>
-
-<!-- ═══ B ═══ -->
-<div class="view" id="v-b">
-  <div class="box"><div class="bh"><span class="t">Hierarchical edge bundling</span><span class="d">dây bó thành cáp · hover node để rút 1 sợi</span></div>
-  <div class="bb" style="padding:2px"><svg id="bsvg" width="1000" height="660"></svg></div></div>
-  <div class="note">Dây đi theo đường bó như cáp mạng. Sợi cáp dày nhất đổ về <b>contacts</b>.</div>
-</div>
-
-<!-- ═══ C ═══ -->
-<div class="view" id="v-c">
-  <div class="box"><div class="bh"><span class="t">Sankey</span><span class="d">độ dày = số dòng code · hover để soi</span></div>
-  <div class="bb" style="padding:2px"><svg id="ssvg" width="1000" height="700"></svg></div></div>
-</div>
-
-<!-- ═══ D ═══ -->
-<div class="view" id="v-d">
-  <div class="box"><div class="bh"><span class="t">Adjacency matrix</span><span class="d">không dây, không chồng chéo — đọc chính xác nhất</span></div>
-  <div class="bb"><table class="mx" id="mxt"></table></div></div>
-  <div class="note">Đọc theo <b>hàng</b> = router chạm bảng nào. Theo <b>cột</b> = bảng bị bao nhiêu module dùng. Cột đặc nhất là điểm nghẽn.</div>
-</div>
-
-<!-- ═══ E ═══ -->
-<div class="view" id="v-e">
-  <div class="box"><div class="bh"><span class="t">Arc diagram</span><span class="d">1 hàng node · dây vòng cung · hover để soi</span></div>
-  <div class="bb" style="padding:2px"><svg id="esvg" width="1000" height="420"></svg></div></div>
-  <div class="note">Cung ngắn = quan hệ gần (module &amp; bảng cùng cụm). Cung dài bắc ngang cả sơ đồ = coupling xa, chỗ nên để ý.</div>
-</div>
-
-<!-- ═══ F ═══ -->
-<div class="view" id="v-f">
-  <div class="box"><div class="bh"><span class="t">Tree · elbow connector</span><span class="d">dây vuông góc kiểu sơ đồ mạch · click nhánh để mở/gập</span></div>
-  <div class="bb" style="padding:2px"><svg id="fsvg" width="1000" height="760"></svg></div></div>
-  <div class="note">Dạng này đọc <b>thứ bậc</b> tốt nhất: entry → router → bảng. Đổi lại bảng bị lặp ở nhiều nhánh (vì thật sự dùng chung).</div>
-</div>
-
-<!-- ═══ G ═══ -->
-<div class="view" id="v-g">
-  <div class="kpis">
-    <div class="kpi"><div class="l">Task hoàn thành</div><div class="v">19<s>/21</s></div><div class="track"><i style="width:90.5%"></i></div><div class="d">90,5% · còn 2 việc</div></div>
-    <div class="kpi"><div class="l">Dòng code</div><div class="v">38,7<s>k</s></div><div class="track"><i style="width:66.4%"></i></div><div class="d">FE 25.689 · BE 12.034 · Test 2.956</div></div>
-    <div class="kpi"><div class="l">Router có test</div><div class="v">9<s>/17</s></div><div class="track"><i style="width:52.9%"></i></div><div class="d">8 router chưa phủ test</div></div>
-    <div class="kpi"><div class="l">Plan không rõ</div><div class="v">9<s>/23</s></div><div class="track"><i style="width:39%"></i></div><div class="d">nhóm print / template builder</div></div>
-  </div>
-  <div class="g2">
-    <div class="stack">
-      <div><div class="sec">Tiến độ theo phân hệ</div><div class="box"><table id="t-phase"></table></div></div>
-<div><div class="sec">Checklist Backlog Đang Chờ Triển Khai · 17 task</div><div class="box" style="max-height:480px;overflow:auto"><table>
-<thead><tr><th>Trạng thái</th><th>Nhiệm vụ</th><th>Phân hệ</th></tr></thead>
-<tbody>
-  <!-- Spa -->
-  <tr><td><span class="st n">☐</span></td><td><b>Tạo phiếu dịch vụ tách tiền</b> (tách bill thanh toán riêng phần tiền dịch vụ, cọc, tip)</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Phiếu dịch vụ in dư dòng cắt nghệ thuật</b> (dọn khoảng cách dòng cắt giấy thẩm mỹ)</td><td><span class="tag">PRINT</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Chỉnh sửa hàng loạt (Bulk Update)</b> thay thế bảng tính inline cho phiếu Spa</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Droplist Popup</b> cho 3 cột: Dịch Vụ, Lưu Ý &amp; Yêu Cầu, Thợ Phụ Trách</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Tab Spa chỉ hiện spa trong ngày</b> hôm nay (mặc định)</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Gom 4 nút lọc trạng thái dịch vụ về 1 nút</b> (Dropdown phân loại)</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Thêm hiển thị KPI: Chưa gọi đón &amp; Chưa về</b> trên header Spa</td><td><span class="tag">SPA</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Sửa lỗi giật tải lại trang khi sửa 1 ô</b> (chuyển sang Optimistic Local Update)</td><td><span class="tag">FE BUG</span></td></tr>
-  <!-- Hóa đơn & Bảng giá -->
-  <tr><td><span class="st n">☐</span></td><td><b>Logic tách khách thanh toán topup với hàng hóa</b> (dòng tiền ví độc lập)</td><td><span class="tag">CASH</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa</b> tra cứu riêng</td><td><span class="tag">INVOICE</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Bảo mật số điện thoại</b> (ẩn dạng **** *** ###, rê chuột mới hiện)</td><td><span class="tag">SECURITY</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Di chuyển bảng gói Topup vào Bảng Giá</b> (price-lists)</td><td><span class="tag">PRICING</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Sửa lỗi hiển thị mẫu hóa đơn</b> preview &amp; in ấn</td><td><span class="tag">PRINT</span></td></tr>
-  <!-- Khách sạn, Hệ thống & AI -->
-  <tr><td><span class="st n">☐</span></td><td><b>Bảng Quản Lý Hotel (Khách Sạn Chó Mèo)</b> thiết kế schema &amp; layout</td><td><span class="tag">HOTEL</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Thay đổi popup mặc định trình duyệt</b> (alert/confirm) thành Toast &amp; Modal</td><td><span class="tag">UI/UX</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Thêm phím tắt cho popup</b> (ESC đóng, Enter xác nhận, hotkeys)</td><td><span class="tag">HOTKEYS</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Chuẩn bị kiến trúc schema &amp; hook cho chức năng AI</b></td><td><span class="tag">AI</span></td></tr>
-  <tr><td><span class="st n">☐</span></td><td><b>Đóng gói EXE</b> — <code>build_exe.bat</code> + test trên máy độc lập</td><td><span class="tag">BUILD</span></td></tr>
-</tbody></table></div></div>
-      <div><div class="sec">Độ phủ test theo router</div><div class="box"><table id="t-cov"></table></div></div>
+      </div>
     </div>
-    <div class="stack">
-      <div><div class="sec">Khối lượng code · top 14</div><div class="box"><table id="t-loc"></table></div></div>
-      <div><div class="sec">Plans · 23 file</div><div class="box" style="max-height:388px;overflow:auto"><table id="t-plan"></table></div></div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+    <!-- METRICS CARDS (Tailwind UI Stats Grid) -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      
+      <!-- Card 1: Tổng số Tasks -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Nhiệm Vụ</p>
+            <p id="stat-total" class="text-2xl font-extrabold text-slate-900 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-xl text-purple-600">
+            📋
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-purple-600 font-semibold mr-1.5">38 mục</span> trong toàn dự án
+        </div>
+      </div>
+
+      <!-- Card 2: Đã hoàn thành -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đã Hoàn Thành</p>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="stat-done" class="text-2xl font-extrabold text-emerald-600 font-mono">0</span>
+              <span id="stat-percent" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">0%</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl text-emerald-600">
+            ✅
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div class="mt-4">
+          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div id="stat-progress-bar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Đang chờ thực hiện -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chờ Triển Khai</p>
+            <p id="stat-pending" class="text-2xl font-extrabold text-amber-600 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-600">
+            ⏳
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-amber-600 font-semibold mr-1.5">Topup, Hotel, AI</span> đang backlog
+        </div>
+      </div>
+
+      <!-- Card 4: Tình trạng Kiểm Thử & Kiến Trúc -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hệ Thống & Test</p>
+            <p class="text-base font-bold text-slate-900 mt-1">13/13 Node PASS</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-600">
+            ⚡
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+          <span>FastAPI 17 Routers ● SQLite 35 Bảng</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FILTER & SEARCH TOOLBAR (Tailwind UI Section Header) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        
+        <!-- Category Segmented Buttons -->
+        <div class="flex flex-wrap items-center gap-1.5" id="category-filters">
+          <button onclick="setCategoryFilter('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs">
+            Tất Cả
+          </button>
+          <button onclick="setCategoryFilter('SPA')" data-cat="SPA" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🐾 Dịch Vụ Spa
+          </button>
+          <button onclick="setCategoryFilter('BILL')" data-cat="BILL" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🧾 Hóa Đơn & Bảng Giá
+          </button>
+          <button onclick="setCategoryFilter('SYS')" data-cat="SYS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏨 Khách Sạn & Hệ Thống
+          </button>
+          <button onclick="setCategoryFilter('UI')" data-cat="UI" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🎨 Giao Diện Đã Xong
+          </button>
+        </div>
+
+        <!-- Search & Status dropdown -->
+        <div class="flex items-center gap-3">
+          <select id="status-filter" onchange="renderTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="done">✅ Đã hoàn thành</option>
+            <option value="pending">⏳ Đang chờ làm</option>
+          </select>
+
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="search-input" oninput="renderTable()" placeholder="🔍 Tìm kiếm tính năng..." class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500">
+            <button onclick="document.getElementById('search-input').value=''; renderTable();" class="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN PROGRESS TABLE (Tailwind UI Data Table) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-left">
+          
+          <!-- Table Header -->
+          <thead class="bg-slate-50/80">
+            <tr>
+              <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-16">
+                STT
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-20">
+                Xong
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Nhiệm Vụ / Tính Năng
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
+                Phân Hệ
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-32">
+                Trạng Thái
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Chi Tiết Kỹ Thuật / Trạng Thái
+              </th>
+            </tr>
+          </thead>
+
+          <!-- Table Body -->
+          <tbody id="progress-table-body" class="divide-y divide-slate-100 bg-white">
+            <!-- Dynamically populated via JS -->
+          </tbody>
+
+        </table>
+      </div>
+
+      <!-- Table Footer Summary -->
+      <div class="bg-slate-50/80 px-4 py-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+        <div id="table-showing-text">Hiển thị 0 nhiệm vụ</div>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Đã hoàn thiện</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Chờ triển khai</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ADD TASK MODAL -->
+  <div id="add-task-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span>➕</span> Thêm Nhiệm Vụ Mới
+        </h3>
+        <button onclick="closeAddTaskModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tên Nhiệm Vụ</label>
+          <input type="text" id="new-task-title" placeholder="VD: Tích hợp máy quét mã vạch không dây..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Phân Hệ</label>
+            <select id="new-task-cat" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="SPA">🐾 Dịch Vụ Spa</option>
+              <option value="BILL">🧾 Hóa Đơn & Bảng Giá</option>
+              <option value="SYS">🏨 Khách Sạn & Hệ Thống</option>
+              <option value="UI">🎨 Giao Diện</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Trạng Thái</label>
+            <select id="new-task-done" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="false">⏳ Đang Chờ</option>
+              <option value="true">✅ Đã Xong</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi Chú Kỹ Thuật</label>
+          <textarea id="new-task-note" rows="2" placeholder="Ghi chú file, API hoặc nghiệp vụ liên quan..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2.5 mt-5 pt-3 border-t border-slate-100">
+        <button onclick="closeAddTaskModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+        <button onclick="saveNewTask()" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm">Lưu Task</button>
+      </div>
     </div>
   </div>
-  <div class="note warn">
-    <b>Rủi ro từ số liệu thật:</b> frontend <b>25.689</b> dòng = <b>2,1×</b> backend. <code>templates/index.html</code> 8.085 + <code>modules/productions.js</code> 5.023 + <code>modules/spa.js</code> 4.035 = <b>67%</b> frontend gói trong 3 file.<br>
-    <b>8 router trắng test:</b> bom, combos, inventory, oem, partners, production, purchases, settings — trong đó <code>inventory.py</code> (1.291d) và <code>partners.py</code> (1.262d) là 2 router nặng nhất.<br>
-    <b>4 file <code>test_*.py</code> ở root</b> ngoài <code>tests/</code> — pytest dễ bỏ sót.
-  </div>
-</div>
-</div>
 
 <script>
-/* ═══ DATA — quét thật ═══ */
-const R=[["auth",185,["login_attempts"]],["shifts",200,["cashbook","orders","payment_accounts"]],["topup",208,["cashbook","contacts"]],["categories",219,["pet_service_categories","pet_service_pricing"]],["production",248,["bom","ingredients","inventory"]],["cashbook",268,["cashbook","contacts"]],["settings",268,["activity_log","contacts"]],["price_lists",361,["contacts","customer_segments"]],["combos",431,["combos","combo_items","cashbook","contacts"]],["bom",447,["bom","ingredients"]],["products",571,["contacts","ingredients","inventory"]],["pos",579,["cashbook","combos","combo_items","contacts"]],["promotions",588,["contacts","customer_segments"]],["purchases",864,["cashbook","contacts"]],["oem",1035,["cashbook","contacts"]],["partners",1262,["cashbook","contacts","customer_segments"]],["inventory",1291,["contacts","inventory"]]];
-const CORE=[["database.py",1168],["schemas.py",405],["backup_service.py",94],["activity_logger.py",79],["dependencies.py",72],["logger_config.py",35]];
-const PHASE=[["A · Bán hàng &amp; Thu ngân",7,7],["B · OEM &amp; Dòng tiền đa quỹ",5,5],["C · Nhập hàng, Bảng giá, Đối tác",4,4],["D · Kho hàng &amp; Mẫu in",3,5]];
-const LOC=[["templates/index.html",8085,"FE"],["modules/productions.js",5023,"FE"],["modules/spa.js",4035,"FE"],["js/pos.js",2698,"FE"],["js/app.js",2152,"FE"],["routers/inventory.py",1291,"BE"],["routers/partners.py",1262,"BE"],["database.py",1168,"BE"],["modules/purchases.js",1056,"FE"],["routers/oem.py",1035,"BE"],["routers/purchases.py",864,"BE"],["js/shifts.js",711,"FE"],["routers/promotions.py",588,"BE"],["routers/pos.py",579,"BE"]];
-const COV=[["auth","test_auth"],["cashbook","test_cashbook_api"],["categories","test_categories_api · test_pet_pricing_×2"],["pos","test_k80_discount"],["price_lists","test_best_offer_pricing"],["products","test_product_category_and_bulk_pricing"],["promotions","test_promotion_ui"],["shifts","test_shift_close · test_payment_accounts_db"],["topup","test_points_and_tier_upgrade · test_loyalty_×2"]];
-const NOCOV=["bom","combos","inventory","oem","partners","production","purchases","settings"];
-const PLAN=[["2026-09-20-auth-rbac-shift",667,1],["bảng_giá_và_phân_loại_kh",140,1],["oem-manufacturing-and-cashflow-design",90,1],["spa-staff-and-call-status",72,1],["native-pos-spa-integration-plan",72,1],["pet-spa-services-pricing-design",71,1],["native-pos-spa-integration-design",69,1],["pet-spa-kanban-calendar-print-design",66,1],["oem-manufacturing-and-cashflow-plan",52,1],["purchasing-pricing-pets-plan",51,1],["visual_builder",51,0],["vat-fund-debt-separation-design",49,1],["pet-spa-services-pricing-plan",37,1],["canvas_drag_drop",31,0],["multi_paper_templates",26,0],["company_and_qr",25,0],["zone_flow_layout",24,0],["pos_print",22,0],["resize_and_zones",19,0],["pet-spa-kanban-calendar-print-plan",18,1],["a4_b2b_template",14,0],["dynamic_table_expansion",14,0],["contacts-split-pet-services-oem",14,1]];
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE
+    const DEFAULT_TASKS = [
+      // 1. PHÂN HỆ DỊCH VỤ SPA
+      { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
+      { id: 'spa-2', cat: 'SPA', title: 'Phiếu dịch vụ in dư dòng cắt nghệ thuật & dọn khoảng cách cắt giấy thẩm mỹ', done: true, note: 'Khắc phục trùng dòng regex và thêm khoảng đệm 18mm chống dao cắt phạm' },
+      { id: 'spa-3', cat: 'SPA', title: 'Thao tác hàng loạt (Bulk Actions toolbar & checkboxes) thay bảng tính inline', done: true, note: 'Thanh floating toolbar, đổi trạng thái/gọi đón/gán thợ hàng loạt, in gộp K80' },
+      { id: 'spa-4', cat: 'SPA', title: 'Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách', done: true, note: 'Modal nhẹ onclick mở nhanh, chọn gói giá, chips cạo lông, thợ cắt/tắm' },
+      { id: 'spa-5', cat: 'SPA', title: 'Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định today)', done: true, note: 'Lọc mặc định hôm nay, nút Hôm Nay / Tất Cả, giảm tải render quầy' },
+      { id: 'spa-6', cat: 'SPA', title: 'Gom nút lọc trạng thái dịch vụ về 1 dropdown phân loại', done: true, note: 'Thay thế 5 nút bấm dàn trải bằng <select id="select-svc-filter-status">' },
+      { id: 'spa-7', cat: 'SPA', title: 'Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa', done: true, note: 'Mở rộng 6 thẻ KPI, click lọc tức thì, API /api/pet-services/kpi trả thêm uncalled & not_checked_out' },
+      { id: 'spa-8', cat: 'SPA', title: 'Sửa lỗi giật tải lại trang khi sửa 1 ô (Optimistic Local Update)', done: true, note: 'Cập nhật mảng local & DOM tức thì 0ms, gọi PUT ngầm, tự rollback nếu lỗi' },
 
-const cnt={};R.forEach(([,,t])=>t.forEach(x=>cnt[x]=(cnt[x]||0)+1));
-const TBL=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
-const acc=getComputedStyle(document.body).getPropertyValue('--accent').trim()||'#5e9eff';
+      // 2. HÓA ĐƠN, BẢNG GIÁ & VÍ
+      { id: 'bill-1', cat: 'BILL', title: 'Logic tách khách thanh toán topup với hàng hóa (dòng tiền ví độc lập)', done: false, note: 'Chờ triển khai: ngăn lẫn lộn nạp ví với mua hàng POS quầy' },
+      { id: 'bill-2', cat: 'BILL', title: 'Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa tra cứu riêng', done: false, note: 'Chờ triển khai: sub-view lọc nhanh hóa đơn thuần dịch vụ thú cưng' },
+      { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: false, note: 'Chờ triển khai: bảo mật thông tin khách hàng tại quầy thu ngân' },
+      { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: false, note: 'Chờ triển khai: gom chung quản lý biểu giá và gói nạp tiền' },
+      { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: false, note: 'Chờ triển khai: kiểm tra mẫu in A4 B2B và K80 trên các trình duyệt' },
 
-/* ═══ A lane ═══ */
-const mods=document.getElementById('mods'),tbls=document.getElementById('tbls'),cores=document.getElementById('cores');
-R.slice().sort((a,b)=>a[1]-b[1]).forEach(([n,l,t])=>{const e=document.createElement('span');
-  e.className='chip mod';e.dataset.k=n;e.dataset.t=t.join('|');
-  e.innerHTML=`${n}<span class="n">${l}</span>`;mods.appendChild(e);});
-CORE.forEach(([n,l])=>{const e=document.createElement('span');e.className='chip';
-  e.innerHTML=`${n}<span class="n">${l}</span>`;cores.appendChild(e);});
-TBL.forEach(t=>{const e=document.createElement('span');e.className='chip tbl'+(cnt[t]>=4?' hub':'');
-  e.dataset.n=t;e.innerHTML=`${t}<span class="n">×${cnt[t]}</span>`;tbls.appendChild(e);});
-const stage=document.getElementById('stage'),wires=document.getElementById('wires');
-function draw(){const sb=stage.getBoundingClientRect();
-  wires.setAttribute('width',sb.width);wires.setAttribute('height',sb.height);
-  wires.setAttribute('viewBox',`0 0 ${sb.width} ${sb.height}`);let h='';
-  mods.querySelectorAll('.mod').forEach(m=>{const a=m.getBoundingClientRect(),
-    x1=a.left-sb.left+a.width/2,y1=a.bottom-sb.top;
-    m.dataset.t.split('|').forEach(tn=>{const t=tbls.querySelector(`[data-n="${tn}"]`);if(!t)return;
-      const b=t.getBoundingClientRect(),x2=b.left-sb.left+b.width/2,y2=b.top-sb.top,my=(y1+y2)/2;
-      h+=`<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" data-k="${m.dataset.k}"/>`;});});
-  wires.innerHTML=h;}
-let cur=null;
-mods.addEventListener('click',ev=>{const c=ev.target.closest('.mod');if(!c)return;
-  const same=cur===c;cur=same?null:c;
-  mods.querySelectorAll('.mod').forEach(m=>m.classList.toggle('on',!same&&m===c));
-  const set=same?null:new Set(c.dataset.t.split('|'));
-  tbls.querySelectorAll('.tbl').forEach(t=>{t.classList.toggle('on',!!set&&set.has(t.dataset.n));
-    t.classList.toggle('dim',!!set&&!set.has(t.dataset.n));});
-  wires.querySelectorAll('path').forEach(p=>{const hot=!same&&p.dataset.k===c.dataset.k;
-    p.classList.toggle('hot',hot);p.classList.toggle('cold',!same&&!hot);});
-  document.getElementById('hint').textContent=same?'bấm 1 router để tách dây'
-    :`${c.dataset.k}.py → ${c.dataset.t.split('|').length} bảng`;});
+      // 3. KHÁCH SẠN, HỆ THỐNG & AI
+      { id: 'sys-1', cat: 'SYS', title: 'Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout', done: false, note: 'Chờ triển khai: phòng lưu trú, nhật ký cho ăn, checkin/checkout' },
+      { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal', done: false, note: 'Chờ triển khai: thống nhất giao diện thông báo mượt mà' },
+      { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: false, note: 'Chờ triển khai: tối ưu tốc độ bấm quầy thu ngân không cần chuột' },
+      { id: 'sys-4', cat: 'SYS', title: 'Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý', done: false, note: 'Chờ triển khai: tích hợp mô hình cục bộ hoặc Gemini web' },
+      { id: 'sys-5', cat: 'SYS', title: 'Đóng gói EXE — build_exe.bat + test chạy độc lập trên máy Windows', done: false, note: 'Chờ triển khai: đóng gói PyInstaller / Nuitka phân phối khách' },
 
-/* ═══ B bundling ═══ */
-function bundle(){
-  const W=1000,H=660,cx=W/2,cy=H/2,Rr=250,Rt=118,β=.88;
-  const rp={},tp={};
-  R.forEach(([n],i)=>{const a=-Math.PI/2+i/R.length*2*Math.PI;rp[n]={x:cx+Rr*Math.cos(a),y:cy+Rr*Math.sin(a),a};});
-  TBL.forEach((t,i)=>{const a=-Math.PI/2+i/TBL.length*2*Math.PI;tp[t]={x:cx+Rt*Math.cos(a),y:cy+Rt*Math.sin(a),a};});
-  const pol=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
-  let e='';
-  R.forEach(([n,,ts])=>ts.forEach(t=>{
-    const A=rp[n],B=tp[t];
-    // bó: đi vào theo bán kính, men theo cung, rồi bung ra
-    const [ax,ay]=pol(Rr*.72,A.a),[bx,by]=pol(Rt*1.5,B.a);
-    const [mx,my]=pol(Rt*.42,(A.a+B.a)/2 + (Math.abs(A.a-B.a)>Math.PI?Math.PI:0));
-    e+=`<path class="ed" data-k="${n}" data-t="${t}" fill="none" stroke="currentColor" stroke-opacity=".13" stroke-width="1" stroke-linecap="round"
-      d="M${A.x},${A.y} C${ax},${ay} ${mx},${my} ${mx},${my} S${bx},${by} ${B.x},${B.y}"/>`;}));
-  let nd=`<circle cx="${cx}" cy="${cy}" r="${Rt}" fill="none" stroke="currentColor" stroke-opacity=".05" stroke-dasharray="1 5"/>`
-   +`<circle cx="${cx}" cy="${cy}" r="${Rr}" fill="none" stroke="currentColor" stroke-opacity=".05" stroke-dasharray="1 5"/>`;
-  TBL.forEach(t=>{const p=tp[t],r=3.5+cnt[t]*1.2;
-    nd+=`<g class="nt" data-t="${t}"><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${acc}"/>`
-     +`<text x="${p.x}" y="${p.y-r-6}" font-size="9.5" text-anchor="middle" opacity=".78">${t}</text></g>`;});
-  R.forEach(([n,l])=>{const p=rp[n],r=2.8+Math.sqrt(l)/8,s=Math.cos(p.a)>=0;
-    nd+=`<g class="nr" data-k="${n}"><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".75"/>`
-     +`<text x="${p.x+(s?r+6:-r-6)}" y="${p.y+3.5}" font-size="10.5" text-anchor="${s?'start':'end'}">${n}<tspan opacity=".38" font-size="9"> ${l}</tspan></text></g>`;});
-  const sv=document.getElementById('bsvg');sv.innerHTML=e+nd;
-  const eds=[...sv.querySelectorAll('.ed')];
-  const set=f=>eds.forEach(p=>{const on=f&&f(p);p.setAttribute('stroke',on?acc:'currentColor');
-    p.setAttribute('stroke-opacity',f?(on?'.95':'.028'):'.13');p.setAttribute('stroke-width',on?'1.8':'1');});
-  sv.querySelectorAll('.nr,.nt').forEach(g=>{g.style.cursor='pointer';
-    g.onmouseenter=()=>set(p=>g.dataset.k?p.dataset.k===g.dataset.k:p.dataset.t===g.dataset.t);
-    g.onmouseleave=()=>set(null);});
-}
+      // 4. GIAO DIỆN & TRẢI NGHIỆM POS ĐÃ HOÀN THIỆN
+      { id: 'ui-1', cat: 'UI', title: 'Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch canvas', done: true, note: 'Góc lượn scoop liền mạch tab đang chọn với vùng nội dung' },
+      { id: 'ui-2', cat: 'UI', title: 'Đồng bộ bo cong lõm ngược cho Menu Thu Nhỏ (Collapsed Sidebar 5.5rem)', done: true, note: 'Hiệu ứng scoop bo mượt khi thu hẹp thanh bên sidebar' },
+      { id: 'ui-3', cat: 'UI', title: 'Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar)', done: true, note: 'Triệt tiêu thanh cuộn ngang, thuận tay thao tác thu ngân' },
+      { id: 'ui-4', cat: 'UI', title: 'Top Slim Progress Bar (Linear/Next.js style) gradient chạy chuyển tab', done: true, note: 'Thanh loading siêu mỏng phát sáng khi chuyển đổi module' },
+      { id: 'ui-5', cat: 'UI', title: 'Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc GPU translate3d', done: true, note: 'Mỗi hàng vé dịch vụ là một card bo góc đổ bóng nổi bật' },
+      { id: 'ui-6', cat: 'UI', title: 'Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom 3 khối thẻ trắng', done: true, note: 'Layout quầy POS chuẩn thanh toán bán sỉ & lẻ' },
+      { id: 'ui-7', cat: 'UI', title: 'Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Kho hàng, Hóa đơn', done: true, note: 'Tối ưu hiệu năng DOM và quản trị lượng dữ liệu lớn' },
+      { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' }
+    ];
 
-/* ═══ C sankey ═══ */
-function sankey(){
-  const TOP=18,LX=215,RX=665,BW=9,tot=R.reduce((s,[,l])=>s+l,0);
-  const sc=(636-TOP-6*(R.length-1))/tot,Rs=R.slice().sort((a,b)=>b[1]-a[1]);
-  let y=TOP,LP={},out='';
-  Rs.forEach(([n,l,ts])=>{const h=Math.max(3.5,l*sc);LP[n]={y,h,n:ts.length};
-    out+=`<rect x="${LX}" y="${y}" width="${BW}" height="${h}" fill="currentColor" fill-opacity=".3" rx="2"/>`
-      +`<text x="${LX-8}" y="${y+h/2+3.5}" font-size="10.5" text-anchor="end">${n}<tspan opacity=".38" font-size="9"> ${l}</tspan></text>`;y+=h+6;});
-  const rIn={};TBL.forEach(t=>rIn[t]=0);
-  R.forEach(([n,l,ts])=>ts.forEach(t=>rIn[t]+=l/ts.length));
-  let ry=TOP,RP={};
-  TBL.slice().sort((a,b)=>rIn[b]-rIn[a]).forEach(t=>{const h=Math.max(3.5,rIn[t]*sc);RP[t]={cur:ry};
-    out+=`<rect x="${RX}" y="${ry}" width="${BW}" height="${h}" fill="${acc}" fill-opacity=".6" rx="2"/>`
-      +`<text x="${RX+BW+8}" y="${ry+h/2+3.5}" font-size="10.5">${t}<tspan opacity=".38" font-size="9"> ×${cnt[t]}</tspan></text>`;ry+=h+7;});
-  let bands='';
-  Rs.forEach(([n,l,ts])=>{const L=LP[n];let ly=L.y;
-    ts.forEach(t=>{const bh=L.h/L.n,Rt=RP[t],rh=(l/ts.length)*sc,x1=LX+BW,x2=RX,mx=(x1+x2)/2;
-      bands+=`<path data-k="${n}" d="M${x1},${ly} C${mx},${ly} ${mx},${Rt.cur} ${x2},${Rt.cur} L${x2},${Rt.cur+rh} C${mx},${Rt.cur+rh} ${mx},${ly+bh} ${x1},${ly+bh} Z" fill="currentColor" fill-opacity=".08"/>`;
-      Rt.cur+=rh;ly+=bh;});});
-  const sv=document.getElementById('ssvg');sv.setAttribute('height',Math.max(ry,y)+16);sv.innerHTML=bands+out;
-  const bs=[...sv.querySelectorAll('path')];
-  bs.forEach(p=>{p.style.cursor='pointer';p.style.transition='fill-opacity .16s';
-    p.onmouseenter=()=>bs.forEach(q=>{const on=q.dataset.k===p.dataset.k;
-      q.setAttribute('fill',on?acc:'currentColor');q.setAttribute('fill-opacity',on?'.42':'.022');});
-    p.onmouseleave=()=>bs.forEach(q=>{q.setAttribute('fill','currentColor');q.setAttribute('fill-opacity','.08');});});
-}
+    let tasks = [];
+    try {
+      const stored = localStorage.getItem('pos_petcare_roadmap_tasks');
+      if (stored) {
+        tasks = JSON.parse(stored);
+      } else {
+        tasks = [...DEFAULT_TASKS];
+      }
+    } catch (e) {
+      tasks = [...DEFAULT_TASKS];
+    }
 
-/* ═══ D matrix ═══ */
-function matrix(){
-  const Rs=R.slice().sort((a,b)=>b[1]-a[1]);
-  let h='<thead><tr><th style="border:0"></th>'+TBL.map(t=>`<th class="rot"><div>${t}</div></th>`).join('')
-    +'<th style="border:0"></th></tr></thead><tbody>';
-  Rs.forEach(([n,l,ts])=>{const s=new Set(ts);
-    h+=`<tr><td class="rn">${n}<s>${l}</s></td>`+TBL.map(t=>`<td class="c${s.has(t)?' on':''}"></td>`).join('')
-      +`<td class="rn" style="padding-left:8px;color:var(--m);font-size:9.5px">${ts.length}</td></tr>`;});
-  h+=`<tr><td style="border:0"></td>`+TBL.map(t=>`<td class="tot">${cnt[t]}</td>`).join('')+'<td></td></tr></tbody>';
-  document.getElementById('mxt').innerHTML=h;
-}
+    let activeCategory = 'all';
 
-/* ═══ E arc ═══ */
-function arc(){
-  const W=1000,H=420,BASE=300,PAD=26;
-  // xen kẽ: bảng ở giữa cụm router dùng nó nhiều nhất → giảm cung dài
-  const order=[];const used=new Set();
-  R.slice().sort((a,b)=>b[1]-a[1]).forEach(([n,,ts])=>{order.push({k:'r',n});
-    ts.forEach(t=>{if(!used.has(t)){used.add(t);order.push({k:'t',n:t});}});});
-  const step=(W-PAD*2)/(order.length-1),P={};
-  order.forEach((o,i)=>P[o.k+':'+o.n]={x:PAD+i*step,o});
-  let e='';
-  R.forEach(([n,,ts])=>ts.forEach(t=>{const A=P['r:'+n].x,B=P['t:'+t].x,d=Math.abs(B-A);
-    const hh=Math.min(d*.52,190);
-    e+=`<path class="ed" data-k="${n}" data-t="${t}" fill="none" stroke="currentColor" stroke-opacity=".14" stroke-width="1" stroke-linecap="round"
-      d="M${A},${BASE} C${A},${BASE-hh} ${B},${BASE-hh} ${B},${BASE}"/>`;}));
-  let nd=`<line x1="${PAD-8}" y1="${BASE}" x2="${W-PAD+8}" y2="${BASE}" stroke="currentColor" stroke-opacity=".08"/>`;
-  order.forEach(o=>{const x=P[o.k+':'+o.n].x,isT=o.k==='t';
-    const r=isT?3.2+cnt[o.n]*1:2.6;
-    nd+=`<g class="${isT?'nt':'nr'}" data-${isT?'t':'k'}="${o.n}" style="cursor:pointer">`
-     +`<circle cx="${x}" cy="${BASE}" r="${r}" ${isT?`fill="${acc}"`:'fill="none" stroke="currentColor" stroke-width="1.3" opacity=".75"'}/>`
-     +`<g transform="translate(${x},${BASE+9}) rotate(48)"><text font-size="${isT?10:10.5}" ${isT?`fill="${acc}" opacity=".95"`:'opacity=".85"'}>${o.n}</text></g></g>`;});
-  const sv=document.getElementById('esvg');sv.innerHTML=e+nd;
-  const eds=[...sv.querySelectorAll('.ed')];
-  const set=f=>eds.forEach(p=>{const on=f&&f(p);p.setAttribute('stroke',on?acc:'currentColor');
-    p.setAttribute('stroke-opacity',f?(on?'.95':'.03'):'.14');p.setAttribute('stroke-width',on?'1.8':'1');});
-  sv.querySelectorAll('.nr,.nt').forEach(g=>{
-    g.onmouseenter=()=>set(p=>g.dataset.k?p.dataset.k===g.dataset.k:p.dataset.t===g.dataset.t);
-    g.onmouseleave=()=>set(null);});
-}
+    function renderTable() {
+      const tbody = document.getElementById('progress-table-body');
+      const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('status-filter')?.value || 'all';
 
-/* ═══ F tree elbow ═══ */
-function tree(){
-  const X0=26,X1=132,X2=430,W=1000;
-  const Rs=R.slice().sort((a,b)=>b[1]-a[1]);
-  let y=26,rows=[],lines='',nodes='';
-  Rs.forEach(([n,l,ts])=>{
-    const ry=y,cs=ts.map(t=>{const cy=y;y+=21;return{t,cy};});
-    const my=(cs[0].cy+cs[cs.length-1].cy)/2;rows.push({n,l,my,cs});y+=9;});
-  const H=y+10;
-  const spine=26+8;
-  // entry → router
-  const first=rows[0].my,last=rows[rows.length-1].my;
-  lines+=`<path d="M${X0+6},${(first+last)/2} H${X0+22} V${first} M${X0+22},${last} V${(first+last)/2}" fill="none" stroke="currentColor" stroke-opacity=".14"/>`;
-  rows.forEach(r=>{
-    lines+=`<path d="M${X0+22},${r.my} H${X1-8}" fill="none" stroke="currentColor" stroke-opacity=".14"/>`;
-    nodes+=`<circle cx="${X0+22}" cy="${r.my}" r="2" fill="currentColor" opacity=".3"/>`;
-    nodes+=`<text x="${X1}" y="${r.my+3.5}" font-size="11">${r.n}<tspan opacity=".38" font-size="9"> ${r.l}</tspan></text>`;
-    const bx=X1+112;
-    r.cs.forEach(c=>{
-      lines+=`<path class="br" data-k="${r.n}" d="M${bx},${r.my} C${bx+34},${r.my} ${X2-42},${c.cy} ${X2-8},${c.cy}" fill="none" stroke="currentColor" stroke-opacity=".16" stroke-width="1"/>`;
-      nodes+=`<g><rect x="${X2}" y="${c.cy-8}" width="${c.t.length*6.4+16}" height="16" rx="4" fill="${acc}" fill-opacity="${cnt[c.t]>=4?.22:.1}" stroke="${acc}" stroke-opacity="${cnt[c.t]>=4?.55:.25}"/>`
-       +`<text x="${X2+8}" y="${c.cy+3.5}" font-size="10">${c.t}<tspan opacity=".45" font-size="8.5"> ×${cnt[c.t]}</tspan></text></g>`;});
-  });
-  nodes=`<rect x="${X0-8}" y="${(first+last)/2-9}" width="46" height="18" rx="4" fill="none" stroke="currentColor" stroke-opacity=".3"/>`
-   +`<text x="${X0-1}" y="${(first+last)/2+3.5}" font-size="10">server</text>`+nodes;
-  const sv=document.getElementById('fsvg');sv.setAttribute('height',H);sv.innerHTML=lines+nodes;
-  const brs=[...sv.querySelectorAll('.br')];
-  brs.forEach(p=>{p.style.cursor='pointer';p.style.transition='stroke-opacity .16s';
-    p.onmouseenter=()=>brs.forEach(q=>{const on=q.dataset.k===p.dataset.k;
-      q.setAttribute('stroke',on?acc:'currentColor');q.setAttribute('stroke-opacity',on?'.95':'.04');
-      q.setAttribute('stroke-width',on?'1.7':'1');});
-    p.onmouseleave=()=>brs.forEach(q=>{q.setAttribute('stroke','currentColor');
-      q.setAttribute('stroke-opacity','.16');q.setAttribute('stroke-width','1');});});
-}
+      let filtered = tasks.filter(t => {
+        if (activeCategory !== 'all' && t.cat !== activeCategory) return false;
+        if (statusFilter === 'done' && !t.done) return false;
+        if (statusFilter === 'pending' && t.done) return false;
+        if (search) {
+          const matchTitle = (t.title || '').toLowerCase().includes(search);
+          const matchNote = (t.note || '').toLowerCase().includes(search);
+          const matchCat = (t.cat || '').toLowerCase().includes(search);
+          if (!matchTitle && !matchNote && !matchCat) return false;
+        }
+        return true;
+      });
 
-/* ═══ G tables ═══ */
-const B=p=>`<div class="mini"><i style="width:${p}%"></i></div>`;
-document.getElementById('t-phase').innerHTML='<thead><tr><th>Phân hệ</th><th style="width:44px">Xong</th><th style="width:92px"></th></tr></thead><tbody>'
- +PHASE.map(([n,d,t])=>`<tr${d===t?'':' class="off"'}><td><span class="st ${d===t?'y':'n'}">${d===t?'✓':'·'}</span> ${n}</td><td class="mono">${d}/${t}</td><td>${B(d/t*100)}</td></tr>`).join('')+'</tbody>';
-document.getElementById('t-cov').innerHTML='<tbody>'
- +COV.map(([m,f])=>`<tr><td style="width:24px"><span class="st y">✓</span></td><td class="mono" style="width:82px">${m}.py</td><td class="mono" style="color:var(--m);font-size:10px">${f}</td></tr>`).join('')
- +NOCOV.map(m=>`<tr class="off"><td><span class="st n">·</span></td><td class="mono">${m}.py</td><td class="mono" style="font-size:10px;opacity:.6">chưa có test</td></tr>`).join('')+'</tbody>';
-const mx=LOC[0][1];
-document.getElementById('t-loc').innerHTML='<thead><tr><th>File</th><th style="width:28px"></th><th style="width:46px">Dòng</th><th style="width:66px"></th></tr></thead><tbody>'
- +LOC.map(([f,l,k])=>`<tr><td class="mono">${f}</td><td><span class="tag ${k==='BE'?'be':''}">${k}</span></td><td class="mono">${l.toLocaleString('vi')}</td><td>${B(l/mx*100)}</td></tr>`).join('')+'</tbody>';
-document.getElementById('t-plan').innerHTML='<thead><tr><th style="width:24px"></th><th>Plan</th><th style="width:36px">Dòng</th></tr></thead><tbody>'
- +PLAN.map(([n,l,t])=>`<tr${t?'':' class="off"'}><td><span class="st ${t?'y':'n'}">${t?'✓':'?'}</span></td><td class="mono" style="font-size:10.5px">${n}</td><td class="mono">${l}</td></tr>`).join('')+'</tbody>';
+      let html = '';
+      if (filtered.length === 0) {
+        html = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">
+              <span class="text-3xl block mb-2">🔍</span>
+              Không tìm thấy nhiệm vụ nào phù hợp với bộ lọc hiện tại.
+            </td>
+          </tr>
+        `;
+      } else {
+        filtered.forEach((t, idx) => {
+          const catBadges = {
+            SPA: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">🐾 Spa</span>',
+            BILL: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🧾 Hóa Đơn</span>',
+            SYS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">🏨 Hệ Thống</span>',
+            UI: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">🎨 Giao Diện</span>',
+          };
+          const catBadge = catBadges[t.cat] || `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">${t.cat}</span>`;
 
-/* ═══ nav ═══ */
-const built={};
-const BUILD={b:bundle,c:sankey,d:matrix,e:arc,f:tree};
-const nav=document.getElementById('nav');
-nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{
-  const v=b.dataset.v;
-  nav.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
-  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  requestAnimationFrame(()=>{if(v==='a')draw();else if(BUILD[v]&&!built[v]){BUILD[v]();built[v]=1;}});
-});
-requestAnimationFrame(draw);
-addEventListener('resize',()=>{if(document.getElementById('v-a').classList.contains('on'))draw();});
+          const statusBadge = t.done
+            ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã Xong</span>'
+            : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Đang Chờ</span>';
 
-function exportMarkdown() {
-  const md = `# BẢN ĐỒ KIẾN TRÚC & TIẾN ĐỘ DỰ ÁN POS-OFFLINE-PETCARE2
-Cập nhật: 2026-09-26 | Checkpoint: checkpoint-20260926-ui-scoop
+          html += `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+              <td class="py-3.5 pl-4 pr-3 text-center text-xs font-mono font-bold text-slate-400">
+                ${idx + 1}
+              </td>
+              <td class="px-3 py-3.5 text-center">
+                <input type="checkbox" onchange="toggleTaskDone('${t.id}')" ${t.done ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer">
+              </td>
+              <td class="px-4 py-3.5 text-xs">
+                <div class="font-bold ${t.done ? 'text-slate-500 line-through' : 'text-slate-900'}">
+                  ${escapeHtml(t.title)}
+                </div>
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${catBadge}
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${statusBadge}
+              </td>
+              <td class="px-4 py-3.5 text-xs text-slate-600 font-mono">
+                ${escapeHtml(t.note || '-')}
+              </td>
+            </tr>
+          `;
+        });
+      }
 
-## 1. THÔNG SỐ KIẾN TRÚC TỔNG QUAN
-- **Kiến trúc:** FastAPI Backend (17 Routers) + SQLite (12 Bảng) + Vanilla JS / Tailwind Frontend (38.679 dòng code)
-- **Tầng Entry:** main.py, server.py, chay_ngay.bat, build_exe.bat
-- **Core:** database.py, schemas.py, backup_service.py, activity_logger.py
+      tbody.innerHTML = html;
+      document.getElementById('table-showing-text').textContent = `Hiển thị ${filtered.length} / ${tasks.length} nhiệm vụ`;
+      updateStats();
+    }
 
-## 2. CHECKLIST BACKLOG ĐANG CHỜ TRIỂN KHAI (18 TASKS)
-### A. Phân Hệ Dịch Vụ Spa:
-- [ ] Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng phần tiền dịch vụ, cọc, tip)
-- [ ] Phiếu dịch vụ in dư dòng cắt nghệ thuật (dọn khoảng cách dòng cắt giấy thẩm mỹ)
-- [ ] Chỉnh sửa hàng loạt (Bulk Update) thay thế bảng tính inline cho phiếu Spa
-- [ ] Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách
-- [ ] Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định)
-- [ ] Gom 4 nút lọc trạng thái dịch vụ về 1 nút (Dropdown phân loại)
-- [ ] Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa
-- [ ] Sửa lỗi giật tải lại trang khi sửa 1 ô (chuyển sang Optimistic Local Update)
+    function updateStats() {
+      const total = tasks.length;
+      const done = tasks.filter(t => t.done).length;
+      const pending = total - done;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
 
-### B. Hóa Đơn, Bảng Giá & Khách Hàng:
-- [ ] Logic tách khách thanh toán topup với hàng hóa (dòng tiền ví độc lập)
-- [ ] Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa tra cứu riêng
-- [ ] Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)
-- [ ] Di chuyển bảng gói Topup vào Bảng Giá (price-lists)
-- [ ] Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-done').textContent = done;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-percent').textContent = `${percent}%`;
+      document.getElementById('stat-progress-bar').style.width = `${percent}%`;
+    }
 
-### C. Khách Sạn Thú Cưng, Hệ Thống, AI & Đóng Gói:
-- [ ] Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout
-- [ ] Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal
-- [ ] Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)
-- [ ] Chuẩn bị kiến trúc schema & hook cho chức năng AI
-- [ ] Đóng gói EXE — build_exe.bat + test trên máy độc lập
+    function toggleTaskDone(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveTasks();
+        renderTable();
+      }
+    }
 
-## 3. CHECKPOINT ĐÃ HOÀN THÀNH
-- [x] Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch 100% với canvas nội dung
-- [x] Đồng bộ bo cong lõm ngược cho Menu Thu Nhỏ (Collapsed Sidebar 5.5rem)
-- [x] Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar), triệt tiêu thanh cuộn ngang
-- [x] Top Slim Progress Bar (Linear/Next.js style) phát sáng gradient chạy khi chuyển tab
-- [x] Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc phần cứng GPU translate3d
-- [x] Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom thành 3 khối thẻ trắng nổi
-- [x] Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Hàng hóa kho, Hóa đơn
-- [x] Đổi màu chữ trạng thái "Chưa mở ca" sang đỏ mận text-rose-600
-`;
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'PROJECT_MAP_CHECKPOINT_2026-09-26.md';
-  a.click();
-}
-</script>
+    function setCategoryFilter(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs';
+        } else {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200';
+        }
+      });
+      renderTable();
+    }
+
+    function saveTasks() {
+      try {
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
+      } catch (e) {
+        console.error('Không lưu được vào LocalStorage', e);
+      }
+    }
+
+    function exportToMarkdown() {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const doneTasks = tasks.filter(t => t.done);
+      const pendingTasks = tasks.filter(t => !t.done);
+      const percent = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+
+      let md = `# BẢN ĐỒ TIẾN ĐỘ DỰ ÁN POS PETCARE\n`;
+      md += `> Ngày xuất: ${dateStr} | Tiến độ tổng: **${doneTasks.length}/${tasks.length} (${percent}%)**\n\n`;
+
+      md += `## 1. TỔNG QUAN TIẾN ĐỘ\n`;
+      md += `- **Tổng số nhiệm vụ:** ${tasks.length}\n`;
+      md += `- **Đã hoàn thành:** ${doneTasks.length} nhiệm vụ\n`;
+      md += `- **Đang chờ thực hiện:** ${pendingTasks.length} nhiệm vụ\n`;
+      md += `- **Tỷ lệ hoàn thành:** ${percent}%\n\n`;
+
+      md += `## 2. CHI TIẾT CÁC NHIỆM VỤ THEO PHÂN HỆ\n\n`;
+
+      const cats = [
+        { code: 'SPA', name: '🐾 Phân Hệ Dịch Vụ Spa' },
+        { code: 'BILL', name: '🧾 Phân Hệ Hóa Đơn & Bảng Giá' },
+        { code: 'SYS', name: '🏨 Phân Hệ Khách Sạn & Hệ Thống' },
+        { code: 'UI', name: '🎨 Giao Diện & Trải Nghiệm POS' },
+      ];
+
+      cats.forEach(c => {
+        const catTasks = tasks.filter(t => t.cat === c.code);
+        if (catTasks.length > 0) {
+          md += `### ${c.name}\n`;
+          catTasks.forEach(t => {
+            const check = t.done ? '[x]' : '[ ]';
+            md += `- ${check} **${t.title}**\n`;
+            if (t.note) md += `  - *Ghi chú:* ${t.note}\n`;
+          });
+          md += `\n`;
+        }
+      });
+
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PROJECT_PROGRESS_${dateStr}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function openAddTaskModal() {
+      document.getElementById('add-task-modal').classList.remove('hidden');
+    }
+    function closeAddTaskModal() {
+      document.getElementById('add-task-modal').classList.add('hidden');
+      document.getElementById('new-task-title').value = '';
+      document.getElementById('new-task-note').value = '';
+    }
+    function saveNewTask() {
+      const title = document.getElementById('new-task-title').value.trim();
+      const cat = document.getElementById('new-task-cat').value;
+      const done = document.getElementById('new-task-done').value === 'true';
+      const note = document.getElementById('new-task-note').value.trim();
+
+      if (!title) {
+        alert('Vui lòng nhập tên nhiệm vụ!');
+        return;
+      }
+
+      const newTask = {
+        id: 'task-' + Date.now(),
+        cat,
+        title,
+        done,
+        note: note || '-'
+      };
+
+      tasks.unshift(newTask);
+      saveTasks();
+      closeAddTaskModal();
+      renderTable();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    renderTable();
+  </script>
 </body>
 </html>

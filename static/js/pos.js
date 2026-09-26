@@ -962,8 +962,15 @@ async function loadPurchaseHistory(custId) {
 
 function viewPurchaseHistoryDetail(type, code, id) {
     document.getElementById('modal-purchase-history')?.classList.add('hidden');
-    if (type === 'service') { openServiceProgressModal(id); return; }
-    viewOrderDetailModal(code);
+    if (type === 'service') { 
+        if (typeof window.viewPetServiceDetailModal === 'function') {
+            window.viewPetServiceDetailModal(id);
+        } else if (typeof openServiceProgressModal === 'function') {
+            openServiceProgressModal(id);
+        }
+        return; 
+    }
+    viewOrderDetailModal(code, true);
     window.orderViewOpenedFromHistory = true;
     document.getElementById('btn-edit-order-from-view')?.classList.add('hidden');
     document.getElementById('btn-delete-order-from-view')?.classList.add('hidden');

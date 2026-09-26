@@ -164,10 +164,14 @@ def list_cashbook(
             pa.name as account_name,
             pa.owner_type as account_owner_type,
             pa.account_type,
-            ct.name as contact_name
+            ct.name as contact_name,
+            o.code as ref_order_code,
+            pst.code as ref_pet_service_code
         FROM cashbook cb
         LEFT JOIN payment_accounts pa ON cb.account_id = pa.id
         LEFT JOIN contacts ct ON cb.contact_id = ct.id
+        LEFT JOIN orders o ON (cb.ref_type = 'order' AND cb.ref_id = o.id)
+        LEFT JOIN pet_service_tickets pst ON (cb.ref_type = 'pet_service' AND cb.ref_id = pst.id)
         WHERE 1=1
     """
     params = []

@@ -607,6 +607,8 @@ class PetServiceCreate(BaseModel):
     teeth_cleaning: Optional[float] = 0.0
     shipping_fee: Optional[float] = 0.0
     tip_amount: Optional[float] = 0.0
+    deposit_amount: Optional[float] = 0.0
+    spa_wallet_deduction: Optional[float] = 0.0
     send_to_hotel: Optional[int] = 0
     batch_code: Optional[str] = ""
     ticket_date: Optional[str] = None
@@ -634,6 +636,7 @@ class PetServiceProgressUpdate(BaseModel):
     surcharge: Optional[float] = 0
     shipping_fee: Optional[float] = 0
     tip_amount: Optional[float] = 0
+    deposit_amount: Optional[float] = 0
     arrival_method: Optional[str] = ""
     return_method: Optional[str] = ""
     checkout_time: Optional[str] = ""
@@ -659,7 +662,12 @@ class PetServiceTicketBulkItem(BaseModel):
     art_cutting_fee: Optional[float] = None
     shipping_fee: Optional[float] = None
     tip_amount: Optional[float] = None
+    deposit_amount: Optional[float] = None
     price: Optional[float] = None
+    original_service_type: Optional[str] = None
+    original_price: Optional[float] = None
+    service_change_reason: Optional[str] = None
+    service_changed_at: Optional[str] = None
     payment_status: Optional[str] = None
     payment_method: Optional[str] = None
     note: Optional[str] = None
@@ -770,7 +778,7 @@ def get_pet_services_kpi():
     total_pets = cur.fetchone()["cnt"]
 
     today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE appointment_time LIKE ?", (f"{today_str}%",))
+    cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE ticket_date = ? OR appointment_time LIKE ?", (today_str, f"{today_str}%"))
     app_today = cur.fetchone()["cnt"]
 
     cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE status = 'in_progress'")
@@ -779,12 +787,28 @@ def get_pet_services_kpi():
     cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE has_transport = 1 AND status != 'completed'")
     transport = cur.fetchone()["cnt"]
 
+    cur.execute("""
+        SELECT COUNT(*) as cnt FROM pet_service_tickets 
+        WHERE status = 'completed' AND (call_status = 'Chưa gọi' OR call_status IS NULL OR call_status = '')
+        AND (ticket_date = ? OR appointment_time LIKE ?)
+    """, (today_str, f"{today_str}%"))
+    uncalled = cur.fetchone()["cnt"]
+
+    cur.execute("""
+        SELECT COUNT(*) as cnt FROM pet_service_tickets 
+        WHERE status != 'checked_out'
+        AND (ticket_date = ? OR appointment_time LIKE ?)
+    """, (today_str, f"{today_str}%"))
+    not_checked_out = cur.fetchone()["cnt"]
+
     conn.close()
     return {
         "total_pets": total_pets,
         "appointments_today": app_today,
         "in_progress": in_progress,
-        "transport": transport
+        "transport": transport,
+        "uncalled": uncalled,
+        "not_checked_out": not_checked_out
     }
 
 @service_router.get("/pets/{pet_id}/history")
@@ -828,6 +852,26 @@ def list_pet_services(status: str = "all", q: str = ""):
     conn.close()
     return rows
 
+@service_router.get("/{id_or_code}")
+def get_single_pet_service(id_or_code: str):
+    conn = get_db()
+    cur = conn.cursor()
+    sql = """
+        SELECT s.*, c.name as customer_name, c.phone as customer_phone,
+               p.name as pet_name, p.species as pet_species, p.breed as pet_breed
+        FROM pet_service_tickets s
+        JOIN contacts c ON s.customer_id = c.id
+        LEFT JOIN pets p ON s.pet_id = p.id
+        WHERE s.id = ? OR s.code = ?
+    """
+    param_id = int(id_or_code) if id_or_code.isdigit() else -1
+    cur.execute(sql, (param_id, id_or_code))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu dịch vụ")
+    return dict(row)
+
 @service_router.post("")
 def create_pet_service(ticket: PetServiceCreate):
     conn = get_db()
@@ -866,6 +910,48 @@ def create_pet_service(ticket: PetServiceCreate):
     # 3. Thời gian nhận: Tự động lấy giờ bấm bill / tạo phiếu nếu chưa truyền
     received_time = ticket.received_time or now.strftime("%H:%M")
 
+    # Phân tách tiền dịch vụ Spa vs tiền sản phẩm hàng hóa bán kèm từ services_json
+    services_list = []
+    if ticket.services_json:
+        try:
+            import json as json_mod
+            services_list = json_mod.loads(ticket.services_json)
+        except Exception:
+            services_list = []
+
+    spa_service_total = 0.0
+    retail_product_total = 0.0
+    for it in services_list:
+        sub = (it.get("quantity") or 1) * (it.get("price") or 0.0)
+        if it.get("is_retail"):
+            retail_product_total += sub
+        else:
+            spa_service_total += sub
+
+    if not services_list:
+        spa_service_total = ticket.price or 0.0
+
+    wallet_deduction = 0.0
+    if ticket.payment_status == "paid" and ticket.payment_method == "wallet" and (ticket.price or 0.0) > 0:
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (ticket.customer_id,))
+        c_row = cur.fetchone()
+        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
+        # Ví Spa CHỈ ĐƯỢC PHÉP TRỪ TỐI ĐA BẰNG TIỀN DỊCH VỤ SPA (sản phẩm không được trừ ví)
+        charge_amount = min(spa_service_total, ticket.price or 0.0)
+        if current_wallet < charge_amount:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Số dư ví Spa không đủ ({current_wallet:,.0f} đ, cần trừ {charge_amount:,.0f} đ cho dịch vụ Spa)"
+            )
+        wallet_deduction = charge_amount
+        new_wallet = current_wallet - charge_amount
+        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
+        cur.execute("""
+            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+            VALUES (?, 'spend', ?, ?, ?, ?)
+        """, (ticket.customer_id, charge_amount, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
+
     cur.execute("""
         INSERT INTO pet_service_tickets (
             code, ticket_number, ticket_date, customer_id, pet_id, service_type,
@@ -874,10 +960,10 @@ def create_pet_service(ticket: PetServiceCreate):
             payment_status, payment_method, services_json,
             call_status, received_time, arrival_method, checkout_time, return_method,
             staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
-            dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount,
-            send_to_hotel, batch_code
+            dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount, deposit_amount,
+            send_to_hotel, batch_code, spa_wallet_deduction
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         code, ticket_number, today_str, ticket.customer_id, actual_pet_id, ticket.service_type,
         ticket.appointment_time or "", ticket.has_transport or 0, ticket.transport_address or "",
@@ -891,29 +977,26 @@ def create_pet_service(ticket: PetServiceCreate):
         ticket.staff_receiver or "", ticket.staff_worker_1 or "", ticket.staff_worker_2 or "",
         ticket.staff_cutter or "", ticket.staff_dyer or "",
         ticket.dye_package or "", ticket.surcharge or 0.0, ticket.art_cutting_fee or 0.0,
-        ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0,
-        ticket.send_to_hotel or 0, ticket.batch_code or ""
+        ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0, ticket.deposit_amount or 0.0,
+        ticket.send_to_hotel or 0, ticket.batch_code or "", wallet_deduction
     ))
     new_id = cur.lastrowid
 
-    # 4. Xử lý trừ ví Spa nếu thanh toán trả trước bằng ví
-    if ticket.payment_status == "paid" and ticket.payment_method == "wallet" and (ticket.price or 0.0) > 0:
-        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (ticket.customer_id,))
-        c_row = cur.fetchone()
-        current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-        charge_amount = ticket.price or 0.0
-        if current_wallet < charge_amount:
-            conn.close()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Số dư ví Spa không đủ ({current_wallet:,.0f} đ, cần trừ {charge_amount:,.0f} đ)"
-            )
-        new_wallet = current_wallet - charge_amount
-        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
-        cur.execute("""
-            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
-            VALUES (?, 'spend', ?, ?, ?, ?)
-        """, (ticket.customer_id, charge_amount, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
+    # 4. Ghi nhận Sổ Quỹ cashbook cho phần tiền mặt / chuyển khoản thực thu
+    if ticket.payment_status == "paid":
+        cash_collected = 0.0
+        if ticket.payment_method == "wallet":
+            # Phần sản phẩm hoặc chi phí vượt ví bắt buộc thu tiền mặt/chuyển khoản
+            cash_collected = max(0.0, (ticket.price or 0.0) - wallet_deduction)
+        elif ticket.payment_method in ("cash", "transfer"):
+            cash_collected = ticket.price or 0.0
+
+        if cash_collected > 0:
+            cb_code = generate_cashbook_code(cur, "PT-SPA")
+            cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
+            VALUES (?, 'in', 'Thu tien dich vu Spa', ?, ?, 'pet_service', ?, ?)
+            """, (cb_code, cash_collected, ticket.customer_id, new_id, f"Thu tiền phiếu Spa {code}" + (f" (Sản phẩm mua kèm: {cash_collected:,.0f} đ)" if ticket.payment_method == "wallet" else "")))
 
     conn.commit()
     conn.close()
@@ -985,10 +1068,10 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 payment_status, payment_method, services_json,
                 call_status, received_time, arrival_method, checkout_time, return_method,
                 staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
-                dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount,
+                dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount, deposit_amount,
                 send_to_hotel, batch_code
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             t_code, t_number, today_str, batch_req.customer_id, actual_pet_id, t.service_type,
             t.appointment_time or "", t.has_transport or 0, t.transport_address or "",
@@ -1002,7 +1085,7 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
             t.staff_receiver or "", t.staff_worker_1 or "", t.staff_worker_2 or "",
             t.staff_cutter or "", t.staff_dyer or "",
             t.dye_package or "", t.surcharge or 0.0, t.art_cutting_fee or 0.0,
-            t.teeth_cleaning or 0.0, t.shipping_fee or 0.0, t.tip_amount or 0.0,
+            t.teeth_cleaning or 0.0, t.shipping_fee or 0.0, t.tip_amount or 0.0, t.deposit_amount or 0.0,
             t.send_to_hotel or 0, batch_code
         ))
         t_id = cur.lastrowid
@@ -1036,6 +1119,7 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
             "teeth_cleaning": t.teeth_cleaning or 0.0,
             "shipping_fee": t.shipping_fee or 0.0,
             "tip_amount": t.tip_amount or 0.0,
+            "deposit_amount": t.deposit_amount or 0.0,
             "received_time": received_time,
             "payment_status": t.payment_status or "unpaid",
             "batch_code": batch_code
@@ -1116,6 +1200,7 @@ def update_pet_service_progress(ticket_id: int, req: PetServiceProgressUpdate):
             surcharge = ?,
             shipping_fee = ?,
             tip_amount = ?,
+            deposit_amount = ?,
             arrival_method = ?,
             return_method = ?,
             checkout_time = COALESCE(NULLIF(?, ''), checkout_time),
@@ -1133,6 +1218,7 @@ def update_pet_service_progress(ticket_id: int, req: PetServiceProgressUpdate):
         req.surcharge or 0,
         req.shipping_fee or 0,
         req.tip_amount or 0,
+        req.deposit_amount or 0,
         req.arrival_method or "",
         req.return_method or "",
         req.checkout_time or "",
@@ -1216,9 +1302,24 @@ def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
             if t.tip_amount is not None:
                 updates.append("tip_amount = ?")
                 params.append(t.tip_amount)
+            if t.deposit_amount is not None:
+                updates.append("deposit_amount = ?")
+                params.append(t.deposit_amount)
             if t.price is not None:
                 updates.append("price = ?")
                 params.append(t.price)
+            if t.original_service_type is not None:
+                updates.append("original_service_type = ?")
+                params.append(t.original_service_type)
+            if t.original_price is not None:
+                updates.append("original_price = ?")
+                params.append(t.original_price)
+            if t.service_change_reason is not None:
+                updates.append("service_change_reason = ?")
+                params.append(t.service_change_reason)
+            if t.service_changed_at is not None:
+                updates.append("service_changed_at = ?")
+                params.append(t.service_changed_at)
             if t.payment_status is not None:
                 updates.append("payment_status = ?")
                 params.append(t.payment_status)

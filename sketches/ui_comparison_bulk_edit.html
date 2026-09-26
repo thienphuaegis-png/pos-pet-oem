@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>So Sánh Giao Diện Bảng Sửa Hàng Loạt: Hiện Tại vs Chuẩn Tailwind UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0f172a;
+        }
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-100 p-4 md:p-8 min-h-screen">
+
+    <!-- Top Title & Navigation -->
+    <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div>
+            <div class="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <span>UI Comparison & Brainstorming</span>
+                <span>•</span>
+                <span class="text-slate-400">Pet Spa POS 2026</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                So Sánh UI Bảng Sửa Hàng Loạt & Giải Pháp Bảo Mật SĐT
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">
+                Đánh giá phương án thiết kế hiện tại vs Chuẩn Tailwind UI cao cấp (hỗ trợ 2 thợ tắm + 1 thợ cắt + mask SĐT).
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Sẵn sàng so sánh
+            </span>
+        </div>
+    </div>
+
+    <!-- MAIN COMPARISON GRID -->
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- ==================== CỘT 1: UI HIỆN TẠI ==================== -->
+        <div class="flex flex-col bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 font-bold flex items-center justify-center text-sm border border-slate-700">1</span>
+                    <div>
+                        <h2 class="font-bold text-base text-slate-200">Bản Hiện Tại (Vừa Dựng Xong)</h2>
+                        <p class="text-xs text-slate-400">1 Thợ cắt + 1 Thợ tắm, SĐT lộ rõ chữ to</p>
+                    </div>
+                </div>
+                <span class="text-[11px] font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-lg">Cần tinh chỉnh</span>
+            </div>
+
+            <!-- Preview Card Hiện Tại -->
+            <div class="bg-white text-slate-900 rounded-2xl p-4 shadow-inner flex-1 flex flex-col">
+                <!-- Header Popup Hiện Tại -->
+                <div class="flex items-center justify-between border-b pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center text-xs">📋</span>
+                        <div>
+                            <div class="text-xs font-bold text-slate-800">Bảng Phân Công & Sửa Phiếu Hàng Loạt</div>
+                            <div class="text-[10px] text-slate-500">Chỉnh sửa trực tiếp từng ô hoặc dùng thanh trên</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">2 phiếu</span>
+                </div>
+
+                <!-- Top Bulk Action Hiện Tại -->
+                <div class="bg-purple-50/70 p-2.5 rounded-xl border border-purple-100 flex flex-wrap items-center gap-2 text-[11px] mb-3">
+                    <span class="font-bold text-slate-700">Áp dụng:</span>
+                    <select class="border border-slate-300 rounded px-1.5 py-1 bg-white text-[11px]"><option>✂️ Thợ Kiệt</option></select>
+                    <select class="border border-slate-300 rounded px-1.5 py-1 bg-white text-[11px]"><option>🛁 Thợ Vân</option></select>
+                    <select class="border border-slate-300 rounded px-1.5 py-1 bg-white text-[11px]"><option>⏳ Chờ làm</option></select>
+                    <button class="bg-purple-700 text-white px-2.5 py-1 rounded font-bold hover:bg-purple-800">⚡ Áp Dụng</button>
+                </div>
+
+                <!-- Bảng Hiện Tại -->
+                <div class="border rounded-xl overflow-hidden text-[11px]">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-100 font-bold text-slate-700">
+                            <tr>
+                                <th class="p-2 w-6"><input type="checkbox" checked></th>
+                                <th class="p-2">Khách / SĐT</th>
+                                <th class="p-2">Bé Cưng</th>
+                                <th class="p-2">✂️ Cắt</th>
+                                <th class="p-2">🛁 Tắm</th>
+                                <th class="p-2">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-2"><input type="checkbox" checked></td>
+                                <td class="p-2">
+                                    <div class="font-bold">Anh Nam</div>
+                                    <!-- Lộ full SĐT -->
+                                    <span class="inline-block bg-purple-100 text-purple-950 font-black px-1.5 py-0.5 rounded text-[11px] border border-purple-200">
+                                        0988.123.456
+                                    </span>
+                                </td>
+                                <td class="p-2 font-medium text-pink-700">🐾 Lu (3.5kg)</td>
+                                <td class="p-2">
+                                    <select class="border p-1 rounded bg-white text-[11px] w-full"><option>Thợ Kiệt</option></select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="border p-1 rounded bg-white text-[11px] w-full"><option>Thợ Vân</option></select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="border p-1 rounded bg-white text-[11px] w-full"><option>🔄 Đang làm</option></select>
+                                </td>
+                            </tr>
+                            <tr class="bg-amber-50">
+                                <td class="p-2"><input type="checkbox"></td>
+                                <td class="p-2">
+                                    <div class="font-bold">Chị Linh</div>
+                                    <!-- Lộ full SĐT -->
+                                    <span class="inline-block bg-purple-100 text-purple-950 font-black px-1.5 py-0.5 rounded text-[11px] border border-purple-200">
+                                        0903.888.999
+                                    </span>
+                                </td>
+                                <td class="p-2 font-medium text-pink-700">🐾 Miu (5.0kg)</td>
+                                <td class="p-2">
+                                    <select class="border border-amber-400 p-1 rounded bg-amber-50 text-[11px] w-full font-bold"><option>Thợ Kiệt (Mới)</option></select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="border p-1 rounded bg-white text-[11px] w-full"><option>Chưa gán</option></select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="border p-1 rounded bg-white text-[11px] w-full"><option>⏳ Chờ làm</option></select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Đánh Giá Nhược Điểm -->
+                <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 space-y-1">
+                    <div class="font-bold text-red-900 flex items-center gap-1">❌ Điểm hạn chế hiện tại:</div>
+                    <ul class="list-disc list-inside space-y-0.5 text-[11px]">
+                        <li><strong>Lộ lọt thông tin khách:</strong> SĐT in to lộ nguyên chuỗi 10 số, nhân viên hoặc người ngoài dễ chụp lén cả danh sách khách hàng.</li>
+                        <li><strong>Thiếu thợ tắm 2:</strong> Nhiều ca cún to (Golden, Husky, Samoyed) hoặc cún cắn cần 2 người tắm + giữ nhưng chỉ gán được 1 người.</li>
+                        <li><strong>Mật độ bảng:</strong> Select box hơi to chiếm diện tích ngang khi thêm cột mới.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CỘT 2: UI CHUẨN TAILWIND UI PRO ==================== -->
+        <div class="flex flex-col bg-slate-900 border-2 border-purple-500/80 rounded-3xl p-5 shadow-2xl relative">
+            <div class="absolute -top-3 right-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-[11px] tracking-wide px-3 py-0.5 rounded-full shadow-lg border border-purple-300">
+                PROPOSED TAILWIND UI PRO
+            </div>
+
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-md">2</span>
+                    <div>
+                        <h2 class="font-bold text-base text-purple-200">Đề Xuất Chuẩn Tailwind UI Mới</h2>
+                        <p class="text-xs text-slate-400">Bảo mật SĐT che giấu + Hỗ trợ 2 Thợ Tắm & 1 Thợ Cắt</p>
+                    </div>
+                </div>
+                <span class="text-[11px] font-semibold px-2.5 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-lg">Khuyên dùng ⭐</span>
+            </div>
+
+            <!-- Preview Card Tailwind UI -->
+            <div class="bg-white text-slate-900 rounded-2xl p-4 shadow-inner flex-1 flex flex-col">
+                <!-- Header Popup Tailwind UI -->
+                <div class="flex items-center justify-between border-b pb-3 mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center text-base shadow-2xs font-black">
+                            👥
+                        </div>
+                        <div>
+                            <div class="text-xs font-extrabold text-slate-900 flex items-center gap-2">
+                                <span>Phân Công Kíp Thợ & Trạng Thái</span>
+                                <span class="bg-purple-100 text-purple-800 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">2 phiếu</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500">Phân công tối đa 1 thợ cắt + 2 thợ tắm (giữ bé) • Dữ liệu bảo mật</div>
+                        </div>
+                    </div>
+                    <button class="text-slate-400 hover:text-slate-600 text-lg leading-none p-1">&times;</button>
+                </div>
+
+                <!-- Top Bulk Action Tailwind UI -->
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px] mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-600">Gán nhanh:</span>
+                        <!-- 1 Cắt -->
+                        <select class="border border-slate-200 rounded-lg px-2 py-1 bg-white text-[11px] font-medium shadow-2xs focus:ring-2 focus:ring-purple-500">
+                            <option>✂️ Cắt: Thợ Kiệt</option>
+                        </select>
+                        <!-- 2 Tắm -->
+                        <select class="border border-slate-200 rounded-lg px-2 py-1 bg-white text-[11px] font-medium shadow-2xs focus:ring-2 focus:ring-purple-500">
+                            <option>🛁 Tắm 1: Thợ Vân</option>
+                        </select>
+                        <select class="border border-slate-200 rounded-lg px-2 py-1 bg-white text-[11px] font-medium shadow-2xs focus:ring-2 focus:ring-purple-500">
+                            <option>🛁 Tắm 2 (phụ): Thợ Lan</option>
+                        </select>
+                    </div>
+                    <button class="bg-purple-700 hover:bg-purple-800 text-white px-3 py-1 rounded-lg font-bold shadow-xs transition">
+                        ⚡ Áp Dụng
+                    </button>
+                </div>
+
+                <!-- Bảng Tailwind UI Mới -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden text-[11px]">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50/90 text-slate-700 font-bold border-b">
+                            <tr>
+                                <th class="p-2 w-7 text-center"><input type="checkbox" checked class="rounded text-purple-600"></th>
+                                <th class="p-2">Khách Hàng (Đã Mask)</th>
+                                <th class="p-2">Bé Cưng</th>
+                                <th class="p-2 text-purple-900 font-extrabold">✂️ Thợ Cắt</th>
+                                <th class="p-2 text-sky-900 font-extrabold">🛁 Thợ Tắm 1</th>
+                                <th class="p-2 text-cyan-900 font-extrabold">🛁 Thợ Tắm 2 (Phụ)</th>
+                                <th class="p-2 text-center">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <!-- Dòng 1 -->
+                            <tr class="hover:bg-purple-50/30 transition">
+                                <td class="p-2 text-center"><input type="checkbox" checked class="rounded text-purple-600"></td>
+                                <td class="p-2">
+                                    <div class="font-bold text-slate-900">Anh Nam</div>
+                                    <!-- SĐT Mask bảo mật chống chụp trộm: Click icon mắt hoặc copy mới hiện -->
+                                    <div class="inline-flex items-center gap-1 bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-900 px-1.5 py-0.5 rounded border border-slate-200 cursor-pointer font-mono-num font-bold text-[10px] group transition" title="Bấm để xem đầy đủ / sao chép">
+                                        <span>🔒 0988.•••.456</span>
+                                        <span class="text-slate-400 group-hover:text-purple-600">👁️</span>
+                                    </div>
+                                </td>
+                                <td class="p-2">
+                                    <div class="font-bold text-pink-700">Lu</div>
+                                    <div class="text-[10px] text-slate-500 font-medium">Poodle (3.5kg)</div>
+                                </td>
+                                <!-- 1 Cắt -->
+                                <td class="p-2">
+                                    <select class="w-full border border-slate-200 rounded-md p-1 bg-white text-[11px] font-semibold text-purple-900 focus:ring-1 focus:ring-purple-500">
+                                        <option>✂️ Thợ Kiệt</option>
+                                        <option>-- Trống --</option>
+                                    </select>
+                                </td>
+                                <!-- Tắm 1 -->
+                                <td class="p-2">
+                                    <select class="w-full border border-slate-200 rounded-md p-1 bg-white text-[11px] font-semibold text-sky-900 focus:ring-1 focus:ring-sky-500">
+                                        <option>🛁 Thợ Vân</option>
+                                        <option>-- Trống --</option>
+                                    </select>
+                                </td>
+                                <!-- Tắm 2 (Phụ) -->
+                                <td class="p-2">
+                                    <select class="w-full border border-slate-200 rounded-md p-1 bg-white text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-cyan-500">
+                                        <option value="">-- Không có --</option>
+                                        <option selected>🛁 Thợ Lan (Phụ)</option>
+                                        <option>Thợ Hùng</option>
+                                    </select>
+                                </td>
+                                <!-- Trạng thái -->
+                                <td class="p-2 text-center">
+                                    <select class="border border-slate-200 rounded-md p-1 bg-white text-[11px] font-semibold text-slate-700">
+                                        <option>🔄 Đang làm</option>
+                                        <option>⏳ Chờ</option>
+                                        <option>✅ Xong</option>
+                                    </select>
+                                </td>
+                            </tr>
+
+                            <!-- Dòng 2 -->
+                            <tr class="bg-amber-50/70 border-l-4 border-amber-500">
+                                <td class="p-2 text-center"><input type="checkbox" class="rounded text-purple-600"></td>
+                                <td class="p-2">
+                                    <div class="font-bold text-slate-900">Chị Linh</div>
+                                    <div class="inline-flex items-center gap-1 bg-slate-100 hover:bg-purple-50 text-slate-700 hover:text-purple-900 px-1.5 py-0.5 rounded border border-slate-200 cursor-pointer font-mono-num font-bold text-[10px] group transition" title="Bấm để xem đầy đủ / sao chép">
+                                        <span>🔒 0903.•••.999</span>
+                                        <span class="text-slate-400 group-hover:text-purple-600">👁️</span>
+                                    </div>
+                                </td>
+                                <td class="p-2">
+                                    <div class="font-bold text-pink-700">Miu</div>
+                                    <div class="text-[10px] text-slate-500 font-medium">Alaska (28kg)</div>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border border-amber-300 bg-amber-50 rounded-md p-1 text-[11px] font-bold text-purple-950">
+                                        <option>✂️ Thợ Kiệt (Mới)</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border border-amber-300 bg-amber-50 rounded-md p-1 text-[11px] font-bold text-sky-950">
+                                        <option>🛁 Thợ Hùng (Mới)</option>
+                                    </select>
+                                </td>
+                                <td class="p-2">
+                                    <select class="w-full border border-amber-300 bg-amber-50 rounded-md p-1 text-[11px] font-bold text-cyan-950">
+                                        <option>🛁 Thợ Tuấn (Mới)</option>
+                                    </select>
+                                </td>
+                                <td class="p-2 text-center">
+                                    <select class="border border-slate-200 rounded-md p-1 bg-white text-[11px] font-semibold text-slate-700">
+                                        <option>⏳ Chờ làm</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Ưu điểm nổi bật -->
+                <div class="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 space-y-1">
+                    <div class="font-bold text-emerald-950 flex items-center gap-1">✨ Điểm vượt trội phương án mới:</div>
+                    <ul class="list-disc list-inside space-y-0.5 text-[11px]">
+                        <li><strong>Chống chụp trộm danh bạ (Phone Masking):</strong> Mặc định che 3-4 số giữa `0988.•••.456`. Khi cần gọi, click vào hoặc hover mới bung ra, chống nhân viên chụp 1 phát lấy hết khách.</li>
+                        <li><strong>Chuẩn thực tế ca làm:</strong> Hỗ trợ đúng 3 kíp thợ: 1 Thợ Cắt (tạo kiểu) + 2 Thợ Tắm (tắm chính & sấy/giữ bé cắn). Thợ Tắm 2 có thể để trống nếu ca nhẹ.</li>
+                        <li><strong>Thẩm mỹ hiện đại:</strong> Phối màu tinh gọn theo chuẩn Tailwind UI, border mịn, độ tương phản cao, phân biệt màu giữa thợ cắt (tím) và thợ tắm (xanh ngọc).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BRAINSTORMING QUESTIONS & NEXT STEPS -->
+    <div class="max-w-7xl mx-auto mt-8 bg-slate-900 border border-slate-800 rounded-3xl p-6">
+        <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
+            <span>💡 Brainstorming: 3 Vấn Đề Cần Thống Nhất Cùng Anh</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mt-3">
+            <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60">
+                <div class="font-bold text-purple-400 mb-1">1. Cơ Chế Mask SĐT</div>
+                <p class="text-slate-300">
+                    Che các số giữa (ví dụ: <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">0988.•••.456</code>). Khi bấm vào icon mắt 👁️ hoặc bấm copy thì mở số thật trong 3 giây rồi tự che lại.
+                </p>
+            </div>
+            <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60">
+                <div class="font-bold text-sky-400 mb-1">2. Cột Database & Schema</div>
+                <p class="text-slate-300">
+                    Hệ thống đã có sẵn <code>staff_worker_1</code> và <code>staff_worker_2</code> trong DB! Chỉ cần mở thêm dropdown cho thợ tắm 2 trên bảng và API là chạy ngay.
+                </p>
+            </div>
+            <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60">
+                <div class="font-bold text-emerald-400 mb-1">3. Tính Tiền K80 & KPI Thợ</div>
+                <p class="text-slate-300">
+                    Khi có 2 thợ tắm, doanh số hoặc KPI công tắm sẽ chia đều 50/50 hoặc hiển thị cả tên 2 người lên bill in tiếp nhận để đối soát.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

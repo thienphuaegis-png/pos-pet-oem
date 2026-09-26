@@ -905,6 +905,18 @@ def init_db():
     ticket_cols = [c[1] for c in cur.fetchall()]
     if 'batch_code' not in ticket_cols:
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN batch_code TEXT DEFAULT ''")
+    if 'deposit_amount' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN deposit_amount REAL DEFAULT 0.0")
+    if 'spa_wallet_deduction' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN spa_wallet_deduction REAL DEFAULT 0.0")
+    if 'original_service_type' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN original_service_type TEXT DEFAULT ''")
+    if 'original_price' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN original_price REAL DEFAULT 0.0")
+    if 'service_change_reason' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_change_reason TEXT DEFAULT ''")
+    if 'service_changed_at' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_changed_at TEXT DEFAULT ''")
 
     # 13. Phân hệ Gia Công OEM
     cur.execute('''

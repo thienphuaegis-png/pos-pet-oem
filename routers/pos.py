@@ -71,20 +71,21 @@ def list_orders(limit: int = 50):
 def get_order_detail(code: str):
     conn = get_db()
     cur = conn.cursor()
+    param_id = int(code) if code.isdigit() else -1
     cur.execute("""
     SELECT o.*, c.name as customer_name, c.phone as customer_phone, s.name as staff_name
     FROM orders o
     LEFT JOIN contacts c ON o.customer_id = c.id
     LEFT JOIN staff s ON o.staff_id = s.id
-    WHERE o.code = ?
-    """, (code,))
+    WHERE o.code = ? OR o.id = ?
+    """, (code, param_id))
     order = cur.fetchone()
     if not order:
         conn.close()
         raise HTTPException(status_code=404, detail="Khong tim thay don hang")
     
     cur.execute("""
-    SELECT oi.*, p.name as product_name, p.code as product_code, p.unit, p.sell_price as original_price
+    SELECT oi.*, p.name as product_name, p.code as product_code, p.unit, p.sell_price as original_price, p.type as product_type
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = ?
@@ -145,7 +146,8 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 wallet_deduction = max_usable
 
         final_amount = max(0.0, total_amount - req.discount - wallet_deduction)
-        debt_amount = max(0.0, final_amount - req.paid_amount)
+        actual_paid = min(req.paid_amount, final_amount) if req.paid_amount > 0 else 0.0
+        debt_amount = max(0.0, final_amount - actual_paid)
         
         cur.execute("SELECT commission_rate FROM staff WHERE id = ?", (req.staff_id,))
         staff_row = cur.fetchone()
@@ -165,7 +167,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         cur.execute("""
         INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, req.paid_amount, debt_amount, commission_amount, req.note, req.shift_id, wallet_deduction))
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, actual_paid, debt_amount, commission_amount, req.note, req.shift_id, wallet_deduction))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
@@ -282,22 +284,26 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         if debt_amount > 0:
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (debt_amount, req.customer_id))
 
-        if req.paid_amount > 0:
+        if actual_paid > 0:
             cb_code = generate_cashbook_code(cur, "PT-BH")
             if req.payments:
                 # Thanh toán tách nhiều hình thức: ghi 1 dòng order_payments/cashbook cho mỗi hình thức
+                total_split = sum(p.amount for p in req.payments if p.amount > 0)
                 for p in req.payments:
                     if p.amount <= 0:
                         continue
+                    p_amt = p.amount
+                    if total_split > actual_paid and total_split > 0:
+                        p_amt = round(p.amount * (actual_paid / total_split))
                     cur.execute("""
                     INSERT INTO order_payments (order_id, method, amount, account_id)
                     VALUES (?, ?, ?, ?)
-                    """, (order_id, p.method, p.amount, p.account_id))
+                    """, (order_id, p.method, p_amt, p.account_id))
                     sub_cb_code = generate_cashbook_code(cur, "PT-BH")
                     cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                    """, (sub_cb_code, p.amount, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, req.shift_id))
+                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, req.shift_id))
             else:
                 acc_id = getattr(req, "account_id", None)
                 if not acc_id:
@@ -305,9 +311,13 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     row_acc = cur.fetchone()
                     acc_id = row_acc[0] if row_acc else None
                 cur.execute("""
+                INSERT INTO order_payments (order_id, method, amount, account_id)
+                VALUES (?, 'cash', ?, ?)
+                """, (order_id, actual_paid, acc_id))
+                cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                 VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                """, (cb_code, req.paid_amount, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
+                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
 
         # Tích điểm và thăng hạng tự động (Loyalty / Points / Auto-upgrade)
         points_earned = 0
@@ -329,7 +339,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 # Khách chưa gắn phân hạng (allow_pts is None) hoặc allow_points == 1 thì cho phép tích điểm
                 can_earn_points = (allow_pts is None or allow_pts == 1)
 
-                if can_earn_points and req.paid_amount > 0:
+                if can_earn_points and actual_paid > 0:
                     cur.execute("SELECT value FROM settings WHERE key = 'points_exchange_rate'")
                     sett_row = cur.fetchone()
                     try:
@@ -339,7 +349,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     if rate <= 0:
                         rate = 1000.0
 
-                    points_earned = int(req.paid_amount // rate)
+                    points_earned = int(actual_paid // rate)
                     current_points = cust_points + points_earned
                     cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (current_points, req.customer_id))
 
@@ -541,15 +551,17 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         else:
             total_amount = order["total_amount"]
 
-        final_amount = max(0, total_amount - new_discount)
+        spa_wallet_deduct = order["spa_wallet_deduction"] or 0.0
+        final_amount = max(0, total_amount - spa_wallet_deduct - new_discount)
         new_paid = req.paid_amount if req.paid_amount is not None else old_paid
-        new_debt = max(0, final_amount - new_paid)
+        actual_new_paid = min(new_paid, final_amount) if new_paid > 0 else 0.0
+        new_debt = max(0, final_amount - actual_new_paid)
 
         cur.execute("""
         UPDATE orders 
         SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?
         WHERE id = ?
-        """, (new_customer_id, new_staff_id, total_amount, new_discount, final_amount, new_paid, new_debt, new_note, order_id))
+        """, (new_customer_id, new_staff_id, total_amount, new_discount, final_amount, actual_new_paid, new_debt, new_note, order_id))
 
         if old_customer_id == new_customer_id:
             diff_debt = new_debt - old_debt
@@ -562,12 +574,12 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
                 cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (new_debt, new_customer_id))
 
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
-        if new_paid > 0:
+        if actual_new_paid > 0:
             cb_code = generate_cashbook_code(cur, "PT-BH")
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
             VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?)
-            """, (cb_code, new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat)"))
+            """, (cb_code, actual_new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat)"))
 
         conn.commit()
     except Exception as e:

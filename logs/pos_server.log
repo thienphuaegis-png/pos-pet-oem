@@ -524,3 +524,95 @@ NameError: name 'cust' is not defined
 2026-09-25 22:34:48,976 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
 2026-09-25 22:35:42,007 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
 2026-09-25 22:36:44,446 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-25 22:58:48,648 [ERROR] [pos_server]: Unhandled error on POST /api/pet-services/batch: UNIQUE constraint failed: pet_service_tickets.code
+Traceback (most recent call last):
+  File "D:\Projects_Hermes\pos-offline-petcare2\server.py", line 93, in log_requests
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 1780, in handle
+    await self.original_router.handle(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 2789, in handle
+    await included_router._handle_selected(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 1800, in _handle_selected
+    await original_route.handle(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 1279, in handle
+    await app(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 144, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 706, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\fastapi\routing.py", line 354, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\starlette\concurrency.py", line 34, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2706, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1100, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Projects_Hermes\pos-offline-petcare2\routers\partners.py", line 967, in create_pet_services_batch
+    cur.execute("""
+sqlite3.IntegrityError: UNIQUE constraint failed: pet_service_tickets.code
+2026-09-25 23:00:13,699 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-25 23:20:09,522 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-25 23:32:35,354 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-25 23:54:18,296 [WARNING] [pos_server]: DELETE /api/price-lists/1676 - Status: 400
+2026-09-25 23:54:22,227 [WARNING] [pos_server]: DELETE /api/price-lists/1676 - Status: 400
+2026-09-25 23:54:26,708 [WARNING] [pos_server]: DELETE /api/price-lists/1676 - Status: 400
+2026-09-26 00:01:21,699 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 00:09:28,833 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 00:17:27,607 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 00:18:36,801 [WARNING] [pos_server]: DELETE /api/price-lists/1676 - Status: 400
+2026-09-26 09:19:13,282 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 09:22:35,144 [WARNING] [pos_server]: GET /api/shifts/current - Status: 401
+2026-09-26 09:22:35,382 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 09:22:36,271 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
+2026-09-26 09:22:36,387 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 09:22:36,488 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 09:22:37,168 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
+2026-09-26 09:22:40,654 [WARNING] [pos_server]: POST /api/auth/login - Status: 401
+2026-09-26 09:29:57,248 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 09:34:05,903 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 09:45:07,786 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 10:06:24,256 [WARNING] [pos_server]: DELETE /api/price-lists/1676 - Status: 400
+2026-09-26 10:25:21,880 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 10:27:00,023 [WARNING] [pos_server]: DELETE /api/price-lists/2296 - Status: 400
+2026-09-26 10:27:01,623 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 10:44:53,708 [WARNING] [pos_server]: POST /api/pet-services/batch - Status: 400
+2026-09-26 12:30:22,709 [WARNING] [pos_server]: GET /api/pet-services/344 - Status: 404
+2026-09-26 18:41:04,016 [WARNING] [pos_server]: GET /api/shifts/current - Status: 401
+2026-09-26 18:41:04,263 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 18:41:05,275 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
+2026-09-26 18:41:05,415 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 18:41:05,653 [WARNING] [pos_server]: GET /api/pos/draft - Status: 401
+2026-09-26 18:41:06,426 [WARNING] [pos_server]: POST /api/pos/draft - Status: 401
