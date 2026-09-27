@@ -69,6 +69,10 @@ def test_frontend_pos_k80_discount_logic():
 
     with open(app_js_path, "r", encoding="utf-8") as f:
         app_js = f.read()
+    prod_js_path = os.path.join(base_dir, "static", "js", "modules", "productions.js")
+    if os.path.exists(prod_js_path):
+        with open(prod_js_path, "r", encoding="utf-8") as f:
+            app_js += "\n" + f.read()
 
     # 1. pos.js: Đơn giá hiển thị 2 dòng khi có giảm giá (giá gốc line-through)
     assert "hasItemDisc" in pos_js, "pos.js phải kiểm tra hasItemDisc"

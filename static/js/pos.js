@@ -112,8 +112,6 @@ var invoiceTabs = [
         bill_discount: 0,
         bill_discount_type: 'vnd', // 'vnd' | 'pct'
         use_points: false,
-        use_spa_wallet: false,
-        spa_wallet_amount: 0,
         coupon_code: "",
         coupon_discount: 0,
         paid_amount: null, // null nếu chưa gõ tay
@@ -409,8 +407,6 @@ function addNewInvoiceTab() {
         bill_discount: 0,
         bill_discount_type: 'vnd',
         use_points: false,
-        use_spa_wallet: false,
-        spa_wallet_amount: 0,
         coupon_code: "",
         coupon_discount: 0,
         paid_amount: null,
@@ -851,8 +847,6 @@ async function clearSelectedCustomer() {
     const tab = getActiveTab();
     tab.customer = null;
     tab.use_points = false;
-    tab.use_spa_wallet = false;
-    tab.spa_wallet_amount = 0;
     await recalculateBestOfferForCart(tab);
     updateCustomerUI(null);
     renderInvoiceTabs();
@@ -1024,35 +1018,8 @@ function updateFinancialSummary() {
     const spaWalletHint = document.getElementById('pos-spa-wallet-hint');
     const spaWalletDisplay = document.getElementById('pos-spa-wallet-deduct-display');
 
-    // Tổng tiền dịch vụ spa trong đơn
-    const tSpa = tab.cart
-        .filter(item => item.type === 'service')
-        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    const custSpaBalance = (tab.customer && tab.customer.spa_wallet_balance) ? tab.customer.spa_wallet_balance : 0;
-
-    if (tSpa > 0 && custSpaBalance > 0) {
-        if (spaWalletRow) spaWalletRow.classList.remove('hidden');
-        const maxDeductible = Math.min(custSpaBalance, tSpa);
-        if (spaWalletHint) {
-            spaWalletHint.innerText = `Ví Spa khả dụng: ${formatMoney(custSpaBalance)} (Tối đa trừ ${formatMoney(maxDeductible)} cho dịch vụ)`;
-        }
-        if (tab.use_spa_wallet) {
-            spaWalletDeduct = maxDeductible;
-            if (chkSpaWallet) chkSpaWallet.checked = true;
-        } else {
-            if (chkSpaWallet) chkSpaWallet.checked = false;
-        }
-    } else {
-        if (spaWalletRow) spaWalletRow.classList.add('hidden');
-        if (chkSpaWallet) chkSpaWallet.checked = false;
-        tab.use_spa_wallet = false;
-    }
-    tab.spa_wallet_amount = spaWalletDeduct;
-    if (spaWalletDisplay) spaWalletDisplay.innerText = `-${formatMoney(spaWalletDeduct)}`;
-
     // Khách cần trả
-    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount - spaWalletDeduct);
+    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount);
     document.getElementById('pos-final-amount-display').innerText = formatMoney(finalAmount);
 
     // Khách thanh toán (auto-fill nếu chưa gõ tay)
@@ -1197,8 +1164,7 @@ function getPosFinalAmount(tab) {
     const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
     const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
-    const walletDeduct = (tab.use_spa_wallet && tab.spa_wallet_amount) ? tab.spa_wallet_amount : 0;
-    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount - walletDeduct);
+    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
 }
 
 function removeSplitPaymentLine(idx) {
@@ -1296,15 +1262,7 @@ function toggleUsePoints() {
 }
 
 function toggleUseSpaWallet() {
-    const tab = getActiveTab();
-    const chk = document.getElementById('pos-use-spa-wallet');
-    if (!tab.customer) {
-        alert("Vui lòng chọn khách hàng trước khi dùng Ví Spa!");
-        if (chk) chk.checked = false;
-        return;
-    }
-    tab.use_spa_wallet = chk ? chk.checked : false;
-    updateFinancialSummary();
+    // Deprecated: Bán hàng POS không hỗ trợ trừ ví Spa
 }
 
 function applyCoupon() {
@@ -1563,8 +1521,6 @@ async function submitPOSOrder() {
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
             payments: splitPayments,
-            use_spa_wallet: tab.use_spa_wallet || false,
-            spa_wallet_amount: tab.spa_wallet_amount || 0,
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
                 quantity: i.quantity,
@@ -1623,8 +1579,6 @@ async function submitPOSOrder() {
         tab.note = "";
         tab.bill_discount = 0;
         tab.use_points = false;
-        tab.use_spa_wallet = false;
-        tab.spa_wallet_amount = 0;
         tab.coupon_code = "";
         tab.coupon_discount = 0;
         tab.paid_amount = null;
@@ -1855,6 +1809,8 @@ function renderAndPrint(ord, isDraft = false) {
         tong_tien: formatMoney(ord.total_amount),
         giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
         tiet_kiem: formatMoney(totalSavings),
+        tru_vi: formatMoney(ord.spa_wallet_deduction || 0),
+        raw_tru_vi: ord.spa_wallet_deduction || 0,
         phai_tra: formatMoney(ord.final_amount),
         khach_tra: formatMoney(ord.paid_amount),
         con_no: formatMoney(ord.debt_amount),
@@ -1883,6 +1839,43 @@ function renderAndPrint(ord, isDraft = false) {
                 e.y = (e.y || 0) - shiftAmount;
             }
         });
+    }
+
+    // Xử lý dòng Trừ Ví Spa: tự ẩn nếu không trừ ví, hoặc tự chèn nếu có trừ ví mà template chưa có
+    const walletDeduct = ord.spa_wallet_deduction || 0;
+    const walletElem = effectiveElements.find(e => e.text && (e.text.includes('{{tru_vi}}') || (e.label && e.label.toLowerCase().includes('trừ ví'))));
+    if (walletDeduct <= 0 && walletElem && isThermal) {
+        const walY = walletElem.y || 0;
+        const shiftAmount = 20;
+        effectiveElements = effectiveElements.filter(e => e !== walletElem);
+        effectiveElements.forEach(e => {
+            if ((e.zone || 'header') === 'footer' && (e.y || 0) > walY) {
+                e.y = (e.y || 0) - shiftAmount;
+            }
+        });
+    } else if (walletDeduct > 0 && !walletElem && isThermal) {
+        const payElem = effectiveElements.find(e => e.text && (e.text.includes('{{phai_tra}}') || (e.label && e.label.toLowerCase().includes('phải trả'))));
+        if (payElem) {
+            const insY = payElem.y;
+            effectiveElements.forEach(e => {
+                if ((e.zone || 'header') === 'footer' && (e.y || 0) >= insY) {
+                    e.y = (e.y || 0) + 18;
+                }
+            });
+            effectiveElements.push({
+                id: "e_auto_tru_vi",
+                zone: "footer",
+                type: "text",
+                text: "Trừ Ví Spa: -{{tru_vi}}",
+                label: "Trừ Ví Spa",
+                x: 10,
+                y: insY,
+                w: 270,
+                fsz: 11,
+                bold: false,
+                align: "right"
+            });
+        }
     }
 
     // Tính deltaY giãn chân trang theo số lượng dòng sản phẩm
@@ -2087,6 +2080,7 @@ function renderAndPrint(ord, isDraft = false) {
                         <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${printData.tong_tien}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${printData.giam_gia}</span></div>
+                        ${(ord.spa_wallet_deduction || 0) > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #6b21a8; font-weight: 500;"><span>Trừ Ví Spa:</span> <span>-${printData.tru_vi}</span></div>` : ''}
                         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${printData.phai_tra}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${printData.khach_tra}</span></div>
                         <div style="display: flex; justify-content: space-between; font-weight: bold;"><span>Còn nợ lại:</span> <span>${printData.con_no}</span></div>
@@ -2200,6 +2194,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
             txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
+            txt = txt.replace(/{{tru_vi}}/g, printData.tru_vi);
             txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
             txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
             txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
@@ -2427,6 +2422,7 @@ function printInvoiceDirectly() {
 // ----------------------------------------------------
 // NẠP VÍ SPA (QUẦY POS & PHIẾU DỊCH VỤ SPA)
 // ----------------------------------------------------
+var _posTopupPackagesCache = [];
 var _posSelectedTopupPkgId = null;
 
 function getActiveTopupCustomer() {
@@ -2468,6 +2464,7 @@ async function openTopupSpaModal() {
     try {
         const res = await fetch('/api/topup/packages');
         const pkgs = await res.json();
+        _posTopupPackagesCache = pkgs || [];
         if (!pkgs || pkgs.length === 0) {
             pkgListEl.innerHTML = '<div class="text-center text-slate-400 py-3">Chưa có gói nạp nào được kích hoạt.</div>';
             return;
@@ -2511,6 +2508,210 @@ function onSelectTopupPackageRadio(pkgId) {
     });
 }
 
+var _lastTopupReceiptData = null;
+
+function buildTopupReceiptHTML(data) {
+    if (!data) return '';
+    const shopName = (typeof posSettings !== 'undefined' && posSettings.shop_name) ? posSettings.shop_name : "PET NHA TRANG";
+    const shopAddress = (typeof posSettings !== 'undefined' && posSettings.shop_address) ? posSettings.shop_address : "";
+    const shopPhone = (typeof posSettings !== 'undefined' && posSettings.shop_phone) ? posSettings.shop_phone : "";
+    const fmt = n => (Math.round(n) || 0).toLocaleString('vi-VN') + ' đ';
+
+    const payMethodMap = {
+        'cash': 'Tiền mặt',
+        'transfer': 'Chuyển khoản ngân hàng',
+        'bank': 'Chuyển khoản ngân hàng',
+        'card': 'Quẹt thẻ'
+    };
+    const methodStr = payMethodMap[data.payment_method] || data.payment_method || 'Tiền mặt';
+
+    return `
+    <div class="print-container" style="font-family: 'Courier New', monospace, sans-serif; font-size: 13px; width: 290px; margin: 0 auto; color: #000; line-height: 1.45; padding: 10px; background: #fff;">
+      <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase;">${shopName}</h2>
+        ${shopAddress ? `<div style="font-size: 11px; margin-top: 2px;">${shopAddress}</div>` : ''}
+        ${shopPhone ? `<div style="font-size: 11px;">Hotline: ${shopPhone}</div>` : ''}
+        <div style="font-size: 15px; font-weight: 900; margin-top: 6px; text-transform: uppercase;">PHIẾU THU NẠP VÍ SPA</div>
+        <div style="font-size: 10px; margin-top: 3px;">Thời gian: ${new Date().toLocaleString('vi-VN')}</div>
+      </div>
+
+      <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 12px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span>Khách hàng:</span>
+          <strong>${data.customer_name || '-'}</strong>
+        </div>
+        ${data.customer_phone ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span>SĐT:</span>
+          <strong>${data.customer_phone}</strong>
+        </div>` : ''}
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span>Gói nạp:</span>
+          <strong>${data.package_name || 'Nạp ví Spa'}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span>Hình thức:</span>
+          <span>${methodStr}</span>
+        </div>
+      </div>
+
+      <div style="border-bottom: 1px dashed #000; padding-bottom: 6px; margin-bottom: 6px; font-size: 12px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-weight: 900; font-size: 13px;">
+          <span>TIỀN NỘP (THỰC THU):</span>
+          <span>${fmt(data.pay_amount)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <span>Cộng vào ví:</span>
+          <span>+${fmt(data.receive_amount)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-top: 4px; border-top: 1px dotted #888; padding-top: 3px; font-weight: 900; font-size: 13px;">
+          <span>SỐ DƯ VÍ MỚI:</span>
+          <span>${fmt(data.balance_after)}</span>
+        </div>
+      </div>
+
+      ${data.note ? `
+      <div style="font-size: 11px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+        <em>Ghi chú: ${data.note}</em>
+      </div>` : ''}
+
+      <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; padding-bottom: 24px;">
+        <div style="flex: 1;">
+          <strong style="font-size: 11px;">Khách hàng</strong><br><br><br>
+          <span style="font-size: 10px;">(Ký & ghi rõ họ tên)</span>
+        </div>
+        <div style="flex: 1;">
+          <strong style="font-size: 11px;">Thu ngân</strong><br><br><br>
+          <span style="font-size: 10px;">(Ký & ghi rõ họ tên)</span>
+        </div>
+      </div>
+
+      <div style="text-align: center; font-size: 10px; color: #555; border-top: 1px dashed #000; padding-top: 4px; padding-bottom: 18mm;">
+        Cảm ơn quý khách đã tin dùng dịch vụ!
+      </div>
+    </div>
+    `;
+}
+
+function printTopupReceiptDirectly(html) {
+    if (!html) return;
+    const oldIframe = document.getElementById('pos-topup-print-frame');
+    if (oldIframe) oldIframe.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'pos-topup-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '350px';
+    iframe.style.height = '1000px';
+    iframe.style.border = 'none';
+    iframe.style.zIndex = '-9999';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Phiếu Thu Nạp Ví Spa</title>
+            <style>
+                @page { size: 80mm auto; margin: 0; }
+                html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: white !important;
+                    width: 100% !important;
+                    overflow: hidden !important;
+                }
+                * {
+                    box-sizing: border-box;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+            </style>
+        </head>
+        <body style="display: flex; justify-content: center; align-items: flex-start; margin: 0; padding: 0;">
+            ${html}
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+        try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        } catch (e) {
+            console.error("Direct print error:", e);
+            window.print();
+        }
+    }, 250);
+}
+
+function printTopupReceiptK80(data) {
+    if (!data) return;
+    closePrintModal();
+    const html = buildTopupReceiptHTML(data);
+    printTopupReceiptDirectly(html);
+}
+
+function printLastTopupReceipt() {
+    if (_lastTopupReceiptData) {
+        printTopupReceiptK80(_lastTopupReceiptData);
+    } else {
+        alert("Chưa có thông tin phiếu nạp gần nhất để in!");
+    }
+}
+
+async function printHistoricalTopupReceipt(contactId, txId) {
+    try {
+        const res = await fetch(`/api/topup/history/${contactId}`);
+        if (!res.ok) throw new Error("Lỗi tải lịch sử");
+        const list = await res.json();
+        const tx = list.find(item => item.id == txId);
+        if (!tx) {
+            alert("Không tìm thấy giao dịch nạp tiền!");
+            return;
+        }
+
+        let custName = document.getElementById('pos-wallet-hist-cust-name')?.innerText || 'Khách hàng';
+        let custPhone = document.getElementById('pos-wallet-hist-cust-phone')?.innerText.replace(/[()]/g, '') || '';
+
+        let pkgName = tx.package_name || tx.note || 'Nạp ví Spa';
+        let payAmount = tx.pay_amount;
+        let receiveAmount = (tx.receive_amount !== undefined && tx.receive_amount !== null) ? tx.receive_amount : (tx.amount || 0);
+
+        if (payAmount === undefined || payAmount === null) {
+            if (tx.package_id && _posTopupPackagesCache && _posTopupPackagesCache.length > 0) {
+                const pkg = _posTopupPackagesCache.find(p => p.id == tx.package_id);
+                if (pkg) {
+                    payAmount = pkg.pay_amount;
+                    if (!receiveAmount) receiveAmount = pkg.receive_amount;
+                    if (!tx.package_name) pkgName = pkg.name;
+                }
+            }
+        }
+
+        const receiptData = {
+            customer_name: custName,
+            customer_phone: custPhone,
+            package_name: pkgName,
+            payment_method: tx.payment_method || 'Tiền mặt',
+            pay_amount: payAmount || 0,
+            receive_amount: receiveAmount,
+            balance_after: tx.balance_after || 0,
+            note: tx.note || ''
+        };
+        printTopupReceiptK80(receiptData);
+    } catch (e) {
+        console.error("Print historical topup receipt error:", e);
+        alert("Không thể in lại phiếu nạp tiền!");
+    }
+}
+
 function closeTopupSpaModal() {
     const modal = document.getElementById('modal-topup-spa');
     if (modal) {
@@ -2521,6 +2722,8 @@ function closeTopupSpaModal() {
     if (nameEl) nameEl.innerText = '--';
     const balEl = document.getElementById('pos-topup-current-balance');
     if (balEl) balEl.innerText = '0 đ';
+    const btnPrint = document.getElementById('btn-print-topup-k80');
+    if (btnPrint) btnPrint.classList.add('hidden');
 }
 
 async function submitTopupSpaRecharge() {
@@ -2600,9 +2803,41 @@ async function submitTopupSpaRecharge() {
             if (typeof updateFinancialSummary === 'function') updateFinancialSummary();
         }
 
-        alert(`✅ Nạp thành công gói [${data.package_name}]!\n💰 Tiền nộp: ${Number(data.pay_amount).toLocaleString('vi-VN')} đ\n💆 Số dư Ví Spa mới: ${Number(data.balance_after).toLocaleString('vi-VN')} đ`);
+        // Lấy thông tin gói nạp từ response hoặc cache để đảm bảo chính xác 100%
+        const selectedPkg = (_posTopupPackagesCache || []).find(p => p.id == _posSelectedTopupPkgId);
+        const pkgName = data.package_name || (selectedPkg ? selectedPkg.name : 'Nạp ví Spa');
+        const payAmt = (data.pay_amount !== undefined && data.pay_amount !== null) ? Number(data.pay_amount) : (selectedPkg ? Number(selectedPkg.pay_amount) : 0);
+        const receiveAmt = (data.receive_amount !== undefined && data.receive_amount !== null) ? Number(data.receive_amount) : (selectedPkg ? Number(selectedPkg.receive_amount) : Number(data.amount || 0));
+        const balAfter = (data.balance_after !== undefined && data.balance_after !== null) ? Number(data.balance_after) : Number(cust.spa_wallet_balance || 0);
 
+        // Lưu lại dữ liệu để in phiếu thu K80
+        _lastTopupReceiptData = {
+            customer_name: cust.name || 'Khách hàng',
+            customer_phone: cust.phone || '',
+            package_name: pkgName,
+            payment_method: payMethod,
+            pay_amount: payAmt,
+            receive_amount: receiveAmt,
+            balance_after: balAfter,
+            note: note
+        };
+
+        const btnPrint = document.getElementById('btn-print-topup-k80');
+        if (btnPrint) btnPrint.classList.remove('hidden');
+
+        // Bỏ xem trước phiếu in: Tự động in trực tiếp qua máy in/iframe
+        printTopupReceiptK80(_lastTopupReceiptData);
+
+        // Đóng modal nạp ví
         closeTopupSpaModal();
+
+        // Hiển thị thông báo chính xác số tiền nạp và số tiền nhận
+        const msg = `✅ Nạp thành công [${pkgName}]!\n💰 Tiền nộp: ${payAmt.toLocaleString('vi-VN')} đ\n💆 Cộng vào ví: +${receiveAmt.toLocaleString('vi-VN')} đ\n💳 Số dư mới: ${balAfter.toLocaleString('vi-VN')} đ`;
+        if (typeof showToast === 'function') {
+            showToast(`Nạp thành công [${pkgName}]: Nộp ${payAmt.toLocaleString('vi-VN')}đ, Cộng ví +${receiveAmt.toLocaleString('vi-VN')}đ`, 'success');
+        } else {
+            alert(msg);
+        }
     } catch (e) {
         console.error("Topup error:", e);
         alert("Lỗi kết nối khi nạp ví Spa!");
@@ -2644,7 +2879,7 @@ async function showPosWalletHistory() {
             return;
         }
 
-        tbody.innerHTML = rows.map(r => {
+        tbody.innerHTML = rows.map((r, idx) => {
             const isTopup = r.type === 'topup';
             const isSpend = r.type === 'spend';
             const typeLabel = isTopup ? '⚡ Nạp gói' : (isSpend ? '🛒 Chi tiêu bill' : 'Hoàn tiền');
@@ -2656,6 +2891,17 @@ async function showPosWalletHistory() {
             const amountColor = isTopup ? 'text-emerald-600 font-bold' : (isSpend ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold');
             const noteText = r.note || (isTopup && r.package_name ? `Gói ${r.package_name}` : (r.order_code ? `Đơn ${r.order_code}` : ''));
 
+            let actionHtml = '-';
+            if (isTopup) {
+                actionHtml = `
+                    <button type="button" onclick="printHistoricalTopupReceipt(${cust.id}, ${r.id})" 
+                            class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
+                            title="In lại phiếu thu nạp ví K80">
+                        🖨️ In
+                    </button>
+                `;
+            }
+
             return `
                 <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
                     <td class="p-2.5 text-slate-500 font-mono">${r.created_at || ''}</td>
@@ -2663,6 +2909,7 @@ async function showPosWalletHistory() {
                     <td class="p-2.5 text-right font-mono ${amountColor}">${sign}${Number(r.amount || 0).toLocaleString('vi-VN')} đ</td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-700">${Number(r.balance_after || 0).toLocaleString('vi-VN')} đ</td>
                     <td class="p-2.5 text-slate-600">${noteText}</td>
+                    <td class="p-2.5 text-center">${actionHtml}</td>
                 </tr>
             `;
         }).join('');
@@ -2679,6 +2926,8 @@ function closePosWalletHistory() {
 
 window.showPosWalletHistory = showPosWalletHistory;
 window.closePosWalletHistory = closePosWalletHistory;
+window.printHistoricalTopupReceipt = printHistoricalTopupReceipt;
+window.printLastTopupReceipt = printLastTopupReceipt;
 
 window.openTopupSpaModal = openTopupSpaModal;
 window.closeTopupSpaModal = closeTopupSpaModal;

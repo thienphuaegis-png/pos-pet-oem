@@ -582,6 +582,11 @@
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Người Nộp / Nhận:</span>
                         <span class="font-bold text-slate-800 block truncate mt-0.5">${c.contact_name || 'Khách lẻ / Nội bộ'}</span>
+                        ${c.contact_phone ? `
+                            <span class="inline-flex items-center gap-1 font-mono text-[10px] text-purple-800 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold mt-1">
+                                <span>📞</span><span>${c.contact_phone}</span>
+                            </span>
+                        ` : ''}
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Thời Gian Ghi Sổ:</span>
@@ -810,16 +815,28 @@
                                 <span>📦 Tổng tiền hàng:</span>
                                 <span class="font-mono font-bold text-slate-800">${formatMoney(ord.total_amount || 0)}</span>
                             </div>
-                            ${(ord.discount_amount || 0) > 0 ? `
+                            ${(ord.discount_amount || ord.discount || 0) > 0 ? `
                                 <div class="flex justify-between items-center text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
                                     <span>🎁 Giảm giá hóa đơn:</span>
-                                    <span class="font-mono font-bold">-${formatMoney(ord.discount_amount)}</span>
+                                    <span class="font-mono font-bold">-${formatMoney(ord.discount_amount || ord.discount)}</span>
+                                </div>
+                            ` : ''}
+                            ${(ord.spa_wallet_deduction || 0) > 0 ? `
+                                <div class="flex justify-between items-center text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                                    <span>💳 Trừ Ví Spa:</span>
+                                    <span class="font-mono font-bold">-${formatMoney(ord.spa_wallet_deduction)}</span>
                                 </div>
                             ` : ''}
                             <div class="flex justify-between items-center font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 mt-1">
                                 <span>👉 Khách thực trả (Đã vào quỹ):</span>
                                 <span class="font-mono text-xs">${formatMoney(ord.paid_amount || ord.final_amount || 0)}</span>
                             </div>
+                            ${(ord.debt_amount || 0) > 0 ? `
+                                <div class="flex justify-between items-center text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded mt-0.5">
+                                    <span>⚠️ Còn nợ lại:</span>
+                                    <span class="font-mono font-bold">${formatMoney(ord.debt_amount)}</span>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 } else if (linkedType === 'topup') {
@@ -1307,7 +1324,14 @@
                             </span>
                         </td>
                         <td class="p-2.5 font-semibold text-slate-700">${c.category || '-'}</td>
-                        <td class="p-2.5 text-slate-600 font-medium">${c.contact_name || '-'}</td>
+                        <td class="p-2.5 text-slate-700">
+                            <div class="font-bold text-xs text-slate-800">${c.contact_name || '-'}</div>
+                            ${c.contact_phone ? `
+                                <div class="mt-0.5 inline-flex items-center gap-1 font-mono text-[10px] text-purple-800 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold" title="SĐT khách hàng">
+                                    <span>📞</span><span>${c.contact_phone}</span>
+                                </div>
+                            ` : ''}
+                        </td>
                         <td class="p-2.5 text-right font-mono font-bold text-xs ${isThu ? 'text-emerald-600' : 'text-rose-600'}">
                             ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
                         </td>
@@ -1329,8 +1353,9 @@
                 const cat = (c.category || '').toLowerCase();
                 const note = (c.note || '').toLowerCase();
                 const contact = (c.contact_name || '').toLowerCase();
+                const phone = (c.contact_phone || '').toLowerCase();
                 const acc = (c.account_name || '').toLowerCase();
-                return code.includes(query) || cat.includes(query) || note.includes(query) || contact.includes(query) || acc.includes(query);
+                return code.includes(query) || cat.includes(query) || note.includes(query) || contact.includes(query) || phone.includes(query) || acc.includes(query);
             });
             renderCashbookTable(filtered);
         }

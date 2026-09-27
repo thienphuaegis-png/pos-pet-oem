@@ -90,9 +90,31 @@ function handleLogout() {
 }
 
 // ── Show / Hide login overlay ──
+async function loadLoginStoreBranding() {
+  try {
+    const res = await _origFetch('/api/settings');
+    if (!res.ok) return;
+    const settings = await res.json();
+    const nameEl = document.getElementById('login-store-name');
+    const logoEl = document.getElementById('login-store-logo');
+    const iconEl = document.getElementById('login-store-icon');
+    if (nameEl && settings.shop_name) {
+      nameEl.textContent = settings.shop_name;
+    }
+    if (settings.shop_logo && logoEl && iconEl) {
+      logoEl.src = settings.shop_logo;
+      logoEl.style.display = 'block';
+      iconEl.style.display = 'none';
+    }
+  } catch (e) {
+    // Giữ mặc định nếu chưa tải được
+  }
+}
+
 function showLoginOverlay() {
   const el = document.getElementById('login-overlay');
   if (el) el.style.display = 'flex';
+  loadLoginStoreBranding();
 }
 function hideLoginOverlay() {
   const el = document.getElementById('login-overlay');

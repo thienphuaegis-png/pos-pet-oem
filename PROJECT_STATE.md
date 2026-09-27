@@ -398,34 +398,34 @@ ightarrow$ Tự động gán cho toàn bộ sản phẩm trong nhóm qua API `PO
 
 ---
 
-## Files Đã Chỉnh Sửa / Tạo Mới
+## Files Đã Chỉnh Sửa / Tạo Mới (Cập nhật 2026-09-27)
 
 | File | Thay đổi |
 |---|---|
-| `routers/shifts.py` | Bổ sung hàm `_calc_shift_summary`, endpoint `/current/summary` và logic chốt ca |
-| `templates/index.html` | Cấu trúc nút ca `#shift-action-container`, modal `#modal-cash-counter` (z-[70]), phân bổ lại cột giỏ hàng POS, optgroup dịch vụ Spa |
-| `static/js/shifts.js` | Quản lý ca, đếm tiền mặt 10 mệnh giá, liên thông mở/kết ca, in Z-Report, export hàm ra `window` |
-| `static/js/pos.js` | Tối ưu đóng modal in `closePrintModal()`, kiểm tra `orderCode`, cập nhật render giỏ hàng POS hàng ngang |
-| `static/js/app.js` | Sửa bug mất mã đơn khi in lại hóa đơn, đồng bộ bộ lọc bảng giá Spa và tính giá theo cân nặng |
-| `static/js/auth.js` | Tự động gọi `loadCurrentShift()` khi khôi phục phiên đăng nhập |
-| `scripts/import_pet_pricing.py` | Script import 79 mức giá từ file Excel vào SQLite `pet_service_pricing` |
-| `docs/superpowers/specs/2026-09-23-pet-spa-pricing-import-design.md` | Tài liệu đặc tả phân loại bảng giá dịch vụ |
-| `tests/test_pet_pricing_import.py` | Test suite kiểm thử tự động bảng giá dịch vụ Spa |
-| `tests/test_shift_close.py` | Test suite kiểm thử đóng mở ca và Z-Report |
-| `PROJECT_STATE.md` | Cập nhật checkpoint bàn giao |
+| `routers/pos.py` | Hoàn tiền ví `spa_wallet_balance` và ghi log `refund` khi xóa đơn; gỡ bỏ trừ ví spa khỏi POS bán lẻ |
+| `routers/topup.py` | Trả về `package_name`, `pay_amount`, `receive_amount`, `payment_method` trong API nạp ví |
+| `routers/cashbook.py` | SQL query dùng `COALESCE` liên kết Tên và SĐT khách hàng từ `contacts`, `orders`, `pet_service_tickets` |
+| `routers/partners.py` | Hỗ trợ cấn trừ ví một phần (Lựa chọn A) cho đơn lẻ và hàng loạt; bổ sung `checked_out_today` vào KPI |
+| `templates/index.html` | Cấu trúc Dải Lịch Ngang, bảng nhập hàng loạt phẳng cột phụ thu riêng, sub-tab hóa đơn Spa tại Tab Hóa Đơn, gỡ thẻ KPI thừa, logo & tên shop ở form đăng nhập |
+| `static/js/app.js` | Nâng cấp `customConfirm` kiểu danger (icon đỏ, phím Enter/Esc); tự nạp hóa đơn Spa khi chuyển tab; đồng bộ logo/tên shop đăng nhập |
+| `static/js/auth.js` | Tự động cập nhật logo và tên shop trên màn hình đăng nhập từ API cài đặt |
+| `static/js/pos.js` | In phiếu thu K80 nạp ví ngầm không xem trước; gỡ bỏ trừ ví spa khỏi POS bán hàng |
+| `static/js/modules/spa.js` | Dải lịch ngang 7 ngày; lọc trong ngày (chưa về + đã về); đồng bộ cuộc gọi thông minh; tự nhận diện ví Spa; chuyển hóa đơn spa sang tab Hóa Đơn |
+| `static/js/modules/productions.js` | Hiển thị Tên + badge SĐT ở Sổ Quỹ và Drawer đối soát; tìm kiếm realtime theo SĐT |
+| `tests/test_k80_discount.py` | Nạp kèm `productions.js` để test in hóa đơn chạy chuẩn |
+| `tests/test_spa_wallet_split_payment.py` | Test suite kiểm thử cấn trừ ví một phần và ghi nhận Sổ Quỹ |
+| `tests/test_spa_render.js` | Test suite kiểm thử render bảng Spa và hóa đơn Spa |
+| `docs/superpowers/specs/2026-09-27-spa-date-strip-calendar-and-daily-view-design.md` | Tài liệu thiết kế Dải Lịch Ngang và bộ lọc ca trong ngày |
+| `docs/superpowers/plans/2026-09-27-spa-date-strip-calendar.md` | Kế hoạch triển khai Dải Lịch Ngang Spa |
+| `sketches/demo_spa_calendar_variants.html` | Bản demo 3 biến thể lịch Spa |
+| `sketches/demo_batch_surcharges.html` | Bản demo 3 biến thể phụ thu nhập hàng loạt |
 
 ---
 
-## Việc Tiếp Theo (Ưu Tiên Phiên Tiếp Theo: Hóa Đơn & Dòng Tiền - BILL)
+## Việc Tiếp Theo (Ưu Tiên: BẢNG GIÁ & GÓI NẠP - BILL-4)
 
-- [ ] **bill-1: Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư:**
-  - Hoàn trả số dư ví vào `contacts.spa_wallet_balance` và ghi log `refund` trong `spa_wallet_transactions` khi hủy đơn hàng (`delete_order` trong `routers/pos.py`).
-  - Bổ sung nút in Phiếu Thu Nạp Ví K80 tại quầy POS (`#modal-topup-spa`).
-  - Hiển thị dòng giải trình `💳 Trừ Ví Spa: -{{tru_vi}}` trên hóa đơn in nhiệt K80 và mẫu A4 B2B.
-  - Bóc tách dòng trừ ví trong Drawer Sổ Quỹ (`openCashbookDrawer`) khi xem đơn bán lẻ.
-- [ ] **bill-2: Kích hoạt Sub-tab Lịch Sử Spa tại Tab Hóa Đơn (`tab-orders`):**
-  - Viết logic `switchOrderSubTab('retail' | 'spa')`, `loadSpaInvoicesList()`, `filterSpaInvoicesList()`.
-  - Hiển thị bảng chi tiết: Mã vé, Khách, Bé, Dịch vụ, Thợ, Tiền DV, Tip, Cọc, Thực thu, Badge thanh toán, Nút xem chi tiết & In lại K80.
+- [x] **bill-1: Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư:** Hoàn tiền khi xóa đơn, in phiếu K80 nạp ví, bỏ trừ ví ở POS bán lẻ, thêm Tên/SĐT vào sổ quỹ.
+- [x] **bill-2: Kích hoạt Sub-tab Lịch Sử Spa tại Tab Hóa Đơn (`tab-orders`):** Đã hoàn thành 12 cột, lọc ngày/trạng thái/thanh toán, mở lại vé.
 - [ ] **bill-4: Di chuyển bảng quản lý Gói Topup vào Tab Bảng Giá (`tab-price-lists`):**
   - Bổ sung sub-tab `💳 Gói Nạp Ví Spa (Topup)` vào `#tab-price-lists`, hỗ trợ xem, thêm, sửa, bật/tắt gói nạp.
 - [ ] **bill-5: Kiểm tra và chuẩn hóa mẫu in K80/A4 B2B trên các trình duyệt.**

@@ -181,12 +181,23 @@
             window.alert = window.customAlert;
 
             // Modal Xác Nhận (Confirm) Đồng Bộ
-            window.customConfirm = function(message, title = 'Xác nhận thao tác') {
+            window.customConfirm = function(message, title = 'Xác nhận thao tác', options = {}) {
                 return new Promise((resolve) => {
                     if (!document.body) {
                         resolve(false);
                         return;
                     }
+                    const isDanger = options.type === 'danger' || /xóa|hủy/i.test(title);
+                    const icon = options.icon || (isDanger ? '🗑️' : '❓');
+                    const iconBoxClass = isDanger 
+                        ? 'bg-rose-50 border border-rose-200 text-rose-600' 
+                        : 'bg-amber-50 border border-amber-200 text-amber-600';
+                    const okBtnClass = isDanger
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-100'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100';
+                    const okText = options.okText || (isDanger ? 'Xác Nhận Xóa' : 'Đồng ý');
+                    const cancelText = options.cancelText || 'Hủy bỏ';
+
                     const backdrop = document.createElement('div');
                     backdrop.id = 'custom-confirm-modal-backdrop';
                     backdrop.className = 'fixed inset-0 z-[9999999] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200 opacity-0';
@@ -194,8 +205,8 @@
                     backdrop.innerHTML = `
                         <div id="custom-confirm-card" class="bg-white rounded-2xl shadow-2xl border border-slate-200/90 max-w-md w-full overflow-hidden transform transition-all duration-200 scale-95 opacity-0 flex flex-col">
                             <div class="p-5 flex items-start gap-3.5">
-                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs bg-amber-50 border border-amber-200 text-amber-600">
-                                    ❓
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs ${iconBoxClass}">
+                                    ${icon}
                                 </div>
                                 <div class="flex-1 min-w-0 pt-0.5">
                                     <h4 class="text-sm font-bold text-slate-900 tracking-tight">${title}</h4>
@@ -204,10 +215,10 @@
                             </div>
                             <div class="bg-slate-50/80 px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
                                 <button type="button" id="btn-custom-confirm-cancel" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-300 shadow-2xs transition active:scale-95">
-                                    Hủy bỏ
+                                    ${cancelText}
                                 </button>
-                                <button type="button" id="btn-custom-confirm-ok" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm shadow-indigo-100 transition active:scale-95">
-                                    Đồng ý
+                                <button type="button" id="btn-custom-confirm-ok" class="px-5 py-2 rounded-xl ${okBtnClass} font-bold text-xs shadow-sm transition active:scale-95">
+                                    ${okText}
                                 </button>
                             </div>
                         </div>
@@ -2093,7 +2104,12 @@
                     document.getElementById('pos-search-input')?.focus();
                 }, 100);
             } else if (tabId === 'orders') {
-                loadOrdersList();
+                const isSpaSubtabActive = document.getElementById('orders-subview-spa') && !document.getElementById('orders-subview-spa').classList.contains('hidden');
+                if (isSpaSubtabActive && typeof loadSpaInvoicesList === 'function') {
+                    loadSpaInvoicesList();
+                } else if (typeof loadOrdersList === 'function') {
+                    loadOrdersList();
+                }
             } else if (tabId === 'price-lists') {
                 if(typeof loadPriceLists === 'function') loadPriceLists();
                 if(typeof loadProductsForPriceList === 'function') loadProductsForPriceList();

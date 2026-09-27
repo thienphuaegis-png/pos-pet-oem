@@ -801,6 +801,13 @@ def get_pet_services_kpi():
     """, (today_str, f"{today_str}%"))
     not_checked_out = cur.fetchone()["cnt"]
 
+    cur.execute("""
+        SELECT COUNT(*) as cnt FROM pet_service_tickets 
+        WHERE status = 'checked_out'
+        AND (ticket_date = ? OR appointment_time LIKE ?)
+    """, (today_str, f"{today_str}%"))
+    checked_out = cur.fetchone()["cnt"]
+
     conn.close()
     return {
         "total_pets": total_pets,
@@ -808,7 +815,8 @@ def get_pet_services_kpi():
         "in_progress": in_progress,
         "transport": transport,
         "uncalled": uncalled,
-        "not_checked_out": not_checked_out
+        "not_checked_out": not_checked_out,
+        "checked_out": checked_out
     }
 
 @service_router.get("/pets/{pet_id}/history")
@@ -936,21 +944,22 @@ def create_pet_service(ticket: PetServiceCreate):
         cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (ticket.customer_id,))
         c_row = cur.fetchone()
         current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-        # Ví Spa CHỈ ĐƯỢC PHÉP TRỪ TỐI ĐA BẰNG TIỀN DỊCH VỤ SPA (sản phẩm không được trừ ví)
-        charge_amount = min(spa_service_total, ticket.price or 0.0)
-        if current_wallet < charge_amount:
+        if current_wallet <= 0:
             conn.close()
             raise HTTPException(
                 status_code=400,
-                detail=f"Số dư ví Spa không đủ ({current_wallet:,.0f} đ, cần trừ {charge_amount:,.0f} đ cho dịch vụ Spa)"
+                detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
             )
-        wallet_deduction = charge_amount
-        new_wallet = current_wallet - charge_amount
-        cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
-        cur.execute("""
-            INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
-            VALUES (?, 'spend', ?, ?, ?, ?)
-        """, (ticket.customer_id, charge_amount, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
+        # Ví Spa: Cấn trừ tối đa số dư ví hiện có (Lựa chọn A: trừ hết ví, phần thiếu thu ngoài)
+        charge_amount = min(spa_service_total, ticket.price or 0.0)
+        wallet_deduction = min(current_wallet, charge_amount)
+        if wallet_deduction > 0:
+            new_wallet = max(0.0, current_wallet - wallet_deduction)
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, 'spend', ?, ?, ?, ?)
+            """, (ticket.customer_id, wallet_deduction, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
 
     cur.execute("""
         INSERT INTO pet_service_tickets (
@@ -993,10 +1002,13 @@ def create_pet_service(ticket: PetServiceCreate):
 
         if cash_collected > 0:
             cb_code = generate_cashbook_code(cur, "PT-SPA")
+            note_str = f"Thu tiền phiếu Spa {code}"
+            if ticket.payment_method == "wallet" and wallet_deduction > 0:
+                note_str += f" (Trừ ví: {wallet_deduction:,.0f} đ, Thu ngoài: {cash_collected:,.0f} đ)"
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
             VALUES (?, 'in', 'Thu tien dich vu Spa', ?, ?, 'pet_service', ?, ?)
-            """, (cb_code, cash_collected, ticket.customer_id, new_id, f"Thu tiền phiếu Spa {code}" + (f" (Sản phẩm mua kèm: {cash_collected:,.0f} đ)" if ticket.payment_method == "wallet" else "")))
+            """, (cb_code, cash_collected, ticket.customer_id, new_id, note_str))
 
     conn.commit()
     conn.close()
@@ -1023,16 +1035,22 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
 
     # Kiểm tra số dư ví Spa trước khi bắt đầu tạo phiếu
     wallet_batch_total = sum(t.price or 0.0 for t in batch_req.tickets if (t.payment_status == "paid" and t.payment_method == "wallet"))
+    current_wallet = 0.0
+    wallet_deduction_total = 0.0
+    cash_collected_batch = 0.0
     if wallet_batch_total > 0:
         cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
         c_row = cur.fetchone()
         current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-        if current_wallet < wallet_batch_total:
+        if current_wallet <= 0:
             conn.close()
             raise HTTPException(
                 status_code=400,
-                detail=f"Số dư ví Spa không đủ thanh toán cả đợt ({current_wallet:,.0f} đ, cần trừ {wallet_batch_total:,.0f} đ)"
+                detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
             )
+        # Cấn trừ tối đa số dư ví hiện có (Lựa chọn A)
+        wallet_deduction_total = min(current_wallet, wallet_batch_total)
+        cash_collected_batch = max(0.0, wallet_batch_total - wallet_deduction_total)
 
     created_tickets = []
 
@@ -1125,14 +1143,22 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
             "batch_code": batch_code
         })
 
-    # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví (đã validate số dư ở trên)
-    if wallet_batch_total > 0:
-        new_wallet = current_wallet - wallet_batch_total
+    # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví (Lựa chọn A)
+    if wallet_deduction_total > 0:
+        new_wallet = max(0.0, current_wallet - wallet_deduction_total)
         cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, batch_req.customer_id))
         cur.execute("""
             INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
             VALUES (?, 'spend', ?, ?, ?, ?)
-        """, (batch_req.customer_id, wallet_batch_total, current_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
+        """, (batch_req.customer_id, wallet_deduction_total, current_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
+
+    if cash_collected_batch > 0:
+        cb_code = generate_cashbook_code(cur, "PT-SPA")
+        first_id = created_tickets[0]["id"] if created_tickets else None
+        cur.execute("""
+        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
+        VALUES (?, 'in', 'Thu tien dich vu Spa', ?, ?, 'pet_service', ?, ?)
+        """, (cb_code, cash_collected_batch, batch_req.customer_id, first_id, f"Thu tiền ngoài đợt tiếp nhận Spa {batch_code} (Trừ ví: {wallet_deduction_total:,.0f} đ, Thu ngoài: {cash_collected_batch:,.0f} đ)"))
 
     conn.commit()
     conn.close()

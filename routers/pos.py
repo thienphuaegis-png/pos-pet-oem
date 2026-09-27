@@ -448,6 +448,19 @@ def delete_order(code: str, user=Depends(require_role("owner"))):
         if debt_amount > 0 and customer_id:
             cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (debt_amount, customer_id))
 
+        # Hoàn trả số dư ví Spa nếu đơn có trừ ví
+        wallet_deduction = order["spa_wallet_deduction"] or 0.0
+        if wallet_deduction > 0 and customer_id:
+            cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (customer_id,))
+            c_row = cur.fetchone()
+            bal_before = c_row["spa_wallet_balance"] if c_row and c_row["spa_wallet_balance"] else 0.0
+            bal_after = bal_before + wallet_deduction
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (bal_after, customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, order_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, ?, 'refund', ?, ?, ?, ?)
+            """, (customer_id, order_id, wallet_deduction, bal_before, bal_after, f"Hoàn tiền trừ ví do hủy đơn hàng {code}"))
+
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
 
         cur.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))

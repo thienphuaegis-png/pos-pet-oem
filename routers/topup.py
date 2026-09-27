@@ -185,7 +185,11 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
         "transaction_id": tx_id,
         "contact_id": req.contact_id,
         "package_id": req.package_id,
+        "package_name": pkg["name"],
+        "pay_amount": pay_amt,
+        "receive_amount": receive_amt,
         "amount": receive_amt,
+        "payment_method": req.payment_method,
         "balance_before": balance_before,
         "balance_after": balance_after,
         "spa_wallet_balance": balance_after
@@ -197,7 +201,7 @@ def get_spa_wallet_history(contact_id: int):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT t.*, p.name as package_name, o.code as order_code
+        SELECT t.*, p.name as package_name, p.pay_amount, p.receive_amount, o.code as order_code
         FROM spa_wallet_transactions t
         LEFT JOIN topup_packages p ON t.package_id = p.id
         LEFT JOIN orders o ON t.order_id = o.id

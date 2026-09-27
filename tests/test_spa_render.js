@@ -28,7 +28,16 @@ function getOrCreateElement(id) {
                 classes: new Set(),
                 add: function(c) { this.classes.add(c); },
                 remove: function(c) { this.classes.delete(c); },
-                contains: function(c) { return this.classes.has(c); }
+                contains: function(c) { return this.classes.has(c); },
+                toggle: function(c, force) {
+                    if (typeof force === 'boolean') {
+                        if (force) this.classes.add(c);
+                        else this.classes.delete(c);
+                        return force;
+                    }
+                    if (this.classes.has(c)) { this.classes.delete(c); return false; }
+                    this.classes.add(c); return true;
+                }
             }
         };
     }
@@ -58,7 +67,14 @@ function getOrCreateElement(id) {
     'btn-save-spa-spreadsheet', 'btn-cancel-spa-spreadsheet',
     'modal-spa-bulk-edit-compact', 'compact-bulk-total-tickets', 'compact-bulk-selected-count',
     'compact-bulk-select-cutter', 'compact-bulk-select-worker', 'compact-bulk-select-status',
-    'compact-bulk-master-cb', 'compact-bulk-tbody', 'compact-bulk-dirty-info', 'btn-save-compact-bulk'
+    'compact-bulk-master-cb', 'compact-bulk-tbody', 'compact-bulk-dirty-info', 'btn-save-compact-bulk',
+    'btn-subtab-order-retail', 'btn-subtab-order-spa', 'orders-subview-retail', 'orders-subview-spa',
+    'spa-invoices-table-body', 'search-spa-invoices', 'select-spa-invoice-status-filter',
+    'select-spa-invoice-payment-filter', 'spa-invoices-count-badge', 'spa-inv-total-revenue',
+    'pagination-spa-invoices', 'btn-spa-inv-date-today', 'btn-spa-inv-date-all', 'input-spa-inv-date-custom',
+    'spa-date-strip-container', 'input-spa-custom-date',
+    'btn-spa-filter-daily-all', 'btn-spa-filter-daily-unreturned', 'btn-spa-filter-daily-returned',
+    'count-daily-all', 'count-daily-unreturned', 'count-daily-returned'
 ].forEach(id => getOrCreateElement(id));
 
 const mockIframe = {
@@ -734,4 +750,86 @@ if (!k80IntakeHtml.includes('Gói gốc:') || !k80IntakeHtml.includes('Đổi sa
 
 console.log('✅ TEST 16 PASSED: Service change audit display in table and K80 receipts verified 100%.');
 
-console.log('\n🎉 TOÀN BỘ 16 TEST CASES ĐÃ PASS 100%! ĐẢM BẢO QUY TẮC NGHIỆP VỤ!');
+// Test 17: Spa Invoices History in Tab Orders
+console.log('\n--- TEST 17: Spa Invoices History in Tab Orders ---');
+const checkoutTicket = context.allPetServiceTickets.find(t => t.id === 4);
+if (checkoutTicket) checkoutTicket.status = 'checked_out';
+
+context.allSpaInvoicesData = context.allPetServiceTickets;
+context.setSpaInvoiceDateFilter('all');
+elements['select-spa-invoice-status-filter'].value = 'checked_out';
+elements['select-spa-invoice-payment-filter'].value = 'all';
+elements['search-spa-invoices'].value = '';
+context.filterSpaInvoicesList();
+const historyTableHtml = elements['spa-invoices-table-body'].innerHTML;
+if (!historyTableHtml.includes('#18') || !historyTableHtml.includes('Kiki')) {
+    throw new Error('Spa Invoices History (spa-invoices-table-body) must contain checked-out tickets (#18)!');
+}
+if (historyTableHtml.includes('#15') || historyTableHtml.includes('Milu')) {
+    throw new Error('Spa Invoices History filtered to checked_out must NOT contain active pending tickets (#15)!');
+}
+
+// Test subtab switching
+context.switchOrderSubTab('spa');
+if (elements['orders-subview-spa'].classList.contains('hidden') || !elements['orders-subview-retail'].classList.contains('hidden')) {
+    throw new Error('switchOrderSubTab(spa) failed to show orders-subview-spa or hide orders-subview-retail!');
+}
+
+console.log('✅ TEST 17 PASSED: Tab Orders > Sub-tab Spa Invoices correctly manages full historical query.');
+
+// Test 18: Date Strip Calendar & Daily Ticket View (Unreturned + Returned Today)
+console.log('\n--- TEST 18: Spa Date Strip Calendar & Daily Ticket View ---');
+const todayStr = context.getLocalTodayDateStr();
+
+// Ensure tickets have today's date
+context.allPetServiceTickets.forEach(t => {
+    t.ticket_date = todayStr;
+});
+
+// 1. Default view: both unreturned (#15 Milu) AND returned (#18 Kiki) must appear
+context.setPetServiceDateFilter('today');
+context.setSpaDailyQuickFilter('all');
+context.renderPetServicesTable();
+const todayTableHtml = elements['table-pet-services'].innerHTML;
+
+if (!todayTableHtml.includes('#15') || !todayTableHtml.includes('Milu')) {
+    throw new Error('Today table must show active unreturned ticket #15 Milu!');
+}
+if (!todayTableHtml.includes('#18') || !todayTableHtml.includes('Kiki')) {
+    throw new Error('Today table must STILL show returned ticket #18 Kiki for today!');
+}
+if (!todayTableHtml.includes('border-l-emerald-500') || !todayTableHtml.includes('reopenCheckedOutTicket')) {
+    throw new Error('Returned row must be highlighted with emerald border and have reopen action!');
+}
+
+// 2. Quick filter: not_checked_out
+context.setSpaDailyQuickFilter('not_checked_out');
+const unreturnedTableHtml = elements['table-pet-services'].innerHTML;
+if (!unreturnedTableHtml.includes('#15') || !unreturnedTableHtml.includes('Milu')) {
+    throw new Error('Unreturned filter must show ticket #15 Milu!');
+}
+if (unreturnedTableHtml.includes('#18') || unreturnedTableHtml.includes('Kiki')) {
+    throw new Error('Unreturned filter must NOT show ticket #18 Kiki!');
+}
+
+// 3. Quick filter: checked_out
+context.setSpaDailyQuickFilter('checked_out');
+const returnedTableHtml = elements['table-pet-services'].innerHTML;
+if (returnedTableHtml.includes('#15') || returnedTableHtml.includes('Milu')) {
+    throw new Error('Returned filter must NOT show active ticket #15 Milu!');
+}
+if (!returnedTableHtml.includes('#18') || !returnedTableHtml.includes('Kiki')) {
+    throw new Error('Returned filter must show ticket #18 Kiki!');
+}
+
+// 4. Date Strip Render
+context.setSpaDailyQuickFilter('all');
+context.renderSpaDateStrip();
+const dateStripHtml = elements['spa-date-strip-container'].innerHTML;
+if (!dateStripHtml.includes('Hôm nay') || !dateStripHtml.includes('selectSpaStripDate')) {
+    throw new Error('Date strip HTML missing today indicator or selectSpaStripDate trigger!');
+}
+
+console.log('✅ TEST 18 PASSED: Date strip and daily ticket view (unreturned + returned today) verified 100%.');
+
+console.log('\n🎉 TOÀN BỘ 18 TEST CASES ĐÃ PASS 100%! ĐẢM BẢO QUY TẮC NGHIỆP VỤ!');

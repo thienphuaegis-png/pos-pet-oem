@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo So Sánh 3 Hướng Nhập Spa Hàng Loạt Chuẩn Sheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0b1120;
+        }
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-100 p-3 md:p-6 min-h-screen flex flex-col">
+
+    <!-- TOP HEADER & CONTROLS -->
+    <header class="max-w-7xl mx-auto w-full mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+            <div class="flex items-center gap-2 text-purple-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <span>UI/UX Brainstorming Prototype</span>
+                <span>•</span>
+                <span class="text-slate-400">Pet Spa POS 2026</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+                <span>⚡ Trải Nghiệm & Thao Tác Thử 3 Hướng Nhập Spa Hàng Loạt</span>
+            </h1>
+            <p class="text-slate-400 text-xs mt-1">
+                Tối ưu hóa thao tác nhập theo phong cách bảng tính Excel / Sửa hàng loạt (1 dòng cố định, thanh gán nhanh, phím Tab).
+            </p>
+        </div>
+
+        <!-- TAB NAVIGATION SWITCHER -->
+        <div class="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800">
+            <button onclick="switchTab('variant1')" id="tab-btn-v1" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-purple-600 text-white shadow">
+                <span>🌟 Hướng 1</span>
+                <span class="hidden sm:inline">Sheet Phẳng Trong Modal</span>
+            </button>
+            <button onclick="switchTab('variant2')" id="tab-btn-v2" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800">
+                <span>🗔 Hướng 2</span>
+                <span class="hidden sm:inline">Modal Bảng Tính Riêng</span>
+            </button>
+            <button onclick="switchTab('variant3')" id="tab-btn-v3" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800">
+                <span>⚡ Hướng 3</span>
+                <span class="hidden sm:inline">Phẳng + Popover Phụ</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENT AREA -->
+    <main class="max-w-7xl mx-auto w-full flex-1 flex flex-col">
+
+        <!-- ========================================================================= -->
+        <!-- VARIANT 1: INLINE SHEET PHẲNG TRONG MODAL TIẾP NHẬN (KHUYẾN NGHỊ) -->
+        <!-- ========================================================================= -->
+        <section id="pane-v1" class="flex-1 flex flex-col space-y-4">
+            <!-- Summary Card -->
+            <div class="bg-gradient-to-r from-purple-950/60 to-slate-900 border border-purple-800/40 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3 text-slate-300">
+                <div>
+                    <span class="font-black text-purple-300 text-sm block">Đặc điểm Hướng 1 (Inline Sheet Phẳng Trong Modal Tiếp Nhận):</span>
+                    <span>Làm phẳng hoàn toàn từng dòng (chiều cao cố định ~38px, không lồng 5 tầng input). Tích hợp ngay thanh công cụ gán nhanh ở trên. Phím Tab nhảy liên tục từ trái qua phải cực mượt.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px] font-bold">⭐ Đề xuất cao nhất</span>
+                    <span class="px-2 py-0.5 rounded bg-purple-900/60 text-purple-300 text-[11px] font-mono">1 Dòng / Bé</span>
+                </div>
+            </div>
+
+            <!-- SIMULATED MODAL CONTAINER -->
+            <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col flex-1">
+                <!-- Modal Top Header -->
+                <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🐾</span>
+                        <div>
+                            <div class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                                <span>Tiếp Nhận Dịch Vụ Spa Hàng Loạt</span>
+                                <span class="bg-purple-100 text-purple-800 text-[11px] px-2 py-0.5 rounded-full font-bold">Khách: Anh Hoàng (0912.345.678)</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500">Khách có 4 bé cưng đã đăng ký tại tiệm</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="v1AddPetRow()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1 transition">
+                            <span>➕</span> Thêm Bé Mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TOP CONTROL BAR: ÁP DỤNG HÀNG LOẠT (KIỂU SỬA HÀNG LOẠT) -->
+                <div class="p-3 bg-purple-50/70 border-b border-purple-200 flex flex-wrap items-center justify-between gap-2.5 text-xs shrink-0">
+                    <!-- Checkbox controls -->
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="v1SelectAll(true)" class="px-2.5 py-1 bg-white hover:bg-purple-100 text-purple-800 border border-purple-300 rounded-md font-bold text-xs shadow-2xs">
+                            ☑️ Chọn tất cả
+                        </button>
+                        <button type="button" onclick="v1SelectAll(false)" class="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 rounded-md font-medium text-xs shadow-2xs">
+                            ⬜ Bỏ chọn
+                        </button>
+                        <span class="text-slate-600 font-semibold ml-1">
+                            Đã tick: <strong id="v1-selected-count" class="font-mono text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">3</strong> bé
+                        </span>
+                    </div>
+
+                    <!-- Fast Bulk Assignment Form -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-1">
+                            <span class="font-bold text-purple-950">Gói mẫu:</span>
+                            <select id="v1-bulk-package" class="border border-purple-300 rounded-lg p-1 bg-white font-bold text-slate-800 text-xs">
+                                <option value="Cắt Tỉa Trọn Gói">✂️ Cắt Tỉa Trọn Gói</option>
+                                <option value="Tắm Vệ Sinh">🛁 Tắm Vệ Sinh</option>
+                                <option value="Cạo Lông Toàn Thân">✂️ Cạo Lông Toàn Thân</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-1">
+                            <span class="font-bold text-purple-950">✂️ Thợ cắt:</span>
+                            <select id="v1-bulk-cutter" class="border border-purple-300 rounded-lg p-1 bg-white text-xs">
+                                <option value="Nguyễn Văn Cường">Nguyễn Văn Cường</option>
+                                <option value="Lê Thị Thảo">Lê Thị Thảo</option>
+                                <option value="">-- Chưa gán --</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-1">
+                            <span class="font-bold text-purple-950">🛁 Thợ tắm:</span>
+                            <select id="v1-bulk-bather" class="border border-purple-300 rounded-lg p-1 bg-white text-xs">
+                                <option value="Lê Thị Thảo">Lê Thị Thảo</option>
+                                <option value="Phạm Minh Tú">Phạm Minh Tú</option>
+                                <option value="">-- Chưa gán --</option>
+                            </select>
+                        </div>
+
+                        <button type="button" onclick="v1ApplyBulk()" class="px-3.5 py-1 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white rounded-lg font-bold text-xs shadow flex items-center gap-1.5 transition">
+                            <span>⚡</span> <span>Áp Dụng Xuống Bé Đã Tick</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FLATTENED TABLE CONTAINER -->
+                <div class="overflow-x-auto flex-1 p-2 custom-scrollbar bg-slate-50/40">
+                    <table class="w-full text-left text-xs bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                        <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[11px] sticky top-0 shadow-2xs">
+                            <tr>
+                                <th class="p-2.5 w-10 text-center">
+                                    <input type="checkbox" id="v1-master-cb" onchange="v1SelectAll(this.checked)" checked class="rounded text-purple-600 cursor-pointer">
+                                </th>
+                                <th class="p-2.5 min-w-[150px]">Bé Cưng (*)</th>
+                                <th class="p-2.5 w-20 text-center">Kg (*)</th>
+                                <th class="p-2.5 min-w-[180px]">Gói Dịch Vụ Chính (*)</th>
+                                <th class="p-2.5 w-28 text-center">Cạo Bàn</th>
+                                <th class="p-2.5 min-w-[140px] text-purple-900">✂️ Thợ Cắt</th>
+                                <th class="p-2.5 min-w-[140px] text-sky-900">🛁 Thợ Tắm</th>
+                                <th class="p-2.5 w-24 text-right">Phụ Thu (đ)</th>
+                                <th class="p-2.5 w-28 text-right">Thành Tiền (đ)</th>
+                                <th class="p-2.5 min-w-[150px]">Yêu Cầu / Ghi Chú</th>
+                                <th class="p-2.5 w-10 text-center">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="v1-tbody" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- FOOTER TOTALS -->
+                <div class="px-5 py-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <div class="flex items-center gap-4 text-xs font-bold text-slate-700">
+                        <span>Tổng số bé: <span id="v1-total-pets" class="text-purple-700 text-sm font-black">3</span> bé</span>
+                        <span class="text-slate-300">|</span>
+                        <span>Tổng tiền đợt này: <span id="v1-grand-total" class="text-rose-600 text-base font-mono-num font-black">910.000 đ</span></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100 transition">
+                            Hủy / Đóng
+                        </button>
+                        <button type="button" onclick="alert('Đã lưu toàn bộ phiếu dịch vụ hàng loạt thành công!')" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow flex items-center gap-1.5 transition">
+                            <span>💾</span> <span>Lưu Tiếp Nhận Hàng Loạt</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- VARIANT 2: DEDICATED FULL MODAL BẢNG TÍNH RIÊNG -->
+        <!-- ========================================================================= -->
+        <section id="pane-v2" class="hidden flex-1 flex flex-col space-y-4">
+            <div class="bg-gradient-to-r from-sky-950/60 to-slate-900 border border-sky-800/40 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3 text-slate-300">
+                <div>
+                    <span class="font-black text-sky-300 text-sm block">Đặc điểm Hướng 2 (Modal Bảng Tính Riêng - Dedicated Modal):</span>
+                    <span>Từ màn hình chính hoặc modal tiếp nhận lẻ, nhân viên bấm nút <strong>[📋 Bảng Tính Tiếp Nhận Hàng Loạt]</strong> để mở một cửa sổ Popup cực rộng (Full-width). Không gian bao la giúp dàn đủ mọi cột chi tiết mà không sợ chật.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 text-[11px] font-bold">Không gian rộng nhất</span>
+                </div>
+            </div>
+
+            <!-- Trigger Button Demo -->
+            <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800 flex flex-col items-center justify-center gap-3 py-12">
+                <p class="text-slate-400 text-xs">Mô phỏng: Nhân viên đang ở màn hình tiếp nhận hoặc danh sách Spa</p>
+                <button type="button" onclick="openV2Modal()" class="px-6 py-3 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white rounded-2xl font-bold text-sm shadow-xl flex items-center gap-2 transform active:scale-95 transition">
+                    <span>📋</span> <span>Mở Bảng Tính Nhập Hàng Loạt (Popup Riêng)</span>
+                </button>
+            </div>
+
+            <!-- MODAL V2 POPUP -->
+            <div id="v2-modal-overlay" class="hidden fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
+                <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+                    <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">📋</span>
+                            <div>
+                                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <span>Bảng Tính Tiếp Nhận & Phân Công Spa Nhiều Bé</span>
+                                    <span class="bg-sky-500/20 text-sky-300 border border-sky-400/30 text-[10px] font-mono px-2 py-0.5 rounded-full">Excel Mode</span>
+                                </h3>
+                                <p class="text-[11px] text-slate-400">Khách: Anh Hoàng (0912.345.678) • Nhập nhanh theo hàng ngang</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeV2Modal()" class="text-slate-400 hover:text-white text-2xl font-bold leading-none p-1 rounded-lg hover:bg-slate-800 transition">&times;</button>
+                    </div>
+
+                    <!-- Top Bulk Action Bar -->
+                    <div class="p-3 bg-sky-50 border-b border-sky-100 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="v2SelectAll(true)" class="px-2.5 py-1 bg-white hover:bg-sky-100 border border-sky-200 rounded font-bold text-sky-900">Chọn hết</button>
+                            <button type="button" onclick="v2SelectAll(false)" class="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded font-medium text-slate-600">Bỏ chọn</button>
+                            <span class="text-slate-600 font-semibold ml-1">Đã chọn: <strong id="v2-selected-count" class="text-sky-700 font-mono">3</strong> bé</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="v2-bulk-pkg" class="border border-sky-300 rounded p-1 text-xs font-bold bg-white">
+                                <option value="Cắt Tỉa Trọn Gói">✂️ Cắt Tỉa Trọn Gói</option>
+                                <option value="Tắm Vệ Sinh">🛁 Tắm Vệ Sinh</option>
+                            </select>
+                            <select id="v2-bulk-cutter" class="border border-sky-300 rounded p-1 text-xs bg-white">
+                                <option value="Nguyễn Văn Cường">✂️ Cường (Thợ cắt)</option>
+                                <option value="Lê Thị Thảo">✂️ Thảo (Thợ cắt)</option>
+                            </select>
+                            <select id="v2-bulk-bather" class="border border-sky-300 rounded p-1 text-xs bg-white">
+                                <option value="Lê Thị Thảo">🛁 Thảo (Thợ tắm)</option>
+                                <option value="Phạm Minh Tú">🛁 Tú (Thợ tắm)</option>
+                            </select>
+                            <button type="button" onclick="v2ApplyBulk()" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow transition">
+                                ⚡ Áp dụng cho dòng đã tick
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Spreadsheet Table -->
+                    <div class="overflow-x-auto flex-1 p-2 custom-scrollbar bg-slate-50">
+                        <table class="w-full text-left text-xs bg-white rounded-xl border border-slate-200">
+                            <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 shadow-2xs">
+                                <tr>
+                                    <th class="p-2 w-10 text-center"><input type="checkbox" onchange="v2SelectAll(this.checked)" checked class="rounded text-sky-600"></th>
+                                    <th class="p-2 min-w-[140px]">Tên Bé</th>
+                                    <th class="p-2 w-20 text-center">Kg (*)</th>
+                                    <th class="p-2 min-w-[110px]">Giống Loài</th>
+                                    <th class="p-2 min-w-[170px]">Gói Dịch Vụ</th>
+                                    <th class="p-2 w-24 text-center">Cạo Bàn</th>
+                                    <th class="p-2 min-w-[130px]">Thợ Cắt</th>
+                                    <th class="p-2 min-w-[130px]">Thợ Tắm</th>
+                                    <th class="p-2 w-24 text-right">Phụ Thu (đ)</th>
+                                    <th class="p-2 w-28 text-right">Thành Tiền (đ)</th>
+                                    <th class="p-2 min-w-[150px]">Lưu Ý / Phụ Kiện</th>
+                                    <th class="p-2 w-10 text-center">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="v2-tbody" class="divide-y divide-slate-100">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="px-5 py-3 bg-white border-t border-slate-200 flex justify-between items-center text-xs">
+                        <div class="font-bold text-slate-700">
+                            Tổng cộng: <span id="v2-grand-total" class="text-rose-600 font-black text-sm font-mono-num">910.000 đ</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="closeV2Modal()" class="px-4 py-2 border rounded-xl font-bold text-slate-600 hover:bg-slate-100">Đóng</button>
+                            <button type="button" onclick="alert('Đã lưu dữ liệu từ Modal Popup thành công!'); closeV2Modal();" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow">
+                                💾 Lưu Toàn Bộ Phiếu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- VARIANT 3: BẢNG PHẲNG TỐI GIẢN + POPOVER CHI TIẾT PHỤ -->
+        <!-- ========================================================================= -->
+        <section id="pane-v3" class="hidden flex-1 flex flex-col space-y-4">
+            <div class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-800/40 p-3.5 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3 text-slate-300">
+                <div>
+                    <span class="font-black text-emerald-300 text-sm block">Đặc điểm Hướng 3 (Bảng Phẳng Tối Giản + Popover Chi Tiết Phụ):</span>
+                    <span>Bảng chính chỉ giữ 6 cột cốt lõi nhất (Bé, Cân nặng, Dịch vụ, Thợ, Tiền, Ghi chú). Các thông tin phụ như Giống loài, Màu lông, Phụ kiện gửi lại được ẩn vào nút <strong>[⚙️ Chi tiết]</strong>. Bấm nút sẽ bật popover nhỏ nổi ngay cạnh dòng.</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px] font-bold">Siêu Tốc & Gọn Gàng</span>
+                </div>
+            </div>
+
+            <!-- SIMULATED MODAL CONTAINER V3 -->
+            <div class="bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col flex-1">
+                <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">⚡</span>
+                        <div>
+                            <div class="font-extrabold text-sm text-slate-800">Tiếp Nhận Nhanh (Dạng Tối Giản Cột)</div>
+                            <div class="text-[11px] text-slate-500">Khách: Anh Hoàng (0912.345.678)</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="v3AddPetRow()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs">
+                        ➕ Thêm Dòng Bé
+                    </button>
+                </div>
+
+                <!-- Top Bulk Action Bar -->
+                <div class="p-3 bg-emerald-50/70 border-b border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="v3SelectAll(true)" class="px-2.5 py-1 bg-white border border-emerald-300 rounded font-bold text-emerald-900">Chọn hết</button>
+                        <button type="button" onclick="v3SelectAll(false)" class="px-2.5 py-1 bg-white border border-slate-300 rounded text-slate-600 font-medium">Bỏ chọn</button>
+                        <span class="text-slate-600 font-semibold ml-1">Đã tick: <strong id="v3-selected-count" class="text-emerald-700 font-mono">3</strong> bé</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="v3-bulk-pkg" class="border border-emerald-300 rounded p-1 text-xs font-bold bg-white">
+                            <option value="Cắt Tỉa Trọn Gói">✂️ Cắt Tỉa Trọn Gói</option>
+                            <option value="Tắm Vệ Sinh">🛁 Tắm Vệ Sinh</option>
+                        </select>
+                        <select id="v3-bulk-cutter" class="border border-emerald-300 rounded p-1 text-xs bg-white">
+                            <option value="Nguyễn Văn Cường">✂️ Thợ Cường</option>
+                            <option value="Lê Thị Thảo">✂️ Thợ Thảo</option>
+                        </select>
+                        <button type="button" onclick="v3ApplyBulk()" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold shadow transition">
+                            ⚡ Áp Dụng Xuống Dòng Đã Tick
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Minimal Table -->
+                <div class="overflow-x-auto flex-1 p-2 custom-scrollbar bg-slate-50/40 relative">
+                    <table class="w-full text-left text-xs bg-white rounded-xl border border-slate-200">
+                        <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 shadow-2xs">
+                            <tr>
+                                <th class="p-2.5 w-10 text-center"><input type="checkbox" onchange="v3SelectAll(this.checked)" checked class="rounded text-emerald-600"></th>
+                                <th class="p-2.5 min-w-[140px]">Bé Cưng</th>
+                                <th class="p-2.5 w-20 text-center">Kg (*)</th>
+                                <th class="p-2.5 min-w-[170px]">Gói Dịch Vụ</th>
+                                <th class="p-2.5 min-w-[130px]">Thợ Chính</th>
+                                <th class="p-2.5 w-24 text-right">Phụ Thu</th>
+                                <th class="p-2.5 w-28 text-right">Thành Tiền</th>
+                                <th class="p-2.5 min-w-[150px]">Lưu Ý Nhanh</th>
+                                <th class="p-2.5 w-24 text-center">Chi Tiết Phụ</th>
+                                <th class="p-2.5 w-10 text-center">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="v3-tbody" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+
+                    <!-- Popover Mockup Box (Hidden by default) -->
+                    <div id="v3-popover" class="hidden absolute z-30 bg-white border border-slate-300 shadow-2xl rounded-xl p-3 w-72 text-xs space-y-2">
+                        <div class="flex justify-between items-center border-b pb-1">
+                            <span class="font-bold text-slate-800" id="v3-popover-title">⚙️ Chi Tiết Bé</span>
+                            <button type="button" onclick="closeV3Popover()" class="text-slate-400 hover:text-slate-700 font-bold">&times;</button>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 font-bold uppercase">Giống loài & Màu lông:</label>
+                            <div class="grid grid-cols-2 gap-1 mt-0.5">
+                                <input type="text" id="v3-pop-breed" class="border p-1 rounded text-xs" placeholder="Giống...">
+                                <input type="text" id="v3-pop-color" class="border p-1 rounded text-xs" placeholder="Màu lông...">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-500 font-bold uppercase">Phụ kiện mang theo gửi lại:</label>
+                            <input type="text" id="v3-pop-acc" class="w-full border p-1 rounded text-xs mt-0.5" placeholder="Dây dắt, chuồng, rọ mõm...">
+                        </div>
+                        <div class="flex items-center gap-1.5 pt-1">
+                            <input type="checkbox" id="v3-pop-hotel" class="rounded text-emerald-600">
+                            <label for="v3-pop-hotel" class="text-xs font-bold text-slate-700">🏨 Spa xong gửi lại Hotel</label>
+                        </div>
+                        <div class="text-right pt-1">
+                            <button type="button" onclick="saveV3Popover()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs">
+                                Xong
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-5 py-3 bg-white border-t border-slate-200 flex justify-between items-center text-xs">
+                    <div class="font-bold text-slate-700">
+                        Tổng cộng: <span id="v3-grand-total" class="text-rose-600 font-black text-sm font-mono-num">910.000 đ</span>
+                    </div>
+                    <button type="button" onclick="alert('Đã lưu thành công!')" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow">
+                        💾 Lưu Phiếu Dịch Vụ
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- INTERACTIVE JAVASCRIPT ENGINE -->
+    <script>
+        const samplePets = [
+            { id: 1, name: "Lu", breed: "Poodle", weight: 4.2, pkg: "Cắt Tỉa Trọn Gói", cutter: "Nguyễn Văn Cường", bather: "Lê Thị Thảo", shaving: "Cạo bàn", fee: 0, note: "Cắt tròn mặt" },
+            { id: 2, name: "Miu", breed: "Mèo Anh", weight: 3.8, pkg: "Tắm Vệ Sinh", cutter: "", bather: "Lê Thị Thảo", shaving: "Không cạo bàn", fee: 30000, note: "Sấy kỹ chân" },
+            { id: 3, name: "Bông", breed: "Bichon", weight: 5.5, pkg: "Cắt Tỉa Trọn Gói", cutter: "Lê Thị Thảo", bather: "Phạm Minh Tú", shaving: "Cạo bàn", fee: 50000, note: "Khách gửi kèm balo" }
+        ];
+
+        function calcPrice(pkgName, weight, fee) {
+            const w = parseFloat(weight) || 3;
+            let base = 150000;
+            if (pkgName.includes("Cắt Tỉa")) {
+                base = w <= 5 ? 280000 : 350000;
+            } else if (pkgName.includes("Cạo Lông")) {
+                base = w <= 5 ? 220000 : 300000;
+            } else {
+                base = w <= 5 ? 150000 : 200000;
+            }
+            return base + (parseInt(fee) || 0);
+        }
+
+        // ==========================================
+        // TAB SWITCHER
+        // ==========================================
+        function switchTab(tabId) {
+            ['v1', 'v2', 'v3'].forEach(v => {
+                document.getElementById('pane-' + v).classList.add('hidden');
+                const btn = document.getElementById('tab-btn-' + v);
+                btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800";
+            });
+
+            if (tabId === 'variant1') {
+                document.getElementById('pane-v1').classList.remove('hidden');
+                document.getElementById('tab-btn-v1').className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-purple-600 text-white shadow";
+            } else if (tabId === 'variant2') {
+                document.getElementById('pane-v2').classList.remove('hidden');
+                document.getElementById('tab-btn-v2').className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-sky-600 text-white shadow";
+            } else if (tabId === 'variant3') {
+                document.getElementById('pane-v3').classList.remove('hidden');
+                document.getElementById('tab-btn-v3').className = "px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow";
+            }
+        }
+
+        // ==========================================
+        // VARIANT 1 LOGIC
+        // ==========================================
+        let v1Data = JSON.parse(JSON.stringify(samplePets));
+
+        function renderV1Table() {
+            const tbody = document.getElementById('v1-tbody');
+            tbody.innerHTML = v1Data.map((pet, idx) => {
+                const total = calcPrice(pet.pkg, pet.weight, pet.fee);
+                return `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100 h-10" data-idx="${idx}">
+                    <td class="p-2 text-center">
+                        <input type="checkbox" ${pet.checked !== false ? 'checked' : ''} onchange="v1ToggleRow(${idx}, this.checked)" class="v1-row-cb rounded text-purple-600 cursor-pointer">
+                    </td>
+                    <td class="p-1.5 font-bold text-slate-800">
+                        <input type="text" value="${pet.name}" onchange="v1Data[${idx}].name=this.value" class="w-full border border-transparent hover:border-slate-300 focus:border-purple-500 rounded p-1 font-bold text-xs outline-none bg-transparent focus:bg-white">
+                    </td>
+                    <td class="p-1.5 text-center">
+                        <input type="number" step="0.1" value="${pet.weight}" oninput="v1UpdateRow(${idx}, 'weight', this.value)" class="w-16 border border-slate-200 rounded p-1 text-center font-bold text-xs text-pink-700 outline-none focus:border-purple-500">
+                    </td>
+                    <td class="p-1.5">
+                        <select onchange="v1UpdateRow(${idx}, 'pkg', this.value)" class="w-full border border-slate-200 rounded p-1 text-xs font-semibold text-slate-800 outline-none focus:border-purple-500">
+                            <option value="Cắt Tỉa Trọn Gói" ${pet.pkg === 'Cắt Tỉa Trọn Gói' ? 'selected' : ''}>✂️ Cắt Tỉa Trọn Gói</option>
+                            <option value="Tắm Vệ Sinh" ${pet.pkg === 'Tắm Vệ Sinh' ? 'selected' : ''}>🛁 Tắm Vệ Sinh</option>
+                            <option value="Cạo Lông Toàn Thân" ${pet.pkg === 'Cạo Lông Toàn Thân' ? 'selected' : ''}>✂️ Cạo Lông Toàn Thân</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5 text-center">
+                        <select onchange="v1Data[${idx}].shaving=this.value" class="border border-slate-200 rounded p-1 text-xs text-slate-700">
+                            <option value="Không cạo bàn" ${pet.shaving === 'Không cạo bàn' ? 'selected' : ''}>Không</option>
+                            <option value="Cạo bàn" ${pet.shaving === 'Cạo bàn' ? 'selected' : ''}>Có cạo</option>
+                            <option value="Cạo bàn cao" ${pet.shaving === 'Cạo bàn cao' ? 'selected' : ''}>Cạo cao</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5">
+                        <select onchange="v1Data[${idx}].cutter=this.value" class="w-full border border-slate-200 rounded p-1 text-xs text-purple-900 font-medium">
+                            <option value="">-- Chưa gán --</option>
+                            <option value="Nguyễn Văn Cường" ${pet.cutter === 'Nguyễn Văn Cường' ? 'selected' : ''}>Nguyễn Văn Cường</option>
+                            <option value="Lê Thị Thảo" ${pet.cutter === 'Lê Thị Thảo' ? 'selected' : ''}>Lê Thị Thảo</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5">
+                        <select onchange="v1Data[${idx}].bather=this.value" class="w-full border border-slate-200 rounded p-1 text-xs text-sky-900 font-medium">
+                            <option value="">-- Chưa gán --</option>
+                            <option value="Lê Thị Thảo" ${pet.bather === 'Lê Thị Thảo' ? 'selected' : ''}>Lê Thị Thảo</option>
+                            <option value="Phạm Minh Tú" ${pet.bather === 'Phạm Minh Tú' ? 'selected' : ''}>Phạm Minh Tú</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5 text-right">
+                        <input type="number" step="10000" value="${pet.fee}" oninput="v1UpdateRow(${idx}, 'fee', this.value)" class="w-20 border border-slate-200 rounded p-1 text-right font-mono text-xs outline-none focus:border-purple-500">
+                    </td>
+                    <td class="p-2 text-right font-mono-num font-bold text-rose-600 text-xs">
+                        ${total.toLocaleString('vi-VN')} đ
+                    </td>
+                    <td class="p-1.5">
+                        <input type="text" value="${pet.note}" onchange="v1Data[${idx}].note=this.value" class="w-full border border-slate-200 rounded p-1 text-xs outline-none focus:border-purple-500" placeholder="Yêu cầu...">
+                    </td>
+                    <td class="p-2 text-center">
+                        <button type="button" onclick="v1RemoveRow(${idx})" class="text-rose-400 hover:text-rose-600 font-bold text-sm">🗑️</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+            v1UpdateGrandTotal();
+        }
+
+        function v1UpdateRow(idx, field, val) {
+            v1Data[idx][field] = val;
+            renderV1Table();
+        }
+
+        function v1ToggleRow(idx, checked) {
+            v1Data[idx].checked = checked;
+            v1UpdateSelectedCount();
+        }
+
+        function v1SelectAll(checked) {
+            v1Data.forEach(p => p.checked = checked);
+            document.querySelectorAll('.v1-row-cb').forEach(cb => cb.checked = checked);
+            document.getElementById('v1-master-cb').checked = checked;
+            v1UpdateSelectedCount();
+        }
+
+        function v1UpdateSelectedCount() {
+            const count = v1Data.filter(p => p.checked !== false).length;
+            document.getElementById('v1-selected-count').innerText = count;
+        }
+
+        function v1ApplyBulk() {
+            const pkg = document.getElementById('v1-bulk-package').value;
+            const cutter = document.getElementById('v1-bulk-cutter').value;
+            const bather = document.getElementById('v1-bulk-bather').value;
+
+            v1Data.forEach(p => {
+                if (p.checked !== false) {
+                    p.pkg = pkg;
+                    p.cutter = cutter;
+                    p.bather = bather;
+                }
+            });
+            renderV1Table();
+        }
+
+        function v1AddPetRow() {
+            v1Data.push({
+                id: Date.now(),
+                name: "Bé cưng mới",
+                breed: "Poodle",
+                weight: 3.5,
+                pkg: "Tắm Vệ Sinh",
+                cutter: "",
+                bather: "Lê Thị Thảo",
+                shaving: "Có cạo",
+                fee: 0,
+                note: "",
+                checked: true
+            });
+            renderV1Table();
+        }
+
+        function v1RemoveRow(idx) {
+            v1Data.splice(idx, 1);
+            renderV1Table();
+        }
+
+        function v1UpdateGrandTotal() {
+            let total = 0;
+            v1Data.forEach(p => {
+                total += calcPrice(p.pkg, p.weight, p.fee);
+            });
+            document.getElementById('v1-total-pets').innerText = v1Data.length;
+            document.getElementById('v1-grand-total').innerText = total.toLocaleString('vi-VN') + ' đ';
+            v1UpdateSelectedCount();
+        }
+
+        // ==========================================
+        // VARIANT 2 LOGIC (MODAL POPUP)
+        // ==========================================
+        let v2Data = JSON.parse(JSON.stringify(samplePets));
+
+        function openV2Modal() {
+            document.getElementById('v2-modal-overlay').classList.remove('hidden');
+            renderV2Table();
+        }
+        function closeV2Modal() {
+            document.getElementById('v2-modal-overlay').classList.add('hidden');
+        }
+
+        function renderV2Table() {
+            const tbody = document.getElementById('v2-tbody');
+            tbody.innerHTML = v2Data.map((pet, idx) => {
+                const total = calcPrice(pet.pkg, pet.weight, pet.fee);
+                return `
+                <tr class="hover:bg-sky-50/50 transition border-b border-slate-100 h-10">
+                    <td class="p-2 text-center">
+                        <input type="checkbox" ${pet.checked !== false ? 'checked' : ''} onchange="v2Data[${idx}].checked=this.checked; v2UpdateCount();" class="v2-row-cb rounded text-sky-600">
+                    </td>
+                    <td class="p-1.5 font-bold"><input type="text" value="${pet.name}" class="border border-slate-200 rounded p-1 text-xs w-full"></td>
+                    <td class="p-1.5 text-center"><input type="number" step="0.1" value="${pet.weight}" oninput="v2Data[${idx}].weight=this.value; renderV2Table();" class="w-16 border rounded p-1 text-center font-bold text-xs text-sky-700"></td>
+                    <td class="p-1.5"><input type="text" value="${pet.breed}" class="border rounded p-1 text-xs w-full"></td>
+                    <td class="p-1.5">
+                        <select onchange="v2Data[${idx}].pkg=this.value; renderV2Table();" class="border rounded p-1 text-xs w-full font-semibold">
+                            <option value="Cắt Tỉa Trọn Gói" ${pet.pkg === 'Cắt Tỉa Trọn Gói' ? 'selected' : ''}>✂️ Cắt Tỉa</option>
+                            <option value="Tắm Vệ Sinh" ${pet.pkg === 'Tắm Vệ Sinh' ? 'selected' : ''}>🛁 Tắm Vệ Sinh</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5 text-center">
+                        <select class="border rounded p-1 text-xs"><option>Có cạo</option><option>Không</option></select>
+                    </td>
+                    <td class="p-1.5">
+                        <select class="border rounded p-1 text-xs w-full">
+                            <option ${pet.cutter === 'Nguyễn Văn Cường' ? 'selected' : ''}>Cường</option>
+                            <option ${pet.cutter === 'Lê Thị Thảo' ? 'selected' : ''}>Thảo</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5">
+                        <select class="border rounded p-1 text-xs w-full">
+                            <option ${pet.bather === 'Lê Thị Thảo' ? 'selected' : ''}>Thảo</option>
+                            <option ${pet.bather === 'Phạm Minh Tú' ? 'selected' : ''}>Tú</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5 text-right"><input type="number" value="${pet.fee}" oninput="v2Data[${idx}].fee=this.value; renderV2Table();" class="w-20 border rounded p-1 text-right font-mono text-xs"></td>
+                    <td class="p-2 text-right font-mono-num font-bold text-rose-600">${total.toLocaleString('vi-VN')} đ</td>
+                    <td class="p-1.5"><input type="text" value="${pet.note}" class="border rounded p-1 text-xs w-full"></td>
+                    <td class="p-2 text-center"><button type="button" onclick="v2Data.splice(${idx}, 1); renderV2Table();" class="text-rose-400">🗑️</button></td>
+                </tr>
+                `;
+            }).join('');
+
+            let grand = 0;
+            v2Data.forEach(p => grand += calcPrice(p.pkg, p.weight, p.fee));
+            document.getElementById('v2-grand-total').innerText = grand.toLocaleString('vi-VN') + ' đ';
+            v2UpdateCount();
+        }
+
+        function v2UpdateCount() {
+            const count = v2Data.filter(p => p.checked !== false).length;
+            document.getElementById('v2-selected-count').innerText = count;
+        }
+
+        function v2SelectAll(checked) {
+            v2Data.forEach(p => p.checked = checked);
+            document.querySelectorAll('.v2-row-cb').forEach(cb => cb.checked = checked);
+            v2UpdateCount();
+        }
+
+        function v2ApplyBulk() {
+            const pkg = document.getElementById('v2-bulk-pkg').value;
+            const cutter = document.getElementById('v2-bulk-cutter').value;
+            const bather = document.getElementById('v2-bulk-bather').value;
+            v2Data.forEach(p => {
+                if (p.checked !== false) {
+                    p.pkg = pkg;
+                    p.cutter = cutter;
+                    p.bather = bather;
+                }
+            });
+            renderV2Table();
+        }
+
+        // ==========================================
+        // VARIANT 3 LOGIC (MINIMAL + POPOVER)
+        // ==========================================
+        let v3Data = JSON.parse(JSON.stringify(samplePets));
+        let activePopoverIdx = null;
+
+        function renderV3Table() {
+            const tbody = document.getElementById('v3-tbody');
+            tbody.innerHTML = v3Data.map((pet, idx) => {
+                const total = calcPrice(pet.pkg, pet.weight, pet.fee);
+                return `
+                <tr class="hover:bg-emerald-50/40 transition border-b border-slate-100 h-10">
+                    <td class="p-2 text-center">
+                        <input type="checkbox" ${pet.checked !== false ? 'checked' : ''} onchange="v3Data[${idx}].checked=this.checked; v3UpdateCount();" class="v3-row-cb rounded text-emerald-600">
+                    </td>
+                    <td class="p-1.5 font-bold text-slate-800"><input type="text" value="${pet.name}" class="border border-slate-200 rounded p-1 text-xs w-full"></td>
+                    <td class="p-1.5 text-center"><input type="number" step="0.1" value="${pet.weight}" oninput="v3Data[${idx}].weight=this.value; renderV3Table();" class="w-16 border rounded p-1 text-center font-bold text-xs text-emerald-700"></td>
+                    <td class="p-1.5">
+                        <select onchange="v3Data[${idx}].pkg=this.value; renderV3Table();" class="border rounded p-1 text-xs w-full font-semibold">
+                            <option value="Cắt Tỉa Trọn Gói" ${pet.pkg === 'Cắt Tỉa Trọn Gói' ? 'selected' : ''}>✂️ Cắt Tỉa Trọn Gói</option>
+                            <option value="Tắm Vệ Sinh" ${pet.pkg === 'Tắm Vệ Sinh' ? 'selected' : ''}>🛁 Tắm Vệ Sinh</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5">
+                        <select class="border rounded p-1 text-xs w-full">
+                            <option ${pet.cutter === 'Nguyễn Văn Cường' ? 'selected' : ''}>Cường</option>
+                            <option ${pet.cutter === 'Lê Thị Thảo' ? 'selected' : ''}>Thảo</option>
+                        </select>
+                    </td>
+                    <td class="p-1.5 text-right"><input type="number" value="${pet.fee}" oninput="v3Data[${idx}].fee=this.value; renderV3Table();" class="w-20 border rounded p-1 text-right font-mono text-xs"></td>
+                    <td class="p-2 text-right font-mono-num font-bold text-rose-600">${total.toLocaleString('vi-VN')} đ</td>
+                    <td class="p-1.5"><input type="text" value="${pet.note}" class="border rounded p-1 text-xs w-full" placeholder="Ghi chú..."></td>
+                    <td class="p-1.5 text-center">
+                        <button type="button" onclick="openV3Popover(${idx}, this)" class="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-bold border border-emerald-300">
+                            ⚙️ Chi tiết
+                        </button>
+                    </td>
+                    <td class="p-2 text-center"><button type="button" onclick="v3Data.splice(${idx}, 1); renderV3Table();" class="text-rose-400">🗑️</button></td>
+                </tr>
+                `;
+            }).join('');
+
+            let grand = 0;
+            v3Data.forEach(p => grand += calcPrice(p.pkg, p.weight, p.fee));
+            document.getElementById('v3-grand-total').innerText = grand.toLocaleString('vi-VN') + ' đ';
+            v3UpdateCount();
+        }
+
+        function v3UpdateCount() {
+            const count = v3Data.filter(p => p.checked !== false).length;
+            document.getElementById('v3-selected-count').innerText = count;
+        }
+
+        function v3SelectAll(checked) {
+            v3Data.forEach(p => p.checked = checked);
+            document.querySelectorAll('.v3-row-cb').forEach(cb => cb.checked = checked);
+            v3UpdateCount();
+        }
+
+        function v3ApplyBulk() {
+            const pkg = document.getElementById('v3-bulk-pkg').value;
+            const cutter = document.getElementById('v3-bulk-cutter').value;
+            v3Data.forEach(p => {
+                if (p.checked !== false) {
+                    p.pkg = pkg;
+                    p.cutter = cutter;
+                }
+            });
+            renderV3Table();
+        }
+
+        function v3AddPetRow() {
+            v3Data.push({
+                id: Date.now(),
+                name: "Bé cưng",
+                breed: "Mèo",
+                weight: 3.0,
+                pkg: "Tắm Vệ Sinh",
+                cutter: "Nguyễn Văn Cường",
+                bather: "Lê Thị Thảo",
+                shaving: "Không",
+                fee: 0,
+                note: "",
+                checked: true
+            });
+            renderV3Table();
+        }
+
+        function openV3Popover(idx, btnEl) {
+            activePopoverIdx = idx;
+            const pop = document.getElementById('v3-popover');
+            const rect = btnEl.getBoundingClientRect();
+            pop.style.top = (rect.bottom + window.scrollY - 100) + 'px';
+            pop.style.left = (rect.left - 240) + 'px';
+            pop.classList.remove('hidden');
+
+            const p = v3Data[idx];
+            document.getElementById('v3-popover-title').innerText = `⚙️ Chi Tiết: ${p.name}`;
+            document.getElementById('v3-pop-breed').value = p.breed || '';
+            document.getElementById('v3-pop-color').value = p.color || 'Vàng trắng';
+            document.getElementById('v3-pop-acc').value = p.accessories || '';
+        }
+
+        function closeV3Popover() {
+            document.getElementById('v3-popover').classList.add('hidden');
+        }
+
+        function saveV3Popover() {
+            if (activePopoverIdx !== null) {
+                v3Data[activePopoverIdx].breed = document.getElementById('v3-pop-breed').value;
+                v3Data[activePopoverIdx].accessories = document.getElementById('v3-pop-acc').value;
+            }
+            closeV3Popover();
+        }
+
+        // Khởi động bảng ban đầu
+        window.addEventListener('DOMContentLoaded', () => {
+            renderV1Table();
+            renderV2Table();
+            renderV3Table();
+        });
+    </script>
+</body>
+</html>

@@ -250,10 +250,10 @@
             const viewPricing = document.getElementById('pet-sub-view-pricing');
             const viewStaff = document.getElementById('pet-sub-view-staff');
 
-            const inactiveClass = 'px-4 py-2 font-bold bg-white text-slate-700 border hover:bg-gray-50';
+            const inactiveClass = 'px-4 py-2 font-bold bg-white text-slate-700 border-y border-r hover:bg-gray-50';
             const activeClass = 'px-4 py-2 font-bold bg-slate-800 text-white';
 
-            if (btnServices) btnServices.className = (sub === 'services' ? activeClass + ' rounded-l-md' : inactiveClass + ' rounded-l-md');
+            if (btnServices) btnServices.className = (sub === 'services' ? activeClass + ' rounded-l-md' : 'px-4 py-2 font-bold bg-white text-slate-700 border hover:bg-gray-50 rounded-l-md');
             if (btnPricing) btnPricing.className = (sub === 'pricing' ? activeClass : inactiveClass);
             if (btnStaff) btnStaff.className = (sub === 'staff' ? activeClass + ' rounded-r-md' : inactiveClass + ' rounded-r-md');
 
@@ -270,6 +270,7 @@
                 loadSpaStaffList();
             }
         }
+        window.switchPetSubTab = switchPetSubTab;
 
         function debounceFilterPets() {
             clearTimeout(petSearchDebounceTimer);
@@ -350,6 +351,7 @@
         var petServiceFilterStatus = 'all';
         var petServiceFilterDate = 'today'; // 'today' | 'all' | 'YYYY-MM-DD'
         var petServiceFilterKpiMode = null; // null | 'uncalled' | 'not_checked_out' | 'transport'
+        var petServiceDailyQuickFilter = 'all'; // 'all' | 'not_checked_out' | 'checked_out'
         var selectedSpaTicketIds = new Set();
 
         function formatPhoneBadge(phone) {
@@ -403,6 +405,7 @@
                 el('kpi-pets-in-progress', kpi.in_progress || 0);
                 el('kpi-pets-uncalled', kpi.uncalled || 0);
                 el('kpi-pets-not-checked-out', kpi.not_checked_out || 0);
+                el('kpi-pets-checked-out', kpi.checked_out || 0);
                 el('kpi-pets-transport', kpi.transport || 0);
             } catch(e) { console.error('loadPetServicesKPI error:', e); }
         }
@@ -433,8 +436,12 @@
         }
 
         function renderActiveSpaView() {
+            renderSpaDateStrip();
             renderPetServicesTable();
             renderKanbanBoard();
+            if (document.getElementById('spa-invoices-table-body') && Array.isArray(allSpaInvoicesData) && allSpaInvoicesData.length > 0) {
+                if (typeof filterSpaInvoicesList === 'function') filterSpaInvoicesList();
+            }
         }
 
         function updateFilterStatusButtons(status) {
@@ -455,8 +462,88 @@
             renderActiveSpaView();
         }
 
+        function selectSpaStripDate(dateStr) {
+            petServiceFilterDate = dateStr;
+            petServicesCurrentPage = 1;
+            renderSpaDateStrip();
+            renderActiveSpaView();
+        }
+        window.selectSpaStripDate = selectSpaStripDate;
+
+        function setSpaDailyQuickFilter(type) {
+            petServiceDailyQuickFilter = type;
+            const btnAll = document.getElementById('btn-spa-filter-daily-all');
+            const btnUnreturned = document.getElementById('btn-spa-filter-daily-unreturned');
+            const btnReturned = document.getElementById('btn-spa-filter-daily-returned');
+
+            const activeBtn = 'px-3 py-1.5 font-bold rounded-md bg-purple-700 text-white shadow-xs transition';
+            const inactiveBtn = 'px-3 py-1.5 font-medium text-slate-600 hover:text-slate-900 rounded-md transition';
+
+            if (btnAll) btnAll.className = (type === 'all' ? activeBtn : inactiveBtn);
+            if (btnUnreturned) btnUnreturned.className = (type === 'not_checked_out' ? activeBtn : inactiveBtn);
+            if (btnReturned) btnReturned.className = (type === 'checked_out' ? activeBtn : inactiveBtn);
+
+            petServicesCurrentPage = 1;
+            renderActiveSpaView();
+        }
+        window.setSpaDailyQuickFilter = setSpaDailyQuickFilter;
+
+        function renderSpaDateStrip() {
+            const container = document.getElementById('spa-date-strip-container');
+            if (!container) return;
+
+            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+            const baseDate = new Date(todayStr + 'T00:00:00');
+            const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+            const countsByDate = {};
+            if (Array.isArray(allPetServiceTickets)) {
+                allPetServiceTickets.forEach(t => {
+                    if (t.ticket_date) {
+                        countsByDate[t.ticket_date] = (countsByDate[t.ticket_date] || 0) + 1;
+                    }
+                });
+            }
+
+            let html = '';
+            for (let offset = -2; offset <= 4; offset++) {
+                const d = new Date(baseDate);
+                d.setDate(d.getDate() + offset);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-${dd}`;
+                const isToday = (dateStr === todayStr);
+                const isSelected = (petServiceFilterDate === dateStr) || (isToday && petServiceFilterDate === 'today');
+                const dayLabel = isToday ? 'Hôm nay' : dayNames[d.getDay()];
+                const count = countsByDate[dateStr] || 0;
+
+                const activeClass = 'bg-purple-700 text-white font-bold border-purple-700 shadow-sm ring-2 ring-purple-300';
+                const inactiveClass = 'bg-white text-slate-700 font-medium border-slate-200 hover:bg-purple-50 hover:border-purple-300';
+
+                html += `
+                    <button type="button" onclick="selectSpaStripDate('${dateStr}')" 
+                        class="px-2.5 py-1 rounded-lg border text-xs transition flex flex-col items-center min-w-[56px] select-none ${isSelected ? activeClass : inactiveClass}">
+                        <span class="text-[9px] ${isSelected ? 'text-purple-200' : 'text-slate-400'} uppercase font-extrabold">${dayLabel}</span>
+                        <span class="font-black text-xs my-0.5">${dd}/${mm}</span>
+                        <span class="text-[9px] ${isSelected ? 'bg-purple-900/60 text-amber-300' : (count > 0 ? 'bg-purple-100 text-purple-800' : 'text-slate-300')} px-1 rounded font-bold">
+                            ${count > 0 ? `${count} ca` : '-'}
+                        </span>
+                    </button>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            const customInput = document.getElementById('input-spa-custom-date');
+            if (customInput) {
+                customInput.value = (petServiceFilterDate === 'today') ? todayStr : (petServiceFilterDate === 'all' ? '' : petServiceFilterDate);
+            }
+        }
+        window.renderSpaDateStrip = renderSpaDateStrip;
+
         function setPetServiceDateFilter(mode) {
-            petServiceFilterDate = mode;
+            selectSpaStripDate(mode);
             const btnToday = document.getElementById('btn-spa-date-today');
             const btnAll = document.getElementById('btn-spa-date-all');
             const inputCustom = document.getElementById('input-spa-date-custom');
@@ -475,8 +562,6 @@
             } else if (inputCustom && (mode === 'today' || mode === 'all')) {
                 inputCustom.value = '';
             }
-            petServicesCurrentPage = 1;
-            renderActiveSpaView();
         }
 
         function filterPetServicesByKpi(kpiType) {
@@ -509,9 +594,11 @@
             }
         }
 
-        async function loadPetServicesList(showSkeleton = true) {
+        async function loadPetServicesList(showSkeleton = null) {
             try {
-                if (showSkeleton && typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
+                // Chỉ hiện skeleton khi chưa có dữ liệu hoặc được chỉ định rõ ràng showSkeleton === true
+                const shouldSkeleton = (showSkeleton === true) || (showSkeleton === null && (!allPetServiceTickets || allPetServiceTickets.length === 0));
+                if (shouldSkeleton && typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
                     renderTableSkeleton('table-pet-services', 6, 13);
                 }
                 const res = await fetch('/api/pet-services');
@@ -695,6 +782,35 @@
             updateSpaBulkToolbar();
         }
         window.clearSelectedSpaTickets = clearSelectedSpaTickets;
+
+        async function deleteSelectedSpaTickets() {
+            if (!selectedSpaTicketIds || selectedSpaTicketIds.size === 0) return;
+            const count = selectedSpaTicketIds.size;
+            const targetIds = Array.from(selectedSpaTicketIds);
+
+            const confirmed = window.customConfirm
+                ? await window.customConfirm(`Bạn có chắc chắn muốn xóa ${count} phiếu dịch vụ đã chọn?\n\n⚠️ Lưu ý: Thao tác này sẽ xóa vĩnh viễn ${count} phiếu khỏi hệ thống và không thể hoàn tác!`, `Xác Nhận Xóa ${count} Phiếu Spa`, { type: 'danger', okText: `Xóa ${count} Phiếu` })
+                : confirm(`Xác nhận xóa ${count} phiếu đã chọn?`);
+            if (!confirmed) return;
+
+            // Optimistic update 0ms phản hồi tức thì
+            const targetSet = new Set(targetIds);
+            allPetServiceTickets = (allPetServiceTickets || []).filter(t => !targetSet.has(t.id));
+            clearSelectedSpaTickets();
+            renderActiveSpaView();
+
+            try {
+                await Promise.all(targetIds.map(id => fetch(`/api/pet-services/${id}`, { method: 'DELETE' })));
+                if (window.showToast) showToast(`Đã xóa thành công ${count} phiếu dịch vụ!`, 'success');
+                await loadPetServicesList(false);
+                await loadPetServicesKPI();
+            } catch(e) {
+                console.error('deleteSelectedSpaTickets error:', e);
+                if (window.showToast) showToast('Lỗi kết nối khi xóa phiếu!', 'error');
+                await loadPetServicesList(false);
+            }
+        }
+        window.deleteSelectedSpaTickets = deleteSelectedSpaTickets;
 
         async function applyBulkPetServiceStatus(newStatus) {
             if (!newStatus || selectedSpaTicketIds.size === 0) return;
@@ -1440,20 +1556,56 @@
             const tbody = document.getElementById('table-pet-services');
             if (!tbody) return;
             if (!Array.isArray(allPetServiceTickets)) allPetServiceTickets = [];
+
+            // Dọn dẹp các ID đã bị xóa khỏi tập chọn hàng loạt
+            if (selectedSpaTicketIds && selectedSpaTicketIds.size > 0) {
+                const currentIds = new Set(allPetServiceTickets.map(t => t.id));
+                for (const sid of Array.from(selectedSpaTicketIds)) {
+                    if (!currentIds.has(sid)) {
+                        selectedSpaTicketIds.delete(sid);
+                    }
+                }
+            }
+
             const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
             const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
-            let filtered = allPetServiceTickets.filter(t => {
-                // Date filter (t.ticket_date check: if missing in unit test mock, keep it)
-                if (petServiceFilterDate === 'today') {
-                    if (t.ticket_date && t.ticket_date !== todayStr) return false;
-                } else if (petServiceFilterDate !== 'all') {
-                    if (t.ticket_date && t.ticket_date !== petServiceFilterDate) return false;
+            const targetDate = (petServiceFilterDate === 'today') ? todayStr : petServiceFilterDate;
+
+            // Đếm số lượng ca cho ngày được chọn để cập nhật cụm nút lọc nhanh
+            const targetDayTickets = allPetServiceTickets.filter(t => {
+                if (targetDate !== 'all') {
+                    if (t.ticket_date && t.ticket_date !== targetDate) return false;
                 }
-                
-                // Status filter
+                return true;
+            });
+            const countAll = targetDayTickets.length;
+            const countUnreturned = targetDayTickets.filter(t => t.status !== 'checked_out').length;
+            const countReturned = targetDayTickets.filter(t => t.status === 'checked_out').length;
+
+            const elCountAll = document.getElementById('count-daily-all');
+            const elCountUnreturned = document.getElementById('count-daily-unreturned');
+            const elCountReturned = document.getElementById('count-daily-returned');
+            if (elCountAll) elCountAll.textContent = countAll;
+            if (elCountUnreturned) elCountUnreturned.textContent = countUnreturned;
+            if (elCountReturned) elCountReturned.textContent = countReturned;
+
+            let filtered = allPetServiceTickets.filter(t => {
+                // 1. Lọc theo ngày
+                if (targetDate !== 'all') {
+                    if (t.ticket_date && t.ticket_date !== targetDate) return false;
+                }
+
+                // 2. Lọc nhanh trong ngày: Tất cả / Chưa về / Đã về
+                if (petServiceDailyQuickFilter === 'not_checked_out') {
+                    if (t.status === 'checked_out') return false;
+                } else if (petServiceDailyQuickFilter === 'checked_out') {
+                    if (t.status !== 'checked_out') return false;
+                }
+
+                // 3. Status filter từ dropdown nếu có
                 if (petServiceFilterStatus !== 'all' && t.status !== petServiceFilterStatus) return false;
 
-                // KPI quick filter mode
+                // 4. KPI quick filter mode
                 if (petServiceFilterKpiMode === 'uncalled') {
                     if (t.status !== 'completed') return false;
                     const cs = t.call_status || 'Chưa gọi';
@@ -1472,6 +1624,7 @@
                 tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
                 const pContainer = document.getElementById('pagination-pet-services');
                 if (pContainer) pContainer.innerHTML = '';
+                updateSpaBulkToolbar();
                 return;
             }
 
@@ -1629,13 +1782,18 @@
                 if (t.deposit_amount) extraFees.push(`<span class="text-sky-700 font-bold">💳 Đã cọc: ${formatMoney(t.deposit_amount)}</span>`);
                 const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
+                const isCheckedOut = (t.status === 'checked_out');
+                const rowClass = isCheckedOut 
+                    ? 'card-row card-row-anim text-[13px] bg-emerald-50/40 hover:bg-emerald-50/70 border-l-4 border-l-emerald-500'
+                    : 'card-row card-row-anim text-[13px]';
+
                 return `
-                <tr class="card-row card-row-anim text-[13px]" style="--row-idx: ${idx};">
+                <tr class="${rowClass}" style="--row-idx: ${idx};">
                     <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                     <td class="p-2.5 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
                             <input type="checkbox" class="spa-row-select w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer" value="${t.id}" onchange="onSpaRowCheckboxChange(this, ${t.id})" ${selectedSpaTicketIds && selectedSpaTicketIds.has(t.id) ? 'checked' : ''} title="Chọn phiếu #${t.ticket_number || t.id}">
-                            ${t.ticket_number ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                            ${t.ticket_number ? `<span class="${isCheckedOut ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-purple-100 text-purple-900 border-purple-300'} border px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
                         </div>
                         <div class="text-[10px] text-gray-400 font-mono my-1">${t.code || ''}</div>
                         <!-- Cụm nút thao tác trực tiếp dưới số phiếu -->
@@ -1643,6 +1801,7 @@
                             <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Cập nhật thợ làm, phụ thu & trả bé">✏️ Sửa</button>
                             <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tiếp nhận (2 chữ ký)">🖨️</button>
                             <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In hóa đơn thanh toán K80 (Tách Dịch Vụ, Cọc, Tip)">🧾</button>
+                            ${isCheckedOut ? `<button onclick="reopenCheckedOutTicket(${t.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Hoàn tác về chờ đón">↩️</button>` : ''}
                             ${t.tip_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'tip_slip')" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tip riêng cho thợ">🎁</button>` : ''}
                             ${t.deposit_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'deposit_slip')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In biên nhận cọc">💳</button>` : ''}
                             <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa phiếu">🗑️</button>
@@ -1741,6 +1900,7 @@
             if (typeof renderPaginationBar === 'function') {
                 renderPaginationBar('pagination-pet-services', petServicesCurrentPage, totalPages, totalItems, 'changePetServicesPage');
             }
+            updateSpaBulkToolbar();
         }
 
         function renderKanbanBoard() {
@@ -1909,13 +2069,297 @@
             });
         }
 
+        // ==========================================
+        // QUẢN LÝ LỊCH SỬ HÓA ĐƠN SPA (TAB HÓA ĐƠN)
+        // ==========================================
+        let allSpaInvoicesData = [];
+        let spaInvoicesCurrentPage = 1;
+        var spaInvoiceFilterDate = 'today';
+
+        function switchOrderSubTab(sub) {
+            const btnRetail = document.getElementById('btn-subtab-order-retail');
+            const btnSpa = document.getElementById('btn-subtab-order-spa');
+            const viewRetail = document.getElementById('orders-subview-retail');
+            const viewSpa = document.getElementById('orders-subview-spa');
+
+            const activeRetailClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
+            const inactiveRetailClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
+            const activeSpaClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-pink-600 text-pink-700 flex items-center gap-1.5 transition';
+            const inactiveSpaClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
+
+            if (btnRetail) btnRetail.className = (sub === 'retail' ? activeRetailClass : inactiveRetailClass);
+            if (btnSpa) btnSpa.className = (sub === 'spa' ? activeSpaClass : inactiveSpaClass);
+
+            if (viewRetail) viewRetail.classList.toggle('hidden', sub !== 'retail');
+            if (viewSpa) viewSpa.classList.toggle('hidden', sub !== 'spa');
+
+            if (sub === 'retail') {
+                if (typeof loadOrdersList === 'function') loadOrdersList();
+            } else if (sub === 'spa') {
+                loadSpaInvoicesList();
+            }
+        }
+        window.switchOrderSubTab = switchOrderSubTab;
+
+        function setSpaInvoiceDateFilter(mode) {
+            spaInvoiceFilterDate = mode;
+            const btnToday = document.getElementById('btn-spa-inv-date-today');
+            const btnAll = document.getElementById('btn-spa-inv-date-all');
+            const inputCustom = document.getElementById('input-spa-inv-date-custom');
+            if (btnToday) {
+                btnToday.className = (mode === 'today')
+                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-pink-700 text-white shadow'
+                    : 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-white text-slate-700 hover:bg-gray-50';
+            }
+            if (btnAll) {
+                btnAll.className = (mode === 'all')
+                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-pink-700 shadow border-r border-pink-700'
+                    : 'px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-gray-50 border-r border-slate-200';
+            }
+            if (inputCustom && mode !== 'today' && mode !== 'all') {
+                inputCustom.value = mode;
+            } else if (inputCustom && (mode === 'today' || mode === 'all')) {
+                inputCustom.value = '';
+            }
+            spaInvoicesCurrentPage = 1;
+            filterSpaInvoicesList();
+        }
+        window.setSpaInvoiceDateFilter = setSpaInvoiceDateFilter;
+
+        function changeSpaInvoicesPage(newPage) {
+            spaInvoicesCurrentPage = newPage;
+            filterSpaInvoicesList();
+        }
+        window.changeSpaInvoicesPage = changeSpaInvoicesPage;
+
+        async function loadSpaInvoicesList() {
+            const tbody = document.getElementById('spa-invoices-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Đang tải lịch sử hóa đơn Spa...</td></tr>';
+            try {
+                const res = await fetch('/api/pet-services?limit=500');
+                if (!res.ok) throw new Error('Không thể tải hóa đơn spa');
+                allSpaInvoicesData = await res.json();
+                filterSpaInvoicesList();
+            } catch (e) {
+                console.error("loadSpaInvoicesList error:", e);
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-red-500 italic">Lỗi khi tải lịch sử hóa đơn Spa!</td></tr>';
+            }
+        }
+        window.loadSpaInvoicesList = loadSpaInvoicesList;
+
+        function filterSpaInvoicesList(customData) {
+            const tbody = document.getElementById('spa-invoices-table-body');
+            if (!tbody) return;
+            if (Array.isArray(customData)) allSpaInvoicesData = customData;
+            if (!Array.isArray(allSpaInvoicesData) || allSpaInvoicesData.length === 0) {
+                if (Array.isArray(window.allSpaInvoicesData) && window.allSpaInvoicesData.length > 0) {
+                    allSpaInvoicesData = window.allSpaInvoicesData;
+                } else if (Array.isArray(allPetServiceTickets) && allPetServiceTickets.length > 0) {
+                    allSpaInvoicesData = allPetServiceTickets;
+                }
+            }
+
+            const q = (document.getElementById('search-spa-invoices')?.value || '').trim().toLowerCase();
+            const statusFilter = document.getElementById('select-spa-invoice-status-filter')?.value || 'checked_out';
+            const paymentFilter = document.getElementById('select-spa-invoice-payment-filter')?.value || 'all';
+            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+
+            let filtered = allSpaInvoicesData.filter(t => {
+                // Lọc ngày
+                if (spaInvoiceFilterDate === 'today') {
+                    if (t.ticket_date && t.ticket_date !== todayStr) return false;
+                } else if (spaInvoiceFilterDate !== 'all') {
+                    if (t.ticket_date && t.ticket_date !== spaInvoiceFilterDate) return false;
+                }
+
+                // Lọc trạng thái
+                if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+
+                // Lọc thanh toán
+                if (paymentFilter === 'paid' && t.payment_status !== 'paid') return false;
+                if (paymentFilter === 'unpaid' && t.payment_status === 'paid') return false;
+
+                // Lọc tìm kiếm
+                if (q && !(t.code||'').toLowerCase().includes(q) && !(t.customer_name||'').toLowerCase().includes(q) && !(t.customer_phone||'').includes(q) && !(t.pet_name||'').toLowerCase().includes(q) && !(t.service_type||'').toLowerCase().includes(q) && !(t.staff_cutter||'').toLowerCase().includes(q)) return false;
+
+                return true;
+            });
+
+            // Update badge & stats
+            const countBadge = document.getElementById('spa-invoices-count-badge');
+            const revBadge = document.getElementById('spa-inv-total-revenue');
+            if (countBadge) countBadge.textContent = `${filtered.length} hóa đơn`;
+            if (revBadge) {
+                const totalRev = filtered.reduce((sum, t) => sum + (Number(t.price) || 0) + (Number(t.tip_amount) || 0), 0);
+                revBadge.textContent = formatMoney(totalRev);
+            }
+
+            renderSpaInvoicesTable(filtered);
+        }
+        window.filterSpaInvoicesList = filterSpaInvoicesList;
+
+        function renderSpaInvoicesTable(filteredTickets) {
+            const tbody = document.getElementById('spa-invoices-table-body');
+            if (!tbody) return;
+            const items = filteredTickets || [];
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-slate-400 italic">Không tìm thấy hóa đơn dịch vụ Spa nào phù hợp</td></tr>';
+                const pContainer = document.getElementById('pagination-spa-invoices');
+                if (pContainer) pContainer.innerHTML = '';
+                return;
+            }
+
+            const totalItems = items.length;
+            const totalPages = Math.ceil(totalItems / 20) || 1;
+            if (spaInvoicesCurrentPage > totalPages) spaInvoicesCurrentPage = totalPages;
+            if (spaInvoicesCurrentPage < 1) spaInvoicesCurrentPage = 1;
+            const paged = items.slice((spaInvoicesCurrentPage - 1) * 20, spaInvoicesCurrentPage * 20);
+
+            tbody.innerHTML = paged.map((t) => {
+                // Thợ phụ trách
+                let staffHtml = '';
+                if (t.staff_cutter) staffHtml += `<div class="font-bold text-pink-700">✂️ ${escapeSpaHtml(t.staff_cutter)}</div>`;
+                if (t.staff_worker_1) staffHtml += `<div class="text-[11px] text-sky-700">🛁 ${escapeSpaHtml(t.staff_worker_1)}</div>`;
+                if (t.staff_receiver) staffHtml += `<div class="text-[11px] text-purple-700">📥 ${escapeSpaHtml(t.staff_receiver)}</div>`;
+                if (!staffHtml) staffHtml = '<span class="text-gray-400 italic">-</span>';
+
+                // Phụ thu
+                let extraFees = [];
+                if (t.teeth_cleaning) extraFees.push(`Răng: ${formatMoney(t.teeth_cleaning)}`);
+                if (t.art_cutting_fee) extraFees.push(`Cắt NT: ${formatMoney(t.art_cutting_fee)}`);
+                if (t.surcharge) extraFees.push(`Gỡ rối: ${formatMoney(t.surcharge)}`);
+                if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
+                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
+
+                // Trạng thái badge
+                let statusBadge = '';
+                if (t.status === 'checked_out') statusBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">🏠 Đã về</span>';
+                else if (t.status === 'completed') statusBadge = '<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[11px]">✅ Đã xong</span>';
+                else if (t.status === 'in_progress') statusBadge = '<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-[11px]">🔄 Đang làm</span>';
+                else statusBadge = '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[11px]">⏳ Chờ</span>';
+
+                const payBadge = t.payment_status === 'paid' 
+                    ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Đã TT</span>'
+                    : '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Chưa TT</span>';
+
+                const totalActual = (Number(t.price) || 0) + (Number(t.tip_amount) || 0) - (Number(t.deposit_amount) || 0);
+
+                return `
+                <tr class="hover:bg-pink-50/20 transition text-[12px] border-b border-slate-100">
+                    <td class="p-2.5 text-center font-mono font-bold text-pink-700 border-r border-slate-200">
+                        <div class="flex items-center justify-center gap-1">
+                            ${t.ticket_number ? `<span class="bg-pink-100 text-pink-900 border border-pink-300 px-2 py-0.5 rounded text-xs font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                        </div>
+                        <div class="text-[10px] text-gray-400 font-mono my-0.5">${t.code || ''}</div>
+                    </td>
+                    <td class="p-3 whitespace-nowrap text-slate-600">
+                        <div class="font-bold text-slate-800">${t.ticket_date || '-'}</div>
+                        <div class="text-[10px] text-gray-400">Đến: ${t.received_time || '-'}</div>
+                        ${t.checkout_time ? `<div class="text-[10px] text-emerald-600 font-semibold">Về: ${t.checkout_time}</div>` : ''}
+                    </td>
+                    <td class="p-3 whitespace-nowrap min-w-[130px]">
+                        <div class="font-bold text-slate-800">${escapeSpaHtml(t.customer_name || '-')}</div>
+                        <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="font-bold text-pink-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
+                        <div class="text-[11px] text-gray-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="font-bold text-slate-800">${escapeSpaHtml(t.service_type || '-')}</div>
+                        ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                        ${extraFeesHtml}
+                    </td>
+                    <td class="p-3 text-xs">${staffHtml}</td>
+                    <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(t.price || 0)}</td>
+                    <td class="p-3 text-right font-mono text-emerald-700 text-xs">${t.tip_amount ? `+${formatMoney(t.tip_amount)}` : '-'}</td>
+                    <td class="p-3 text-right font-mono text-amber-700 text-xs">${t.deposit_amount ? `-${formatMoney(t.deposit_amount)}` : '-'}</td>
+                    <td class="p-3 text-right font-mono font-black text-purple-700 text-sm">${formatMoney(totalActual)}</td>
+                    <td class="p-3 text-center">
+                        <div class="flex flex-col items-center gap-1">
+                            ${statusBadge}
+                            ${payBadge}
+                        </div>
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="flex items-center justify-center gap-1 flex-wrap">
+                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold shadow-xs" title="In lại hóa đơn K80">🧾 In Bill</button>
+                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'service')" class="bg-sky-600 hover:bg-sky-700 text-white px-2 py-1 rounded text-xs font-bold shadow-xs" title="In phiếu dịch vụ">📋 Phiếu</button>
+                            ${t.status === 'checked_out' ? `<button onclick="reopenCheckedOutTicket(${t.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1.5 py-1 rounded text-xs font-bold shadow-xs" title="Hoàn tác phiếu đã về, đưa bé cưng quay lại Bảng Spa Trong Ngày">↩️ Mở lại</button>` : ''}
+                            <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 p-1 border border-rose-200 rounded font-bold text-xs" title="Xóa phiếu">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+
+            if (typeof renderPaginationBar === 'function') {
+                renderPaginationBar('pagination-spa-invoices', spaInvoicesCurrentPage, totalPages, totalItems, 'changeSpaInvoicesPage');
+            }
+        }
+        window.renderSpaInvoicesTable = renderSpaInvoicesTable;
+
+        async function reopenCheckedOutTicket(ticketId) {
+            const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId)) || (allSpaInvoicesData || []).find(t => t.id === Number(ticketId));
+            const ticketName = ticket ? `phiếu #${ticket.ticket_number || ticket.id} (${ticket.pet_name || 'Bé cưng'})` : `phiếu #${ticketId}`;
+
+            const confirmed = window.customConfirm
+                ? await window.customConfirm(`Bạn có muốn mở lại ${ticketName}?\n\nPhiếu sẽ chuyển về trạng thái 'Đã Xong (Chờ Đón)' và xuất hiện lại trên Bảng Spa Trong Ngày.`, 'Hoàn Tác Trả Bé')
+                : confirm(`Mở lại ${ticketName}?`);
+            if (!confirmed) return;
+
+            await updateServiceStatus(ticketId, 'completed');
+            if (window.showToast) {
+                showToast(`Đã mở lại ${ticketName}! Phiếu đã quay lại Bảng Spa Trong Ngày.`, 'success');
+            }
+            if (typeof loadSpaInvoicesList === 'function') loadSpaInvoicesList();
+            if (typeof loadPetServicesList === 'function') loadPetServicesList(false);
+        }
+        window.reopenCheckedOutTicket = reopenCheckedOutTicket;
+
         async function updateServiceCallStatus(ticketId, callStatus, selectElem) {
             const ticket = (allPetServiceTickets || []).find(t => t.id === Number(ticketId));
-            const oldStatus = ticket ? ticket.call_status : 'Chưa gọi';
-            if (ticket) ticket.call_status = callStatus;
+            if (!ticket) return;
+            const oldStatus = ticket.call_status || 'Chưa gọi';
+
+            // Tìm các vé khác của cùng khách hôm nay
+            const sameCustTickets = (allPetServiceTickets || []).filter(t => {
+                if (t.id === ticket.id) return false;
+                const matchPhone = ticket.customer_phone && t.customer_phone && ticket.customer_phone === t.customer_phone;
+                const matchContact = ticket.contact_id && t.contact_id && ticket.contact_id === t.contact_id;
+                const matchName = !ticket.customer_phone && ticket.customer_name && t.customer_name === ticket.customer_name;
+                const matchDate = (!ticket.ticket_date || !t.ticket_date || ticket.ticket_date === t.ticket_date);
+                return (matchPhone || matchContact || matchName) && matchDate;
+            });
+
+            let syncAll = false;
+            if (sameCustTickets.length > 0 && typeof window.customConfirm === 'function') {
+                const totalPets = sameCustTickets.length + 1;
+                const custName = ticket.customer_name || 'Khách hàng';
+                const custPhone = ticket.customer_phone ? ` (${ticket.customer_phone})` : '';
+                syncAll = await window.customConfirm(
+                    `Khách **${custName}**${custPhone} có **${totalPets} bé** hôm nay.\nBạn có muốn cập nhật trạng thái [${callStatus}] cho cả **${totalPets} bé** không?`,
+                    'Đồng bộ cuộc gọi',
+                    {
+                        icon: '📞',
+                        okText: `Áp dụng cả ${totalPets} bé`,
+                        cancelText: 'Chỉ bé này'
+                    }
+                );
+            }
+
+            const targetTickets = syncAll ? [ticket, ...sameCustTickets] : [ticket];
 
             // 1. Cập nhật DOM tức thì (0ms, không giật màn hình)
-            if (selectElem) {
+            targetTickets.forEach(t => {
+                t.call_status = callStatus;
+            });
+
+            if (syncAll) {
+                renderActiveSpaView();
+            } else if (selectElem) {
                 let csClass = 'text-[10px] py-0.5 px-1 rounded border outline-none cursor-pointer ';
                 if (callStatus === 'Đã gọi đón') csClass += 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
                 else if (callStatus === 'Không nghe máy') csClass += 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
@@ -1923,6 +2367,7 @@
                 else csClass += 'bg-gray-50 text-slate-700 border-gray-200';
                 selectElem.className = csClass;
             }
+
             if (petServiceFilterKpiMode === 'uncalled') {
                 renderActiveSpaView();
             }
@@ -1930,18 +2375,37 @@
 
             // 2. Gửi ngầm tới backend, tự động rollback nếu lỗi
             try {
-                const res = await fetch(`/api/pet-services/${ticketId}/call-status`, {
-                    method: 'PUT',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ call_status: callStatus })
-                });
-                if (!res.ok) throw new Error('API failed');
+                if (syncAll) {
+                    const payload = {
+                        tickets: targetTickets.map(t => ({ id: t.id, call_status: callStatus }))
+                    };
+                    const res = await fetch('/api/pet-services/tickets/bulk-update', {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error('Bulk API failed');
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã đồng bộ trạng thái gọi cho ${targetTickets.length} bé`, 'success');
+                    }
+                } else {
+                    const res = await fetch(`/api/pet-services/${ticketId}/call-status`, {
+                        method: 'PUT',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ call_status: callStatus })
+                    });
+                    if (!res.ok) throw new Error('API failed');
+                }
             } catch(e) {
                 console.error('Lỗi cập nhật trạng thái gọi điện:', e);
-                if (ticket) ticket.call_status = oldStatus;
+                ticket.call_status = oldStatus;
                 renderActiveSpaView();
                 loadPetServicesKPI();
-                alert('Lỗi cập nhật trạng thái gọi điện');
+                if (typeof customAlert === 'function') {
+                    customAlert('Lỗi cập nhật trạng thái gọi điện!', 'Lỗi');
+                } else {
+                    alert('Lỗi cập nhật trạng thái gọi điện');
+                }
             }
         }
 
@@ -1955,6 +2419,17 @@
                 ticket.status = newStatus;
                 if (newStatus === 'completed' || newStatus === 'checked_out') {
                     if (!ticket.checkout_time) ticket.checkout_time = nowTime;
+                }
+            }
+
+            if (newStatus === 'checked_out') {
+                if (selectedSpaTicketIds && selectedSpaTicketIds.has(Number(ticketId))) {
+                    selectedSpaTicketIds.delete(Number(ticketId));
+                    updateSpaBulkToolbar();
+                }
+                if (window.showToast) {
+                    const petName = ticket ? (ticket.pet_name || 'Bé cưng') : 'Bé cưng';
+                    showToast(`Bé cưng [${petName}] đã về! Đã cập nhật trạng thái hôm nay.`, 'success');
                 }
             }
 
@@ -1983,12 +2458,40 @@
         }
 
         async function deletePetService(ticketId) {
-            if (!confirm('Xác nhận xóa phiếu dịch vụ?')) return;
+            const ticket = (allPetServiceTickets || []).find(t => t.id === ticketId);
+            const ticketLabel = ticket 
+                ? `phiếu #${ticket.ticket_number || ticket.code || ticket.id} - ${ticket.customer_name || 'Khách'} (Bé: ${ticket.pet_name || 'Bé cưng'})`
+                : `phiếu dịch vụ #${ticketId}`;
+
+            const confirmed = window.customConfirm 
+                ? await window.customConfirm(`Bạn có chắc chắn muốn xóa ${ticketLabel}?\n\n⚠️ Lưu ý: Dữ liệu phiếu sẽ bị xóa hoàn toàn khỏi hệ thống và không thể hoàn tác!`, 'Xác Nhận Xóa Phiếu Spa', { type: 'danger', okText: 'Xóa Phiếu' })
+                : confirm(`Xác nhận xóa ${ticketLabel}?`);
+            if (!confirmed) return;
+
+            // Optimistic update: xóa ngay lập tức khỏi bộ nhớ & cập nhật UI 0ms (tránh chớp giật skeleton)
+            allPetServiceTickets = (allPetServiceTickets || []).filter(t => t.id !== ticketId);
+            if (selectedSpaTicketIds && selectedSpaTicketIds.has(ticketId)) {
+                selectedSpaTicketIds.delete(ticketId);
+                updateSpaBulkToolbar();
+            }
+            renderActiveSpaView();
+
             try {
-                await fetch(`/api/pet-services/${ticketId}`, { method: 'DELETE' });
-                await loadPetServicesList();
+                const res = await fetch(`/api/pet-services/${ticketId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    if (window.showToast) showToast(`Đã xóa ${ticketLabel} thành công!`, 'success');
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    if (window.showToast) showToast(err.detail || 'Lỗi xóa phiếu!', 'error');
+                }
+                // Đồng bộ ngầm không hiển thị skeleton
+                await loadPetServicesList(false);
                 await loadPetServicesKPI();
-            } catch(e) { alert('Lỗi xóa phiếu'); }
+            } catch(e) { 
+                console.error('deletePetService error:', e);
+                if (window.showToast) showToast('Lỗi kết nối khi xóa phiếu', 'error');
+                await loadPetServicesList(false);
+            }
         }
 
         // ==========================================
@@ -3415,6 +3918,8 @@
                 const batchOptWallet = document.getElementById('batch-opt-pay-wallet');
                 if (batchOptWallet) batchOptWallet.textContent = `💆 Trừ Ví Spa (Số dư: ${balStr})`;
                 updateCustomerWarningBanner(cust);
+                syncSvcWalletPaymentSuggestion();
+                syncBatchWalletPaymentSuggestion();
             }
 
             try {
@@ -3668,6 +4173,7 @@
 
             const totalEl = document.getElementById('svc-total-price');
             if (totalEl) totalEl.value = grandTotal;
+            syncSvcWalletPaymentSuggestion(grandTotal);
         }
 
         function onSvcPaymentTimingChanged(val) {
@@ -3676,6 +4182,211 @@
                 wrap.classList.toggle('hidden', val !== 'paid');
             }
         }
+
+        function syncSvcWalletPaymentSuggestion(totalPriceOverride = null) {
+            const custId = parseInt(document.getElementById('svc-customer-id')?.value) || 0;
+            const banner = document.getElementById('svc-wallet-helper-banner');
+            if (!banner) return;
+            if (!custId) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                return;
+            }
+
+            const cust = (allContacts || []).find(c => c.id == custId);
+            const balance = (cust && cust.spa_wallet_balance) ? parseFloat(cust.spa_wallet_balance) : 0;
+            const grandTotal = totalPriceOverride !== null ? totalPriceOverride : (parseFloat(document.getElementById('svc-total-price')?.value) || 0);
+
+            if (balance <= 0 || grandTotal <= 0) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                return;
+            }
+
+            banner.classList.remove('hidden');
+
+            if (balance >= grandTotal) {
+                // Đủ tiền: Tự động chuyển sang Trừ Ví Spa
+                const radioPaid = document.querySelector('input[name="svc-payment-timing"][value="paid"]');
+                if (radioPaid && !radioPaid.checked) {
+                    radioPaid.checked = true;
+                    onSvcPaymentTimingChanged('paid');
+                }
+                const methodSel = document.getElementById('svc-payment-method');
+                if (methodSel) methodSel.value = 'wallet';
+
+                banner.innerHTML = `
+                    <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 flex items-center justify-between shadow-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm">✨</span>
+                            <span>Khách có <strong>${formatMoneyString(balance)} đ</strong> trong ví ➔ Đã tự động chọn <strong>Trừ Ví Spa</strong></span>
+                        </div>
+                        <button type="button" onclick="setSvcPaymentMethodFallback('cash')" class="text-[11px] text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
+                    </div>
+                `;
+            } else {
+                // Thiếu tiền: Lựa chọn A (Trừ hết ví + thu ngoài)
+                const remaining = grandTotal - balance;
+                banner.innerHTML = `
+                    <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-950 space-y-1.5 shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <div class="font-bold flex items-center gap-1">
+                                <span>⚠️</span>
+                                <span>Ví còn <strong>${formatMoneyString(balance)} đ</strong> (Thiếu <strong>${formatMoneyString(remaining)} đ</strong>)</span>
+                            </div>
+                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px] shadow-xs cursor-pointer">⚡ Nạp Gói</button>
+                        </div>
+                        <div class="flex items-center gap-2 pt-0.5">
+                            <button type="button" onclick="applySplitWalletPayment('svc', ${balance}, ${remaining})" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-[11px] shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ toàn bộ số dư ví hiện có và thu phần còn lại bên ngoài">
+                                ⚡ Trừ hết ví (${formatMoneyString(balance)} đ) + Thu ngoài (${formatMoneyString(remaining)} đ)
+                            </button>
+                            <button type="button" onclick="applyFullCashPayment('svc')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-[11px] shadow-xs cursor-pointer">
+                                💵 Thu ngoài 100%
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        window.syncSvcWalletPaymentSuggestion = syncSvcWalletPaymentSuggestion;
+
+        function syncBatchWalletPaymentSuggestion(grandTotalOverride = null) {
+            const custId = parseInt(document.getElementById('svc-customer-id')?.value) || 0;
+            const banner = document.getElementById('batch-wallet-helper-banner');
+            if (!banner) return;
+            if (!custId) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                return;
+            }
+
+            const cust = (allContacts || []).find(c => c.id == custId);
+            const balance = (cust && cust.spa_wallet_balance) ? parseFloat(cust.spa_wallet_balance) : 0;
+            const grandTotal = grandTotalOverride !== null ? grandTotalOverride : (parseFloat(document.getElementById('batch-grand-total')?.textContent?.replace(/[^\d]/g, '') || 0));
+
+            if (balance <= 0 || grandTotal <= 0) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                return;
+            }
+
+            banner.classList.remove('hidden');
+
+            if (balance >= grandTotal) {
+                const timingSel = document.getElementById('batch-payment-timing');
+                if (timingSel) timingSel.value = 'paid';
+                const methodSel = document.getElementById('batch-payment-method');
+                if (methodSel) methodSel.value = 'wallet';
+
+                banner.innerHTML = `
+                    <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 flex items-center justify-between shadow-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm">✨</span>
+                            <span>Khách có <strong>${formatMoneyString(balance)} đ</strong> trong ví ➔ Đã tự động chọn <strong>Trừ Ví Spa</strong> cho cả đợt</span>
+                        </div>
+                        <button type="button" onclick="setBatchPaymentMethodFallback('cash')" class="text-[11px] text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
+                    </div>
+                `;
+            } else {
+                const remaining = grandTotal - balance;
+                banner.innerHTML = `
+                    <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-950 space-y-1.5 shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <div class="font-bold flex items-center gap-1">
+                                <span>⚠️</span>
+                                <span>Ví còn <strong>${formatMoneyString(balance)} đ</strong> (Cả đợt thiếu <strong>${formatMoneyString(remaining)} đ</strong>)</span>
+                            </div>
+                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px] shadow-xs cursor-pointer">⚡ Nạp Gói</button>
+                        </div>
+                        <div class="flex items-center gap-2 pt-0.5">
+                            <button type="button" onclick="applySplitWalletPayment('batch', ${balance}, ${remaining})" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-[11px] shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ hết ví và thu phần thiếu bằng tiền mặt/chuyển khoản ngoài">
+                                ⚡ Trừ hết ví (${formatMoneyString(balance)} đ) + Thu ngoài (${formatMoneyString(remaining)} đ)
+                            </button>
+                            <button type="button" onclick="applyFullCashPayment('batch')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-[11px] shadow-xs cursor-pointer">
+                                💵 Thu ngoài 100%
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        window.syncBatchWalletPaymentSuggestion = syncBatchWalletPaymentSuggestion;
+
+        function applySplitWalletPayment(mode, balance, remaining) {
+            if (mode === 'svc') {
+                const radioPaid = document.querySelector('input[name="svc-payment-timing"][value="paid"]');
+                if (radioPaid) { radioPaid.checked = true; onSvcPaymentTimingChanged('paid'); }
+                const methodSel = document.getElementById('svc-payment-method');
+                if (methodSel) methodSel.value = 'wallet';
+                const banner = document.getElementById('svc-wallet-helper-banner');
+                if (banner) {
+                    banner.innerHTML = `
+                        <div class="p-2 rounded-lg bg-purple-50 border border-purple-300 text-xs text-purple-950 flex items-center justify-between shadow-xs">
+                            <span class="font-bold flex items-center gap-1"><span>⚡</span><span>Đã chọn: Trừ sạch ví <strong>${formatMoneyString(balance)} đ</strong> + Thu ngoài <strong>${formatMoneyString(remaining)} đ</strong></span></span>
+                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-[11px] text-purple-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                        </div>
+                    `;
+                }
+            } else {
+                const timingSel = document.getElementById('batch-payment-timing');
+                if (timingSel) timingSel.value = 'paid';
+                const methodSel = document.getElementById('batch-payment-method');
+                if (methodSel) methodSel.value = 'wallet';
+                const banner = document.getElementById('batch-wallet-helper-banner');
+                if (banner) {
+                    banner.innerHTML = `
+                        <div class="p-2 rounded-lg bg-purple-50 border border-purple-300 text-xs text-purple-950 flex items-center justify-between shadow-xs">
+                            <span class="font-bold flex items-center gap-1"><span>⚡</span><span>Đã chọn: Trừ sạch ví <strong>${formatMoneyString(balance)} đ</strong> + Thu ngoài <strong>${formatMoneyString(remaining)} đ</strong></span></span>
+                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-[11px] text-purple-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        window.applySplitWalletPayment = applySplitWalletPayment;
+
+        function applyFullCashPayment(mode) {
+            if (mode === 'svc') {
+                const methodSel = document.getElementById('svc-payment-method');
+                if (methodSel) methodSel.value = 'cash';
+                const banner = document.getElementById('svc-wallet-helper-banner');
+                if (banner) {
+                    banner.innerHTML = `
+                        <div class="p-2 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-800 flex items-center justify-between shadow-xs">
+                            <span class="font-medium">💵 Đã chọn: Thu ngoài 100% (Giữ nguyên số dư ví)</span>
+                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-[11px] text-indigo-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                        </div>
+                    `;
+                }
+            } else {
+                const methodSel = document.getElementById('batch-payment-method');
+                if (methodSel) methodSel.value = 'cash';
+                const banner = document.getElementById('batch-wallet-helper-banner');
+                if (banner) {
+                    banner.innerHTML = `
+                        <div class="p-2 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-800 flex items-center justify-between shadow-xs">
+                            <span class="font-medium">💵 Đã chọn: Thu ngoài 100% (Giữ nguyên số dư ví)</span>
+                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-[11px] text-indigo-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+        window.applyFullCashPayment = applyFullCashPayment;
+
+        function setSvcPaymentMethodFallback(method) {
+            const methodSel = document.getElementById('svc-payment-method');
+            if (methodSel) methodSel.value = method;
+            applyFullCashPayment('svc');
+        }
+        window.setSvcPaymentMethodFallback = setSvcPaymentMethodFallback;
+
+        function setBatchPaymentMethodFallback(method) {
+            const methodSel = document.getElementById('batch-payment-method');
+            if (methodSel) methodSel.value = method;
+            applyFullCashPayment('batch');
+        }
+        window.setBatchPaymentMethodFallback = setBatchPaymentMethodFallback;
 
         async function submitCreateServiceTicket(andPrint = false) {
             const custId = parseInt(document.getElementById('svc-customer-id')?.value) || 0;
@@ -3725,8 +4436,8 @@
             if (paymentStatus === 'paid' && paymentMethod === 'wallet') {
                 const cust = (allContacts || []).find(c => c.id == custId);
                 const bal = (cust && cust.spa_wallet_balance) ? parseFloat(cust.spa_wallet_balance) : 0;
-                if (bal < totalSpaService) {
-                    alert(`Số dư ví Spa không đủ thanh toán cho dịch vụ Spa!\n(Số dư ví: ${formatMoneyString(bal)} đ, Tiền dịch vụ Spa: ${formatMoneyString(totalSpaService)} đ).\nVui lòng nạp thêm ví hoặc chọn phương thức khác.`);
+                if (bal <= 0) {
+                    alert(`Số dư ví Spa của khách bằng 0 đ!\nVui lòng nạp thêm gói ví hoặc chọn phương thức thanh toán khác.`);
                     return;
                 }
             }
@@ -3823,7 +4534,9 @@
                 if (paymentStatus === 'paid' && paymentMethod === 'wallet') {
                     const cust = (allContacts || []).find(c => c.id == custId);
                     if (cust) {
-                        cust.spa_wallet_balance = Math.max(0, (cust.spa_wallet_balance || 0) - totalPrice);
+                        const bal = cust.spa_wallet_balance || 0;
+                        const deducted = Math.min(bal, totalPrice);
+                        cust.spa_wallet_balance = Math.max(0, bal - deducted);
                     }
                 }
                 closeCreateServiceTicketModal();
@@ -4098,71 +4811,48 @@
                         <select class="w-full border p-1 rounded text-xs font-bold text-purple-800 batch-pet-select" onchange="onBatchRowPetChanged(this)">
                             ${petOpts}
                         </select>
-                        <input type="text" class="w-full border p-1 rounded text-xs font-bold batch-pet-name" placeholder="Tên bé (*)" value="${initialName}">
-                        <div class="grid grid-cols-3 gap-1">
-                            <input type="text" class="border p-0.5 rounded text-[11px] batch-pet-breed" placeholder="Giống loài" value="${initialBreed}">
-                            <select class="border p-0.5 rounded text-[11px] batch-pet-gender">
-                                <option value="unknown" ${initialGender === 'unknown' ? 'selected' : ''}>-- Giới tính --</option>
-                                <option value="male" ${initialGender === 'male' || initialGender === 'Đực' ? 'selected' : ''}>Đực</option>
-                                <option value="female" ${initialGender === 'female' || initialGender === 'Cái' ? 'selected' : ''}>Cái</option>
-                            </select>
-                            <input type="text" class="border p-0.5 rounded text-[11px] batch-pet-color" placeholder="Màu lông" value="${initialColor}">
-                        </div>
+                        <input type="text" class="w-full border p-1 rounded text-xs font-bold batch-pet-name ${petData && petData.id ? 'hidden' : ''}" placeholder="Tên bé (*)" value="${initialName}">
+                        <input type="hidden" class="batch-pet-breed" value="${initialBreed}">
+                        <input type="hidden" class="batch-pet-gender" value="${initialGender}">
+                        <input type="hidden" class="batch-pet-color" value="${initialColor}">
                     </div>
                 </td>
                 <td class="p-2 text-center">
-                    <input type="text" class="w-16 border-2 border-pink-200 p-1 rounded text-xs text-center font-bold text-pink-700 batch-pet-weight" placeholder="VD: 3.5" value="${initialWeight}" oninput="calcBatchRowTotal(this.closest('tr'))">
-                </td>
-                <td class="p-2 text-center">
-                    <select class="w-full border p-1 rounded text-xs batch-pet-shaving">
-                        <option value="Không cạo bàn">Không</option>
-                        <option value="Cạo bàn">Có cạo</option>
-                        <option value="Cạo bàn cao">Cạo cao</option>
-                    </select>
+                    <input type="text" class="w-16 border-2 border-pink-200 p-1 rounded text-xs text-center font-bold font-mono text-pink-700 batch-pet-weight" placeholder="VD: 3.5" value="${initialWeight}" oninput="calcBatchRowTotal(this.closest('tr'))">
                 </td>
                 <td class="p-2">
                     <select class="w-full border p-1 rounded text-xs font-medium text-slate-800 batch-pet-primary" onchange="calcBatchRowTotal(this.closest('tr'))">
                         ${primaryOpts}
                     </select>
                 </td>
-                <td class="p-2">
+                <td class="p-2 text-center">
+                    <select class="w-full border p-1 rounded text-xs text-slate-700 batch-pet-shaving">
+                        <option value="Không cạo bàn">Không</option>
+                        <option value="Cạo bàn">Có cạo</option>
+                        <option value="Cạo bàn cao">Cạo cao</option>
+                    </select>
+                </td>
+                <td class="p-2 text-center bg-purple-50/40">
+                    <input type="checkbox" class="batch-cb-teeth w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'teeth')" title="Phụ thu đánh răng">
+                    <input type="hidden" class="batch-pet-teeth" value="">
+                </td>
+                <td class="p-2 text-center bg-purple-50/40">
+                    <input type="checkbox" class="batch-cb-art w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'art')" title="Phụ thu cắt tạo kiểu nghệ thuật">
+                    <input type="hidden" class="batch-pet-art" value="">
+                </td>
+                <td class="p-2 text-center bg-purple-50/40">
+                    <input type="checkbox" class="batch-cb-surch w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'surch')" title="Phụ thu gỡ rối lông">
+                    <input type="hidden" class="batch-pet-surcharges" value="">
+                </td>
+                <td class="p-2 text-center">
                     <select class="w-full border p-1 rounded text-xs text-slate-700 batch-pet-dye" onchange="calcBatchRowTotal(this.closest('tr'))">
                         ${dyeOpts}
                     </select>
                 </td>
-                <td class="p-2 text-right space-y-1">
-                    <div class="flex items-center justify-end gap-1 text-[11px]">
-                        <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-700">
-                            <input type="checkbox" class="batch-cb-teeth w-3 h-3 text-purple-600 rounded" onchange="onBatchRowCheckboxFeeChanged(this, 'teeth')">
-                            <span>Răng:</span>
-                        </label>
-                        <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono batch-pet-teeth" placeholder="0" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
-                    </div>
-                    <div class="flex items-center justify-end gap-1 text-[11px]">
-                        <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-700">
-                            <input type="checkbox" class="batch-cb-art w-3 h-3 text-purple-600 rounded" onchange="onBatchRowCheckboxFeeChanged(this, 'art')">
-                            <span>Cắt NT:</span>
-                        </label>
-                        <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono batch-pet-art" placeholder="0" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
-                    </div>
-                    <div class="flex items-center justify-end gap-1 text-[11px]">
-                        <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-700">
-                            <input type="checkbox" class="batch-cb-surch w-3 h-3 text-purple-600 rounded" onchange="onBatchRowCheckboxFeeChanged(this, 'surch')">
-                            <span>Gỡ rối:</span>
-                        </label>
-                        <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono font-bold batch-pet-surcharges" placeholder="0" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
-                    </div>
-                    <div class="flex items-center justify-end gap-1 text-[11px]">
-                        <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-700">
-                            <input type="checkbox" class="batch-cb-ship w-3 h-3 text-purple-600 rounded" onchange="onBatchRowCheckboxFeeChanged(this, 'ship')">
-                            <span>Ship:</span>
-                        </label>
-                        <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono batch-pet-ship" placeholder="0" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
-                    </div>
-                    <div class="flex items-center justify-end gap-1 text-[11px]">
-                        <span class="text-emerald-700 font-bold">Tip:</span>
-                        <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono font-bold text-emerald-700 batch-pet-tip" placeholder="0" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
-                    </div>
+                <td class="p-2 text-center bg-purple-50/40">
+                    <input type="checkbox" class="batch-cb-ship w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'ship')" title="Phụ thu đưa đón tận nơi">
+                    <input type="hidden" class="batch-pet-ship" value="">
+                    <input type="hidden" class="batch-pet-tip" value="">
                 </td>
                 <td class="p-2 text-right">
                     <span class="font-mono font-bold text-xs text-rose-700 batch-pet-total">0 đ</span>
@@ -4170,13 +4860,9 @@
                 </td>
                 <td class="p-2 space-y-1">
                     <input type="text" class="w-full border p-1 rounded text-xs batch-pet-notes" placeholder="Yêu cầu cắt, sấy...">
-                    <input type="text" class="w-full border p-1 rounded text-xs text-amber-800 batch-pet-accessories" placeholder="Phụ kiện gửi lại (dây, chuồng...)">
-                    <div class="flex items-center gap-1">
-                        <input type="text" class="w-full border p-1 rounded text-xs text-pink-700 font-medium batch-pet-cutter" placeholder="✂️ Thợ cắt...">
-                        <label class="inline-flex items-center gap-0.5 text-[11px] text-sky-800 font-bold whitespace-nowrap cursor-pointer" title="Spa xong gửi hotel">
-                            <input type="checkbox" class="batch-pet-hotel"> 🏨
-                        </label>
-                    </div>
+                    <input type="text" class="w-full border p-0.5 rounded text-[11px] text-amber-800 batch-pet-accessories" placeholder="Phụ kiện gửi lại (dây, chuồng...)">
+                    <input type="hidden" class="batch-pet-cutter" value="">
+                    <input type="hidden" class="batch-pet-hotel" value="0">
                 </td>
                 <td class="p-2 text-center">
                     <button type="button" onclick="removeBatchPetRow(this)" class="text-rose-500 hover:text-rose-700 font-bold p-1">🗑️</button>
@@ -4221,14 +4907,20 @@
             const colorInput = tr.querySelector('.batch-pet-color');
 
             if (!petId || petId === '__new__') {
-                if (nameInput) nameInput.value = '';
+                if (nameInput) {
+                    nameInput.value = '';
+                    nameInput.classList.remove('hidden');
+                }
                 if (weightInput) weightInput.value = '';
                 if (breedInput) breedInput.value = '';
                 if (colorInput) colorInput.value = '';
             } else {
                 const p = (currentSvcPetsList || []).find(x => x.id == petId);
                 if (p) {
-                    if (nameInput) nameInput.value = p.name || '';
+                    if (nameInput) {
+                        nameInput.value = p.name || '';
+                        nameInput.classList.add('hidden');
+                    }
                     if (weightInput && p.weight) weightInput.value = String(p.weight).replace('.', ',');
                     if (breedInput && p.breed) breedInput.value = p.breed;
                     if (genderInput && p.gender) genderInput.value = p.gender;
@@ -4300,6 +4992,7 @@
             const grandBadge = document.getElementById('batch-grand-total');
             if (petsBadge) petsBadge.textContent = totalPets || rows.length;
             if (grandBadge) grandBadge.textContent = formatMoneyString(grandTotal) + ' đ';
+            syncBatchWalletPaymentSuggestion(grandTotal);
         }
         window.calcBatchGrandTotal = calcBatchGrandTotal;
 
@@ -4319,8 +5012,8 @@
                 const totalBatch = parseFloat(document.getElementById('batch-grand-total')?.textContent?.replace(/[^\d]/g, '') || 0);
                 const cust = (allContacts || []).find(c => c.id == custId);
                 const bal = (cust && cust.spa_wallet_balance) ? parseFloat(cust.spa_wallet_balance) : 0;
-                if (bal < totalBatch) {
-                    alert(`Số dư ví Spa không đủ thanh toán cả đợt! (Số dư: ${formatMoneyString(bal)} đ, Cần thanh toán: ${formatMoneyString(totalBatch)} đ).\nVui lòng nạp thêm ví hoặc chọn phương thức khác.`);
+                if (bal <= 0) {
+                    alert(`Số dư ví Spa của khách bằng 0 đ!\nVui lòng nạp thêm gói ví hoặc chọn phương thức thanh toán khác.`);
                     return;
                 }
             }
@@ -4428,7 +5121,9 @@
                     const cust = (allContacts || []).find(c => c.id == custId);
                     if (cust) {
                         const totalBatch = parseFloat(document.getElementById('batch-grand-total')?.textContent?.replace(/[^\d]/g, '') || 0);
-                        cust.spa_wallet_balance = Math.max(0, (cust.spa_wallet_balance || 0) - totalBatch);
+                        const bal = cust.spa_wallet_balance || 0;
+                        const deducted = Math.min(bal, totalBatch);
+                        cust.spa_wallet_balance = Math.max(0, bal - deducted);
                     }
                 }
                 closeCreateServiceTicketModal();
