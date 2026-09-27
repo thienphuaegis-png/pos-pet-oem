@@ -1611,8 +1611,8 @@ var posPaperDimensions = {
     "A4-landscape": { width: "297mm", height: "210mm", printSize: "A4 landscape" },
     "A5-portrait": { width: "148mm", height: "210mm", printSize: "A5 portrait" },
     "A5-landscape": { width: "210mm", height: "148mm", printSize: "A5 landscape" },
-    "K80": { width: "80mm", height: "auto", printSize: "80mm auto" },
-    "K58": { width: "58mm", height: "auto", printSize: "58mm auto" }
+    "K80": { width: "80mm", height: "auto", printSize: "auto" },
+    "K58": { width: "58mm", height: "auto", printSize: "auto" },
 };
 
 var posPrintConfig = {
@@ -1823,7 +1823,7 @@ function renderAndPrint(ord, isDraft = false) {
     const canvasW = isThermal ? (paperSize === 'K80' ? 290 : 210) : (isLandscape ? 1123 : 794);
 
     currentPrintPaperSize = paperSize;
-    currentPrintPageRule = dim.printSize || (isLandscape ? 'A4 landscape' : (isThermal ? '80mm auto' : 'A4 portrait'));
+    currentPrintPageRule = dim.printSize || (isLandscape ? 'A4 landscape' : (isThermal ? 'auto' : 'A4 portrait'));
 
     // Sao chép canvasElements để không mutate config gốc và xử lý tự ẩn dòng giảm giá K80 khi không có giảm giá
     let effectiveElements = canvasElements.map(e => ({ ...e }));
@@ -2252,12 +2252,16 @@ function renderAndPrint(ord, isDraft = false) {
         const container = printArea.querySelector('.print-container');
         const inner = printArea.querySelector('.print-inner');
         if (container && inner) {
-            const containerW = container.offsetWidth;
-            const innerW = inner.scrollWidth || canvasW;
-            if (innerW > containerW) {
-                const scale = containerW / innerW;
-                inner.style.transform = `scale(${scale})`;
-                inner.style.transformOrigin = 'top left';
+            const availW = Math.max(280, printArea.clientWidth - 32);
+            const sheetW = container.offsetWidth || canvasW;
+            if (sheetW > availW) {
+                const scale = availW / sheetW;
+                container.style.transform = `scale(${scale})`;
+                container.style.transformOrigin = 'top center';
+                container.style.marginBottom = `-${Math.round((1 - scale) * container.offsetHeight)}px`;
+            } else {
+                container.style.transform = 'none';
+                container.style.marginBottom = '0';
             }
         }
     });
@@ -2302,7 +2306,7 @@ function printInvoiceDirectly() {
 
     let pageRule = 'A4 landscape';
     if (isThermal) {
-        pageRule = currentPrintPaperSize === 'K80' ? '80mm auto' : '58mm auto';
+        pageRule = 'auto';
     } else if (!isLandscape) {
         pageRule = currentPrintPaperSize.includes('A5') ? 'A5 portrait' : 'A4 portrait';
     }
@@ -2346,10 +2350,7 @@ function printInvoiceDirectly() {
             <meta charset="utf-8">
             <title>In Hóa Đơn</title>
             <style>
-                @page {
-                    size: ${pageRule};
-                    margin: 0;
-                }
+                ${isThermal ? '@page { size: auto; margin: 0mm; }' : `@page { size: ${pageRule}; margin: 0; }`}
                 html, body {
                     margin: 0 !important;
                     padding: 0 !important;
@@ -2618,7 +2619,7 @@ function printTopupReceiptDirectly(html) {
             <meta charset="utf-8">
             <title>Phiếu Thu Nạp Ví Spa</title>
             <style>
-                @page { size: 80mm auto; margin: 0; }
+                @page { size: auto; margin: 0mm; }
                 html, body {
                     margin: 0 !important;
                     padding: 0 !important;

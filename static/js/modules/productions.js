@@ -1096,9 +1096,69 @@
             }
         };
 
-        window.printCurrentCashbookVoucher = function() {
-            if (!currentViewedCashbookItem) return;
-            const c = currentViewedCashbookItem;
+        window.numberToVietnameseWords = function(amount) {
+            if (!amount || isNaN(amount)) return 'Không đồng';
+            amount = Math.round(Math.abs(amount));
+            if (amount === 0) return 'Không đồng';
+
+            const dv = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu tỷ'];
+            const cs = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+            function readTriple(num, full) {
+                let a = Math.floor(num / 100);
+                let b = Math.floor((num % 100) / 10);
+                let c = num % 10;
+                let res = '';
+                if (a > 0 || full) {
+                    res += ' ' + cs[a] + ' trăm';
+                }
+                if (b > 1) {
+                    res += ' ' + cs[b] + ' mươi';
+                    if (c === 1) res += ' mốt';
+                    else if (c === 5) res += ' lăm';
+                    else if (c > 0) res += ' ' + cs[c];
+                } else if (b === 1) {
+                    res += ' mười';
+                    if (c === 1) res += ' một';
+                    else if (c === 5) res += ' lăm';
+                    else if (c > 0) res += ' ' + cs[c];
+                } else if (c > 0) {
+                    if (a > 0 || full) res += ' lẻ';
+                    res += ' ' + cs[c];
+                }
+                return res;
+            }
+
+            let str = '';
+            let i = 0;
+            let temp = amount;
+            while (temp > 0) {
+                let triple = temp % 1000;
+                temp = Math.floor(temp / 1000);
+                if (triple > 0) {
+                    let s = readTriple(triple, temp > 0);
+                    str = s + ' ' + dv[i] + str;
+                }
+                i++;
+            }
+            str = str.trim();
+            if (!str) return 'Không đồng';
+            return (str.charAt(0).toUpperCase() + str.slice(1) + ' đồng chẵn.').replace(/\s+/g, ' ');
+        };
+
+        window.printCurrentCashbookVoucher = function(voucherIdOrObj) {
+            let c = null;
+            if (typeof voucherIdOrObj === 'object' && voucherIdOrObj !== null) {
+                c = voucherIdOrObj;
+            } else if (voucherIdOrObj && Array.isArray(window.allCashbookData)) {
+                c = window.allCashbookData.find(item => item.id === voucherIdOrObj || item.code === voucherIdOrObj);
+            } else {
+                c = currentViewedCashbookItem;
+            }
+            if (!c) {
+                if (window.showToast) window.showToast('Không tìm thấy thông tin phiếu thu chi!', 'error');
+                return;
+            }
             const isThu = c.type === 'in' || c.type === 'THU';
             const title = isThu ? 'PHIẾU THU TIỀN' : 'PHIẾU CHI TIỀN';
             const dateStr = c.created_at || new Date().toLocaleString('vi-VN');
@@ -1166,7 +1226,7 @@
                     <meta charset="utf-8">
                     <title>${title} - ${c.code}</title>
                     <style>
-                        @page { size: 80mm auto; margin: 0; }
+                        @page { size: auto; margin: 0mm; }
                         body { margin: 0; padding: 0; background: #fff; }
                     </style>
                 </head>
@@ -1183,6 +1243,139 @@
                     iframe.contentWindow.print();
                 } catch(e) {
                     console.error('Lỗi in phiếu thu chi:', e);
+                }
+            }, 300);
+        };
+
+        window.printCashbookVoucherA4 = function(voucherIdOrObj) {
+            let c = null;
+            if (typeof voucherIdOrObj === 'object' && voucherIdOrObj !== null) {
+                c = voucherIdOrObj;
+            } else if (voucherIdOrObj && Array.isArray(window.allCashbookData)) {
+                c = window.allCashbookData.find(item => item.id === voucherIdOrObj || item.code === voucherIdOrObj);
+            } else {
+                c = currentViewedCashbookItem;
+            }
+            if (!c) {
+                if (window.showToast) window.showToast('Không tìm thấy thông tin phiếu thu chi!', 'error');
+                return;
+            }
+
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const title = isThu ? 'PHIẾU THU' : 'PHIẾU CHI';
+            const formCode = isThu ? 'Mẫu số 01 - TT' : 'Mẫu số 02 - TT';
+            const dateObj = c.created_at ? new Date(c.created_at.replace(' ', 'T')) : new Date();
+            const day = isNaN(dateObj.getDate()) ? new Date().getDate() : dateObj.getDate();
+            const month = isNaN(dateObj.getMonth()) ? new Date().getMonth() + 1 : dateObj.getMonth() + 1;
+            const year = isNaN(dateObj.getFullYear()) ? new Date().getFullYear() : dateObj.getFullYear();
+
+            const company = window.companySettings || {};
+            const storeName = company.shop_name || company.app_name || 'PET CARE SYSTEM';
+            const storeAddr = company.shop_address || 'Nha Trang, Khánh Hòa';
+            const storePhone = company.shop_phone || '';
+
+            const words = window.numberToVietnameseWords(c.amount || 0);
+
+            const printHtml = `
+                <div style="width: 195mm; max-width: 195mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 13px; line-height: 1.45; color: #000; padding: 4mm;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div style="max-width: 60%;">
+                            <div style="font-weight: bold; text-transform: uppercase; font-size: 13px;">${storeName}</div>
+                            <div style="font-size: 11px;">Địa chỉ: ${storeAddr}</div>
+                            ${storePhone ? `<div style="font-size: 11px;">Điện thoại: ${storePhone}</div>` : ''}
+                        </div>
+                        <div style="text-align: right; font-size: 11px;">
+                            <div style="font-weight: bold;">${formCode}</div>
+                            <div style="font-style: italic; font-size: 10px;">(Ban hành theo TT số 133/2016/TT-BTC)</div>
+                            <div style="margin-top: 3px;">Quyển số: .....................</div>
+                            <div>Số: <strong style="font-family: monospace; font-size: 12px;">${c.code || '-'}</strong></div>
+                            <div>Nợ: ................. Có: .................</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-bottom: 16px;">
+                        <h1 style="margin: 0; font-size: 21px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">${title}</h1>
+                        <div style="font-style: italic; font-size: 12px; margin-top: 4px;">Ngày ${day} tháng ${month} năm ${year}</div>
+                    </div>
+
+                    <div style="margin-bottom: 15px; font-size: 13px; line-height: 1.85;">
+                        <div>- Họ và tên người ${isThu ? 'nộp tiền' : 'nhận tiền'}: <strong style="font-size: 13.5px;">${c.contact_name || 'Khách lẻ / Nội bộ'}</strong>${c.contact_phone ? ` (SĐT: ${c.contact_phone})` : ''}</div>
+                        <div>- Địa chỉ / Bộ phận: ................................................................................................................................................</div>
+                        <div>- Lý do ${isThu ? 'nộp' : 'chi'}: <strong>${c.category || ''}</strong> - ${c.note || '(Không có ghi chú)'}</div>
+                        <div>- Số tiền: <strong style="font-size: 15px; font-family: monospace;">${formatMoney(c.amount || 0)}</strong> (Viết bằng chữ): <strong style="font-style: italic;">${words}</strong></div>
+                        <div>- Kèm theo: Chứng từ gốc số ......................................................................................................................................</div>
+                        <div>- Tài khoản / Két: <strong>${c.account_name || 'Két tiền mặt'}</strong></div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; text-align: center; font-size: 12px; margin-top: 15px; page-break-inside: avoid;">
+                        <div style="width: 24%;">
+                            <div style="font-weight: bold;">Giám đốc</div>
+                            <div style="font-style: italic; font-size: 10px;">(Ký, họ tên, đóng dấu)</div>
+                            <div style="height: 55px;"></div>
+                        </div>
+                        <div style="width: 24%;">
+                            <div style="font-weight: bold;">Kế toán trưởng</div>
+                            <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                            <div style="height: 55px;"></div>
+                        </div>
+                        <div style="width: 24%;">
+                            <div style="font-weight: bold;">Người ${isThu ? 'nộp tiền' : 'nhận tiền'}</div>
+                            <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                            <div style="height: 55px;"></div>
+                        </div>
+                        <div style="width: 24%;">
+                            <div style="font-weight: bold;">Thủ quỹ</div>
+                            <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                            <div style="height: 55px;"></div>
+                        </div>
+                    </div>
+
+                    <div style="font-style: italic; font-size: 11px; margin-top: 10px; border-top: 1px dotted #ccc; padding-top: 5px;">
+                        * Đã nhận đủ số tiền (viết bằng chữ): ${words}
+                    </div>
+                </div>
+            `;
+
+            let iframe = document.getElementById('iframe-cashbook-print-a4');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'iframe-cashbook-print-a4';
+                iframe.style.position = 'fixed';
+                iframe.style.left = '-9999px';
+                iframe.style.top = '-9999px';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                document.body.appendChild(iframe);
+            }
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>${title} - ${c.code}</title>
+                    <style>
+                        @page { size: A5 landscape; margin: 6mm 8mm; }
+                        @media print {
+                            html, body { margin: 0; padding: 0; background: #fff; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${printHtml}
+                </body>
+                </html>
+            `);
+            doc.close();
+
+            setTimeout(() => {
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch(e) {
+                    console.error('Lỗi in phiếu thu chi A4:', e);
                 }
             }, 300);
         };
@@ -5956,4 +6149,6 @@
         window.closeModalPetServiceView = closeModalPetServiceView;
         window.printCurrentViewedPetTicket = printCurrentViewedPetTicket;
         window.printCurrentCashbookVoucher = printCurrentCashbookVoucher;
+        window.printCashbookVoucherA4 = printCashbookVoucherA4;
+        window.numberToVietnameseWords = numberToVietnameseWords;
 

@@ -905,9 +905,12 @@
                             <td class="p-2.5 text-right font-medium">${(a.items_count || 0).toLocaleString('vi-VN')} món</td>
                             <td class="p-2.5 text-right ${diffColor}">${diffPrefix}${(a.total_diff || 0).toLocaleString('vi-VN')}</td>
                             <td class="p-2.5 text-gray-500">${a.note || '-'}</td>
-                            <td class="p-2.5 text-center">
+                            <td class="p-2.5 text-center flex items-center justify-center gap-1">
                                 <button onclick="viewAuditDetail(${a.id})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[11px] font-bold">
                                     👁️ Xem
+                                </button>
+                                <button onclick="printStockAuditA4(${a.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="In Phiếu Kiểm Kê A4">
+                                    🖨️ In
                                 </button>
                             </td>
                         </tr>
@@ -918,7 +921,10 @@
             }
         }
 
+        let currentViewedAuditId = null;
+
         async function viewAuditDetail(auditId) {
+            currentViewedAuditId = auditId;
             const modal = document.getElementById('modal-audit-detail');
             modal.classList.remove('hidden');
             const tbody = document.getElementById('view-audit-items');
@@ -950,6 +956,166 @@
                 }).join('');
             } catch (e) {
                 console.error("viewAuditDetail error:", e);
+            }
+        }
+
+        async function printStockAuditA4(auditId) {
+            const id = auditId || currentViewedAuditId;
+            if (!id) {
+                if (window.showToast) window.showToast("Không tìm thấy thông tin phiếu kiểm kê!", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/inventory/audits/${id}`);
+                if (!res.ok) throw new Error("Không thể tải chi tiết phiếu kiểm");
+                const data = await res.json();
+
+                const company = window.companySettings || {};
+                const storeName = company.shop_name || company.app_name || 'HỆ THỐNG PET CARE';
+                const storeAddr = company.shop_address || 'Nha Trang, Khánh Hòa';
+                const storePhone = company.shop_phone || '';
+
+                const items = data.items || [];
+                let totalSys = 0;
+                let totalAct = 0;
+                let totalDiffPos = 0;
+                let totalDiffNeg = 0;
+
+                const rowsHtml = items.map((it, idx) => {
+                    totalSys += (it.system_qty || 0);
+                    totalAct += (it.actual_qty || 0);
+                    const diff = (it.diff_qty || 0);
+                    if (diff > 0) totalDiffPos += diff;
+                    else if (diff < 0) totalDiffNeg += Math.abs(diff);
+
+                    const diffStr = diff > 0 ? `+${diff.toLocaleString('vi-VN')}` : diff.toLocaleString('vi-VN');
+
+                    return `
+                        <tr>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 4px;">${idx + 1}</td>
+                            <td style="font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #000; padding: 4px;">${it.code || '-'}</td>
+                            <td style="font-weight: bold; font-size: 12px; border: 1px solid #000; padding: 4px;">${it.name}</td>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 4px;">${it.unit || 'cái'}</td>
+                            <td style="text-align: right; font-family: monospace; font-size: 12px; border: 1px solid #000; padding: 4px;">${(it.system_qty || 0).toLocaleString('vi-VN')}</td>
+                            <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: bold; border: 1px solid #000; padding: 4px;">${(it.actual_qty || 0).toLocaleString('vi-VN')}</td>
+                            <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: bold; border: 1px solid #000; padding: 4px;">${diffStr}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const printHtml = `
+                    <div style="width: 190mm; max-width: 190mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 12px; line-height: 1.4; color: #000; padding: 4mm;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="max-width: 65%;">
+                                <div style="font-weight: bold; text-transform: uppercase; font-size: 13px;">${storeName}</div>
+                                <div style="font-size: 11px;">Địa chỉ: ${storeAddr}</div>
+                                ${storePhone ? `<div style="font-size: 11px;">Điện thoại: ${storePhone}</div>` : ''}
+                            </div>
+                            <div style="text-align: right; font-size: 11px;">
+                                <div>Mã phiếu: <strong style="font-family: monospace; font-size: 13px;">${data.audit_code || '-'}</strong></div>
+                                <div>Ngày kiểm: ${data.created_at || '-'}</div>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; margin-bottom: 14px;">
+                            <h1 style="margin: 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">PHIẾU KIỂM KÊ KHO HÀNG</h1>
+                            <div style="font-style: italic; font-size: 12px; margin-top: 4px;">Kho kiểm: <strong>${data.warehouse_name || 'Kho'}</strong> | Ghi chú: ${data.note || 'Không có'}</div>
+                        </div>
+
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <thead>
+                                <tr style="background: #f0f0f0;">
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 35px; text-align: center;">STT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 85px; text-align: left;">Mã SKU</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; text-align: left;">Tên Mặt Hàng / Vật Tư</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 50px; text-align: center;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 75px; text-align: right;">Tồn HT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 75px; text-align: right;">Tồn Thực</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 75px; text-align: right;">Lệch (+/-)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                                <tr style="font-weight: bold; background: #fafafa;">
+                                    <td colspan="4" style="border: 1px solid #000; padding: 6px; text-align: right;">Tổng cộng (${items.length} mặt hàng):</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: right; font-family: monospace;">${totalSys.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: right; font-family: monospace;">${totalAct.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: right; font-family: monospace;">
+                                        ${totalDiffPos > 0 ? `+${totalDiffPos.toLocaleString('vi-VN')}` : ''}${totalDiffNeg > 0 ? ` / -${totalDiffNeg.toLocaleString('vi-VN')}` : ''}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 12px; margin-top: 25px; page-break-inside: avoid;">
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Trưởng Ban Kiểm Kê</div>
+                                <div style="font-style: italic; font-size: 10.5px;">(Ký, họ tên)</div>
+                                <div style="height: 60px;"></div>
+                            </div>
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Thủ Kho</div>
+                                <div style="font-style: italic; font-size: 10.5px;">(Ký, họ tên)</div>
+                                <div style="height: 60px;"></div>
+                            </div>
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Kế Toán Kho</div>
+                                <div style="font-style: italic; font-size: 10.5px;">(Ký, họ tên)</div>
+                                <div style="height: 60px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                let iframe = document.getElementById('iframe-stock-audit-print');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'iframe-stock-audit-print';
+                    iframe.style.position = 'fixed';
+                    iframe.style.left = '-9999px';
+                    iframe.style.top = '-9999px';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    document.body.appendChild(iframe);
+                }
+
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Phiếu Kiểm Kê - ${data.audit_code}</title>
+                        <style>
+                            @page { size: A4 portrait; margin: 8mm 10mm; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #000; padding: 5px; }
+                            @media print {
+                                html, body { margin: 0; padding: 0; background: #fff; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${printHtml}
+                    </body>
+                    </html>
+                `);
+                doc.close();
+
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch(e) {
+                        console.error('Lỗi in phiếu kiểm kê:', e);
+                    }
+                }, 300);
+
+            } catch (err) {
+                console.error("printStockAuditA4 error:", err);
+                if (window.showToast) window.showToast("Không thể in phiếu kiểm kê!", "error");
             }
         }
 

@@ -4727,7 +4727,10 @@
                             <tbody id="view-audit-items"></tbody>
                         </table>
                     </div>
-                    <div class="flex justify-end pt-2 border-t">
+                    <div class="flex justify-between items-center pt-2 border-t">
+                        <button onclick="printStockAuditA4()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium flex items-center gap-1.5 shadow-sm text-xs transition">
+                            <span>🖨️</span> <span>In Phiếu Kiểm Kê (A4)</span>
+                        </button>
                         <button onclick="closeModalAuditDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
                     </div>
                 </div>
@@ -7967,9 +7970,14 @@
 
         <!-- Footer -->
         <div class="p-3 border-t bg-slate-50/90 flex justify-between items-center gap-2">
-            <button type="button" onclick="printCurrentCashbookVoucher()" class="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition">
-                <span>🖨️</span> <span>In Phiếu Thu/Chi (K80)</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="printCurrentCashbookVoucher()" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition" title="In phiếu in nhiệt K80">
+                    <span>🖨️</span> <span>In K80</span>
+                </button>
+                <button type="button" onclick="printCashbookVoucherA4()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition" title="In mẫu chứng từ A4/A5 kế toán">
+                    <span>📄</span> <span>In A4/A5 Kế Toán</span>
+                </button>
+            </div>
             <button type="button" onclick="closeCashbookDrawer()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs transition">
                 Đóng
             </button>
