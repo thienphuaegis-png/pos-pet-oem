@@ -3256,11 +3256,29 @@
             shop_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 10, bold: false, align: "left", w: 580 },
             shop_phone: { zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 10, bold: false, align: "left", w: 250 },
             title: { zone: "header", type: "text", text: "HÓA ĐƠN BÁN HÀNG", label: "Tiêu Đề", fsz: 18, bold: true, align: "center", w: 734 },
-            order_code: { zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", fsz: 10, bold: false, align: "left", w: 250 },
+            order_code: { zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn / Mã Phiếu", fsz: 10, bold: false, align: "left", w: 250 },
             datetime: { zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", fsz: 10, bold: false, align: "right", w: 250 },
-            staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân", fsz: 10, bold: false, align: "right", w: 250 },
-            customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng", fsz: 10, bold: false, align: "left", w: 450 },
+            staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân / Người Lập", fsz: 10, bold: false, align: "right", w: 250 },
+            customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng / Đối Tác", fsz: 10, bold: false, align: "left", w: 450 },
             customer_phone: { zone: "header", type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 10, bold: false, align: "left", w: 200 },
+            // Pet Spa
+            pet_info: { zone: "header", type: "text", text: "🐾 Bé: {{ten_thu_cung}} - {{giong_loai}} ({{can_nang}}kg)", label: "Thông Tin Thú Cưng", fsz: 11, bold: true, align: "left", w: 580 },
+            intake_condition: { zone: "header", type: "text", text: "Tình trạng nhận: {{tinh_trang_tiep_nhan}}", label: "Tình Trạng Tiếp Nhận", fsz: 10, bold: false, align: "left", w: 580 },
+            return_time: { zone: "footer", type: "text", text: "HẸN TRẢ: {{gio_hen_tra}}", label: "Giờ Hẹn Trả Bé", fsz: 12, bold: true, align: "center", w: 300 },
+            pet_signature: { zone: "footer", type: "text", text: "(Chữ ký khách gửi bé)", label: "Chữ Ký Gửi Bé", fsz: 10, italic: true, align: "center", w: 250 },
+            // Cashbook (Sổ Quỹ)
+            cashbook_category: { zone: "header", type: "text", text: "Hạng mục: {{hang_muc}}", label: "Hạng Mục Thu/Chi", fsz: 10, bold: false, align: "left", w: 450 },
+            cashbook_fund: { zone: "header", type: "text", text: "Két / Quỹ: {{tai_khoan_quy}}", label: "Quỹ / Tài Khoản", fsz: 10, bold: false, align: "left", w: 450 },
+            cashbook_amount: { zone: "body", type: "text", text: "SỐ TIỀN: {{so_tien}}", label: "Số Tiền Thu/Chi", fsz: 16, bold: true, align: "center", w: 500 },
+            cashbook_reason: { zone: "body", type: "text", text: "Diễn giải: {{dien_giai}}", label: "Diễn Giải Thu/Chi", fsz: 11, italic: true, align: "left", w: 650 },
+            signatures_cashbook: { zone: "footer", type: "signatures_cashbook", label: "2 Chữ Ký Nộp/Nhận - Lập Phiếu", w: 734, h: 80 },
+            signatures_accounting_4col: { zone: "footer", type: "signatures_accounting_4col", label: "4 Chữ Ký Kế Toán (GĐ - KTT - Nộp/Nhận - Thủ quỹ)", w: 734, h: 90 },
+            // Stock Audit (Kiểm Kê Kho)
+            audit_warehouse: { zone: "header", type: "text", text: "Kho kiểm kê: {{kho_kiem_ke}}", label: "Kho Kiểm Kê", fsz: 11, bold: true, align: "left", w: 450 },
+            table_audit: { zone: "body", type: "table_audit", label: "Bảng 7 Cột Kiểm Kê Kho", w: 734, fsz: 10 },
+            audit_summary: { zone: "footer", type: "text", text: "Tổng kiểm: {{tong_mon_kiem}} món | Lệch thừa: {{lech_thua}} | Lệch thiếu: {{lech_thieu}}", label: "Tổng Kết Kiểm Kê", fsz: 11, bold: true, align: "right", w: 650 },
+            signatures_audit: { zone: "footer", type: "signatures_audit", label: "3 Chữ Ký Ban Kiểm Kê", w: 734, h: 85 },
+            // Bảng & Thanh toán
             table: { zone: "body", type: "table", label: "Bảng Danh Sách Món (4 Cột)", w: 734, fsz: 11, border: "dashed" },
             table_b2b: { zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", w: 734, fsz: 10 },
             b2b_footer_boxes: { zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", w: 734, h: 140 },
@@ -3301,93 +3319,94 @@
 
         function getSpaIntakeElementsK80() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
-                { id: "e2", zone: "header", type: "text", text: "PHIẾU TIẾP NHẬN THÚ CƯNG", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 13, bold: true, align: "center" },
-                { id: "e3", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} | Giờ: {{ngay_gio}}", label: "Mã & Giờ Nhận", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Khách: {{ten_khach}} - {{sdt_khach}}", label: "Khách Hàng", x: 10, y: 72, w: 270, fsz: 11, bold: true, align: "left" },
-                { id: "e5", zone: "header", type: "text", text: "Bé: Cún (Poodle) - Cân nặng: 4.5 kg", label: "Thông Tin Bé", x: 10, y: 92, w: 270, fsz: 11, bold: true, align: "left" },
-                { id: "e6", zone: "header", type: "text", text: "Tình trạng nhận: Lông rối nhẹ, ve rận (-)", label: "Tình Trạng", x: 10, y: 112, w: 270, fsz: 10, bold: false, align: "left" },
-                { id: "e7", zone: "body", type: "table", label: "Dịch Vụ Yêu Cầu", x: 10, y: 135, w: 270, fsz: 10 },
-                { id: "e8", zone: "footer", type: "text", text: "HẸN TRẢ: 16:30 Hôm Nay", label: "Giờ Hẹn Trả", x: 10, y: 200, w: 270, fsz: 12, bold: true, align: "center" },
-                { id: "e9", zone: "footer", type: "text", text: "Quý khách vui lòng kiểm tra bé trước khi rời quầy!", label: "Lưu Ý", x: 10, y: 222, w: 270, fsz: 9.5, italic: true, align: "center" },
-                { id: "e10", zone: "footer", type: "text", text: "(Chữ ký khách gửi bé)", label: "Ký Tên", x: 10, y: 250, w: 270, fsz: 10, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU TIẾP NHẬN THÚ CƯNG", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 13, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} | Giờ: {{ngay_gio}}", label: "Mã & Giờ Nhận", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Khách: {{ten_khach}} - {{sdt_khach}}", label: "Khách Hàng", x: 10, y: 72, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", catalog_key: "pet_info", zone: "header", type: "text", text: "Bé: {{ten_thu_cung}} ({{giong_loai}}) - {{can_nang}}kg", label: "Thông Tin Thú Cưng", x: 10, y: 92, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e6", catalog_key: "intake_condition", zone: "header", type: "text", text: "Tình trạng nhận: {{tinh_trang_tiep_nhan}}", label: "Tình Trạng Tiếp Nhận", x: 10, y: 112, w: 270, fsz: 10, bold: false, align: "left" },
+                { id: "e7", catalog_key: "table", zone: "body", type: "table", label: "Dịch Vụ Yêu Cầu", x: 10, y: 135, w: 270, fsz: 10 },
+                { id: "e8", catalog_key: "return_time", zone: "footer", type: "text", text: "HẸN TRẢ: {{gio_hen_tra}}", label: "Giờ Hẹn Trả Bé", x: 10, y: 200, w: 270, fsz: 12, bold: true, align: "center" },
+                { id: "e9", catalog_key: "footer_msg", zone: "footer", type: "text", text: "Quý khách vui lòng kiểm tra bé trước khi rời quầy!", label: "Lời Cảm Ơn", x: 10, y: 225, w: 270, fsz: 9.5, italic: true, align: "center" },
+                { id: "e10", catalog_key: "pet_signature", zone: "footer", type: "text", text: "(Chữ ký khách gửi bé)", label: "Chữ Ký Gửi Bé", x: 10, y: 255, w: 270, fsz: 10, align: "center" }
             ];
         }
 
         function getSpaInvoiceElementsK80() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
-                { id: "e2", zone: "header", type: "text", text: "HÓA ĐƠN DỊCH VỤ SPA", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 14, bold: true, align: "center" },
-                { id: "e3", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã & Ngày", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Khách: {{ten_khach}} (Bé: Lu - Poodle 4.5kg)", label: "Khách & Bé", x: 10, y: 72, w: 270, fsz: 10.5, bold: true, align: "left" },
-                { id: "e5", zone: "body", type: "table", label: "Bảng Dịch Vụ & Phụ Phí", x: 10, y: 95, w: 270, fsz: 10 },
-                { id: "e6", zone: "footer", type: "text", text: "Tổng chi phí: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 170, w: 270, fsz: 11, bold: false, align: "right" },
-                { id: "e7", zone: "footer", type: "text", text: "Giảm giá / Ưu đãi: -{{giam_gia}}", label: "Giảm Giá", x: 10, y: 188, w: 270, fsz: 10.5, bold: false, align: "right" },
-                { id: "e8", zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 208, w: 270, fsz: 13, bold: true, align: "right" },
-                { id: "e9", zone: "footer", type: "qr", label: "QR Chuyển Khoản", x: 75, y: 235, w: 130, h: 130 },
-                { id: "e10", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 380, w: 270, fsz: 10, italic: true, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "HÓA ĐƠN DỊCH VỤ SPA", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã & Ngày", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Khách: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 10, y: 72, w: 270, fsz: 10.5, bold: true, align: "left" },
+                { id: "e5", catalog_key: "pet_info", zone: "header", type: "text", text: "Bé: {{ten_thu_cung}} - {{giong_loai}} ({{can_nang}}kg)", label: "Thông Tin Thú Cưng", x: 10, y: 90, w: 270, fsz: 10, bold: false, align: "left" },
+                { id: "e6", catalog_key: "table", zone: "body", type: "table", label: "Bảng Dịch Vụ & Phụ Phí", x: 10, y: 115, w: 270, fsz: 10 },
+                { id: "e7", catalog_key: "total", zone: "footer", type: "text", text: "Tổng chi phí: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 185, w: 270, fsz: 11, bold: false, align: "right" },
+                { id: "e8", catalog_key: "discount", zone: "footer", type: "text", text: "Giảm giá / Ưu đãi: -{{giam_gia}}", label: "Giảm Giá", x: 10, y: 205, w: 270, fsz: 10.5, bold: false, align: "right" },
+                { id: "e9", catalog_key: "final", zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 228, w: 270, fsz: 13, bold: true, align: "right" },
+                { id: "e10", catalog_key: "qr", zone: "footer", type: "qr", label: "QR Chuyển Khoản", x: 75, y: 255, w: 130, h: 130 },
+                { id: "e11", catalog_key: "footer_msg", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 400, w: 270, fsz: 10, italic: true, align: "center" }
             ];
         }
 
         function getCashbookThuElementsK80() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
-                { id: "e2", zone: "header", type: "text", text: "PHIẾU THU TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
-                { id: "e3", zone: "header", type: "text", text: "Mã: PT-2609-001 | Ngày: {{ngay_gio}}", label: "Mã Phiếu Thu", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Người nộp: {{ten_khach}} ({{sdt_khach}})", label: "Người Nộp", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
-                { id: "e5", zone: "header", type: "text", text: "Hạng mục: Thu tiền bán lẻ / Nạp ví", label: "Hạng Mục", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
-                { id: "e6", zone: "header", type: "text", text: "Két / Tài khoản: Két Tiền Mặt [Cty]", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
-                { id: "e7", zone: "body", type: "text", text: "SỐ TIỀN THỰC THU: {{phai_tra}}", label: "Số Tiền", x: 10, y: 140, w: 270, fsz: 16, bold: true, align: "center" },
-                { id: "e8", zone: "body", type: "text", text: "Diễn giải: Thu tiền khách thanh toán đơn hàng", label: "Diễn Giải", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
-                { id: "e9", zone: "footer", type: "text", text: "Người Nộp Tiền                Người Lập Phiếu\n(Ký & họ tên)                  (Ký & họ tên)", label: "Chữ Ký", x: 10, y: 215, w: 270, fsz: 10, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU THU TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Mã: {{ma_phieu}} | Ngày: {{ngay_gio}}", label: "Mã Phiếu Thu", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Người nộp: {{ten_khach}} ({{sdt_khach}})", label: "Người Nộp", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", catalog_key: "cashbook_category", zone: "header", type: "text", text: "Hạng mục: {{hang_muc}}", label: "Hạng Mục Thu/Chi", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
+                { id: "e6", catalog_key: "cashbook_fund", zone: "header", type: "text", text: "Két / Quỹ: {{tai_khoan_quy}}", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
+                { id: "e7", catalog_key: "cashbook_amount", zone: "body", type: "text", text: "SỐ TIỀN THỰC THU: {{so_tien}}", label: "Số Tiền Thu/Chi", x: 10, y: 140, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e8", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "Diễn giải: {{dien_giai}}", label: "Diễn Giải Thu/Chi", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
+                { id: "e9", catalog_key: "signatures_cashbook", zone: "footer", type: "signatures_cashbook", label: "2 Chữ Ký Nộp/Nhận - Lập Phiếu", x: 10, y: 215, w: 270, h: 80 }
             ];
         }
 
         function getCashbookThuElementsA4() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
-                { id: "e2", zone: "header", type: "text", text: "Mẫu số 01 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ................\nSố: PT-2609-001\nNợ: ............. Có: .............", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
-                { id: "e3", zone: "header", type: "text", text: "PHIẾU THU", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
-                { id: "e5", zone: "body", type: "text", text: "- Họ và tên người nộp tiền: {{ten_khach}} ({{sdt_khach}})\n- Địa chỉ / Bộ phận: Nha Trang, Khánh Hòa\n- Lý do nộp: Thu tiền thanh toán đơn hàng\n- Số tiền: {{phai_tra}} (Viết bằng chữ: Năm trăm nghìn đồng chẵn)\n- Kèm theo: Chứng từ gốc số: HD2609...\n- Nhập quỹ / Két: Két Tiền Mặt Công Ty", label: "Nội Dung Thu Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
-                { id: "e6", zone: "footer", type: "text", text: "Giám đốc                Kế toán trưởng                Người nộp tiền                Thủ quỹ\n(Ký, đóng dấu)             (Ký, họ tên)                  (Ký, họ tên)              (Ký, họ tên)", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, fsz: 11, bold: true, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", catalog_key: "order_code", zone: "header", type: "text", text: "Mẫu số 01 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
+                { id: "e3", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU THU", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
+                { id: "e4", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
+                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nộp tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do nộp: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}}\n- Nhập quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Thu Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e6", catalog_key: "signatures_accounting_4col", zone: "footer", type: "signatures_accounting_4col", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, h: 90 }
             ];
         }
 
         function getCashbookChiElementsK80() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
-                { id: "e2", zone: "header", type: "text", text: "PHIẾU CHI TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
-                { id: "e3", zone: "header", type: "text", text: "Mã: PC-2609-001 | Ngày: {{ngay_gio}}", label: "Mã Phiếu Chi", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Người nhận: {{ten_khach}} ({{sdt_khach}})", label: "Người Nhận", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
-                { id: "e5", zone: "header", type: "text", text: "Hạng mục: Mua vật tư / Chi phí vận hành", label: "Hạng Mục", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
-                { id: "e6", zone: "header", type: "text", text: "Két / Tài khoản: Két Tiền Mặt [Cty]", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
-                { id: "e7", zone: "body", type: "text", text: "SỐ TIỀN THỰC CHI: {{phai_tra}}", label: "Số Tiền", x: 10, y: 140, w: 270, fsz: 16, bold: true, align: "center" },
-                { id: "e8", zone: "body", type: "text", text: "Diễn giải: Chi trả tiền hàng / Chi tiêu nội bộ", label: "Diễn Giải", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
-                { id: "e9", zone: "footer", type: "text", text: "Người Nhận Tiền                Người Lập Phiếu\n(Ký & họ tên)                  (Ký & họ tên)", label: "Chữ Ký", x: 10, y: 215, w: 270, fsz: 10, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU CHI TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Mã: {{ma_phieu}} | Ngày: {{ngay_gio}}", label: "Mã Phiếu Chi", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Người nhận: {{ten_khach}} ({{sdt_khach}})", label: "Người Nhận", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", catalog_key: "cashbook_category", zone: "header", type: "text", text: "Hạng mục: {{hang_muc}}", label: "Hạng Mục Thu/Chi", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
+                { id: "e6", catalog_key: "cashbook_fund", zone: "header", type: "text", text: "Két / Quỹ: {{tai_khoan_quy}}", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
+                { id: "e7", catalog_key: "cashbook_amount", zone: "body", type: "text", text: "SỐ TIỀN THỰC CHI: {{so_tien}}", label: "Số Tiền Thu/Chi", x: 10, y: 140, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e8", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "Diễn giải: {{dien_giai}}", label: "Diễn Giải Thu/Chi", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
+                { id: "e9", catalog_key: "signatures_cashbook", zone: "footer", type: "signatures_cashbook", label: "2 Chữ Ký Nộp/Nhận - Lập Phiếu", x: 10, y: 215, w: 270, h: 80 }
             ];
         }
 
         function getCashbookChiElementsA4() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
-                { id: "e2", zone: "header", type: "text", text: "Mẫu số 02 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ................\nSố: PC-2609-001\nNợ: ............. Có: .............", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
-                { id: "e3", zone: "header", type: "text", text: "PHIẾU CHI", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
-                { id: "e5", zone: "body", type: "text", text: "- Họ và tên người nhận tiền: {{ten_khach}} ({{sdt_khach}})\n- Địa chỉ / Bộ phận: Nha Trang, Khánh Hòa\n- Lý do chi: Thanh toán tiền mua hàng hóa / dịch vụ\n- Số tiền: {{phai_tra}} (Viết bằng chữ: Năm trăm nghìn đồng chẵn)\n- Kèm theo: Chứng từ gốc số: PO2609...\n- Xuất quỹ / Két: Két Tiền Mặt Công Ty", label: "Nội Dung Chi Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
-                { id: "e6", zone: "footer", type: "text", text: "Giám đốc                Kế toán trưởng                Người nhận tiền                Thủ quỹ\n(Ký, đóng dấu)             (Ký, họ tên)                  (Ký, họ tên)              (Ký, họ tên)", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, fsz: 11, bold: true, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", catalog_key: "order_code", zone: "header", type: "text", text: "Mẫu số 02 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
+                { id: "e3", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU CHI", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
+                { id: "e4", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
+                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nhận tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do chi: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}}\n- Xuất quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Chi Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e6", catalog_key: "signatures_accounting_4col", zone: "footer", type: "signatures_accounting_4col", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, h: 90 }
             ];
         }
 
         function getStockAuditElementsA4() {
             return [
-                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}", label: "Tên Doanh Nghiệp", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
-                { id: "e2", zone: "header", type: "text", text: "Mã phiếu: KK2609-001\nNgày kiểm: {{ngay_gio}}", label: "Mã & Ngày", x: 440, y: 20, w: 240, fsz: 10.5, align: "right" },
-                { id: "e3", zone: "header", type: "text", text: "PHIẾU KIỂM KÊ KHO HÀNG", label: "Tiêu Đề", x: 150, y: 80, w: 380, fsz: 18, bold: true, align: "center" },
-                { id: "e4", zone: "header", type: "text", text: "Kho kiểm kê: Kho Tổng Nha Trang | Ghi chú: Kiểm kê định kỳ cuối tháng", label: "Kho & Ghi Chú", x: 30, y: 115, w: 650, fsz: 11, italic: true, align: "center" },
-                { id: "e5", zone: "body", type: "table", label: "Bảng 7 Cột Kiểm Kê Kho", x: 30, y: 145, w: 650, fsz: 10.5 },
-                { id: "e6", zone: "footer", type: "text", text: "Tổng số mặt hàng đã kiểm: 3 món | Tổng lệch thừa: 0 | Tổng lệch thiếu: 0", label: "Tổng Kết Kiểm Kê", x: 30, y: 240, w: 650, fsz: 11, bold: true, align: "right" },
-                { id: "e7", zone: "footer", type: "text", text: "Trưởng Ban Kiểm Kê                          Thủ Kho                          Kế Toán Kho\n    (Ký & họ tên)                          (Ký & họ tên)                     (Ký & họ tên)", label: "3 Chữ Ký Trách Nhiệm", x: 30, y: 285, w: 650, fsz: 11, bold: true, align: "center" }
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}", label: "Tên Doanh Nghiệp", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", catalog_key: "order_code", zone: "header", type: "text", text: "Mã phiếu: {{ma_phieu}}\nNgày kiểm: {{ngay_gio}}", label: "Mã & Ngày", x: 440, y: 20, w: 260, fsz: 10.5, align: "right" },
+                { id: "e3", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU KIỂM KÊ KHO HÀNG", label: "Tiêu Đề", x: 30, y: 80, w: 674, fsz: 18, bold: true, align: "center" },
+                { id: "e4", catalog_key: "audit_warehouse", zone: "header", type: "text", text: "Kho kiểm kê: {{kho_kiem_ke}} | Đợt kiểm: Định kỳ cuối tháng", label: "Kho Kiểm Kê", x: 30, y: 115, w: 674, fsz: 11, italic: true, align: "center" },
+                { id: "e5", catalog_key: "table_audit", zone: "body", type: "table_audit", label: "Bảng 7 Cột Kiểm Kê Kho", x: 30, y: 145, w: 674, fsz: 10.5 },
+                { id: "e6", catalog_key: "audit_summary", zone: "footer", type: "text", text: "Tổng số mặt hàng đã kiểm: {{tong_mon_kiem}} món | Lệch thừa: {{lech_thua}} | Lệch thiếu: {{lech_thieu}}", label: "Tổng Kết Kiểm Kê", x: 30, y: 240, w: 674, fsz: 11, bold: true, align: "right" },
+                { id: "e7", catalog_key: "signatures_audit", zone: "footer", type: "signatures_audit", label: "3 Chữ Ký Ban Kiểm Kê", x: 30, y: 285, w: 674, h: 85 }
             ];
         }
 
@@ -3473,24 +3492,51 @@
         }
 
         function switchPreset(presetKey) {
-            if (!multiTemplates.presets || !multiTemplates.presets[presetKey]) return;
+            if (!multiTemplates.presets) {
+                multiTemplates.presets = getDefaultPresets();
+            }
+            if (!multiTemplates.presets[presetKey]) {
+                const def = getDefaultPresets();
+                if (def[presetKey]) {
+                    multiTemplates.presets[presetKey] = def[presetKey];
+                } else {
+                    return;
+                }
+            }
             multiTemplates.active_preset = presetKey;
             const preset = multiTemplates.presets[presetKey];
             paperSize = preset.paper_size || "A4-portrait";
-            document.getElementById('canvas-paper-size').value = paperSize;
-            canvasElements = JSON.parse(JSON.stringify(preset.elements));
+            window.paperSize = paperSize;
+            const sizeSel = document.getElementById('canvas-paper-size');
+            if (sizeSel) sizeSel.value = paperSize;
+            let elems = preset.elements;
+            if (!elems || elems.length === 0) {
+                const def = getDefaultPresets();
+                if (def[presetKey] && def[presetKey].elements) {
+                    elems = def[presetKey].elements;
+                    preset.elements = JSON.parse(JSON.stringify(elems));
+                }
+            }
+            canvasElements = JSON.parse(JSON.stringify(elems || []));
+            window.canvasElements = canvasElements;
             selectedElementId = null;
 
             const canvas = document.getElementById('paper-canvas');
             const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
-            canvas.style.width = dim.width;
-            canvas.style.minHeight = dim.height;
+            if (canvas) {
+                canvas.style.width = dim.width;
+                canvas.style.minHeight = dim.height;
+            }
 
             renderCanvas();
             renderPropsPanel();
             updateSidebarCheckboxes();
             updateCanvasBadge();
-            if (paperSize.includes('landscape')) setCanvasZoom('fit');
+            if (paperSize.startsWith('A4') || paperSize.startsWith('A5')) {
+                setTimeout(() => setCanvasZoom('fit'), 50);
+            } else {
+                setCanvasZoom(1.0);
+            }
         }
 
         async function saveCurrentPreset() {
@@ -3577,6 +3623,33 @@
             renderPresetSelect();
             switchPreset("a4_b2b");
             alert(`Đã xóa mẫu "${name}" thành công!`);
+        }
+
+        async function renameCurrentPreset() {
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            if (!multiTemplates.presets || !multiTemplates.presets[curKey]) {
+                alert("Không tìm thấy mẫu in đang chọn!");
+                return;
+            }
+            const p = multiTemplates.presets[curKey];
+            const newName = prompt("Nhập tên mới cho mẫu in:", p.name);
+            if (!newName || !newName.trim()) return;
+            p.name = newName.trim();
+
+            const payload = {
+                print_blocks_config: JSON.stringify(multiTemplates)
+            };
+            const res = await fetch('/api/settings/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                renderPresetSelect();
+                alert(`Đã đổi tên mẫu thành: "${p.name}"!`);
+            } else {
+                alert('Lỗi khi đổi tên mẫu!');
+            }
         }
 
         function toggleTableMode(mode) {
@@ -3697,6 +3770,10 @@
             const keys = [
                 'logo', 'shop_name', 'shop_address', 'shop_phone', 'title',
                 'order_code', 'datetime', 'staff', 'customer', 'customer_phone',
+                'pet_info', 'intake_condition', 'return_time', 'pet_signature',
+                'cashbook_category', 'cashbook_fund', 'cashbook_amount', 'cashbook_reason',
+                'signatures_cashbook', 'signatures_accounting_4col',
+                'audit_warehouse', 'audit_summary', 'signatures_audit',
                 'b2b_footer_boxes', 'signatures_3col',
                 'total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'
             ];
@@ -3718,11 +3795,11 @@
 
             const chkB2B = document.getElementById('chk-table_b2b');
             const chkStd = document.getElementById('chk-table');
+            const chkAudit = document.getElementById('chk-table_audit');
             if (chkB2B && chkStd) {
-                const hasB2B = canvasElements.some(e => e.type === 'table_b2b');
-                const hasStd = canvasElements.some(e => e.type === 'table');
-                chkB2B.checked = hasB2B;
-                chkStd.checked = hasStd;
+                chkB2B.checked = canvasElements.some(e => e.type === 'table_b2b');
+                chkStd.checked = canvasElements.some(e => e.type === 'table');
+                if (chkAudit) chkAudit.checked = canvasElements.some(e => e.type === 'table_audit');
             }
         }
 
@@ -3973,12 +4050,16 @@
 
         function renderCanvas() {
             const canvas = document.getElementById('paper-canvas');
+            if (!canvas) return;
+            const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+            const maxThermalW = paperSize.includes('K80') ? 270 : 195;
             const mockData = {
-                ten_cua_hang: currentSettings.shop_name || "CỬA HÀNG THỜI TRANG & DỊCH VỤ",
-                dia_chi: currentSettings.shop_address || "123 Đường ABC, Quận 1",
+                ten_cua_hang: currentSettings.shop_name || "PET CARE SPA & CLINIC",
+                dia_chi: currentSettings.shop_address || "123 Đường Trần Phú, Nha Trang",
                 so_dien_thoai: currentSettings.shop_phone || "0909.123.456",
-                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách và hẹn gặp lại!",
+                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách và hẹn gặp lại bé yêu!",
                 ma_hoa_don: "HD2609130001",
+                ma_phieu: "PT-2609130001",
                 ngay_gio: new Date().toLocaleString('vi-VN'),
                 thu_ngan: "Quản Lý",
                 ten_khach: "Nguyễn Văn A",
@@ -3988,7 +4069,23 @@
                 tiet_kiem: "40.000 đ",
                 phai_tra: "200.000 đ",
                 khach_tra: "200.000 đ",
-                con_no: "0 đ"
+                con_no: "0 đ",
+                // Pet spa mock
+                ten_thu_cung: "Bé Lu",
+                giong_loai: "Poodle",
+                can_nang: "4.5",
+                tinh_trang_tiep_nhan: "Lông rối nhẹ, ve rận (-), da tốt",
+                gio_hen_tra: "16:30 Hôm Nay",
+                // Cashbook mock
+                hang_muc: "Thu tiền bán lẻ / Nạp ví",
+                tai_khoan_quy: "Két Tiền Mặt [Cty]",
+                so_tien: "500.000 đ",
+                dien_giai: "Thu tiền thanh toán dịch vụ & đơn hàng",
+                // Stock audit mock
+                kho_kiem_ke: "Kho Tổng Nha Trang",
+                tong_mon_kiem: "3",
+                lech_thua: "0",
+                lech_thieu: "0"
             };
 
             // Grid background
@@ -4053,6 +4150,33 @@
                             </tbody>
                         </table>
                     `;
+                } else if (e.type === 'table_audit') {
+                    content = `
+                        <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000; pointer-events: none;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 1px solid #000; font-weight: bold; text-align: center;">
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 30px;">STT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 80px;">Mã SKU</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: left;">Tên mặt hàng</th>
+                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 50px;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 65px;">Tồn HT</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 65px;">Tồn Thực</th>
+                                    <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 65px;">Lệch</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #ccc; text-align: center;">
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">1</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px;">SKU-CAT-01</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">Pate Cho Mèo Vị Cá Hồi</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">Lon</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">50</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">50</td>
+                                    <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold; color: #16a34a;">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    `;
                 } else if (e.type === 'b2b_footer_boxes') {
                     content = `
                         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px; pointer-events: none;">
@@ -4097,6 +4221,30 @@
                             </div>
                         </div>
                     `;
+                } else if (e.type === 'signatures_accounting_4col') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Giám Đốc</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, đóng dấu)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Kế Toán Trưởng</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp/Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Thủ Quỹ</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                        </div>
+                    `;
+                } else if (e.type === 'signatures_audit') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Trưởng Ban Kiểm Kê</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Thủ Kho</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Kế Toán Kho</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                        </div>
+                    `;
+                } else if (e.type === 'signatures_cashbook') {
+                    content = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp / Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Lập Phiếu</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                        </div>
+                    `;
                 } else if (e.type === 'table') {
                     if (isThermal) {
                         content = `
@@ -4110,20 +4258,19 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; line-height: 1.2;">Áo Thun Basic (Demo)</td>
+                                        <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; line-height: 1.2;">Combo Tắm Spa & Cắt Tỉa (Demo)</td>
                                     </tr>
                                     <tr style="border-bottom: 0.5px dotted #ccc;">
-                                        <td style="text-align: left; vertical-align: top; padding: 2px 0 5px 0;">2</td>
+                                        <td style="text-align: left; vertical-align: top; padding: 2px 0 5px 0;">1</td>
                                         <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">
-                                            <div style="font-weight: bold; line-height: 1.1;">100.000 đ</div>
+                                            <div style="font-weight: bold; line-height: 1.1;">200.000 đ</div>
                                             <div style="color: #666; font-size: 9px; line-height: 1.1; margin-top: 1px;">
-                                                <span style="text-decoration: line-through;">120.000 đ</span>
-                                                <span style="color: #15803d; font-weight: 500;">(Giảm 20.000 đ)</span>
+                                                <span style="text-decoration: line-through;">240.000 đ</span>
+                                                <span style="color: #15803d; font-weight: 500;">(Giảm 40.000 đ)</span>
                                             </div>
                                         </td>
                                         <td style="text-align: right; vertical-align: top; padding: 2px 0 5px 0;">
                                             <div style="font-weight: bold;">200.000 đ</div>
-                                            <div style="color: #15803d; font-size: 9px; line-height: 1.1;">(Giảm 40.000 đ)</div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -4134,7 +4281,7 @@
                             <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 12}px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; pointer-events: none;">
                                 <thead style="border-bottom: 1px dashed #000;">
                                     <tr>
-                                        <th style="text-align: left; padding: 4px 0;">Tên sản phẩm</th>
+                                        <th style="text-align: left; padding: 4px 0;">Tên sản phẩm / Dịch vụ</th>
                                         <th style="text-align: center; width: 36px;">SL</th>
                                         <th style="text-align: right; width: 84px;">Đơn giá</th>
                                         <th style="text-align: right; width: 90px;">Thành tiền</th>
@@ -4142,11 +4289,11 @@
                                 </thead>
                                 <tbody>
                                     <tr style="border-bottom: 0.5px dotted #ccc;">
-                                        <td style="padding: 4px 0; vertical-align: top;">Áo Thun Basic (Demo)</td>
-                                        <td style="text-align: center; vertical-align: top;">2</td>
+                                        <td style="padding: 4px 0; vertical-align: top;">Combo Tắm Vệ Sinh Spa 7 Bước</td>
+                                        <td style="text-align: center; vertical-align: top;">1</td>
                                         <td style="text-align: right; vertical-align: top;">
-                                            <div style="font-weight: bold; line-height: 1.1;">100.000 đ</div>
-                                            <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">120.000 đ</div>
+                                            <div style="font-weight: bold; line-height: 1.1;">200.000 đ</div>
+                                            <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">240.000 đ</div>
                                         </td>
                                         <td style="text-align: right; vertical-align: top; font-weight: 500;">200.000 đ</td>
                                     </tr>
@@ -4161,6 +4308,7 @@
                     txt = txt.replace(/{{so_dien_thoai}}/g, mockData.so_dien_thoai);
                     txt = txt.replace(/{{loi_cam_on}}/g, mockData.loi_cam_on);
                     txt = txt.replace(/{{ma_hoa_don}}/g, mockData.ma_hoa_don);
+                    txt = txt.replace(/{{ma_phieu}}/g, mockData.ma_phieu);
                     txt = txt.replace(/{{ngay_gio}}/g, mockData.ngay_gio);
                     txt = txt.replace(/{{thu_ngan}}/g, mockData.thu_ngan);
                     txt = txt.replace(/{{ten_khach}}/g, mockData.ten_khach);
@@ -4171,14 +4319,30 @@
                     txt = txt.replace(/{{phai_tra}}/g, mockData.phai_tra);
                     txt = txt.replace(/{{khach_tra}}/g, mockData.khach_tra);
                     txt = txt.replace(/{{con_no}}/g, mockData.con_no);
-                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; pointer-events: none;">${txt}</div>`;
+                    txt = txt.replace(/{{ten_thu_cung}}/g, mockData.ten_thu_cung);
+                    txt = txt.replace(/{{giong_loai}}/g, mockData.giong_loai);
+                    txt = txt.replace(/{{can_nang}}/g, mockData.can_nang);
+                    txt = txt.replace(/{{tinh_trang_tiep_nhan}}/g, mockData.tinh_trang_tiep_nhan);
+                    txt = txt.replace(/{{gio_hen_tra}}/g, mockData.gio_hen_tra);
+                    txt = txt.replace(/{{hang_muc}}/g, mockData.hang_muc);
+                    txt = txt.replace(/{{tai_khoan_quy}}/g, mockData.tai_khoan_quy);
+                    txt = txt.replace(/{{so_tien}}/g, mockData.so_tien);
+                    txt = txt.replace(/{{dien_giai}}/g, mockData.dien_giai);
+                    txt = txt.replace(/{{kho_kiem_ke}}/g, mockData.kho_kiem_ke);
+                    txt = txt.replace(/{{tong_mon_kiem}}/g, mockData.tong_mon_kiem);
+                    txt = txt.replace(/{{lech_thua}}/g, mockData.lech_thua);
+                    txt = txt.replace(/{{lech_thieu}}/g, mockData.lech_thieu);
+                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap; line-height: 1.3; pointer-events: none;">${txt}</div>`;
                 }
 
                 const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
 
+                const renderedX = isThermal ? Math.min(e.x || 0, 15) : (e.x || 0);
+                const renderedW = e.w ? (isThermal ? Math.min(e.w, maxThermalW) + 'px' : e.w + 'px') : (isThermal ? maxThermalW + 'px' : 'auto');
+
                 html += `
                     <div id="${e.id}" class="canvas-element ${isSel}"
-                         style="left: ${e.x || 0}px; top: ${e.y || 0}px; width: ${e.w ? e.w + 'px' : 'auto'};"
+                         style="left: ${renderedX}px; top: ${e.y || 0}px; width: ${renderedW}; max-width: 100%; box-sizing: border-box; word-break: break-word;"
                          onmousedown="startDrag(event, '${e.id}')"
                          onclick="selectElement('${e.id}')">
                         ${content}
@@ -4569,17 +4733,11 @@
             }
 
             renderPresetSelect();
-            document.getElementById('canvas-paper-size').value = paperSize;
-            const canvas = document.getElementById('paper-canvas');
-            const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
-            canvas.style.width = dim.width;
-            canvas.style.minHeight = dim.height;
-            renderCanvas();
-            renderPropsPanel();
-            updateSidebarCheckboxes();
-            updateCanvasBadge();
-            if (paperSize.includes('landscape')) {
-                setTimeout(() => setCanvasZoom('fit'), 100);
+            const curPreset = multiTemplates.active_preset || "a4_b2b";
+            if (multiTemplates.presets && multiTemplates.presets[curPreset]) {
+                switchPreset(curPreset);
+            } else {
+                switchPreset("a4_b2b");
             }
         }
 
@@ -4588,24 +4746,93 @@
         }
 
         function printTestTemplate() {
-            const mockOrder = {
-                code: "HD2609139999",
-                created_at: new Date().toLocaleString('vi-VN'),
-                staff_name: "Nguyễn Thu Ngân",
-                customer_name: "Đại Lý Thức Ăn Thú Cưng Miền Nam",
-                customer_phone: "0909.999.888",
-                total_amount: 550000,
-                discount: 50000,
-                final_amount: 500000,
-                paid_amount: 500000,
-                debt_amount: 0,
-                items: [
-                    { product_code: "SP001", product_name: "Sữa Tắm Cho Mèo Pet Care", unit: "Chai", quantity: 2, price: 120000, subtotal: 240000, note: "Hương Lavender" },
-                    { product_code: "SP002", product_name: "Pate Cho Chó Trưởng Thành", unit: "Hộp", quantity: 5, price: 35000, subtotal: 175000, note: "Vị Bò Rau Củ" },
-                    { product_code: "SP003", product_name: "Xương Gặm Sạch Răng", unit: "Gói", quantity: 3, price: 45000, subtotal: 135000, note: "Size M" }
-                ]
-            };
-            renderAndPrint(mockOrder);
+            const curPreset = multiTemplates.active_preset || "a4_b2b";
+            if (curPreset.includes('cashbook') || curPreset.includes('thu') || curPreset.includes('chi')) {
+                const isThu = !curPreset.includes('chi');
+                const mockOrder = {
+                    code: isThu ? "PT-260913-001" : "PC-260913-001",
+                    created_at: new Date().toLocaleString('vi-VN'),
+                    staff_name: "Thủ Quỹ Chi Nhánh",
+                    customer_name: isThu ? "Nguyễn Thị Thu Ngân (Nộp tiền)" : "Đơn Vị Giao Hàng Pet Express",
+                    customer_phone: "0909.123.456",
+                    total_amount: 500000,
+                    discount: 0,
+                    final_amount: 500000,
+                    paid_amount: 500000,
+                    debt_amount: 0,
+                    hang_muc: isThu ? "Thu tiền bán lẻ / Nạp ví Spa" : "Chi tiền mua vật tư / Vận hành",
+                    tai_khoan_quy: "Két Tiền Mặt Công Ty",
+                    dien_giai: isThu ? "Thu tiền thanh toán dịch vụ & hóa đơn bán hàng" : "Chi trả tiền mua phụ kiện thú cưng",
+                    items: []
+                };
+                renderAndPrint(mockOrder);
+            } else if (curPreset.includes('stock_audit') || curPreset.includes('audit')) {
+                const mockOrder = {
+                    code: "KK-260913-001",
+                    created_at: new Date().toLocaleString('vi-VN'),
+                    staff_name: "Trưởng Ban Kiểm Kê",
+                    customer_name: "Kho Tổng Pet Care",
+                    customer_phone: "-",
+                    total_amount: 0,
+                    discount: 0,
+                    final_amount: 0,
+                    paid_amount: 0,
+                    debt_amount: 0,
+                    kho_kiem_ke: "Kho Tổng Nha Trang",
+                    tong_mon_kiem: 3,
+                    lech_thua: 0,
+                    lech_thieu: 0,
+                    items: [
+                        { product_code: "SP001", product_name: "Pate Mèo Whiskas 85g", unit: "Gói", system_stock: 50, actual_stock: 50, diff: 0 },
+                        { product_code: "SP002", product_name: "Hạt Cho Chó Ganador 1.5kg", unit: "Bao", system_stock: 20, actual_stock: 20, diff: 0 },
+                        { product_code: "SP003", product_name: "Cát Vệ Sinh Cho Mèo 8L", unit: "Túi", system_stock: 35, actual_stock: 35, diff: 0 }
+                    ]
+                };
+                renderAndPrint(mockOrder);
+            } else if (curPreset.includes('spa')) {
+                const isIntake = curPreset.includes('intake');
+                const mockOrder = {
+                    code: isIntake ? "TN-260913-001" : "HD-260913-SPA",
+                    created_at: new Date().toLocaleString('vi-VN'),
+                    staff_name: "Nguyễn Kỹ Thuật Viên",
+                    customer_name: "Chị Lan (Chủ Bé Lu)",
+                    customer_phone: "0912.345.678",
+                    ten_thu_cung: "Bé Lu",
+                    giong_loai: "Poodle",
+                    can_nang: "4.5",
+                    tinh_trang_tiep_nhan: "Lông rối nhẹ, ve rận (-), da tốt",
+                    gio_hen_tra: "16:30 Hôm Nay",
+                    total_amount: 250000,
+                    discount: 30000,
+                    final_amount: 220000,
+                    paid_amount: 220000,
+                    debt_amount: 0,
+                    items: [
+                        { product_code: "SPA01", product_name: "Combo Tắm Vệ Sinh Spa 7 Bước (Poodle <5kg)", unit: "Gói", quantity: 1, price: 150000, subtotal: 150000 },
+                        { product_code: "SPA02", product_name: "Cắt Tỉa Lông Tạo Kiểu Bear Face", unit: "Lần", quantity: 1, price: 100000, subtotal: 100000 }
+                    ]
+                };
+                renderAndPrint(mockOrder);
+            } else {
+                const mockOrder = {
+                    code: "HD2609139999",
+                    created_at: new Date().toLocaleString('vi-VN'),
+                    staff_name: "Nguyễn Thu Ngân",
+                    customer_name: "Đại Lý Thức Ăn Thú Cưng Miền Nam",
+                    customer_phone: "0909.999.888",
+                    total_amount: 550000,
+                    discount: 50000,
+                    final_amount: 500000,
+                    paid_amount: 500000,
+                    debt_amount: 0,
+                    items: [
+                        { product_code: "SP001", product_name: "Sữa Tắm Cho Mèo Pet Care", unit: "Chai", quantity: 2, price: 120000, subtotal: 240000, note: "Hương Lavender" },
+                        { product_code: "SP002", product_name: "Pate Cho Chó Trưởng Thành", unit: "Hộp", quantity: 5, price: 35000, subtotal: 175000, note: "Vị Bò Rau Củ" },
+                        { product_code: "SP003", product_name: "Xương Gặm Sạch Răng", unit: "Gói", quantity: 3, price: 45000, subtotal: 135000, note: "Size M" }
+                    ]
+                };
+                renderAndPrint(mockOrder);
+            }
         }
 
         function renderAndPrint(ord) {
@@ -4619,22 +4846,39 @@
             const totalSavings = itemDiscountTotal + billDiscount;
 
             const printData = {
-                ten_cua_hang: currentSettings.shop_name || "TÊN CỬA HÀNG",
-                dia_chi: currentSettings.shop_address || "Địa chỉ shop",
-                so_dien_thoai: currentSettings.shop_phone || "0900000000",
-                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách!",
+                ten_cua_hang: currentSettings.shop_name || "PET CARE SPA & CLINIC",
+                dia_chi: currentSettings.shop_address || "123 Đường Trần Phú, Nha Trang",
+                so_dien_thoai: currentSettings.shop_phone || "0909.123.456",
+                loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách và hẹn gặp lại bé yêu!",
                 ma_hoa_don: ord.code,
+                ma_phieu: ord.code,
                 ngay_gio: ord.created_at,
                 thu_ngan: ord.staff_name || 'Thu ngân',
                 ten_khach: ord.customer_name || 'Khách lẻ',
                 sdt_khach: ord.customer_phone || '-',
-                tong_tien: formatMoney(ord.total_amount),
+                tong_tien: formatMoney(ord.total_amount || 0),
                 giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
                 tiet_kiem: formatMoney(totalSavings),
-                phai_tra: formatMoney(ord.final_amount),
-                khach_tra: formatMoney(ord.paid_amount),
-                con_no: formatMoney(ord.debt_amount),
-                raw_phai_tra: ord.final_amount
+                phai_tra: formatMoney(ord.final_amount || 0),
+                khach_tra: formatMoney(ord.paid_amount || 0),
+                con_no: formatMoney(ord.debt_amount || 0),
+                raw_phai_tra: ord.final_amount || 0,
+                // Spa
+                ten_thu_cung: ord.ten_thu_cung || "Bé Lu",
+                giong_loai: ord.giong_loai || "Poodle",
+                can_nang: ord.can_nang || "4.5",
+                tinh_trang_tiep_nhan: ord.tinh_trang_tiep_nhan || "Lông rối nhẹ, ve rận (-), da tốt",
+                gio_hen_tra: ord.gio_hen_tra || "16:30 Hôm Nay",
+                // Cashbook
+                hang_muc: ord.hang_muc || "Thu tiền bán lẻ / Nạp ví",
+                tai_khoan_quy: ord.tai_khoan_quy || "Két Tiền Mặt [Cty]",
+                so_tien: formatMoney(ord.final_amount || ord.total_amount || 500000),
+                dien_giai: ord.dien_giai || "Thu tiền thanh toán dịch vụ & hóa đơn bán hàng",
+                // Stock audit
+                kho_kiem_ke: ord.kho_kiem_ke || "Kho Tổng Nha Trang",
+                tong_mon_kiem: ord.tong_mon_kiem || (ord.items ? ord.items.length : 3),
+                lech_thua: ord.lech_thua != null ? ord.lech_thua : 0,
+                lech_thieu: ord.lech_thieu != null ? ord.lech_thieu : 0
             };
 
             const dim = paperDimensions[paperSize] || paperDimensions["A4-portrait"];
@@ -6284,7 +6528,35 @@
         window.printCurrentViewedPetTicket = printCurrentViewedPetTicket;
         window.printCurrentCashbookVoucher = printCurrentCashbookVoucher;
         window.printCashbookVoucherA4 = printCashbookVoucherA4;
-        window.numberToVietnameseWords = numberToVietnameseWords;
         window.getDefaultPresets = getDefaultPresets;
         window.switchPreset = switchPreset;
+        window.loadSettings = loadSettings;
+        window.renderCanvas = renderCanvas;
+        window.changePaperSize = changePaperSize;
+        window.toggleCanvasItem = toggleCanvasItem;
+        window.toggleTableMode = toggleTableMode;
+        window.saveCurrentPreset = saveCurrentPreset;
+        window.saveNewPreset = saveNewPreset;
+        window.deleteCurrentPreset = deleteCurrentPreset;
+        window.renameCurrentPreset = renameCurrentPreset;
+        window.printTestTemplate = printTestTemplate;
+        window.resetDefaultTemplate = resetDefaultTemplate;
+        window.setCanvasZoom = setCanvasZoom;
+        window.selectElement = selectElement;
+        window.startDrag = startDrag;
+        window.startResize = startResize;
+        window.updateSidebarCheckboxes = updateSidebarCheckboxes;
+        window.updateCanvasBadge = updateCanvasBadge;
+        window.addCustomTextItem = addCustomTextItem;
+
+        // Tu dong nap va ve ban in khi module san sang
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                if (typeof loadSettings === 'function') loadSettings();
+            });
+        } else {
+            setTimeout(() => {
+                if (typeof loadSettings === 'function') loadSettings();
+            }, 60);
+        }
 

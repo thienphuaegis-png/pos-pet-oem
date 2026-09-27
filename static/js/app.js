@@ -336,7 +336,10 @@
             });
 
             if (subId === 'company') loadCompanySettings();
-            if (subId === 'templates') loadSettings();
+            if (subId === 'templates') {
+                if (typeof loadSettings === 'function') loadSettings();
+                else if (typeof window.loadSettings === 'function') window.loadSettings();
+            }
             if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
             if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
             if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
