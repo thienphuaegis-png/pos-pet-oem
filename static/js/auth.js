@@ -98,13 +98,17 @@ async function loadLoginStoreBranding() {
     const nameEl = document.getElementById('login-store-name');
     const logoEl = document.getElementById('login-store-logo');
     const iconEl = document.getElementById('login-store-icon');
-    if (nameEl && settings.shop_name) {
-      nameEl.textContent = settings.shop_name;
+    const appName = settings.app_name || settings.shop_name || '⚡ POS Offline';
+    if (nameEl) {
+      nameEl.textContent = appName;
     }
     if (settings.shop_logo && logoEl && iconEl) {
       logoEl.src = settings.shop_logo;
       logoEl.style.display = 'block';
       iconEl.style.display = 'none';
+    } else if (iconEl && logoEl) {
+      logoEl.style.display = 'none';
+      iconEl.style.display = '';
     }
   } catch (e) {
     // Giữ mặc định nếu chưa tải được

@@ -1757,6 +1757,18 @@
             if (res.ok) {
                 alert('✅ Đã lưu thông tin doanh nghiệp, tên ứng dụng & cấu hình QR!');
                 updateAppTitleUI(appName);
+                const loginNameEl = document.getElementById('login-store-name');
+                if (loginNameEl) loginNameEl.textContent = appName;
+                const loginLogoEl = document.getElementById('login-store-logo');
+                const loginIconEl = document.getElementById('login-store-icon');
+                if (payload.shop_logo && loginLogoEl && loginIconEl) {
+                    loginLogoEl.src = payload.shop_logo;
+                    loginLogoEl.style.display = 'block';
+                    loginIconEl.style.display = 'none';
+                } else if (loginLogoEl && loginIconEl) {
+                    loginLogoEl.style.display = 'none';
+                    loginIconEl.style.display = '';
+                }
                 Object.assign(currentSettings, payload);
             } else {
                 alert('Lỗi lưu thông tin!');

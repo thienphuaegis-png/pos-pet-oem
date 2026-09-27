@@ -154,6 +154,11 @@ def update_company_settings(req: CompanySettingsUpdate):
         cur.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?", (key, val, val))
     conn.commit()
     conn.close()
+    try:
+        from server import invalidate_branding_cache
+        invalidate_branding_cache()
+    except Exception:
+        pass
     return {"status": "ok"}
 
 @router.post("/template")
