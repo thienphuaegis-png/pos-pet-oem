@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                v2.7 Master
+                v2.9 Master
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 ● 100% Offline
@@ -541,7 +541,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-27)
-    const ROADMAP_VERSION = 'v2.8-2026-09-27';
+    const ROADMAP_VERSION = 'v2.9-2026-09-27';
     const DEFAULT_TASKS = [
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
@@ -563,6 +563,7 @@
       { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: true, note: 'Đã hoàn thiện tại modal sửa hàng loạt và bảng điều phối' },
       { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: true, note: 'Đã di chuyển thành sub-tab thứ 4 (pl-subtab-topup) trong Tab Bảng Giá, gỡ bỏ menu thừa ở Cài Đặt' },
       { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: true, note: 'Chuẩn hóa preview scale, CSS @page auto nhiệt K80/K58, bổ sung mẫu in Phiếu Thu/Chi (K80 & A4/A5 kế toán) và Phiếu Kiểm Kê Kho (A4)' },
+      { id: 'bill-6', cat: 'BILL', title: 'Thiết Kế Mẫu In Visual Canvas & 12 Mẫu Nghiệp Vụ Thực Tế', done: true, note: 'Bổ sung 100% checkbox trường động (Spa, Sổ Quỹ, Kiểm Kê), fix ReferenceError renderCanvas & exports, auto-render không trắng trang, scale chống tràn giấy K80/A4' },
 
       // 3. KHÁCH SẠN, HỆ THỐNG & AI
       { id: 'sys-1', cat: 'SYS', title: 'Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout', done: false, note: 'Chờ triển khai: phòng lưu trú, nhật ký cho ăn, checkin/checkout' },
