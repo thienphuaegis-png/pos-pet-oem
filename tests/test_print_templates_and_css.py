@@ -40,3 +40,22 @@ def test_ui_print_buttons_present():
 
     assert "printStockAuditA4" in content, "index.html phải có nút gọi printStockAuditA4"
     assert "printCashbookVoucherA4" in content or "printCurrentCashbookVoucherA4" in content, "index.html phải có nút in phiếu thu chi A4"
+
+def test_template_presets_include_all_business_types():
+    """Kiểm tra danh mục mẫu in trong productions.js có đủ các mẫu thực tế: spa, thu, chi, kiểm kê."""
+    prod_path = os.path.join(BASE_DIR, "static", "js", "modules", "productions.js")
+    with open(prod_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    expected_keys = [
+        "spa_intake_k80",
+        "spa_invoice_k80",
+        "cashbook_thu_k80",
+        "cashbook_thu_a4",
+        "cashbook_chi_k80",
+        "cashbook_chi_a4",
+        "stock_audit_a4"
+    ]
+    for key in expected_keys:
+        assert key in content, f"Thiếu preset {key} trong productions.js"
+

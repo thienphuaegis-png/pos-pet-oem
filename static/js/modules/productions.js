@@ -3299,6 +3299,98 @@
             ];
         }
 
+        function getSpaIntakeElementsK80() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", zone: "header", type: "text", text: "PHIẾU TIẾP NHẬN THÚ CƯNG", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 13, bold: true, align: "center" },
+                { id: "e3", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} | Giờ: {{ngay_gio}}", label: "Mã & Giờ Nhận", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Khách: {{ten_khach}} - {{sdt_khach}}", label: "Khách Hàng", x: 10, y: 72, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", zone: "header", type: "text", text: "Bé: Cún (Poodle) - Cân nặng: 4.5 kg", label: "Thông Tin Bé", x: 10, y: 92, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e6", zone: "header", type: "text", text: "Tình trạng nhận: Lông rối nhẹ, ve rận (-)", label: "Tình Trạng", x: 10, y: 112, w: 270, fsz: 10, bold: false, align: "left" },
+                { id: "e7", zone: "body", type: "table", label: "Dịch Vụ Yêu Cầu", x: 10, y: 135, w: 270, fsz: 10 },
+                { id: "e8", zone: "footer", type: "text", text: "HẸN TRẢ: 16:30 Hôm Nay", label: "Giờ Hẹn Trả", x: 10, y: 200, w: 270, fsz: 12, bold: true, align: "center" },
+                { id: "e9", zone: "footer", type: "text", text: "Quý khách vui lòng kiểm tra bé trước khi rời quầy!", label: "Lưu Ý", x: 10, y: 222, w: 270, fsz: 9.5, italic: true, align: "center" },
+                { id: "e10", zone: "footer", type: "text", text: "(Chữ ký khách gửi bé)", label: "Ký Tên", x: 10, y: 250, w: 270, fsz: 10, align: "center" }
+            ];
+        }
+
+        function getSpaInvoiceElementsK80() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", zone: "header", type: "text", text: "HÓA ĐƠN DỊCH VỤ SPA", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e3", zone: "header", type: "text", text: "Mã: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã & Ngày", x: 10, y: 52, w: 270, fsz: 10, bold: false, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Khách: {{ten_khach}} (Bé: Lu - Poodle 4.5kg)", label: "Khách & Bé", x: 10, y: 72, w: 270, fsz: 10.5, bold: true, align: "left" },
+                { id: "e5", zone: "body", type: "table", label: "Bảng Dịch Vụ & Phụ Phí", x: 10, y: 95, w: 270, fsz: 10 },
+                { id: "e6", zone: "footer", type: "text", text: "Tổng chi phí: {{tong_tien}}", label: "Tổng Tiền", x: 10, y: 170, w: 270, fsz: 11, bold: false, align: "right" },
+                { id: "e7", zone: "footer", type: "text", text: "Giảm giá / Ưu đãi: -{{giam_gia}}", label: "Giảm Giá", x: 10, y: 188, w: 270, fsz: 10.5, bold: false, align: "right" },
+                { id: "e8", zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", x: 10, y: 208, w: 270, fsz: 13, bold: true, align: "right" },
+                { id: "e9", zone: "footer", type: "qr", label: "QR Chuyển Khoản", x: 75, y: 235, w: 130, h: 130 },
+                { id: "e10", zone: "footer", type: "text", text: "{{loi_cam_on}}", label: "Lời Cảm Ơn", x: 10, y: 380, w: 270, fsz: 10, italic: true, align: "center" }
+            ];
+        }
+
+        function getCashbookThuElementsK80() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", zone: "header", type: "text", text: "PHIẾU THU TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e3", zone: "header", type: "text", text: "Mã: PT-2609-001 | Ngày: {{ngay_gio}}", label: "Mã Phiếu Thu", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Người nộp: {{ten_khach}} ({{sdt_khach}})", label: "Người Nộp", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", zone: "header", type: "text", text: "Hạng mục: Thu tiền bán lẻ / Nạp ví", label: "Hạng Mục", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
+                { id: "e6", zone: "header", type: "text", text: "Két / Tài khoản: Két Tiền Mặt [Cty]", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
+                { id: "e7", zone: "body", type: "text", text: "SỐ TIỀN THỰC THU: {{phai_tra}}", label: "Số Tiền", x: 10, y: 140, w: 270, fsz: 16, bold: true, align: "center" },
+                { id: "e8", zone: "body", type: "text", text: "Diễn giải: Thu tiền khách thanh toán đơn hàng", label: "Diễn Giải", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
+                { id: "e9", zone: "footer", type: "text", text: "Người Nộp Tiền                Người Lập Phiếu\n(Ký & họ tên)                  (Ký & họ tên)", label: "Chữ Ký", x: 10, y: 215, w: 270, fsz: 10, align: "center" }
+            ];
+        }
+
+        function getCashbookThuElementsA4() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", zone: "header", type: "text", text: "Mẫu số 01 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ................\nSố: PT-2609-001\nNợ: ............. Có: .............", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
+                { id: "e3", zone: "header", type: "text", text: "PHIẾU THU", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
+                { id: "e5", zone: "body", type: "text", text: "- Họ và tên người nộp tiền: {{ten_khach}} ({{sdt_khach}})\n- Địa chỉ / Bộ phận: Nha Trang, Khánh Hòa\n- Lý do nộp: Thu tiền thanh toán đơn hàng\n- Số tiền: {{phai_tra}} (Viết bằng chữ: Năm trăm nghìn đồng chẵn)\n- Kèm theo: Chứng từ gốc số: HD2609...\n- Nhập quỹ / Két: Két Tiền Mặt Công Ty", label: "Nội Dung Thu Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e6", zone: "footer", type: "text", text: "Giám đốc                Kế toán trưởng                Người nộp tiền                Thủ quỹ\n(Ký, đóng dấu)             (Ký, họ tên)                  (Ký, họ tên)              (Ký, họ tên)", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, fsz: 11, bold: true, align: "center" }
+            ];
+        }
+
+        function getCashbookChiElementsK80() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", zone: "header", type: "text", text: "PHIẾU CHI TIỀN", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e3", zone: "header", type: "text", text: "Mã: PC-2609-001 | Ngày: {{ngay_gio}}", label: "Mã Phiếu Chi", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Người nhận: {{ten_khach}} ({{sdt_khach}})", label: "Người Nhận", x: 10, y: 78, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", zone: "header", type: "text", text: "Hạng mục: Mua vật tư / Chi phí vận hành", label: "Hạng Mục", x: 10, y: 98, w: 270, fsz: 10, align: "left" },
+                { id: "e6", zone: "header", type: "text", text: "Két / Tài khoản: Két Tiền Mặt [Cty]", label: "Quỹ / Tài Khoản", x: 10, y: 116, w: 270, fsz: 10, align: "left" },
+                { id: "e7", zone: "body", type: "text", text: "SỐ TIỀN THỰC CHI: {{phai_tra}}", label: "Số Tiền", x: 10, y: 140, w: 270, fsz: 16, bold: true, align: "center" },
+                { id: "e8", zone: "body", type: "text", text: "Diễn giải: Chi trả tiền hàng / Chi tiêu nội bộ", label: "Diễn Giải", x: 10, y: 175, w: 270, fsz: 10.5, italic: true, align: "left" },
+                { id: "e9", zone: "footer", type: "text", text: "Người Nhận Tiền                Người Lập Phiếu\n(Ký & họ tên)                  (Ký & họ tên)", label: "Chữ Ký", x: 10, y: 215, w: 270, fsz: 10, align: "center" }
+            ];
+        }
+
+        function getCashbookChiElementsA4() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}", label: "Đơn Vị", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", zone: "header", type: "text", text: "Mẫu số 02 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ................\nSố: PC-2609-001\nNợ: ............. Có: .............", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
+                { id: "e3", zone: "header", type: "text", text: "PHIẾU CHI", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
+                { id: "e5", zone: "body", type: "text", text: "- Họ và tên người nhận tiền: {{ten_khach}} ({{sdt_khach}})\n- Địa chỉ / Bộ phận: Nha Trang, Khánh Hòa\n- Lý do chi: Thanh toán tiền mua hàng hóa / dịch vụ\n- Số tiền: {{phai_tra}} (Viết bằng chữ: Năm trăm nghìn đồng chẵn)\n- Kèm theo: Chứng từ gốc số: PO2609...\n- Xuất quỹ / Két: Két Tiền Mặt Công Ty", label: "Nội Dung Chi Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e6", zone: "footer", type: "text", text: "Giám đốc                Kế toán trưởng                Người nhận tiền                Thủ quỹ\n(Ký, đóng dấu)             (Ký, họ tên)                  (Ký, họ tên)              (Ký, họ tên)", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, fsz: 11, bold: true, align: "center" }
+            ];
+        }
+
+        function getStockAuditElementsA4() {
+            return [
+                { id: "e1", zone: "header", type: "text", text: "{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}", label: "Tên Doanh Nghiệp", x: 30, y: 20, w: 400, fsz: 11, bold: false, align: "left" },
+                { id: "e2", zone: "header", type: "text", text: "Mã phiếu: KK2609-001\nNgày kiểm: {{ngay_gio}}", label: "Mã & Ngày", x: 440, y: 20, w: 240, fsz: 10.5, align: "right" },
+                { id: "e3", zone: "header", type: "text", text: "PHIẾU KIỂM KÊ KHO HÀNG", label: "Tiêu Đề", x: 150, y: 80, w: 380, fsz: 18, bold: true, align: "center" },
+                { id: "e4", zone: "header", type: "text", text: "Kho kiểm kê: Kho Tổng Nha Trang | Ghi chú: Kiểm kê định kỳ cuối tháng", label: "Kho & Ghi Chú", x: 30, y: 115, w: 650, fsz: 11, italic: true, align: "center" },
+                { id: "e5", zone: "body", type: "table", label: "Bảng 7 Cột Kiểm Kê Kho", x: 30, y: 145, w: 650, fsz: 10.5 },
+                { id: "e6", zone: "footer", type: "text", text: "Tổng số mặt hàng đã kiểm: 3 món | Tổng lệch thừa: 0 | Tổng lệch thiếu: 0", label: "Tổng Kết Kiểm Kê", x: 30, y: 240, w: 650, fsz: 11, bold: true, align: "right" },
+                { id: "e7", zone: "footer", type: "text", text: "Trưởng Ban Kiểm Kê                          Thủ Kho                          Kế Toán Kho\n    (Ký & họ tên)                          (Ký & họ tên)                     (Ký & họ tên)", label: "3 Chữ Ký Trách Nhiệm", x: 30, y: 285, w: 650, fsz: 11, bold: true, align: "center" }
+            ];
+        }
+
         function getDefaultPresets() {
             return {
                 "a4_b2b": {
@@ -3317,14 +3409,49 @@
                     elements: getInitialElementsForSize("A5-portrait")
                 },
                 "k80_standard": {
-                    name: "Mẫu Cuộn Nhiệt K80",
+                    name: "Mẫu Cuộn Nhiệt K80 (Bán Lẻ)",
                     paper_size: "K80",
                     elements: getInitialElementsForSize("K80")
                 },
                 "k58_standard": {
-                    name: "Mẫu Cuộn Nhiệt K58",
+                    name: "Mẫu Cuộn Nhiệt K58 (Bán Lẻ)",
                     paper_size: "K58",
                     elements: getInitialElementsForSize("K58")
+                },
+                "spa_intake_k80": {
+                    name: "Mẫu Phiếu Tiếp Nhận Thú Cưng Spa (K80)",
+                    paper_size: "K80",
+                    elements: getSpaIntakeElementsK80()
+                },
+                "spa_invoice_k80": {
+                    name: "Mẫu Phiếu Thanh Toán Dịch Vụ Spa (K80)",
+                    paper_size: "K80",
+                    elements: getSpaInvoiceElementsK80()
+                },
+                "cashbook_thu_k80": {
+                    name: "Mẫu Phiếu Thu Tiền (Cuộn K80)",
+                    paper_size: "K80",
+                    elements: getCashbookThuElementsK80()
+                },
+                "cashbook_thu_a4": {
+                    name: "Mẫu Phiếu Thu Tiền (Chuẩn A5/A4 Kế Toán)",
+                    paper_size: "A5-landscape",
+                    elements: getCashbookThuElementsA4()
+                },
+                "cashbook_chi_k80": {
+                    name: "Mẫu Phiếu Chi Tiền (Cuộn K80)",
+                    paper_size: "K80",
+                    elements: getCashbookChiElementsK80()
+                },
+                "cashbook_chi_a4": {
+                    name: "Mẫu Phiếu Chi Tiền (Chuẩn A5/A4 Kế Toán)",
+                    paper_size: "A5-landscape",
+                    elements: getCashbookChiElementsA4()
+                },
+                "stock_audit_a4": {
+                    name: "Mẫu Phiếu Kiểm Kê Hàng Hóa (A4 Dọc)",
+                    paper_size: "A4-portrait",
+                    elements: getStockAuditElementsA4()
                 }
             };
         }
@@ -4389,6 +4516,13 @@
                     const parsed = JSON.parse(currentSettings.print_blocks_config);
                     if (parsed.presets) {
                         multiTemplates = parsed;
+                        const def = getDefaultPresets();
+                        if (!multiTemplates.presets) multiTemplates.presets = {};
+                        for (let k in def) {
+                            if (!multiTemplates.presets[k]) {
+                                multiTemplates.presets[k] = def[k];
+                            }
+                        }
                         const curPreset = multiTemplates.active_preset || "a4_b2b";
                         if (multiTemplates.presets[curPreset]) {
                             paperSize = multiTemplates.presets[curPreset].paper_size || "A4-portrait";
@@ -6151,4 +6285,6 @@
         window.printCurrentCashbookVoucher = printCurrentCashbookVoucher;
         window.printCashbookVoucherA4 = printCashbookVoucherA4;
         window.numberToVietnameseWords = numberToVietnameseWords;
+        window.getDefaultPresets = getDefaultPresets;
+        window.switchPreset = switchPreset;
 

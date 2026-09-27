@@ -1643,6 +1643,12 @@ function initPrintTemplatesFromSettings() {
             const parsed = JSON.parse(posSettings.print_blocks_config);
             if (parsed.presets && Object.keys(parsed.presets).length > 0) {
                 posPrintConfig = parsed;
+                if (typeof getDefaultPresets === 'function') {
+                    const def = getDefaultPresets();
+                    for (let k in def) {
+                        if (!posPrintConfig.presets[k]) posPrintConfig.presets[k] = def[k];
+                    }
+                }
                 // Khôi phục mẫu in nhân viên đã chọn lần trước (localStorage),
                 // nếu mẫu đó vẫn còn tồn tại trong danh sách preset hiện có.
                 const savedKey = localStorage.getItem('pos_print_template');
