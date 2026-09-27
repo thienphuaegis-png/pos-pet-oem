@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                v2.6 Master
+                v2.7 Master
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 ● 100% Offline
@@ -305,7 +305,8 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-27)
+    const ROADMAP_VERSION = 'v2.7-2026-09-27';
     const DEFAULT_TASKS = [
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
@@ -314,20 +315,24 @@
       { id: 'spa-4', cat: 'SPA', title: 'Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách', done: true, note: 'Modal nhẹ onclick mở nhanh, chọn gói giá, chips cạo lông, thợ cắt/tắm' },
       { id: 'spa-5', cat: 'SPA', title: 'Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định today)', done: true, note: 'Lọc mặc định hôm nay, nút Hôm Nay / Tất Cả, giảm tải render quầy' },
       { id: 'spa-6', cat: 'SPA', title: 'Gom nút lọc trạng thái dịch vụ về 1 dropdown phân loại', done: true, note: 'Thay thế 5 nút bấm dàn trải bằng <select id="select-svc-filter-status">' },
-      { id: 'spa-7', cat: 'SPA', title: 'Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa', done: true, note: 'Mở rộng 6 thẻ KPI, click lọc tức thì, API /api/pet-services/kpi trả thêm uncalled & not_checked_out' },
+      { id: 'spa-7', cat: 'SPA', title: 'Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa', done: true, note: 'Dàn 5 thẻ KPI chuẩn (Hôm nay, Đang làm, Chưa gọi, Đưa đón, Đã về)' },
       { id: 'spa-8', cat: 'SPA', title: 'Sửa lỗi giật tải lại trang khi sửa 1 ô (Optimistic Local Update)', done: true, note: 'Cập nhật mảng local & DOM tức thì 0ms, gọi PUT ngầm, tự rollback nếu lỗi' },
+      { id: 'spa-9', cat: 'SPA', title: 'Tiếp nhận Spa hàng loạt dạng Sheet phẳng với 5 cột checkbox phụ thu riêng & Bulk Action Bar', done: true, note: 'Chuẩn 1 dòng phẳng ~40px, checkbox Răng/Cắt NT/Gỡ rối/Nhuộm/Ship, gán mẫu 1 chạm' },
+      { id: 'spa-10', cat: 'SPA', title: 'Dải lịch ngang 7 ngày + Date Picker tự do + Bộ lọc nhanh ca trong ngày (Tất Cả, Chưa Về, Đã Về)', done: true, note: 'Hiển thị ca trong ngày (kể cả đã về với viền xanh emerald), nút hoàn tác ↩️ mở lại' },
+      { id: 'spa-11', cat: 'SPA', title: 'Đồng bộ cuộc gọi thông minh cho khách có nhiều bé (1 chạm)', done: true, note: 'Đổi trạng thái gọi 1 dòng tự động hỏi áp dụng cho toàn bộ các bé của cùng chủ' },
+      { id: 'spa-12', cat: 'SPA', title: 'Tự động nhận diện Ví Spa & Cơ chế cấn trừ sạch ví (Lựa chọn A) liên thông Sổ Quỹ', done: true, note: 'Đủ tiền tự chọn Trừ ví; thiếu tiền cấn trừ hết ví + thu ngoài phần thiếu; ghi đúng phần thu ngoài vào Sổ Quỹ' },
 
       // 2. HÓA ĐƠN, BẢNG GIÁ & VÍ
-      { id: 'bill-1', cat: 'BILL', title: 'Logic tách khách thanh toán topup với hàng hóa (dòng tiền ví độc lập)', done: false, note: 'Chờ triển khai: ngăn lẫn lộn nạp ví với mua hàng POS quầy' },
-      { id: 'bill-2', cat: 'BILL', title: 'Tab Hóa Đơn: thêm sub-tab Lịch Sử Spa tra cứu riêng', done: false, note: 'Chờ triển khai: sub-view lọc nhanh hóa đơn thuần dịch vụ thú cưng' },
-      { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: false, note: 'Chờ triển khai: bảo mật thông tin khách hàng tại quầy thu ngân' },
+      { id: 'bill-1', cat: 'BILL', title: 'Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư ví', done: true, note: 'Gỡ trừ ví khỏi POS bán lẻ, hoàn tiền ví khi hủy đơn, in phiếu thu K80 ngầm không xem trước, bổ sung Tên/SĐT vào Sổ Quỹ' },
+      { id: 'bill-2', cat: 'BILL', title: 'Tab Hóa Đơn: Sub-tab Lịch Sử Spa tra cứu hóa đơn dịch vụ chuyên biệt', done: true, note: 'Đã kích hoạt sub-view Spa 12 cột, lọc theo ngày/trạng thái/thanh toán, thống kê doanh thu, in lại K80, mở lại vé' },
+      { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: true, note: 'Đã hoàn thiện tại modal sửa hàng loạt và bảng điều phối' },
       { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: false, note: 'Chờ triển khai: gom chung quản lý biểu giá và gói nạp tiền' },
       { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: false, note: 'Chờ triển khai: kiểm tra mẫu in A4 B2B và K80 trên các trình duyệt' },
 
       // 3. KHÁCH SẠN, HỆ THỐNG & AI
       { id: 'sys-1', cat: 'SYS', title: 'Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout', done: false, note: 'Chờ triển khai: phòng lưu trú, nhật ký cho ăn, checkin/checkout' },
-      { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal', done: false, note: 'Chờ triển khai: thống nhất giao diện thông báo mượt mà' },
-      { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: false, note: 'Chờ triển khai: tối ưu tốc độ bấm quầy thu ngân không cần chuột' },
+      { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal UI', done: true, note: 'customConfirm danger (icon đỏ, phím Enter/Esc), customAlert, showToast đồng bộ 100%' },
+      { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: true, note: 'Hỗ trợ phím Enter/Esc trên customConfirm modal và hotkeys F1-F9' },
       { id: 'sys-4', cat: 'SYS', title: 'Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý', done: false, note: 'Chờ triển khai: tích hợp mô hình cục bộ hoặc Gemini web' },
       { id: 'sys-5', cat: 'SYS', title: 'Đóng gói EXE — build_exe.bat + test chạy độc lập trên máy Windows', done: false, note: 'Chờ triển khai: đóng gói PyInstaller / Nuitka phân phối khách' },
 
@@ -339,16 +344,20 @@
       { id: 'ui-5', cat: 'UI', title: 'Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc GPU translate3d', done: true, note: 'Mỗi hàng vé dịch vụ là một card bo góc đổ bóng nổi bật' },
       { id: 'ui-6', cat: 'UI', title: 'Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom 3 khối thẻ trắng', done: true, note: 'Layout quầy POS chuẩn thanh toán bán sỉ & lẻ' },
       { id: 'ui-7', cat: 'UI', title: 'Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Kho hàng, Hóa đơn', done: true, note: 'Tối ưu hiệu năng DOM và quản trị lượng dữ liệu lớn' },
-      { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' }
+      { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' },
+      { id: 'ui-9', cat: 'UI', title: 'Đồng bộ Logo & Tên Cửa Hàng từ Cài Đặt lên màn hình đăng nhập', done: true, note: 'Tự động lấy shop_logo và shop_name từ settings hiển thị trên login' }
     ];
 
     let tasks = [];
     try {
+      const storedVer = localStorage.getItem('pos_petcare_roadmap_version');
       const stored = localStorage.getItem('pos_petcare_roadmap_tasks');
-      if (stored) {
+      if (stored && storedVer === ROADMAP_VERSION) {
         tasks = JSON.parse(stored);
       } else {
         tasks = [...DEFAULT_TASKS];
+        localStorage.setItem('pos_petcare_roadmap_version', ROADMAP_VERSION);
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
       }
     } catch (e) {
       tasks = [...DEFAULT_TASKS];
