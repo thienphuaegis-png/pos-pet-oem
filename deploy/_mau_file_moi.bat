@@ -58,7 +58,7 @@ for %%p in (
     "%PROGRAMFILES(x86)%\Git\cmd\git.exe"
     "%LOCALAPPDATA%\Programs\Git\cmd\git.exe"
 ) do (
-    if not defined GIT if exist %%p set "GIT=%%p"
+    if not defined GIT if exist "%%~p" set "GIT=%%~p"
 )
 if not defined GIT (
     git --version >nul 2>&1 && set "GIT=git"
@@ -80,7 +80,8 @@ if not defined GIT (
     echo       Hay khoi dong lai may roi chay lai file nay.
     pause & exit /b 1
 )
-echo       OK
+set "GIT=%GIT:"=%"
+echo       OK: "%GIT%"
 
 REM --- 2/3 Tai code ---
 echo [2/3] Dang tai chuong trinh tu internet...
