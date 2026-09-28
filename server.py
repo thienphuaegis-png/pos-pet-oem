@@ -159,6 +159,20 @@ def get_template_path():
 def get_pos_template_path():
     return os.path.join(base_dir, "templates", "pos.html")
 
+APP_VERSION = "2.9"  # đồng bộ với PROJECT_STATE.md
+
+@app.get("/api/ping", include_in_schema=False)
+def ping():
+    """Máy con quét LAN gọi endpoint này để nhận diện đúng máy chủ POS.
+
+    Cố ý KHÔNG yêu cầu auth: máy con phải dò được server trước khi có ai
+    đăng nhập. An toàn vì chỉ trả tên app + version + hostname, tuyệt đối
+    không có dữ liệu kinh doanh (test_ping_endpoint.py canh điều này).
+    """
+    import socket
+    return {"app": "pos-offline-petcare", "version": APP_VERSION,
+            "hostname": socket.gethostname()}
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
