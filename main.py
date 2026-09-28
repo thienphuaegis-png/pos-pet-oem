@@ -10,22 +10,26 @@ def open_browser():
     webbrowser.open("http://127.0.0.1:8999")
 
 if __name__ == "__main__":
-    # Bat thread mo trinh duyet tu dong
-    threading.Thread(target=open_browser, daemon=True).start()
-    
-    print("="*50)
-    print("  HE THONG POS OFFLINE DANG CHAY TAI: http://127.0.0.1:8999")
-    print("  Khong dong cua so nay trong khi su dung.")
-    print("="*50)
+    is_production = os.environ.get("POS_PRODUCTION") == "1"
+
+    # May chu tiem chay an (Task Scheduler): khong mo browser, khong in gi.
+    if not is_production:
+        threading.Thread(target=open_browser, daemon=True).start()
+        print("="*50)
+        print("  HE THONG POS OFFLINE DANG CHAY TAI: http://127.0.0.1:8999")
+        print("  Khong dong cua so nay trong khi su dung.")
+        print("="*50)
 
     from server import app
     # reload chi dung khi dev (source .py), khong dung khi da dong goi .exe - tranh watcher loop khong len duoc server
+    # POS_PRODUCTION=1 (may chu tiem): tat watcher - tiet kiem RAM va tranh
+    # reload giua luc git pull dang thay file trong khi cap nhat.
     is_frozen = getattr(sys, "frozen", False)
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
         port=8999,
-        reload=not is_frozen,
+        reload=not (is_frozen or is_production),
         reload_excludes=["*.log", "logs/*", "data/*", "*.db*", "*.db-wal", "*.db-shm", "backups/*"],
         log_level="error"
     )
