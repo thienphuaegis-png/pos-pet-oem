@@ -13,3 +13,10 @@ data/backups/
 build/
 dist/
 *.spec
+
+# Binary lớn — tải riêng, không commit (55MB làm clone chậm)
+cloudflared.exe
+
+# Sinh ra khi cài đặt máy tiệm, mỗi máy mỗi khác
+deploy/QR_POS.png
+deploy/server_ip.txt

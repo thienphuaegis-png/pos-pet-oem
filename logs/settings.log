@@ -1,7 +1,0 @@
-2026-09-16 16:00:10,875 [INFO] [settings]: Module settings logger initialized successfully
-2026-09-17 14:02:04,738 [WARNING] [settings]: POST /api/settings/company - Status: 422
-2026-09-17 14:02:09,849 [WARNING] [settings]: POST /api/settings/company - Status: 422
-2026-09-17 14:02:28,708 [WARNING] [settings]: POST /api/settings/company - Status: 422
-2026-09-17 14:27:16,528 [WARNING] [settings]: POST /api/settings/template - Status: 422
-2026-09-17 14:27:32,252 [WARNING] [settings]: POST /api/settings/template - Status: 422
-2026-09-17 14:27:44,572 [WARNING] [settings]: POST /api/settings/template - Status: 422
