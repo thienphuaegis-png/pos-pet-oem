@@ -30,13 +30,35 @@ echo.
 
 REM --- 1/8 Kiem tra Python ---
 echo [1/8] Kiem tra Python...
+REM Do nhieu duong: PATH cua session admin khac PATH cua user, nen chi thu
+REM "python" la khong du. Uu tien 3.11 (ban da test), roi den bat ky 3.x.
 set "PY="
-python --version >nul 2>&1 && set "PY=python"
-if not defined PY py -3.11 --version >nul 2>&1 && set "PY=py -3.11"
+for %%p in (
+    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+    "%PROGRAMFILES%\Python311\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    "%PROGRAMFILES%\Python312\python.exe"
+) do (
+    if not defined PY if exist %%p set "PY=%%p"
+)
+if not defined PY (
+    py -3.11 --version >nul 2>&1 && set "PY=py -3.11"
+)
+if not defined PY (
+    python --version >nul 2>&1 && set "PY=python"
+)
+if not defined PY (
+    python3 --version >nul 2>&1 && set "PY=python3"
+)
+
 if not defined PY (
     echo       Chua co Python. Dang cai tu dong...
     if exist "%WINGET%" (
         "%WINGET%" install -e --id Python.Python.3.11 --accept-source-agreements --accept-package-agreements
+        REM Sau khi winget cai, dung luon duong dan tuyet doi - khong doi PATH
+        if exist "%LOCALAPPDATA%\Programs\Python\Python311\python.exe" (
+            set "PY=%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+        )
     ) else (
         echo [LOI] Khong co winget tren may nay.
         echo       Hay tai Python 3.11 tai https://python.org/downloads
@@ -44,17 +66,21 @@ if not defined PY (
         start "" "https://www.python.org/downloads/release/python-3119/"
         pause & exit /b 1
     )
-    echo.
-    echo       DA CAI PYTHON. HAY DONG CUA SO NAY VA CHAY LAI FILE NAY.
-    echo       (Windows can mo lai cua so moi nhan ra Python)
-    pause & exit /b 0
 )
-echo       OK
+
+if not defined PY (
+    echo.
+    echo [LOI] Van khong tim thay Python sau khi cai.
+    echo       Hay DONG cua so nay va CHAY LAI file nay.
+    pause & exit /b 1
+)
+echo       OK - dung: %PY%
 
 REM --- 2/8 Tao moi truong ao ---
 echo [2/8] Tao moi truong ao .venv...
 if not exist ".venv\Scripts\python.exe" (
-    %PY% -m venv .venv
+    REM %PY% co the la duong dan tuyet doi co space -> dung call de xu ly dung
+    call %PY% -m venv .venv
 )
 if not exist ".venv\Scripts\python.exe" (
     echo [LOI] Tao .venv that bai.
