@@ -24,6 +24,10 @@ deploy/server_ip.txt
 # KHOÁ RIÊNG của từng tiệm — KHÔNG BAO GIỜ được commit
 deploy/khoa_tiem
 deploy/khoa_tiem.pub
+deploy/khoa_tiem.txt
+deploy/_file_moi_*.bat
+CAI_DAT_POS_ONLINE_*.bat
+deploy/CAI_DAT_POS_ONLINE_*.bat
 *.pem
 id_ed25519*
 id_rsa*

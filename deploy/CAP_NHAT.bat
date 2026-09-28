@@ -89,16 +89,33 @@ echo       OK
 
 REM --- 3/5 Tai code moi ---
 echo [3/5] Tai ban cap nhat tu GitHub...
-REM Neu tiem duoc cap khoa rieng (deploy key), dung dung khoa do. Khong de
-REM git tu do khoa mac dinh: may tiem khong co san khoa nao.
+REM Chon cach xac thuc theo thu co san tren may tiem:
+REM   khoa_tiem     = SSH deploy key (cai bang USB)
+REM   khoa_tiem.txt = token HTTPS (cai bang file moi tu Zalo)
 REM ssh nuot dau \ nen phai doi sang / truoc khi dua vao GIT_SSH_COMMAND.
 if exist "%ROOT%\deploy\khoa_tiem" (
     set "KEYPATH=%ROOT%\deploy\khoa_tiem"
     set "KEYPATH=!KEYPATH:\=/!"
     set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 )
-"%GIT%" pull --ff-only
-if %errorlevel% neq 0 (
+set "PULLURL="
+if exist "%ROOT%\deploy\khoa_tiem.txt" (
+    set /p TOKEN=<"%ROOT%\deploy\khoa_tiem.txt"
+    for /f "delims=" %%u in ('"%GIT%" config --get remote.origin.url') do set "ORIGINURL=%%u"
+    REM Ghep token vao URL ngay luc pull, khong luu vao config
+    set "PULLURL=!ORIGINURL:https://=https://!TOKEN!@!"
+)
+
+if defined PULLURL (
+    "%GIT%" pull --ff-only "!PULLURL!" > "%TEMP%\pos_pull.log" 2>&1
+    set "RC=!errorlevel!"
+    type "%TEMP%\pos_pull.log" | findstr /v /c:"!TOKEN!"
+    del "%TEMP%\pos_pull.log" >nul 2>&1
+) else (
+    "%GIT%" pull --ff-only
+    set "RC=!errorlevel!"
+)
+if !RC! neq 0 (
     echo.
     echo [LOI] Khong tai duoc ban cap nhat.
     echo       DU LIEU CUA BAN VAN AN TOAN - khong mat gi.

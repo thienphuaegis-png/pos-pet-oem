@@ -157,6 +157,19 @@ def test_update_uses_shop_key():
         "Đường dẫn khoá phải đổi \\ sang / — ssh nuốt dấu backslash trên Windows"
 
 
+def test_template_bait_file():
+    """File mồi mẫu phải an toàn: không chứa token thật, tự xin quyền admin,
+    dò git tuyệt đối, lưu token vào deploy/khoa_tiem.txt đã gitignore."""
+    path = os.path.join(DEPLOY, "_mau_file_moi.bat")
+    assert os.path.exists(path), "_mau_file_moi.bat phải tồn tại"
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    assert 'TOKEN=DAN_TOKEN_VAO_DAY' in src, "File mẫu không được chứa token thật"
+    assert "Start-Process" in src and "RunAs" in src, "File mồi phải tự xin quyền admin"
+    assert "Git\\cmd\\git.exe" in src, "File mồi phải dò git tuyệt đối"
+    assert "khoa_tiem.txt" in src, "File mồi phải lưu token vào khoa_tiem.txt"
+
+
 if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")
@@ -170,4 +183,5 @@ if __name__ == "__main__":
     test_no_timeout_command();              print("✓ không dùng lệnh timeout")
     test_git_detected_by_absolute_path();   print("✓ git dò bằng đường dẫn tuyệt đối")
     test_update_uses_shop_key();            print("✓ cập nhật dùng khoá riêng của tiệm")
+    test_template_bait_file();              print("✓ file mồi mẫu đúng chuẩn an toàn")
     print("\nALL PASS ✅")
