@@ -123,3 +123,4 @@ Nếu muốn người quản trị xem/sửa từ xa mà không cần tới ti�
 Không cài cũng không sao — POS vẫn chạy bình thường. Tiệm mất internet vẫn bán hàng được, vì POS chạy hoàn toàn trong mạng nội bộ.
 
 <!-- kiem tra duong cap nhat 15:02:54 -->
+<!-- cap nhat thu 151347 -->
