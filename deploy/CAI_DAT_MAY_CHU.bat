@@ -165,13 +165,15 @@ echo Dang khoi dong server...
 start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 
 REM Doi server len, kiem tra thuc su chay duoc
+REM Cho server len, toi da 15 giay. Gom ca vong lap vao 1 lan goi PowerShell
+REM cho nhanh va tranh phu thuoc "timeout" (Git Bash / stdin redirect).
 set "READY="
-for /l %%t in (1,1,15) do (
-    if not defined READY (
-        timeout /t 1 /nobreak >nul
-        curl -s -m 2 http://127.0.0.1:8999/api/ping >nul 2>&1 && set "READY=1"
-    )
-)
+powershell -NoProfile -Command ^
+  "for ($i=0; $i -lt 15; $i++) {" ^
+  "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
+  "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
+  "  Start-Sleep -Seconds 1 }; exit 1"
+if %errorlevel% equ 0 set "READY=1"
 
 echo.
 echo ==================================================

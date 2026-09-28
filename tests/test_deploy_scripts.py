@@ -104,6 +104,24 @@ def test_ping_identifier_matches_everywhere():
             "find_server.ps1 dùng identifier khác server.py — máy con sẽ không thấy server"
 
 
+def test_no_timeout_command():
+    """`timeout` không dùng được trong script này, hai lý do độc lập:
+    - máy có Git Bash trong PATH gọi nhầm bản Unix (cú pháp khác) →
+      "timeout: invalid time interval '/t'", không chờ gì cả;
+    - timeout.exe của Windows thoát ngay khi stdin bị chuyển hướng →
+      "Input redirection is not supported".
+    Cả hai đều gặp thật. Thay bằng PowerShell Start-Sleep."""
+    import re
+    for name in ("CAI_DAT_MAY_CHU.bat", "CAP_NHAT.bat"):
+        with open(os.path.join(DEPLOY, name), encoding="utf-8") as f:
+            for i, line in enumerate(f, 1):
+                if re.search(r"\btimeout(\.exe)?\b", line, re.I) and "/t" in line:
+                    raise AssertionError(
+                        f"{name}:{i} dùng `timeout` — thay bằng "
+                        f"powershell Start-Sleep (xem docstring)"
+                    )
+
+
 if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")
@@ -113,4 +131,5 @@ if __name__ == "__main__":
     test_update_aborts_on_pull_failure();   print("✓ pull lỗi thì dừng")
     test_vbs_sets_production_flag();        print("✓ VBS tắt reload + chạy ẩn")
     test_ping_identifier_matches_everywhere(); print("✓ identifier khớp server/script")
+    test_no_timeout_command();              print("✓ không dùng lệnh timeout")
     print("\nALL PASS ✅")
