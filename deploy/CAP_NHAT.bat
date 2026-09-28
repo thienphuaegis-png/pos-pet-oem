@@ -23,7 +23,26 @@ if not exist ".venv\Scripts\python.exe" (
 )
 set "VPY=%ROOT%\.venv\Scripts\python.exe"
 
-git rev-parse --is-inside-work-tree >nul 2>&1
+REM Tim git bang duong dan tuyet doi: PATH cua tien trinh nay co the khac
+REM PATH luc cai dat (xem CAI_DAT_MAY_CHU.bat buoc 0).
+set "GIT="
+for %%p in (
+    "%PROGRAMFILES%\Git\cmd\git.exe"
+    "%PROGRAMFILES(x86)%\Git\cmd\git.exe"
+    "%LOCALAPPDATA%\Programs\Git\cmd\git.exe"
+) do (
+    if not defined GIT if exist %%p set "GIT=%%p"
+)
+if not defined GIT (
+    git --version >nul 2>&1 && set "GIT=git"
+)
+if not defined GIT (
+    echo [LOI] Khong tim thay Git tren may nay - khong the cap nhat.
+    echo       Hay goi cho nguoi quan tri he thong.
+    pause & exit /b 1
+)
+
+"%GIT%" rev-parse --is-inside-work-tree >nul 2>&1
 if %errorlevel% neq 0 (
     echo [LOI] Thu muc nay khong phai ban sao tu GitHub, khong the cap nhat.
     echo       Hay goi cho nguoi quan tri he thong.
@@ -78,7 +97,7 @@ if exist "%ROOT%\deploy\khoa_tiem" (
     set "KEYPATH=!KEYPATH:\=/!"
     set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 )
-git pull --ff-only
+"%GIT%" pull --ff-only
 if %errorlevel% neq 0 (
     echo.
     echo [LOI] Khong tai duoc ban cap nhat.

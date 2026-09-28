@@ -28,6 +28,72 @@ echo   Thu muc: %ROOT%
 echo ==================================================
 echo.
 
+REM --- 0/9 Kiem tra git va khoa cap nhat ---
+REM Lam TRUOC MOI THU: neu thieu thi bao ngay, khong de cai xong 15 phut
+REM roi lan cap nhat dau tien moi phat hien khong pull duoc.
+echo [0/9] Kiem tra cong cu cap nhat...
+
+set "GIT="
+for %%p in (
+    "%PROGRAMFILES%\Git\cmd\git.exe"
+    "%PROGRAMFILES(x86)%\Git\cmd\git.exe"
+    "%LOCALAPPDATA%\Programs\Git\cmd\git.exe"
+) do (
+    if not defined GIT if exist %%p set "GIT=%%p"
+)
+if not defined GIT (
+    git --version >nul 2>&1 && set "GIT=git"
+)
+
+if not defined GIT (
+    echo       Chua co Git. Dang cai tu dong...
+    if exist "%WINGET%" (
+        "%WINGET%" install -e --id Git.Git --accept-source-agreements --accept-package-agreements
+        if exist "%PROGRAMFILES%\Git\cmd\git.exe" set "GIT=%PROGRAMFILES%\Git\cmd\git.exe"
+    ) else (
+        echo [LOI] Khong co winget. Tai Git tai https://git-scm.com/download/win
+        start "" "https://git-scm.com/download/win"
+        pause & exit /b 1
+    )
+)
+if not defined GIT (
+    echo [LOI] Van khong tim thay Git sau khi cai.
+    echo       Hay khoi dong lai may roi chay lai file nay.
+    pause & exit /b 1
+)
+echo       Git: OK
+
+REM Thu muc co phai ban sao tu GitHub khong (chep tay bang USB thi khong phai)
+"%GIT%" rev-parse --is-inside-work-tree >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [CANH BAO] Thu muc nay duoc chep tay, khong phai tai tu GitHub.
+    echo            POS van chay binh thuong, nhung nut "CAP NHAT POS"
+    echo            se khong dung duoc. Muon cap nhat phai chep tay lai.
+    echo.
+    set /p "TIEPTUC=Van tiep tuc cai dat? (g = co, bat ky phim nao = dung): "
+    if /i not "!TIEPTUC!"=="g" (
+        echo Da dung.
+        pause & exit /b 1
+    )
+) else (
+    if not exist "%ROOT%\deploy\khoa_tiem" (
+        echo.
+        echo [CANH BAO] Chua co khoa cap nhat ^(deploy\khoa_tiem^).
+        echo            Neu khong co khoa, nut "CAP NHAT POS" se bao loi
+        echo            "Permission denied" khi bam.
+        echo            Hay xin khoa tu nguoi quan tri he thong.
+        echo.
+        set /p "TIEPTUC=Van tiep tuc cai dat? (g = co, bat ky phim nao = dung): "
+        if /i not "!TIEPTUC!"=="g" (
+            echo Da dung.
+            pause & exit /b 1
+        )
+    ) else (
+        echo       Khoa cap nhat: OK
+    )
+)
+
 REM --- 1/8 Kiem tra Python ---
 echo [1/8] Kiem tra Python...
 REM Do nhieu duong: PATH cua session admin khac PATH cua user, nen chi thu

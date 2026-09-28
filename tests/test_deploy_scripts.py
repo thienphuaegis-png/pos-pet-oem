@@ -72,17 +72,17 @@ def test_update_backs_up_before_pull():
         return
     src = _read("CAP_NHAT.bat")
     i_backup = src.lower().find("copy ")
-    i_pull = src.find("git pull")
+    i_pull = src.find("pull --ff-only")
     assert i_backup != -1, "CAP_NHAT.bat không có bước sao lưu DB"
-    assert i_pull != -1, "CAP_NHAT.bat không có git pull"
-    assert i_backup < i_pull, "Sao lưu PHẢI nằm trước git pull"
+    assert i_pull != -1, "CAP_NHAT.bat không có bước pull"
+    assert i_backup < i_pull, "Sao lưu PHẢI nằm trước pull"
 
 
 def test_update_aborts_on_pull_failure():
     if not os.path.exists(os.path.join(DEPLOY, "CAP_NHAT.bat")):
         return
     src = _read("CAP_NHAT.bat")
-    tail = src[src.find("git pull"):]
+    tail = src[src.find("pull --ff-only"):]
     assert "errorlevel" in tail, "Pull lỗi mà không kiểm tra errorlevel"
 
 
@@ -122,6 +122,26 @@ def test_no_timeout_command():
                     )
 
 
+def test_git_detected_by_absolute_path():
+    """Máy tiệm trắng không có git trong PATH, và PATH của session admin khác
+    PATH của user. Dò `git` trần là hỏng — đã gặp đúng lỗi này với python."""
+    for name in ("CAI_DAT_MAY_CHU.bat", "CAP_NHAT.bat"):
+        with open(os.path.join(DEPLOY, name), encoding="utf-8") as f:
+            src = f.read()
+        assert "Git\\cmd\\git.exe" in src, \
+            f"{name} phải dò git bằng đường dẫn tuyệt đối, không chỉ dựa vào PATH"
+
+
+def test_update_uses_shop_key():
+    """Máy tiệm không có SSH key mặc định. Không chỉ định khoá riêng thì
+    git pull báo Permission denied — đã gặp thật khi chạy trên bản clone."""
+    with open(os.path.join(DEPLOY, "CAP_NHAT.bat"), encoding="utf-8") as f:
+        src = f.read()
+    assert "GIT_SSH_COMMAND" in src, "CAP_NHAT.bat phải chỉ định khoá riêng của tiệm"
+    assert "KEYPATH:\\=/" in src, \
+        "Đường dẫn khoá phải đổi \\ sang / — ssh nuốt dấu backslash trên Windows"
+
+
 if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")
@@ -132,4 +152,6 @@ if __name__ == "__main__":
     test_vbs_sets_production_flag();        print("✓ VBS tắt reload + chạy ẩn")
     test_ping_identifier_matches_everywhere(); print("✓ identifier khớp server/script")
     test_no_timeout_command();              print("✓ không dùng lệnh timeout")
+    test_git_detected_by_absolute_path();   print("✓ git dò bằng đường dẫn tuyệt đối")
+    test_update_uses_shop_key();            print("✓ cập nhật dùng khoá riêng của tiệm")
     print("\nALL PASS ✅")
