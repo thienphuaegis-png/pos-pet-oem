@@ -285,7 +285,13 @@ if __name__ == "__main__":
 - Produces: in ra stdout đúng 1 dòng `http://<ip>:8999` nếu tìm thấy, exit 0; không thấy thì exit 1. Task 6 (`CAI_MAY_CON.bat`) tiêu thụ.
 - **Dùng PowerShell chứ không Python** vì máy con không cài Python. PowerShell 5.1 có sẵn mọi Windows 10/11.
 
-- [ ] **Step 1: Viết `deploy/find_server.ps1`**:
+- [ ] **Step 1: Viết `deploy/find_server.ps1`** — điểm quan trọng đã verify thật trên máy anh Phú:
+  - **Lấy IP theo route mặc định**, KHÔNG lấy card đầu tiên. Máy anh có WSL nên `Get-NetIPAddress | Select -First 1` trả `172.29.0.1` (card ảo) → quét sai subnet, không bao giờ thấy server. Lấy theo `Get-NetRoute -DestinationPrefix "0.0.0.0/0"` mới ra `192.168.2.8` đúng.
+  - **Runspace pool 64 luồng**, KHÔNG `Start-Job`. 254 `Start-Job` = 254 process PowerShell, treo máy tiệm yếu. Runspace quét xong 3.2s.
+  - **TCP probe 400ms trước HTTP**: bỏ qua ~250 IP chết gần như tức thì.
+  - stdout chỉ 1 dòng URL (cho `for /f` đọc); mọi thông báo đi stderr qua `[Console]::Error.WriteLine`.
+
+  Xem file thật tại `deploy/find_server.ps1` (đã implement + verify cả 2 đường).
 ```powershell
 # Quét mạng nội bộ tìm máy chủ POS PetCare.
 # In ra http://<ip>:8999 nếu thấy. Máy con không cần Python.

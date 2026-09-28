@@ -1217,6 +1217,33 @@
                 document.body.appendChild(iframe);
             }
 
+            let isBoldCashbook = true;
+            try {
+                const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+                if (boldCfg) {
+                    const cfgKey = isThu ? 'cashbook_thu' : 'cashbook_chi';
+                    if (boldCfg[cfgKey] !== undefined) {
+                        isBoldCashbook = !!boldCfg[cfgKey];
+                    }
+                } else {
+                    const settings = window.companySettings || window.posSettings || {};
+                    const parsed = settings.print_blocks_config ? JSON.parse(settings.print_blocks_config) : null;
+                    const presetKey = isThu ? 'cashbook_thu_k80' : 'cashbook_chi_k80';
+                    if (parsed && parsed.presets && parsed.presets[presetKey]) {
+                        isBoldCashbook = !!parsed.presets[presetKey].is_bold_all;
+                    }
+                }
+            } catch(e) {}
+
+            const boldStyles = isBoldCashbook ? `
+                        body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                            font-weight: 900 !important;
+                            color: #000 !important;
+                            -webkit-text-stroke: 0.35px #000 !important;
+                            text-shadow: 0 0 0.2px #000 !important;
+                        }
+            ` : '';
+
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(`
@@ -1227,6 +1254,7 @@
                     <title>${title} - ${c.code}</title>
                     <style>
                         @page { size: auto; margin: 0mm; }
+                        ${boldStyles}
                         body { margin: 0; padding: 0; background: #fff; }
                     </style>
                 </head>
@@ -3414,62 +3442,86 @@
             return {
                 "a4_b2b": {
                     name: "Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)",
+                    category: "pos",
                     paper_size: "A4-landscape",
+                    is_bold_all: false,
                     elements: getB2BA4Template("A4-landscape")
                 },
                 "a4_standard": {
                     name: "Mẫu A4 Tiêu Chuẩn (Bán Lẻ)",
+                    category: "pos",
                     paper_size: "A4-portrait",
+                    is_bold_all: false,
                     elements: getInitialElementsForSize("A4-portrait")
                 },
                 "a5_standard": {
                     name: "Mẫu A5 Tiêu Chuẩn",
+                    category: "pos",
                     paper_size: "A5-portrait",
+                    is_bold_all: false,
                     elements: getInitialElementsForSize("A5-portrait")
                 },
                 "k80_standard": {
                     name: "Mẫu Cuộn Nhiệt K80 (Bán Lẻ)",
+                    category: "pos",
                     paper_size: "K80",
+                    is_bold_all: true,
                     elements: getInitialElementsForSize("K80")
                 },
                 "k58_standard": {
                     name: "Mẫu Cuộn Nhiệt K58 (Bán Lẻ)",
+                    category: "pos",
                     paper_size: "K58",
+                    is_bold_all: true,
                     elements: getInitialElementsForSize("K58")
                 },
                 "spa_intake_k80": {
                     name: "Mẫu Phiếu Tiếp Nhận Thú Cưng Spa (K80)",
+                    category: "spa",
                     paper_size: "K80",
+                    is_bold_all: true,
                     elements: getSpaIntakeElementsK80()
                 },
                 "spa_invoice_k80": {
                     name: "Mẫu Phiếu Thanh Toán Dịch Vụ Spa (K80)",
+                    category: "spa",
                     paper_size: "K80",
+                    is_bold_all: true,
                     elements: getSpaInvoiceElementsK80()
                 },
                 "cashbook_thu_k80": {
                     name: "Mẫu Phiếu Thu Tiền (Cuộn K80)",
+                    category: "cashbook",
                     paper_size: "K80",
+                    is_bold_all: true,
                     elements: getCashbookThuElementsK80()
                 },
                 "cashbook_thu_a4": {
                     name: "Mẫu Phiếu Thu Tiền (Chuẩn A5/A4 Kế Toán)",
+                    category: "cashbook",
                     paper_size: "A5-landscape",
+                    is_bold_all: false,
                     elements: getCashbookThuElementsA4()
                 },
                 "cashbook_chi_k80": {
                     name: "Mẫu Phiếu Chi Tiền (Cuộn K80)",
+                    category: "cashbook",
                     paper_size: "K80",
+                    is_bold_all: true,
                     elements: getCashbookChiElementsK80()
                 },
                 "cashbook_chi_a4": {
                     name: "Mẫu Phiếu Chi Tiền (Chuẩn A5/A4 Kế Toán)",
+                    category: "cashbook",
                     paper_size: "A5-landscape",
+                    is_bold_all: false,
                     elements: getCashbookChiElementsA4()
                 },
                 "stock_audit_a4": {
                     name: "Mẫu Phiếu Kiểm Kê Hàng Hóa (A4 Dọc)",
+                    category: "inventory",
                     paper_size: "A4-portrait",
+                    is_bold_all: false,
                     elements: getStockAuditElementsA4()
                 }
             };
@@ -3482,11 +3534,43 @@
                 multiTemplates.presets = getDefaultPresets();
             }
             const curPreset = multiTemplates.active_preset || "a4_b2b";
-            let html = '';
+            
+            const categoryLabels = {
+                'pos': '🛒 Bán Hàng POS',
+                'spa': '🐾 Dịch Vụ Spa',
+                'cashbook': '💰 Sổ Quỹ Thu / Chi',
+                'inventory': '📦 Kho & Kiểm Kê',
+                'other': '📄 Mẫu Khác'
+            };
+
+            const groups = {
+                'pos': [],
+                'spa': [],
+                'cashbook': [],
+                'inventory': [],
+                'other': []
+            };
+
             for (let key in multiTemplates.presets) {
                 const p = multiTemplates.presets[key];
-                const isSel = key === curPreset ? 'selected' : '';
-                html += `<option value="${key}" ${isSel}>${p.name}</option>`;
+                const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push({ key, preset: p });
+            }
+
+            let html = '';
+            for (let catKey of ['pos', 'spa', 'cashbook', 'inventory', 'other']) {
+                const items = groups[catKey];
+                if (items && items.length > 0) {
+                    html += `<optgroup label="${categoryLabels[catKey] || catKey}">`;
+                    for (let item of items) {
+                        const isSel = item.key === curPreset ? 'selected' : '';
+                        const sizeTag = item.preset.paper_size || '';
+                        const boldTag = item.preset.is_bold_all ? ' [Đậm]' : '';
+                        html += `<option value="${item.key}" ${isSel}>${item.preset.name} (${sizeTag})${boldTag}</option>`;
+                    }
+                    html += `</optgroup>`;
+                }
             }
             sel.innerHTML = html;
         }
@@ -3509,6 +3593,11 @@
             window.paperSize = paperSize;
             const sizeSel = document.getElementById('canvas-paper-size');
             if (sizeSel) sizeSel.value = paperSize;
+            const boldChk = document.getElementById('chk-preset-bold-all');
+            if (boldChk) {
+                boldChk.checked = !!preset.is_bold_all;
+            }
+            syncSplitBoldToggle(presetKey);
             let elems = preset.elements;
             if (!elems || elems.length === 0) {
                 const def = getDefaultPresets();
@@ -3539,6 +3628,85 @@
             }
         }
 
+        function mapPresetKeyToBoldKey(presetKey) {
+            if (!presetKey) return 'pos_retail';
+            if (presetKey.includes('draft')) return 'pos_draft';
+            if (presetKey.includes('topup')) return 'pos_topup';
+            if (presetKey.includes('spa_intake')) return 'spa_intake';
+            if (presetKey.includes('spa_invoice') || presetKey.includes('spa')) return 'spa_invoice';
+            if (presetKey.includes('thu')) return 'cashbook_thu';
+            if (presetKey.includes('chi')) return 'cashbook_chi';
+            if (presetKey.includes('shift') || presetKey.includes('zreport')) return 'shift_zreport';
+            if (presetKey.includes('audit')) return 'stock_audit';
+            if (presetKey.includes('b2b') || presetKey.includes('a4') || presetKey.includes('a5')) return 'pos_b2b';
+            return 'pos_retail';
+        }
+
+        function syncSplitBoldToggle(presetKey) {
+            const toggle = document.getElementById('chk-split-bold-toggle');
+            if (!toggle) return;
+            const boldKey = mapPresetKeyToBoldKey(presetKey);
+            const cfg = window.printBoldConfigs || {};
+            const isBold = (cfg[boldKey] !== undefined)
+                ? !!cfg[boldKey]
+                : (multiTemplates.presets && multiTemplates.presets[presetKey] ? !!multiTemplates.presets[presetKey].is_bold_all : false);
+            toggle.checked = isBold;
+            applyCanvasBoldEffect(isBold);
+        }
+
+        async function onSplitBoldToggleChange(isChecked) {
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            if (multiTemplates.presets && multiTemplates.presets[curKey]) {
+                multiTemplates.presets[curKey].is_bold_all = !!isChecked;
+            }
+            const legacyBoldChk = document.getElementById('chk-preset-bold-all');
+            if (legacyBoldChk) legacyBoldChk.checked = !!isChecked;
+
+            const boldKey = mapPresetKeyToBoldKey(curKey);
+            if (!window.printBoldConfigs) window.printBoldConfigs = {};
+            window.printBoldConfigs[boldKey] = !!isChecked;
+
+            applyCanvasBoldEffect(isChecked);
+
+            try {
+                await fetch('/api/settings/print-bold-configs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        print_bold_configs: JSON.stringify(window.printBoldConfigs)
+                    })
+                });
+                if (typeof showToast === 'function') {
+                    showToast(`Đã ${isChecked ? 'bật' : 'tắt'} in đậm chống mờ cho mẫu này!`, 'success');
+                }
+            } catch(e) {
+                console.error("Lỗi lưu print-bold-configs:", e);
+            }
+        }
+
+        function applyCanvasBoldEffect(isBold) {
+            const canvas = document.getElementById('paper-canvas');
+            if (!canvas) return;
+            if (isBold) {
+                canvas.style.fontWeight = '900';
+                canvas.style.webkitTextStroke = '0.35px #000';
+                canvas.style.color = '#000';
+            } else {
+                canvas.style.fontWeight = '';
+                canvas.style.webkitTextStroke = '';
+                canvas.style.color = '';
+            }
+        }
+
+        function toggleCurrentPresetBoldAll(isChecked) {
+            if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            if (!multiTemplates.presets[curKey]) return;
+            multiTemplates.presets[curKey].is_bold_all = !!isChecked;
+            renderPresetSelect();
+            renderCanvas();
+        }
+
         async function saveCurrentPreset() {
             if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
             const curKey = multiTemplates.active_preset || "a4_b2b";
@@ -3549,6 +3717,8 @@
                     elements: []
                 };
             }
+            const boldChk = document.getElementById('chk-preset-bold-all');
+            multiTemplates.presets[curKey].is_bold_all = boldChk ? boldChk.checked : (multiTemplates.presets[curKey].is_bold_all || false);
             multiTemplates.presets[curKey].paper_size = paperSize;
             multiTemplates.presets[curKey].elements = JSON.parse(JSON.stringify(canvasElements));
             multiTemplates.active_size = paperSize;
@@ -3574,10 +3744,14 @@
             if (!name || !name.trim()) return;
 
             if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
+            const curPreset = multiTemplates.presets[multiTemplates.active_preset || "a4_b2b"] || {};
+            const boldChk = document.getElementById('chk-preset-bold-all');
             const newKey = "preset_" + Date.now();
             multiTemplates.presets[newKey] = {
                 name: name.trim(),
+                category: curPreset.category || "pos",
                 paper_size: paperSize,
+                is_bold_all: boldChk ? boldChk.checked : (paperSize === 'K80' || paperSize === 'K58'),
                 elements: JSON.parse(JSON.stringify(canvasElements))
             };
             multiTemplates.active_preset = newKey;
@@ -4675,6 +4849,32 @@
         async function loadSettings() {
             const res = await fetch('/api/settings');
             currentSettings = await res.json();
+
+            // Nạp cấu hình in đậm cố định theo loại hóa đơn
+            if (currentSettings.print_bold_configs) {
+                try {
+                    window.printBoldConfigs = typeof currentSettings.print_bold_configs === 'string'
+                        ? JSON.parse(currentSettings.print_bold_configs)
+                        : currentSettings.print_bold_configs;
+                } catch(e) {
+                    window.printBoldConfigs = {};
+                }
+            } else {
+                window.printBoldConfigs = {
+                    pos_retail: true,
+                    pos_b2b: false,
+                    pos_draft: true,
+                    pos_topup: true,
+                    spa_intake: true,
+                    spa_invoice: true,
+                    cashbook_thu: true,
+                    cashbook_chi: true,
+                    shift_zreport: true,
+                    stock_audit: false
+                };
+            }
+            renderPrintBoldConfigsUI();
+
             if (currentSettings.print_blocks_config) {
                 try {
                     const parsed = JSON.parse(currentSettings.print_blocks_config);
@@ -4738,6 +4938,59 @@
                 switchPreset(curPreset);
             } else {
                 switchPreset("a4_b2b");
+            }
+        }
+
+        function renderPrintBoldConfigsUI() {
+            const cfg = window.printBoldConfigs || {};
+            const keys = [
+                'pos_retail', 'pos_draft', 'pos_topup', 'spa_intake', 'spa_invoice',
+                'cashbook_thu', 'cashbook_chi', 'shift_zreport', 'pos_b2b', 'stock_audit'
+            ];
+            keys.forEach(k => {
+                const el = document.getElementById('chk-bold-' + k);
+                if (el) {
+                    el.checked = (cfg[k] !== undefined) ? !!cfg[k] : (k === 'pos_b2b' || k === 'stock_audit' ? false : true);
+                }
+            });
+        }
+
+        async function savePrintBoldConfigItem(key, isChecked) {
+            if (!window.printBoldConfigs) window.printBoldConfigs = {};
+            window.printBoldConfigs[key] = !!isChecked;
+            await saveAllPrintBoldConfigs(true);
+        }
+
+        async function saveAllPrintBoldConfigs(silent = false) {
+            const keys = [
+                'pos_retail', 'pos_draft', 'pos_topup', 'spa_intake', 'spa_invoice',
+                'cashbook_thu', 'cashbook_chi', 'shift_zreport', 'pos_b2b', 'stock_audit'
+            ];
+            if (!window.printBoldConfigs) window.printBoldConfigs = {};
+            keys.forEach(k => {
+                const el = document.getElementById('chk-bold-' + k);
+                if (el) {
+                    window.printBoldConfigs[k] = el.checked;
+                }
+            });
+
+            try {
+                const res = await fetch('/api/settings/print-bold-configs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        print_bold_configs: JSON.stringify(window.printBoldConfigs)
+                    })
+                });
+                if (res.ok) {
+                    if (!silent && typeof showToast === 'function') {
+                        showToast('Đã lưu cấu hình in đậm cho các loại phiếu thành công!', 'success');
+                    } else if (!silent) {
+                        alert('Đã lưu cấu hình in đậm cho các loại phiếu thành công!');
+                    }
+                }
+            } catch(e) {
+                console.error('Lỗi lưu print_bold_configs:', e);
             }
         }
 
@@ -6539,6 +6792,13 @@
         window.saveNewPreset = saveNewPreset;
         window.deleteCurrentPreset = deleteCurrentPreset;
         window.renameCurrentPreset = renameCurrentPreset;
+        window.toggleCurrentPresetBoldAll = toggleCurrentPresetBoldAll;
+        window.syncSplitBoldToggle = syncSplitBoldToggle;
+        window.onSplitBoldToggleChange = onSplitBoldToggleChange;
+        window.applyCanvasBoldEffect = applyCanvasBoldEffect;
+        window.renderPrintBoldConfigsUI = renderPrintBoldConfigsUI;
+        window.savePrintBoldConfigItem = savePrintBoldConfigItem;
+        window.saveAllPrintBoldConfigs = saveAllPrintBoldConfigs;
         window.printTestTemplate = printTestTemplate;
         window.resetDefaultTemplate = resetDefaultTemplate;
         window.setCanvasZoom = setCanvasZoom;

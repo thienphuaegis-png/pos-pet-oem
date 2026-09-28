@@ -1667,10 +1667,35 @@ function initPrintTemplatesFromSettings() {
     let html = '';
     for (let key in posPrintConfig.presets) {
         const p = posPrintConfig.presets[key];
+        const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
+        if (cat !== 'pos') continue;
+
         const isSel = key === cur ? 'selected' : '';
         const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
-        const label = p.name ? (sizeTag ? `${p.name} [${sizeTag}]` : p.name) : sizeTag;
+        const boldTag = p.is_bold_all ? ' [Đậm]' : '';
+        const label = p.name ? (sizeTag ? `${p.name} [${sizeTag}]${boldTag}` : `${p.name}${boldTag}`) : `${sizeTag}${boldTag}`;
         html += `<option value="${key}" ${isSel}>${label}</option>`;
+    }
+    if (!html.includes('selected') && html.length > 0) {
+        const firstPosKey = Object.keys(posPrintConfig.presets).find(k => {
+            const p = posPrintConfig.presets[k];
+            const cat = p.category || (k.includes('spa') ? 'spa' : (k.includes('cashbook') ? 'cashbook' : (k.includes('audit') ? 'inventory' : 'pos')));
+            return cat === 'pos';
+        });
+        if (firstPosKey) {
+            posPrintConfig.active_preset = firstPosKey;
+            html = '';
+            for (let key in posPrintConfig.presets) {
+                const p = posPrintConfig.presets[key];
+                const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
+                if (cat !== 'pos') continue;
+                const isSel = key === firstPosKey ? 'selected' : '';
+                const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
+                const boldTag = p.is_bold_all ? ' [Đậm]' : '';
+                const label = p.name ? (sizeTag ? `${p.name} [${sizeTag}]${boldTag}` : `${p.name}${boldTag}`) : `${sizeTag}${boldTag}`;
+                html += `<option value="${key}" ${isSel}>${label}</option>`;
+            }
+        }
     }
     sel.innerHTML = html;
 }
@@ -1776,6 +1801,7 @@ function printDraftOrder() {
 function renderAndPrint(ord, isDraft = false) {
     const printArea = document.getElementById('print-area');
     if (!printArea) return;
+    window.currentPrintIsDraft = !!isDraft;
 
     // Luôn lấy preset đang chọn từ selector
     const selTemplate = document.getElementById('pos-template-select');
@@ -1784,6 +1810,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     let canvasElements = [];
     let paperSize = "A4-portrait";
+    window.currentPrintIsBoldAll = !!(curPreset && curPreset.is_bold_all);
 
     if (curPreset && curPreset.elements) {
         canvasElements = curPreset.elements;
@@ -2347,6 +2374,31 @@ function printInvoiceDirectly() {
         containerClone.insertBefore(bannerClone, containerClone.firstChild);
     }
 
+    let isBoldAll = false;
+    let boldCfg = null;
+    try {
+        boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+    } catch(e) {}
+
+    if (boldCfg) {
+        if (window.currentPrintIsDraft) {
+            isBoldAll = (boldCfg.pos_draft !== undefined) ? !!boldCfg.pos_draft : true;
+        } else {
+            isBoldAll = isThermal ? (boldCfg.pos_retail !== undefined ? !!boldCfg.pos_retail : true) : (boldCfg.pos_b2b !== undefined ? !!boldCfg.pos_b2b : false);
+        }
+    } else {
+        isBoldAll = !!window.currentPrintIsBoldAll;
+    }
+
+    const boldStyles = isBoldAll ? `
+                body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                    font-weight: 900 !important;
+                    color: #000 !important;
+                    -webkit-text-stroke: 0.35px #000 !important;
+                    text-shadow: 0 0 0.2px #000 !important;
+                }
+    ` : '';
+
     const doc = iframe.contentWindow.document;
     doc.open();
     doc.write(`
@@ -2357,6 +2409,7 @@ function printInvoiceDirectly() {
             <title>In Hóa Đơn</title>
             <style>
                 ${isThermal ? '@page { size: auto; margin: 0mm; }' : `@page { size: ${pageRule}; margin: 0; }`}
+                ${boldStyles}
                 html, body {
                     margin: 0 !important;
                     padding: 0 !important;
@@ -2616,6 +2669,22 @@ function printTopupReceiptDirectly(html) {
     iframe.style.zIndex = '-9999';
     document.body.appendChild(iframe);
 
+    let isBoldTopup = true;
+    try {
+        const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+        if (boldCfg && boldCfg.pos_topup !== undefined) {
+            isBoldTopup = !!boldCfg.pos_topup;
+        }
+    } catch(e) {}
+    const boldStyles = isBoldTopup ? `
+                body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                    font-weight: 900 !important;
+                    color: #000 !important;
+                    -webkit-text-stroke: 0.35px #000 !important;
+                    text-shadow: 0 0 0.2px #000 !important;
+                }
+    ` : '';
+
     const doc = iframe.contentWindow.document;
     doc.open();
     doc.write(`
@@ -2626,6 +2695,7 @@ function printTopupReceiptDirectly(html) {
             <title>Phiếu Thu Nạp Ví Spa</title>
             <style>
                 @page { size: auto; margin: 0mm; }
+                ${boldStyles}
                 html, body {
                     margin: 0 !important;
                     padding: 0 !important;

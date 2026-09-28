@@ -1083,6 +1083,23 @@
                     document.body.appendChild(iframe);
                 }
 
+                let isBoldStockAudit = false;
+                try {
+                    const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+                    if (boldCfg && boldCfg.stock_audit !== undefined) {
+                        isBoldStockAudit = !!boldCfg.stock_audit;
+                    }
+                } catch(e) {}
+
+                const boldStyles = isBoldStockAudit ? `
+                    body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                        font-weight: 900 !important;
+                        color: #000 !important;
+                        -webkit-text-stroke: 0.35px #000 !important;
+                        text-shadow: 0 0 0.2px #000 !important;
+                    }
+                ` : '';
+
                 const doc = iframe.contentWindow.document;
                 doc.open();
                 doc.write(`
@@ -1093,6 +1110,7 @@
                         <title>Phiếu Kiểm Kê - ${data.audit_code}</title>
                         <style>
                             @page { size: A4 portrait; margin: 8mm 10mm; }
+                            ${boldStyles}
                             table { width: 100%; border-collapse: collapse; }
                             th, td { border: 1px solid #000; padding: 5px; }
                             @media print {

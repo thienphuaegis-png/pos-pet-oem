@@ -5728,6 +5728,33 @@
                 deposit_slip: 'In Biên Nhận Đặt Cọc'
             };
 
+            let isBoldSpa = true;
+            try {
+                const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+                if (boldCfg) {
+                    const cfgKey = (type === 'intake') ? 'spa_intake' : 'spa_invoice';
+                    if (boldCfg[cfgKey] !== undefined) {
+                        isBoldSpa = !!boldCfg[cfgKey];
+                    }
+                } else {
+                    const settings = window.companySettings || window.posSettings || {};
+                    const parsed = settings.print_blocks_config ? JSON.parse(settings.print_blocks_config) : null;
+                    const presetKey = (type === 'intake') ? 'spa_intake_k80' : 'spa_invoice_k80';
+                    if (parsed && parsed.presets && parsed.presets[presetKey]) {
+                        isBoldSpa = !!parsed.presets[presetKey].is_bold_all;
+                    }
+                }
+            } catch(e) {}
+
+            const boldStyles = isBoldSpa ? `
+                        body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                            font-weight: 900 !important;
+                            color: #000 !important;
+                            -webkit-text-stroke: 0.35px #000 !important;
+                            text-shadow: 0 0 0.2px #000 !important;
+                        }
+            ` : '';
+
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(`
@@ -5738,6 +5765,7 @@
                     <title>${printTitles[type] || 'In Phiếu Dịch Vụ'}</title>
                     <style>
                         @page { size: auto; margin: 0mm; }
+                        ${boldStyles}
                         body { margin: 0; padding: 0; background: #fff; color: #000; }
                     </style>
                 </head>
@@ -5985,6 +6013,33 @@
                 document.body.appendChild(iframe);
             }
 
+            let isBoldSpa = true;
+            try {
+                const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+                if (boldCfg) {
+                    const cfgKey = (type === 'intake') ? 'spa_intake' : 'spa_invoice';
+                    if (boldCfg[cfgKey] !== undefined) {
+                        isBoldSpa = !!boldCfg[cfgKey];
+                    }
+                } else {
+                    const settings = window.companySettings || window.posSettings || {};
+                    const parsed = settings.print_blocks_config ? JSON.parse(settings.print_blocks_config) : null;
+                    const presetKey = (type === 'intake') ? 'spa_intake_k80' : 'spa_invoice_k80';
+                    if (parsed && parsed.presets && parsed.presets[presetKey]) {
+                        isBoldSpa = !!parsed.presets[presetKey].is_bold_all;
+                    }
+                }
+            } catch(e) {}
+
+            const boldStyles = isBoldSpa ? `
+                        body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                            font-weight: 900 !important;
+                            color: #000 !important;
+                            -webkit-text-stroke: 0.35px #000 !important;
+                            text-shadow: 0 0 0.2px #000 !important;
+                        }
+            ` : '';
+
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(`
@@ -5995,6 +6050,7 @@
                     <title>In Hàng Loạt Phiếu Spa (${fullTickets.length} Bé)</title>
                     <style>
                         @page { size: auto; margin: 0mm; }
+                        ${boldStyles}
                         body { margin: 0; padding: 0; background: #fff; color: #000; }
                         .thermal-ticket-page {
                             page-break-after: always !important;

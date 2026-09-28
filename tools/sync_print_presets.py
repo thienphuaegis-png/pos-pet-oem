@@ -4,7 +4,9 @@ import json
 presets_def = {
     'a4_b2b': {
         'name': 'Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)',
+        'category': 'pos',
         'paper_size': 'A4-landscape',
+        'is_bold_all': False,
         'elements': [
             {'id': 'e1', 'catalog_key': 'logo', 'zone': 'header', 'type': 'logo', 'label': 'Logo Cửa Hàng', 'x': 40, 'y': 22, 'w': 120, 'h': 55, 'align': 'center'},
             {'id': 'e2', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '{{ten_cua_hang}}', 'label': 'Tên Cửa Hàng', 'x': 180, 'y': 20, 'w': 520, 'fsz': 16, 'bold': True, 'align': 'left'},
@@ -23,7 +25,9 @@ presets_def = {
     },
     'spa_intake_k80': {
         'name': 'Mẫu Phiếu Tiếp Nhận Thú Cưng Spa (K80)',
+        'category': 'spa',
         'paper_size': 'K80',
+        'is_bold_all': True,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '🐾 {{ten_cua_hang}}', 'label': 'Tên Cửa Hàng', 'x': 10, 'y': 10, 'w': 270, 'fsz': 14, 'bold': True, 'align': 'center'},
             {'id': 'e2', 'catalog_key': 'title', 'zone': 'header', 'type': 'text', 'text': 'PHIẾU TIẾP NHẬN THÚ CƯNG', 'label': 'Tiêu Đề', 'x': 10, 'y': 32, 'w': 270, 'fsz': 13, 'bold': True, 'align': 'center'},
@@ -39,7 +43,9 @@ presets_def = {
     },
     'spa_invoice_k80': {
         'name': 'Mẫu Phiếu Thanh Toán Dịch Vụ Spa (K80)',
+        'category': 'spa',
         'paper_size': 'K80',
+        'is_bold_all': True,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '🐾 {{ten_cua_hang}}', 'label': 'Tên Cửa Hàng', 'x': 10, 'y': 10, 'w': 270, 'fsz': 14, 'bold': True, 'align': 'center'},
             {'id': 'e2', 'catalog_key': 'title', 'zone': 'header', 'type': 'text', 'text': 'HÓA ĐƠN DỊCH VỤ SPA', 'label': 'Tiêu Đề', 'x': 10, 'y': 32, 'w': 270, 'fsz': 14, 'bold': True, 'align': 'center'},
@@ -56,7 +62,9 @@ presets_def = {
     },
     'cashbook_thu_k80': {
         'name': 'Mẫu Phiếu Thu Tiền (Cuộn K80)',
+        'category': 'cashbook',
         'paper_size': 'K80',
+        'is_bold_all': True,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '🐾 {{ten_cua_hang}}', 'label': 'Tên Cửa Hàng', 'x': 10, 'y': 10, 'w': 270, 'fsz': 14, 'bold': True, 'align': 'center'},
             {'id': 'e2', 'catalog_key': 'title', 'zone': 'header', 'type': 'text', 'text': 'PHIẾU THU TIỀN', 'label': 'Tiêu Đề', 'x': 10, 'y': 32, 'w': 270, 'fsz': 15, 'bold': True, 'align': 'center'},
@@ -71,7 +79,9 @@ presets_def = {
     },
     'cashbook_thu_a4': {
         'name': 'Mẫu Phiếu Thu Tiền (Chuẩn A5/A4 Kế Toán)',
+        'category': 'cashbook',
         'paper_size': 'A5-landscape',
+        'is_bold_all': False,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}', 'label': 'Đơn Vị', 'x': 30, 'y': 20, 'w': 400, 'fsz': 11, 'bold': False, 'align': 'left'},
             {'id': 'e2', 'catalog_key': 'order_code', 'zone': 'header', 'type': 'text', 'text': 'Mẫu số 01 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....', 'label': 'Mẫu Số & Quyển', 'x': 440, 'y': 20, 'w': 240, 'fsz': 10, 'align': 'right'},
@@ -83,7 +93,9 @@ presets_def = {
     },
     'cashbook_chi_k80': {
         'name': 'Mẫu Phiếu Chi Tiền (Cuộn K80)',
+        'category': 'cashbook',
         'paper_size': 'K80',
+        'is_bold_all': True,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '🐾 {{ten_cua_hang}}', 'label': 'Tên Cửa Hàng', 'x': 10, 'y': 10, 'w': 270, 'fsz': 14, 'bold': True, 'align': 'center'},
             {'id': 'e2', 'catalog_key': 'title', 'zone': 'header', 'type': 'text', 'text': 'PHIẾU CHI TIỀN', 'label': 'Tiêu Đề', 'x': 10, 'y': 32, 'w': 270, 'fsz': 15, 'bold': True, 'align': 'center'},
@@ -98,7 +110,9 @@ presets_def = {
     },
     'cashbook_chi_a4': {
         'name': 'Mẫu Phiếu Chi Tiền (Chuẩn A5/A4 Kế Toán)',
+        'category': 'cashbook',
         'paper_size': 'A5-landscape',
+        'is_bold_all': False,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}\nHotline: {{so_dien_thoai}}', 'label': 'Đơn Vị', 'x': 30, 'y': 20, 'w': 400, 'fsz': 11, 'bold': False, 'align': 'left'},
             {'id': 'e2', 'catalog_key': 'order_code', 'zone': 'header', 'type': 'text', 'text': 'Mẫu số 02 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....', 'label': 'Mẫu Số & Quyển', 'x': 440, 'y': 20, 'w': 240, 'fsz': 10, 'align': 'right'},
@@ -110,7 +124,9 @@ presets_def = {
     },
     'stock_audit_a4': {
         'name': 'Mẫu Phiếu Kiểm Kê Hàng Hóa (A4 Dọc)',
+        'category': 'inventory',
         'paper_size': 'A4-portrait',
+        'is_bold_all': False,
         'elements': [
             {'id': 'e1', 'catalog_key': 'shop_name', 'zone': 'header', 'type': 'text', 'text': '{{ten_cua_hang}}\nĐịa chỉ: {{dia_chi}}', 'label': 'Tên Doanh Nghiệp', 'x': 30, 'y': 20, 'w': 400, 'fsz': 11, 'bold': False, 'align': 'left'},
             {'id': 'e2', 'catalog_key': 'order_code', 'zone': 'header', 'type': 'text', 'text': 'Mã phiếu: {{ma_phieu}}\nNgày kiểm: {{ngay_gio}}', 'label': 'Mã & Ngày', 'x': 440, 'y': 20, 'w': 260, 'fsz': 10.5, 'align': 'right'},
@@ -130,10 +146,37 @@ row = cur.fetchone()
 if row:
     data = json.loads(row[0])
     presets = data.get('presets', {})
+    # Cập nhật và bổ sung category, is_bold_all cho tất cả preset định nghĩa
     for k, v in presets_def.items():
-        presets[k] = v
+        if k in presets:
+            presets[k]['category'] = v.get('category', 'pos')
+            if 'is_bold_all' not in presets[k] or presets[k]['is_bold_all'] is None:
+                presets[k]['is_bold_all'] = v.get('is_bold_all', False)
+            if 'elements' in v:
+                presets[k]['elements'] = v['elements']
+            if 'name' in v:
+                presets[k]['name'] = v['name']
+            if 'paper_size' in v:
+                presets[k]['paper_size'] = v['paper_size']
+        else:
+            presets[k] = v
+
+    # Quét tất cả các preset khác (kể cả preset tùy chỉnh của người dùng và các preset standard)
+    for k, p in presets.items():
+        if 'category' not in p or not p['category']:
+            if 'spa' in k:
+                p['category'] = 'spa'
+            elif 'cashbook' in k:
+                p['category'] = 'cashbook'
+            elif 'audit' in k:
+                p['category'] = 'inventory'
+            else:
+                p['category'] = 'pos'
+        if 'is_bold_all' not in p or p['is_bold_all'] is None:
+            p['is_bold_all'] = (p.get('paper_size') in ['K80', 'K58'])
+
     data['presets'] = presets
     cur.execute('UPDATE settings SET value = ? WHERE key = "print_blocks_config"', (json.dumps(data, ensure_ascii=False),))
     conn.commit()
-    print('Updated presets with full elements in pos.db successfully!')
+    print('Updated presets with full elements, category, and is_bold_all in pos.db successfully!')
 conn.close()

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
-from schemas import CompanySettingsUpdate, TemplateSettingsUpdate, RolePermissionUpdate, ModuleToggleUpdate, StaffPermissionUpdate
+from schemas import CompanySettingsUpdate, TemplateSettingsUpdate, PrintBoldConfigsUpdate, RolePermissionUpdate, ModuleToggleUpdate, StaffPermissionUpdate
 from logger_config import get_module_logger
 from dependencies import require_role
 
@@ -166,6 +166,15 @@ def update_template_settings(req: TemplateSettingsUpdate):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("INSERT INTO settings (key, value) VALUES ('print_blocks_config', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (req.print_blocks_config, req.print_blocks_config))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+@router.post("/print-bold-configs")
+def update_print_bold_configs(req: PrintBoldConfigsUpdate):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO settings (key, value) VALUES ('print_bold_configs', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (req.print_bold_configs, req.print_bold_configs))
     conn.commit()
     conn.close()
     return {"status": "ok"}

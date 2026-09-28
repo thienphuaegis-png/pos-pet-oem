@@ -229,6 +229,9 @@ class CompanySettingsUpdate(BaseModel):
 class TemplateSettingsUpdate(BaseModel):
     print_blocks_config: str
 
+class PrintBoldConfigsUpdate(BaseModel):
+    print_bold_configs: str
+
 class RolePermissionUpdate(BaseModel):
     role: str
     perm_key: str

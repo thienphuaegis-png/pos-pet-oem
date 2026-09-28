@@ -340,7 +340,30 @@ function printShiftZReport(summaryData) {
   const diffSign = diff >= 0 ? '+' : '';
   const diffText = diff === 0 ? '0 đ (Khớp)' : `${diffSign}${fmt(diff)}`;
 
+  let isBoldShift = true;
+  try {
+    const boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+    if (boldCfg && boldCfg.shift_zreport !== undefined) {
+      isBoldShift = !!boldCfg.shift_zreport;
+    }
+  } catch(e) {}
+  window.currentPrintIsBoldAll = isBoldShift;
+
+  const boldStyles = isBoldShift ? `
+    <style>
+      @media print {
+        body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+          font-weight: 900 !important;
+          color: #000 !important;
+          -webkit-text-stroke: 0.35px #000 !important;
+          text-shadow: 0 0 0.2px #000 !important;
+        }
+      }
+    </style>
+  ` : '';
+
   const html = `
+    ${boldStyles}
     <div style="font-family: 'Courier New', monospace, sans-serif; font-size: 13px; max-width: 320px; margin: 0 auto; color: #111; line-height: 1.45; padding: 10px;">
       <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
         <h2 style="margin: 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">PHIẾU TỔNG KẾT CA (Z-REPORT)</h2>
