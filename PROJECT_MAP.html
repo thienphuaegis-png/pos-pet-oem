@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Đồ Tiến Độ POS Petcare — Tailwind UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-16">
+
+  <!-- TOP HEADER (Tailwind UI App Header) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs backdrop-blur bg-white/90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-200">
+            <span class="text-xl">🐾</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                v2.9 Master
+              </span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                ● 100% Offline
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Hệ thống quản lý chuỗi Bán hàng, Spa & Khách sạn Thú cưng</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs Switcher -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button id="nav-btn-tasks" onclick="switchMainView('tasks')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs">
+            📋 Bảng Tiến Độ
+          </button>
+          <button id="nav-btn-tree" onclick="switchMainView('tree')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+            📂 Cây Thư Mục
+          </button>
+        </div>
+
+        <!-- Top Actions -->
+        <div class="flex items-center gap-2.5">
+          <button onclick="openAddTaskModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors">
+            <span>➕</span> Thêm Task
+          </button>
+          <button onclick="exportToMarkdown()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm shadow-purple-200 transition-colors">
+            <span>📥</span> Xuất Markdown (.md)
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+    <!-- VIEW 1: TASKS PROGRESS -->
+    <div id="view-tasks" class="space-y-6">
+
+    <!-- METRICS CARDS (Tailwind UI Stats Grid) -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      
+      <!-- Card 1: Tổng số Tasks -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Nhiệm Vụ</p>
+            <p id="stat-total" class="text-2xl font-extrabold text-slate-900 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-xl text-purple-600">
+            📋
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-purple-600 font-semibold mr-1.5">38 mục</span> trong toàn dự án
+        </div>
+      </div>
+
+      <!-- Card 2: Đã hoàn thành -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đã Hoàn Thành</p>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="stat-done" class="text-2xl font-extrabold text-emerald-600 font-mono">0</span>
+              <span id="stat-percent" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">0%</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl text-emerald-600">
+            ✅
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div class="mt-4">
+          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div id="stat-progress-bar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Đang chờ thực hiện -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chờ Triển Khai</p>
+            <p id="stat-pending" class="text-2xl font-extrabold text-amber-600 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-600">
+            ⏳
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-amber-600 font-semibold mr-1.5">Topup, Hotel, AI</span> đang backlog
+        </div>
+      </div>
+
+      <!-- Card 4: Tình trạng Kiểm Thử & Kiến Trúc -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hệ Thống & Test</p>
+            <p class="text-base font-bold text-slate-900 mt-1">13/13 Node PASS</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-600">
+            ⚡
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+          <span>FastAPI 17 Routers ● SQLite 35 Bảng</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FILTER & SEARCH TOOLBAR (Tailwind UI Section Header) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        
+        <!-- Category Segmented Buttons -->
+        <div class="flex flex-wrap items-center gap-1.5" id="category-filters">
+          <button onclick="setCategoryFilter('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs">
+            Tất Cả
+          </button>
+          <button onclick="setCategoryFilter('SPA')" data-cat="SPA" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🐾 Dịch Vụ Spa
+          </button>
+          <button onclick="setCategoryFilter('BILL')" data-cat="BILL" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🧾 Hóa Đơn & Bảng Giá
+          </button>
+          <button onclick="setCategoryFilter('SYS')" data-cat="SYS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏨 Khách Sạn & Hệ Thống
+          </button>
+          <button onclick="setCategoryFilter('UI')" data-cat="UI" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🎨 Giao Diện Đã Xong
+          </button>
+        </div>
+
+        <!-- Search & Status dropdown -->
+        <div class="flex items-center gap-3">
+          <select id="status-filter" onchange="renderTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="done">✅ Đã hoàn thành</option>
+            <option value="pending">⏳ Đang chờ làm</option>
+          </select>
+
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="search-input" oninput="renderTable()" placeholder="🔍 Tìm kiếm tính năng..." class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500">
+            <button onclick="document.getElementById('search-input').value=''; renderTable();" class="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN PROGRESS TABLE (Tailwind UI Data Table) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-left">
+          
+          <!-- Table Header -->
+          <thead class="bg-slate-50/80">
+            <tr>
+              <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-16">
+                STT
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-20">
+                Xong
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Nhiệm Vụ / Tính Năng
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
+                Phân Hệ
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-32">
+                Trạng Thái
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Chi Tiết Kỹ Thuật / Trạng Thái
+              </th>
+            </tr>
+          </thead>
+
+          <!-- Table Body -->
+          <tbody id="progress-table-body" class="divide-y divide-slate-100 bg-white">
+            <!-- Dynamically populated via JS -->
+          </tbody>
+
+        </table>
+      </div>
+
+      <!-- Table Footer Summary -->
+      <div class="bg-slate-50/80 px-4 py-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+        <div id="table-showing-text">Hiển thị 0 nhiệm vụ</div>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Đã hoàn thiện</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Chờ triển khai</span>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <!-- END VIEW 1: TASKS PROGRESS -->
+
+    <!-- VIEW 2: PROJECT TREE (Cấu trúc thư mục & mã nguồn) -->
+    <div id="view-tree" class="hidden space-y-6">
+      
+      <!-- Tree Header Toolbar -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📂</span> Sơ Đồ Cấu Trúc Mã Nguồn Dự Án (Project Tree)
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">Cấu trúc phân tầng chuẩn: Presentation (UI) → Routers (API) → Business Logic → Database (SQLite 35 bảng)</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="expandAllTree(true)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+              Mở Tất Cả
+            </button>
+            <button onclick="expandAllTree(false)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+              Thu Gọn
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tree Main Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="tree-container">
+        
+        <!-- Block 1: Routers Backend -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-routers')">
+            <div class="flex items-center gap-2">
+              <span class="text-purple-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">routers/</span>
+              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">13 API Modules</span>
+            </div>
+            <span id="tree-routers-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-routers" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">pos.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">API bán hàng quầy, tính tiền, hóa đơn lẻ, in K80 & hoàn ví khi hủy đơn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Core POS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">partners.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Dịch vụ Spa, vé tiếp nhận, cấn trừ sạch ví (Lựa chọn A), phân công kíp thợ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Pet Spa</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">cashbook.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ thu chi, COALESCE Tên + SĐT, Drawer đối soát nguồn gốc read-only</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashflow</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">topup.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý nạp gói ví Spa trả trước, hạch toán két ca, in phiếu K80 ngầm</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Topup</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">price_lists.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bảng giá đa cấp, ma trận giá nhóm, khuyến mãi Best Offer</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Pricing</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">oem.py & purchases.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Gia công xưởng OEM, trừ bao bì tem chai theo BOM, PO 2 bước</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">OEM/PO</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">inventory.py & products.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kho hợp nhất, thẻ kho, danh mục nhóm hàng KiotViet, Excel import/export</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Inventory</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 2: Frontend & UI -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-frontend')">
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">templates/ & static/js/</span>
+              <span class="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Giao Diện & Client</span>
+            </div>
+            <span id="tree-frontend-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-frontend" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">templates/index.html</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">SPA Quản trị đa tab: Dải lịch ngang, sub-tab hóa đơn Spa, customConfirm UI</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Admin SPA</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">templates/pos.html</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Màn hình Bán Hàng chuyên dụng: Phím tắt F1-F9, giỏ hàng chuẩn, đa tab</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">POS Standalone</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/spa.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Dải lịch 7 ngày, lọc ca trong ngày, cấn trừ sạch ví, đồng bộ cuộc gọi 1 chạm</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Spa Module</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/productions.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Hiển thị badge SĐT, Drawer đối soát Sổ Quỹ, tìm kiếm realtime SĐT</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashbook Module</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/shifts.js & auth.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Đóng/mở ca, bảng đếm tiền 10 mệnh giá, Z-Report, xác thực phiên</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Shifts & Auth</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 3: Database & Core -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-core')">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">data/ & Core Backend</span>
+              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">SQLite & Server</span>
+            </div>
+            <span id="tree-core-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-core" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">data/pos.db</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">SQLite database cục bộ chứa 35 bảng, WAL mode chống lock, auto-backup</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">SQLite 35 Tables</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">database.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khởi tạo schema 35 bảng, migrations tự động khi nâng cấp cấu trúc cột</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Schema</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">server.py & main.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">FastAPI App, đăng ký 13 routers, CORS, static mounting và Uvicorn runner</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">FastAPI Server</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 4: Checkpoints, Tests & Tooling -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-tools')">
+            <div class="flex items-center gap-2">
+              <span class="text-rose-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">Checkpoints, Docs & Tests</span>
+              <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Single Source</span>
+            </div>
+            <span id="tree-tools-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-tools" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-purple-700">PROJECT_STATE.md</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Checkpoint file duy nhất (< 100 dòng) cho AI: Header, Phiên hiện tại, Test, Next Tasks</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Active Checkpoint</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">PROJECT_MAP.html</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Giao diện Dashboard tương tác theo dõi tiến độ, xem cây thư mục & xuất .md</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Visual Hub</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">docs/archive/</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Lưu trữ log cũ (STATE_2026_09.md, LEGACY_TRACKING.md) giữ sạch context</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Archive</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">tests/</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ kiểm thử tự động toàn diện: Pytest backend + Node.js VM DOM testing</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Test Suite</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ADD TASK MODAL -->
+  <div id="add-task-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span>➕</span> Thêm Nhiệm Vụ Mới
+        </h3>
+        <button onclick="closeAddTaskModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tên Nhiệm Vụ</label>
+          <input type="text" id="new-task-title" placeholder="VD: Tích hợp máy quét mã vạch không dây..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Phân Hệ</label>
+            <select id="new-task-cat" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="SPA">🐾 Dịch Vụ Spa</option>
+              <option value="BILL">🧾 Hóa Đơn & Bảng Giá</option>
+              <option value="SYS">🏨 Khách Sạn & Hệ Thống</option>
+              <option value="UI">🎨 Giao Diện</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Trạng Thái</label>
+            <select id="new-task-done" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="false">⏳ Đang Chờ</option>
+              <option value="true">✅ Đã Xong</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi Chú Kỹ Thuật</label>
+          <textarea id="new-task-note" rows="2" placeholder="Ghi chú file, API hoặc nghiệp vụ liên quan..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2.5 mt-5 pt-3 border-t border-slate-100">
+        <button onclick="closeAddTaskModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+        <button onclick="saveNewTask()" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm">Lưu Task</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-27)
+    const ROADMAP_VERSION = 'v2.9-2026-09-27';
+    const DEFAULT_TASKS = [
+      // 1. PHÂN HỆ DỊCH VỤ SPA
+      { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
+      { id: 'spa-2', cat: 'SPA', title: 'Phiếu dịch vụ in dư dòng cắt nghệ thuật & dọn khoảng cách cắt giấy thẩm mỹ', done: true, note: 'Khắc phục trùng dòng regex và thêm khoảng đệm 18mm chống dao cắt phạm' },
+      { id: 'spa-3', cat: 'SPA', title: 'Thao tác hàng loạt (Bulk Actions toolbar & checkboxes) thay bảng tính inline', done: true, note: 'Thanh floating toolbar, đổi trạng thái/gọi đón/gán thợ hàng loạt, in gộp K80' },
+      { id: 'spa-4', cat: 'SPA', title: 'Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách', done: true, note: 'Modal nhẹ onclick mở nhanh, chọn gói giá, chips cạo lông, thợ cắt/tắm' },
+      { id: 'spa-5', cat: 'SPA', title: 'Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định today)', done: true, note: 'Lọc mặc định hôm nay, nút Hôm Nay / Tất Cả, giảm tải render quầy' },
+      { id: 'spa-6', cat: 'SPA', title: 'Gom nút lọc trạng thái dịch vụ về 1 dropdown phân loại', done: true, note: 'Thay thế 5 nút bấm dàn trải bằng <select id="select-svc-filter-status">' },
+      { id: 'spa-7', cat: 'SPA', title: 'Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa', done: true, note: 'Dàn 5 thẻ KPI chuẩn (Hôm nay, Đang làm, Chưa gọi, Đưa đón, Đã về)' },
+      { id: 'spa-8', cat: 'SPA', title: 'Sửa lỗi giật tải lại trang khi sửa 1 ô (Optimistic Local Update)', done: true, note: 'Cập nhật mảng local & DOM tức thì 0ms, gọi PUT ngầm, tự rollback nếu lỗi' },
+      { id: 'spa-9', cat: 'SPA', title: 'Tiếp nhận Spa hàng loạt dạng Sheet phẳng với 5 cột checkbox phụ thu riêng & Bulk Action Bar', done: true, note: 'Chuẩn 1 dòng phẳng ~40px, checkbox Răng/Cắt NT/Gỡ rối/Nhuộm/Ship, gán mẫu 1 chạm' },
+      { id: 'spa-10', cat: 'SPA', title: 'Dải lịch ngang 7 ngày + Date Picker tự do + Bộ lọc nhanh ca trong ngày (Tất Cả, Chưa Về, Đã Về)', done: true, note: 'Hiển thị ca trong ngày (kể cả đã về với viền xanh emerald), nút hoàn tác ↩️ mở lại' },
+      { id: 'spa-11', cat: 'SPA', title: 'Đồng bộ cuộc gọi thông minh cho khách có nhiều bé (1 chạm)', done: true, note: 'Đổi trạng thái gọi 1 dòng tự động hỏi áp dụng cho toàn bộ các bé của cùng chủ' },
+      { id: 'spa-12', cat: 'SPA', title: 'Tự động nhận diện Ví Spa & Cơ chế cấn trừ sạch ví (Lựa chọn A) liên thông Sổ Quỹ', done: true, note: 'Đủ tiền tự chọn Trừ ví; thiếu tiền cấn trừ hết ví + thu ngoài phần thiếu; ghi đúng phần thu ngoài vào Sổ Quỹ' },
+
+      // 2. HÓA ĐƠN, BẢNG GIÁ & VÍ
+      { id: 'bill-1', cat: 'BILL', title: 'Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư ví', done: true, note: 'Gỡ trừ ví khỏi POS bán lẻ, hoàn tiền ví khi hủy đơn, in phiếu thu K80 ngầm không xem trước, bổ sung Tên/SĐT vào Sổ Quỹ' },
+      { id: 'bill-2', cat: 'BILL', title: 'Tab Hóa Đơn: Sub-tab Lịch Sử Spa tra cứu hóa đơn dịch vụ chuyên biệt', done: true, note: 'Đã kích hoạt sub-view Spa 12 cột, lọc theo ngày/trạng thái/thanh toán, thống kê doanh thu, in lại K80, mở lại vé' },
+      { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: true, note: 'Đã hoàn thiện tại modal sửa hàng loạt và bảng điều phối' },
+      { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: true, note: 'Đã di chuyển thành sub-tab thứ 4 (pl-subtab-topup) trong Tab Bảng Giá, gỡ bỏ menu thừa ở Cài Đặt' },
+      { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: true, note: 'Chuẩn hóa preview scale, CSS @page auto nhiệt K80/K58, bổ sung mẫu in Phiếu Thu/Chi (K80 & A4/A5 kế toán) và Phiếu Kiểm Kê Kho (A4)' },
+      { id: 'bill-6', cat: 'BILL', title: 'Thiết Kế Mẫu In Visual Canvas & 12 Mẫu Nghiệp Vụ Thực Tế', done: true, note: 'Bổ sung 100% checkbox trường động (Spa, Sổ Quỹ, Kiểm Kê), fix ReferenceError renderCanvas & exports, auto-render không trắng trang, scale chống tràn giấy K80/A4' },
+
+      // 3. KHÁCH SẠN, HỆ THỐNG & AI
+      { id: 'sys-1', cat: 'SYS', title: 'Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout', done: false, note: 'Chờ triển khai: phòng lưu trú, nhật ký cho ăn, checkin/checkout' },
+      { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal UI', done: true, note: 'customConfirm danger (icon đỏ, phím Enter/Esc), customAlert, showToast đồng bộ 100%' },
+      { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: true, note: 'Hỗ trợ phím Enter/Esc trên customConfirm modal và hotkeys F1-F9' },
+      { id: 'sys-4', cat: 'SYS', title: 'Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý', done: false, note: 'Chờ triển khai: tích hợp mô hình cục bộ hoặc Gemini web' },
+      { id: 'sys-5', cat: 'SYS', title: 'Đóng gói EXE — build_exe.bat + test chạy độc lập trên máy Windows', done: false, note: 'Chờ triển khai: đóng gói PyInstaller / Nuitka phân phối khách' },
+
+      // 4. GIAO DIỆN & TRẢI NGHIỆM POS ĐÃ HOÀN THIỆN
+      { id: 'ui-1', cat: 'UI', title: 'Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch canvas', done: true, note: 'Góc lượn scoop liền mạch tab đang chọn với vùng nội dung' },
+      { id: 'ui-2', cat: 'UI', title: 'Đồng bộ bo cong lõm ngược cho Menu Thu Nhỏ (Collapsed Sidebar 5.5rem)', done: true, note: 'Hiệu ứng scoop bo mượt khi thu hẹp thanh bên sidebar' },
+      { id: 'ui-3', cat: 'UI', title: 'Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar)', done: true, note: 'Triệt tiêu thanh cuộn ngang, thuận tay thao tác thu ngân' },
+      { id: 'ui-4', cat: 'UI', title: 'Top Slim Progress Bar (Linear/Next.js style) gradient chạy chuyển tab', done: true, note: 'Thanh loading siêu mỏng phát sáng khi chuyển đổi module' },
+      { id: 'ui-5', cat: 'UI', title: 'Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc GPU translate3d', done: true, note: 'Mỗi hàng vé dịch vụ là một card bo góc đổ bóng nổi bật' },
+      { id: 'ui-6', cat: 'UI', title: 'Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom 3 khối thẻ trắng', done: true, note: 'Layout quầy POS chuẩn thanh toán bán sỉ & lẻ' },
+      { id: 'ui-7', cat: 'UI', title: 'Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Kho hàng, Hóa đơn', done: true, note: 'Tối ưu hiệu năng DOM và quản trị lượng dữ liệu lớn' },
+      { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' },
+      { id: 'ui-9', cat: 'UI', title: 'Server-side Injection Logo & Tên Ứng Dụng Màn Hình Đăng Nhập', done: true, note: 'Route GET / inject trực tiếp app_name và shop_logo vào HTML response, hiển thị 0ms tức thì không chớp giật FOUC' },
+      { id: 'auth-1', cat: 'SYS', title: 'Quản lý nhân viên (Cài Đặt > Nhân Viên) và phân quyền ca làm việc', done: false, note: 'Chờ triển khai: cấu hình danh sách nhân viên spa/thu ngân/kế toán' }
+    ];
+
+    let tasks = [];
+    try {
+      const storedVer = localStorage.getItem('pos_petcare_roadmap_version');
+      const stored = localStorage.getItem('pos_petcare_roadmap_tasks');
+      if (stored && storedVer === ROADMAP_VERSION) {
+        tasks = JSON.parse(stored);
+      } else {
+        tasks = [...DEFAULT_TASKS];
+        localStorage.setItem('pos_petcare_roadmap_version', ROADMAP_VERSION);
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
+      }
+    } catch (e) {
+      tasks = [...DEFAULT_TASKS];
+    }
+
+    let activeCategory = 'all';
+
+    function switchMainView(view) {
+      const viewTasks = document.getElementById('view-tasks');
+      const viewTree = document.getElementById('view-tree');
+      const btnTasks = document.getElementById('nav-btn-tasks');
+      const btnTree = document.getElementById('nav-btn-tree');
+
+      if (view === 'tree') {
+        viewTasks.classList.add('hidden');
+        viewTree.classList.remove('hidden');
+        btnTree.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs';
+        btnTasks.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
+      } else {
+        viewTree.classList.add('hidden');
+        viewTasks.classList.remove('hidden');
+        btnTasks.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs';
+        btnTree.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
+      }
+    }
+
+    function toggleTreeSection(id) {
+      const el = document.getElementById(id);
+      const arrow = document.getElementById(id + '-arrow');
+      if (el) {
+        el.classList.toggle('hidden');
+        if (arrow) {
+          arrow.textContent = el.classList.contains('hidden') ? '▶' : '▼';
+        }
+      }
+    }
+
+    function expandAllTree(expand) {
+      ['tree-routers', 'tree-frontend', 'tree-core', 'tree-tools'].forEach(id => {
+        const el = document.getElementById(id);
+        const arrow = document.getElementById(id + '-arrow');
+        if (el) {
+          if (expand) {
+            el.classList.remove('hidden');
+            if (arrow) arrow.textContent = '▼';
+          } else {
+            el.classList.add('hidden');
+            if (arrow) arrow.textContent = '▶';
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('progress-table-body');
+      const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('status-filter')?.value || 'all';
+
+      let filtered = tasks.filter(t => {
+        if (activeCategory !== 'all' && t.cat !== activeCategory) return false;
+        if (statusFilter === 'done' && !t.done) return false;
+        if (statusFilter === 'pending' && t.done) return false;
+        if (search) {
+          const matchTitle = (t.title || '').toLowerCase().includes(search);
+          const matchNote = (t.note || '').toLowerCase().includes(search);
+          const matchCat = (t.cat || '').toLowerCase().includes(search);
+          if (!matchTitle && !matchNote && !matchCat) return false;
+        }
+        return true;
+      });
+
+      let html = '';
+      if (filtered.length === 0) {
+        html = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">
+              <span class="text-3xl block mb-2">🔍</span>
+              Không tìm thấy nhiệm vụ nào phù hợp với bộ lọc hiện tại.
+            </td>
+          </tr>
+        `;
+      } else {
+        filtered.forEach((t, idx) => {
+          const catBadges = {
+            SPA: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">🐾 Spa</span>',
+            BILL: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🧾 Hóa Đơn</span>',
+            SYS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">🏨 Hệ Thống</span>',
+            UI: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">🎨 Giao Diện</span>',
+          };
+          const catBadge = catBadges[t.cat] || `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">${t.cat}</span>`;
+
+          const statusBadge = t.done
+            ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã Xong</span>'
+            : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Đang Chờ</span>';
+
+          html += `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+              <td class="py-3.5 pl-4 pr-3 text-center text-xs font-mono font-bold text-slate-400">
+                ${idx + 1}
+              </td>
+              <td class="px-3 py-3.5 text-center">
+                <input type="checkbox" onchange="toggleTaskDone('${t.id}')" ${t.done ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer">
+              </td>
+              <td class="px-4 py-3.5 text-xs">
+                <div class="font-bold ${t.done ? 'text-slate-500 line-through' : 'text-slate-900'}">
+                  ${escapeHtml(t.title)}
+                </div>
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${catBadge}
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${statusBadge}
+              </td>
+              <td class="px-4 py-3.5 text-xs text-slate-600 font-mono">
+                ${escapeHtml(t.note || '-')}
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      tbody.innerHTML = html;
+      document.getElementById('table-showing-text').textContent = `Hiển thị ${filtered.length} / ${tasks.length} nhiệm vụ`;
+      updateStats();
+    }
+
+    function updateStats() {
+      const total = tasks.length;
+      const done = tasks.filter(t => t.done).length;
+      const pending = total - done;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-done').textContent = done;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-percent').textContent = `${percent}%`;
+      document.getElementById('stat-progress-bar').style.width = `${percent}%`;
+    }
+
+    function toggleTaskDone(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveTasks();
+        renderTable();
+      }
+    }
+
+    function setCategoryFilter(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs';
+        } else {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200';
+        }
+      });
+      renderTable();
+    }
+
+    function saveTasks() {
+      try {
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
+      } catch (e) {
+        console.error('Không lưu được vào LocalStorage', e);
+      }
+    }
+
+    function exportToMarkdown() {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const doneTasks = tasks.filter(t => t.done);
+      const pendingTasks = tasks.filter(t => !t.done);
+      const percent = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+
+      let md = `# BẢN ĐỒ TIẾN ĐỘ DỰ ÁN POS PETCARE\n`;
+      md += `> Ngày xuất: ${dateStr} | Tiến độ tổng: **${doneTasks.length}/${tasks.length} (${percent}%)**\n\n`;
+
+      md += `## 1. TỔNG QUAN TIẾN ĐỘ\n`;
+      md += `- **Tổng số nhiệm vụ:** ${tasks.length}\n`;
+      md += `- **Đã hoàn thành:** ${doneTasks.length} nhiệm vụ\n`;
+      md += `- **Đang chờ thực hiện:** ${pendingTasks.length} nhiệm vụ\n`;
+      md += `- **Tỷ lệ hoàn thành:** ${percent}%\n\n`;
+
+      md += `## 2. CHI TIẾT CÁC NHIỆM VỤ THEO PHÂN HỆ\n\n`;
+
+      const cats = [
+        { code: 'SPA', name: '🐾 Phân Hệ Dịch Vụ Spa' },
+        { code: 'BILL', name: '🧾 Phân Hệ Hóa Đơn & Bảng Giá' },
+        { code: 'SYS', name: '🏨 Phân Hệ Khách Sạn & Hệ Thống' },
+        { code: 'UI', name: '🎨 Giao Diện & Trải Nghiệm POS' },
+      ];
+
+      cats.forEach(c => {
+        const catTasks = tasks.filter(t => t.cat === c.code);
+        if (catTasks.length > 0) {
+          md += `### ${c.name}\n`;
+          catTasks.forEach(t => {
+            const check = t.done ? '[x]' : '[ ]';
+            md += `- ${check} **${t.title}**\n`;
+            if (t.note) md += `  - *Ghi chú:* ${t.note}\n`;
+          });
+          md += `\n`;
+        }
+      });
+
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PROJECT_PROGRESS_${dateStr}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function openAddTaskModal() {
+      document.getElementById('add-task-modal').classList.remove('hidden');
+    }
+    function closeAddTaskModal() {
+      document.getElementById('add-task-modal').classList.add('hidden');
+      document.getElementById('new-task-title').value = '';
+      document.getElementById('new-task-note').value = '';
+    }
+    function saveNewTask() {
+      const title = document.getElementById('new-task-title').value.trim();
+      const cat = document.getElementById('new-task-cat').value;
+      const done = document.getElementById('new-task-done').value === 'true';
+      const note = document.getElementById('new-task-note').value.trim();
+
+      if (!title) {
+        alert('Vui lòng nhập tên nhiệm vụ!');
+        return;
+      }
+
+      const newTask = {
+        id: 'task-' + Date.now(),
+        cat,
+        title,
+        done,
+        note: note || '-'
+      };
+
+      tasks.unshift(newTask);
+      saveTasks();
+      closeAddTaskModal();
+      renderTable();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>

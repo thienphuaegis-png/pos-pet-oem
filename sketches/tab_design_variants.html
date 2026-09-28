@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>So Sánh 2 Mẫu Tab Bo Tròn Dạng Mở</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 24px;
+        }
+
+        /* ============================================================
+           MẪU 1: INVERTED CURVED SCOOP (BO CONG LƯỢN NGƯỢC HỒ SƠ)
+           ============================================================ */
+        .sidebar-m1 {
+            background-color: #ffffff;
+            position: relative;
+        }
+        .tab-btn-m1 {
+            position: relative;
+            transition: all 0.2s ease;
+            color: #64748b;
+            font-weight: 600;
+        }
+        .tab-btn-m1:not(.active):hover {
+            color: #0f172a;
+            background-color: #f8fafc;
+            border-radius: 0.85rem;
+        }
+        /* Tab Active: Nền trùng canvas #f1f5f9, mép phải phẳng mở toang */
+        .tab-btn-m1.active {
+            background-color: #f1f5f9 !important;
+            color: #0284c7 !important;
+            font-weight: 800 !important;
+            border-top-left-radius: 1rem;
+            border-bottom-left-radius: 1rem;
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            z-index: 20;
+        }
+        /* ĐƯỜNG CONG LÕM TRÊN (Top Scoop) */
+        .tab-btn-m1.active::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background-color: transparent;
+            border-bottom-right-radius: 20px;
+            box-shadow: 6px 6px 0 6px #f1f5f9;
+            pointer-events: none;
+        }
+        /* ĐƯỜNG CONG LÕM DƯỚI (Bottom Scoop) */
+        .tab-btn-m1.active::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background-color: transparent;
+            border-top-right-radius: 20px;
+            box-shadow: 6px -6px 0 6px #f1f5f9;
+            pointer-events: none;
+        }
+
+        /* ============================================================
+           MẪU 2: FLOATING CAPSULE TAB (THẺ BO TRÒN TRÀN MỞ NỔI)
+           ============================================================ */
+        .sidebar-m2 {
+            background-color: #ffffff;
+            position: relative;
+            border-right: 1px solid #e2e8f0;
+        }
+        .tab-btn-m2 {
+            position: relative;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            color: #64748b;
+            font-weight: 600;
+            border-radius: 1rem;
+        }
+        .tab-btn-m2:not(.active):hover {
+            color: #0f172a;
+            background-color: #f8fafc;
+        }
+        /* Tab Active: Thẻ bo tròn hoàn toàn, nhô tràn hẳn sang canvas bên phải */
+        .tab-btn-m2.active {
+            background-color: #ffffff !important;
+            color: #0284c7 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.15), 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+            transform: translateX(10px);
+            border: 2px solid #bae6fd;
+            z-index: 30;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header Tiêu Đề -->
+    <div class="max-w-6xl mx-auto mb-6 text-center">
+        <h1 class="text-2xl font-extrabold text-white flex items-center justify-center gap-2">
+            <span>✨</span> 2 Mẫu Thiết Kế Tab Bo Tròn Dạng Mở (Folder Effect)
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">Anh bấm trực tiếp vào các tab trên cả 2 mẫu bên dưới để cảm nhận chuyển động và độ mở mượt mà</p>
+    </div>
+
+    <!-- Khung So Sánh 2 Cột -->
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- ==================== CỘT 1: MẪU 1 ==================== -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-400 bg-sky-950/70 border border-sky-800/80 px-2.5 py-0.5 rounded-full">Mẫu 1: Khuyến nghị ⭐</span>
+                    <h3 class="text-lg font-bold text-white mt-1">Bo Cong Ngược Lõm (Inverted Scoop)</h3>
+                    <p class="text-xs text-slate-400">Hai góc trên & dưới uốn cong lượn ngược, tab hòa làm một thể với trang làm việc</p>
+                </div>
+            </div>
+
+            <!-- Demo App UI Mẫu 1 -->
+            <div class="rounded-xl overflow-hidden shadow-lg border border-slate-700 flex h-[440px] text-xs">
+                <!-- Sidebar Mẫu 1 -->
+                <div class="w-48 sidebar-m1 p-3 pr-0 flex flex-col justify-between shrink-0 select-none">
+                    <div>
+                        <div class="font-extrabold text-sky-600 text-sm mb-4 px-2 flex items-center gap-1.5">
+                            <span>⚡</span> POS Offline
+                        </div>
+                        <nav class="space-y-1.5" id="nav-m1">
+                            <button onclick="pickTabM1(this, 'Bán Hàng (POS)', '🛒')" class="tab-btn-m1 w-full text-left pl-3 pr-4 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">🛒</span>
+                                <span>Bán Hàng (POS)</span>
+                            </button>
+                            <button onclick="pickTabM1(this, 'Dịch Vụ & Thú Cưng', '🐾')" class="tab-btn-m1 w-full text-left pl-3 pr-4 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">🐾</span>
+                                <span>Dịch Vụ & Thú Cưng</span>
+                            </button>
+                            <button onclick="pickTabM1(this, 'Hàng Hóa & Kho', '📦')" class="tab-btn-m1 active w-full text-left pl-3 pr-4 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">📦</span>
+                                <span>Hàng Hóa & Kho</span>
+                            </button>
+                            <button onclick="pickTabM1(this, 'Nhập Hàng', '📥')" class="tab-btn-m1 w-full text-left pl-3 pr-4 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">📥</span>
+                                <span>Nhập Hàng</span>
+                            </button>
+                            <button onclick="pickTabM1(this, 'Khách Hàng', '👥')" class="tab-btn-m1 w-full text-left pl-3 pr-4 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">👥</span>
+                                <span>Khách Hàng</span>
+                            </button>
+                        </nav>
+                    </div>
+                    <div class="text-[10px] text-slate-400 px-2 pb-1 font-bold">
+                        Chủ Shop • Ca Sáng
+                    </div>
+                </div>
+
+                <!-- Canvas Nội Dung Mẫu 1 (#f1f5f9) -->
+                <div class="flex-1 bg-slate-100 p-4 overflow-y-auto text-slate-700">
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs mb-3 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase">Trang Đang Mở:</span>
+                            <h4 id="title-m1" class="text-sm font-extrabold text-slate-800">📦 Hàng Hóa & Kho</h4>
+                        </div>
+                        <span class="text-xs bg-sky-100 text-sky-700 font-bold px-2 py-0.5 rounded-md">Liền mạch 100%</span>
+                    </div>
+
+                    <!-- Giả lập danh sách thẻ -->
+                    <div class="space-y-2">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP14</span>
+                                <span class="font-bold text-slate-800 ml-2">Bát Ăn Inox Đôi</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">65.000 đ</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP07</span>
+                                <span class="font-bold text-slate-800 ml-2">Cát Vệ Sinh Mèo 8L</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">120.000 đ</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP09</span>
+                                <span class="font-bold text-slate-800 ml-2">Dây Dắt Thú Cưng Đệm</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">45.000 đ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                💡 <b>Điểm mạnh:</b> Góc lượn cong ngược tự nhiên, tạo cảm giác toàn bộ khung xám bên phải được "mở rộng" từ chiếc tab. Không hề có cạnh sắc hay góc vuông 90°.
+            </div>
+        </div>
+
+        <!-- ==================== CỘT 2: MẪU 2 ==================== -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+            <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-purple-400 bg-purple-950/70 border border-purple-800/80 px-2.5 py-0.5 rounded-full">Mẫu 2: Nổi bật</span>
+                    <h3 class="text-lg font-bold text-white mt-1">Thẻ Viên Thuốc Tràn Nổi (Floating Capsule)</h3>
+                    <p class="text-xs text-slate-400">Bo tròn mềm toàn diện, trượt tràn sang phải 10px đè lên mép khung nội dung</p>
+                </div>
+            </div>
+
+            <!-- Demo App UI Mẫu 2 -->
+            <div class="rounded-xl overflow-hidden shadow-lg border border-slate-700 flex h-[440px] text-xs">
+                <!-- Sidebar Mẫu 2 -->
+                <div class="w-48 sidebar-m2 p-3 flex flex-col justify-between shrink-0 select-none">
+                    <div>
+                        <div class="font-extrabold text-sky-600 text-sm mb-4 px-2 flex items-center gap-1.5">
+                            <span>⚡</span> POS Offline
+                        </div>
+                        <nav class="space-y-2" id="nav-m2">
+                            <button onclick="pickTabM2(this, 'Bán Hàng (POS)', '🛒')" class="tab-btn-m2 w-full text-left px-3 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">🛒</span>
+                                <span>Bán Hàng (POS)</span>
+                            </button>
+                            <button onclick="pickTabM2(this, 'Dịch Vụ & Thú Cưng', '🐾')" class="tab-btn-m2 w-full text-left px-3 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">🐾</span>
+                                <span>Dịch Vụ & Thú Cưng</span>
+                            </button>
+                            <button onclick="pickTabM2(this, 'Hàng Hóa & Kho', '📦')" class="tab-btn-m2 active w-full text-left px-3 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">📦</span>
+                                <span>Hàng Hóa & Kho</span>
+                            </button>
+                            <button onclick="pickTabM2(this, 'Nhập Hàng', '📥')" class="tab-btn-m2 w-full text-left px-3 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">📥</span>
+                                <span>Nhập Hàng</span>
+                            </button>
+                            <button onclick="pickTabM2(this, 'Khách Hàng', '👥')" class="tab-btn-m2 w-full text-left px-3 py-2.5 flex items-center gap-2.5">
+                                <span class="text-base">👥</span>
+                                <span>Khách Hàng</span>
+                            </button>
+                        </nav>
+                    </div>
+                    <div class="text-[10px] text-slate-400 px-2 pb-1 font-bold">
+                        Chủ Shop • Ca Sáng
+                    </div>
+                </div>
+
+                <!-- Canvas Nội Dung Mẫu 2 (#f1f5f9) -->
+                <div class="flex-1 bg-slate-100 p-4 pl-6 overflow-y-auto text-slate-700">
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs mb-3 flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase">Trang Đang Mở:</span>
+                            <h4 id="title-m2" class="text-sm font-extrabold text-slate-800">📦 Hàng Hóa & Kho</h4>
+                        </div>
+                        <span class="text-xs bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-md">Viên thuốc nổi</span>
+                    </div>
+
+                    <!-- Giả lập danh sách thẻ -->
+                    <div class="space-y-2">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP14</span>
+                                <span class="font-bold text-slate-800 ml-2">Bát Ăn Inox Đôi</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">65.000 đ</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP07</span>
+                                <span class="font-bold text-slate-800 ml-2">Cát Vệ Sinh Mèo 8L</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">120.000 đ</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex justify-between items-center">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">SP09</span>
+                                <span class="font-bold text-slate-800 ml-2">Dây Dắt Thú Cưng Đệm</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-700">45.000 đ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3 text-xs text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                💡 <b>Điểm mạnh:</b> Bo tròn 4 góc 100% như viên thuốc, thân thẻ nhô sang bên phải với hiệu ứng bóng đổ và viền màu sáng nổi bật, nhấn mạnh vị trí tab người dùng đang chọn.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script Tương Tác Click Tab Thử Nghiệm -->
+    <script>
+        function pickTabM1(btn, title, icon) {
+            document.querySelectorAll('#nav-m1 .tab-btn-m1').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('title-m1').innerHTML = `${icon} ${title}`;
+        }
+
+        function pickTabM2(btn, title, icon) {
+            document.querySelectorAll('#nav-m2 .tab-btn-m2').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('title-m2').innerHTML = `${icon} ${title}`;
+        }
+    </script>
+</body>
+</html>
