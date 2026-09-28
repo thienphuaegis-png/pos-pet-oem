@@ -20,3 +20,10 @@ cloudflared.exe
 # Sinh ra khi cài đặt máy tiệm, mỗi máy mỗi khác
 deploy/QR_POS.png
 deploy/server_ip.txt
+
+# KHOÁ RIÊNG của từng tiệm — KHÔNG BAO GIỜ được commit
+deploy/khoa_tiem
+deploy/khoa_tiem.pub
+*.pem
+id_ed25519*
+id_rsa*

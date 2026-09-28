@@ -70,6 +70,11 @@ echo       OK
 
 REM --- 3/5 Tai code moi ---
 echo [3/5] Tai ban cap nhat tu GitHub...
+REM Neu tiem duoc cap khoa rieng (deploy key), dung dung khoa do. Khong de
+REM git tu do khoa mac dinh: may tiem khong co san khoa nao.
+if exist "%ROOT%\deploy\khoa_tiem" (
+    set "GIT_SSH_COMMAND=ssh -i \"%ROOT%\deploy\khoa_tiem\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+)
 git pull --ff-only
 if %errorlevel% neq 0 (
     echo.

@@ -36,8 +36,16 @@ def test_gitignore_covers_them():
     with open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as f:
         ig = f.read()
     for pat in ("data/*.db", "logs/", "__pycache__/", "cloudflared.exe",
-                "data/backups/", ".env", ".venv/"):
+                "data/backups/", ".env", ".venv/", "deploy/khoa_tiem"):
         assert pat in ig, f".gitignore thiếu: {pat}"
+
+
+def test_no_private_keys_tracked():
+    """Mỗi tiệm có deploy key riêng đặt ở deploy/khoa_tiem. Commit nhầm khoá
+    riêng = ai đọc được repo cũng clone được repo bằng danh nghĩa tiệm đó."""
+    bad = [f for f in _tracked()
+           if "khoa_tiem" in f or f.endswith((".pem", "id_rsa", "id_ed25519"))]
+    assert not bad, f"Git đang track khoá riêng: {bad}"
 
 
 if __name__ == "__main__":
@@ -45,4 +53,5 @@ if __name__ == "__main__":
     test_no_forbidden_dirs();       print("✓ không track logs/pycache/backups")
     test_env_not_tracked();         print("✓ .env an toàn")
     test_gitignore_covers_them();   print("✓ .gitignore đầy đủ")
+    test_no_private_keys_tracked(); print("✓ không track khoá riêng")
     print("\nALL PASS ✅")
