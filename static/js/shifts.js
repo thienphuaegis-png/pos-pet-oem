@@ -22,8 +22,17 @@ function updateShiftUI() {
   const lockOverlay = document.getElementById('pos-shift-lock-overlay');
 
   const hasShift = !!currentShift;
+  const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
+  const isAdmin = user && (user.role === 'owner' || user.role === 'admin');
 
-  if (lockOverlay) lockOverlay.classList.toggle('hidden', hasShift);
+  // Admin / Owner không bị chặn mở ca để bán hàng
+  if (lockOverlay) {
+    if (isAdmin) {
+      lockOverlay.classList.add('hidden');
+    } else {
+      lockOverlay.classList.toggle('hidden', hasShift);
+    }
+  }
 
   if (btnOpen) btnOpen.style.display = hasShift ? 'none' : '';
   if (btnClose) btnClose.style.display = hasShift ? '' : 'none';
@@ -34,6 +43,9 @@ function updateShiftUI() {
       const cash = (currentShift.opening_cash || 0).toLocaleString('vi-VN');
       statusEl.textContent = `⏱ Ca từ ${t} | Đầu ca: ${cash}đ`;
       statusEl.style.color = '#0284c7';
+    } else if (isAdmin) {
+      statusEl.textContent = '👑 Quản Trị (Không cần mở ca)';
+      statusEl.style.color = '#059669';
     } else {
       statusEl.textContent = '⚠ Chưa mở ca';
       statusEl.style.color = '#e11d48';
