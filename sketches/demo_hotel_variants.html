@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Quản Lý Hotel (Khách Sạn Thú Cưng) - Pet Care</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .room-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .room-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 md:p-6 font-sans">
+
+    <!-- Header & Bộ Chọn Biến Thể -->
+    <div class="max-w-7xl mx-auto mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <span>🏨</span> So Sánh 3 Thiết Kế Phân Hệ Hotel (Khách Sạn Thú Cưng)
+                </h1>
+                <p class="text-xs text-slate-500 mt-1">Bấm các nút bên phải để trải nghiệm tương tác thực tế giữa các kiểu bố cục giao diện.</p>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-lg border border-slate-200">
+                <button onclick="selectHotelVariant(1)" id="btn-hv1" class="px-3 py-1.5 rounded-md text-xs font-bold transition shadow-sm bg-white text-indigo-700 border border-slate-200">
+                    Mẫu 1: Sơ Đồ Phòng + Danh Sách (Khuyến Nghị)
+                </button>
+                <button onclick="selectHotelVariant(2)" id="btn-hv2" class="px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                    Mẫu 2: Sơ Đồ Phòng Toàn Màn Hình
+                </button>
+                <button onclick="selectHotelVariant(3)" id="btn-hv3" class="px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                    Mẫu 3: Lịch Dòng Thời Gian (Gantt)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHUNG CHÍNH -->
+    <div class="max-w-7xl mx-auto">
+
+        <!-- ================================================================= -->
+        <!-- MẪU 1: KẾT HỢP SƠ ĐỒ PHÒNG/CHUỒNG TRỰC QUAN + DANH SÁCH LƯU TRÚ -->
+        <!-- ================================================================= -->
+        <div id="hotel-variant-1" class="hotel-panel space-y-5">
+            <!-- Thanh KPI thống kê nhanh -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">🏠</div>
+                    <div>
+                        <div class="text-[11px] text-slate-400 font-bold uppercase">Tổng Số Phòng</div>
+                        <div class="text-lg font-black text-slate-800">16 <span class="text-xs font-normal text-slate-400">chuồng/phòng</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-rose-200 shadow-sm flex items-center gap-3 bg-rose-50/20">
+                    <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-lg font-bold">🐾</div>
+                    <div>
+                        <div class="text-[11px] text-rose-500 font-bold uppercase">Đang Có Bé Ở</div>
+                        <div class="text-lg font-black text-rose-700">11 <span class="text-xs font-normal text-rose-400">(68%)</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-3 bg-emerald-50/20">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">✨</div>
+                    <div>
+                        <div class="text-[11px] text-emerald-600 font-bold uppercase">Phòng Trống Sẵn</div>
+                        <div class="text-lg font-black text-emerald-700">5 <span class="text-xs font-normal text-emerald-500">phòng</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-amber-200 shadow-sm flex items-center gap-3 bg-amber-50/20">
+                    <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">⏰</div>
+                    <div>
+                        <div class="text-[11px] text-amber-600 font-bold uppercase">Trả Bé Hôm Nay</div>
+                        <div class="text-lg font-black text-amber-700">3 <span class="text-xs font-normal text-amber-500">bé</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-purple-200 shadow-sm flex items-center gap-3 bg-purple-50/20">
+                    <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-lg font-bold">💰</div>
+                    <div>
+                        <div class="text-[11px] text-purple-600 font-bold uppercase">Doanh Thu Tạm Tính</div>
+                        <div class="text-lg font-black text-purple-700">4.850.000 đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Khối Sơ Đồ Phòng / Chuồng Trực Quan (Room Grid) -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base font-black text-slate-800">🗺️ Sơ Đồ Phòng & Chuồng Lưu Trú</span>
+                        <span class="text-xs text-slate-400">(Click vào phòng trống để Check-in, phòng có bé để Xem/Thanh toán)</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <span class="flex items-center gap-1.5 mr-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Trống
+                        </span>
+                        <span class="flex items-center gap-1.5 mr-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Đang có bé
+                        </span>
+                        <span class="flex items-center gap-1.5 mr-3">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Đến hẹn trả
+                        </span>
+                        <button onclick="openCheckinModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-sm">
+                            <span>➕</span> Nhận Bé Mới (Check-in)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Phân Khu 1: Khu Mèo (Cat House) -->
+                <div>
+                    <div class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                        <span>🐱</span> KHU MÈO - PHÒNG GỖ CAO CẤP (150.000 đ / ngày)
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
+                        <!-- Phòng C01 - Đang ở -->
+                        <div onclick="openCheckoutModal('C01', 'Mèo Miu', 'Anh lông ngắn', 'Nguyễn Thị Hoa', '0901.234.567', '26/09/2026', '28/09/2026', 2, 300000)" class="room-card bg-rose-50/50 border-2 border-rose-300 rounded-xl p-3 cursor-pointer relative overflow-hidden">
+                            <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">Đang ở</div>
+                            <div class="font-black text-slate-800 text-sm">P. Mèo C01</div>
+                            <div class="mt-2 space-y-0.5">
+                                <div class="font-bold text-indigo-900 flex items-center gap-1">🐱 Mèo Miu</div>
+                                <div class="text-[11px] text-slate-500">Chủ: Nguyễn Thị Hoa</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Vào: 26/09 (Đã 2 ngày)</div>
+                            </div>
+                            <div class="mt-2 pt-1.5 border-t border-rose-200 flex justify-between items-center text-[11px]">
+                                <span class="text-slate-500">Tạm tính:</span>
+                                <span class="font-bold font-mono text-rose-700">300.000 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Phòng C02 - Đang ở (Đến hạn trả hôm nay) -->
+                        <div onclick="openCheckoutModal('C02', 'Bé Bánh Mì', 'Mèo Ba Tư', 'Lê Văn Nam', '0912.888.999', '25/09/2026', '28/09/2026', 3, 450000)" class="room-card bg-amber-50/60 border-2 border-amber-400 rounded-xl p-3 cursor-pointer relative overflow-hidden ring-2 ring-amber-300">
+                            <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-200 text-amber-900">Trả hôm nay</div>
+                            <div class="font-black text-slate-800 text-sm">P. Mèo C02</div>
+                            <div class="mt-2 space-y-0.5">
+                                <div class="font-bold text-indigo-900 flex items-center gap-1">🐱 Bé Bánh Mì</div>
+                                <div class="text-[11px] text-slate-500">Chủ: Lê Văn Nam</div>
+                                <div class="text-[10px] text-amber-700 font-bold font-mono">Hẹn đón: 17:00 hôm nay</div>
+                            </div>
+                            <div class="mt-2 pt-1.5 border-t border-amber-200 flex justify-between items-center text-[11px]">
+                                <span class="text-slate-500">Tạm tính:</span>
+                                <span class="font-bold font-mono text-amber-800">450.000 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Phòng C03 - Trống -->
+                        <div onclick="openCheckinModal('C03', 'Phòng Gỗ Mèo')" class="room-card bg-emerald-50/40 border-2 border-dashed border-emerald-300 rounded-xl p-3 cursor-pointer flex flex-col items-center justify-center text-center min-h-[120px] hover:border-emerald-500">
+                            <div class="font-black text-slate-700 text-sm">P. Mèo C03</div>
+                            <div class="text-emerald-600 font-bold text-xs mt-1">✨ Phòng Trống</div>
+                            <button class="mt-2 px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded text-[10px]">
+                                + Check-in
+                            </button>
+                        </div>
+
+                        <!-- Phòng C04 - Trống -->
+                        <div onclick="openCheckinModal('C04', 'Phòng Gỗ Mèo')" class="room-card bg-emerald-50/40 border-2 border-dashed border-emerald-300 rounded-xl p-3 cursor-pointer flex flex-col items-center justify-center text-center min-h-[120px] hover:border-emerald-500">
+                            <div class="font-black text-slate-700 text-sm">P. Mèo C04</div>
+                            <div class="text-emerald-600 font-bold text-xs mt-1">✨ Phòng Trống</div>
+                            <button class="mt-2 px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded text-[10px]">
+                                + Check-in
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phân Khu 2: Khu Chó Tiêu Chuẩn & VIP (Dog House) -->
+                <div>
+                    <div class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2.5 flex items-center gap-1.5 pt-2">
+                        <span>🐶</span> KHU CHÓ - CHUỒNG INOX & PHÒNG VIP (200.000 - 300.000 đ / ngày)
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
+                        <!-- Chuồng D01 -->
+                        <div onclick="openCheckoutModal('D01', 'Bé Bắp', 'Corgi', 'Trần Thị Mai', '0933.112.233', '24/09/2026', '29/09/2026', 4, 800000)" class="room-card bg-rose-50/50 border-2 border-rose-300 rounded-xl p-3 cursor-pointer relative overflow-hidden">
+                            <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">Đang ở</div>
+                            <div class="font-black text-slate-800 text-sm">Chuồng D01</div>
+                            <div class="mt-2 space-y-0.5">
+                                <div class="font-bold text-indigo-900 flex items-center gap-1">🐶 Bé Bắp (Corgi)</div>
+                                <div class="text-[11px] text-slate-500">Chủ: Trần Thị Mai</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Vào: 24/09 (Đã 4 ngày)</div>
+                            </div>
+                            <div class="mt-2 pt-1.5 border-t border-rose-200 flex justify-between items-center text-[11px]">
+                                <span class="text-slate-500">Tạm tính:</span>
+                                <span class="font-bold font-mono text-rose-700">800.000 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Phòng VIP D02 -->
+                        <div onclick="openCheckoutModal('D02', 'Bé Gấu', 'Golden Retriever', 'Bùi Thiên Phú', '0909.123.456', '27/09/2026', '30/09/2026', 1, 300000)" class="room-card bg-purple-50/50 border-2 border-purple-300 rounded-xl p-3 cursor-pointer relative overflow-hidden">
+                            <div class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-200 text-purple-800">VIP</div>
+                            <div class="font-black text-slate-800 text-sm">Phòng VIP 01</div>
+                            <div class="mt-2 space-y-0.5">
+                                <div class="font-bold text-indigo-900 flex items-center gap-1">🐶 Bé Gấu (Golden)</div>
+                                <div class="text-[11px] text-slate-500">Chủ: Bùi Thiên Phú</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Vào: 27/09 (Đã 1 ngày)</div>
+                            </div>
+                            <div class="mt-2 pt-1.5 border-t border-purple-200 flex justify-between items-center text-[11px]">
+                                <span class="text-slate-500">Tạm tính:</span>
+                                <span class="font-bold font-mono text-purple-700">300.000 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Chuồng D03 - Trống -->
+                        <div onclick="openCheckinModal('D03', 'Chuồng Chó Lớn')" class="room-card bg-emerald-50/40 border-2 border-dashed border-emerald-300 rounded-xl p-3 cursor-pointer flex flex-col items-center justify-center text-center min-h-[120px] hover:border-emerald-500">
+                            <div class="font-black text-slate-700 text-sm">Chuồng D03</div>
+                            <div class="text-emerald-600 font-bold text-xs mt-1">✨ Chuồng Trống</div>
+                            <button class="mt-2 px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded text-[10px]">
+                                + Check-in
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Khối Bảng Danh Sách Phiếu Lưu Trú Phía Dưới -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-xs">
+                <div class="p-3.5 border-b bg-slate-50/70 flex flex-wrap justify-between items-center gap-2">
+                    <div class="font-bold text-slate-800 flex items-center gap-2">
+                        <span>📋</span> Danh Sách Phiếu Lưu Trú Hotel (Hôm Nay)
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" placeholder="Tìm tên bé, chủ, số ĐT..." class="border p-1.5 rounded-lg text-xs bg-white w-48">
+                        <select class="border p-1.5 rounded-lg text-xs bg-white font-bold text-slate-700">
+                            <option>Tất cả trạng thái</option>
+                            <option>Đang lưu trú</option>
+                            <option>Đã trả bé</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-100/60 border-b text-slate-600 font-bold uppercase text-[11px]">
+                            <tr>
+                                <th class="p-2.5 text-center w-12">STT</th>
+                                <th class="p-2.5">Mã Phiếu</th>
+                                <th class="p-2.5">Phòng / Chuồng</th>
+                                <th class="p-2.5">Thú Cưng</th>
+                                <th class="p-2.5">Chủ Nuôi</th>
+                                <th class="p-2.5">Ngày Vào</th>
+                                <th class="p-2.5">Ngày Dự Kiến Ra</th>
+                                <th class="p-2.5 text-right">Tạm Tính</th>
+                                <th class="p-2.5 text-center">Trạng Thái</th>
+                                <th class="p-2.5 text-right">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-2.5 text-center font-mono">1</td>
+                                <td class="p-2.5 font-bold font-mono text-indigo-700">HT-260926-001</td>
+                                <td class="p-2.5 font-bold text-slate-800">P. Mèo C01</td>
+                                <td class="p-2.5 font-bold text-slate-900">🐱 Mèo Miu (Anh lông ngắn)</td>
+                                <td class="p-2.5">Nguyễn Thị Hoa (0901.234.567)</td>
+                                <td class="p-2.5 font-mono text-slate-500">26/09/2026</td>
+                                <td class="p-2.5 font-mono text-slate-500">28/09/2026</td>
+                                <td class="p-2.5 text-right font-mono font-bold text-rose-700">300.000 đ</td>
+                                <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px]">Đang ở (2 ngày)</span></td>
+                                <td class="p-2.5 text-right space-x-1">
+                                    <button class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold">💳 Check-out</button>
+                                    <button class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold">🖨️ In Phiếu</button>
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-2.5 text-center font-mono">2</td>
+                                <td class="p-2.5 font-bold font-mono text-indigo-700">HT-240926-003</td>
+                                <td class="p-2.5 font-bold text-slate-800">Chuồng D01</td>
+                                <td class="p-2.5 font-bold text-slate-900">🐶 Bé Bắp (Corgi)</td>
+                                <td class="p-2.5">Trần Thị Mai (0933.112.233)</td>
+                                <td class="p-2.5 font-mono text-slate-500">24/09/2026</td>
+                                <td class="p-2.5 font-mono text-slate-500">29/09/2026</td>
+                                <td class="p-2.5 text-right font-mono font-bold text-rose-700">800.000 đ</td>
+                                <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px]">Đang ở (4 ngày)</span></td>
+                                <td class="p-2.5 text-right space-x-1">
+                                    <button class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded font-bold">💳 Check-out</button>
+                                    <button class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold">🖨️ In Phiếu</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- MẪU 2: SƠ ĐỒ PHÒNG TOÀN MÀN HÌNH (Full Screen Room Grid) -->
+        <!-- ================================================================= -->
+        <div id="hotel-variant-2" class="hotel-panel hidden space-y-4">
+            <div class="bg-blue-50/70 border border-blue-200 p-3 rounded-xl text-xs text-blue-900 flex justify-between items-center">
+                <span>💡 <strong>Mẫu 2:</strong> Tối đa hóa không gian cho sơ đồ phòng. Thích hợp cho tiệm có số lượng chuồng/buồng phòng lớn (30 - 50 buồng).</span>
+                <span class="font-bold bg-blue-200/70 px-2 py-0.5 rounded text-[11px]">Grid Focus</span>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-xs text-center py-20 text-slate-400">
+                [Giao diện tập trung 100% hiển thị ma trận các phòng kèm bộ lọc trạng thái và ngăn kéo chi tiết trượt từ bên phải]
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- MẪU 3: DÒNG THỜI GIAN GANTT (Timeline Calendar) -->
+        <!-- ================================================================= -->
+        <div id="hotel-variant-3" class="hotel-panel hidden space-y-4">
+            <div class="bg-emerald-50/70 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-900 flex justify-between items-center">
+                <span>💡 <strong>Mẫu 3:</strong> Dạng lịch ngang hiển thị theo từng ngày trong tuần/tháng, chuyên dụng cho việc quản lý đặt lịch trước (Book phòng Tết / Ngày lễ).</span>
+                <span class="font-bold bg-emerald-200/70 px-2 py-0.5 rounded text-[11px]">Timeline Style</span>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-xs text-center py-20 text-slate-400">
+                [Giao diện bảng ngang thể hiện thời gian lưu trú của từng phòng từ ngày X đến ngày Y]
+            </div>
+        </div>
+
+    </div>
+
+    <!-- POPUP CHECK-IN NHẬN BÉ MỚI (MOCK INTERACTIVE) -->
+    <div id="modal-checkin" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-5 space-y-4 text-xs">
+            <div class="flex justify-between items-center pb-2 border-b">
+                <h3 class="font-black text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>🏨</span> Nhận Bé Lưu Trú Hotel (Check-in)
+                </h3>
+                <button onclick="closeCheckinModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base">✕</button>
+            </div>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Phòng / Chuồng Phân Bổ:</label>
+                        <input type="text" id="modal-checkin-room" value="P. Mèo C03" readonly class="w-full border p-2 rounded-lg bg-slate-100 font-bold text-indigo-700">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Giá Phòng / Ngày:</label>
+                        <input type="text" value="150.000 đ" readonly class="w-full border p-2 rounded-lg bg-slate-100 font-mono font-bold text-slate-700">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Chọn Khách Hàng & Thú Cưng:</label>
+                    <select class="w-full border p-2 rounded-lg bg-white font-medium">
+                        <option>Bùi Thiên Phú - 0909.123.456 (Bé Corgi)</option>
+                        <option>Trần Thị Hoa - 0988.777.666 (Bé Mèo Nga)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Ngày Giờ Vào:</label>
+                        <input type="datetime-local" class="w-full border p-2 rounded-lg bg-white">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Dự Kiến Ngày Đón:</label>
+                        <input type="datetime-local" class="w-full border p-2 rounded-lg bg-white">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ghi Chú Đồ Mang Theo & Chế Độ Ăn:</label>
+                    <textarea placeholder="VD: Mang theo dây dắt, balo, ăn hạt Royal Canin 2 bữa/ngày..." class="w-full border p-2 rounded-lg bg-white h-16"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closeCheckinModal()" class="px-4 py-2 border rounded-lg text-slate-600 font-bold">Hủy</button>
+                <button onclick="alert('Đã Check-in thành công!'); closeCheckinModal();" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold">
+                    Xác Nhận Check-in
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POPUP CHECK-OUT THANH TOÁN (MOCK INTERACTIVE) -->
+    <div id="modal-checkout" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-5 space-y-4 text-xs">
+            <div class="flex justify-between items-center pb-2 border-b">
+                <h3 class="font-black text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>💳</span> Thanh Toán & Trả Bé (Check-out)
+                </h3>
+                <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base">✕</button>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl border space-y-1.5">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Phòng lưu trú:</span>
+                    <strong id="co-room" class="text-slate-900 font-bold">C01</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Bé cưng & Giống:</span>
+                    <strong id="co-pet" class="text-indigo-700 font-bold">Mèo Miu</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Chủ nuôi:</span>
+                    <span id="co-owner" class="text-slate-800">Nguyễn Thị Hoa</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Thời gian lưu trú:</span>
+                    <span id="co-time" class="font-mono text-slate-700">26/09 - 28/09 (2 ngày)</span>
+                </div>
+                <div class="flex justify-between pt-1 border-t text-sm font-bold">
+                    <span class="text-slate-800">TỔNG TIỀN PHÒNG:</span>
+                    <span id="co-total" class="font-mono text-rose-700">300.000 đ</span>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button onclick="closeCheckoutModal()" class="px-4 py-2 border rounded-lg text-slate-600 font-bold">Đóng</button>
+                <button onclick="alert('Đã chuyển đơn sang POS thanh toán và in hóa đơn!'); closeCheckoutModal();" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold">
+                    Thanh Toán & Trả Phòng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT ĐIỀU HƯỚNG DEMO -->
+    <script>
+        function selectHotelVariant(num) {
+            document.querySelectorAll('.hotel-panel').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`hotel-variant-${num}`).classList.remove('hidden');
+
+            [1, 2, 3].forEach(n => {
+                const btn = document.getElementById(`btn-hv${n}`);
+                if (n === num) {
+                    btn.className = "px-3 py-1.5 rounded-md text-xs font-bold transition shadow-sm bg-white text-indigo-700 border border-slate-200";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-md text-xs font-bold transition text-slate-600 hover:text-slate-900";
+                }
+            });
+        }
+
+        function openCheckinModal(roomCode, roomType) {
+            if (roomCode) document.getElementById('modal-checkin-room').value = `${roomCode} - ${roomType || ''}`;
+            document.getElementById('modal-checkin').classList.remove('hidden');
+        }
+        function closeCheckinModal() {
+            document.getElementById('modal-checkin').classList.add('hidden');
+        }
+
+        function openCheckoutModal(room, pet, breed, owner, phone, fromDate, toDate, days, total) {
+            document.getElementById('co-room').innerText = room;
+            document.getElementById('co-pet').innerText = `${pet} (${breed})`;
+            document.getElementById('co-owner').innerText = `${owner} (${phone})`;
+            document.getElementById('co-time').innerText = `${fromDate} ➔ ${toDate} (${days} ngày)`;
+            document.getElementById('co-total').innerText = total.toLocaleString('vi-VN') + ' đ';
+            document.getElementById('modal-checkout').classList.remove('hidden');
+        }
+        function closeCheckoutModal() {
+            document.getElementById('modal-checkout').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

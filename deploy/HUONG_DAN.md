@@ -8,12 +8,12 @@ Tài liệu này dành cho người trực tiếp dùng máy ở tiệm. Không 
 
 **Máy chủ** là máy tính chính ở tiệm — máy luôn bật trong giờ làm việc. Các máy khác và điện thoại sẽ kết nối vào máy này.
 
-1. Mở thư mục `deploy`
-2. Bấm **chuột phải** vào file `CAI_DAT_MAY_CHU.bat`
-3. Chọn **Run as administrator** (Chạy với quyền quản trị)
-4. Nếu Windows hỏi "Bạn có cho phép ứng dụng này thay đổi thiết bị?" → chọn **Yes**
-5. Đợi. Lần đầu có thể mất 5–15 phút vì máy phải tải Python và các thư viện.
-6. Khi thấy dòng **CAI DAT XONG - SERVER DANG CHAY** là được.
+1. Bấm đúp file **BAM VAO DAY DE CAI DAT**
+2. Windows hỏi "Bạn có cho phép ứng dụng này thay đổi thiết bị?" → chọn **Yes**
+3. Đợi. Lần đầu có thể mất 5–15 phút vì máy tự tải Python, Git và các thư viện.
+4. Khi thấy dòng **CAI DAT XONG - SERVER DANG CHAY** là được. POS tự mở ra.
+
+Không cần cài gì trước, không cần biết kỹ thuật. Máy tự làm hết.
 
 Màn hình cuối sẽ hiện địa chỉ POS, ví dụ `http://192.168.1.50:8999`. **Ghi lại địa chỉ này.**
 

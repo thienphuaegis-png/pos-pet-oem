@@ -65,6 +65,21 @@ def test_installer_requires_admin():
     src = _read("CAI_DAT_MAY_CHU.bat")
     assert "net session" in src, \
         "CAI_DAT_MAY_CHU.bat phải kiểm tra quyền Administrator (firewall + schtasks)"
+    assert "-Verb RunAs" in src, \
+        "Phải TỰ xin quyền — người ở tiệm bấm đúp, không biết 'Run as administrator'"
+
+
+def test_installer_asks_no_questions():
+    """Người ở tiệm không biết trả lời câu hỏi kỹ thuật. Bộ cài phải chạy
+    thẳng tới hết, chỉ dừng ở `pause` để họ đọc kết quả."""
+    import re
+    src = _read("CAI_DAT_MAY_CHU.bat")
+    for i, line in enumerate(src.splitlines(), 1):
+        # `set /p X=<file` là đọc từ file, không phải hỏi người dùng
+        if re.search(r"set\s+/p\s+\"?\w+=[^<]", line):
+            raise AssertionError(
+                f"CAI_DAT_MAY_CHU.bat:{i} hỏi người dùng — họ không biết trả lời"
+            )
 
 
 def test_update_backs_up_before_pull():
@@ -146,7 +161,8 @@ if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")
     test_installer_does_not_overwrite_db(); print("✓ không ghi đè DB khi cài lại")
-    test_installer_requires_admin();        print("✓ kiểm tra quyền admin")
+    test_installer_requires_admin();        print("✓ tự xin quyền admin")
+    test_installer_asks_no_questions();     print("✓ không hỏi người dùng câu nào")
     test_update_backs_up_before_pull();     print("✓ backup trước pull")
     test_update_aborts_on_pull_failure();   print("✓ pull lỗi thì dừng")
     test_vbs_sets_production_flag();        print("✓ VBS tắt reload + chạy ẩn")

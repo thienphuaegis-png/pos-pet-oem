@@ -8,14 +8,22 @@ REM  Cai dat 1 lan tren MAY CHU cua tiem.
 REM  Chay lai nhieu lan an toan: KHONG ghi de data\pos.db.
 REM ============================================================
 
-REM Phai chay Run as Administrator: can mo firewall + tao Task Scheduler
+REM Can quyen Administrator (mo firewall + tao Task Scheduler).
+REM Nguoi o tiem se bam DUP CHUOT, khong biet "Run as administrator"
+REM -> tu xin quyen luon, Windows hien hop thoai Yes/No.
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo.
-    echo [LOI] Chua co quyen Administrator.
-    echo       Hay bam CHUOT PHAI vao file nay va chon "Run as administrator".
-    echo.
-    pause & exit /b 1
+    echo Dang xin quyen quan tri...
+    echo Windows se hoi "Do you want to allow..." - hay chon YES.
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs" 2>nul
+    if errorlevel 1 (
+        echo.
+        echo   Ban da chon NO nen khong cai dat duoc.
+        echo   Hay chay lai file nay va chon YES.
+        echo.
+        pause
+    )
+    exit /b 0
 )
 
 cd /d "%~dp0.."
@@ -67,28 +75,15 @@ REM Thu muc co phai ban sao tu GitHub khong (chep tay bang USB thi khong phai)
 "%GIT%" rev-parse --is-inside-work-tree >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo [CANH BAO] Thu muc nay duoc chep tay, khong phai tai tu GitHub.
-    echo            POS van chay binh thuong, nhung nut "CAP NHAT POS"
-    echo            se khong dung duoc. Muon cap nhat phai chep tay lai.
-    echo.
-    set /p "TIEPTUC=Van tiep tuc cai dat? (g = co, bat ky phim nao = dung): "
-    if /i not "!TIEPTUC!"=="g" (
-        echo Da dung.
-        pause & exit /b 1
-    )
+    echo       Luu y: thu muc chep tay, nut "CAP NHAT POS" se khong dung
+    echo       duoc. POS van chay binh thuong. Cai dat tiep...
+    set "KHONG_CAP_NHAT_DUOC=1"
 ) else (
     if not exist "%ROOT%\deploy\khoa_tiem" (
         echo.
-        echo [CANH BAO] Chua co khoa cap nhat ^(deploy\khoa_tiem^).
-        echo            Neu khong co khoa, nut "CAP NHAT POS" se bao loi
-        echo            "Permission denied" khi bam.
-        echo            Hay xin khoa tu nguoi quan tri he thong.
-        echo.
-        set /p "TIEPTUC=Van tiep tuc cai dat? (g = co, bat ky phim nao = dung): "
-        if /i not "!TIEPTUC!"=="g" (
-            echo Da dung.
-            pause & exit /b 1
-        )
+        echo       Luu y: chua co khoa cap nhat, nut "CAP NHAT POS" se bao
+        echo       loi. POS van chay binh thuong. Cai dat tiep...
+        set "KHONG_CAP_NHAT_DUOC=1"
     ) else (
         echo       Khoa cap nhat: OK
     )
@@ -257,7 +252,14 @@ echo                         deploy\QR_POS.png ^(in ra dan o quay^)
 echo.
 echo   Dang nhap lan dau:    admin / admin123
 echo   *** DOI MAT KHAU NGAY SAU KHI DANG NHAP LAN DAU ***
+if defined KHONG_CAP_NHAT_DUOC (
+    echo.
+    echo   Luu y: may nay CHUA cap nhat tu xa duoc.
+    echo   Bao nguoi quan tri he thong khi can cap nhat.
+)
 echo ==================================================
 echo.
+REM Mo POS luon - nguoi dung thay ngay ket qua, khong phai tu mo
+if defined READY start "" "http://localhost:8999"
 if exist "deploy\QR_POS.png" start "" "%ROOT%\deploy\QR_POS.png"
 pause
