@@ -1130,6 +1130,64 @@ def init_db():
         approved_at DATETIME
     )''')
 
+    # ── HOTEL: Khách Sạn Thú Cưng ──
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS hotel_rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        zone TEXT NOT NULL DEFAULT 'cat',
+        room_group TEXT NOT NULL DEFAULT 'Khu Tiêu Chuẩn',
+        price_per_day REAL NOT NULL DEFAULT 150000,
+        price_per_hour REAL NOT NULL DEFAULT 0,
+        capacity INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'available',
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS hotel_bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        batch_code TEXT,
+        room_id INTEGER NOT NULL REFERENCES hotel_rooms(id),
+        contact_id INTEGER NOT NULL REFERENCES contacts(id),
+        pet_id INTEGER NOT NULL REFERENCES pets(id),
+        check_in_time TIMESTAMP NOT NULL,
+        expected_checkout_time TIMESTAMP NOT NULL,
+        actual_checkout_time TIMESTAMP,
+        daily_rate REAL NOT NULL,
+        total_days REAL DEFAULT 1,
+        total_amount REAL NOT NULL DEFAULT 0,
+        pet_weight_at_checkin REAL DEFAULT 0,
+        health_condition TEXT,
+        deposit_amount REAL DEFAULT 0,
+        feeding_notes TEXT,
+        items_brought TEXT,
+        daily_care_log TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        order_id INTEGER REFERENCES orders(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Migration thêm cột mới cho hotel_rooms, hotel_bookings và pet_service_tickets nếu bảng đã tồn tại
+    for _col in [
+        "ALTER TABLE hotel_rooms ADD COLUMN room_group TEXT DEFAULT 'Khu Tiêu Chuẩn'",
+        "ALTER TABLE hotel_rooms ADD COLUMN price_per_hour REAL DEFAULT 0",
+        "ALTER TABLE hotel_rooms ADD COLUMN capacity INTEGER DEFAULT 1",
+        "ALTER TABLE hotel_bookings ADD COLUMN batch_code TEXT",
+        "ALTER TABLE hotel_bookings ADD COLUMN pet_weight_at_checkin REAL DEFAULT 0",
+        "ALTER TABLE hotel_bookings ADD COLUMN health_condition TEXT",
+        "ALTER TABLE hotel_bookings ADD COLUMN deposit_amount REAL DEFAULT 0",
+        "ALTER TABLE pet_service_tickets ADD COLUMN hotel_booking_id INTEGER REFERENCES hotel_bookings(id)",
+        "ALTER TABLE pet_service_tickets ADD COLUMN target_hotel_room_id INTEGER REFERENCES hotel_rooms(id)",
+    ]:
+        try:
+            cur.execute(_col)
+        except Exception:
+            pass
+
     # ── Gắn shift_id vào orders và cashbook ──
     for _col in [
         "ALTER TABLE orders ADD COLUMN shift_id INTEGER REFERENCES shifts(id)",

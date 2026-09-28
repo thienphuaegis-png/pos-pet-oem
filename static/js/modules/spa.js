@@ -2079,24 +2079,34 @@
         function switchOrderSubTab(sub) {
             const btnRetail = document.getElementById('btn-subtab-order-retail');
             const btnSpa = document.getElementById('btn-subtab-order-spa');
+            const btnHotel = document.getElementById('btn-subtab-order-hotel');
             const viewRetail = document.getElementById('orders-subview-retail');
             const viewSpa = document.getElementById('orders-subview-spa');
+            const viewHotel = document.getElementById('orders-subview-hotel');
 
             const activeRetailClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
             const inactiveRetailClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
             const activeSpaClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-pink-600 text-pink-700 flex items-center gap-1.5 transition';
             const inactiveSpaClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
+            const activeHotelClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-indigo-600 text-indigo-700 flex items-center gap-1.5 transition';
+            const inactiveHotelClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
 
             if (btnRetail) btnRetail.className = (sub === 'retail' ? activeRetailClass : inactiveRetailClass);
             if (btnSpa) btnSpa.className = (sub === 'spa' ? activeSpaClass : inactiveSpaClass);
+            if (btnHotel) btnHotel.className = (sub === 'hotel' ? activeHotelClass : inactiveHotelClass);
 
             if (viewRetail) viewRetail.classList.toggle('hidden', sub !== 'retail');
             if (viewSpa) viewSpa.classList.toggle('hidden', sub !== 'spa');
+            if (viewHotel) viewHotel.classList.toggle('hidden', sub !== 'hotel');
 
             if (sub === 'retail') {
                 if (typeof loadOrdersList === 'function') loadOrdersList();
             } else if (sub === 'spa') {
                 loadSpaInvoicesList();
+            } else if (sub === 'hotel') {
+                if (window.hotelManager && typeof window.hotelManager.loadHistory === 'function') {
+                    window.hotelManager.loadHistory();
+                }
             }
         }
         window.switchOrderSubTab = switchOrderSubTab;

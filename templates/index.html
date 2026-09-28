@@ -649,6 +649,10 @@
                         <span class="sidebar-icon">🐾</span>
                         <span class="sidebar-text truncate">Dịch Vụ & Thú Cưng</span>
                     </button>
+                    <button onclick="switchTab('hotel')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="hotel" data-role="cashier,owner" data-tooltip="Khách Sạn Thú Cưng">
+                        <span class="sidebar-icon">🏨</span>
+                        <span class="sidebar-text truncate">Khách Sạn Hotel</span>
+                    </button>
                     <button onclick="switchTab('orders')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="orders" data-role="cashier,accountant,owner" data-tooltip="Hóa Đơn">
                         <span class="sidebar-icon">🧾</span>
                         <span class="sidebar-text truncate">Hóa Đơn</span>
@@ -1028,6 +1032,9 @@
                     <button id="btn-subtab-order-spa" onclick="switchOrderSubTab('spa')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
                         <span>🐾</span> <span>Lịch Sử Hóa Đơn Spa & Grooming</span>
                     </button>
+                    <button id="btn-subtab-order-hotel" onclick="switchOrderSubTab('hotel')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
+                        <span>🏨</span> <span>Lịch Sử Lưu Trú Hotel</span>
+                    </button>
                 </div>
 
                 <!-- SUBVIEW 1: HÓA ĐƠN BÁN LẺ -->
@@ -1138,6 +1145,47 @@
                             </table>
                         </div>
                         <div id="pagination-spa-invoices" class="p-3 border-t bg-slate-50 flex items-center justify-between"></div>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 3: LỊCH SỬ LƯU TRÚ HOTEL -->
+                <div id="orders-subview-hotel" class="hidden space-y-4">
+                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-lg shadow-sm border gap-3">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-lg font-bold text-slate-800">Lịch Sử Lưu Trú Hotel (Đã Hoàn Tất)</h2>
+                            <span id="hotel-history-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">0 lượt</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="search-hotel-history" placeholder="🔍 Tìm mã phiếu, khách, bé, phòng..." class="border p-1.5 rounded text-xs w-64" oninput="window.hotelManager && window.hotelManager.filterHistory()">
+                            <button onclick="window.hotelManager && window.hotelManager.loadHistory()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm">
+                                🔄 Tải lại
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden bg-white rounded-lg border shadow-sm">
+                        <div class="overflow-x-auto p-1">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-50/70 text-slate-600 font-bold uppercase text-[11px] border-b">
+                                    <tr>
+                                        <th class="p-3">Mã Phiếu</th>
+                                        <th class="p-3">Buồng Phòng</th>
+                                        <th class="p-3">Bé Cưng</th>
+                                        <th class="p-3">Khách Hàng</th>
+                                        <th class="p-3">Thời Gian Vào</th>
+                                        <th class="p-3">Thời Gian Trả</th>
+                                        <th class="p-3 text-center">Số Ngày</th>
+                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-center">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hotel-history-table-body" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="9" class="p-6 text-center text-gray-400 italic">Đang tải lịch sử lưu trú...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2325,6 +2373,553 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: KHÁCH SẠN THÚ CƯNG (HOTEL) -->
+            <div id="tab-hotel" class="hidden space-y-4">
+                <!-- Thanh KPI Thống Kê Nhanh -->
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">🏠</div>
+                        <div>
+                            <div class="text-[10px] text-slate-400 font-bold uppercase">Tổng Số Buồng</div>
+                            <div class="text-base font-black text-slate-800"><span id="hotel-kpi-total">16</span> <span class="text-xs font-normal text-slate-400">phòng</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-rose-200 shadow-sm flex items-center gap-3 bg-rose-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-lg font-bold">🐾</div>
+                        <div>
+                            <div class="text-[10px] text-rose-500 font-bold uppercase">Đang Có Bé Ở</div>
+                            <div class="text-base font-black text-rose-700"><span id="hotel-kpi-occupied">0</span> <span id="hotel-kpi-occupied-pct" class="text-xs font-normal text-rose-400">(0%)</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-3 bg-emerald-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">✨</div>
+                        <div>
+                            <div class="text-[10px] text-emerald-600 font-bold uppercase">Phòng Trống Sẵn</div>
+                            <div class="text-base font-black text-emerald-700"><span id="hotel-kpi-available">16</span> <span class="text-xs font-normal text-emerald-500">phòng</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm flex items-center gap-3 bg-amber-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">⏰</div>
+                        <div>
+                            <div class="text-[10px] text-amber-600 font-bold uppercase">Trả Bé Hôm Nay</div>
+                            <div class="text-base font-black text-amber-700"><span id="hotel-kpi-today">0</span> <span class="text-xs font-normal text-amber-500">bé</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3.5 rounded-xl border border-purple-200 shadow-sm flex items-center gap-3 bg-purple-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-lg font-bold">💰</div>
+                        <div>
+                            <div class="text-[10px] text-purple-600 font-bold uppercase">Tạm Tính Doanh Thu</div>
+                            <div class="text-base font-black text-purple-700"><span id="hotel-kpi-revenue">0 đ</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thanh Điều Hướng Chế Độ Xem (View Switcher) & Bộ Lọc Nhanh -->
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <!-- 4 Nút Chuyển Chế Độ Xem -->
+                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        <button onclick="window.hotelManager.switchHotelView('grid')" id="btn-hotel-view-grid" class="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm bg-white text-indigo-700 border border-slate-200">
+                            🏨 Lưới Phòng & Drawer
+                        </button>
+                        <button onclick="window.hotelManager.switchHotelView('table')" id="btn-hotel-view-table" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                            📋 Bảng Danh Sách
+                        </button>
+                        <button onclick="window.hotelManager.switchHotelView('gantt')" id="btn-hotel-view-gantt" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                            📅 Lịch Dòng Thời Gian
+                        </button>
+                        <button onclick="window.hotelManager.switchHotelView('rooms_config')" id="btn-hotel-view-rooms-config" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
+                            🏢 Cấu Hình & Danh Sách Phòng
+                        </button>
+                    </div>
+
+                    <!-- Bộ lọc trạng thái & Khu vực -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="window.hotelManager.setFilterStatus('all')" data-status="all" class="btn-hotel-filter-status px-3 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs">Tất Cả</button>
+                        <button onclick="window.hotelManager.setFilterStatus('available')" data-status="available" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">✨ Trống</button>
+                        <button onclick="window.hotelManager.setFilterStatus('occupied')" data-status="occupied" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">🐾 Đang Ở</button>
+                        <button onclick="window.hotelManager.setFilterStatus('today')" data-status="today" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">⏰ Trả Hôm Nay</button>
+
+                        <select onchange="window.hotelManager.setFilterZone(this.value)" class="border p-1.5 rounded-lg bg-white font-bold text-slate-700 text-xs">
+                            <option value="all">Tất Cả Khu Vực</option>
+                            <option value="cat">Khu Mèo (Phòng Gỗ)</option>
+                            <option value="dog_small">Khu Chó Nhỏ (Inox)</option>
+                            <option value="vip">Khu VIP (Máy Lạnh)</option>
+                        </select>
+
+                        <button onclick="window.hotelManager.openHotelCheckinModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-sm flex items-center gap-1.5">
+                            <span>➕</span> Nhận Bé (Check-in)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CHẾ ĐỘ XEM 1: LƯỚI BUỒNG PHÒNG + DRAWER TRƯỢT CHI TIẾT (MẪU 2) -->
+                <div id="hotel-view-grid" class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start text-xs">
+                    <!-- Cột Trái: Lưới các buồng phòng (Chiếm 8 cột) -->
+                    <div class="lg:col-span-8 bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center pb-2 border-b">
+                            <span class="font-black text-slate-800 text-sm">🏨 Danh Sách Buồng Phòng Lưu Trú</span>
+                            <span class="text-slate-400 text-[11px]">(Click vào ô phòng bất kỳ để xem thông tin chi tiết)</span>
+                        </div>
+                        <div id="hotel-room-grid-cards" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <!-- Cards render động qua JS -->
+                        </div>
+                    </div>
+
+                    <!-- Cột Phải: Drawer Ngăn Kéo Thông Tin Chi Tiết (Chiếm 4 cột) -->
+                    <div id="hotel-room-drawer" class="lg:col-span-4 bg-white p-4 rounded-xl border border-indigo-200 shadow-md space-y-3 sticky top-4">
+                        <!-- Drawer render động qua JS -->
+                    </div>
+                </div>
+
+                <!-- CHẾ ĐỘ XEM 2: BẢNG DANH SÁCH PHIẾU LƯU TRÚ (TABLE VIEW) -->
+                <div id="hotel-view-table" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-xs">
+                    <div class="p-3.5 border-b bg-slate-50 flex justify-between items-center">
+                        <div class="font-bold text-slate-800 flex items-center gap-2">
+                            <span>📋</span> Danh Sách Phiếu Lưu Trú Đang Ở Tiệm
+                        </div>
+                        <div class="text-slate-500 text-[11px]">Bấm Check-out để tính tiền và hoàn tất lưu trú</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-100/70 border-b text-slate-600 font-bold uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5 text-center w-12">STT</th>
+                                    <th class="p-2.5">Mã Phiếu</th>
+                                    <th class="p-2.5">Buồng Phòng</th>
+                                    <th class="p-2.5">Thú Cưng</th>
+                                    <th class="p-2.5">Chủ Nuôi</th>
+                                    <th class="p-2.5">Ngày Vào</th>
+                                    <th class="p-2.5">Dự Kiến Ra</th>
+                                    <th class="p-2.5 text-right">Tạm Tính</th>
+                                    <th class="p-2.5 text-right">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hotel-table-body" class="divide-y divide-slate-100">
+                                <!-- Render động qua JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CHẾ ĐỘ XEM 3: LỊCH DÒNG THỜI GIAN (GANTT VIEW) -->
+                <div id="hotel-view-gantt" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-slate-800">📅 Lịch Lưu Trú Tuần:</span>
+                            <button onclick="window.hotelManager.changeGanttWeek(-1)" class="px-2.5 py-1 bg-slate-100 rounded border hover:bg-slate-200 font-bold">◀ Tuần Trước</button>
+                            <span id="hotel-gantt-week-label" class="font-bold px-2 text-indigo-700">Đang tải tuần...</span>
+                            <button onclick="window.hotelManager.changeGanttWeek(1)" class="px-2.5 py-1 bg-slate-100 rounded border hover:bg-slate-200 font-bold">Tuần Tới ▶</button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-500 inline-block"></span> Đang lưu trú</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-500 inline-block"></span> Đến ngày trả</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> Trống</span>
+                        </div>
+                    </div>
+                    <div id="hotel-gantt-container" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden text-xs">
+                        <!-- Gantt Table render động -->
+                    </div>
+                </div>
+
+                <!-- CHẾ ĐỘ XEM 4: DANH SÁCH & CẤU HÌNH BUỒNG PHÒNG -->
+                <div id="hotel-view-rooms-config" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4 text-xs">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+                        <div>
+                            <h3 class="font-black text-slate-800 text-sm flex items-center gap-1.5">
+                                <span>🏢</span> Cấu Hình & Danh Sách Buồng Phòng
+                            </h3>
+                            <p class="text-slate-500 text-[11px]">Quản lý danh sách phòng, phân loại theo nhóm phòng/khu vực tùy biến, giá ngày và giá giờ.</p>
+                        </div>
+                        <button onclick="window.hotelManager.openRoomEditorModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm flex items-center gap-1.5">
+                            <span>➕</span> Thêm Buồng Phòng Mới
+                        </button>
+                    </div>
+
+                    <!-- Bảng danh sách buồng phòng -->
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[10px]">
+                                <tr>
+                                    <th class="p-2.5">Mã Phòng</th>
+                                    <th class="p-2.5">Tên Buồng Phòng</th>
+                                    <th class="p-2.5">Nhóm Phòng / Khu Vực</th>
+                                    <th class="p-2.5">Khu Kỹ Thuật</th>
+                                    <th class="p-2.5 text-right">Giá Ngày (24h)</th>
+                                    <th class="p-2.5 text-right">Giá Giờ</th>
+                                    <th class="p-2.5 text-center">Sức Chứa</th>
+                                    <th class="p-2.5 text-center">Trạng Thái</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-hotel-rooms-config-list" class="divide-y divide-slate-100 font-medium text-slate-700">
+                                <!-- Render động bởi hotel.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- POPUP CHECK-IN LƯU TRÚ HOTEL (HỖ TRỢ ĐỢT HÀNG LOẠT & DROPLIST THÔNG MINH) -->
+            <div id="modal-hotel-checkin" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+                <div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl p-5 space-y-4 text-xs my-auto max-h-[95vh] flex flex-col">
+                    <!-- Modal Header -->
+                    <div class="flex justify-between items-center pb-2 border-b shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🏨</span>
+                            <div>
+                                <h3 class="font-black text-sm text-slate-800">Tiếp Nhận Thú Cưng Lưu Trú Khách Sạn (Check-in)</h3>
+                                <p class="text-[11px] text-slate-500">Phân bổ bé vào buồng phòng, ghi nhận tình trạng sức khỏe, đồ gửi kèm & in phiếu tiếp nhận</p>
+                            </div>
+                        </div>
+                        <button onclick="window.hotelManager.closeHotelCheckinModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg px-2">✕</button>
+                    </div>
+
+                    <!-- Modal Body (Scrollable) -->
+                    <div class="space-y-4 overflow-y-auto pr-1">
+                        <!-- Khung 1: Khách Hàng (Combobox Tìm Kiếm Đa Từ Thông Minh) -->
+                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <span>👤</span> Thông Tin Chủ Nuôi (Khách Hàng): <span class="text-rose-500">*</span>
+                                </label>
+                                <span id="hotel-cust-flag-badge" class="hidden text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded-full">Khách có lưu ý đặc biệt</span>
+                            </div>
+                            
+                            <div class="flex gap-2 relative">
+                                <div class="relative flex-1">
+                                    <input type="text" id="hotel-cust-search" 
+                                           placeholder="Gõ tên hoặc SĐT khách (VD: hoa 0908, phu 888...)" 
+                                           class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                           autocomplete="off"
+                                           oninput="window.hotelManager.onHotelCustSearchInput(this.value)"
+                                           onfocus="window.hotelManager.onHotelCustSearchInput(this.value)">
+                                    <input type="hidden" id="hotel-cust-id">
+                                    
+                                    <!-- Dropdown kết quả tìm kiếm -->
+                                    <div id="hotel-cust-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-56 overflow-y-auto divide-y divide-slate-100">
+                                        <!-- Danh sách kết quả render động -->
+                                    </div>
+                                </div>
+                                <button type="button" onclick="if(typeof openAddContactModal === 'function') openAddContactModal('customer'); else alert('Vui lòng thêm khách tại tab Danh Bạ');" 
+                                        class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 shrink-0 flex items-center gap-1">
+                                    <span>➕</span> Thêm Khách
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Khung 2: Thời Gian Lưu Trú & Đặt Cọc -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Ngày Giờ Vào (Check-in):</label>
+                                <input type="datetime-local" id="hotel-batch-checkin-time" class="w-full border p-2 rounded-lg bg-white font-medium text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Dự Kiến Ngày Đón:</label>
+                                <input type="datetime-local" id="hotel-batch-expected-time" class="w-full border p-2 rounded-lg bg-white font-medium text-xs">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Tiền Đặt Cọc Trước (VNĐ):</label>
+                                <input type="number" id="hotel-deposit-amount" value="0" min="0" step="10000" placeholder="0" class="w-full border p-2 rounded-lg bg-white font-mono font-bold text-indigo-700 text-xs">
+                            </div>
+                        </div>
+
+                        <!-- Khung 3: Bảng Phân Bổ Các Bé Vào Buồng Phòng (Tiếp Nhận Đợt) -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                                    <span>🐾</span> Danh Sách Bé & Buồng Phòng Phân Bổ:
+                                </span>
+                                <button type="button" id="btn-hotel-add-pet-row" onclick="window.hotelManager.addHotelBatchPetRow()" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 text-xs flex items-center gap-1">
+                                    <span>➕</span> Thêm Bé Vào Đợt
+                                </button>
+                            </div>
+
+                            <div class="border rounded-xl overflow-hidden bg-white">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 border-b text-slate-600 font-bold uppercase text-[10px]">
+                                        <tr>
+                                            <th class="p-2.5 w-10 text-center">STT</th>
+                                            <th class="p-2.5 w-44">Thú Cưng</th>
+                                            <th class="p-2.5 w-48">Cân Nặng & Sức Khỏe</th>
+                                            <th class="p-2.5 w-52">Buồng Phòng Phân Bổ</th>
+                                            <th class="p-2.5">Ăn Uống & Đồ Gửi Kèm</th>
+                                            <th class="p-2.5 w-10 text-center">Xóa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-hotel-batch-pets" class="divide-y divide-slate-100">
+                                        <!-- Dòng bé render động qua JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Tóm tắt số bé & dự tính -->
+                            <div class="flex justify-between items-center text-xs px-2 py-1 text-slate-500 font-medium">
+                                <div>Tổng số bé tiếp nhận: <strong id="hotel-batch-total-pets" class="text-indigo-700 font-bold">1</strong> bé</div>
+                                <div>Tạm tính tiền phòng: <strong id="hotel-batch-est-daily-rate" class="text-slate-800 font-bold font-mono">0 đ</strong> / ngày</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="flex flex-wrap justify-between items-center gap-2 pt-3 border-t shrink-0">
+                        <button type="button" onclick="window.hotelManager.closeHotelCheckinModal()" class="px-4 py-2 border rounded-xl text-slate-600 font-bold hover:bg-slate-50">
+                            Đóng
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="window.hotelManager.submitHotelBatchCheckin(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5">
+                                <span>💾</span> Xác Nhận Check-in
+                            </button>
+                            <button type="button" id="btn-hotel-submit-and-print" onclick="window.hotelManager.submitHotelBatchCheckin(true)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5">
+                                <span>🖨️</span> Nhận Phòng & In Phiếu K80
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- POPUP CHECK-OUT THANH TOÁN TRẢ PHÒNG -->
+            <div id="modal-hotel-checkout" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl p-5 space-y-4 text-xs">
+                    <div class="flex justify-between items-center pb-2 border-b">
+                        <h3 class="font-black text-sm text-slate-800 flex items-center gap-1.5">
+                            <span>💳</span> Thanh Toán & Trả Phòng (Check-out)
+                        </h3>
+                        <button onclick="window.hotelManager.closeHotelCheckoutModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base">✕</button>
+                    </div>
+                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Buồng phòng:</span>
+                            <strong id="co-room-code" class="text-slate-900 font-bold">P. Mèo C01</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Bé cưng:</span>
+                            <strong id="co-pet-name" class="text-indigo-700 font-bold">Mèo Miu</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Chủ nuôi:</span>
+                            <span id="co-customer-name" class="text-slate-800 font-medium">Nguyễn Thị Hoa</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Thời gian lưu trú:</span>
+                            <span id="co-time-range" class="font-mono text-slate-700">26/09 ➔ 28/09 (2 ngày)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Tiền buồng phòng:</span>
+                            <span id="co-room-amount" class="font-bold text-slate-800">0 đ</span>
+                        </div>
+                        <div id="co-spa-section" class="border-t pt-1.5 space-y-1">
+                            <div class="flex justify-between text-indigo-700 font-bold">
+                                <span>✂️ Dịch vụ Spa gộp theo phòng:</span>
+                                <span id="co-spa-amount">0 đ</span>
+                            </div>
+                            <div id="co-spa-list" class="text-[11px] text-slate-600 pl-2 space-y-0.5 max-h-24 overflow-y-auto">
+                                <!-- Render danh sách dịch vụ Spa đã làm -->
+                            </div>
+                        </div>
+                        <div id="co-deposit-row" class="flex justify-between text-emerald-700 font-medium border-t pt-1">
+                            <span>Đã trừ tiền cọc trước:</span>
+                            <span id="co-deposit-amount">- 0 đ</span>
+                        </div>
+                        <div class="flex justify-between pt-2 border-t text-sm font-bold bg-amber-50/50 p-2 rounded-lg">
+                            <span class="text-slate-800">TỔNG THANH TOÁN (GỘP):</span>
+                            <span id="co-total-amount" class="font-mono font-black text-rose-700 text-base">0 đ</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="window.hotelManager.closeHotelCheckoutModal()" class="px-4 py-2 border rounded-lg text-slate-600 font-bold">Đóng</button>
+                        <button onclick="window.hotelManager.submitHotelCheckout()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs">
+                            Xác Nhận Trả Phòng & Thu Tiền
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL THÊM / CHỈNH SỬA BUỒNG PHÒNG -->
+            <div id="modal-hotel-room-editor" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-xs">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <h3 id="modal-hotel-room-editor-title" class="font-black text-slate-800 text-base flex items-center gap-2">
+                            <span>🏢</span> Thêm Buồng Phòng Mới
+                        </h3>
+                        <button onclick="window.hotelManager.closeRoomEditorModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+                    </div>
+                    <input type="hidden" id="hotel-room-edit-id" value="">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Mã phòng <span class="text-rose-500">*</span></label>
+                                <input type="text" id="hotel-room-input-code" placeholder="VD: VIP-05, CAT-09" class="w-full border rounded-lg p-2 font-bold uppercase focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Tên phòng <span class="text-rose-500">*</span></label>
+                                <input type="text" id="hotel-room-input-name" placeholder="VD: Phòng Biệt Thự Máy Lạnh" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Nhóm phòng / Khu vực <span class="text-slate-400 font-normal">(tự do đặt tên)</span></label>
+                            <input type="text" id="hotel-room-input-group" list="hotel-room-groups-datalist" placeholder="VD: Khu VIP Biệt Thự, Tầng 1 Phòng Mèo" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                            <datalist id="hotel-room-groups-datalist"></datalist>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Phân loại khu</label>
+                                <select id="hotel-room-input-zone" class="w-full border rounded-lg p-2 bg-white">
+                                    <option value="cat">Khu Mèo</option>
+                                    <option value="dog_small">Khu Chó Nhỏ</option>
+                                    <option value="vip">Khu VIP</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Giá ngày (24h)</label>
+                                <input type="number" id="hotel-room-input-price-day" value="150000" step="10000" class="w-full border rounded-lg p-2 font-bold text-indigo-700">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Giá theo giờ</label>
+                                <input type="number" id="hotel-room-input-price-hour" value="25000" step="5000" class="w-full border rounded-lg p-2 font-bold text-indigo-700">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Sức chứa tối đa (bé)</label>
+                                <input type="number" id="hotel-room-input-capacity" value="1" min="1" max="10" class="w-full border rounded-lg p-2">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Trạng thái phòng</label>
+                                <select id="hotel-room-input-status" class="w-full border rounded-lg p-2 bg-white">
+                                    <option value="available">✨ Trống sẵn sàng</option>
+                                    <option value="maintenance">🛠 Đang dọn dẹp / Bảo trì</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Ghi chú & Tiện nghi</label>
+                            <textarea id="hotel-room-input-description" rows="2" placeholder="VD: Camera 24/7, khay cát vệ sinh riêng..." class="w-full border rounded-lg p-2 text-xs"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-3 border-t">
+                        <button onclick="window.hotelManager.closeRoomEditorModal()" class="px-4 py-2 border rounded-xl hover:bg-slate-100 font-bold text-slate-600 text-xs">Hủy</button>
+                        <button onclick="window.hotelManager.saveRoomEditor()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+                            <span>💾</span> Lưu Thông Tin Phòng
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL ĐẶT LỊCH DỊCH VỤ SPA CHO BÉ Ở HOTEL (HOTEL -> SPA) -->
+            <div id="modal-hotel-book-spa" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 text-xs">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">
+                            <span>✂️</span> Đặt Lịch Dịch Vụ Spa Cho Bé Lưu Trú
+                        </h3>
+                        <button onclick="window.hotelManager.closeBookSpaModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base">✕</button>
+                    </div>
+                    <input type="hidden" id="book-spa-booking-id" value="">
+                    <div class="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-1">
+                        <div class="flex justify-between font-bold">
+                            <span class="text-slate-600">Buồng phòng:</span>
+                            <span id="book-spa-room-code" class="text-indigo-700">VIP-01</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Bé cưng:</span>
+                            <span id="book-spa-pet-name" class="font-bold text-slate-800">Miu Miu</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Gói dịch vụ Spa <span class="text-rose-500">*</span></label>
+                            <select id="book-spa-service-type" class="w-full border rounded-lg p-2 bg-white font-medium">
+                                <option value="Tắm Vệ Sinh Cơ Bản" data-price="150000">Tắm Vệ Sinh Cơ Bản - 150.000 đ</option>
+                                <option value="Combo Tắm Vệ Sinh & Cắt Tỉa" data-price="250000">Combo Tắm + Cắt Tỉa - 250.000 đ</option>
+                                <option value="Cắt Tỉa Tạo Kiểu Toàn Thân" data-price="300000">Cắt Tỉa Tạo Kiểu Toàn Thân - 300.000 đ</option>
+                                <option value="Nhuộm Lông Nghệ Thuật" data-price="200000">Nhuộm Lông Nghệ Thuật - 200.000 đ</option>
+                                <option value="Cạo Vôi Răng Không Mê" data-price="200000">Cạo Vôi Răng Không Mê - 200.000 đ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Đơn giá dịch vụ (đ)</label>
+                            <input type="number" id="book-spa-price" value="150000" step="10000" class="w-full border rounded-lg p-2 font-bold text-indigo-700">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Ghi chú yêu cầu cắt tỉa</label>
+                            <textarea id="book-spa-note" rows="2" placeholder="VD: Cắt ngắn gọn gàng phần mặt, cạo bàn chân..." class="w-full border rounded-lg p-2 text-xs"></textarea>
+                        </div>
+                    </div>
+                    <div class="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-amber-800 text-[11px] leading-tight">
+                        ℹ️ <strong>Phương án gộp bill:</strong> Chi phí dịch vụ Spa này sẽ tự động gộp vào hóa đơn phòng khi check-out, không cần thu tiền ngay.
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-2 border-t">
+                        <button onclick="window.hotelManager.closeBookSpaModal()" class="px-4 py-2 border rounded-xl font-bold text-slate-600">Hủy</button>
+                        <button onclick="window.hotelManager.submitBookSpaForGuest()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-sm">
+                            Tạo Phiếu Spa Cho Bé
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL CHUYỂN BÉ TỪ SPA SANG KHÁCH SẠN (SPA -> HOTEL) -->
+            <div id="modal-spa-transfer-hotel" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 text-xs">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">
+                            <span>🏨</span> Chuyển Tiếp Sang Khách Sạn (Hotel)
+                        </h3>
+                        <button onclick="window.hotelManager.closeSpaTransferModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base">✕</button>
+                    </div>
+                    <input type="hidden" id="spa-transfer-ticket-id" value="">
+                    <div class="p-3 bg-purple-50/60 rounded-xl border border-purple-100 space-y-1">
+                        <div class="flex justify-between font-bold">
+                            <span class="text-slate-600">Vé Spa:</span>
+                            <span id="spa-transfer-ticket-code" class="text-purple-700">#SP-001</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-600">Bé cưng / Chủ:</span>
+                            <span id="spa-transfer-info" class="font-bold text-slate-800">Miu (Nguyễn Văn A)</span>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Chọn Buồng Phòng Lưu Trú <span class="text-rose-500">*</span></label>
+                            <select id="spa-transfer-room-select" class="w-full border rounded-lg p-2 bg-white font-bold text-indigo-700">
+                                <!-- Render danh sách phòng trống -->
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Dự kiến ngày trả phòng</label>
+                                <input type="datetime-local" id="spa-transfer-expected-checkout" class="w-full border rounded-lg p-2">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Tiền cọc nhận trước (đ)</label>
+                                <input type="number" id="spa-transfer-deposit" value="0" step="50000" class="w-full border rounded-lg p-2 font-bold text-emerald-700">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Chế độ ăn & dặn dò</label>
+                            <input type="text" id="spa-transfer-feeding" placeholder="VD: Ăn hạt 2 cữ, uống nước lọc..." class="w-full border rounded-lg p-2">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Đồ đạc gửi kèm</label>
+                            <input type="text" id="spa-transfer-items" placeholder="VD: 1 túi xách, 1 dây dắt, sữa chua thưởng..." class="w-full border rounded-lg p-2">
+                        </div>
+                    </div>
+                    <div class="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-800 text-[11px] leading-tight">
+                        ℹ️ Tiền làm Spa của vé này sẽ được tự động kết chuyển và gộp vào hóa đơn buồng phòng khi khách lấy bé.
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-2 border-t">
+                        <button onclick="window.hotelManager.closeSpaTransferModal()" class="px-4 py-2 border rounded-xl font-bold text-slate-600">Hủy</button>
+                        <button onclick="window.hotelManager.submitSpaTransferToHotel()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-sm">
+                            Xác Nhận Nhận Phòng
+                        </button>
                     </div>
                 </div>
             </div>
@@ -7008,6 +7603,7 @@
     <script src="/static/js/modules/purchases.js?v=20260925_01"></script>
     <script src="/static/js/modules/productions.js?v=20260927_06"></script>
     <script src="/static/js/modules/cashflow.js?v=20260925_01"></script>
+    <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/pos.js?v=20260923_14"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->

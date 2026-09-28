@@ -2290,6 +2290,10 @@
                 setTimeout(() => {
                     document.getElementById('pos-search-input')?.focus();
                 }, 100);
+            } else if (tabId === 'hotel') {
+                if (window.hotelManager && typeof window.hotelManager.init === 'function') {
+                    window.hotelManager.init();
+                }
             } else if (tabId === 'orders') {
                 const isSpaSubtabActive = document.getElementById('orders-subview-spa') && !document.getElementById('orders-subview-spa').classList.contains('hidden');
                 if (isSpaSubtabActive && typeof loadSpaInvoicesList === 'function') {

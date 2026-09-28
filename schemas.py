@@ -406,3 +406,67 @@ class PricingCalculateItemIn(BaseModel):
 class PricingCalculateRequest(BaseModel):
     customer_id: Optional[int] = None
     items: List[PricingCalculateItemIn]
+
+# ── Hotel Models ──
+class HotelRoomCreate(BaseModel):
+    code: str
+    name: str
+    zone: str = "cat"
+    room_group: Optional[str] = "Khu Tiêu Chuẩn"
+    price_per_day: float = Field(default=150000, ge=0)
+    price_per_hour: Optional[float] = Field(default=0, ge=0)
+    capacity: Optional[int] = Field(default=1, ge=1)
+    description: Optional[str] = None
+
+class HotelRoomUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    zone: Optional[str] = None
+    room_group: Optional[str] = None
+    price_per_day: Optional[float] = Field(default=None, ge=0)
+    price_per_hour: Optional[float] = Field(default=None, ge=0)
+    capacity: Optional[int] = Field(default=None, ge=1)
+    status: Optional[str] = None
+    description: Optional[str] = None
+
+class HotelBookingCheckin(BaseModel):
+    room_id: int
+    contact_id: int
+    pet_id: int
+    check_in_time: Optional[str] = None  # ISO format string or None for now
+    expected_checkout_time: str
+    daily_rate: Optional[float] = None
+    pet_weight: Optional[float] = 0
+    health_condition: Optional[str] = None
+    deposit_amount: Optional[float] = 0
+    feeding_notes: Optional[str] = None
+    items_brought: Optional[str] = None
+
+class HotelBatchCheckinItem(BaseModel):
+    room_id: int
+    pet_id: Optional[int] = None
+    pet_name: Optional[str] = None
+    pet_breed: Optional[str] = None
+    pet_weight: Optional[float] = 0
+    daily_rate: Optional[float] = None
+    health_condition: Optional[str] = None
+    feeding_notes: Optional[str] = None
+    items_brought: Optional[str] = None
+
+class HotelBatchCheckinRequest(BaseModel):
+    contact_id: int
+    check_in_time: Optional[str] = None
+    expected_checkout_time: Optional[str] = None
+    deposit_amount: Optional[float] = 0
+    items: list[HotelBatchCheckinItem]
+
+class HotelBookingCheckout(BaseModel):
+    actual_checkout_time: Optional[str] = None
+    total_days: Optional[float] = None
+    total_amount: Optional[float] = None
+    payment_method: str = "cash"
+    note: Optional[str] = None
+
+class HotelCareLogUpdate(BaseModel):
+    daily_care_log: str
+

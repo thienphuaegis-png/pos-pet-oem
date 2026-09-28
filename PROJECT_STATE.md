@@ -8,6 +8,15 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-09-27)
+- **Bổ Sung Phân Hệ Quản Lý Hotel (Khách Sạn Thú Cưng) (sys-1):**
+  - **Database & Data:** Khởi tạo bảng `hotel_rooms` và `hotel_bookings`, seed 16 phòng chuẩn (Khu Mèo gỗ C01-C08, Khu Chó inox D01-D06, Khu VIP máy lạnh V01-V02).
+  - **Tiếp Nhận Đợt Hàng Loạt & Mẫu In K80 (Batch Intake & K80 Print):**
+    - Mở rộng bảng `hotel_bookings` với các cột `batch_code`, `pet_weight_at_checkin`, `health_condition`, `deposit_amount`.
+    - API `POST /api/hotel/checkin-batch` tiếp nhận đồng thời nhiều bé vào các buồng phòng khác nhau, tính tiền cọc, tự động cập nhật trạng thái phòng `occupied`.
+    - Modal Check-in nâng cấp: Combobox tìm kiếm khách hàng đa từ (tên + SĐT), droplist bé tự động theo khách, bảng phân bổ bé vào phòng trống với cân nặng, sức khỏe, đồ gửi kèm.
+    - Mẫu in K80 Phiếu Tiếp Nhận Hotel: Chuẩn in nhiệt 80mm có chi tiết từng bé, chi phí buồng phòng, tiền cọc, điều khoản cam kết và 2 chữ ký của Chủ nuôi & NV tiếp nhận.
+  - **Giao diện 3 chế độ xem:** Lưới buồng phòng kết hợp Drawer trượt (Mẫu 2), Bảng danh sách phiếu lưu trú (Table view), và Lịch dòng thời gian Gantt theo tuần (Mẫu 3).
+  - **Lịch sử lưu trú:** Tách phiếu đã checkout sang Sub-tab thứ 3 `[🏨 Lịch Sử Lưu Trú Hotel]` trong Tab Hóa Đơn (`tab-orders`).
 - **Visual Print Designer & 12 Mẫu Nghiệp Vụ Thực Tế (bill-6):**
   - **Bổ sung 100% trường động vào Cài Đặt:** Thêm đầy đủ checkbox Spa (thông tin bé, tình trạng nhận, giờ hẹn trả, chữ ký gửi), Sổ Quỹ (hạng mục, quỹ két, số tiền lớn, 4 chữ ký kế toán, 2 chữ ký quỹ), Kiểm Kê (kho hàng, bảng 7 cột, tổng kết lệch, 3 chữ ký kiểm kê).
   - **Khắc phục lỗi trắng trang Canvas Preview:** Sửa dứt điểm `ReferenceError: isThermal is not defined` và `ReferenceError: renameCurrentPreset is not defined` tại `productions.js`, đảm bảo auto-render 0ms khi nạp trang.
@@ -40,8 +49,8 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+- [x] `sys-1`: Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout, 3 view, checkin/checkout.
 - [ ] `bill-5`: Kiểm tra và chuẩn hóa mẫu in K80/A4 B2B trên các trình duyệt.
-- [ ] `sys-1`: Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout.
 - [ ] `sys-5`: Đóng gói file chạy EXE độc lập (`build_exe.bat`) và test trên Windows sạch.
 - [ ] `auth-1`: Quản lý nhân viên (Cài Đặt > Nhân Viên) và phân quyền ca làm việc.
 - [ ] `sys-4`: Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý.
