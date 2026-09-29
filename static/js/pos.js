@@ -579,8 +579,10 @@ function renderActiveTabCart() {
     if (!tab.cart || tab.cart.length === 0) {
         container.innerHTML = `
             <div class="h-full flex flex-col items-center justify-center p-8 text-slate-300">
-                <div class="text-6xl mb-3">🛒</div>
-                <div class="font-bold text-sm text-slate-400">Đơn hàng chưa có sản phẩm nào</div>
+                <div class="w-16 h-16 mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                </div>
+                <div class="font-bold text-sm text-slate-600">Đơn hàng chưa có sản phẩm nào</div>
                 <div class="text-xs text-slate-400 mt-1">Gõ tìm kiếm (F3) hoặc quét mã vạch để thêm sản phẩm vào đơn</div>
             </div>
         `;
@@ -597,11 +599,11 @@ function renderActiveTabCart() {
 
         const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
         return `
-            <div class="px-4 py-2.5 grid gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px; --row-idx: ${idx};">
+            <div class="px-4 py-2.5 grid gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px; --row-idx: ${idx};">
                 <!-- Nút xóa -->
                 <div class="text-center">
-                    <button onclick="removeCartItem(${idx})" class="text-slate-300 hover:text-rose-600 p-1 rounded transition" title="Xóa khỏi đơn">
-                        🗑️
+                    <button onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer" title="Xóa khỏi đơn">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                     </button>
                 </div>
 
