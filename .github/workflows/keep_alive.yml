@@ -12,11 +12,14 @@ jobs:
       - name: Ping Supabase REST API
         run: |
           RAW_REF="${{ secrets.SUPABASE_PROJECT_REF }}"
-          PROJECT_REF=$(echo "$RAW_REF" | sed -E 's|^https?://||' | sed -E 's|.*project/||' | sed -E 's|\.supabase\.co.*||' | tr -d ' /')
+          PROJECT_REF=$(echo "$RAW_REF" | sed -E 's|^https?://||' | sed -E 's|.*project/||' | sed -E 's|\.supabase\.co.*||' | tr -d '[:space:]/')
           
           TARGET_URL="https://${PROJECT_REF}.supabase.co/rest/v1/"
           echo "Pinging endpoint: https://${PROJECT_REF:0:4}***.supabase.co/rest/v1/"
-          
           echo "Length of ref: ${#PROJECT_REF}"
+          
+          echo "Testing host resolution:"
+          getent hosts "${PROJECT_REF}.supabase.co" || echo "getent failed"
+          
           echo "Testing connection with verbose curl:"
           curl -v -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" "$TARGET_URL" || true
