@@ -17,6 +17,7 @@ jobs:
           
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             "$TARGET_URL")
             
           echo "Supabase response code: $HTTP_STATUS"
