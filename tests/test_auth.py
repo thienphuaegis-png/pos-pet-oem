@@ -65,6 +65,50 @@ def test_staff_modal_dom_structure():
     assert modal_idx > settings_idx, "modal-staff phải nằm sau tab-settings"
     assert modal_idx < tab_settings_closing_div, "modal-staff nằm trong khu vực modal độc lập toàn cục"
 
+def test_shifts_bypass_permission():
+    from dependencies import check_permission, get_user_effective_permissions
+    from routers.settings import PERM_KEYS
+
+    assert "shifts.bypass" in PERM_KEYS
+
+    # Admin/Owner luôn có quyền shifts.bypass
+    assert check_permission(1, "owner", "shifts.bypass") is True
+    assert check_permission(1, "admin", "shifts.bypass") is True
+    assert "shifts.bypass" in get_user_effective_permissions(1, "owner")
+
+    # Tạo cashier test
+    db = get_db(); cur = db.cursor()
+    cur.execute("SELECT id FROM staff WHERE role='cashier' LIMIT 1")
+    cashier = cur.fetchone()
+    if not cashier:
+        cur.execute("INSERT INTO staff (name, username, password_hash, role, is_active) VALUES ('Test Cashier', 'test_cashier', 'hash', 'cashier', 1)")
+        db.commit()
+        cashier_id = cur.lastrowid
+    else:
+        cashier_id = cashier["id"]
+
+    # Mặc định cashier chưa có quyền bypass
+    cur.execute("DELETE FROM staff_permissions WHERE staff_id=? AND perm_key='shifts.bypass'", (cashier_id,))
+    cur.execute("UPDATE role_permissions SET allowed=0 WHERE role='cashier' AND perm_key='shifts.bypass'")
+    db.commit()
+    db.close()
+
+    assert check_permission(cashier_id, "cashier", "shifts.bypass") is False
+
+    # Cấp quyền riêng cho cashier này
+    db = get_db(); cur = db.cursor()
+    cur.execute("INSERT INTO staff_permissions (staff_id, perm_key, allowed) VALUES (?, 'shifts.bypass', 1) ON CONFLICT(staff_id, perm_key) DO UPDATE SET allowed=1", (cashier_id,))
+    db.commit()
+    db.close()
+
+    assert check_permission(cashier_id, "cashier", "shifts.bypass") is True
+    assert "shifts.bypass" in get_user_effective_permissions(cashier_id, "cashier")
+
+    # Cleanup
+    db = get_db(); cur = db.cursor()
+    cur.execute("DELETE FROM staff_permissions WHERE staff_id=? AND perm_key='shifts.bypass'", (cashier_id,))
+    db.commit(); db.close()
+
 if __name__ == "__main__":
     test_admin_exists();        print("✓ admin exists")
     test_password_hash();       print("✓ password hash OK")

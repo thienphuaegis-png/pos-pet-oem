@@ -171,10 +171,22 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
             code = f"{base_code}_{seq}"
             seq += 1
 
+        shift_id = req.shift_id
+        if not shift_id and user and "id" in user:
+            cur.execute("SELECT id FROM shifts WHERE cashier_id = ? AND status = 'open' LIMIT 1", (user["id"],))
+            s_row = cur.fetchone()
+            if s_row:
+                shift_id = s_row["id"]
+
+        if not shift_id and user:
+            from dependencies import check_permission
+            if not check_permission(user["id"], user.get("role", ""), "shifts.bypass"):
+                raise HTTPException(status_code=400, detail="Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.")
+
         cur.execute("""
         INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, actual_paid, debt_amount, commission_amount, req.note, req.shift_id, wallet_deduction))
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
@@ -310,7 +322,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, req.shift_id))
+                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, shift_id))
             else:
                 acc_id = getattr(req, "account_id", None)
                 if not acc_id:
@@ -324,7 +336,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                 VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code}", acc_id, req.shift_id))
+                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code}", acc_id, shift_id))
 
         # Tích điểm và thăng hạng tự động (Loyalty / Points / Auto-upgrade)
         points_earned = 0

@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/settings", tags=["Settings"])
 # Cac quyen quan ly duoc (owner luon full, khong hien trong danh sach nay)
 PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
              "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
-             "reports.view", "shifts.approve", "settings.access"]
+             "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
 MANAGEABLE_ROLES = ["cashier", "accountant", "warehouse"]
 MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists"]
 

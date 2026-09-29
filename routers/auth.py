@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from database import get_db
-from dependencies import get_current_user, require_role, SECRET, ALGO
+from dependencies import get_current_user, require_role, get_user_effective_permissions, SECRET, ALGO
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -59,11 +59,12 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     tv = user["token_version"] or 0
     access = _make_token(user["id"], tv, hours=8)
     refresh = _make_token(user["id"], tv, hours=24 * 7)
+    perms = get_user_effective_permissions(user["id"], user["role"])
     return {
         "access_token": access,
         "refresh_token": refresh,
         "token_type": "bearer",
-        "user": {"id": user["id"], "name": user["name"], "role": user["role"]},
+        "user": {"id": user["id"], "name": user["name"], "role": user["role"], "permissions": perms},
         "must_change_password": bool(user["must_change_password"]) if "must_change_password" in user.keys() else False
     }
 
@@ -77,7 +78,10 @@ def refresh(current: dict = Depends(get_current_user)):
 
 @router.get("/me")
 def me(current: dict = Depends(get_current_user)):
-    return current
+    perms = get_user_effective_permissions(current["id"], current.get("role", ""))
+    res = dict(current)
+    res["permissions"] = perms
+    return res
 
 
 class ChangePasswordIn(BaseModel):

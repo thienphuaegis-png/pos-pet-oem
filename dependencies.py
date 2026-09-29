@@ -62,10 +62,48 @@ def get_optional_user(token: str = Depends(oauth2_scheme_optional)):
     return None
 
 
+def check_permission(staff_id: int, role: str, perm_key: str) -> bool:
+    """Kiểm tra 1 quyền cụ thể cho user (staff_id, role). Owner/admin luôn có full quyền."""
+    if role in ("owner", "admin"):
+        return True
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT allowed FROM staff_permissions WHERE staff_id=? AND perm_key=?", (staff_id, perm_key))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("SELECT allowed FROM role_permissions WHERE role=? AND perm_key=?", (role, perm_key))
+        row = cur.fetchone()
+    db.close()
+    return bool(row and row["allowed"])
+
+
+def get_user_effective_permissions(staff_id: int, role: str) -> list:
+    """Trả về danh sách tất cả perm_keys được phép của user."""
+    from routers.settings import PERM_KEYS
+    if role in ("owner", "admin"):
+        return list(PERM_KEYS)
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT perm_key, allowed FROM role_permissions WHERE role=?", (role,))
+    role_map = {r["perm_key"]: bool(r["allowed"]) for r in cur.fetchall()}
+    cur.execute("SELECT perm_key, allowed FROM staff_permissions WHERE staff_id=?", (staff_id,))
+    staff_map = {r["perm_key"]: bool(r["allowed"]) for r in cur.fetchall()}
+    db.close()
+
+    result = []
+    for pk in PERM_KEYS:
+        if pk in staff_map:
+            if staff_map[pk]:
+                result.append(pk)
+        elif role_map.get(pk, False):
+            result.append(pk)
+    return result
+
+
 def require_role(*roles):
     """Trả về FastAPI dependency kiểm tra role. owner luôn pass."""
     def checker(user=Depends(get_current_user)):
-        if user["role"] != "owner" and user["role"] not in roles:
+        if user["role"] not in ("owner", "admin") and user["role"] not in roles:
             raise HTTPException(status_code=403, detail="Không có quyền truy cập")
         return user
     return checker
@@ -75,17 +113,9 @@ def require_permission(perm_key: str):
     """Kiểm tra quyền theo tick-box. Uu tien quyen rieng cua tung nhan vien (staff_permissions),
     khong co thi fallback ve quyen mac dinh theo role (role_permissions). owner luon pass."""
     def checker(user=Depends(get_current_user)):
-        if user["role"] == "owner":
+        if user.get("role") in ("owner", "admin"):
             return user
-        db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT allowed FROM staff_permissions WHERE staff_id=? AND perm_key=?", (user["id"], perm_key))
-        row = cur.fetchone()
-        if row is None:
-            cur.execute("SELECT allowed FROM role_permissions WHERE role=? AND perm_key=?", (user["role"], perm_key))
-            row = cur.fetchone()
-        db.close()
-        if not row or not row["allowed"]:
+        if not check_permission(user["id"], user.get("role", ""), perm_key):
             raise HTTPException(status_code=403, detail="Không có quyền truy cập")
         return user
     return checker

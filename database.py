@@ -782,7 +782,7 @@ def init_db():
     # Seed mac dinh = giu nguyen hanh vi cu (require_role cung truoc day)
     PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
                  "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
-                 "reports.view", "shifts.approve", "settings.access"]
+                 "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
     DEFAULT_ROLE_PERMS = {
         "cashier": {"pos.sell"},
         "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order"},

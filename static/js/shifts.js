@@ -24,10 +24,11 @@ function updateShiftUI() {
   const hasShift = !!currentShift;
   const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
   const isAdmin = user && (user.role === 'owner' || user.role === 'admin');
+  const canBypass = isAdmin || (typeof Auth !== 'undefined' && typeof Auth.can === 'function' && Auth.can('shifts.bypass'));
 
-  // Admin / Owner không bị chặn mở ca để bán hàng
+  // Admin / Nhân viên có quyền không bị chặn mở ca để bán hàng
   if (lockOverlay) {
-    if (isAdmin) {
+    if (canBypass) {
       lockOverlay.classList.add('hidden');
     } else {
       lockOverlay.classList.toggle('hidden', hasShift);
@@ -45,6 +46,9 @@ function updateShiftUI() {
       statusEl.style.color = '#0284c7';
     } else if (isAdmin) {
       statusEl.textContent = '👑 Quản Trị (Không cần mở ca)';
+      statusEl.style.color = '#059669';
+    } else if (canBypass) {
+      statusEl.textContent = '🔓 Miễn Mở Ca (Được phép bán)';
       statusEl.style.color = '#059669';
     } else {
       statusEl.textContent = '⚠ Chưa mở ca';

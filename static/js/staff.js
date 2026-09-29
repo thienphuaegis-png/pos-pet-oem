@@ -156,6 +156,7 @@ const PERM_LABEL = {
   "oem.manage": "🏭 Quản lý OEM",
   "reports.view": "📊 Xem Báo Cáo",
   "shifts.approve": "🕒 Duyệt Ca Làm Việc",
+  "shifts.bypass": "🔓 Bán hàng không cần mở ca",
   "settings.access": "⚙️ Truy cập Cài Đặt"
 };
 const MODULE_LABEL = {
@@ -221,6 +222,9 @@ async function updateStaffPermission(staffId, permKey, value) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ staff_id: staffId, perm_key: permKey, allowed })
   });
+  if (typeof refreshUserProfile === 'function') {
+    refreshUserProfile();
+  }
 }
 
 async function renderActivityLog() {
@@ -318,5 +322,11 @@ async function togglePermission(role, perm_key, allowed) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role, perm_key, allowed })
   });
-  if (!res.ok) { const d = await res.json(); alert('❌ ' + (d.detail || 'Lỗi cập nhật quyền')); await renderPermissionMatrix(); }
+  if (!res.ok) {
+    const d = await res.json();
+    alert('❌ ' + (d.detail || 'Lỗi cập nhật quyền'));
+    await renderPermissionMatrix();
+  } else if (typeof refreshUserProfile === 'function') {
+    refreshUserProfile();
+  }
 }

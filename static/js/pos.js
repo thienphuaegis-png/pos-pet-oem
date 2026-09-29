@@ -1466,8 +1466,12 @@ async function submitPOSOrder() {
         return;
     }
     if (typeof currentShift !== 'undefined' && !currentShift) {
-        alert("⚠ Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.");
-        return;
+        const canBypassShift = (typeof Auth !== 'undefined' && typeof Auth.can === 'function' && Auth.can('shifts.bypass'))
+            || (typeof Auth !== 'undefined' && Auth.getUser() && (Auth.getUser().role === 'owner' || Auth.getUser().role === 'admin'));
+        if (!canBypassShift) {
+            alert("⚠ Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.");
+            return;
+        }
     }
 
     const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);

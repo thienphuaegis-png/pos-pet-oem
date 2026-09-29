@@ -2,6 +2,7 @@
 const Auth = {
   getToken:  () => localStorage.getItem('pos_token'),
   getUser:   () => JSON.parse(localStorage.getItem('pos_user') || 'null'),
+  setUser:   (user) => localStorage.setItem('pos_user', JSON.stringify(user)),
   getRefresh:() => localStorage.getItem('pos_refresh'),
   setSession(data) {
     localStorage.setItem('pos_token',   data.access_token);
@@ -13,9 +14,31 @@ const Auth = {
   },
   hasRole(...roles) {
     const u = Auth.getUser();
-    return u && (u.role === 'owner' || roles.includes(u.role));
+    return u && (u.role === 'owner' || u.role === 'admin' || roles.includes(u.role));
+  },
+  can(permKey) {
+    const u = Auth.getUser();
+    if (!u) return false;
+    if (u.role === 'owner' || u.role === 'admin') return true;
+    return Array.isArray(u.permissions) && u.permissions.includes(permKey);
   }
 };
+
+async function refreshUserProfile() {
+  const token = Auth.getToken();
+  if (!token) return;
+  try {
+    const res = await _origFetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const me = await res.json();
+      const current = Auth.getUser() || {};
+      Auth.setUser({ ...current, ...me });
+      if (typeof updateShiftUI === 'function') updateShiftUI();
+    }
+  } catch (e) {}
+}
 
 // ── Intercept fetch: gắn Bearer, handle 401 ──
 const _origFetch = window.fetch.bind(window);
@@ -173,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (Auth.getToken()) {
     hideLoginOverlay();
     applyRoleUI();
+    refreshUserProfile();
     if (typeof loadCurrentShift === 'function') {
       loadCurrentShift();
     }
