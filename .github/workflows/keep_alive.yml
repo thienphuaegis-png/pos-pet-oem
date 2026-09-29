@@ -17,13 +17,5 @@ jobs:
           TARGET_URL="https://${PROJECT_REF}.supabase.co/rest/v1/"
           echo "Pinging endpoint: https://${PROJECT_REF:0:4}***.supabase.co/rest/v1/"
           
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "$TARGET_URL" || echo "curl_failed")
-            
-          echo "Supabase response code: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 401 ]; then
-            echo "Ping successful (project is active and touched)"
-          else
-            echo "Warning: Response code $HTTP_STATUS"
-          fi
+          echo "Testing connection with verbose curl:"
+          curl -v -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" "$TARGET_URL" || true
