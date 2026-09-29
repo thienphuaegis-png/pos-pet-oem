@@ -5,15 +5,18 @@ from database import get_db
 from schemas import OrderCreate, OrderUpdate
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
-from dependencies import get_current_user, require_role, require_permission
+from dependencies import get_current_user, get_optional_user, require_role, require_permission
+from typing import Optional
 
 logger = get_module_logger("pos")
 
 router = APIRouter(tags=["POS & Orders"])
 
 @router.get("/api/pos/draft")
-def get_draft(current: dict = Depends(get_current_user)):
+def get_draft(current: Optional[dict] = Depends(get_optional_user)):
     """Khôi phục hóa đơn đang gõ dở của nhân viên hiện tại (chống mất khi tắt máy/mất điện)."""
+    if not current:
+        return None
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT data, updated_at FROM draft_orders WHERE staff_id=?", (current["id"],))
@@ -25,8 +28,10 @@ def get_draft(current: dict = Depends(get_current_user)):
 
 
 @router.post("/api/pos/draft")
-def save_draft(body: dict, current: dict = Depends(get_current_user)):
+def save_draft(body: dict, current: Optional[dict] = Depends(get_optional_user)):
     """Lưu snapshot hóa đơn đang gõ dở — client gọi định kỳ (debounce ~3-5s)."""
+    if not current:
+        return {"message": "skipped"}
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -40,8 +45,10 @@ def save_draft(body: dict, current: dict = Depends(get_current_user)):
 
 
 @router.delete("/api/pos/draft")
-def clear_draft(current: dict = Depends(get_current_user)):
+def clear_draft(current: Optional[dict] = Depends(get_optional_user)):
     """Xóa draft sau khi thanh toán xong hoặc dọn tay — tránh khôi phục hóa đơn đã bán."""
+    if not current:
+        return {"message": "skipped"}
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM draft_orders WHERE staff_id=?", (current["id"],))

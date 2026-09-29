@@ -93,8 +93,8 @@ def calculate_effective_price(product_id: int, customer_id: Optional[int] = None
             JOIN promotions p ON pi.promotion_id = p.id
             WHERE pi.product_id = ?
               AND COALESCE(p.is_active, 1) = 1
-              AND (p.start_date IS NULL OR p.start_date = '' OR p.start_date <= ?)
-              AND (p.end_date IS NULL OR p.end_date = '' OR p.end_date >= ?)
+              AND (p.start_date IS NULL OR CAST(p.start_date AS TEXT) = '' OR p.start_date <= ?)
+              AND (p.end_date IS NULL OR CAST(p.end_date AS TEXT) = '' OR p.end_date >= ?)
         """, (product_id, today_str, today_str))
         promos = cur.fetchall()
 
@@ -246,8 +246,8 @@ def calculate_effective_spa_price(service_name: str, weight: float, customer_id:
                 (pi.target_type = 'spa_category' AND pi.spa_category = ?)
             )
               AND COALESCE(p.is_active, 1) = 1
-              AND (p.start_date IS NULL OR p.start_date = '' OR p.start_date <= ?)
-              AND (p.end_date IS NULL OR p.end_date = '' OR p.end_date >= ?)
+              AND (p.start_date IS NULL OR CAST(p.start_date AS TEXT) = '' OR p.start_date <= ?)
+              AND (p.end_date IS NULL OR CAST(p.end_date AS TEXT) = '' OR p.end_date >= ?)
         """, (service_name, category, today_str, today_str))
         promos = cur.fetchall()
 

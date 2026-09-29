@@ -20,6 +20,7 @@ if not SECRET:
 ALGO = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -41,6 +42,24 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     if (user["token_version"] or 0) != payload.get("tv", 0):
         raise HTTPException(status_code=401, detail="Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại")
     return dict(user)
+
+
+def get_optional_user(token: str = Depends(oauth2_scheme_optional)):
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGO])
+        staff_id = payload.get("sub")
+        db = get_db()
+        cur = db.cursor()
+        cur.execute("SELECT id, name, role, is_active, must_change_password, token_version FROM staff WHERE id=?", (staff_id,))
+        user = cur.fetchone()
+        db.close()
+        if user and user["is_active"] and (user["token_version"] or 0) == payload.get("tv", 0):
+            return dict(user)
+    except Exception:
+        pass
+    return None
 
 
 def require_role(*roles):

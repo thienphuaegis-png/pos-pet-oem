@@ -84,6 +84,9 @@ def translate_query(sql):
     s = re.sub(r'GROUP_CONCAT\s*\(\s*(DISTINCT\s+)?([^,\)]+),\s*([^\)]+)\)', r"STRING_AGG(\1\2::text, \3)", s, flags=re.IGNORECASE)
     s = re.sub(r'GROUP_CONCAT\s*\(\s*(DISTINCT\s+)?([^,\)]+)\)', r"STRING_AGG(\1\2::text, ', ')", s, flags=re.IGNORECASE)
 
+    # 6. column = '' for dates/timestamps
+    s = re.sub(r'(\b\w*(?:start_date|end_date|created_at|updated_at|date))\s*=\s*\'\'', r"\1::text = ''", s, flags=re.IGNORECASE)
+
     return s
 
 class PGCursorWrapper:
