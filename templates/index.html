@@ -3823,67 +3823,84 @@
             <!-- TAB: DOI TAC & CONG NO -->
             <div id="tab-contacts" class="hidden space-y-4">
                 <!-- Header & Stats -->
-                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm border gap-3">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">👥 Quản Lý Khách Hàng, Nhà Cung Cấp & Thú Cưng</h2>
-                        <p class="text-xs text-gray-500">Theo dõi thông tin liên hệ, nhóm phân loại, hồ sơ thú cưng và công nợ 2 chiều</p>
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Quản Lý Khách Hàng, Nhà Cung Cấp & Thú Cưng</h2>
+                            <p class="text-xs text-slate-500">Theo dõi thông tin liên hệ, nhóm phân loại, hồ sơ thú cưng và công nợ 2 chiều</p>
+                        </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="openImportContactsModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
-                            <span>📥 Import Excel</span>
+                        <button onclick="openImportContactsModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                            <span>Import Excel</span>
                         </button>
-                        <button onclick="exportContactsExcel()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
-                            <span>📤 Xuất Excel</span>
+                        <button onclick="exportContactsExcel()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                            <span>Xuất Excel</span>
                         </button>
-                        <button onclick="openContactModal('customer')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
-                            <span>➕ Thêm Khách Hàng</span>
+                        <button onclick="openContactModal('customer')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                            <span>Thêm Khách Hàng</span>
                         </button>
-                        <button onclick="openContactModal('supplier')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1.5">
-                            <span>➕ Thêm Nhà Cung Cấp</span>
+                        <button onclick="openContactModal('supplier')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><line x1="10" x2="14" y1="6" y2="6"/><line x1="10" x2="14" y1="10" y2="10"/><line x1="10" x2="14" y1="14" y2="14"/></svg>
+                            <span>Thêm Nhà Cung Cấp</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- KPI Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-gray-500 uppercase">Tổng Khách Hàng</div>
-                            <div id="kpi-contacts-customers" class="text-2xl font-black text-blue-600 mt-1">0</div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Tổng Khách Hàng</div>
+                            <div id="kpi-contacts-customers" class="text-2xl font-black text-rose-600 mt-0.5">0</div>
                         </div>
-                        <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl font-bold">👤</div>
+                        <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-gray-500 uppercase">Khách Nợ Cửa Hàng (Phải Thu)</div>
-                            <div id="kpi-contacts-cust-debt" class="text-2xl font-black text-rose-600 mt-1">0 đ</div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Khách Nợ Cửa Hàng (Phải Thu)</div>
+                            <div id="kpi-contacts-cust-debt" class="text-2xl font-black text-amber-600 mt-0.5">0 đ</div>
                         </div>
-                        <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center text-xl font-bold">📉</div>
+                        <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between">
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-between">
                         <div>
-                            <div class="text-xs font-bold text-gray-500 uppercase">Nợ Nhà Cung Cấp (Phải Trả)</div>
-                            <div id="kpi-contacts-supp-debt" class="text-2xl font-black text-amber-600 mt-1">0 đ</div>
+                            <div class="text-[11px] font-bold text-slate-400 uppercase">Nợ Nhà Cung Cấp (Phải Trả)</div>
+                            <div id="kpi-contacts-supp-debt" class="text-2xl font-black text-cyan-600 mt-0.5">0 đ</div>
                         </div>
-                        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center text-xl font-bold">📈</div>
+                        <div class="w-10 h-10 bg-cyan-50 text-cyan-600 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Sub-tabs & Search Đối Tác -->
-                <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-                        <div class="inline-flex rounded-md shadow-sm text-xs">
-                            <button onclick="switchContactTab('customer')" id="btn-contact-tab-customer" class="px-4 py-2 font-bold rounded-l-md bg-sky-700 text-white flex items-center gap-1.5">
-                                <span>👤 Khách Hàng</span>
-                                <span id="badge-count-customers" class="bg-sky-900 text-sky-200 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div class="inline-flex rounded-lg shadow-2xs text-xs bg-slate-100 p-0.5 border border-slate-200/80">
+                            <button onclick="switchContactTab('customer')" id="btn-contact-tab-customer" class="px-3.5 py-1.5 font-bold rounded-md bg-white text-slate-900 shadow-xs flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                                <span>Khách Hàng</span>
+                                <span id="badge-count-customers" class="bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded-full text-[10px] font-bold">0</span>
                             </button>
-                            <button onclick="switchContactTab('supplier')" id="btn-contact-tab-supplier" class="px-4 py-2 font-bold rounded-r-md bg-white text-slate-700 border hover:bg-gray-50 flex items-center gap-1.5">
-                                <span>🏭 Nhà Cung Cấp</span>
-                                <span id="badge-count-suppliers" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+                            <button onclick="switchContactTab('supplier')" id="btn-contact-tab-supplier" class="px-3.5 py-1.5 font-semibold text-slate-600 hover:text-slate-900 rounded-md flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/></svg>
+                                <span>Nhà Cung Cấp</span>
+                                <span id="badge-count-suppliers" class="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full text-[10px] font-bold">0</span>
                             </button>
                         </div>
                         <div class="flex items-center gap-2 flex-1 max-w-md">
-                            <input type="text" id="search-contacts-input" oninput="debounceFilterContacts()" placeholder="🔍 Tìm theo tên, số điện thoại, mã..." class="border p-2 rounded w-full text-xs bg-slate-50 focus:bg-white outline-none focus:border-sky-500">
+                            <input type="text" id="search-contacts-input" oninput="debounceFilterContacts()" placeholder="Tìm theo tên, số điện thoại, mã..." class="tui-input text-xs w-full">
                         </div>
                     </div>
 
@@ -3934,22 +3951,27 @@
 
             <!-- TAB: SO QUY -->
             <div id="tab-cashbook" class="hidden space-y-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">💰 Sổ Quỹ Thu Chi</h2>
-                        <p class="text-xs text-gray-500">Theo dõi toàn bộ các luồng tiền thực tế vào/ra theo từng nguồn quỹ (Công Ty & Cá Nhân)</p>
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Sổ Quỹ Thu Chi</h2>
+                            <p class="text-xs text-slate-500">Theo dõi toàn bộ các luồng tiền thực tế vào/ra theo từng nguồn quỹ (Công Ty & Cá Nhân)</p>
+                        </div>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="openPaymentAccountsModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
-                            <span>🏦</span>
+                        <button onclick="openPaymentAccountsModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                             <span>Quản Lý Tài Khoản</span>
                         </button>
-                        <button onclick="openCreateCashModal('in')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
-                            <span>+</span>
+                        <button onclick="openCreateCashModal('in')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
                             <span>Lập Phiếu Thu</span>
                         </button>
-                        <button onclick="openCreateCashModal('out')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow flex items-center gap-1.5">
-                            <span>-</span>
+                        <button onclick="openCreateCashModal('out')" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" x2="19" y1="12" y2="12"/></svg>
                             <span>Lập Phiếu Chi</span>
                         </button>
                     </div>
@@ -3957,33 +3979,33 @@
 
                 <!-- KPI Cards Sổ Quỹ: Hiển thị Tổng & Từng Tài Khoản -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
-                        <div class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">🟢 Tổng Thu (Vào)</div>
+                    <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80">
+                        <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Tổng Thu (Vào)</div>
                         <div id="cashbook-stat-total-in" class="text-xl font-black text-emerald-700 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Thu bán hàng & các khoản thu</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Thu bán hàng & các khoản thu</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
-                        <div class="text-[11px] font-bold text-rose-600 uppercase tracking-wider">🔴 Tổng Chi (Ra)</div>
+                    <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80">
+                        <div class="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Tổng Chi (Ra)</div>
                         <div id="cashbook-stat-total-out" class="text-xl font-black text-rose-700 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Chi trả NCC, cọc OEM, chi phí</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Chi trả NCC, cọc OEM, chi phí</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
-                        <div class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">🏢 Tồn Quỹ Công Ty</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs">
+                        <div class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Tồn Quỹ Công Ty</div>
                         <div id="cashbook-stat-balance-company" class="text-xl font-black text-blue-700 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Tiền tài khoản ngân hàng cty</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tiền tài khoản ngân hàng cty</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
-                        <div class="text-[11px] font-bold text-purple-600 uppercase tracking-wider">👤 Tồn Quỹ Cá Nhân</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs">
+                        <div class="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Tồn Quỹ Cá Nhân</div>
                         <div id="cashbook-stat-balance-personal" class="text-xl font-black text-purple-700 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Tiền mặt / chi tiêu cá nhân</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tiền mặt / chi tiêu cá nhân</div>
                     </div>
                 </div>
 
                 <!-- Thẻ Số Dư Chi Tiết Từng Tài Khoản Thanh Toán -->
                 <div>
                     <div class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
-                        <span class="flex items-center gap-1.5">💳 <span>Số dư theo từng tài khoản / két tiền:</span></span>
-                        <span id="cashbook-accounts-count" class="text-[11px] text-gray-400 font-normal">3 tài khoản</span>
+                        <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> <span>Số dư theo từng tài khoản / két tiền:</span></span>
+                        <span id="cashbook-accounts-count" class="text-[11px] text-slate-400 font-normal">3 tài khoản</span>
                     </div>
                     <div id="cashbook-accounts-kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                         <!-- Render dynamic account cards -->
@@ -3991,20 +4013,20 @@
                 </div>
 
                 <!-- Thanh Công Cụ & Bộ Lọc Sổ Quỹ -->
-                <div class="bg-white p-3 rounded-lg shadow-sm border flex flex-wrap items-center justify-between gap-3">
+                <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex flex-wrap items-center gap-2 flex-1">
-                        <select id="cashbook-filter-account" onchange="loadCashbook()" class="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-indigo-500 font-medium text-slate-700">
-                            <option value="">🏦 Tất cả tài khoản / quỹ</option>
+                        <select id="cashbook-filter-account" onchange="loadCashbook()" class="tui-input text-xs w-auto py-1 font-semibold text-slate-700">
+                            <option value="">Tất cả tài khoản / quỹ</option>
                         </select>
-                        <select id="cashbook-filter-type" onchange="loadCashbook()" class="border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-indigo-500 font-medium text-slate-700">
-                            <option value="">🔄 Tất cả loại (Thu & Chi)</option>
-                            <option value="in">🟢 Chỉ Phiếu Thu (Vào)</option>
-                            <option value="out">🔴 Chỉ Phiếu Chi (Ra)</option>
+                        <select id="cashbook-filter-type" onchange="loadCashbook()" class="tui-input text-xs w-auto py-1 font-semibold text-slate-700">
+                            <option value="">Tất cả loại (Thu & Chi)</option>
+                            <option value="in">Chỉ Phiếu Thu (Vào)</option>
+                            <option value="out">Chỉ Phiếu Chi (Ra)</option>
                         </select>
-                        <input id="cashbook-filter-search" oninput="filterCashbookTable()" placeholder="🔍 Tìm theo mã phiếu, hạng mục, ghi chú, đối tác..." class="border border-slate-300 rounded px-3 py-1.5 text-xs flex-1 min-w-[200px] focus:outline-none focus:border-indigo-500">
+                        <input id="cashbook-filter-search" oninput="filterCashbookTable()" placeholder="Tìm theo mã phiếu, hạng mục, ghi chú, đối tác..." class="tui-input text-xs flex-1 min-w-[200px]">
                     </div>
-                    <button onclick="loadCashbook()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1">
-                        <span>🔄</span>
+                    <button onclick="loadCashbook()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                         <span>Làm mới</span>
                     </button>
                 </div>
@@ -4031,44 +4053,51 @@
             <!-- TAB: DÒNG TIỀN & CÔNG NỢ NCC -->
             <div id="tab-cashflow-debts" class="hidden space-y-4">
                 <!-- Header -->
-                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm border gap-3">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <span>📊 Quản Lý Dòng Tiền & Công Nợ Nhà Cung Cấp</span>
-                        </h2>
-                        <p class="text-xs text-gray-500">Theo dõi toàn diện nghĩa vụ công nợ thực tế phải trả theo từng NCC/Xưởng và kế hoạch dòng tiền chi (Quỹ Cty & Quỹ Cá nhân)</p>
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>Quản Lý Dòng Tiền & Công Nợ Nhà Cung Cấp</span>
+                            </h2>
+                            <p class="text-xs text-slate-500">Theo dõi toàn diện nghĩa vụ công nợ thực tế phải trả theo từng NCC/Xưởng và kế hoạch dòng tiền chi (Quỹ Cty & Quỹ Cá nhân)</p>
+                        </div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="loadCashflowDebtsData()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded shadow-sm flex items-center gap-1.5 border">
-                            <span>🔄 Làm Mới</span>
+                        <button onclick="loadCashflowDebtsData()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg shadow-2xs flex items-center gap-1.5 border border-slate-200 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                            <span>Làm Mới</span>
                         </button>
-                        <button onclick="openModalPaySupplierDebt()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 py-2 rounded shadow flex items-center gap-1.5">
-                            <span>💳 Lập Phiếu Trả Nợ NCC</span>
+                        <button onclick="openModalPaySupplierDebt()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                            <span>Lập Phiếu Trả Nợ NCC</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- KPI Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-rose-500">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">🔴 Tổng Nợ NCC Phải Trả</div>
+                    <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-rose-500">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng Nợ NCC Phải Trả</div>
                         <div id="cfd-stat-total-debt" class="text-2xl font-black text-rose-600 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Đã nhận hàng, nợ thực tế</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Đã nhận hàng, nợ thực tế</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">🟡 Dự Báo Tiền Sắp Chi</div>
+                    <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-amber-500">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dự Báo Tiền Sắp Chi</div>
                         <div id="cfd-stat-forecast-total" class="text-2xl font-black text-amber-600 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Đơn OEM & PO đang chờ giao</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Đơn OEM & PO đang chờ giao</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">🏢 Dự Báo Quỹ Công Ty</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs border-l-4 border-l-blue-500">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dự Báo Quỹ Công Ty</div>
                         <div id="cfd-stat-forecast-company" class="text-xl font-black text-blue-600 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Tiền OEM / Bank cty có VAT</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tiền OEM / Bank cty có VAT</div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200 border-l-4 border-l-purple-500">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">👤 Dự Báo Quỹ Cá Nhân</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs border-l-4 border-l-purple-500">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dự Báo Quỹ Cá Nhân</div>
                         <div id="cfd-stat-forecast-personal" class="text-xl font-black text-purple-600 mt-1">0 đ</div>
-                        <div class="text-[10px] text-gray-400 mt-0.5">Mua hàng lẻ / tiền mặt cá nhân</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Mua hàng lẻ / tiền mặt cá nhân</div>
                     </div>
                 </div>
 
