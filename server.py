@@ -182,27 +182,6 @@ def ping():
     return {"app": "pos-offline-petcare", "version": APP_VERSION,
             "hostname": socket.gethostname()}
 
-@app.get("/api/debug-status", include_in_schema=False)
-def debug_status():
-    import traceback
-    db_url = os.environ.get("DATABASE_URL")
-    res = {
-        "has_db_url": bool(db_url),
-        "db_url_prefix": db_url[:20] if db_url else None,
-        "is_vercel": bool(os.environ.get("VERCEL")),
-    }
-    try:
-        from database import get_db
-        db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT 1")
-        row = cur.fetchone()
-        res["db_test"] = "ok"
-    except Exception as e:
-        res["db_error"] = str(e)
-        res["traceback"] = traceback.format_exc()
-    return res
-
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
