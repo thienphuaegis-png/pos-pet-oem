@@ -11,12 +11,19 @@ jobs:
     steps:
       - name: Ping Supabase REST API
         run: |
+          RAW_REF="${{ secrets.SUPABASE_PROJECT_REF }}"
+          PROJECT_REF=$(echo "$RAW_REF" | sed -E 's|^https?://||' | sed -E 's|.*project/||' | sed -E 's|\.supabase\.co.*||' | tr -d ' /')
+          
+          TARGET_URL="https://${PROJECT_REF}.supabase.co/rest/v1/"
+          echo "Pinging endpoint: https://${PROJECT_REF:0:4}***.supabase.co/rest/v1/"
+          
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            "https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co/rest/v1/")
-          echo "Supabase response status: $HTTP_STATUS"
+            "$TARGET_URL" || echo "curl_failed")
+            
+          echo "Supabase response code: $HTTP_STATUS"
           if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 401 ]; then
-            echo "Ping successful (project is active)"
+            echo "Ping successful (project is active and touched)"
           else
-            echo "Unexpected status: $HTTP_STATUS"
+            echo "Warning: Response code $HTTP_STATUS"
           fi
