@@ -44,5 +44,17 @@ class TestHtmlIntegrity(unittest.TestCase):
         main = self.soup.find(id='main-content-area')
         self.assertTrue(len(main.find_all(recursive=False)) >= 12, 'main-content-area phải chứa ít nhất 12 tabs')
 
+    def test_sidebar_lucide_badge_icons(self):
+        sidebar_nav = self.soup.find(id='sidebar-nav')
+        self.assertIsNotNone(sidebar_nav, 'Phải có nav id=sidebar-nav')
+        buttons = sidebar_nav.find_all('button', class_='tab-btn')
+        self.assertEqual(len(buttons), 14, 'Sidebar phải có 14 nút điều hướng')
+        for btn in buttons:
+            icon_span = btn.find('span', class_='sidebar-icon')
+            self.assertIsNotNone(icon_span, f"Nút {btn.get('data-tab')} thiếu thẻ span.sidebar-icon")
+            svg = icon_span.find('svg')
+            self.assertIsNotNone(svg, f"Nút {btn.get('data-tab')} phải chứa SVG icon Lucide")
+            self.assertTrue(svg.get('viewbox') or svg.get('viewBox'), f"SVG trong nút {btn.get('data-tab')} phải có viewBox")
+
 if __name__ == '__main__':
     unittest.main()
