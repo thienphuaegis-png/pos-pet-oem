@@ -303,11 +303,22 @@ async function renderPermissionMatrix() {
     const tbody = document.getElementById('permissions-matrix-body');
     if (!tbody) return;
     tbody.innerHTML = (data.perm_keys || []).map(pk => `
-      <tr class="border-b">
-        <td class="py-2 pr-2">${PERM_LABEL[pk] || pk}</td>
+      <tr class="border-b hover:bg-slate-50/60 transition">
+        <td class="py-2.5 pr-2 font-medium text-slate-700">
+          <div class="flex items-center gap-2">
+            <span>${PERM_LABEL[pk] || pk}</span>
+            ${pk === 'shifts.bypass' ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-200">Tùy chọn không cần mở ca</span>' : ''}
+          </div>
+        </td>
+        <td class="py-2.5 px-3 text-center bg-purple-50/40">
+          <div class="inline-flex items-center justify-center gap-1 text-purple-700 font-semibold" title="Admin luôn có toàn quyền cố định">
+            <input type="checkbox" class="w-4 h-4 accent-purple-600 rounded cursor-not-allowed opacity-90" checked disabled>
+            <span class="text-[10px] text-purple-700 font-bold hidden sm:inline">Cố định</span>
+          </div>
+        </td>
         ${roles.map(role => `
-          <td class="py-2 px-2 text-center">
-            <input type="checkbox" class="w-5 h-5" ${map[role]?.[pk] ? 'checked' : ''}
+          <td class="py-2.5 px-3 text-center">
+            <input type="checkbox" class="w-4 h-4 rounded cursor-pointer accent-sky-600 transition" ${map[role]?.[pk] ? 'checked' : ''}
                    onchange="togglePermission('${role}', '${pk}', this.checked)">
           </td>`).join('')}
       </tr>
