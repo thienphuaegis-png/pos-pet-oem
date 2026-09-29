@@ -794,7 +794,7 @@ def init_db():
                         (role, key, 1 if key in perms else 0))
 
     # 9c. Bat/tat module theo he thong (an tab cho MOI role khi tat)
-    DEFAULT_MODULES = {"module_oem": "1", "module_pet_services": "1", "module_price_lists": "1"}
+    DEFAULT_MODULES = {"module_oem": "1", "module_pet_services": "1", "module_price_lists": "1", "module_hotel": "1"}
     for key, val in DEFAULT_MODULES.items():
         cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
 

@@ -160,9 +160,10 @@ const PERM_LABEL = {
   "settings.access": "⚙️ Truy cập Cài Đặt"
 };
 const MODULE_LABEL = {
-  module_oem: "🏭 Gia Công OEM",
+  module_hotel: "🏨 Khách Sạn Thú Cưng",
   module_pet_services: "🐾 Dịch Vụ & Thú Cưng",
-  module_price_lists: "🏷️ Bảng Giá Đại Lý"
+  module_price_lists: "🏷️ Bảng Giá Đại Lý",
+  module_oem: "🏭 Gia Công OEM"
 };
 
 async function loadPermissionsUI() {
@@ -171,15 +172,20 @@ async function loadPermissionsUI() {
 
 async function populateStaffPermSelect() {
   const sel = document.getElementById('staff-perm-select');
-  if (!sel) return;
   const res = await fetch('/api/staff');
-  const staffs = (await res.json()).filter(s => s.role !== 'owner');
-  sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
-    staffs.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  if (!res.ok) return;
+  const allStaffs = await res.json();
+  if (sel) {
+    const manageableStaffs = allStaffs.filter(s => s.role !== 'owner' && s.role !== 'admin');
+    sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
+      manageableStaffs.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  }
   const filterSel = document.getElementById('activity-log-filter');
   if (filterSel) {
+    const curVal = filterSel.value;
     filterSel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
-      staffs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      allStaffs.map(s => `<option value="${s.id}">${s.name} (${s.role || 'staff'})</option>`).join('');
+    if (curVal) filterSel.value = curVal;
   }
 }
 
@@ -227,23 +233,60 @@ async function updateStaffPermission(staffId, permKey, value) {
   }
 }
 
+let activityLogDebounceTimer = null;
+function debounceActivityLogSearch() {
+  clearTimeout(activityLogDebounceTimer);
+  activityLogDebounceTimer = setTimeout(renderActivityLog, 250);
+}
+
 async function renderActivityLog() {
   const box = document.getElementById('activity-log-body');
   if (!box) return;
   const staffId = document.getElementById('activity-log-filter')?.value || '';
-  const url = '/api/settings/activity-log' + (staffId ? `?staff_id=${staffId}` : '');
-  const res = await fetch(url);
-  if (!res.ok) { box.innerHTML = '<tr><td colspan="5" class="text-red-500 py-2">Lỗi tải nhật ký</td></tr>'; return; }
-  const data = await res.json();
-  box.innerHTML = data.logs.map(l => `
-    <tr class="border-b">
-      <td class="py-2 pr-2">${l.staff_name || '(không rõ)'}</td>
-      <td class="py-2 px-2">${l.role || ''}</td>
-      <td class="py-2 px-2">${l.action}</td>
-      <td class="py-2 px-2">${l.ip || ''}</td>
-      <td class="py-2 px-2">${l.created_at}</td>
-    </tr>
-  `).join('') || '<tr><td colspan="5" class="text-slate-400 py-2">Chưa có hoạt động nào</td></tr>';
+  const days = document.getElementById('activity-log-days')?.value || '90';
+  const search = document.getElementById('activity-log-search')?.value || '';
+  const actionType = document.getElementById('activity-log-action-type')?.value || '';
+
+  const params = new URLSearchParams();
+  if (staffId) params.append('staff_id', staffId);
+  if (days) params.append('days', days);
+  if (search.trim()) params.append('search', search.trim());
+  if (actionType) params.append('action_type', actionType);
+  params.append('limit', '500');
+
+  const url = '/api/settings/activity-log?' + params.toString();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { box.innerHTML = '<tr><td colspan="5" class="text-rose-500 py-3 text-center">Lỗi tải nhật ký</td></tr>'; return; }
+    const data = await res.json();
+    const countEl = document.getElementById('activity-log-count');
+    if (countEl) countEl.textContent = `${data.logs?.length || 0} bản ghi`;
+
+    if (!data.logs || data.logs.length === 0) {
+      box.innerHTML = '<tr><td colspan="5" class="text-slate-400 py-6 text-center">Không có hoạt động nào phù hợp bộ lọc</td></tr>';
+      return;
+    }
+
+    const roleBadges = {
+      owner: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">👑 Chủ shop</span>',
+      admin: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">👑 Admin</span>',
+      cashier: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">🏷 Thu ngân</span>',
+      accountant: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">📒 Kế toán</span>',
+      warehouse: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">📦 Thủ kho</span>',
+    };
+
+    box.innerHTML = data.logs.map(l => `
+      <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition">
+        <td class="py-2.5 px-3 font-semibold text-slate-800">${l.staff_name || '(hệ thống)'}</td>
+        <td class="py-2.5 px-2">${roleBadges[l.role] || `<span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-600">${l.role || '—'}</span>`}</td>
+        <td class="py-2.5 px-3 text-slate-700 font-medium">${l.action}</td>
+        <td class="py-2.5 px-2 text-slate-400 font-mono text-[11px]">${l.ip || '—'}</td>
+        <td class="py-2.5 px-3 text-right text-slate-400 text-[11px] whitespace-nowrap">${l.created_at || '—'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    box.innerHTML = '<tr><td colspan="5" class="text-rose-500 py-3 text-center">Lỗi kết nối máy chủ</td></tr>';
+  }
 }
 
 async function renderLoginLog() {

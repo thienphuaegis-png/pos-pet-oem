@@ -13,7 +13,7 @@ PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.
              "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
              "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
 MANAGEABLE_ROLES = ["cashier", "accountant", "warehouse"]
-MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists"]
+MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel"]
 
 @router.get("/permissions")
 def get_permissions(user=Depends(require_role("owner"))):
@@ -85,15 +85,31 @@ def update_staff_permission(req: StaffPermissionUpdate, user=Depends(require_rol
     return {"status": "ok"}
 
 @router.get("/activity-log")
-def get_activity_log(staff_id: int = None, limit: int = 200, user=Depends(require_role("owner"))):
-    """Log hoat dong 30 ngay gan nhat, loc theo nhan vien neu co."""
+def get_activity_log(
+    staff_id: int = None,
+    days: int = 90,
+    search: str = None,
+    action_type: str = None,
+    limit: int = 500,
+    user=Depends(require_role("owner"))
+):
+    """Log hoat dong 90 ngay gan nhat, co bo loc nhan vien, tu khoa, nghiep vu va khoang ngay."""
     conn = get_db()
     cur = conn.cursor()
-    sql = "SELECT id, staff_id, staff_name, role, action, method, path, ip, created_at FROM activity_log WHERE created_at >= datetime('now', '-30 days')"
+    safe_days = max(1, min(days or 90, 365))
+    sql = f"SELECT id, staff_id, staff_name, role, action, method, path, ip, created_at FROM activity_log WHERE created_at >= datetime('now', '-{safe_days} days')"
     params = []
     if staff_id:
         sql += " AND staff_id = ?"
         params.append(staff_id)
+    if search and search.strip():
+        search_kw = f"%{search.strip()}%"
+        sql += " AND (staff_name LIKE ? OR action LIKE ? OR path LIKE ? OR ip LIKE ?)"
+        params.extend([search_kw, search_kw, search_kw, search_kw])
+    if action_type and action_type.strip():
+        act_kw = f"%{action_type.strip()}%"
+        sql += " AND (action LIKE ? OR path LIKE ?)"
+        params.extend([act_kw, act_kw])
     sql += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
     cur.execute(sql, params)

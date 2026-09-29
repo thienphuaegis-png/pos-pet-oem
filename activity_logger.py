@@ -22,13 +22,28 @@ ACTION_PATTERNS = [
     (r"^POST /api/cashbook", "Ghi phiếu thu/chi"),
     (r"^POST /api/shifts/open$", "Mở ca làm việc"),
     (r"^POST /api/shifts/\d+/close$", "Đóng ca làm việc"),
+    (r"^POST /api/pos/orders", "Tạo đơn hàng POS"),
+    (r"^POST /api/pos/draft", "Lưu nháp đơn hàng POS"),
+    (r"^DELETE /api/pos/draft", "Xóa nháp đơn hàng POS"),
+    (r"^POST /api/shifts/open", "Mở ca làm việc"),
+    (r"^POST /api/shifts/close", "Đóng ca làm việc"),
+    (r"^POST /api/shifts/\d+/verify", "Duyệt lệch ca làm việc"),
+    (r"^POST /api/cashbook/transactions", "Lập phiếu thu/chi"),
     (r"^POST /api/purchases", "Tạo phiếu nhập hàng"),
     (r"^(POST|PUT) /api/products", "Thêm/sửa hàng hóa"),
     (r"^DELETE /api/products", "Xóa hàng hóa"),
-    (r"^POST /api/settings/permissions$", "Đổi phân quyền theo vai trò"),
-    (r"^POST /api/settings/staff-permissions$", "Đổi quyền riêng nhân viên"),
-    (r"^POST /api/settings/modules$", "Bật/tắt module hệ thống"),
+    (r"^POST /api/settings/permissions", "Đổi phân quyền theo vai trò"),
+    (r"^POST /api/settings/staff-permissions", "Đổi quyền riêng nhân viên"),
+    (r"^POST /api/settings/modules", "Bật/tắt module hệ thống"),
     (r"^POST /api/settings/reset", "Reset dữ liệu hệ thống"),
+    (r"^POST /api/hotel/rooms/\d+/checkin", "Check-in phòng Hotel"),
+    (r"^POST /api/hotel/bookings/\d+/checkout", "Check-out phòng Hotel"),
+    (r"^POST /api/hotel/book-spa-for-guest/\d+", "Đặt Spa cho khách Hotel"),
+    (r"^POST /api/hotel/.*", "Thao tác Khách sạn Hotel"),
+    (r"^POST /api/pet-services/tickets", "Tạo phiếu Spa dịch vụ"),
+    (r"^PUT /api/pet-services/tickets/\d+/status", "Cập nhật tiến độ Spa"),
+    (r"^POST /api/oem/.*", "Thao tác Gia công OEM"),
+    (r"^POST /api/price-lists/.*", "Thao tác Bảng giá"),
 ]
 
 
@@ -71,9 +86,9 @@ def log_activity_from_request(request, response):
 
 
 def cleanup_old_logs():
-    """Xoa log qua 30 ngay. Goi dinh ky tu backup_service hoac 1 lan luc khoi dong."""
+    """Xoa log qua 90 ngay. Goi dinh ky tu backup_service hoac 1 lan luc khoi dong."""
     db = get_db()
     cur = db.cursor()
-    cur.execute("DELETE FROM activity_log WHERE created_at < datetime('now', '-30 days')")
+    cur.execute("DELETE FROM activity_log WHERE created_at < datetime('now', '-90 days')")
     db.commit()
     db.close()
