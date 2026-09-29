@@ -9,24 +9,31 @@ from fastapi.staticfiles import StaticFiles
 # Bảo mật: tự sinh POS_JWT_SECRET vào .env nếu chưa có, load trước khi import router nào dùng SECRET
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 if not os.path.exists(_env_path):
-    with open(_env_path, "w") as f:
-        f.write(f"POS_JWT_SECRET={secrets.token_hex(32)}\n")
+    try:
+        with open(_env_path, "w") as f:
+            f.write(f"POS_JWT_SECRET={secrets.token_hex(32)}\n")
+    except OSError:
+        pass
 from dotenv import load_dotenv
 load_dotenv(_env_path)
-
+if not os.environ.get("POS_JWT_SECRET"):
+    os.environ["POS_JWT_SECRET"] = secrets.token_hex(32)
 
 # Thiết lập ghi log ra file pos_app.log và console
-log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, "pos_app.log")
+handlers = [logging.StreamHandler(sys.stdout)]
+if not os.environ.get("VERCEL"):
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "pos_app.log")
+        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+    except OSError:
+        pass
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8"),
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=handlers
 )
 logger = logging.getLogger("pos_server")
 
@@ -115,8 +122,9 @@ async def activity_log_middleware(request: Request, call_next):
 init_db()
 
 # Khởi động backup tự động (local rotating + cloud Google Drive, mỗi giờ)
-from backup_service import start_backup_scheduler
-start_backup_scheduler()
+if not os.environ.get("VERCEL"):
+    from backup_service import start_backup_scheduler
+    start_backup_scheduler()
 
 # Mount static files
 def get_base_dir():

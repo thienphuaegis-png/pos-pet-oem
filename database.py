@@ -1,6 +1,208 @@
 import sqlite3
 import os
 import sys
+import re
+from collections.abc import Mapping
+
+# Adapter for PostgreSQL (Supabase / Cloud)
+class RowWrapper:
+    def __init__(self, cols, values):
+        self._cols = list(cols)
+        self._values = list(values)
+        self._col_map = {c.lower(): i for i, c in enumerate(cols)}
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self._values[item]
+        if isinstance(item, str):
+            idx = self._col_map.get(item.lower())
+            if idx is not None:
+                return self._values[idx]
+            raise KeyError(item)
+        raise TypeError(f"Invalid key type: {type(item)}")
+
+    def get(self, key, default=None):
+        if isinstance(key, str):
+            idx = self._col_map.get(key.lower())
+            if idx is not None:
+                return self._values[idx]
+        return default
+
+    def keys(self):
+        return self._cols
+
+    def values(self):
+        return self._values
+
+    def items(self):
+        return list(zip(self._cols, self._values))
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+    def __contains__(self, key):
+        if isinstance(key, str):
+            return key.lower() in self._col_map
+        return key in self._values
+
+    def __repr__(self):
+        return f"<Row {dict(self.items())}>"
+
+def translate_query(sql):
+    s = sql.strip()
+    if s.upper().startswith("PRAGMA"):
+        return ""
+    
+    # 1. Replace ? with %s
+    # Quick token replace (parameters in code don't mix literal ? in strings)
+    s = re.sub(r'\?', '%s', s)
+
+    # 2. INSERT OR IGNORE
+    if re.search(r'INSERT\s+OR\s+IGNORE\s+INTO', s, re.IGNORECASE):
+        s = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO', 'INSERT INTO', s, flags=re.IGNORECASE)
+        if 'ON CONFLICT' not in s.upper():
+            s = s + ' ON CONFLICT DO NOTHING'
+
+    # 3. INSERT OR REPLACE INTO settings
+    if re.search(r'INSERT\s+OR\s+REPLACE\s+INTO\s+settings', s, re.IGNORECASE):
+        s = re.sub(r'INSERT\s+OR\s+REPLACE\s+INTO\s+settings', 'INSERT INTO settings', s, flags=re.IGNORECASE)
+        if 'ON CONFLICT' not in s.upper():
+            s = s + ' ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value'
+    elif re.search(r'INSERT\s+OR\s+REPLACE\s+INTO', s, re.IGNORECASE):
+        s = re.sub(r'INSERT\s+OR\s+REPLACE\s+INTO', 'INSERT INTO', s, flags=re.IGNORECASE)
+        if 'ON CONFLICT' not in s.upper():
+            s = s + ' ON CONFLICT DO NOTHING'
+
+    # 4. datetime('now', ...)
+    s = re.sub(r"datetime\('now',\s*'-?(\d+)\s*days?'\)", r"NOW() - INTERVAL '\1 days'", s, flags=re.IGNORECASE)
+    s = re.sub(r"datetime\('now',\s*'-?(\d+)\s*minutes?'\)", r"NOW() - INTERVAL '\1 minutes'", s, flags=re.IGNORECASE)
+
+    # 5. GROUP_CONCAT -> STRING_AGG
+    s = re.sub(r'GROUP_CONCAT\s*\(\s*(DISTINCT\s+)?([^,\)]+),\s*([^\)]+)\)', r"STRING_AGG(\1\2::text, \3)", s, flags=re.IGNORECASE)
+    s = re.sub(r'GROUP_CONCAT\s*\(\s*(DISTINCT\s+)?([^,\)]+)\)', r"STRING_AGG(\1\2::text, ', ')", s, flags=re.IGNORECASE)
+
+    return s
+
+class PGCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.lastrowid = None
+        self._cols = None
+
+    @property
+    def description(self):
+        return self.cursor.description
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+    def execute(self, sql, params=None):
+        pg_sql = translate_query(sql)
+        if not pg_sql:
+            # PRAGMA no-op
+            return self
+        
+        # Check if INSERT without RETURNING, append RETURNING id to capture lastrowid
+        is_insert = pg_sql.strip().upper().startswith("INSERT INTO")
+        appended_returning = False
+        if is_insert and "RETURNING" not in pg_sql.upper():
+            # Check table name
+            m = re.search(r'INSERT\s+INTO\s+([a-zA-Z0-9_"]+)', pg_sql, re.IGNORECASE)
+            tbl = m.group(1).replace('"', '').lower() if m else ""
+            # Tables that have 'id' as PK
+            non_id_tables = {"settings", "role_permissions", "staff_permissions", "draft_orders"}
+            if tbl and tbl not in non_id_tables:
+                pg_sql += " RETURNING id"
+                appended_returning = True
+
+        if params is None:
+            self.cursor.execute(pg_sql)
+        else:
+            self.cursor.execute(pg_sql, params)
+
+        if appended_returning:
+            try:
+                row = self.cursor.fetchone()
+                if row:
+                    self.lastrowid = row[0]
+            except Exception:
+                pass
+            self._cols = None
+        else:
+            if self.cursor.description:
+                self._cols = [d[0] for d in self.cursor.description]
+            else:
+                self._cols = None
+
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        pg_sql = translate_query(sql)
+        if not pg_sql:
+            return self
+        self.cursor.executemany(pg_sql, seq_of_params)
+        return self
+
+    def fetchone(self):
+        r = self.cursor.fetchone()
+        if r is None:
+            return None
+        cols = self._cols or [d[0] for d in self.cursor.description]
+        return RowWrapper(cols, r)
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        if not rows:
+            return []
+        cols = self._cols or [d[0] for d in self.cursor.description]
+        return [RowWrapper(cols, r) for r in rows]
+
+    def fetchmany(self, size=None):
+        rows = self.cursor.fetchmany(size) if size is not None else self.cursor.fetchmany()
+        if not rows:
+            return []
+        cols = self._cols or [d[0] for d in self.cursor.description]
+        return [RowWrapper(cols, r) for r in rows]
+
+    def __iter__(self):
+        for r in self.cursor:
+            cols = self._cols or [d[0] for d in self.cursor.description]
+            yield RowWrapper(cols, r)
+
+    def close(self):
+        try:
+            self.cursor.close()
+        except Exception:
+            pass
+
+class PGConnectionWrapper:
+    def __init__(self, conn):
+        self._conn = conn
+        self.row_factory = None
+
+    def cursor(self):
+        return PGCursorWrapper(self._conn.cursor())
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
 def get_db_path():
     # Neu chay bang pyinstaller exe: luu pos.db ben canh file .exe
@@ -13,6 +215,13 @@ def get_db_path():
     return os.path.join(data_dir, "pos.db")
 
 def get_db():
+    pg_url = os.environ.get("DATABASE_URL")
+    if pg_url:
+        import psycopg2
+        # Clean url if needed and connect
+        conn = psycopg2.connect(pg_url, connect_timeout=15)
+        return PGConnectionWrapper(conn)
+
     conn = sqlite3.connect(get_db_path(), timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
@@ -21,6 +230,10 @@ def get_db():
     return conn
 
 def init_db():
+    if os.environ.get("DATABASE_URL"):
+        # Running against Supabase PostgreSQL: schema is already managed and migrated
+        return
+
     conn = get_db()
     cur = conn.cursor()
     

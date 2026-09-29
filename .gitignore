@@ -5,6 +5,7 @@ __pycache__/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/*.sql
 logs/
 *.log
 cf_tunnel.log

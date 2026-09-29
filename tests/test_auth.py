@@ -45,6 +45,26 @@ def test_staff_has_auth_cols():
     for c in ("username", "password_hash", "is_active"):
         assert c in cols, f"staff thiếu cột {c}"
 
+def test_staff_modal_dom_structure():
+    with open("templates/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+
+    assert 'id="modal-staff"' in html
+    assert 'id="staff-name"' in html
+    assert 'id="staff-username"' in html
+    assert 'id="staff-password"' in html
+    assert 'id="staff-role"' in html
+    assert 'id="staff-phone"' in html
+    assert 'id="staff-commission"' in html
+    assert 'closeStaffModal()' in html
+
+    # Verify modal is positioned globally outside tab-settings
+    settings_idx = html.find('id="tab-settings"')
+    modal_idx = html.find('id="modal-staff"')
+    tab_settings_closing_div = html.find('<!-- MODAL: XÁC NHẬN XÓA / LÀM SẠCH DỮ LIỆU -->')
+    assert modal_idx > settings_idx, "modal-staff phải nằm sau tab-settings"
+    assert modal_idx < tab_settings_closing_div, "modal-staff nằm trong khu vực modal độc lập toàn cục"
+
 if __name__ == "__main__":
     test_admin_exists();        print("✓ admin exists")
     test_password_hash();       print("✓ password hash OK")

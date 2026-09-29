@@ -5756,49 +5756,6 @@
                 </div>
             </div>
 
-            <!-- MODAL: TẠO / SỬA NHÂN VIÊN -->
-            <div id="modal-staff" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-5">
-                    <h3 class="font-bold text-lg mb-4" id="modal-staff-title">Thêm Nhân Viên</h3>
-                    <input type="hidden" id="staff-edit-id">
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-slate-600">Họ Tên</label>
-                            <input id="staff-name" class="w-full border rounded px-3 py-2 text-sm mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600">Username</label>
-                            <input id="staff-username" class="w-full border rounded px-3 py-2 text-sm mt-1">
-                        </div>
-                        <div id="staff-password-row">
-                            <label class="text-xs font-bold text-slate-600">Mật Khẩu</label>
-                            <input id="staff-password" type="password" class="w-full border rounded px-3 py-2 text-sm mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600">Vai Trò</label>
-                            <select id="staff-role" class="w-full border rounded px-3 py-2 text-sm mt-1">
-                                <option value="cashier">Thu Ngân</option>
-                                <option value="accountant">Kế Toán</option>
-                                <option value="warehouse">Thủ Kho</option>
-                                <option value="owner">Chủ Shop</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600">SĐT</label>
-                            <input id="staff-phone" class="w-full border rounded px-3 py-2 text-sm mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600">Hoa Hồng (%)</label>
-                            <input id="staff-commission" type="number" step="0.1" class="w-full border rounded px-3 py-2 text-sm mt-1" value="0">
-                        </div>
-                    </div>
-                    <div class="flex gap-2 mt-5">
-                        <button onclick="document.getElementById('modal-staff').classList.add('hidden'); document.getElementById('modal-staff').style.display='none';" class="flex-1 bg-slate-200 hover:bg-slate-300 py-2 rounded text-sm font-bold">Hủy</button>
-                        <button onclick="submitStaffForm()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded text-sm font-bold">Lưu</button>
-                    </div>
-                </div>
-            </div>
-
             <div id="settings-sub-permissions" class="hidden space-y-4">
                 <div class="bg-white p-4 rounded-lg shadow-sm border">
                     <h3 class="font-bold text-lg text-slate-800 mb-1">🧩 Bật/Tắt Module Kinh Doanh</h3>
@@ -5941,6 +5898,53 @@
             </div>
         </div>
 
+    <!-- MODAL: TẠO / SỬA NHÂN VIÊN -->
+    <div id="modal-staff" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-base text-slate-800 flex items-center gap-2" id="modal-staff-title">
+                    <span>👤</span> <span>Thêm Nhân Viên</span>
+                </h3>
+                <button type="button" onclick="closeStaffModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition">✕</button>
+            </div>
+            <input type="hidden" id="staff-edit-id">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-700">Họ Tên (*)</label>
+                    <input id="staff-name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: Nguyễn Văn A">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700">Tên Đăng Nhập (Username) (*)</label>
+                    <input id="staff-username" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: thungan1">
+                </div>
+                <div id="staff-password-row">
+                    <label class="text-xs font-bold text-slate-700">Mật Khẩu (*)</label>
+                    <input id="staff-password" type="password" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Tối thiểu 6 ký tự">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700">Vai Trò (*)</label>
+                    <select id="staff-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
+                        <option value="cashier">🏷️ Thu Ngân (Bán Hàng POS)</option>
+                        <option value="accountant">📒 Kế Toán (Sổ Quỹ, Báo Cáo)</option>
+                        <option value="warehouse">📦 Thủ Kho (Kho Hàng, Nhập Hàng)</option>
+                        <option value="owner">👑 Chủ Shop (Toàn Quyền)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700">Số Điện Thoại</label>
+                    <input id="staff-phone" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 0912345678">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-700">Tỷ Lệ Hoa Hồng (%)</label>
+                    <input id="staff-commission" type="number" step="0.1" min="0" max="100" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" value="0">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-bold transition">Hủy</button>
+                <button type="button" onclick="submitStaffForm()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-xs font-bold shadow-md shadow-purple-200 transition">💾 Lưu Nhân Viên</button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: XÁC NHẬN XÓA / LÀM SẠCH DỮ LIỆU -->
     <div id="modal-reset-data" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -7599,7 +7603,7 @@
     
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
-    <script src="/static/js/staff.js?v=20260920_01"></script>
+    <script src="/static/js/staff.js?v=20260928_01"></script>
     <script src="/static/js/app.js?v=20260925_01"></script>
     <script src="/static/js/modules/contacts.js?v=20260925_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>

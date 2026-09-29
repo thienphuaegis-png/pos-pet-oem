@@ -32,7 +32,8 @@ async function loadStaffList() {
 }
 
 function openCreateStaffModal() {
-  document.getElementById('modal-staff-title').textContent = 'Thêm Nhân Viên';
+  const titleEl = document.getElementById('modal-staff-title');
+  if (titleEl) titleEl.innerHTML = '<span>👤</span> <span>Thêm Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = '';
   document.getElementById('staff-name').value = '';
   document.getElementById('staff-username').value = '';
@@ -42,12 +43,16 @@ function openCreateStaffModal() {
   document.getElementById('staff-commission').value = 0;
   document.getElementById('staff-username').disabled = false;
   document.getElementById('staff-password-row').style.display = '';
-  document.getElementById('modal-staff').classList.remove('hidden');
-  document.getElementById('modal-staff').style.display = 'flex';
+  const modal = document.getElementById('modal-staff');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
 }
 
 function openEditStaffModal(id, name, role, phone, commission, isActive) {
-  document.getElementById('modal-staff-title').textContent = 'Sửa Nhân Viên';
+  const titleEl = document.getElementById('modal-staff-title');
+  if (titleEl) titleEl.innerHTML = '<span>👤</span> <span>Sửa Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = id;
   document.getElementById('staff-name').value = name;
   document.getElementById('staff-username').value = '';
@@ -56,9 +61,21 @@ function openEditStaffModal(id, name, role, phone, commission, isActive) {
   document.getElementById('staff-role').value = role;
   document.getElementById('staff-phone').value = phone;
   document.getElementById('staff-commission').value = commission;
-  document.getElementById('modal-staff').classList.remove('hidden');
-  document.getElementById('modal-staff').style.display = 'flex';
+  const modal = document.getElementById('modal-staff');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
 }
+
+function closeStaffModal() {
+  const modal = document.getElementById('modal-staff');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+window.closeStaffModal = closeStaffModal;
 
 async function submitStaffForm() {
   const id = document.getElementById('staff-edit-id').value;
@@ -88,8 +105,7 @@ async function submitStaffForm() {
     }
     const data = await res.json();
     if (!res.ok) { alert('❌ ' + (data.detail || 'Lỗi lưu nhân viên')); return; }
-    document.getElementById('modal-staff').classList.add('hidden');
-    document.getElementById('modal-staff').style.display = 'none';
+    closeStaffModal();
     loadStaffList();
   } catch (e) {
     alert('❌ Không kết nối được server');
