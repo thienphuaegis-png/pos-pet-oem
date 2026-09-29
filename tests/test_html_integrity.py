@@ -56,5 +56,11 @@ class TestHtmlIntegrity(unittest.TestCase):
             self.assertIsNotNone(svg, f"Nút {btn.get('data-tab')} phải chứa SVG icon Lucide")
             self.assertTrue(svg.get('viewbox') or svg.get('viewBox'), f"SVG trong nút {btn.get('data-tab')} phải có viewBox")
 
+    def test_sidebar_has_logo_elements(self):
+        """Kiểm tra sidebar-header có thẻ logo ảnh và fallback icon."""
+        self.assertIn('id="sidebar-app-logo"', self.html)
+        self.assertIn('id="sidebar-app-icon"', self.html)
+        self.assertIn('id="sidebar-app-name"', self.html)
+
 if __name__ == '__main__':
     unittest.main()

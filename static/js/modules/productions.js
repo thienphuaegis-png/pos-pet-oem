@@ -1899,7 +1899,7 @@
             const appName = currentSettings.app_name || '⚡ POS Offline';
             const appNameInput = document.getElementById('comp-app-name');
             if (appNameInput) appNameInput.value = appName;
-            updateAppTitleUI(appName);
+            updateAppTitleUI(appName, currentSettings.shop_logo);
 
             document.getElementById('comp-name').value = currentSettings.shop_name || '';
             document.getElementById('comp-address').value = currentSettings.shop_address || '';
@@ -1923,11 +1923,25 @@
             toggleQRModeUI();
         }
 
-        function updateAppTitleUI(name) {
+        function updateAppTitleUI(name, logoUrl) {
             if (!name) name = '⚡ POS Offline';
             const sidebarEl = document.getElementById('sidebar-app-name');
             if (sidebarEl) sidebarEl.textContent = name;
             document.title = name;
+
+            const logoEl = document.getElementById('sidebar-app-logo');
+            const iconEl = document.getElementById('sidebar-app-icon');
+            if (logoEl && iconEl) {
+                const effectiveLogo = logoUrl !== undefined ? logoUrl : (window.currentSettings && window.currentSettings.shop_logo);
+                if (effectiveLogo) {
+                    logoEl.src = effectiveLogo;
+                    logoEl.classList.remove('hidden');
+                    iconEl.classList.add('hidden');
+                } else {
+                    logoEl.classList.add('hidden');
+                    iconEl.classList.remove('hidden');
+                }
+            }
         }
 
         function toggleQRModeUI() {
@@ -1977,7 +1991,7 @@
             });
             if (res.ok) {
                 alert('✅ Đã lưu thông tin doanh nghiệp, tên ứng dụng & cấu hình QR!');
-                updateAppTitleUI(appName);
+                updateAppTitleUI(appName, payload.shop_logo);
                 const loginNameEl = document.getElementById('login-store-name');
                 if (loginNameEl) loginNameEl.textContent = appName;
                 const loginLogoEl = document.getElementById('login-store-logo');

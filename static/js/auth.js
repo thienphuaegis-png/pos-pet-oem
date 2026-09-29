@@ -133,6 +133,22 @@ async function loadLoginStoreBranding() {
       logoEl.style.display = 'none';
       iconEl.style.display = '';
     }
+
+    // Đồng bộ lên thanh Sidebar nếu có
+    const sidebarLogo = document.getElementById('sidebar-app-logo');
+    const sidebarIcon = document.getElementById('sidebar-app-icon');
+    const sidebarName = document.getElementById('sidebar-app-name');
+    if (sidebarName) sidebarName.textContent = appName;
+    if (sidebarLogo && sidebarIcon) {
+      if (settings.shop_logo) {
+        sidebarLogo.src = settings.shop_logo;
+        sidebarLogo.classList.remove('hidden');
+        sidebarIcon.classList.add('hidden');
+      } else {
+        sidebarLogo.classList.add('hidden');
+        sidebarIcon.classList.remove('hidden');
+      }
+    }
   } catch (e) {
     // Giữ mặc định nếu chưa tải được
   }

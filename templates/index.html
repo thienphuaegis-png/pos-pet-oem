@@ -134,7 +134,7 @@
             align-items: center;
             gap: 0.5rem;
             min-width: 0;
-            max-width: 140px;
+            max-width: 175px;
             overflow: hidden;
             transition: opacity 0.2s ease, max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -710,7 +710,8 @@
                 <!-- Header Logo & Toggle Button -->
                 <div id="sidebar-header" class="p-3 border-b border-slate-100 flex items-center justify-between gap-1 shrink-0">
                     <div class="logo-box flex items-center gap-2 min-w-0">
-                        <span class="text-xl shrink-0">⚡</span>
+                        <img id="sidebar-app-logo" src="" alt="Logo" class="w-8 h-8 rounded-lg object-contain shrink-0 hidden bg-white shadow-xs border border-slate-100 p-0.5">
+                        <span id="sidebar-app-icon" class="text-xl shrink-0">⚡</span>
                         <span id="sidebar-app-name" class="sidebar-text text-base font-extrabold text-sky-600 truncate">POS Offline</span>
                     </div>
                     <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">

@@ -2410,7 +2410,9 @@
                 const res = await fetch('/api/settings');
                 if (res.ok) {
                     const st = await res.json();
-                    if (st.app_name) updateAppTitleUI(st.app_name);
+                    if (typeof updateAppTitleUI === 'function') {
+                        updateAppTitleUI(st.app_name || st.shop_name, st.shop_logo);
+                    }
                 }
             } catch (_) {}
 
