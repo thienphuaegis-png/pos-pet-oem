@@ -17,5 +17,6 @@ jobs:
           TARGET_URL="https://${PROJECT_REF}.supabase.co/rest/v1/"
           echo "Pinging endpoint: https://${PROJECT_REF:0:4}***.supabase.co/rest/v1/"
           
+          echo "Length of ref: ${#PROJECT_REF}"
           echo "Testing connection with verbose curl:"
           curl -v -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" "$TARGET_URL" || true
