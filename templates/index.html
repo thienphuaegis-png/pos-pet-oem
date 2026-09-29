@@ -1141,29 +1141,33 @@
 <!-- TAB: QUẢN LÝ HÓA ĐƠN (ORDERS) -->
 <div id="tab-orders" class="hidden space-y-4">
                 <!-- Sub-tabs Navigation for Invoices -->
-                <div class="flex border-b border-slate-200 gap-4 bg-white px-4 pt-3 rounded-t-lg shadow-sm">
-                    <button id="btn-subtab-order-retail" onclick="switchOrderSubTab('retail')" class="px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition">
-                        <span>🛒</span> <span>Hóa Đơn Bán Lẻ (Bán Hàng Quầy)</span>
+                <div class="flex border-b border-slate-200/80 gap-3 bg-white px-4 pt-3 rounded-t-xl shadow-xs">
+                    <button id="btn-subtab-order-retail" onclick="switchOrderSubTab('retail')" class="px-3.5 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5 shrink-0 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                        <span>Hóa Đơn Bán Lẻ (Bán Hàng Quầy)</span>
                     </button>
-                    <button id="btn-subtab-order-spa" onclick="switchOrderSubTab('spa')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
-                        <span>🐾</span> <span>Lịch Sử Hóa Đơn Spa & Grooming</span>
+                    <button id="btn-subtab-order-spa" onclick="switchOrderSubTab('spa')" class="px-3.5 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5 shrink-0 text-pink-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.8A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+                        <span>Lịch Sử Hóa Đơn Spa & Grooming</span>
                     </button>
-                    <button id="btn-subtab-order-hotel" onclick="switchOrderSubTab('hotel')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
-                        <span>🏨</span> <span>Lịch Sử Lưu Trú Hotel</span>
+                    <button id="btn-subtab-order-hotel" onclick="switchOrderSubTab('hotel')" class="px-3.5 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5 shrink-0 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                        <span>Lịch Sử Lưu Trú Hotel</span>
                     </button>
                 </div>
 
                 <!-- SUBVIEW 1: HÓA ĐƠN BÁN LẺ -->
                 <div id="orders-subview-retail" class="space-y-4">
-                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-lg shadow-sm border gap-3">
+                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
                         <div class="flex items-center gap-3">
-                            <h2 class="text-lg font-bold text-slate-800">Danh Sách Hóa Đơn Bán Hàng</h2>
-                            <span id="orders-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">0 hóa đơn</span>
+                            <h2 class="text-base font-bold text-slate-900">Danh Sách Hóa Đơn Bán Hàng</h2>
+                            <span id="orders-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">0 hóa đơn</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="search-orders" placeholder="🔍 Tìm mã đơn, khách, SĐT..." class="border p-1.5 rounded text-xs w-64" oninput="filterOrdersList()">
-                            <button onclick="loadOrdersList()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm">
-                                🔄 Tải lại
+                            <input type="text" id="search-orders" placeholder="Tìm mã đơn, khách, SĐT..." class="tui-input text-xs w-64" oninput="filterOrdersList()">
+                            <button onclick="loadOrdersList()" class="tui-btn-primary text-xs flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                                <span>Tải lại</span>
                             </button>
                         </div>
                     </div>
@@ -1198,43 +1202,45 @@
 
                 <!-- SUBVIEW 2: LỊCH SỬ HÓA ĐƠN SPA -->
                 <div id="orders-subview-spa" class="hidden space-y-4">
-                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-lg shadow-sm border gap-3">
+                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
                         <div class="flex items-center gap-3">
-                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <span>🐾 Lịch Sử Hóa Đơn Dịch Vụ Spa</span>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-pink-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.8A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+                                <span>Lịch Sử Hóa Đơn Dịch Vụ Spa</span>
                             </h2>
-                            <span id="spa-invoices-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-100 text-pink-800">0 hóa đơn</span>
-                            <span class="bg-emerald-100 text-emerald-900 border border-emerald-200 font-bold px-2.5 py-0.5 rounded-full text-xs">
-                                💰 Doanh thu: <span id="spa-inv-total-revenue" class="font-black text-emerald-700 font-mono">0 đ</span>
+                            <span id="spa-invoices-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-pink-100 text-pink-800">0 hóa đơn</span>
+                            <span class="bg-emerald-50 text-emerald-900 border border-emerald-200 font-semibold px-2.5 py-0.5 rounded-full text-xs flex items-center gap-1">
+                                <span>Doanh thu:</span> <span id="spa-inv-total-revenue" class="font-black text-emerald-700 font-mono">0 đ</span>
                             </span>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <!-- Bộ lọc ngày -->
-                            <div class="inline-flex rounded-md shadow-sm text-xs items-center bg-white border border-slate-200">
-                                <button onclick="setSpaInvoiceDateFilter('today')" id="btn-spa-inv-date-today" class="px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-pink-700 text-white shadow">📅 Hôm Nay</button>
-                                <button onclick="setSpaInvoiceDateFilter('all')" id="btn-spa-inv-date-all" class="px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-gray-50 border-r border-slate-200">Tất Cả</button>
-                                <input type="date" id="input-spa-inv-date-custom" onchange="setSpaInvoiceDateFilter(this.value)" class="text-xs px-1.5 py-1 outline-none text-slate-600 bg-transparent cursor-pointer rounded-r-md" title="Chọn ngày cụ thể">
+                            <div class="inline-flex rounded-lg shadow-2xs text-xs items-center bg-white border border-slate-200">
+                                <button onclick="setSpaInvoiceDateFilter('today')" id="btn-spa-inv-date-today" class="px-3 py-1.5 text-xs font-semibold rounded-l-lg bg-pink-600 text-white shadow-xs">Hôm Nay</button>
+                                <button onclick="setSpaInvoiceDateFilter('all')" id="btn-spa-inv-date-all" class="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 border-r border-slate-200">Tất Cả</button>
+                                <input type="date" id="input-spa-inv-date-custom" onchange="setSpaInvoiceDateFilter(this.value)" class="text-xs px-2 py-1 outline-none text-slate-600 bg-transparent cursor-pointer rounded-r-lg" title="Chọn ngày cụ thể">
                             </div>
-                            <input type="text" id="search-spa-invoices" placeholder="🔍 Tìm mã vé, khách, SĐT, tên bé..." class="border p-1.5 rounded text-xs w-56" oninput="filterSpaInvoicesList()">
-                            <select id="select-spa-invoice-status-filter" onchange="filterSpaInvoicesList()" class="border p-1.5 rounded text-xs bg-white font-medium text-slate-700">
-                                <option value="checked_out">🏠 Đã Về (Lịch sử)</option>
+                            <input type="text" id="search-spa-invoices" placeholder="Tìm mã vé, khách, SĐT, tên bé..." class="tui-input text-xs w-56" oninput="filterSpaInvoicesList()">
+                            <select id="select-spa-invoice-status-filter" onchange="filterSpaInvoicesList()" class="tui-input text-xs w-auto bg-white font-medium text-slate-700">
+                                <option value="checked_out">Đã Về (Lịch sử)</option>
                                 <option value="all">Tất cả trạng thái</option>
-                                <option value="completed">✅ Đã xong</option>
-                                <option value="in_progress">🔄 Đang làm</option>
-                                <option value="pending">⏳ Chờ làm</option>
+                                <option value="completed">Đã xong</option>
+                                <option value="in_progress">Đang làm</option>
+                                <option value="pending">Chờ làm</option>
                             </select>
-                            <select id="select-spa-invoice-payment-filter" onchange="filterSpaInvoicesList()" class="border p-1.5 rounded text-xs bg-white font-medium text-slate-700">
+                            <select id="select-spa-invoice-payment-filter" onchange="filterSpaInvoicesList()" class="tui-input text-xs w-auto bg-white font-medium text-slate-700">
                                 <option value="all">Tất cả thanh toán</option>
-                                <option value="paid">✅ Đã thanh toán</option>
-                                <option value="unpaid">⏳ Chưa thanh toán</option>
+                                <option value="paid">Đã thanh toán</option>
+                                <option value="unpaid">Chưa thanh toán</option>
                             </select>
-                            <button onclick="loadSpaInvoicesList()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm">
-                                🔄 Tải lại
+                            <button onclick="loadSpaInvoicesList()" class="px-3 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                                <span>Tải lại</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="overflow-hidden bg-white rounded-lg shadow-sm border">
+                    <div class="overflow-hidden bg-white rounded-xl shadow-xs border border-slate-200/80">
                         <div class="overflow-x-auto p-1">
                             <table class="w-full text-left text-xs table-floating-cards">
                                 <thead class="bg-slate-50/70 text-slate-600 font-bold border-b">
@@ -1266,15 +1272,19 @@
 
                 <!-- SUBVIEW 3: LỊCH SỬ LƯU TRÚ HOTEL -->
                 <div id="orders-subview-hotel" class="hidden space-y-4">
-                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-lg shadow-sm border gap-3">
+                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
                         <div class="flex items-center gap-3">
-                            <h2 class="text-lg font-bold text-slate-800">Lịch Sử Lưu Trú Hotel (Đã Hoàn Tất)</h2>
-                            <span id="hotel-history-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">0 lượt</span>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                                <span>Lịch Sử Lưu Trú Hotel (Đã Hoàn Tất)</span>
+                            </h2>
+                            <span id="hotel-history-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800">0 lượt</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="search-hotel-history" placeholder="🔍 Tìm mã phiếu, khách, bé, phòng..." class="border p-1.5 rounded text-xs w-64" oninput="window.hotelManager && window.hotelManager.filterHistory()">
-                            <button onclick="window.hotelManager && window.hotelManager.loadHistory()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm">
-                                🔄 Tải lại
+                            <input type="text" id="search-hotel-history" placeholder="Tìm mã phiếu, khách, bé, phòng..." class="tui-input text-xs w-64" oninput="window.hotelManager && window.hotelManager.filterHistory()">
+                            <button onclick="window.hotelManager && window.hotelManager.loadHistory()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                                <span>Tải lại</span>
                             </button>
                         </div>
                     </div>
@@ -2163,64 +2173,88 @@
 
             <!-- TAB: DỊCH VỤ & THÚ CƯNG -->
             <div id="tab-pet-services" class="hidden space-y-4">
-                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-sm border gap-3">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">🐾 Quản Lý Dịch Vụ Thú Cưng, Spa & Đưa Đón</h2>
-                        <p class="text-xs text-gray-500">Quản lý đặt lịch hẹn làm dịch vụ spa, tắm sấy, lưu chuồng và đưa đón thú cưng</p>
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.8A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Quản Lý Dịch Vụ Thú Cưng, Spa & Đưa Đón</h2>
+                            <p class="text-xs text-slate-500">Quản lý đặt lịch hẹn làm dịch vụ spa, tắm sấy, lưu chuồng và đưa đón thú cưng</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- KPI Cards Thú Cưng & Dịch Vụ -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                    <div class="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-purple-500 cursor-pointer hover:shadow-md transition" onclick="filterPetServicesByKpi('today')" title="Xem phiếu spa hôm nay">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between border-l-4 border-l-purple-500 cursor-pointer hover:shadow-sm transition" onclick="filterPetServicesByKpi('today')" title="Xem phiếu spa hôm nay">
                         <div>
-                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Hôm Nay</div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hôm Nay</div>
                             <div id="kpi-pets-appointments-today" class="text-lg font-black text-purple-600 mt-0.5">0</div>
-                            <div class="text-[9px] text-gray-400">Phiếu dịch vụ</div>
+                            <div class="text-[9px] text-slate-400">Phiếu dịch vụ</div>
                         </div>
-                        <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-base">📅</div>
+                        <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-amber-500 cursor-pointer hover:shadow-md transition" onclick="filterPetServicesByKpi('in_progress')" title="Lọc các bé đang làm / lưu chuồng">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between border-l-4 border-l-amber-500 cursor-pointer hover:shadow-sm transition" onclick="filterPetServicesByKpi('in_progress')" title="Lọc các bé đang làm / lưu chuồng">
                         <div>
-                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Đang Làm</div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đang Làm</div>
                             <div id="kpi-pets-in-progress" class="text-lg font-black text-amber-600 mt-0.5">0</div>
-                            <div class="text-[9px] text-gray-400">Tại cơ sở</div>
+                            <div class="text-[9px] text-slate-400">Tại cơ sở</div>
                         </div>
-                        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base">🔄</div>
+                        <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-rose-500 cursor-pointer hover:shadow-md transition" onclick="filterPetServicesByKpi('uncalled')" title="Lọc các bé đã xong nhưng chưa gọi khách đón">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between border-l-4 border-l-rose-500 cursor-pointer hover:shadow-sm transition" onclick="filterPetServicesByKpi('uncalled')" title="Lọc các bé đã xong nhưng chưa gọi khách đón">
                         <div>
-                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chưa Gọi Đón</div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Chưa Gọi Đón</div>
                             <div id="kpi-pets-uncalled" class="text-lg font-black text-rose-600 mt-0.5">0</div>
-                            <div class="text-[9px] text-rose-400 font-medium">Đã xong cần gọi</div>
+                            <div class="text-[9px] text-rose-500 font-medium">Đã xong cần gọi</div>
                         </div>
-                        <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-base">📞</div>
+                        <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-teal-500 cursor-pointer hover:shadow-md transition" onclick="filterPetServicesByKpi('transport')" title="Lọc các bé có yêu cầu đưa đón">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between border-l-4 border-l-teal-500 cursor-pointer hover:shadow-sm transition" onclick="filterPetServicesByKpi('transport')" title="Lọc các bé có yêu cầu đưa đón">
                         <div>
-                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Đưa Đón</div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đưa Đón</div>
                             <div id="kpi-pets-transport" class="text-lg font-black text-teal-600 mt-0.5">0</div>
-                            <div class="text-[9px] text-gray-400">Yêu cầu xe</div>
+                            <div class="text-[9px] text-slate-400">Yêu cầu xe</div>
                         </div>
-                        <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center text-base">🚐</div>
+                        <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                        </div>
                     </div>
-                    <div class="bg-white p-3 rounded-lg border shadow-sm flex items-center justify-between border-l-4 border-l-emerald-500 cursor-pointer hover:shadow-md transition" onclick="setSpaDailyQuickFilter('checked_out')" title="Xem danh sách thú cưng đã về hôm nay">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between border-l-4 border-l-emerald-500 cursor-pointer hover:shadow-sm transition" onclick="setSpaDailyQuickFilter('checked_out')" title="Xem danh sách thú cưng đã về hôm nay">
                         <div>
-                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Đã Về</div>
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Đã Về</div>
                             <div id="kpi-pets-checked-out" class="text-lg font-black text-emerald-600 mt-0.5">0</div>
                             <div class="text-[9px] text-emerald-600 font-medium">Hôm nay ➔</div>
                         </div>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base">🏠</div>
+                        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Sub-tab: Lịch hẹn/Phiếu dịch vụ & Bảng giá theo cân nặng & Nhân viên Spa -->
-                <div class="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-                        <div class="inline-flex rounded-md shadow-sm text-xs">
-                            <button onclick="switchPetSubTab('services')" id="btn-pet-sub-services" class="px-4 py-2 font-bold rounded-l-md bg-slate-800 text-white">📋 Spa Trong Ngày</button>
-                            <button onclick="switchPetSubTab('pricing')" id="btn-pet-sub-pricing" class="px-4 py-2 font-bold bg-white text-slate-700 border-y border-r hover:bg-gray-50">🏷️ Bảng Giá Dịch Vụ Theo Cân Nặng</button>
-                            <button onclick="switchPetSubTab('staff')" id="btn-pet-sub-staff" class="px-4 py-2 font-bold rounded-r-md bg-white text-slate-700 border-y border-r hover:bg-gray-50">👥 Nhân Viên Spa</button>
+                <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 p-4 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div class="inline-flex rounded-lg shadow-2xs text-xs bg-slate-100 p-0.5 border border-slate-200/80">
+                            <button onclick="switchPetSubTab('services')" id="btn-pet-sub-services" class="px-3.5 py-1.5 font-bold rounded-md bg-white text-slate-900 shadow-xs flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-pink-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                                <span>Spa Trong Ngày</span>
+                            </button>
+                            <button onclick="switchPetSubTab('pricing')" id="btn-pet-sub-pricing" class="px-3.5 py-1.5 font-semibold text-slate-600 hover:text-slate-900 rounded-md flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r=".5" fill="currentColor"/></svg>
+                                <span>Bảng Giá Theo Cân Nặng</span>
+                            </button>
+                            <button onclick="switchPetSubTab('staff')" id="btn-pet-sub-staff" class="px-3.5 py-1.5 font-semibold text-slate-600 hover:text-slate-900 rounded-md flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <span>Nhân Viên Spa</span>
+                            </button>
                         </div>
                     </div>
 
@@ -2497,36 +2531,46 @@
             <div id="tab-hotel" class="hidden space-y-4">
                 <!-- Thanh KPI Thống Kê Nhanh -->
                 <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg font-bold">🏠</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </div>
                         <div>
                             <div class="text-[10px] text-slate-400 font-bold uppercase">Tổng Số Buồng</div>
                             <div class="text-base font-black text-slate-800"><span id="hotel-kpi-total">16</span> <span class="text-xs font-normal text-slate-400">phòng</span></div>
                         </div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-xl border border-rose-200 shadow-sm flex items-center gap-3 bg-rose-50/20">
-                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-lg font-bold">🐾</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-rose-200/80 shadow-xs flex items-center gap-3 bg-rose-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.8A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+                        </div>
                         <div>
                             <div class="text-[10px] text-rose-500 font-bold uppercase">Đang Có Bé Ở</div>
                             <div class="text-base font-black text-rose-700"><span id="hotel-kpi-occupied">0</span> <span id="hotel-kpi-occupied-pct" class="text-xs font-normal text-rose-400">(0%)</span></div>
                         </div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm flex items-center gap-3 bg-emerald-50/20">
-                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">✨</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-emerald-200/80 shadow-xs flex items-center gap-3 bg-emerald-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
                         <div>
                             <div class="text-[10px] text-emerald-600 font-bold uppercase">Phòng Trống Sẵn</div>
                             <div class="text-base font-black text-emerald-700"><span id="hotel-kpi-available">16</span> <span class="text-xs font-normal text-emerald-500">phòng</span></div>
                         </div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm flex items-center gap-3 bg-amber-50/20">
-                        <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-lg font-bold">⏰</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-amber-200/80 shadow-xs flex items-center gap-3 bg-amber-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
                         <div>
                             <div class="text-[10px] text-amber-600 font-bold uppercase">Trả Bé Hôm Nay</div>
                             <div class="text-base font-black text-amber-700"><span id="hotel-kpi-today">0</span> <span class="text-xs font-normal text-amber-500">bé</span></div>
                         </div>
                     </div>
-                    <div class="bg-white p-3.5 rounded-xl border border-purple-200 shadow-sm flex items-center gap-3 bg-purple-50/20">
-                        <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-lg font-bold">💰</div>
+                    <div class="bg-white p-3.5 rounded-xl border border-purple-200/80 shadow-xs flex items-center gap-3 bg-purple-50/20">
+                        <div class="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+                        </div>
                         <div>
                             <div class="text-[10px] text-purple-600 font-bold uppercase">Tạm Tính Doanh Thu</div>
                             <div class="text-base font-black text-purple-700"><span id="hotel-kpi-revenue">0 đ</span></div>
@@ -2535,39 +2579,44 @@
                 </div>
 
                 <!-- Thanh Điều Hướng Chế Độ Xem (View Switcher) & Bộ Lọc Nhanh -->
-                <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
                     <!-- 4 Nút Chuyển Chế Độ Xem -->
-                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                        <button onclick="window.hotelManager.switchHotelView('grid')" id="btn-hotel-view-grid" class="px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm bg-white text-indigo-700 border border-slate-200">
-                            🏨 Lưới Phòng & Drawer
+                    <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/80">
+                        <button onclick="window.hotelManager.switchHotelView('grid')" id="btn-hotel-view-grid" class="px-3 py-1.5 rounded-md text-xs font-bold transition shadow-xs bg-white text-indigo-700 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                            <span>Lưới Phòng & Drawer</span>
                         </button>
-                        <button onclick="window.hotelManager.switchHotelView('table')" id="btn-hotel-view-table" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
-                            📋 Bảng Danh Sách
+                        <button onclick="window.hotelManager.switchHotelView('table')" id="btn-hotel-view-table" class="px-3 py-1.5 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+                            <span>Bảng Danh Sách</span>
                         </button>
-                        <button onclick="window.hotelManager.switchHotelView('gantt')" id="btn-hotel-view-gantt" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
-                            📅 Lịch Dòng Thời Gian
+                        <button onclick="window.hotelManager.switchHotelView('gantt')" id="btn-hotel-view-gantt" class="px-3 py-1.5 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                            <span>Lịch Dòng Thời Gian</span>
                         </button>
-                        <button onclick="window.hotelManager.switchHotelView('rooms_config')" id="btn-hotel-view-rooms-config" class="px-3 py-1.5 rounded-lg text-xs font-bold transition text-slate-600 hover:text-slate-900">
-                            🏢 Cấu Hình & Danh Sách Phòng
+                        <button onclick="window.hotelManager.switchHotelView('rooms_config')" id="btn-hotel-view-rooms-config" class="px-3 py-1.5 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="10" y2="10"/><line x1="12" x2="12" y1="4" y2="21"/></svg>
+                            <span>Cấu Hình & Phòng</span>
                         </button>
                     </div>
 
                     <!-- Bộ lọc trạng thái & Khu vực -->
                     <div class="flex flex-wrap items-center gap-2">
                         <button onclick="window.hotelManager.setFilterStatus('all')" data-status="all" class="btn-hotel-filter-status px-3 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs">Tất Cả</button>
-                        <button onclick="window.hotelManager.setFilterStatus('available')" data-status="available" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">✨ Trống</button>
-                        <button onclick="window.hotelManager.setFilterStatus('occupied')" data-status="occupied" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">🐾 Đang Ở</button>
-                        <button onclick="window.hotelManager.setFilterStatus('today')" data-status="today" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border rounded-lg font-bold text-xs">⏰ Trả Hôm Nay</button>
+                        <button onclick="window.hotelManager.setFilterStatus('available')" data-status="available" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-semibold text-xs">Trống</button>
+                        <button onclick="window.hotelManager.setFilterStatus('occupied')" data-status="occupied" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-semibold text-xs">Đang Ở</button>
+                        <button onclick="window.hotelManager.setFilterStatus('today')" data-status="today" class="btn-hotel-filter-status px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-semibold text-xs">Trả Hôm Nay</button>
 
-                        <select onchange="window.hotelManager.setFilterZone(this.value)" class="border p-1.5 rounded-lg bg-white font-bold text-slate-700 text-xs">
+                        <select onchange="window.hotelManager.setFilterZone(this.value)" class="tui-input text-xs w-auto py-1 font-semibold text-slate-700">
                             <option value="all">Tất Cả Khu Vực</option>
                             <option value="cat">Khu Mèo (Phòng Gỗ)</option>
                             <option value="dog_small">Khu Chó Nhỏ (Inox)</option>
                             <option value="vip">Khu VIP (Máy Lạnh)</option>
                         </select>
 
-                        <button onclick="window.hotelManager.openHotelCheckinModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-sm flex items-center gap-1.5">
-                            <span>➕</span> Nhận Bé (Check-in)
+                        <button onclick="window.hotelManager.openHotelCheckinModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            <span>Nhận Phòng Mới</span>
                         </button>
                     </div>
                 </div>
