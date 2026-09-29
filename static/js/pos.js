@@ -226,10 +226,10 @@ async function initPOS() {
             updatePosPaymentAccountsUI();
         }).catch(err => console.error(err));
 
-        // Tải trước cache các bảng giá để POS áp dụng tức thì
+        // Lưu danh sách bảng giá để POS sử dụng khi chọn khách/bảng giá
         fetch('/api/price-lists?_t=' + Date.now()).then(r => r.json()).then(pls => {
             if (Array.isArray(pls)) {
-                pls.forEach(pl => { if (pl.is_active) getPriceListMap(pl.id, true); });
+                window.posPriceLists = pls;
             }
         }).catch(err => console.error(err));
 

@@ -260,16 +260,22 @@ async function renderLoginLog() {
 }
 
 async function renderModuleToggles() {
-  const res = await fetch('/api/settings/modules');
-  const modules = await res.json();
-  const box = document.getElementById('modules-toggle-list');
-  box.innerHTML = Object.keys(MODULE_LABEL).map(key => `
-    <label class="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
-      <span class="text-sm font-medium">${MODULE_LABEL[key]}</span>
-      <input type="checkbox" class="w-5 h-5" ${modules[key] !== false ? 'checked' : ''}
-             onchange="toggleModule('${key}', this.checked)">
-    </label>
-  `).join('');
+  try {
+    const res = await fetch('/api/settings/modules');
+    if (!res.ok) return;
+    const modules = await res.json();
+    const box = document.getElementById('modules-toggle-list');
+    if (!box || typeof modules !== 'object') return;
+    box.innerHTML = Object.keys(MODULE_LABEL).map(key => `
+      <label class="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+        <span class="text-sm font-medium">${MODULE_LABEL[key]}</span>
+        <input type="checkbox" class="w-5 h-5" ${modules[key] !== false ? 'checked' : ''}
+               onchange="toggleModule('${key}', this.checked)">
+      </label>
+    `).join('');
+  } catch (e) {
+    console.warn('renderModuleToggles skipped:', e);
+  }
 }
 
 async function toggleModule(key, enabled) {
@@ -282,22 +288,29 @@ async function toggleModule(key, enabled) {
 }
 
 async function renderPermissionMatrix() {
-  const res = await fetch('/api/settings/permissions');
-  const data = await res.json();
-  const map = {}; // role -> perm_key -> allowed
-  data.matrix.forEach(r => { (map[r.role] ||= {})[r.perm_key] = !!r.allowed; });
-  const roles = data.roles; // ["cashier","accountant","warehouse"]
-  const tbody = document.getElementById('permissions-matrix-body');
-  tbody.innerHTML = data.perm_keys.map(pk => `
-    <tr class="border-b">
-      <td class="py-2 pr-2">${PERM_LABEL[pk] || pk}</td>
-      ${roles.map(role => `
-        <td class="py-2 px-2 text-center">
-          <input type="checkbox" class="w-5 h-5" ${map[role]?.[pk] ? 'checked' : ''}
-                 onchange="togglePermission('${role}', '${pk}', this.checked)">
-        </td>`).join('')}
-    </tr>
-  `).join('');
+  try {
+    const res = await fetch('/api/settings/permissions');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.matrix || !Array.isArray(data.matrix)) return;
+    const map = {}; // role -> perm_key -> allowed
+    data.matrix.forEach(r => { (map[r.role] ||= {})[r.perm_key] = !!r.allowed; });
+    const roles = data.roles || [];
+    const tbody = document.getElementById('permissions-matrix-body');
+    if (!tbody) return;
+    tbody.innerHTML = (data.perm_keys || []).map(pk => `
+      <tr class="border-b">
+        <td class="py-2 pr-2">${PERM_LABEL[pk] || pk}</td>
+        ${roles.map(role => `
+          <td class="py-2 px-2 text-center">
+            <input type="checkbox" class="w-5 h-5" ${map[role]?.[pk] ? 'checked' : ''}
+                   onchange="togglePermission('${role}', '${pk}', this.checked)">
+          </td>`).join('')}
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.warn('renderPermissionMatrix skipped:', e);
+  }
 }
 
 async function togglePermission(role, perm_key, allowed) {
