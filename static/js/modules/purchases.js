@@ -958,7 +958,7 @@
                         <td class="p-2 text-right font-semibold text-gray-600">${it.quantity}</td>
                         <td class="p-2 text-right bg-amber-50/50">${qtyInput}</td>
                         <td class="p-2 text-right font-mono text-gray-700">${formatMoney(it.cost_price)}</td>
-                        <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(it.total_cost)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-slate-900">${formatMoney(it.subtotal != null ? it.subtotal : (it.total_cost != null ? it.total_cost : (it.quantity * it.cost_price)))}</td>
                     </tr>
                     `;
                 }).join('');

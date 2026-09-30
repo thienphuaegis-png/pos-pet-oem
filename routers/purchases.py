@@ -412,8 +412,13 @@ def get_purchase_detail(code: str):
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
     
     cur.execute('''
-    SELECT pi.*
+    SELECT pi.*,
+           COALESCE(p.name, i.name, pi.item_name) as item_name,
+           COALESCE(p.code, i.code, '') as item_code,
+           COALESCE(p.unit, i.unit, pi.unit, 'cái') as unit
     FROM purchase_items pi
+    LEFT JOIN products p ON pi.item_type = 'product' AND pi.product_id = p.id
+    LEFT JOIN ingredients i ON pi.item_type = 'ingredient' AND pi.ingredient_id = i.id
     WHERE pi.purchase_id = ?
     ORDER BY pi.id ASC
     ''', (row["id"],))
@@ -683,7 +688,17 @@ def print_purchase_checklist(code: str):
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
     p = dict(p)
     
-    cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (p["id"],))
+    cur.execute("""
+        SELECT pi.*,
+               COALESCE(p.name, i.name, pi.item_name) as item_name,
+               COALESCE(p.code, i.code, '') as item_code,
+               COALESCE(p.unit, i.unit, pi.unit, 'cái') as unit
+        FROM purchase_items pi
+        LEFT JOIN products p ON pi.item_type = 'product' AND pi.product_id = p.id
+        LEFT JOIN ingredients i ON pi.item_type = 'ingredient' AND pi.ingredient_id = i.id
+        WHERE pi.purchase_id = ?
+        ORDER BY pi.id ASC
+    """, (p["id"],))
     items = [dict(r) for r in cur.fetchall()]
     conn.close()
 
