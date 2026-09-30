@@ -225,6 +225,7 @@ class CompanySettingsUpdate(BaseModel):
     shop_qr_mode: Optional[str] = "vietqr"
     shop_qr_image: Optional[str] = ""
     shop_logo: Optional[str] = ""
+    google_drive_webhook_url: Optional[str] = ""
 
 class TemplateSettingsUpdate(BaseModel):
     print_blocks_config: str

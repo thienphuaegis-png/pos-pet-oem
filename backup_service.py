@@ -59,6 +59,65 @@ def run_backup_once():
     except Exception as e:
         logger.error(f"Backup cloud that bai: {e}", exc_info=True)
 
+    # Lop 3: cloud backup truc tiep qua Google Apps Script Webhook (khong can phan mem Drive)
+    try:
+        backup_to_google_drive_webhook(src, ts)
+    except Exception as e:
+        logger.error(f"Backup Google Drive Webhook that bai: {e}", exc_info=True)
+
+def backup_to_google_drive_webhook(src_path=None, ts=None):
+    """Gui pos.db truc tiep len Google Drive thong qua Google Apps Script Webhook."""
+    import base64
+    import json
+    import urllib.request
+    from database import get_db
+
+    if src_path is None:
+        src_path = _db_path()
+    if ts is None:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if not os.path.exists(src_path):
+        return False, "Khong tim thay file DB"
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = 'google_drive_webhook_url'")
+    row = cur.fetchone()
+    conn.close()
+
+    if not row or not row["value"] or not str(row["value"]).strip():
+        return False, "Chua cau hinh link Webhook Google Drive"
+
+    webhook_url = str(row["value"]).strip()
+
+    with open(src_path, "rb") as f:
+        b64_data = base64.b64encode(f.read()).decode("utf-8")
+
+    payload = {
+        "file_name": f"pos_backup_mastercare_{ts}.db",
+        "file_data": b64_data
+    }
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        webhook_url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+
+    with urllib.request.urlopen(req, timeout=45) as resp:
+        res_data = json.loads(resp.read().decode("utf-8"))
+        if res_data.get("status") == "ok":
+            msg = f"Sao lưu Google Drive thành công: {res_data.get('file_name', '')} (ID: {res_data.get('file_id', '')})"
+            logger.info(msg)
+            return True, msg
+        else:
+            err_msg = res_data.get("message", "Loi khong xac dinh tu Google Apps Script")
+            logger.error(f"Backup Webhook loi: {err_msg}")
+            return False, err_msg
+
 
 def _cleanup_old_local_backups(local_dir):
     """Xoa ban local cu hon LOCAL_RETENTION_DAYS. Khong dong toi thu muc cloud (giu vinh vien theo thiet ke)."""

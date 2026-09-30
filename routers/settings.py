@@ -164,7 +164,8 @@ def update_company_settings(req: CompanySettingsUpdate):
         ('shop_bank_owner', req.shop_bank_owner),
         ('shop_qr_mode', req.shop_qr_mode),
         ('shop_qr_image', req.shop_qr_image or ""),
-        ('shop_logo', req.shop_logo or "")
+        ('shop_logo', req.shop_logo or ""),
+        ('google_drive_webhook_url', req.google_drive_webhook_url or "")
     ]
     for key, val in updates:
         cur.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?", (key, val, val))
@@ -293,6 +294,16 @@ def reset_database_data(req: ResetDataRequest):
         conn.close()
 
     return {"status": "ok", "message": msg, "backup_file": backup_filename}
+
+@router.post("/api/settings/backup-drive-now")
+def trigger_google_drive_backup():
+    """Kich hoat sao luu tuc thi len Google Drive qua Webhook"""
+    from backup_service import backup_to_google_drive_webhook
+    ok, message = backup_to_google_drive_webhook()
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+    return {"status": "ok", "message": message}
+
 
 
 

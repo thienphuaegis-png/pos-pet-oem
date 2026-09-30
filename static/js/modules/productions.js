@@ -1920,7 +1920,48 @@
                 img.src = currentSettings.shop_qr_image;
                 img.classList.remove('hidden');
             }
+            const driveEl = document.getElementById('comp-drive-webhook-url');
+            if (driveEl) driveEl.value = currentSettings.google_drive_webhook_url || '';
             toggleQRModeUI();
+        }
+
+        async function saveDriveWebhookSetting() {
+            const webhookUrl = (document.getElementById('comp-drive-webhook-url')?.value || '').trim();
+            const statusEl = document.getElementById('drive-backup-status-text');
+            try {
+                const res = await fetch('/api/settings/company', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ google_drive_webhook_url: webhookUrl })
+                });
+                if (res.ok) {
+                    if (statusEl) statusEl.innerHTML = '<span class="text-emerald-600">✅ Đã lưu link Webhook thành công!</span>';
+                    alert('✅ Đã lưu link Google Drive Webhook!');
+                } else {
+                    if (statusEl) statusEl.innerHTML = '<span class="text-rose-600">❌ Lỗi khi lưu link!</span>';
+                }
+            } catch (err) {
+                if (statusEl) statusEl.innerHTML = `<span class="text-rose-600">❌ Lỗi: ${err.message}</span>`;
+            }
+        }
+
+        async function triggerDriveBackupNow() {
+            const statusEl = document.getElementById('drive-backup-status-text');
+            if (statusEl) statusEl.innerHTML = '<span class="text-blue-600">⏳ Đang đóng gói dữ liệu và gửi lên Google Drive...</span>';
+            try {
+                const res = await fetch('/api/settings/backup-drive-now', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-emerald-600 font-bold">✅ ${data.message}</span>`;
+                    alert(`✅ ${data.message}`);
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-rose-600 font-bold">❌ ${data.detail || 'Lỗi sao lưu'}</span>`;
+                    alert(`❌ Lỗi: ${data.detail || 'Không thể sao lưu'}`);
+                }
+            } catch (err) {
+                if (statusEl) statusEl.innerHTML = `<span class="text-rose-600 font-bold">❌ Lỗi: ${err.message}</span>`;
+                alert(`❌ Lỗi kết nối: ${err.message}`);
+            }
         }
 
         function updateAppTitleUI(name, logoUrl) {
