@@ -221,3 +221,41 @@ async def test_import_excel_deduplication():
         cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) = 'ncc thức ăn test'")
         conn.commit()
         conn.close()
+
+def test_adjust_contact_debt_api():
+    """Kiểm tra API chỉnh sửa công nợ đầu kỳ của NCC."""
+    from routers.partners import create_contact, update_contact, adjust_contact_debt, ContactCreate, ContactUpdate, ContactDebtAdjust
+    
+    # 1. Tạo NCC với nợ đầu kỳ
+    req_create = ContactCreate(name="NCC Test Debt", phone="0987111222", type="supplier", debt=1500000.0)
+    created = create_contact(req_create, user={"role": "owner", "id": 1})
+    c_id = created["id"]
+    
+    try:
+        # 2. Update qua ContactUpdate
+        req_update = ContactUpdate(name="NCC Test Debt Updated", phone="0987111222", debt=2000000.0)
+        update_contact(c_id, req_update, user={"role": "owner", "id": 1})
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT debt FROM contacts WHERE id = ?", (c_id,))
+        assert cur.fetchone()["debt"] == 2000000.0
+        conn.close()
+        
+        # 3. Điều chỉnh trực tiếp qua adjust_contact_debt
+        req_adj = ContactDebtAdjust(debt=500000.0, note="Điều chỉnh đầu kỳ")
+        res_adj = adjust_contact_debt(c_id, req_adj, user={"role": "owner", "id": 1})
+        assert res_adj["status"] == "ok"
+        assert res_adj["new_debt"] == 500000.0
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT debt FROM contacts WHERE id = ?", (c_id,))
+        assert cur.fetchone()["debt"] == 500000.0
+        conn.close()
+    finally:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM contacts WHERE id = ?", (c_id,))
+        conn.commit()
+        conn.close()

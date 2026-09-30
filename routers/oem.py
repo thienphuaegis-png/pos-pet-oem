@@ -776,7 +776,7 @@ def list_debt_suppliers():
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            c.id, c.name, c.phone, c.address,
+            c.id, c.name, c.phone, c.address, COALESCE(c.debt, 0) as initial_debt,
             w.name as warehouse_name,
             (SELECT COUNT(*) FROM purchases p WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled') as po_debt_count,
             (SELECT COUNT(*) FROM oem_orders o WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED') as oem_debt_count,
@@ -809,7 +809,13 @@ def list_debt_suppliers():
     rows = []
     for r in cur.fetchall():
         d = dict(r)
-        total_d = round((d.get("debt_company", 0.0) or 0.0) + (d.get("debt_personal", 0.0) or 0.0), 2)
+        initial_d = float(d.get("initial_debt", 0.0) or 0.0)
+        po_oem_company = float(d.get("debt_company", 0.0) or 0.0)
+        po_oem_personal = float(d.get("debt_personal", 0.0) or 0.0)
+        
+        # Nợ cá nhân bao gồm nợ đầu kỳ ghi nhận trong contacts.debt
+        d["debt_personal"] = round(po_oem_personal + initial_d, 2)
+        total_d = round(po_oem_company + d["debt_personal"], 2)
         d["debt"] = total_d
         d["total_debt"] = total_d
         rows.append(d)

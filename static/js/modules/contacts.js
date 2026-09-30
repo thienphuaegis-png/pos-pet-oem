@@ -202,6 +202,8 @@
             const emailEl = document.getElementById('contact-form-email');
             if (emailEl) emailEl.value = '';
             document.getElementById('contact-form-address').value = '';
+            const debtEl = document.getElementById('contact-form-debt');
+            if (debtEl) debtEl.value = '0';
             
             // Populate segments
             const segSelect = document.getElementById('contact-form-segment');
@@ -230,6 +232,8 @@
             const emailEl = document.getElementById('contact-form-email');
             if (emailEl) emailEl.value = c.email || '';
             document.getElementById('contact-form-address').value = c.address || '';
+            const debtEl = document.getElementById('contact-form-debt');
+            if (debtEl) debtEl.value = c.debt || 0;
             
             const segSelect = document.getElementById('contact-form-segment');
             if (segSelect) {
@@ -259,6 +263,8 @@
             const address = document.getElementById('contact-form-address').value.trim();
             const segVal = document.getElementById('contact-form-segment')?.value;
             const segment_id = segVal ? parseInt(segVal) : null;
+            const debtVal = document.getElementById('contact-form-debt')?.value;
+            const debt = debtVal !== undefined && debtVal !== '' ? parseFloat(debtVal) : 0.0;
 
             if (!name) {
                 alert('Vui lòng nhập họ tên hoặc tên đơn vị đối tác!');
@@ -270,7 +276,7 @@
                     const res = await fetch(`/api/contacts/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, phone, email, address, segment_id })
+                        body: JSON.stringify({ name, phone, email, address, segment_id, debt })
                     });
                     if (!res.ok) {
                         const err = await res.json();
@@ -281,7 +287,7 @@
                     const res = await fetch('/api/contacts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type, name, phone, email, address, segment_id })
+                        body: JSON.stringify({ type, name, phone, email, address, segment_id, debt })
                     });
                     if (!res.ok) {
                         const err = await res.json();

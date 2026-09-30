@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from database import get_db
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
-from dependencies import require_role, require_permission
+from dependencies import require_role, require_permission, require_any_permission
 
 logger = get_module_logger("partners")
 
@@ -24,6 +24,7 @@ class ContactCreate(BaseModel):
     address: Optional[str] = ""
     type: str = "customer" # customer | supplier
     segment_id: Optional[int] = None
+    debt: Optional[float] = 0.0
 
 class ContactUpdate(BaseModel):
     name: str
@@ -31,6 +32,11 @@ class ContactUpdate(BaseModel):
     email: Optional[str] = ""
     address: Optional[str] = ""
     segment_id: Optional[int] = None
+    debt: Optional[float] = None
+
+class ContactDebtAdjust(BaseModel):
+    debt: float
+    note: Optional[str] = ""
 
 class CustomerWarningUpdate(BaseModel):
     is_flagged: bool = False
@@ -397,8 +403,9 @@ def get_contact(contact_id: int):
 def create_contact(req: ContactCreate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("INSERT INTO contacts (type, name, phone, email, address, segment_id, debt) VALUES (?, ?, ?, ?, ?, ?, 0)", 
-                (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id))
+    init_debt = float(req.debt or 0.0)
+    cur.execute("INSERT INTO contacts (type, name, phone, email, address, segment_id, debt) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, init_debt))
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -408,11 +415,38 @@ def create_contact(req: ContactCreate, user=Depends(require_permission("partners
 def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE contacts SET name = ?, phone = ?, email = ?, address = ?, segment_id = ? WHERE id = ?",
-                (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, contact_id))
+    if req.debt is not None:
+        cur.execute("""
+            UPDATE contacts 
+            SET name = ?, phone = ?, email = ?, address = ?, segment_id = ?, debt = ? 
+            WHERE id = ?
+        """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, float(req.debt), contact_id))
+    else:
+        cur.execute("""
+            UPDATE contacts 
+            SET name = ?, phone = ?, email = ?, address = ?, segment_id = ? 
+            WHERE id = ?
+        """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, contact_id))
     conn.commit()
     conn.close()
     return {"status": "ok"}
+
+@router.put("/{contact_id}/debt")
+def adjust_contact_debt(contact_id: int, req: ContactDebtAdjust, user=Depends(require_any_permission("partners.manage", "cashbook.manage", "oem.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, type, debt FROM contacts WHERE id = ?", (contact_id,))
+    c = cur.fetchone()
+    if not c:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy đối tác")
+    
+    old_debt = float(c["debt"] or 0.0)
+    new_debt = float(req.debt or 0.0)
+    cur.execute("UPDATE contacts SET debt = ? WHERE id = ?", (new_debt, contact_id))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "old_debt": old_debt, "new_debt": new_debt}
 
 @router.put("/{contact_id}/warning")
 def update_contact_warning(contact_id: int, req: CustomerWarningUpdate, user=Depends(require_permission("partners.manage"))):

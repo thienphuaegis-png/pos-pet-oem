@@ -202,6 +202,9 @@
                                 <button onclick="viewCFDSupplierOrders(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold border">
                                     🔍 Xem đơn nợ
                                 </button>
+                                <button onclick="quickEditSupplierDebt(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${totalDebt})" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold border border-sky-200" title="Chỉnh sửa công nợ đầu kỳ">
+                                    ✏️ Sửa nợ
+                                </button>
                                 ${hasDebt ? `
                                     <button onclick="openModalPaySupplierDebt(${s.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded font-bold shadow-sm">
                                         💳 Trả nợ
@@ -495,4 +498,32 @@
                     btn.innerText = 'Xác Nhận Xuất Chi';
                 }
             }
-        }
+        }
+
+        async function quickEditSupplierDebt(supplierId, supplierName, currentDebt) {
+            const input = prompt(`[Admin] Chỉnh sửa công nợ đầu kỳ / nợ phải trả cho "${supplierName}":\n(Nhập số tiền VNĐ, ví dụ: 5000000)`, currentDebt || 0);
+            if (input === null) return;
+            const newDebt = parseFloat(String(input).replace(/[^0-9.-]+/g, ''));
+            if (isNaN(newDebt) || newDebt < 0) {
+                alert('Số tiền công nợ không hợp lệ!');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/contacts/${supplierId}/debt`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ debt: newDebt })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Lỗi cập nhật nợ: ' + (err.detail || 'Không thể thực hiện'));
+                    return;
+                }
+                alert(`Đã cập nhật công nợ cho "${supplierName}" thành ${formatMoney(newDebt)} thành công!`);
+                await loadCFDSuppliers();
+                if (typeof loadContacts === 'function') loadContacts();
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
+            }
+        }
