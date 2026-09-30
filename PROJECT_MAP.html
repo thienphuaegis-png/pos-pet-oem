@@ -296,83 +296,118 @@
       <!-- Tree Main Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="tree-container">
         
-        <!-- Block 1: Routers Backend -->
+        <!-- Block 1: Routers Backend (Đầy đủ 19 modules) -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-routers')">
             <div class="flex items-center gap-2">
               <span class="text-purple-600 font-bold">📁</span>
               <span class="text-xs font-bold text-slate-900 font-mono">routers/</span>
-              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">14 API Modules</span>
+              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">19 API Routers</span>
             </div>
             <span id="tree-routers-arrow" class="text-xs text-slate-400">▼</span>
           </div>
           <div id="tree-routers" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">hotel.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Khách sạn thú cưng, buồng phòng, tiếp nhận theo lô K80, checkout</p>
+                <span class="font-mono font-bold text-slate-800">purchases.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý PO nhập hàng NCC, kiểm đếm nhận hàng, in phiếu A4/K80, liên kết động master data</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Pet Hotel</span>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">PO Nhập Hàng</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">oem.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sản xuất OEM, trừ tồn kho tem/chai BOM, quản lý & thanh toán cấn trừ nợ NCC 2 quỹ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">OEM & Nợ</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">partners.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khách hàng, Nhà Cung Cấp, tính toán nợ 2 quỹ (Cty/Cá nhân), Import/Export Excel chuẩn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Đối Tác & Nợ</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">inventory.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kho hợp nhất, nguyên liệu/vật tư, thẻ kho, import Excel thuật toán ưu tiên exact match</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Kho & NVL</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">products.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sản phẩm, hàng hóa, mã vạch, phân loại, giá bán/vốn, import Excel sản phẩm</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Sản Phẩm</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">bom.py & production.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Định lượng BOM sản phẩm, lệnh sản xuất nội bộ, import BOM chống va chạm cột</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">BOM & SX</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">pos.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">API bán hàng quầy, tính tiền, hóa đơn lẻ, in K80 & hoàn ví khi hủy đơn</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bán hàng quầy lẻ, giỏ hàng, chiết khấu, in bill nhiệt K80/K58, hoàn ví khi hủy đơn</p>
               </div>
               <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Core POS</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">partners.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Dịch vụ Spa, vé tiếp nhận, cấn trừ sạch ví (Lựa chọn A), phân công kíp thợ</p>
+                <span class="font-mono font-bold text-slate-800">hotel.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khách sạn thú cưng, buồng phòng, tiếp nhận theo lô K80, checkout tách tiền cọc</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Pet Spa</span>
+              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Pet Hotel</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">cashbook.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ thu chi, COALESCE Tên + SĐT, Drawer đối soát nguồn gốc read-only</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ thu chi, dòng tiền 2 quỹ (Cty & Cá nhân), Drawer đối soát nguồn gốc read-only</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashflow</span>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Sổ Quỹ</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">topup.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý nạp gói ví Spa trả trước, hạch toán két ca, in phiếu K80 ngầm</p>
+                <span class="font-mono font-bold text-slate-800">price_lists.py & promotions.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bảng giá đa cấp khách buôn/lẻ, chương trình khuyến mãi tự động Best Offer</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Topup</span>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Bảng Giá</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">price_lists.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Bảng giá đa cấp, ma trận giá nhóm, khuyến mãi Best Offer</p>
+                <span class="font-mono font-bold text-slate-800">categories.py & combos.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Phân loại nhóm hàng đa cấp, quản lý Combo hàng hóa đóng gói</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Pricing</span>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Danh Mục</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">oem.py & purchases.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Gia công xưởng OEM, trừ bao bì tem chai theo BOM, PO 2 bước</p>
+                <span class="font-mono font-bold text-slate-800">auth.py & shifts.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Đăng nhập, phân quyền RBAC 4 vai trò, đóng/mở ca làm việc, Z-Report kiểm quỹ</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">OEM/PO</span>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Auth & Ca</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">inventory.py & products.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Kho hợp nhất, thẻ kho, danh mục nhóm hàng KiotViet, Excel import/export</p>
+                <span class="font-mono font-bold text-slate-800">topup.py & settings.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Gói nạp ví Spa trả trước, cấu hình cửa hàng, máy in, mẫu in visual canvas</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Inventory</span>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Cài Đặt</span>
             </div>
           </div>
         </div>
 
-        <!-- Block 2: Frontend & UI -->
+        <!-- Block 2: Frontend JS & HTML Templates (Đầy đủ 100%) -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-frontend')">
             <div class="flex items-center gap-2">
               <span class="text-indigo-600 font-bold">📁</span>
               <span class="text-xs font-bold text-slate-900 font-mono">templates/ & static/js/</span>
-              <span class="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Giao Diện & Client</span>
+              <span class="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Giao Diện & UI Modules</span>
             </div>
             <span id="tree-frontend-arrow" class="text-xs text-slate-400">▼</span>
           </div>
@@ -380,114 +415,170 @@
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">templates/index.html</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">SPA Quản trị đa tab: Dải lịch ngang, sub-tab hóa đơn Spa, customConfirm UI</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">SPA Quản trị trung tâm: 13 phân hệ, popup sửa nợ NCC 2 quỹ, modal nhận hàng</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Admin SPA</span>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Main Dashboard</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">templates/pos.html</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Màn hình Bán Hàng chuyên dụng: Phím tắt F1-F9, giỏ hàng chuẩn, đa tab</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Màn hình Bán Hàng độc lập: Phím tắt F1-F9, giỏ hàng nổi tối ưu tốc độ thu ngân</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">POS Standalone</span>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">POS Quầy</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">static/js/modules/spa.js</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Dải lịch 7 ngày, lọc ca trong ngày, cấn trừ sạch ví, đồng bộ cuộc gọi 1 chạm</p>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/purchases.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Nhập hàng NCC: tìm kiếm fuzzy, popup customConfirm nhận hàng, chi tiết PO</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Spa Module</span>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Purchases JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/contacts.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Danh bạ đối tác: Form chia 2 khối Quỹ Cty (xanh) & Cá Nhân (tím), KPI nợ đồng bộ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Contacts JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/cashflow.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ & Nợ NCC: Bảng phân tích nợ 2 quỹ, modal ✏️ Sửa nợ nhanh đầu kỳ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashflow JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/spa.js & hotel.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Điều phối vé dịch vụ Spa Grooming, khách sạn Hotel, cấn trừ sạch ví thông minh</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Spa & Hotel JS</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">static/js/modules/productions.js</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Hiển thị badge SĐT, Drawer đối soát Sổ Quỹ, tìm kiếm realtime SĐT</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Định lượng BOM, theo dõi gia công OEM xưởng, quản lý thẻ kho & giá vốn</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashbook Module</span>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Production JS</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">static/js/shifts.js & auth.js</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Đóng/mở ca, bảng đếm tiền 10 mệnh giá, Z-Report, xác thực phiên</p>
+                <span class="font-mono font-bold text-slate-800">static/js/pos.js, shifts.js, staff.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Xử lý giỏ hàng quầy, mở/đóng ca 10 mệnh giá két tiền, quản lý danh sách nhân sự</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Shifts & Auth</span>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Core JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/app.js & auth.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ điều hướng tab, customConfirm modal, showToast, quản lý token đăng nhập</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">App Framework</span>
             </div>
           </div>
         </div>
 
-        <!-- Block 3: Database & Core -->
+        <!-- Block 3: Deployment, Batch Scripts & Tools (Kịch bản tự động) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-deploy')">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-600 font-bold">⚡</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">Deploy, Portable & Scripts</span>
+              <span class="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Triển Khai & Vận Hành</span>
+            </div>
+            <span id="tree-deploy-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-deploy" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-emerald-700">CAP_NHAT_1_CHAM.bat</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kịch bản tự động kill sạch POS/Python ngầm, nạp SSH Deploy Key và reset hard về main</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">1-Click Update</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">POS_Mastercare.exe (7.8 MB)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bản thực thi di động Windows Portable hoàn chỉnh không cần cài đặt Python</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Portable EXE</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">deploy/ (id_pos_shop, id_pos_shop.pub)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Cặp khóa SSH Deploy Key tự động kết nối GitHub an toàn không cần mật khẩu</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">SSH Keys</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">build_exe.bat & POS_Mastercare.spec</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kịch bản đóng gói PyInstaller nén exe gọn nhẹ, tự chép assets vào thư mục dist</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Build Script</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">backup_service.py & data/backups/</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Dịch vụ sao lưu tự động định kỳ mỗi 60 phút, xoay vòng lưu trữ an toàn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Auto Backup</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">scripts/ (sync_all_supabase, copy_data...)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ công cụ đồng bộ dữ liệu đám mây Supabase PostgreSQL, khử trùng đối tác</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Cloud Sync</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 4: Database, Checkpoints & Test Suite -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-core')">
             <div class="flex items-center gap-2">
-              <span class="text-emerald-600 font-bold">📁</span>
-              <span class="text-xs font-bold text-slate-900 font-mono">data/ & Core Backend</span>
-              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">SQLite & Server</span>
+              <span class="text-emerald-600 font-bold">🗄️</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">data/, Tests & Checkpoints</span>
+              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Database & Kiểm Thử</span>
             </div>
             <span id="tree-core-arrow" class="text-xs text-slate-400">▼</span>
           </div>
           <div id="tree-core" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">data/pos.db</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">SQLite database cục bộ chứa 35 bảng, WAL mode chống lock, auto-backup</p>
+                <span class="font-mono font-bold text-slate-800">data/pos.db (WAL Mode)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">SQLite database cục bộ chứa 35 bảng, WAL mode chống lock, bảo mật dữ liệu</p>
               </div>
               <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">SQLite 35 Tables</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">database.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Khởi tạo schema 35 bảng, migrations tự động khi nâng cấp cấu trúc cột</p>
+                <span class="font-mono font-bold text-slate-800">database.py & schemas.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khởi tạo schema 35 bảng, tự động chạy migration cột mới và Pydantic models</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Schema</span>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">ORM & Schema</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">server.py & main.py</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">FastAPI App, đăng ký 13 routers, CORS, static mounting và Uvicorn runner</p>
-              </div>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">FastAPI Server</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Block 4: Checkpoints, Tests & Tooling -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-tools')">
-            <div class="flex items-center gap-2">
-              <span class="text-rose-600 font-bold">📁</span>
-              <span class="text-xs font-bold text-slate-900 font-mono">Checkpoints, Docs & Tests</span>
-              <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Single Source</span>
-            </div>
-            <span id="tree-tools-arrow" class="text-xs text-slate-400">▼</span>
-          </div>
-          <div id="tree-tools" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
-            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
-              <div>
-                <span class="font-mono font-bold text-purple-700">PROJECT_STATE.md</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Checkpoint file duy nhất (< 100 dòng) cho AI: Header, Phiên hiện tại, Test, Next Tasks</p>
+                <span class="font-mono font-bold text-purple-700">CHECKPOINT_2026_09_30.md</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Hồ sơ checkpoint bàn giao chi tiết các bản vá nợ NCC 2 quỹ, import Excel và PO</p>
               </div>
               <span class="shrink-0 text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Active Checkpoint</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">PROJECT_MAP.html</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Giao diện Dashboard tương tác theo dõi tiến độ, xem cây thư mục & xuất .md</p>
+                <span class="font-mono font-bold text-slate-800">tests/ (36 test files)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ test tự động: test_supplier_debt_split, test_rbac_and_supplier_dedup (PASS 7/7)</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Visual Hub</span>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Pytest Suite</span>
             </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
-                <span class="font-mono font-bold text-slate-800">docs/archive/</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Lưu trữ log cũ (STATE_2026_09.md, LEGACY_TRACKING.md) giữ sạch context</p>
+                <span class="font-mono font-bold text-slate-800">server.py & main.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">FastAPI server khởi chạy hệ thống, nạp middleware, cấu hình logging và static</p>
               </div>
-              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Archive</span>
-            </div>
-            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
-              <div>
-                <span class="font-mono font-bold text-slate-800">tests/</span>
-                <p class="text-[11px] text-slate-500 mt-0.5">Bộ kiểm thử tự động toàn diện: Pytest backend + Node.js VM DOM testing</p>
-              </div>
-              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Test Suite</span>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">FastAPI Server</span>
             </div>
           </div>
         </div>
@@ -657,7 +748,7 @@
     }
 
     function expandAllTree(expand) {
-      ['tree-routers', 'tree-frontend', 'tree-core', 'tree-tools'].forEach(id => {
+      ['tree-routers', 'tree-frontend', 'tree-deploy', 'tree-core'].forEach(id => {
         const el = document.getElementById(id);
         const arrow = document.getElementById(id + '-arrow');
         if (el) {
