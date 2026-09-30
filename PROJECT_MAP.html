@@ -548,8 +548,15 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-30)
-    const ROADMAP_VERSION = 'v3.2-2026-09-30';
+    const ROADMAP_VERSION = 'v3.3-2026-09-30';
     const DEFAULT_TASKS = [
+      // 0. CẬP NHẬT MỚI NHẤT (2026-09-30)
+      { id: 'po-debt-1', cat: 'PO', title: 'Phân tách công nợ NCC theo 2 quỹ (Quỹ Công Ty & Quỹ Cá Nhân)', done: true, note: 'Bổ sung initial_debt_company & initial_debt_personal, tự động cấn trừ khi thanh toán, đồng bộ nợ 2 quỹ trên Đối Tác, Dòng Tiền & Xuất Excel' },
+      { id: 'deploy-ssh-1', cat: 'SYS', title: 'Kịch bản cập nhật 1-chạm (CAP_NHAT_1_CHAM.bat) qua Deploy Key SSH', done: true, note: 'Tự động quét & diệt tận gốc tiến trình POS/Python chạy ngầm khóa file, giải phóng port 8998/8999 và hard reset main an toàn' },
+      { id: 'excel-import-1', cat: 'Logic', title: 'Khắc phục xung đột va chạm cột khi Import Excel (Nguyên liệu, Hàng hóa, BOM)', done: true, note: 'Thuật toán 2 lớp ưu tiên exact match, chống tình trạng cột Mã nguyên liệu bị nhận nhầm thành cột Tên nguyên liệu' },
+      { id: 'po-detail-1', cat: 'PO', title: 'Đồng bộ động Tên mặt hàng & Thành tiền trong chi tiết phiếu nhập cũ', done: true, note: 'LEFT JOIN bảng ingredients/products tự động hiển thị tên mới nhất thay vì mã thô; sửa lỗi hiển thị thành tiền 0 đ' },
+      { id: 'po-confirm-1', cat: 'UI', title: 'Thay thế popup confirm() thô của trình duyệt khi nhận/hủy phiếu nhập bằng customConfirm UI', done: true, note: 'Modal bo góc hiện đại, icon hàng hóa 📦, nút xác nhận rõ ràng đồng bộ giao diện' },
+
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
       { id: 'spa-2', cat: 'SPA', title: 'Phiếu dịch vụ in dư dòng cắt nghệ thuật & dọn khoảng cách cắt giấy thẩm mỹ', done: true, note: 'Khắc phục trùng dòng regex và thêm khoảng đệm 18mm chống dao cắt phạm' },
