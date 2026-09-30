@@ -83,6 +83,213 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
     conn.close()
     return rows
 
+@router.get("/export-excel")
+def export_contacts_excel(type: str = "customer"):
+    conn = get_db()
+    cur = conn.cursor()
+    query = """
+        SELECT c.*, cs.name as segment_name,
+               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count
+        FROM contacts c
+        LEFT JOIN customer_segments cs ON cs.id = c.segment_id
+        WHERE c.type = ?
+        ORDER BY c.id DESC
+    """
+    cur.execute(query, (type,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    label = "Khach_Hang" if type == "customer" else "Nha_Cung_Cap"
+    ws.title = label
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+
+    if type == "customer":
+        headers = ["STT", "Tên Khách Hàng", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Số Thú Cưng", "Công Nợ (đ)"]
+    else:
+        headers = ["STT", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Hiện Tại (đ)"]
+
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+
+    for idx, r in enumerate(rows, 1):
+        if type == "customer":
+            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["segment_name"] or "Khách lẻ", r["pets_count"] or 0, r["debt"] or 0])
+        else:
+            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["debt"] or 0])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"Danh_sach_{label}_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@router.get("/template-excel")
+def download_contacts_template(type: str = "customer"):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    label = "Mau_Khach_Hang" if type == "customer" else "Mau_Nha_Cung_Cap"
+    ws.title = label
+
+    header_fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    align_center = Alignment(horizontal="center", vertical="center")
+
+    if type == "customer":
+        headers = ["Tên Khách Hàng (*)", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Công Nợ Ban Đầu (đ)"]
+        samples = [
+            ["Nguyễn Văn An", "0901234567", "123 Lê Lợi, Bến Tre", "Khách VIP", 0],
+            ["Trần Thị Mai", "0912345678", "456 Nguyễn Huệ, TP.HCM", "Khách lẻ", 150000]
+        ]
+    else:
+        headers = ["Tên Nhà Cung Cấp (*)", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Ban Đầu (đ)"]
+        samples = [
+            ["Công Ty Bao Bì Hưng Phát", "0283888999", "KCN Tân Bình, TP.HCM", 0],
+            ["Xưởng Chai Lọ Sài Gòn", "0933444555", "Bình Chánh, TP.HCM", 5000000]
+        ]
+
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+
+    for s in samples:
+        ws.append(s)
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"{label}.xlsx"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@router.post("/import-excel")
+async def import_contacts_excel(file: UploadFile = File(...), type: str = "customer"):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="File tải lên rỗng!")
+    
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        sheet = wb.active
+        rows = list(sheet.iter_rows(values_only=True))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
+
+    if len(rows) < 2:
+        raise HTTPException(status_code=400, detail="File không có dữ liệu (yêu cầu ít nhất 1 dòng tiêu đề và 1 dòng dữ liệu)")
+
+    header_row = [str(c or "").strip().lower() for c in rows[0]]
+    
+    def find_col(aliases):
+        for idx, h in enumerate(header_row):
+            for a in aliases:
+                if a in h:
+                    return idx
+        return -1
+
+    idx_name = find_col(["tên", "name", "khách hàng", "nhà cung cấp"])
+    idx_phone = find_col(["thoại", "sđt", "phone", "điện thoại"])
+    idx_addr = find_col(["địa chỉ", "address"])
+    idx_group = find_col(["nhóm", "phân loại", "segment", "group"])
+    idx_debt = find_col(["nợ", "công nợ", "debt"])
+
+    if idx_name == -1:
+        idx_name = 0
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Load nhóm khách hàng để map
+    cur.execute("SELECT id, name FROM customer_segments")
+    segments_map = {r["name"].strip().lower(): r["id"] for r in cur.fetchall()}
+
+    created = 0
+    updated = 0
+
+    for r in rows[1:]:
+        if not r or all(c is None or str(c).strip() == "" for c in r):
+            continue
+        
+        name = str(r[idx_name] or "").strip()
+        if not name:
+            continue
+
+        phone = str(r[idx_phone] or "").strip() if idx_phone != -1 and idx_phone < len(r) else ""
+        address = str(r[idx_addr] or "").strip() if idx_addr != -1 and idx_addr < len(r) else ""
+        
+        segment_id = None
+        if type == "customer" and idx_group != -1 and idx_group < len(r):
+            group_name = str(r[idx_group] or "").strip().lower()
+            segment_id = segments_map.get(group_name)
+
+        debt = 0.0
+        if idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None:
+            try:
+                debt = float(r[idx_debt])
+            except:
+                debt = 0.0
+
+        # Kiểm tra trùng SĐT nếu có
+        existing_id = None
+        if phone:
+            cur.execute("SELECT id FROM contacts WHERE phone = ? AND type = ?", (phone, type))
+            ex = cur.fetchone()
+            if ex:
+                existing_id = ex["id"]
+
+        if existing_id:
+            cur.execute("""
+                UPDATE contacts 
+                SET name = ?, address = ?, segment_id = COALESCE(?, segment_id)
+                WHERE id = ?
+            """, (name, address, segment_id, existing_id))
+            updated += 1
+        else:
+            cur.execute("""
+                INSERT INTO contacts (type, name, phone, address, segment_id, debt)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (type, name, phone, address, segment_id, debt))
+            created += 1
+
+    conn.commit()
+    conn.close()
+
+    type_label = "khách hàng" if type == "customer" else "nhà cung cấp"
+    return {
+        "status": "ok",
+        "message": f"Import thành công: Đã thêm mới {created} {type_label}, cập nhật {updated} {type_label}."
+    }
+
 @router.get("/{contact_id}")
 def get_contact(contact_id: int):
     conn = get_db()
@@ -345,215 +552,6 @@ def delete_pet(pet_id: int):
     conn.commit()
     conn.close()
     return {"status": "ok"}
-
-# ==========================================
-# IMPORT / EXPORT EXCEL ĐỐI TÁC
-# ==========================================
-@router.get("/export-excel")
-def export_contacts_excel(type: str = "customer"):
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT c.*, cs.name as segment_name,
-               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count
-        FROM contacts c
-        LEFT JOIN customer_segments cs ON cs.id = c.segment_id
-        WHERE c.type = ?
-        ORDER BY c.id ASC
-    """, (type,))
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    label = "Khach_Hang" if type == "customer" else "Nha_Cung_Cap"
-    ws.title = label
-
-    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
-    align_center = Alignment(horizontal="center", vertical="center")
-    align_right = Alignment(horizontal="right", vertical="center")
-    align_left = Alignment(horizontal="left", vertical="center")
-
-    if type == "customer":
-        headers = ["STT", "Tên Khách Hàng", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Số Thú Cưng", "Công Nợ (đ)"]
-    else:
-        headers = ["STT", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Hiện Tại (đ)"]
-
-    ws.append(headers)
-    for col_idx in range(1, len(headers) + 1):
-        cell = ws.cell(row=1, column=col_idx)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = align_center
-
-    for idx, r in enumerate(rows, 1):
-        if type == "customer":
-            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["segment_name"] or "Khách lẻ", r["pets_count"] or 0, r["debt"] or 0])
-        else:
-            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["debt"] or 0])
-
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    filename = f"Danh_sach_{label}_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx"
-    return Response(
-        content=buf.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-@router.get("/template-excel")
-def download_contacts_template(type: str = "customer"):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    label = "Mau_Khach_Hang" if type == "customer" else "Mau_Nha_Cung_Cap"
-    ws.title = label
-
-    header_fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
-    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
-    align_center = Alignment(horizontal="center", vertical="center")
-
-    if type == "customer":
-        headers = ["Tên Khách Hàng (*)", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Công Nợ Ban Đầu (đ)"]
-        samples = [
-            ["Nguyễn Văn An", "0901234567", "123 Lê Lợi, Bến Tre", "Khách VIP", 0],
-            ["Trần Thị Mai", "0912345678", "456 Nguyễn Huệ, TP.HCM", "Khách lẻ", 150000]
-        ]
-    else:
-        headers = ["Tên Nhà Cung Cấp (*)", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Ban Đầu (đ)"]
-        samples = [
-            ["Công Ty Bao Bì Hưng Phát", "0283888999", "KCN Tân Bình, TP.HCM", 0],
-            ["Xưởng Chai Lọ Sài Gòn", "0933444555", "Bình Chánh, TP.HCM", 5000000]
-        ]
-
-    ws.append(headers)
-    for col_idx in range(1, len(headers) + 1):
-        cell = ws.cell(row=1, column=col_idx)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = align_center
-
-    for s in samples:
-        ws.append(s)
-
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    filename = f"{label}.xlsx"
-    return Response(
-        content=buf.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-@router.post("/import-excel")
-async def import_contacts_excel(file: UploadFile = File(...), type: str = "customer"):
-    content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="File tải lên rỗng!")
-    
-    try:
-        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
-        sheet = wb.active
-        rows = list(sheet.iter_rows(values_only=True))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
-
-    if len(rows) < 2:
-        raise HTTPException(status_code=400, detail="File không có dữ liệu (yêu cầu ít nhất 1 dòng tiêu đề và 1 dòng dữ liệu)")
-
-    header_row = [str(c or "").strip().lower() for c in rows[0]]
-    
-    def find_col(aliases):
-        for idx, h in enumerate(header_row):
-            for a in aliases:
-                if a in h:
-                    return idx
-        return -1
-
-    idx_name = find_col(["tên", "name", "khách hàng", "nhà cung cấp"])
-    idx_phone = find_col(["thoại", "sđt", "phone", "điện thoại"])
-    idx_addr = find_col(["địa chỉ", "address"])
-    idx_group = find_col(["nhóm", "phân loại", "segment", "group"])
-    idx_debt = find_col(["nợ", "công nợ", "debt"])
-
-    if idx_name == -1:
-        idx_name = 0
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Load nhóm khách hàng để map
-    cur.execute("SELECT id, name FROM customer_segments")
-    segments_map = {r["name"].strip().lower(): r["id"] for r in cur.fetchall()}
-
-    created = 0
-    updated = 0
-
-    for r in rows[1:]:
-        if not r or all(c is None or str(c).strip() == "" for c in r):
-            continue
-        
-        name = str(r[idx_name] or "").strip()
-        if not name:
-            continue
-
-        phone = str(r[idx_phone] or "").strip() if idx_phone != -1 and idx_phone < len(r) else ""
-        address = str(r[idx_addr] or "").strip() if idx_addr != -1 and idx_addr < len(r) else ""
-        
-        segment_id = None
-        if type == "customer" and idx_group != -1 and idx_group < len(r):
-            group_name = str(r[idx_group] or "").strip().lower()
-            segment_id = segments_map.get(group_name)
-
-        debt = 0.0
-        if idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None:
-            try:
-                debt = float(r[idx_debt])
-            except:
-                debt = 0.0
-
-        # Kiểm tra trùng SĐT nếu có
-        existing_id = None
-        if phone:
-            cur.execute("SELECT id FROM contacts WHERE phone = ? AND type = ?", (phone, type))
-            ex = cur.fetchone()
-            if ex:
-                existing_id = ex["id"]
-
-        if existing_id:
-            cur.execute("""
-                UPDATE contacts 
-                SET name = ?, address = ?, segment_id = COALESCE(?, segment_id)
-                WHERE id = ?
-            """, (name, address, segment_id, existing_id))
-            updated += 1
-        else:
-            cur.execute("""
-                INSERT INTO contacts (type, name, phone, address, segment_id, debt)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (type, name, phone, address, segment_id, debt))
-            created += 1
-
-    conn.commit()
-    conn.close()
-
-    type_label = "khách hàng" if type == "customer" else "nhà cung cấp"
-    return {
-        "status": "ok",
-        "message": f"Import thành công: Đã thêm mới {created} {type_label}, cập nhật {updated} {type_label}."
-    }
 
 def datetime_str():
     return datetime.datetime.now().strftime("%y%m%d%H%M%S")

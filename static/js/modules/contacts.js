@@ -486,16 +486,17 @@
         }
 
         function updateDownloadTemplateLink() {
-            const type = document.getElementById('import-contacts-type')?.value || 'customer';
-            const link = document.getElementById('link-download-contact-template');
+            const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
+            const link = document.getElementById('btn-download-contact-template') || document.getElementById('link-download-contact-template');
             if (link) {
                 link.href = `/api/contacts/template-excel?type=${type}`;
+                link.setAttribute('download', type === 'customer' ? 'Mau_Khach_Hang.xlsx' : 'Mau_Nha_Cung_Cap.xlsx');
             }
         }
 
         async function submitImportContacts() {
-            const type = document.getElementById('import-contacts-type')?.value || 'customer';
-            const fileInput = document.getElementById('import-contacts-file');
+            const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
+            const fileInput = document.getElementById('import-contact-file') || document.getElementById('import-contacts-file');
             if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
                 alert('Vui lòng chọn file Excel để nhập!');
                 return;
@@ -504,8 +505,8 @@
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
+            const btn = document.getElementById('btn-do-import-contacts') || document.getElementById('btn-submit-import-contacts');
             try {
-                const btn = document.getElementById('btn-submit-import-contacts');
                 if (btn) { btn.disabled = true; btn.textContent = 'Đang xử lý...'; }
 
                 const res = await fetch(`/api/contacts/import-excel?type=${type}`, {
@@ -517,7 +518,7 @@
                     alert('Lỗi import: ' + (result.detail || 'Không thể nhập file'));
                     return;
                 }
-                alert(`Đã nhập thành công ${result.imported_count || 0} đối tác! (Bỏ qua ${result.skipped_count || 0} dòng)`);
+                alert(result.message || `Đã nhập thành công ${result.imported_count || 0} đối tác!`);
                 closeImportContactsModal();
                 fileInput.value = '';
                 await loadContacts();
@@ -525,7 +526,6 @@
                 console.error("submitImportContacts err:", e);
                 alert("Lỗi kết nối máy chủ");
             } finally {
-                const btn = document.getElementById('btn-submit-import-contacts');
                 if (btn) { btn.disabled = false; btn.textContent = '🚀 Bắt Đầu Import'; }
             }
         }
