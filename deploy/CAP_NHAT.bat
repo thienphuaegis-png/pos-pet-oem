@@ -81,7 +81,7 @@ echo       Da luu: !BACKUP!
 
 REM --- 2/5 Tat server dang chay ---
 echo [2/5] Tam dung server...
-powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8999 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }"
+powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8999 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }; $c2 = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c2) { Stop-Process -Id $c2.OwningProcess -Force -ErrorAction SilentlyContinue }"
 REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
 REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
 powershell -NoProfile -Command "Start-Sleep -Seconds 3"
@@ -145,6 +145,9 @@ if !errorlevel! neq 0 (
     echo       Hay goi cho nguoi quan tri he thong - DUNG tu sua.
     pause & exit /b 1
 )
+if exist "scripts\deduplicate_contacts.py" (
+    "%VPY%" scripts\deduplicate_contacts.py
+)
 echo       OK
 
 REM --- 5/5 Chay lai va kiem tra thuc su len ---
@@ -157,6 +160,8 @@ set "READY="
 powershell -NoProfile -Command ^
   "for ($i=0; $i -lt 15; $i++) {" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
+  "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
+  "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8998/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
   "  Start-Sleep -Seconds 1 }; exit 1"
 if %errorlevel% equ 0 set "READY=1"
