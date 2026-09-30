@@ -23,15 +23,19 @@ function updateShiftUI() {
 
   const hasShift = !!currentShift;
   const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
-  const isAdmin = user && (user.role === 'owner' || user.role === 'admin');
+  const isAdmin = user && (user.role === 'owner' || user.role === 'admin' || user.username === 'admin' || user.name === 'admin' || user.name === 'Quản Lý');
   const canBypass = isAdmin || (typeof Auth !== 'undefined' && typeof Auth.can === 'function' && Auth.can('shifts.bypass'));
 
   // Admin / Nhân viên có quyền không bị chặn mở ca để bán hàng
   if (lockOverlay) {
-    if (canBypass) {
+    if (canBypass || hasShift) {
       lockOverlay.classList.add('hidden');
+      lockOverlay.classList.remove('flex');
+      lockOverlay.style.setProperty('display', 'none', 'important');
     } else {
-      lockOverlay.classList.toggle('hidden', hasShift);
+      lockOverlay.classList.remove('hidden');
+      lockOverlay.classList.add('flex');
+      lockOverlay.style.setProperty('display', 'flex', 'important');
     }
   }
 

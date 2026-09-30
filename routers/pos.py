@@ -181,10 +181,12 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
             if s_row:
                 shift_id = s_row["id"]
 
-        if not shift_id and user:
-            from dependencies import check_permission
-            if not check_permission(user["id"], user.get("role", ""), "shifts.bypass"):
-                raise HTTPException(status_code=400, detail="Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.")
+        if not shift_id:
+            role = user.get("role", "") if user else ""
+            if role not in ("owner", "admin"):
+                from dependencies import check_permission
+                if not user or not check_permission(user["id"], role, "shifts.bypass"):
+                    raise HTTPException(status_code=400, detail="Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.")
 
         cur.execute("""
         INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)

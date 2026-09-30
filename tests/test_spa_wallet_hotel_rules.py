@@ -20,7 +20,11 @@ def test_hotel_checkout_summary_breaks_down_wallet_limits():
         pet_id = cursor.lastrowid
         cursor.execute("SELECT id FROM hotel_rooms WHERE status = 'available' LIMIT 1")
         room = cursor.fetchone()
-        room_id = room["id"]
+        if not room:
+            cursor.execute("INSERT INTO hotel_rooms (code, name, zone, price_per_day, status) VALUES ('P-TEST', 'Phòng VIP Test', 'dog', 200000, 'available')")
+            room_id = cursor.lastrowid
+        else:
+            room_id = room["id"]
         
         # Check-in 1 booking
         cursor.execute("""
@@ -69,7 +73,11 @@ def test_hotel_checkout_blocks_wallet_deduction_when_no_spa_tickets():
         pet_id = cursor.lastrowid
         cursor.execute("SELECT id FROM hotel_rooms WHERE status = 'available' LIMIT 1")
         room = cursor.fetchone()
-        room_id = room["id"]
+        if not room:
+            cursor.execute("INSERT INTO hotel_rooms (code, name, zone, price_per_day, status) VALUES ('P-TEST', 'Phòng VIP Test', 'dog', 200000, 'available')")
+            room_id = cursor.lastrowid
+        else:
+            room_id = room["id"]
         
         cursor.execute("""
             INSERT INTO hotel_bookings (code, room_id, contact_id, pet_id, check_in_time, expected_checkout_time, daily_rate, status)
@@ -106,7 +114,11 @@ def test_hotel_checkout_clamps_and_deducts_wallet_only_for_spa():
         pet_id = cursor.lastrowid
         cursor.execute("SELECT id FROM hotel_rooms WHERE status = 'available' LIMIT 1")
         room = cursor.fetchone()
-        room_id = room["id"]
+        if not room:
+            cursor.execute("INSERT INTO hotel_rooms (code, name, zone, price_per_day, status) VALUES ('P-TEST', 'Phòng VIP Test', 'dog', 200000, 'available')")
+            room_id = cursor.lastrowid
+        else:
+            room_id = room["id"]
         
         cursor.execute("""
             INSERT INTO hotel_bookings (code, room_id, contact_id, pet_id, check_in_time, expected_checkout_time, daily_rate, status)

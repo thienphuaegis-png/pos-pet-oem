@@ -1469,7 +1469,7 @@ async function submitPOSOrder() {
     }
     if (typeof currentShift !== 'undefined' && !currentShift) {
         const canBypassShift = (typeof Auth !== 'undefined' && typeof Auth.can === 'function' && Auth.can('shifts.bypass'))
-            || (typeof Auth !== 'undefined' && Auth.getUser() && (Auth.getUser().role === 'owner' || Auth.getUser().role === 'admin'));
+            || (typeof Auth !== 'undefined' && Auth.getUser() && (Auth.getUser().role === 'owner' || Auth.getUser().role === 'admin' || Auth.getUser().username === 'admin' || Auth.getUser().name === 'admin' || Auth.getUser().name === 'Quản Lý'));
         if (!canBypassShift) {
             alert("⚠ Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.");
             return;
