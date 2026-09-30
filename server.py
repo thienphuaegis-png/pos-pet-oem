@@ -168,7 +168,7 @@ def get_template_path():
 def get_pos_template_path():
     return os.path.join(base_dir, "templates", "pos.html")
 
-APP_VERSION = "2.9"  # đồng bộ với PROJECT_STATE.md
+APP_VERSION = "3.0"  # đồng bộ với PROJECT_STATE.md
 
 @app.get("/api/ping", include_in_schema=False)
 def ping():
