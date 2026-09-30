@@ -368,20 +368,34 @@ async def import_ingredients_excel(file: UploadFile = File(...), warehouse_id: i
 
     header_row = [str(c or "").strip().lower() for c in rows[0]]
 
-    def find_col(aliases):
+    def find_col(exact_matches, partial_matches=None):
         for idx, h in enumerate(header_row):
-            for a in aliases:
-                if a in h:
+            for em in exact_matches:
+                if h == em.strip().lower():
                     return idx
+        if partial_matches:
+            for idx, h in enumerate(header_row):
+                for pm in partial_matches:
+                    if pm.strip().lower() in h:
+                        return idx
         return -1
 
-    idx_code = find_col(["mã", "code", "sku"])
-    idx_name = find_col(["tên", "name", "nguyên liệu", "vật tư"])
-    idx_type = find_col(["loại", "type", "phân loại"])
-    idx_unit = find_col(["đvt", "đơn vị", "unit"])
-    idx_stock = find_col(["tồn", "số lượng", "stock", "sl"])
-    idx_cost = find_col(["giá", "cost", "giá nhập", "vốn"])
-    idx_supp = find_col(["nhà cung cấp", "ncc", "supplier"])
+    idx_code = find_col(["mã nguyên liệu", "mã nvl", "mã vật tư", "mã", "code", "sku"], ["mã", "code", "sku"])
+    idx_name = find_col(["tên nguyên liệu", "tên nvl", "tên vật tư", "tên hàng", "tên", "name"], ["tên", "name", "nguyên liệu", "vật tư"])
+    if idx_name == idx_code and idx_name != -1:
+        # Nếu cột trùng nhau do từ khóa bao hàm (ví dụ 'mã nguyên liệu' dính chữ 'nguyên liệu')
+        # Tìm lại tên nguyên liệu loại trừ mã
+        idx_name = -1
+        for idx, h in enumerate(header_row):
+            if idx != idx_code and any(pm in h for pm in ["tên", "name"]):
+                idx_name = idx
+                break
+
+    idx_type = find_col(["loại", "type", "phân loại"], ["loại", "type", "phân loại"])
+    idx_unit = find_col(["đvt", "đơn vị", "đơn vị tính", "unit"], ["đvt", "đơn vị", "unit"])
+    idx_stock = find_col(["tồn kho", "tồn", "số lượng", "stock", "sl"], ["tồn", "số lượng", "stock", "sl"])
+    idx_cost = find_col(["giá", "cost", "giá nhập", "vốn"], ["giá", "cost", "giá nhập", "vốn"])
+    idx_supp = find_col(["nhà cung cấp", "ncc", "supplier"], ["nhà cung cấp", "ncc", "supplier"])
 
     if idx_name == -1:
         if len(header_row) >= 2:

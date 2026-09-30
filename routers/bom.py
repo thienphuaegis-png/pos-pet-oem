@@ -340,18 +340,37 @@ async def import_bom_excel(file: UploadFile = File(...)):
 
     header_row = [str(c or "").strip().lower() for c in rows[0]]
 
-    def find_col(aliases):
+    def find_col(exact_matches, partial_matches=None):
         for idx, h in enumerate(header_row):
-            for a in aliases:
-                if a in h:
+            for em in exact_matches:
+                if h == em.strip().lower():
                     return idx
+        if partial_matches:
+            for idx, h in enumerate(header_row):
+                for pm in partial_matches:
+                    if pm.strip().lower() in h:
+                        return idx
         return -1
 
-    idx_p_code = find_col(["mã sp", "mã sản phẩm", "mã hàng", "product_code"])
-    idx_p_name = find_col(["tên sp", "tên sản phẩm", "tên thành phẩm", "thành phẩm", "product_name"])
-    idx_i_code = find_col(["mã nvl", "mã nguyên liệu", "mã vật tư", "ingredient_code"])
-    idx_i_name = find_col(["tên nvl", "tên nguyên liệu", "nguyên liệu", "thành phần", "ingredient_name"])
-    idx_qty = find_col(["định lượng", "số lượng", "tiêu hao", "quantity", "qty"])
+    idx_p_code = find_col(["mã sản phẩm", "mã sp", "mã hàng", "product_code"], ["mã sp", "mã sản phẩm", "mã hàng", "product_code"])
+    idx_p_name = find_col(["tên thành phẩm", "tên sản phẩm", "tên sp", "thành phẩm", "product_name"], ["tên sp", "tên sản phẩm", "tên thành phẩm", "thành phẩm", "product_name"])
+    if idx_p_name == idx_p_code and idx_p_name != -1:
+        idx_p_name = -1
+        for idx, h in enumerate(header_row):
+            if idx != idx_p_code and any(pm in h for pm in ["tên", "name"]):
+                idx_p_name = idx
+                break
+
+    idx_i_code = find_col(["mã nguyên liệu", "mã nvl", "mã vật tư", "ingredient_code"], ["mã nvl", "mã nguyên liệu", "mã vật tư", "ingredient_code"])
+    idx_i_name = find_col(["tên nguyên liệu", "tên nvl", "nguyên liệu", "thành phần", "ingredient_name"], ["tên nvl", "tên nguyên liệu", "thành phần", "ingredient_name"])
+    if idx_i_name == idx_i_code and idx_i_name != -1:
+        idx_i_name = -1
+        for idx, h in enumerate(header_row):
+            if idx != idx_i_code and any(pm in h for pm in ["tên", "name"]):
+                idx_i_name = idx
+                break
+
+    idx_qty = find_col(["định lượng", "số lượng", "tiêu hao", "quantity", "qty"], ["định lượng", "số lượng", "tiêu hao", "quantity", "qty"])
 
     if idx_p_name == -1 and idx_p_code == -1:
         raise HTTPException(status_code=400, detail="Không tìm thấy cột Mã hoặc Tên sản phẩm!")
