@@ -196,7 +196,8 @@
         function openContactModal(defaultType = 'customer') {
             document.getElementById('contact-form-id').value = '';
             document.getElementById('modal-contact-title').textContent = defaultType === 'customer' ? 'Thêm Khách Hàng Mới' : 'Thêm Nhà Cung Cấp Mới';
-            document.getElementById('contact-form-type').value = defaultType;
+            const typeSelect = document.getElementById('contact-form-type');
+            if (typeSelect) typeSelect.value = defaultType;
             document.getElementById('contact-form-name').value = '';
             setContactFormPhones('');
             const emailEl = document.getElementById('contact-form-email');
@@ -209,15 +210,7 @@
             const debtPersEl = document.getElementById('contact-form-debt-personal');
             if (debtPersEl) debtPersEl.value = '0';
 
-            const suppDebtBox = document.getElementById('contact-supplier-split-debt');
-            const custDebtBox = document.getElementById('contact-customer-single-debt');
-            if (defaultType === 'supplier') {
-                if (suppDebtBox) suppDebtBox.classList.remove('hidden');
-                if (custDebtBox) custDebtBox.classList.add('hidden');
-            } else {
-                if (suppDebtBox) suppDebtBox.classList.add('hidden');
-                if (custDebtBox) custDebtBox.classList.remove('hidden');
-            }
+            toggleContactFormDebtFields(defaultType);
             
             // Populate segments
             const segSelect = document.getElementById('contact-form-segment');
@@ -235,12 +228,45 @@
             document.getElementById('modal-contact').classList.remove('hidden');
         }
 
+        function onContactTypeChange() {
+            const type = document.getElementById('contact-form-type')?.value || 'customer';
+            toggleContactFormDebtFields(type);
+            const segSelect = document.getElementById('contact-form-segment');
+            if (segSelect) {
+                if (type === 'customer') {
+                    segSelect.parentElement.classList.remove('hidden');
+                } else {
+                    segSelect.parentElement.classList.add('hidden');
+                }
+            }
+        }
+
+        function toggleContactFormDebtFields(type) {
+            const suppDebtBox = document.getElementById('contact-supplier-split-debt');
+            const custDebtBox = document.getElementById('contact-customer-single-debt');
+            const debtLabel = document.getElementById('contact-debt-label');
+            const isSupp = (type === 'supplier');
+
+            if (debtLabel) {
+                debtLabel.textContent = isSupp ? 'Công Nợ Đầu Kỳ / Nhập Tay Phân Theo Quỹ (đ):' : 'Công Nợ Đầu Kỳ (đ):';
+            }
+            if (suppDebtBox) {
+                if (isSupp) suppDebtBox.classList.remove('hidden');
+                else suppDebtBox.classList.add('hidden');
+            }
+            if (custDebtBox) {
+                if (isSupp) custDebtBox.classList.add('hidden');
+                else custDebtBox.classList.remove('hidden');
+            }
+        }
+
         function editContact(id) {
-                    const c = (allContacts || []).find(item => item.id === id) || (typeof posContacts !== 'undefined' ? (posContacts || []).find(item => item.id === id) : null);
-                    if (!c) return;
+            const c = (allContacts || []).find(item => item.id === id) || (typeof posContacts !== 'undefined' ? (posContacts || []).find(item => item.id === id) : null);
+            if (!c) return;
             document.getElementById('contact-form-id').value = c.id;
             document.getElementById('modal-contact-title').textContent = c.type === 'customer' ? 'Sửa Thông Tin Khách Hàng' : 'Sửa Thông Tin Nhà Cung Cấp';
-            document.getElementById('contact-form-type').value = c.type;
+            const typeSelect = document.getElementById('contact-form-type');
+            if (typeSelect) typeSelect.value = c.type;
             document.getElementById('contact-form-name').value = c.name;
             setContactFormPhones(c.phone || '');
             const emailEl = document.getElementById('contact-form-email');
@@ -253,15 +279,7 @@
             const debtPersEl = document.getElementById('contact-form-debt-personal');
             if (debtPersEl) debtPersEl.value = c.initial_debt_personal || 0;
 
-            const suppDebtBox = document.getElementById('contact-supplier-split-debt');
-            const custDebtBox = document.getElementById('contact-customer-single-debt');
-            if (c.type === 'supplier') {
-                if (suppDebtBox) suppDebtBox.classList.remove('hidden');
-                if (custDebtBox) custDebtBox.classList.add('hidden');
-            } else {
-                if (suppDebtBox) suppDebtBox.classList.add('hidden');
-                if (custDebtBox) custDebtBox.classList.remove('hidden');
-            }
+            toggleContactFormDebtFields(c.type);
             
             const segSelect = document.getElementById('contact-form-segment');
             if (segSelect) {

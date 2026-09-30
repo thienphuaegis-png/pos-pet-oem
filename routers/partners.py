@@ -76,7 +76,35 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
     query = """
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                pl.name as price_list_name,
-               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count
+               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count,
+               -- Tính nợ công ty thực tế (Đơn PO có thuế + OEM có thuế + nợ cty đầu kỳ)
+               (
+                   COALESCE(c.initial_debt_company, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate > 0 OR p.vat_amount > 0)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
+                   ), 0)
+               ) as calc_debt_company,
+               -- Tính nợ cá nhân thực tế (Đơn PO ko thuế + OEM ko thuế + nợ cá nhân đầu kỳ)
+               (
+                   COALESCE(c.initial_debt_personal, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate = 0 OR p.vat_rate IS NULL) AND (p.vat_amount = 0 OR p.vat_amount IS NULL)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
+                   ), 0)
+               ) as calc_debt_personal
         FROM contacts c
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
         LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
@@ -92,7 +120,15 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
         params.extend([s, s])
     query += " ORDER BY c.id DESC"
     cur.execute(query, tuple(params))
-    rows = [dict(r) for r in cur.fetchall()]
+    rows = []
+    for r in cur.fetchall():
+        d = dict(r)
+        if d.get("type") == "supplier":
+            d["debt_company"] = d.get("calc_debt_company", 0.0)
+            d["debt_personal"] = d.get("calc_debt_personal", 0.0)
+            d["total_debt"] = round(d["debt_company"] + d["debt_personal"], 2)
+            d["debt"] = d["total_debt"]
+        rows.append(d)
     conn.close()
     return rows
 

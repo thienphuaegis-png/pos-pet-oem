@@ -6993,69 +6993,99 @@
     </div>
 
     <!-- MODAL: THÊM / SỬA ĐỐI TÁC -->
-    <div id="modal-contact" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h3 id="modal-contact-title" class="text-base font-bold text-slate-800">Thêm Đối Tác Mới</h3>
-                <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
+    <div id="modal-contact" class="hidden fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-scale-in">
+            <!-- Modal Header -->
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
+                <div class="flex items-center gap-2">
+                    <span id="modal-contact-icon" class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm">👥</span>
+                    <div>
+                        <h3 id="modal-contact-title" class="text-sm font-bold text-slate-800">Thêm Đối Tác Mới</h3>
+                        <p class="text-[11px] text-slate-400">Khách hàng, nhà cung cấp & thông tin công nợ</p>
+                    </div>
+                </div>
+                <button onclick="closeContactModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center font-bold text-base transition">✕</button>
             </div>
+
             <input type="hidden" id="contact-form-id" value="">
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Loại Đối Tác (*):</label>
-                    <select id="contact-form-type" class="border p-2 rounded w-full bg-gray-50 font-medium">
-                        <option value="customer">👤 Khách Hàng (Mua Hàng)</option>
-                        <option value="supplier">🏭 Nhà Cung Cấp (Bán Vật Tư/Hàng Hóa)</option>
-                    </select>
+            
+            <!-- Modal Body -->
+            <div class="p-5 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Loại Đối Tác (*):</label>
+                        <select id="contact-form-type" onchange="onContactTypeChange()" class="border border-slate-200 p-2 rounded-lg w-full bg-slate-50 font-bold text-slate-700 focus:bg-white focus:border-sky-500 transition">
+                            <option value="customer">👤 Khách Hàng (Mua Hàng)</option>
+                            <option value="supplier">🏭 Nhà Cung Cấp (Bán Vật Tư/Hàng Hóa)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Họ Tên / Tên Đơn Vị (*):</label>
+                        <input type="text" id="contact-form-name" class="border border-slate-200 p-2 rounded-lg w-full font-bold text-slate-800 focus:border-sky-500 transition" placeholder="VD: Giấy in nhiệt KK, Anh Minh...">
+                    </div>
                 </div>
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Họ Tên / Tên Đơn Vị (*):</label>
-                    <input type="text" id="contact-form-name" class="border p-2 rounded w-full font-medium" placeholder="VD: Anh Minh, Công Ty TNHH ABC...">
-                </div>
+
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="block font-bold text-slate-700">Số Điện Thoại:</label>
-                        <button type="button" onclick="addPhoneField()" class="text-sky-600 text-[11px] font-bold hover:underline">+ Thêm SĐT</button>
+                        <button type="button" onclick="addPhoneField()" class="text-sky-600 text-[11px] font-bold hover:underline flex items-center gap-0.5">
+                            <span>+ Thêm SĐT</span>
+                        </button>
                     </div>
                     <div id="contact-form-phones-wrap" class="space-y-1.5"></div>
                 </div>
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Email (Hóa Đơn / Tra Cứu):</label>
-                    <input type="email" id="contact-form-email" class="border p-2 rounded w-full" placeholder="VD: khachhang@gmail.com">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Email (Hóa Đơn / Tra Cứu):</label>
+                        <input type="email" id="contact-form-email" class="border border-slate-200 p-2 rounded-lg w-full focus:border-sky-500 transition" placeholder="VD: doithac@gmail.com">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Địa Chỉ:</label>
+                        <input type="text" id="contact-form-address" class="border border-slate-200 p-2 rounded-lg w-full focus:border-sky-500 transition" placeholder="Số nhà, tên đường, phường/xã...">
+                    </div>
                 </div>
-                <div>
-                    <label class="block font-bold text-slate-700 mb-1">Địa Chỉ:</label>
-                    <input type="text" id="contact-form-address" class="border p-2 rounded w-full" placeholder="Số nhà, tên đường, phường/xã...">
-                </div>
+
                 <div id="contact-group-wrapper">
                     <label class="block font-bold text-slate-700 mb-1">Nhóm Khách Hàng:</label>
-                    <select id="contact-form-segment" class="border p-2 rounded w-full bg-white font-medium">
+                    <select id="contact-form-segment" class="border border-slate-200 p-2 rounded-lg w-full bg-white font-medium focus:border-sky-500 transition">
                         <option value="">-- Mặc định (Khách lẻ) --</option>
                     </select>
                 </div>
-                <div id="contact-debt-wrapper" class="space-y-2 border-t pt-2">
+
+                <!-- KHU VỰC CÔNG NỢ ĐẦU KỲ PHÂN TÁCH -->
+                <div id="contact-debt-wrapper" class="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <label class="block font-bold text-slate-700">Công Nợ Đầu Kỳ / Nợ Nhập Tay (đ):</label>
-                        <span class="text-[10px] text-amber-600 font-semibold">(Admin / Quản lý chỉnh sửa)</span>
+                        <span id="contact-debt-label" class="block font-bold text-slate-800 text-[11px]">Công Nợ Đầu Kỳ / Nhập Tay Phân Theo Quỹ (đ):</span>
+                        <span class="text-[10px] text-amber-600 font-semibold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">Admin / Quản lý</span>
                     </div>
-                    <div id="contact-supplier-split-debt" class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] font-bold text-blue-700 mb-0.5">🏢 Nợ Quỹ Công Ty:</label>
-                            <input type="number" id="contact-form-debt-company" class="border p-1.5 rounded w-full font-mono font-bold text-blue-700 bg-blue-50/50 text-xs" placeholder="0" value="0">
+
+                    <!-- Split debt cho NCC: Nợ Cty & Nợ Cá Nhân -->
+                    <div id="contact-supplier-split-debt" class="grid grid-cols-2 gap-2.5">
+                        <div class="bg-blue-50/60 border border-blue-100 rounded-lg p-2.5">
+                            <label class="block text-[11px] font-bold text-blue-800 mb-1">🏢 Nợ Quỹ Công Ty:</label>
+                            <input type="number" id="contact-form-debt-company" class="border border-blue-200 p-1.5 rounded-md w-full font-mono font-bold text-blue-700 bg-white text-xs focus:ring-1 focus:ring-blue-500" placeholder="0" value="0">
+                            <span class="text-[9.5px] text-blue-600 mt-1 block">Chi từ Quỹ Cty (hóa đơn VAT)</span>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-purple-700 mb-0.5">👤 Nợ Quỹ Cá Nhân:</label>
-                            <input type="number" id="contact-form-debt-personal" class="border p-1.5 rounded w-full font-mono font-bold text-purple-700 bg-purple-50/50 text-xs" placeholder="0" value="0">
+                        <div class="bg-purple-50/60 border border-purple-100 rounded-lg p-2.5">
+                            <label class="block text-[11px] font-bold text-purple-800 mb-1">👤 Nợ Quỹ Cá Nhân:</label>
+                            <input type="number" id="contact-form-debt-personal" class="border border-purple-200 p-1.5 rounded-md w-full font-mono font-bold text-purple-700 bg-white text-xs focus:ring-1 focus:ring-purple-500" placeholder="0" value="0">
+                            <span class="text-[9.5px] text-purple-600 mt-1 block">Chi từ Quỹ Cá nhân (không VAT)</span>
                         </div>
                     </div>
+
+                    <!-- Single debt cho Khách Hàng -->
                     <div id="contact-customer-single-debt" class="hidden">
-                        <input type="number" id="contact-form-debt" class="border p-2 rounded w-full font-mono font-bold text-rose-600 bg-amber-50/40 text-xs" placeholder="0" value="0">
+                        <input type="number" id="contact-form-debt" class="border border-rose-200 p-2 rounded-lg w-full font-mono font-bold text-rose-600 bg-rose-50/40 text-xs" placeholder="0" value="0">
+                        <span class="text-[10px] text-slate-500 mt-1 block">Số tiền khách còn nợ tiệm từ trước</span>
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button onclick="closeContactModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Hủy Bỏ</button>
-                <button onclick="submitContactForm()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold shadow">Lưu Thông Tin</button>
+
+            <!-- Modal Footer -->
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button onclick="closeContactModal()" class="px-4 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-100 font-bold transition">Hủy Bỏ</button>
+                <button onclick="submitContactForm()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition">Lưu Thông Tin</button>
             </div>
         </div>
     </div>
