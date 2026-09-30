@@ -3,6 +3,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
 import io
+import re
 import datetime
 import random
 import openpyxl
@@ -239,6 +240,20 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
     cur.execute("SELECT id, name FROM customer_segments")
     segments_map = {r["name"].strip().lower(): r["id"] for r in cur.fetchall()}
 
+    def clean_phone_number(val) -> str:
+        if val is None:
+            return ""
+        s = str(val).strip()
+        if s.endswith(".0"):
+            s = s[:-2]
+        return re.sub(r"[\s\.\-\(\)]+", "", s)
+
+    # Load danh sách contacts hiện có của type này để so khớp chính xác Unicode
+    cur.execute("SELECT id, name, phone, address, debt, segment_id FROM contacts WHERE type = ?", (type,))
+    existing_list = [dict(r) for r in cur.fetchall()]
+    contacts_by_phone = {clean_phone_number(c["phone"]): c for c in existing_list if c["phone"]}
+    contacts_by_name = {str(c["name"] or "").strip().lower(): c for c in existing_list}
+
     created = 0
     updated = 0
 
@@ -250,7 +265,8 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         if not name:
             continue
 
-        phone = str(r[idx_phone] or "").strip() if idx_phone != -1 and idx_phone < len(r) else ""
+        norm_name = name.lower()
+        phone = clean_phone_number(r[idx_phone] if idx_phone != -1 and idx_phone < len(r) else "")
         address = str(r[idx_addr] or "").strip() if idx_addr != -1 and idx_addr < len(r) else ""
         
         segment_id = None
@@ -265,26 +281,52 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             except:
                 debt = 0.0
 
-        # Kiểm tra trùng SĐT nếu có
-        existing_id = None
-        if phone:
-            cur.execute("SELECT id FROM contacts WHERE phone = ? AND type = ?", (phone, type))
-            ex = cur.fetchone()
-            if ex:
-                existing_id = ex["id"]
+        # Kiểm tra trùng khớp 2 tầng (bằng Python Unicode sạch 100%):
+        # Tầng 1: So khớp SĐT chuẩn hóa (nếu có SĐT)
+        existing = None
+        if phone and phone in contacts_by_phone:
+            existing = contacts_by_phone[phone]
+        # Tầng 2: Nếu không có SĐT hoặc chưa khớp SĐT, so khớp theo Tên chuẩn hóa
+        elif norm_name in contacts_by_name:
+            existing = contacts_by_name[norm_name]
 
-        if existing_id:
+        if existing:
+            existing_id = existing["id"]
+            new_phone = phone if phone else (existing.get("phone") or "")
+            new_address = address if address else (existing.get("address") or "")
+            new_debt = float(existing.get("debt") or 0.0) + (debt if debt != 0.0 else 0.0)
+
             cur.execute("""
                 UPDATE contacts 
-                SET name = ?, address = ?, segment_id = COALESCE(?, segment_id)
+                SET name = ?, phone = ?, address = ?, segment_id = COALESCE(?, segment_id), debt = ?
                 WHERE id = ?
-            """, (name, address, segment_id, existing_id))
+            """, (name, new_phone, new_address, segment_id, new_debt, existing_id))
+
+            existing["name"] = name
+            existing["phone"] = new_phone
+            existing["address"] = new_address
+            existing["debt"] = new_debt
+            if new_phone:
+                contacts_by_phone[new_phone] = existing
+            contacts_by_name[norm_name] = existing
             updated += 1
         else:
             cur.execute("""
                 INSERT INTO contacts (type, name, phone, address, segment_id, debt)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (type, name, phone, address, segment_id, debt))
+            new_id = cur.lastrowid
+            new_c = {
+                "id": new_id,
+                "name": name,
+                "phone": phone,
+                "address": address,
+                "segment_id": segment_id,
+                "debt": debt
+            }
+            if phone:
+                contacts_by_phone[phone] = new_c
+            contacts_by_name[norm_name] = new_c
             created += 1
 
     conn.commit()

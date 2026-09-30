@@ -6,7 +6,7 @@ from schemas import (
     OEMOrderCreate, OEMOrderUpdate, OEMOrderDeposit, OEMOrderReceive
 )
 from pydantic import BaseModel
-from dependencies import require_permission
+from dependencies import require_permission, require_any_permission
 
 class OEMStockCheckItem(BaseModel):
     product_id: int
@@ -862,7 +862,7 @@ def list_supplier_debt_orders(supplier_id: int):
     return all_orders
 
 @router.post("/api/cashflow-debts/pay-supplier")
-def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_permission("oem.manage"))):
+def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_permission("oem.manage", "partners.manage", "cashbook.manage"))):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()
@@ -957,7 +957,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_perm
     }
 
 @router.post("/api/cashflow-debts/pay-order")
-def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_permission("oem.manage"))):
+def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any_permission("oem.manage", "partners.manage", "cashbook.manage"))):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()

@@ -784,14 +784,31 @@ def init_db():
                  "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
                  "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
     DEFAULT_ROLE_PERMS = {
-        "cashier": {"pos.sell"},
+        "cashier": {"pos.sell", "cashbook.manage", "partners.manage"},
         "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order"},
-        "warehouse": {"purchases.manage", "inventory.manage"},
+        "warehouse": {"purchases.manage", "inventory.manage", "cashbook.manage", "partners.manage"},
     }
     for role, perms in DEFAULT_ROLE_PERMS.items():
         for key in PERM_KEYS:
             cur.execute("INSERT OR IGNORE INTO role_permissions (role, perm_key, allowed) VALUES (?, ?, ?)",
                         (role, key, 1 if key in perms else 0))
+
+    # Migration 2026-09-30: Cấp quyền cashbook.manage & partners.manage cho cashier & warehouse trên DB hiện hữu
+    cur.execute("SELECT value FROM settings WHERE key = 'migration_rbac_cashbook_partners'")
+    if not cur.fetchone():
+        for role, key in [
+            ("cashier", "cashbook.manage"),
+            ("cashier", "partners.manage"),
+            ("warehouse", "cashbook.manage"),
+            ("warehouse", "partners.manage"),
+            ("accountant", "cashbook.manage"),
+            ("accountant", "partners.manage"),
+        ]:
+            cur.execute("""
+                INSERT INTO role_permissions (role, perm_key, allowed) VALUES (?, ?, 1)
+                ON CONFLICT(role, perm_key) DO UPDATE SET allowed = 1
+            """, (role, key))
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_rbac_cashbook_partners', '1')")
 
     # 9c. Bat/tat module theo he thong (an tab cho MOI role khi tat)
     DEFAULT_MODULES = {"module_oem": "1", "module_pet_services": "1", "module_price_lists": "1", "module_hotel": "1"}
@@ -1446,8 +1463,110 @@ def init_db():
         # BOM: 1 Áo thun tự sản xuất cần 1.5 mét vải
         cur.execute("INSERT INTO bom (product_id, material_id, quantity) VALUES (4, 3, 1.5)")
 
+    # Tự động quét và gộp các đối tác trùng tên (contacts deduplication)
+    merge_duplicate_contacts(conn)
+
     conn.commit()
     conn.close()
+
+def merge_duplicate_contacts(conn=None) -> dict:
+    """
+    Quét và gộp các đối tác (contacts: supplier/customer) trùng tên chuẩn hóa UTF-8 (strip & lower).
+    Dồn debt, phone, address, points, spa_wallet_balance về master_id.
+    Cập nhật toàn bộ Foreign Keys và xóa các bản ghi trùng phụ.
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_db()
+        close_conn = True
+    
+    cur = conn.cursor()
+    cur.execute("SELECT id, type, name, phone, address, debt, points, spa_wallet_balance FROM contacts ORDER BY id ASC")
+    all_contacts = [dict(r) for r in cur.fetchall()]
+
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for c in all_contacts:
+        norm_key = (c["type"], (c["name"] or "").strip().lower())
+        groups[norm_key].append(c)
+    
+    merged_groups_count = 0
+    deleted_records_count = 0
+
+    for (ctype, norm_name), rows in groups.items():
+        if len(rows) < 2:
+            continue
+        
+        master = rows[0]
+        for r in rows:
+            if r["phone"] and not master["phone"]:
+                master = r
+                break
+        
+        master_id = master["id"]
+        dup_ids = [r["id"] for r in rows if r["id"] != master_id]
+
+        total_add_debt = 0.0
+        total_add_points = 0
+        total_add_wallet = 0.0
+        new_phone = master["phone"] or ""
+        new_address = master["address"] or ""
+
+        for dup in rows:
+            if dup["id"] == master_id:
+                continue
+            total_add_debt += float(dup["debt"] or 0.0)
+            total_add_points += int(dup["points"] or 0)
+            total_add_wallet += float(dup["spa_wallet_balance"] or 0.0)
+            if not new_phone and dup["phone"]:
+                new_phone = dup["phone"]
+            if not new_address and dup["address"]:
+                new_address = dup["address"]
+
+        for dup_id in dup_ids:
+            cur.execute("UPDATE purchases SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE oem_orders SET partner_id = ? WHERE partner_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE inventory_logs SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE warehouses SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE cashbook SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE orders SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE pets SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE pet_service_tickets SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE hotel_bookings SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
+            cur.execute("UPDATE spa_wallet_logs SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
+            
+            # Xử lý supplier_items tránh va chạm UNIQUE(supplier_id, item_type, product_id, ingredient_id)
+            cur.execute("SELECT id, item_type, product_id, ingredient_id FROM supplier_items WHERE supplier_id = ?", (dup_id,))
+            sitems = [dict(si) for si in cur.fetchall()]
+            for si in sitems:
+                cur.execute("""
+                    SELECT id FROM supplier_items 
+                    WHERE supplier_id = ? AND item_type = ? AND product_id IS ? AND ingredient_id IS ?
+                """, (master_id, si["item_type"], si["product_id"], si["ingredient_id"]))
+                if cur.fetchone():
+                    cur.execute("DELETE FROM supplier_items WHERE id = ?", (si["id"],))
+                else:
+                    cur.execute("UPDATE supplier_items SET supplier_id = ? WHERE id = ?", (master_id, si["id"]))
+            
+            cur.execute("DELETE FROM contacts WHERE id = ?", (dup_id,))
+            deleted_records_count += 1
+
+        cur.execute("""
+            UPDATE contacts
+            SET phone = ?, address = ?, debt = debt + ?, points = points + ?, spa_wallet_balance = spa_wallet_balance + ?
+            WHERE id = ?
+        """, (new_phone, new_address, total_add_debt, total_add_points, total_add_wallet, master_id))
+
+        merged_groups_count += 1
+
+    conn.commit()
+    if close_conn:
+        conn.close()
+    
+    return {
+        "merged_groups": merged_groups_count,
+        "deleted_duplicates": deleted_records_count
+    }
 
 if __name__ == '__main__':
     init_db()

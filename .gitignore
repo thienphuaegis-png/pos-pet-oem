@@ -6,6 +6,7 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/*.sql
+data/*.bak*
 logs/
 *.log
 cf_tunnel.log

@@ -119,3 +119,15 @@ def require_permission(perm_key: str):
             raise HTTPException(status_code=403, detail="Không có quyền truy cập")
         return user
     return checker
+
+
+def require_any_permission(*perm_keys: str):
+    """Kiểm tra user có ít nhất 1 trong các quyền perm_keys. Owner/admin luôn pass."""
+    def checker(user=Depends(get_current_user)):
+        if user.get("role") in ("owner", "admin"):
+            return user
+        for pk in perm_keys:
+            if check_permission(user["id"], user.get("role", ""), pk):
+                return user
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập")
+    return checker
