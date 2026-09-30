@@ -65,7 +65,7 @@
             <div class="flex items-center gap-2">
               <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                v2.9 Master
+                v3.0 Master
               </span>
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 ● 100% Offline
@@ -302,11 +302,18 @@
             <div class="flex items-center gap-2">
               <span class="text-purple-600 font-bold">📁</span>
               <span class="text-xs font-bold text-slate-900 font-mono">routers/</span>
-              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">13 API Modules</span>
+              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">14 API Modules</span>
             </div>
             <span id="tree-routers-arrow" class="text-xs text-slate-400">▼</span>
           </div>
           <div id="tree-routers" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">hotel.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khách sạn thú cưng, buồng phòng, tiếp nhận theo lô K80, checkout</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Pet Hotel</span>
+            </div>
             <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <span class="font-mono font-bold text-slate-800">pos.py</span>
@@ -540,8 +547,8 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-27)
-    const ROADMAP_VERSION = 'v2.9-2026-09-27';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-30)
+    const ROADMAP_VERSION = 'v3.0-2026-09-30';
     const DEFAULT_TASKS = [
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
@@ -564,9 +571,13 @@
       { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: true, note: 'Đã di chuyển thành sub-tab thứ 4 (pl-subtab-topup) trong Tab Bảng Giá, gỡ bỏ menu thừa ở Cài Đặt' },
       { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: true, note: 'Chuẩn hóa preview scale, CSS @page auto nhiệt K80/K58, bổ sung mẫu in Phiếu Thu/Chi (K80 & A4/A5 kế toán) và Phiếu Kiểm Kê Kho (A4)' },
       { id: 'bill-6', cat: 'BILL', title: 'Thiết Kế Mẫu In Visual Canvas & 12 Mẫu Nghiệp Vụ Thực Tế', done: true, note: 'Bổ sung 100% checkbox trường động (Spa, Sổ Quỹ, Kiểm Kê), fix ReferenceError renderCanvas & exports, auto-render không trắng trang, scale chống tràn giấy K80/A4' },
+      { id: 'print-7', cat: 'BILL', title: 'Bảng Điều Khiển In Đậm Cố Định & Phân Nhóm 12 Mẫu In', done: true, note: 'Cấu hình font-bold độc lập cho từng trường, hỗ trợ in nét chuẩn trên mọi đầu in nhiệt K80/A4' },
 
-      // 3. KHÁCH SẠN, HỆ THỐNG & AI
-      { id: 'sys-1', cat: 'SYS', title: 'Bảng Quản Lý Hotel (Khách Sạn Chó Mèo) thiết kế schema & layout', done: false, note: 'Chờ triển khai: phòng lưu trú, nhật ký cho ăn, checkin/checkout' },
+      // 3. KHÁCH SẠN, HỆ THỐNG & DEPLOY
+      { id: 'sys-1', cat: 'SYS', title: 'Phân Hệ Quản Lý Hotel (Khách Sạn Thú Cưng) toàn diện', done: true, note: '16 phòng lưu trú, tiếp nhận theo lô K80, 3 chế độ xem (lưới, bảng, gantt), checkout và đối soát cọc' },
+      { id: 'auth-1', cat: 'SYS', title: 'Quản lý nhân viên (Cài Đặt > Nhân Viên) và phân quyền ca làm việc RBAC', done: true, note: 'Phân quyền chi tiết 4 vai trò, kiểm soát mở ca/miễn mở ca, log đăng nhập bảo mật' },
+      { id: 'deploy-1', cat: 'SYS', title: 'Triển khai mạng LAN & Tự động dò Server qua PowerShell và QR Code', done: true, note: 'Bộ kịch bản .bat, find_server.ps1 tự động quét subnet dò IP server, make_qr.py sinh QR truy cập' },
+      { id: 'cloud-1', cat: 'SYS', title: 'Supabase PostgreSQL Adapter & Bộ Script Đồng Bộ Đám Mây', done: true, note: 'migrate_to_supabase.py, copy_data_to_supabase.py, kiến trúc sẵn sàng Hybrid Cloud' },
       { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal UI', done: true, note: 'customConfirm danger (icon đỏ, phím Enter/Esc), customAlert, showToast đồng bộ 100%' },
       { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: true, note: 'Hỗ trợ phím Enter/Esc trên customConfirm modal và hotkeys F1-F9' },
       { id: 'sys-4', cat: 'SYS', title: 'Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý', done: false, note: 'Chờ triển khai: tích hợp mô hình cục bộ hoặc Gemini web' },
@@ -582,7 +593,7 @@
       { id: 'ui-7', cat: 'UI', title: 'Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Kho hàng, Hóa đơn', done: true, note: 'Tối ưu hiệu năng DOM và quản trị lượng dữ liệu lớn' },
       { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' },
       { id: 'ui-9', cat: 'UI', title: 'Server-side Injection Logo & Tên Ứng Dụng Màn Hình Đăng Nhập', done: true, note: 'Route GET / inject trực tiếp app_name và shop_logo vào HTML response, hiển thị 0ms tức thì không chớp giật FOUC' },
-      { id: 'auth-1', cat: 'SYS', title: 'Quản lý nhân viên (Cài Đặt > Nhân Viên) và phân quyền ca làm việc', done: false, note: 'Chờ triển khai: cấu hình danh sách nhân viên spa/thu ngân/kế toán' }
+      { id: 'ui-10', cat: 'UI', title: 'Chuẩn Hóa 13 Tabs Sang Tailwind CSS & Vector Lucide SVG', done: true, note: 'Gỡ bỏ 100% Unicode emoji thô, đồng bộ phong cách thiết kế hiện đại, bảng biểu, thẻ KPI và form chuẩn Tailwind UI' }
     ];
 
     let tasks = [];

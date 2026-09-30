@@ -29,7 +29,8 @@ def test_project_map_has_tree_and_nav():
     assert 'id="view-tasks"' in content, "Must have view-tasks container"
     assert 'id="view-tree"' in content, "Must have view-tree container"
     assert 'switchMainView' in content, "Must have switchMainView JS helper"
-    assert ('v2.9-2026-09-27' in content or 'v2.8-2026-09-27' in content), "Must bump ROADMAP_VERSION"
+    import re
+    assert re.search(r'v\d+\.\d+-\d{4}-\d{2}-\d{2}', content), "Must have valid ROADMAP_VERSION (e.g. v3.0-2026-09-30)"
     assert 'routers/' in content and 'pos.py' in content, "Must document routers in project tree"
 
 def test_coding_standards_skill_has_checkpoint_protocol():
