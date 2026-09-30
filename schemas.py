@@ -466,6 +466,8 @@ class HotelBookingCheckout(BaseModel):
     total_amount: Optional[float] = None
     payment_method: str = "cash"
     note: Optional[str] = None
+    use_spa_wallet: Optional[bool] = False
+    spa_wallet_amount: Optional[float] = 0.0
 
 class HotelCareLogUpdate(BaseModel):
     daily_care_log: str

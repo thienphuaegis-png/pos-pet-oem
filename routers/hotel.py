@@ -345,13 +345,22 @@ def get_checkout_summary(booking_id: int):
         spa_total = sum(float(t["price"] or 0) for t in spa_tickets)
 
         deposit = float(booking["deposit_amount"] or 0)
-        grand_total = max(0, room_total + spa_total - deposit)
+        room_payable = max(0, room_total - deposit)
+        grand_total = max(0, room_payable + spa_total)
+
+        # Lấy số dư ví của khách
+        cursor.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (booking["contact_id"],))
+        c_row = cursor.fetchone()
+        contact_spa_wallet = float(c_row["spa_wallet_balance"] or 0) if c_row else 0.0
+        # Ví Spa TUYỆT ĐỐI không cấn trừ tiền phòng, chỉ trừ tối đa cho spa_total
+        max_spa_wallet_deduction = min(contact_spa_wallet, spa_total)
 
         return {
             "booking_id": booking["id"],
             "code": booking["code"],
             "room_code": booking["room_code"],
             "room_name": booking["room_name"],
+            "contact_id": booking["contact_id"],
             "contact_name": booking["contact_name"],
             "contact_phone": booking["contact_phone"],
             "pet_name": booking["pet_name"] or "Bé cưng",
@@ -359,10 +368,14 @@ def get_checkout_summary(booking_id: int):
             "calculated_days": days,
             "daily_rate": daily_rate,
             "room_total": room_total,
+            "room_payable": room_payable,
             "spa_tickets": spa_tickets,
             "spa_total": spa_total,
             "deposit_amount": deposit,
-            "grand_total": grand_total
+            "grand_total": grand_total,
+            "contact_spa_wallet": contact_spa_wallet,
+            "max_spa_wallet_deduction": max_spa_wallet_deduction,
+            "allow_wallet_on_room": False
         }
 
 @router.get("/bookings/active")
@@ -653,6 +666,49 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout):
                 
         rate = float(booking["daily_rate"])
         total_amount = data.total_amount if data.total_amount is not None else (days * rate)
+
+        # Lấy các vé Spa gắn với booking này
+        cursor.execute("SELECT id, price FROM pet_service_tickets WHERE hotel_booking_id = ?", (booking_id,))
+        spa_tickets = cursor.fetchall()
+        spa_total = sum(float(t["price"] or 0) for t in spa_tickets)
+
+        # Xử lý cấn trừ Ví Spa (CHỈ áp dụng cho vé Spa, TUYỆT ĐỐI KHÔNG trừ tiền phòng)
+        wallet_deduction = 0.0
+        if data.use_spa_wallet or (data.spa_wallet_amount and data.spa_wallet_amount > 0):
+            if spa_total <= 0:
+                raise HTTPException(status_code=400, detail="Ví Spa chỉ áp dụng cho dịch vụ Spa, không áp dụng cấn trừ tiền phòng khách sạn.")
+
+            cursor.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (booking["contact_id"],))
+            c_row = cursor.fetchone()
+            current_wallet_bal = float(c_row["spa_wallet_balance"] or 0) if c_row else 0.0
+
+            max_usable = min(current_wallet_bal, spa_total)
+            if data.spa_wallet_amount and data.spa_wallet_amount > 0:
+                wallet_deduction = min(float(data.spa_wallet_amount), max_usable)
+            else:
+                wallet_deduction = max_usable
+
+            if wallet_deduction > 0:
+                new_bal = current_wallet_bal - wallet_deduction
+                cursor.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_bal, booking["contact_id"]))
+                cursor.execute("""
+                    INSERT INTO spa_wallet_transactions (contact_id, order_id, type, amount, balance_before, balance_after, note)
+                    VALUES (?, NULL, 'spend', ?, ?, ?, ?)
+                """, (
+                    booking["contact_id"],
+                    wallet_deduction,
+                    current_wallet_bal,
+                    new_bal,
+                    f"Trừ ví cho dịch vụ Spa kèm lưu trú khách sạn (Phiếu {booking['code']})"
+                ))
+
+        # Cập nhật các vé Spa gắn kèm sang trạng thái done nếu chưa xong
+        if spa_tickets:
+            cursor.execute("""
+                UPDATE pet_service_tickets 
+                SET status = 'done' 
+                WHERE hotel_booking_id = ? AND status != 'done'
+            """, (booking_id,))
         
         # Cập nhật phiếu lưu trú thành completed
         cursor.execute("""
@@ -672,6 +728,8 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout):
             "booking_id": booking_id,
             "total_days": days,
             "total_amount": total_amount,
+            "spa_total": spa_total,
+            "spa_wallet_deducted": wallet_deduction,
             "message": "Check-out hoàn tất, phòng đã sẵn sàng đón bé mới"
         }
 

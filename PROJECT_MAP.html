@@ -548,7 +548,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-30)
-    const ROADMAP_VERSION = 'v3.0-2026-09-30';
+    const ROADMAP_VERSION = 'v3.1-2026-09-30';
     const DEFAULT_TASKS = [
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
@@ -594,7 +594,8 @@
       { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' },
       { id: 'ui-9', cat: 'UI', title: 'Server-side Injection Logo & Tên Ứng Dụng Màn Hình Đăng Nhập', done: true, note: 'Route GET / inject trực tiếp app_name và shop_logo vào HTML response, hiển thị 0ms tức thì không chớp giật FOUC' },
       { id: 'ui-10', cat: 'UI', title: 'Chuẩn Hóa 13 Tabs Sang Tailwind CSS & Vector Lucide SVG', done: true, note: 'Gỡ bỏ 100% Unicode emoji thô, đồng bộ phong cách thiết kế hiện đại, bảng biểu, thẻ KPI và form chuẩn Tailwind UI' },
-      { id: 'guide-1', cat: 'UI', title: 'Tab Hướng Dẫn Nghiệp Vụ (Docs & Wiki) với 7 phân hệ & sơ đồ SVG', done: true, note: 'Bổ sung tab Hướng Dẫn trên Cài Đặt, 7 phân hệ nghiệp vụ, sơ đồ Flowchart vector SVG 100% offline, SOP 4 bước và mẹo quầy' }
+      { id: 'guide-1', cat: 'UI', title: 'Tab Hướng Dẫn Nghiệp Vụ (Docs & Wiki) với 7 phân hệ & sơ đồ SVG', done: true, note: 'Bổ sung tab Hướng Dẫn trên Cài Đặt, 7 phân hệ nghiệp vụ, sơ đồ Flowchart vector SVG 100% offline, SOP 4 bước và mẹo quầy' },
+      { id: 'wallet-1', cat: 'Logic', title: 'Tách bạch Ví Spa khỏi tiền phòng Khách Sạn (POS & Hotel Checkout)', done: true, note: 'Ví Spa chỉ trừ cho dịch vụ Spa/Grooming, TUYỆT ĐỐI không cấn trừ tiền phòng lưu trú; backend + modal checkout + JS handlers đầy đủ' }
     ];
 
     let tasks = [];

@@ -133,13 +133,16 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         # Xử lý Ví Topup Spa (nếu khách chọn dùng ví hoặc có yêu cầu trừ ví)
         wallet_deduction = 0.0
         if req.customer_id and (req.use_spa_wallet or (req.spa_wallet_amount and req.spa_wallet_amount > 0)):
-            # Tính T_spa: Tổng tiền dịch vụ spa/grooming (type == 'service')
+            # Tính T_spa: Tổng tiền dịch vụ spa/grooming (type == 'service' và KHÔNG thuộc nhóm khách sạn / phòng lưu trú)
             t_spa = 0.0
+            hotel_keywords = ["hotel", "khách sạn", "khach san", "lưu trú", "luu tru", "phòng", "phong"]
             for item in req.items:
-                cur.execute("SELECT type FROM products WHERE id = ?", (item.product_id,))
+                cur.execute("SELECT type, category FROM products WHERE id = ?", (item.product_id,))
                 p_row = cur.fetchone()
                 if p_row and p_row["type"] == "service":
-                    t_spa += (item.quantity * item.price)
+                    cat = (p_row["category"] or "").lower()
+                    if not any(k in cat for k in hotel_keywords):
+                        t_spa += (item.quantity * item.price)
 
             cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (req.customer_id,))
             c_row = cur.fetchone()

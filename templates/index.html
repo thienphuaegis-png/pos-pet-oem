@@ -2908,25 +2908,58 @@
                             <span class="text-slate-500">Thời gian lưu trú:</span>
                             <span id="co-time-range" class="font-mono text-slate-700">26/09 ➔ 28/09 (2 ngày)</span>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Tiền buồng phòng:</span>
-                            <span id="co-room-amount" class="font-bold text-slate-800">0 đ</span>
+                        <!-- KHỐI 1: TIỀN PHÒNG LƯU TRÚ -->
+                        <div class="space-y-1.5 p-2.5 rounded-xl bg-slate-100/80 border border-slate-200">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-slate-700">1. Tiền buồng phòng:</span>
+                                <span id="co-room-amount" class="font-bold text-slate-800">0 đ</span>
+                            </div>
+                            <div id="co-deposit-row" class="flex justify-between text-emerald-700 font-medium">
+                                <span>- Đã trừ tiền cọc trước:</span>
+                                <span id="co-deposit-amount">- 0 đ</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1 border-t border-slate-200">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-slate-700 font-bold">Thực thu tiền phòng:</span>
+                                    <span class="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">🚫 Cấm trừ Ví Spa</span>
+                                </div>
+                                <span id="co-room-payable" class="font-mono font-bold text-slate-900">0 đ</span>
+                            </div>
                         </div>
-                        <div id="co-spa-section" class="border-t pt-1.5 space-y-1">
+
+                        <!-- KHỐI 2: DỊCH VỤ SPA GỘP THEO PHÒNG -->
+                        <div id="co-spa-section" class="p-2.5 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-1.5">
                             <div class="flex justify-between text-indigo-700 font-bold">
-                                <span>✂️ Dịch vụ Spa gộp theo phòng:</span>
+                                <span>2. Dịch vụ Spa gộp theo phòng:</span>
                                 <span id="co-spa-amount">0 đ</span>
                             </div>
                             <div id="co-spa-list" class="text-[11px] text-slate-600 pl-2 space-y-0.5 max-h-24 overflow-y-auto">
                                 <!-- Render danh sách dịch vụ Spa đã làm -->
                             </div>
+
+                            <!-- TUỲ CHỌN TRỪ VÍ SPA (CHỈ CHO DỊCH VỤ SPA) -->
+                            <div id="co-spa-wallet-wrapper" class="hidden pt-1.5 border-t border-indigo-200/60 space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center gap-1.5 font-bold text-purple-700 cursor-pointer">
+                                        <input type="checkbox" id="co-use-spa-wallet" onchange="window.hotelManager.onToggleCheckoutWallet(this)" class="rounded text-purple-600 focus:ring-purple-500">
+                                        <span>💆 Trừ Ví Spa (Số dư: <span id="co-wallet-balance">0</span> đ)</span>
+                                    </label>
+                                    <span id="co-wallet-max-note" class="text-[10px] text-purple-600 font-medium">Tối đa: 0 đ</span>
+                                </div>
+                                <div id="co-wallet-input-box" class="hidden flex items-center gap-2 pl-5">
+                                    <span class="text-[11px] text-slate-500">Số tiền trừ:</span>
+                                    <input type="number" id="co-spa-wallet-deduct-input" oninput="window.hotelManager.onWalletDeductInput(this)" class="w-32 px-2 py-1 text-right font-mono font-bold rounded border border-purple-300 text-xs text-purple-800" value="0">
+                                    <span class="text-[11px] text-slate-500">đ</span>
+                                </div>
+                            </div>
                         </div>
-                        <div id="co-deposit-row" class="flex justify-between text-emerald-700 font-medium border-t pt-1">
-                            <span>Đã trừ tiền cọc trước:</span>
-                            <span id="co-deposit-amount">- 0 đ</span>
-                        </div>
-                        <div class="flex justify-between pt-2 border-t text-sm font-bold bg-amber-50/50 p-2 rounded-lg">
-                            <span class="text-slate-800">TỔNG THANH TOÁN (GỘP):</span>
+
+                        <!-- KHỐI 3: TỔNG THANH TOÁN THỰC THU -->
+                        <div class="flex justify-between items-center pt-2 border-t text-sm font-bold bg-amber-50/70 p-2.5 rounded-xl border border-amber-200">
+                            <div>
+                                <span class="text-slate-800 block">TỔNG TIỀN MẶT / CHUYỂN KHOẢN:</span>
+                                <span class="text-[10px] text-slate-500 font-normal">Tiền phòng còn lại + (Tiền Spa - Trừ ví)</span>
+                            </div>
                             <span id="co-total-amount" class="font-mono font-black text-rose-700 text-base">0 đ</span>
                         </div>
                     </div>
@@ -6032,7 +6065,7 @@
                                 <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
                                     <span class="font-bold text-slate-800 text-sm block">2. Nguyên tắc an toàn dòng tiền</span>
                                     <p class="text-slate-600 leading-relaxed">
-                                        Ví Spa <strong>chỉ được dùng để thanh toán dịch vụ Spa / Khách sạn</strong>, không áp dụng cho hàng hóa bán lẻ (thức ăn, cát vệ sinh). Điều này chống thất thoát hàng hóa tồn kho và đảm bảo doanh thu bán lẻ là tiền thật.
+                                        Ví Spa <strong>chỉ được dùng để thanh toán dịch vụ Spa / Grooming</strong>. <span class="text-rose-600 font-bold">TUYỆT ĐỐI KHÔNG</span> áp dụng cho tiền phòng Khách Sạn (Pet Hotel) và hàng hóa bán lẻ (thức ăn, cát vệ sinh). Điều này bảo vệ doanh thu phòng lưu trú và chống thất thoát hàng tồn kho của cửa hàng.
                                     </p>
                                 </div>
                             </div>

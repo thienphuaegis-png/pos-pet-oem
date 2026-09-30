@@ -1045,6 +1045,7 @@
     // POPUP CHECK-OUT
     // ==========================================
     let currentCheckoutBookingId = null;
+    let currentCheckoutSummary = null;
 
     async function openHotelCheckoutModal(bookingId) {
         currentCheckoutBookingId = bookingId;
@@ -1072,11 +1073,22 @@
         if (depAmtEl) depAmtEl.innerText = '- 0 đ';
         if (totAmtEl) totAmtEl.innerText = (room.current_total_amount || 0).toLocaleString('vi-VN') + ' đ';
 
+        currentCheckoutSummary = null;
+        const walletWrap = document.getElementById('co-spa-wallet-wrapper');
+        const walletCheckbox = document.getElementById('co-use-spa-wallet');
+        const walletInputBox = document.getElementById('co-wallet-input-box');
+        const walletInput = document.getElementById('co-spa-wallet-deduct-input');
+        if (walletWrap) walletWrap.classList.add('hidden');
+        if (walletCheckbox) walletCheckbox.checked = false;
+        if (walletInputBox) walletInputBox.classList.add('hidden');
+        if (walletInput) walletInput.value = 0;
+
         // Gọi API checkout-summary để bóc tách tiền gộp chính xác
         try {
             const res = await fetch(`/api/hotel/checkout-summary/${bookingId}`);
             if (res.ok) {
                 const summary = await res.json();
+                currentCheckoutSummary = summary;
                 if (roomAmtEl) roomAmtEl.innerText = (summary.room_total || 0).toLocaleString('vi-VN') + ' đ';
                 if (spaAmtEl) spaAmtEl.innerText = (summary.spa_total || 0).toLocaleString('vi-VN') + ' đ';
                 if (depAmtEl) depAmtEl.innerText = `- ${(summary.deposit_amount || 0).toLocaleString('vi-VN')} đ`;
@@ -1094,6 +1106,16 @@
                         spaListEl.innerHTML = '<span class="text-slate-400 italic">Không có dịch vụ Spa kèm theo</span>';
                     }
                 }
+
+                // Ví Spa CHỈ hiển thị nếu có dịch vụ spa gộp và khách có số dư > 0
+                const maxDeduct = summary.max_spa_wallet_deduction || 0;
+                if (walletWrap && summary.spa_total > 0 && (summary.contact_spa_wallet || 0) > 0) {
+                    walletWrap.classList.remove('hidden');
+                    const balEl = document.getElementById('co-wallet-balance');
+                    const maxNoteEl = document.getElementById('co-wallet-max-note');
+                    if (balEl) balEl.innerText = (summary.contact_spa_wallet || 0).toLocaleString('vi-VN');
+                    if (maxNoteEl) maxNoteEl.innerText = `Tối đa: ${maxDeduct.toLocaleString('vi-VN')} đ`;
+                }
             }
         } catch (err) {
             console.error("Lỗi tải checkout summary:", err);
@@ -1105,17 +1127,47 @@
     function closeHotelCheckoutModal() {
         const modal = document.getElementById('modal-hotel-checkout');
         if (modal) modal.classList.add('hidden');
+        currentCheckoutSummary = null;
+    }
+
+    function onToggleCheckoutWallet(checkbox) {
+        const inputBox = document.getElementById('co-wallet-input-box');
+        const input = document.getElementById('co-spa-wallet-deduct-input');
+        if (!inputBox) return;
+        if (checkbox.checked) {
+            inputBox.classList.remove('hidden');
+            const maxDeduct = (currentCheckoutSummary && currentCheckoutSummary.max_spa_wallet_deduction) || 0;
+            if (input) input.value = maxDeduct;
+        } else {
+            inputBox.classList.add('hidden');
+            if (input) input.value = 0;
+        }
+    }
+
+    function onWalletDeductInput(input) {
+        const maxDeduct = (currentCheckoutSummary && currentCheckoutSummary.max_spa_wallet_deduction) || 0;
+        let val = parseFloat(input.value) || 0;
+        if (val < 0) val = 0;
+        if (val > maxDeduct) val = maxDeduct;
+        input.value = val;
     }
 
     async function submitHotelCheckout() {
         if (!currentCheckoutBookingId) return;
+
+        const walletCheckbox = document.getElementById('co-use-spa-wallet');
+        const walletInput = document.getElementById('co-spa-wallet-deduct-input');
+        const useSpaWallet = !!(walletCheckbox && walletCheckbox.checked);
+        const spaWalletAmount = useSpaWallet ? (parseFloat(walletInput && walletInput.value) || 0) : 0;
 
         try {
             const res = await fetch(`/api/hotel/checkout/${currentCheckoutBookingId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    payment_method: 'cash'
+                    payment_method: 'cash',
+                    use_spa_wallet: useSpaWallet,
+                    spa_wallet_amount: spaWalletAmount
                 })
             });
 
@@ -1570,6 +1622,8 @@
         printHotelIntakeTicketDirectly,
         openHotelCheckoutModal,
         closeHotelCheckoutModal,
+        onToggleCheckoutWallet,
+        onWalletDeductInput,
         submitHotelCheckout,
         renderGanttTimeline,
         changeGanttWeek,
