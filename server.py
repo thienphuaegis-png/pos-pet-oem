@@ -127,13 +127,38 @@ if not os.environ.get("VERCEL"):
     start_backup_scheduler()
 
 # Mount static files
+def find_resource_path(relative_path: str) -> str:
+    """Tìm đường dẫn tài nguyên (templates, static) tương thích cả khi chạy source Python lẫn khi đóng gói PyInstaller .exe"""
+    candidates = []
+    if getattr(sys, 'frozen', False):
+        if hasattr(sys, '_MEIPASS'):
+            candidates.append(os.path.join(sys._MEIPASS, relative_path))
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.append(os.path.join(exe_dir, relative_path))
+        candidates.append(os.path.join(exe_dir, "_internal", relative_path))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates.append(os.path.join(script_dir, relative_path))
+    candidates.append(os.path.join(os.getcwd(), relative_path))
+
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return candidates[0]
+
 def get_base_dir():
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
+        if hasattr(sys, '_MEIPASS') and os.path.exists(os.path.join(sys._MEIPASS, 'templates')):
+            return sys._MEIPASS
+        exe_dir = os.path.dirname(sys.executable)
+        if os.path.exists(os.path.join(exe_dir, 'templates')):
+            return exe_dir
+        if os.path.exists(os.path.join(exe_dir, '_internal', 'templates')):
+            return os.path.join(exe_dir, '_internal')
+        return exe_dir
     return os.path.dirname(os.path.abspath(__file__))
 
 base_dir = get_base_dir()
-static_dir = os.path.join(base_dir, "static")
+static_dir = find_resource_path("static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -163,10 +188,10 @@ def get_branding_settings():
     return _branding_cache
 
 def get_template_path():
-    return os.path.join(base_dir, "templates", "index.html")
+    return find_resource_path(os.path.join("templates", "index.html"))
 
 def get_pos_template_path():
-    return os.path.join(base_dir, "templates", "pos.html")
+    return find_resource_path(os.path.join("templates", "pos.html"))
 
 APP_VERSION = "3.0"  # đồng bộ với PROJECT_STATE.md
 

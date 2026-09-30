@@ -31,6 +31,9 @@ if not exist "dist\POS_Mastercare\data" mkdir "dist\POS_Mastercare\data"
 copy "data\pos.db" "dist\POS_Mastercare\data\pos.db" /Y
 copy "ngrok.exe" "dist\POS_Mastercare\ngrok.exe" /Y
 copy "logo Mastercare.png" "dist\POS_Mastercare\logo Mastercare.png" /Y
+copy "HUONG_DAN_SU_DUNG.txt" "dist\POS_Mastercare\HUONG_DAN_SU_DUNG.txt" /Y
+xcopy "templates" "dist\POS_Mastercare\templates\" /E /I /Y
+xcopy "static" "dist\POS_Mastercare\static\" /E /I /Y
 
 echo.
 echo ========================================================
