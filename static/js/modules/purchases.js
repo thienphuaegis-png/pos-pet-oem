@@ -1006,7 +1006,10 @@
 
             const note = document.getElementById('rec-note-input').value.trim();
 
-            if (!confirm(`Xác nhận nhận hàng cho phiếu [${code}]?\nTồn kho sẽ được cộng dồn và thẻ kho sẽ được tạo ngay lập tức.`)) return;
+            const confirmed = typeof window.customConfirm === 'function'
+                ? await window.customConfirm(`Xác nhận nhận hàng cho phiếu [${code}]?\n\n📦 Tồn kho sẽ được cộng dồn và thẻ kho sẽ được tạo ngay lập tức.`, 'Xác Nhận Nhập Hàng', { icon: '📦', okText: 'Nhận Hàng & Nhập Kho' })
+                : confirm(`Xác nhận nhận hàng cho phiếu [${code}]?\nTồn kho sẽ được cộng dồn và thẻ kho sẽ được tạo ngay lập tức.`);
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/purchases/${code}/receive`, {
@@ -1033,7 +1036,10 @@
         }
 
         async function deletePurchaseOrder(code) {
-            if (!confirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\nThao tác này sẽ hoàn lại công nợ NCC và hoàn kho (nếu phiếu đã nhận hàng)!`)) return;
+            const confirmed = typeof window.customConfirm === 'function'
+                ? await window.customConfirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\n\n⚠️ Thao tác này sẽ hoàn lại công nợ NCC và hoàn kho (nếu phiếu đã nhận hàng)!`, 'Hủy Phiếu Nhập Hàng', { type: 'danger', okText: 'Xác Nhận Hủy' })
+                : confirm(`Bạn có chắc chắn muốn HỦY phiếu nhập [${code}]?\nThao tác này sẽ hoàn lại công nợ NCC và hoàn kho (nếu phiếu đã nhận hàng)!`);
+            if (!confirmed) return;
             try {
                 const res = await fetch(`/api/purchases/${code}`, { method: 'DELETE' });
                 const data = await res.json();
