@@ -23,11 +23,23 @@ taskkill /F /IM ngrok.exe >nul 2>&1
 powershell -NoProfile -Command "Start-Sleep -Seconds 2"
 
 echo [3/6] Dang dong bo ma nguon moi nhat tu GitHub...
-where git >nul 2>&1
-if %errorlevel% equ 0 (
+set "GIT="
+for %%p in (
+    "%PROGRAMFILES%\Git\cmd\git.exe"
+    "%PROGRAMFILES(x86)%\Git\cmd\git.exe"
+    "%LOCALAPPDATA%\Programs\Git\cmd\git.exe"
+    "%~dp0git_tool\cmd\git.exe"
+) do (
+    if not defined GIT if exist "%%~p" set "GIT=%%~p"
+)
+if not defined GIT (
+    git --version >nul 2>&1 && set "GIT=git"
+)
+
+if defined GIT (
     if exist ".git" (
-        git fetch --all >nul 2>&1
-        git pull origin main || git pull github main || git pull
+        "%GIT%" fetch --all >nul 2>&1
+        "%GIT%" pull origin main || "%GIT%" pull github main || "%GIT%" pull
         echo        -^> Da lay ma nguon moi nhat ve may!
     )
 ) else (
