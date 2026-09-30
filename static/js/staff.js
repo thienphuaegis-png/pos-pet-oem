@@ -1,6 +1,6 @@
 // ── Quản lý Nhân Viên (Settings > Nhân Viên) ──
 
-const ROLE_LABEL = { owner: '👑 Chủ Shop', cashier: '🏷 Thu Ngân', accountant: '📒 Kế Toán', warehouse: '📦 Thủ Kho' };
+const ROLE_LABEL = { owner: 'Chủ Shop', cashier: 'Thu Ngân', accountant: 'Kế Toán', warehouse: 'Thủ Kho' };
 
 async function loadStaffList() {
   const tbody = document.getElementById('staff-table-body');
@@ -33,7 +33,7 @@ async function loadStaffList() {
 
 function openCreateStaffModal() {
   const titleEl = document.getElementById('modal-staff-title');
-  if (titleEl) titleEl.innerHTML = '<span>👤</span> <span>Thêm Nhân Viên</span>';
+  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Thêm Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = '';
   document.getElementById('staff-name').value = '';
   document.getElementById('staff-username').value = '';
@@ -52,7 +52,7 @@ function openCreateStaffModal() {
 
 function openEditStaffModal(id, name, role, phone, commission, isActive) {
   const titleEl = document.getElementById('modal-staff-title');
-  if (titleEl) titleEl.innerHTML = '<span>👤</span> <span>Sửa Nhân Viên</span>';
+  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Sửa Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = id;
   document.getElementById('staff-name').value = name;
   document.getElementById('staff-username').value = '';
@@ -146,24 +146,24 @@ async function resetStaffPassword(id) {
 // ── Bật/Tắt Module + Phân Quyền Chi Tiết ──
 
 const PERM_LABEL = {
-  "pos.sell": "🛒 Bán hàng POS",
-  "pos.edit_delete_order": "🧾 Sửa hóa đơn",
-  "cashbook.manage": "💰 Lập phiếu Sổ Quỹ",
-  "purchases.manage": "📥 Quản lý Nhập hàng",
-  "partners.manage": "🤝 Quản lý KH/NCC",
-  "price_lists.manage": "🏷️ Quản lý Bảng Giá",
-  "inventory.manage": "📦 Quản lý Kho",
-  "oem.manage": "🏭 Quản lý OEM",
-  "reports.view": "📊 Xem Báo Cáo",
-  "shifts.approve": "🕒 Duyệt Ca Làm Việc",
-  "shifts.bypass": "🔓 Bán hàng không cần mở ca",
-  "settings.access": "⚙️ Truy cập Cài Đặt"
+  "pos.sell": "Bán hàng POS",
+  "pos.edit_delete_order": "Sửa hóa đơn",
+  "cashbook.manage": "Lập phiếu Sổ Quỹ",
+  "purchases.manage": "Quản lý Nhập hàng",
+  "partners.manage": "Quản lý KH/NCC",
+  "price_lists.manage": "Quản lý Bảng Giá",
+  "inventory.manage": "Quản lý Kho",
+  "oem.manage": "Quản lý OEM",
+  "reports.view": "Xem Báo Cáo",
+  "shifts.approve": "Duyệt Ca Làm Việc",
+  "shifts.bypass": "Bán hàng không cần mở ca",
+  "settings.access": "Truy cập Cài Đặt"
 };
 const MODULE_LABEL = {
-  module_hotel: "🏨 Khách Sạn Thú Cưng",
-  module_pet_services: "🐾 Dịch Vụ & Thú Cưng",
-  module_price_lists: "🏷️ Bảng Giá Đại Lý",
-  module_oem: "🏭 Gia Công OEM"
+  module_hotel: "Khách Sạn Thú Cưng",
+  module_pet_services: "Dịch Vụ & Thú Cưng",
+  module_price_lists: "Bảng Giá Đại Lý",
+  module_oem: "Gia Công OEM"
 };
 
 async function loadPermissionsUI() {
@@ -268,11 +268,11 @@ async function renderActivityLog() {
     }
 
     const roleBadges = {
-      owner: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">👑 Chủ shop</span>',
-      admin: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">👑 Admin</span>',
-      cashier: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">🏷 Thu ngân</span>',
-      accountant: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">📒 Kế toán</span>',
-      warehouse: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">📦 Thủ kho</span>',
+      owner: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">Chủ shop</span>',
+      admin: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">Admin</span>',
+      cashier: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">Thu ngân</span>',
+      accountant: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">Kế toán</span>',
+      warehouse: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">Thủ kho</span>',
     };
 
     box.innerHTML = data.logs.map(l => `
@@ -300,7 +300,7 @@ async function renderLoginLog() {
       <tr class="border-b">
         <td class="py-1.5 pr-2">${r.username}</td>
         <td class="py-1.5 px-2 text-slate-500">${r.ip || ''}</td>
-        <td class="py-1.5 px-2">${r.success ? '<span class="text-emerald-600">✅ Thành công</span>' : '<span class="text-rose-600">❌ Sai mật khẩu</span>'}</td>
+        <td class="py-1.5 px-2">${r.success ? '<span class="text-emerald-600 font-semibold">Thành công</span>' : '<span class="text-rose-600 font-semibold">Sai mật khẩu</span>'}</td>
         <td class="py-1.5 px-2 text-slate-500">${r.created_at}</td>
       </tr>`).join('');
   } catch (e) { box.innerHTML = '<tr><td colspan="4" class="text-rose-500 py-2">Lỗi tải nhật ký</td></tr>'; }

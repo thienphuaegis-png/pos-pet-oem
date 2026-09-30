@@ -5689,42 +5689,49 @@
                         <div id="print-settings-col-left" class="lg:col-span-5 space-y-3">
                             
                             <!-- 1. Bộ Chọn Loại Mẫu In & Khổ Giấy -->
-                            <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-3 text-xs">
+                            <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 space-y-3 text-xs">
                                 <div class="flex items-center justify-between pb-2 border-b">
-                                    <h2 class="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                                        <span>🎨</span> Chọn Loại Phiếu & Khổ Giấy
+                                    <h2 class="text-xs font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                                        <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>
+                                        <span>Chọn Loại Phiếu & Khổ Giấy</span>
                                     </h2>
                                     <div class="flex items-center gap-1">
-                                        <button onclick="renameCurrentPreset()" title="Đổi tên mẫu in" class="px-2 py-1 border border-purple-200 text-purple-700 hover:bg-purple-50 rounded text-[11px] font-bold">✏️ Đổi tên</button>
-                                        <button onclick="deleteCurrentPreset()" title="Xóa mẫu in đang chọn" class="px-2 py-1 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded text-[11px] font-bold">🗑️</button>
+                                        <button onclick="renameCurrentPreset()" title="Đổi tên mẫu in" class="px-2 py-1 border border-purple-200 text-purple-700 hover:bg-purple-50 rounded-lg text-xs font-semibold flex items-center gap-1 transition">
+                                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                            <span>Đổi tên</span>
+                                        </button>
+                                        <button onclick="deleteCurrentPreset()" title="Xóa mẫu in đang chọn" class="p-1 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold transition">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                        </button>
                                     </div>
                                 </div>
 
                                 <div class="space-y-2">
                                     <div>
                                         <label class="block font-bold text-purple-900 mb-1">Mẫu In Nghiệp Vụ:</label>
-                                        <select id="canvas-preset-select" class="w-full border border-purple-300 p-2 rounded-lg bg-purple-50/50 font-bold text-purple-800 text-xs shadow-sm" onchange="switchPreset(this.value)">
+                                        <select id="canvas-preset-select" class="w-full border border-purple-300 p-2 rounded-lg bg-purple-50/50 font-bold text-purple-800 text-xs shadow-xs" onchange="switchPreset(this.value)">
                                         </select>
                                     </div>
 
                                     <div>
                                         <label class="block font-bold text-sky-900 mb-1">Khổ Giấy Máy In:</label>
-                                        <select id="canvas-paper-size" class="w-full border border-sky-300 p-2 rounded-lg bg-sky-50/50 font-bold text-sky-800 text-xs shadow-sm" onchange="changePaperSize(this.value)">
-                                            <option value="A4-portrait">📄 A4 Dọc (210 x 297 mm)</option>
-                                            <option value="A4-landscape">📄 A4 Ngang (297 x 210 mm)</option>
-                                            <option value="A5-portrait">📑 A5 Dọc (148 x 210 mm)</option>
-                                            <option value="A5-landscape">📑 A5 Ngang (210 x 148 mm)</option>
-                                            <option value="K80">🧾 Cuộn Nhiệt K80 (80mm)</option>
-                                            <option value="K58">🧾 Cuộn Nhiệt K58 (58mm)</option>
+                                        <select id="canvas-paper-size" class="w-full border border-sky-300 p-2 rounded-lg bg-sky-50/50 font-bold text-sky-800 text-xs shadow-xs" onchange="changePaperSize(this.value)">
+                                            <option value="A4-portrait">A4 Dọc (210 x 297 mm)</option>
+                                            <option value="A4-landscape">A4 Ngang (297 x 210 mm)</option>
+                                            <option value="A5-portrait">A5 Dọc (148 x 210 mm)</option>
+                                            <option value="A5-landscape">A5 Ngang (210 x 148 mm)</option>
+                                            <option value="K80">Cuộn Nhiệt K80 (80mm)</option>
+                                            <option value="K58">Cuộn Nhiệt K58 (58mm)</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <!-- THẺ CÔNG TẮC IN ĐẬM CHỐNG MỜ NHIỆT (TOGGLE SWITCH) -->
-                                <div class="p-3 bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl border border-amber-200 flex items-center justify-between shadow-sm">
+                                <div class="p-3 bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl border border-amber-200 flex items-center justify-between shadow-xs">
                                     <div>
                                         <div class="font-bold text-amber-900 text-xs flex items-center gap-1.5">
-                                            <span>🖨️</span> In Đậm Chống Mờ Nhiệt
+                                            <svg class="w-3.5 h-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                                            <span>In Đậm Chống Mờ Nhiệt</span>
                                         </div>
                                         <div class="text-[11px] text-amber-700/90 mt-0.5">
                                             Tăng nét cực đại (-webkit-text-stroke + font 900)
@@ -5739,23 +5746,27 @@
 
                                 <!-- Hàng nút lưu mẫu -->
                                 <div class="grid grid-cols-2 gap-2 pt-1 border-t">
-                                    <button onclick="saveCurrentPreset()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-2 rounded-lg shadow-sm text-xs flex items-center justify-center gap-1">
-                                        <span>💾</span> Lưu Mẫu Này
+                                    <button onclick="saveCurrentPreset()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2 px-2 rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        <span>Lưu Mẫu Này</span>
                                     </button>
-                                    <button onclick="saveNewPreset()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-2 rounded-lg shadow-sm text-xs flex items-center justify-center gap-1">
-                                        <span>➕</span> Lưu Thành Mẫu Mới
+                                    <button onclick="saveNewPreset()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 px-2 rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+                                        <span>Lưu Mẫu Mới</span>
                                     </button>
                                 </div>
                             </div>
 
                             <!-- 2. Danh Sách Thành Phần Mẫu In (Zone Checklist) -->
-                            <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 text-xs space-y-3">
+                            <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 text-xs space-y-3">
                                 <div class="flex items-center justify-between pb-2 border-b">
                                     <span class="font-bold text-slate-800 uppercase text-xs flex items-center gap-1.5">
-                                        <span>📋</span> Bật / Tắt Thành Phần Mẫu In
+                                        <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                        <span>Bật / Tắt Thành Phần Mẫu In</span>
                                     </span>
-                                    <button type="button" onclick="addCustomTextItem()" class="px-2 py-0.5 border border-purple-300 rounded hover:bg-purple-50 text-purple-700 font-bold text-[11px] flex items-center gap-1">
-                                        <span>✍️ + Ô Chữ</span>
+                                    <button type="button" onclick="addCustomTextItem()" class="px-2 py-0.5 border border-purple-300 rounded-lg hover:bg-purple-50 text-purple-700 font-semibold text-xs flex items-center gap-1 transition">
+                                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+                                        <span>+ Ô Chữ</span>
                                     </button>
                                 </div>
 
@@ -5769,27 +5780,27 @@
                                         <div class="grid grid-cols-2 gap-1.5">
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                                 <input type="checkbox" id="chk-logo" onchange="toggleCanvasItem('logo', this.checked)" class="rounded text-sky-600">
-                                                <span class="truncate">🖼️ Logo Shop</span>
+                                                <span class="truncate">Logo Shop</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded font-semibold text-slate-800">
                                                 <input type="checkbox" id="chk-header" onchange="toggleCanvasItem('header', this.checked)" class="rounded text-sky-600">
-                                                <span class="truncate">🏪 Tên & Đ/C Shop</span>
+                                                <span class="truncate">Tên & Đ/C Shop</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded font-semibold text-slate-800">
                                                 <input type="checkbox" id="chk-title" onchange="toggleCanvasItem('title', this.checked)" class="rounded text-sky-600">
-                                                <span class="truncate">🏷️ Tiêu Đề Phiếu</span>
+                                                <span class="truncate">Tiêu Đề Phiếu</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded">
                                                 <input type="checkbox" id="chk-info" onchange="toggleCanvasItem('info', this.checked)" class="rounded text-sky-600">
-                                                <span class="truncate">ℹ️ Số HĐ & Ngày giờ</span>
+                                                <span class="truncate">Số HĐ & Ngày giờ</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-sky-100/50 p-1 rounded col-span-2">
                                                 <input type="checkbox" id="chk-customer" onchange="toggleCanvasItem('customer', this.checked)" class="rounded text-sky-600">
-                                                <span class="truncate">👤 Khách hàng (Tên, SĐT, Đ/C)</span>
+                                                <span class="truncate">Khách hàng (Tên, SĐT, Đ/C)</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-purple-100/60 p-1 rounded bg-purple-50 border border-purple-200 col-span-2 text-purple-900 font-semibold">
                                                 <input type="checkbox" id="chk-pet_info" onchange="toggleCanvasItem('pet_info', this.checked)" class="rounded text-purple-600">
-                                                <span class="truncate">🐾 Thông tin Thú Cưng (Spa)</span>
+                                                <span class="truncate">Thông tin Thú Cưng (Spa)</span>
                                             </label>
                                         </div>
                                     </div>
@@ -5801,26 +5812,26 @@
                                             <span class="text-[10px] text-indigo-600 font-normal">Chi tiết</span>
                                         </div>
                                         <div class="space-y-1">
-                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1 rounded bg-indigo-100/30 border border-indigo-200">
+                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1.5 rounded-lg bg-indigo-100/30 border border-indigo-200 transition">
                                                 <input type="radio" name="table_mode" id="chk-table_b2b" onchange="toggleTableMode('table_b2b')" class="text-indigo-600">
-                                                <span class="font-bold text-indigo-950 text-xs">📊 Bảng 9 Cột B2B/Đại Lý (A4)</span>
+                                                <span class="font-bold text-indigo-950 text-xs">Bảng 9 Cột B2B/Đại Lý (A4)</span>
                                             </label>
-                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1 rounded border border-transparent">
+                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1.5 rounded-lg border border-transparent transition">
                                                 <input type="radio" name="table_mode" id="chk-table" onchange="toggleTableMode('table')" class="text-indigo-600">
-                                                <span class="text-gray-700 text-xs font-semibold">🧾 Bảng Tiêu Chuẩn (Bán lẻ / Spa / K80)</span>
+                                                <span class="text-slate-700 text-xs font-semibold">Bảng Tiêu Chuẩn (Bán lẻ / Spa / K80)</span>
                                             </label>
-                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1 rounded bg-cyan-50 border border-cyan-200">
+                                            <label class="flex items-center gap-2 cursor-pointer hover:bg-indigo-100/60 p-1.5 rounded-lg bg-cyan-50 border border-cyan-200 transition">
                                                 <input type="radio" name="table_mode" id="chk-table_audit" onchange="toggleTableMode('table_audit')" class="text-indigo-600">
-                                                <span class="font-bold text-cyan-950 text-xs">📦 Bảng 7 Cột Kiểm Kê Kho</span>
+                                                <span class="font-bold text-cyan-950 text-xs">Bảng 7 Cột Kiểm Kê Kho</span>
                                             </label>
                                             <div class="pt-1.5 border-t border-indigo-200 space-y-1">
                                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-amber-100/50 p-1 rounded bg-amber-50 border border-amber-200 font-semibold text-amber-900">
                                                     <input type="checkbox" id="chk-cashbook_amount" onchange="toggleCanvasItem('cashbook_amount', this.checked)" class="rounded text-amber-600">
-                                                    <span class="truncate">💵 Số tiền thu/chi lớn (Sổ quỹ)</span>
+                                                    <span class="truncate">Số tiền thu/chi lớn (Sổ quỹ)</span>
                                                 </label>
                                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-amber-100/50 p-1 rounded bg-amber-50 border border-amber-200 text-amber-900">
                                                     <input type="checkbox" id="chk-cashbook_reason" onchange="toggleCanvasItem('cashbook_reason', this.checked)" class="rounded text-amber-600">
-                                                    <span class="truncate">📝 Diễn giải / Lý do thu chi</span>
+                                                    <span class="truncate">Diễn giải / Lý do thu chi</span>
                                                 </label>
                                             </div>
                                         </div>
@@ -5835,32 +5846,32 @@
                                         <div class="space-y-1">
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/60 p-1 rounded bg-emerald-100/40 border border-emerald-200 font-bold text-emerald-900">
                                                 <input type="checkbox" id="chk-b2b_footer_boxes" onchange="toggleCanvasItem('b2b_footer_boxes', this.checked)" class="rounded text-emerald-600">
-                                                <span class="truncate">🏦 3 Ô Chân Trang (Bank - QR - Tổng)</span>
+                                                <span class="truncate">3 Ô Chân Trang (Bank - QR - Tổng)</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/60 p-1 rounded bg-emerald-100/40 border border-emerald-200 font-bold text-emerald-900">
                                                 <input type="checkbox" id="chk-signatures_3col" onchange="toggleCanvasItem('signatures_3col', this.checked)" class="rounded text-emerald-600">
-                                                <span class="truncate">✍️ 3 Cột Chữ Ký B2B</span>
+                                                <span class="truncate">3 Cột Chữ Ký B2B</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-amber-100/60 p-1 rounded bg-amber-50 border border-amber-200 font-bold text-amber-900">
                                                 <input type="checkbox" id="chk-signatures_cashbook" onchange="toggleCanvasItem('signatures_cashbook', this.checked)" class="rounded text-amber-600">
-                                                <span class="truncate">✍️ 2 Chữ Ký Quỹ</span>
+                                                <span class="truncate">2 Chữ Ký Quỹ</span>
                                             </label>
                                             <label class="flex items-center gap-1.5 cursor-pointer hover:bg-purple-100/60 p-1 rounded bg-purple-50 border border-purple-200 font-bold text-purple-900">
                                                 <input type="checkbox" id="chk-return_time" onchange="toggleCanvasItem('return_time', this.checked)" class="rounded text-purple-600">
-                                                <span class="truncate">⏰ Giờ hẹn trả thú cưng</span>
+                                                <span class="truncate">Giờ hẹn trả thú cưng</span>
                                             </label>
                                             <div class="grid grid-cols-2 gap-1 pt-1 border-t border-emerald-200">
                                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                                     <input type="checkbox" id="chk-total" onchange="toggleCanvasItem('total', this.checked)" class="rounded text-emerald-600">
-                                                    <span class="truncate">💵 Tổng tiền</span>
+                                                    <span class="truncate">Tổng tiền</span>
                                                 </label>
                                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded">
                                                     <input type="checkbox" id="chk-qr" onchange="toggleCanvasItem('qr', this.checked)" class="rounded text-emerald-600">
-                                                    <span class="truncate">📱 VietQR</span>
+                                                    <span class="truncate">VietQR</span>
                                                 </label>
                                                 <label class="flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100/50 p-1 rounded col-span-2">
                                                     <input type="checkbox" id="chk-footer" onchange="toggleCanvasItem('footer', this.checked)" class="rounded text-emerald-600">
-                                                    <span class="truncate">💬 Lời cảm ơn & Hotline</span>
+                                                    <span class="truncate">Lời cảm ơn & Hotline</span>
                                                 </label>
                                             </div>
                                         </div>
@@ -5869,11 +5880,13 @@
 
                                 <!-- Cụm Nút Hành Động To Nổi Bật -->
                                 <div class="pt-2 border-t flex gap-2">
-                                    <button onclick="printTestTemplate()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg shadow text-xs flex items-center justify-center gap-1.5">
-                                        <span>🖨️</span> In Thử Mẫu Này
+                                    <button onclick="printTestTemplate()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-3 rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                                        <span>In Thử Mẫu Này</span>
                                     </button>
-                                    <button onclick="resetDefaultTemplate(paperSize)" class="px-3 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold" title="Khôi phục mẫu mặc định ban đầu">
-                                        ↺ Reset
+                                    <button onclick="resetDefaultTemplate(paperSize)" class="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition" title="Khôi phục mẫu mặc định ban đầu">
+                                        <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                        <span>Reset</span>
                                     </button>
                                 </div>
                             </div>
@@ -5886,16 +5899,16 @@
                                 <!-- Toolbar phụ: Thu phóng canvas -->
                                 <div class="w-full flex items-center justify-between pb-2 mb-2 border-b border-slate-300 text-xs px-1">
                                     <span class="font-bold text-slate-700 flex items-center gap-1.5">
-                                        <span class="text-sm">👁️</span>
+                                        <svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                                         <span class="text-slate-900 font-bold">Khung Xem Trước Trực Quan</span>
                                         <span id="canvas-dim-badge" class="bg-white px-2 py-0.5 rounded text-[10px] text-slate-600 border border-slate-300 font-mono">297 x 210 mm</span>
                                     </span>
-                                    <div class="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-300 shadow-sm">
+                                    <div class="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-300 shadow-xs">
                                         <span class="text-[11px] font-semibold text-slate-600">Thu phóng:</span>
                                         <button onclick="setCanvasZoom(-0.1)" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-100 font-bold text-slate-700">-</button>
                                         <span id="canvas-zoom-text" class="w-12 text-center font-bold font-mono text-sky-700">100%</span>
                                         <button onclick="setCanvasZoom(0.1)" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-100 font-bold text-slate-700">+</button>
-                                        <button onclick="setCanvasZoom('fit')" class="ml-1 text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-bold border">Vừa khung</button>
+                                        <button onclick="setCanvasZoom('fit')" class="ml-1 text-[10px] bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-semibold border border-slate-200">Vừa khung</button>
                                     </div>
                                 </div>
 
@@ -5910,9 +5923,12 @@
                             </div>
 
                             <!-- Bảng Thuộc Tính Khối Được Chọn (Nằm gọn dưới canvas khi cần chỉnh sâu) -->
-                            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-xs">
+                            <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 text-xs">
                                 <h3 class="font-bold border-b pb-1.5 text-slate-800 uppercase flex items-center justify-between">
-                                    <span>⚙️ Thuộc Tính Khối Đang Chọn</span>
+                                    <span class="flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="21" y2="21"/><line x1="4" x2="20" y1="14" y2="14"/><line x1="4" x2="20" y1="7" y2="7"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="14" r="2"/><circle cx="12" cy="21" r="2"/></svg>
+                                        <span>Thuộc Tính Khối Đang Chọn</span>
+                                    </span>
                                     <span class="text-[10px] text-gray-400 font-normal">Click vào 1 khối trên tờ giấy để chỉnh font, viền, căn lề</span>
                                 </h3>
                                 <div id="element-props-panel" class="text-gray-400 italic py-2">
@@ -5925,108 +5941,135 @@
                 </div>
 
                 <!-- SUB 2: THÔNG TIN DOANH NGHIEP -->
-                <!-- TAB: THONG TIN DOANH NGHIEP -->
-            <div id="settings-sub-company" class="hidden space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
-                    <button onclick="saveCompanySettings()" class="bg-sky-600 text-white font-bold px-4 py-2 rounded shadow">💾 Lưu Thông Tin Doanh Nghiệp</button>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-6">
-                    <!-- Co ban -->
-                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
-                        <h3 class="font-bold border-b pb-2 text-slate-700">Thông Tin Chung Cửa Hàng</h3>
-                        <div>
-                            <label class="block text-xs font-bold text-sky-700 mb-1">⚡ Tên Ứng Dụng (Hiển thị Sidebar & Tiêu Đề Tab):</label>
-                            <input type="text" id="comp-app-name" placeholder="VD: ⚡ POS Offline hoặc Tên Shop..." class="border border-sky-300 p-2 rounded w-full bg-sky-50 font-bold text-sky-900">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Tên Cửa Hàng / Công Ty (Trên Hóa Đơn):</label>
-                            <input type="text" id="comp-name" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Địa Chỉ:</label>
-                            <input type="text" id="comp-address" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Hotline / Số Điện Thoại:</label>
-                            <input type="text" id="comp-phone" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
-                            <input type="text" id="comp-footer" class="border p-2 rounded w-full">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Logo Cửa Hàng (Ảnh):</label>
-                            <input type="file" id="comp-logo-input" accept="image/*" class="border p-1 rounded w-full text-xs" onchange="previewUploadImage(this, 'comp-logo-preview')">
-                            <div class="mt-2 text-center">
-                                <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded hidden">
+                <div id="settings-sub-company" class="hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-9 h-9 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><line x1="10" x2="14" y1="6" y2="6"/><line x1="10" x2="14" y1="10" y2="10"/><line x1="10" x2="14" y1="14" y2="14"/></svg>
+                            </span>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
+                                <p class="text-xs text-slate-500">Cấu hình tên cửa hàng, logo, địa chỉ và tài khoản thanh toán QR trên hóa đơn</p>
                             </div>
                         </div>
+                        <button onclick="saveCompanySettings()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            <span>Lưu Thông Tin Doanh Nghiệp</span>
+                        </button>
                     </div>
-
-                    <!-- Ngan hang & QR -->
-                    <div class="bg-white p-5 rounded-lg shadow space-y-4">
-                        <h3 class="font-bold border-b pb-2 text-slate-700">Cấu Hình Tài Khoản & QR Thanh Toán</h3>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">Phương Thức QR Code:</label>
-                            <select id="comp-qr-mode" class="border p-2 rounded w-full font-medium" onchange="toggleQRModeUI()">
-                                <option value="vietqr">⚡ VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
-                                <option value="static">🖼️ Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
-                            </select>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Co ban -->
+                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                            <h3 class="font-bold border-b pb-2 text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                                <span>Thông Tin Chung Cửa Hàng</span>
+                            </h3>
+                            <div>
+                                <label class="block text-xs font-bold text-sky-700 mb-1">Tên Ứng Dụng (Hiển thị Sidebar & Tiêu Đề Tab):</label>
+                                <input type="text" id="comp-app-name" placeholder="VD: POS Offline hoặc Tên Shop..." class="border border-sky-300 p-2 rounded-lg w-full bg-sky-50/50 font-bold text-sky-900 text-xs shadow-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Tên Cửa Hàng / Công Ty (Trên Hóa Đơn):</label>
+                                <input type="text" id="comp-name" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Địa Chỉ:</label>
+                                <input type="text" id="comp-address" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Hotline / Số Điện Thoại:</label>
+                                <input type="text" id="comp-phone" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
+                                <input type="text" id="comp-footer" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Logo Cửa Hàng (Ảnh):</label>
+                                <input type="file" id="comp-logo-input" accept="image/*" class="border border-slate-200 p-1.5 rounded-lg w-full text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" onchange="previewUploadImage(this, 'comp-logo-preview')">
+                                <div class="mt-2 text-center">
+                                    <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded-lg hidden">
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Panel VietQR Dong -->
-                        <div id="panel-vietqr" class="space-y-3 p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                        <!-- Ngan hang & QR -->
+                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                            <h3 class="font-bold border-b pb-2 text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
+                                <span>Cấu Hình Tài Khoản & QR Thanh Toán</span>
+                            </h3>
                             <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Ngân Hàng (Mã BIN):</label>
-                                <select id="comp-bank-code" class="border p-2 rounded w-full bg-white">
-                                    <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
-                                    <option value="VCB">Vietcombank (Ngoại thương)</option>
-                                    <option value="TCB">Techcombank (Kỹ thương)</option>
-                                    <option value="ICB">VietinBank (Công thương)</option>
-                                    <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
-                                    <option value="ACB">ACB (Á Châu)</option>
-                                    <option value="TPB">TPBank (Tiên Phong)</option>
-                                    <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
-                                    <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
-                                    <option value="VIB">VIB (Quốc Tế)</option>
-                                    <option value="MSB">MSB (Hàng Hải)</option>
-                                    <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
-                                    <option value="LPB">LPBank (Lộc Phát)</option>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Phương Thức QR Code:</label>
+                                <select id="comp-qr-mode" class="border border-slate-200 p-2 rounded-lg w-full font-semibold text-xs bg-slate-50 shadow-xs focus:outline-none focus:border-sky-500" onchange="toggleQRModeUI()">
+                                    <option value="vietqr">VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
+                                    <option value="static">Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Số Tài Khoản:</label>
-                                <input type="text" id="comp-bank-account" class="border p-2 rounded w-full bg-white" placeholder="VD: 0901234567">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-blue-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
-                                <input type="text" id="comp-bank-owner" class="border p-2 rounded w-full bg-white uppercase" placeholder="VD: NGUYEN VAN A">
-                            </div>
-                        </div>
 
-                        <!-- Panel QR Tinh -->
-                        <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50 rounded border border-amber-200 text-sm">
-                            <label class="block text-xs font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
-                            <input type="file" id="comp-qr-input" accept="image/*" class="border p-1 rounded w-full text-xs bg-white" onchange="previewUploadImage(this, 'comp-qr-preview')">
-                            <div class="mt-2 text-center">
-                                <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded hidden">
+                            <!-- Panel VietQR Dong -->
+                            <div id="panel-vietqr" class="space-y-3 p-3 bg-sky-50/60 rounded-xl border border-sky-200 text-xs">
+                                <div>
+                                    <label class="block font-bold text-sky-900 mb-1">Ngân Hàng (Mã BIN):</label>
+                                    <select id="comp-bank-code" class="border border-sky-200 p-2 rounded-lg w-full bg-white font-medium shadow-xs">
+                                        <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
+                                        <option value="VCB">Vietcombank (Ngoại thương)</option>
+                                        <option value="TCB">Techcombank (Kỹ thương)</option>
+                                        <option value="ICB">VietinBank (Công thương)</option>
+                                        <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
+                                        <option value="ACB">ACB (Á Châu)</option>
+                                        <option value="TPB">TPBank (Tiên Phong)</option>
+                                        <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
+                                        <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
+                                        <option value="VIB">VIB (Quốc Tế)</option>
+                                        <option value="MSB">MSB (Hàng Hải)</option>
+                                        <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
+                                        <option value="LPB">LPBank (Lộc Phát)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-sky-900 mb-1">Số Tài Khoản:</label>
+                                    <input type="text" id="comp-bank-account" class="border border-sky-200 p-2 rounded-lg w-full bg-white shadow-xs" placeholder="VD: 0901234567">
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-sky-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
+                                    <input type="text" id="comp-bank-owner" class="border border-sky-200 p-2 rounded-lg w-full bg-white uppercase shadow-xs font-semibold" placeholder="VD: NGUYEN VAN A">
+                                </div>
+                            </div>
+
+                            <!-- Panel QR Tinh -->
+                            <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs">
+                                <label class="block font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
+                                <input type="file" id="comp-qr-input" accept="image/*" class="border border-amber-200 p-1.5 rounded-lg w-full bg-white shadow-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800" onchange="previewUploadImage(this, 'comp-qr-preview')">
+                                <div class="mt-2 text-center">
+                                    <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded-lg hidden">
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- SUB 3: QUẢN LÝ & XÓA DỮ LIỆU -->
+            <!-- SUB 3: NHÂN VIÊN & PHÂN QUYỀN -->
             <div id="settings-sub-staff" class="hidden space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-lg text-slate-800">👤 Quản Lý Nhân Viên</h3>
-                    <button onclick="openCreateStaffModal()" class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow">+ Thêm Nhân Viên</button>
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Quản Lý Nhân Viên</h2>
+                            <p class="text-xs text-slate-500">Danh sách nhân sự, phân vai trò, tài khoản đăng nhập và tỷ lệ hoa hồng</p>
+                        </div>
+                    </div>
+                    <button onclick="openCreateStaffModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                        <span>Thêm Nhân Viên</span>
+                    </button>
                 </div>
-                <div class="bg-white rounded-lg shadow-sm border overflow-x-auto">
+                <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
                     <table class="w-full text-xs">
-                        <thead class="bg-slate-100 text-slate-600 uppercase">
+                        <thead class="bg-slate-50/80 text-slate-600 uppercase font-bold border-b">
                             <tr>
                                 <th class="p-2.5 text-left">Tên</th>
                                 <th class="p-2.5 text-left">Username</th>
@@ -6067,7 +6110,12 @@
                         <table class="w-full text-xs">
                             <thead><tr class="border-b text-left text-slate-500 font-bold">
                                 <th class="py-2.5 pr-2">Quyền Hạn</th>
-                                <th class="py-2.5 px-3 text-center bg-purple-50 text-purple-700 rounded-t-lg">👑 Admin (Toàn quyền)</th>
+                                <th class="py-2.5 px-3 text-center bg-purple-50 text-purple-700 rounded-t-lg">
+                                    <div class="inline-flex items-center justify-center gap-1">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>
+                                        <span>Admin (Toàn quyền)</span>
+                                    </div>
+                                </th>
                                 <th class="py-2.5 px-3 text-center">Thu Ngân</th>
                                 <th class="py-2.5 px-3 text-center">Kế Toán</th>
                                 <th class="py-2.5 px-3 text-center">Thủ Kho</th>
@@ -6179,67 +6227,105 @@
                 </div>
             </div>
 
+            <!-- SUB 5: QUẢN LÝ & XÓA DỮ LIỆU -->
             <div id="settings-sub-reset-data" class="hidden space-y-4">
-                <div class="bg-white p-5 rounded-lg shadow-sm border space-y-4">
-                    <div class="border-b pb-3">
-                        <h2 class="text-lg font-bold text-rose-700 flex items-center gap-2">
-                            <span>⚠️ Quản Lý & Làm Sạch Dữ Liệu Hệ Thống</span>
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-1">
-                            Cho phép dọn dẹp các giao dịch thử nghiệm hoặc khởi tạo lại cơ sở dữ liệu. Hệ thống sẽ <strong>tự động tạo bản sao lưu snapshot (.db)</strong> vào thư mục <code class="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-mono">data/backups/</code> trước khi xóa để bảo vệ an toàn dữ liệu.
-                        </p>
+                <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                    <div class="flex items-center gap-2.5 border-b pb-3">
+                        <span class="w-9 h-9 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Quản Lý & Làm Sạch Dữ Liệu Hệ Thống</h2>
+                            <p class="text-xs text-slate-500">Dọn dẹp các giao dịch thử nghiệm hoặc khởi tạo lại hệ thống với snapshot sao lưu tự động</p>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                         <!-- Nút 1: Chỉ xóa giao dịch & KH -->
-                        <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-amber-300 transition-colors">
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">🧾</span>
+                        <div class="border border-amber-200 bg-amber-50/40 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-xs hover:border-amber-300 transition">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                    </span>
                                     <div>
-                                        <h3 class="font-black text-slate-800 text-sm">1. Xóa Dữ Liệu Giao Dịch & Khách Hàng</h3>
-                                        <span class="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">Khuyên dùng sau khi test xong</span>
+                                        <h3 class="font-bold text-slate-900 text-xs">1. Xóa Dữ Liệu Giao Dịch & Khách Hàng</h3>
+                                        <span class="text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200/60">Khuyên dùng sau khi test xong</span>
                                     </div>
                                 </div>
                                 <p class="text-xs text-slate-600 leading-relaxed">
                                     Làm sạch hệ thống để bắt đầu kinh doanh thực tế mà <strong>không phải nhập lại hàng hóa</strong>.
                                 </p>
-                                <ul class="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-lg border border-amber-200">
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hóa đơn bán lẻ</strong> & lịch sử đơn hàng.</li>
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Phiếu dịch vụ & Hồ sơ thú cưng</strong>.</li>
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Danh bạ Khách hàng</strong> (contacts KH).</li>
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Thu / Chi Sổ quỹ</strong> & phiếu nhập hàng, OEM.</li>
-                                    <li class="text-rose-600">❌ Reset toàn bộ số lượng tồn kho về 0.</li>
-                                    <li class="text-emerald-700 font-bold">✅ GIỮ LẠI: Danh mục Hàng hóa, Nguyên liệu, Bảng giá, NCC, Công thức BOM & Cài đặt cửa hàng.</li>
+                                <ul class="text-xs text-slate-700 space-y-1.5 bg-white p-3 rounded-lg border border-amber-200/80">
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Hóa đơn bán lẻ</strong> & lịch sử đơn hàng.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Phiếu dịch vụ & Hồ sơ thú cưng</strong>.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Danh bạ Khách hàng</strong> (contacts KH).</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Thu / Chi Sổ quỹ</strong> & phiếu nhập hàng, OEM.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Reset toàn bộ số lượng tồn kho về 0.</span>
+                                    </li>
+                                    <li class="text-emerald-700 font-semibold flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        <span>GIỮ LẠI: Hàng hóa, Nguyên liệu, Bảng giá, NCC, BOM & Cài đặt.</span>
+                                    </li>
                                 </ul>
                             </div>
-                            <button type="button" onclick="openResetDataModal('transactions_and_customers')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow text-xs flex items-center justify-center gap-2">
-                                <span>🧹 Xóa Hóa Đơn, Khách Hàng & Sổ Quỹ</span>
+                            <button type="button" onclick="openResetDataModal('transactions_and_customers')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                <span>Xóa Hóa Đơn, Khách Hàng & Sổ Quỹ</span>
                             </button>
                         </div>
 
                         <!-- Nút 2: Xóa sạch toàn bộ (Factory Reset) -->
-                        <div class="border-2 border-rose-300 bg-rose-50/50 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-rose-400 transition-colors">
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl">💣</span>
+                        <div class="border border-rose-200 bg-rose-50/40 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-xs hover:border-rose-300 transition">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-9 h-9 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="m4.93 4.93 14.14 14.14"/><path d="M2 12h20"/><path d="m19.07 4.93-14.14 14.14"/></svg>
+                                    </span>
                                     <div>
-                                        <h3 class="font-black text-rose-900 text-sm">2. Khôi Phục Cài Đặt Gốc (Factory Reset)</h3>
-                                        <span class="text-[11px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">Nguy hiểm - Xóa 100% dữ liệu</span>
+                                        <h3 class="font-bold text-rose-950 text-xs">2. Khôi Phục Cài Đặt Gốc (Factory Reset)</h3>
+                                        <span class="text-[10px] font-semibold text-rose-800 bg-rose-100/80 px-2 py-0.5 rounded-md border border-rose-200/60">Nguy hiểm - Xóa 100% dữ liệu</span>
                                     </div>
                                 </div>
                                 <p class="text-xs text-slate-600 leading-relaxed">
                                     Đưa hệ thống về trạng thái ban đầu như khi mới cài đặt phần mềm.
                                 </p>
-                                <ul class="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-lg border border-rose-200">
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hàng hóa, Nguyên liệu & Kho hàng</strong>.</li>
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Khách hàng, Nhà cung cấp & Đối tác OEM</strong>.</li>
-                                    <li class="text-rose-600">❌ Xóa toàn bộ <strong>Hóa đơn, Bảng giá, Sổ quỹ & Lịch sử kho</strong>.</li>
-                                    <li class="text-slate-600">✅ Chỉ giữ lại: Tài khoản quản trị Admin & Mẫu in hóa đơn.</li>
+                                <ul class="text-xs text-slate-700 space-y-1.5 bg-white p-3 rounded-lg border border-rose-200/80">
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Hàng hóa, Nguyên liệu & Kho hàng</strong>.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Khách hàng, Nhà cung cấp & Đối tác OEM</strong>.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Hóa đơn, Bảng giá, Sổ quỹ & Lịch sử kho</strong>.</span>
+                                    </li>
+                                    <li class="text-slate-700 font-semibold flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+                                        <span>Chỉ giữ lại: Tài khoản quản trị Admin & Mẫu in hóa đơn.</span>
+                                    </li>
                                 </ul>
                             </div>
-                            <button type="button" onclick="openResetDataModal('factory_reset')" class="w-full py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-lg shadow text-xs flex items-center justify-center gap-2">
-                                <span>⚠️ Xóa Sạch Toàn Bộ Dữ Liệu (Reset Gốc)</span>
+                            <button type="button" onclick="openResetDataModal('factory_reset')" class="w-full py-2.5 bg-rose-700 hover:bg-rose-600 text-white font-semibold rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                                <span>Xóa Sạch Toàn Bộ Dữ Liệu (Reset Gốc)</span>
                             </button>
                         </div>
                     </div>
@@ -6255,7 +6341,8 @@
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
             <div class="flex items-center justify-between border-b pb-3">
                 <h3 class="font-bold text-base text-slate-800 flex items-center gap-2" id="modal-staff-title">
-                    <span>👤</span> <span>Thêm Nhân Viên</span>
+                    <svg class="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    <span>Thêm Nhân Viên</span>
                 </h3>
                 <button type="button" onclick="closeStaffModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition">✕</button>
             </div>
@@ -6276,10 +6363,10 @@
                 <div>
                     <label class="text-xs font-bold text-slate-700">Vai Trò (*)</label>
                     <select id="staff-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
-                        <option value="cashier">🏷️ Thu Ngân (Bán Hàng POS)</option>
-                        <option value="accountant">📒 Kế Toán (Sổ Quỹ, Báo Cáo)</option>
-                        <option value="warehouse">📦 Thủ Kho (Kho Hàng, Nhập Hàng)</option>
-                        <option value="owner">👑 Chủ Shop (Toàn Quyền)</option>
+                        <option value="cashier">Thu Ngân (Bán Hàng POS)</option>
+                        <option value="accountant">Kế Toán (Sổ Quỹ, Báo Cáo)</option>
+                        <option value="warehouse">Thủ Kho (Kho Hàng, Nhập Hàng)</option>
+                        <option value="owner">Chủ Shop (Toàn Quyền)</option>
                     </select>
                 </div>
                 <div>
@@ -6292,8 +6379,11 @@
                 </div>
             </div>
             <div class="flex gap-2 pt-3 border-t">
-                <button type="button" onclick="closeStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-bold transition">Hủy</button>
-                <button type="button" onclick="submitStaffForm()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-xs font-bold shadow-md shadow-purple-200 transition">💾 Lưu Nhân Viên</button>
+                <button type="button" onclick="closeStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-semibold transition">Hủy</button>
+                <button type="button" onclick="submitStaffForm()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    <span>Lưu Nhân Viên</span>
+                </button>
             </div>
         </div>
     </div>
@@ -6303,7 +6393,8 @@
         <div class="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl border-2 border-rose-500">
             <div class="flex justify-between items-center border-b pb-3 text-rose-600">
                 <h3 class="text-base font-black flex items-center gap-2">
-                    <span>🚨 CẢNH BÁO: XÁC NHẬN XÓA DỮ LIỆU</span>
+                    <svg class="w-5 h-5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                    <span>CẢNH BÁO: XÁC NHẬN XÓA DỮ LIỆU</span>
                 </h3>
                 <button type="button" onclick="closeResetDataModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
             </div>
@@ -6313,8 +6404,9 @@
                     <!-- Dynamic message -->
                 </div>
 
-                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
-                    🛡️ <strong>Chốt an toàn tự động:</strong> Trước khi xóa, một bản sao lưu toàn vẹn <code class="font-mono bg-white px-1 rounded text-blue-800">.db</code> sẽ được tự động lưu vào <code class="font-mono bg-white px-1 rounded text-blue-800">data/backups/</code>.
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 flex items-start gap-2">
+                    <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+                    <div><strong>Chốt an toàn tự động:</strong> Trước khi xóa, một bản sao lưu toàn vẹn <code class="font-mono bg-white px-1 rounded text-blue-800">.db</code> sẽ được tự động lưu vào <code class="font-mono bg-white px-1 rounded text-blue-800">data/backups/</code>.</div>
                 </div>
 
                 <div class="space-y-2 pt-2 border-t">
@@ -6333,9 +6425,10 @@
             </div>
 
             <div class="flex justify-end gap-3 pt-3 border-t">
-                <button type="button" onclick="closeResetDataModal()" class="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 text-xs">Hủy Bỏ</button>
-                <button type="button" id="btn-confirm-reset-data" onclick="executeResetData()" disabled class="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded shadow text-xs flex items-center gap-1.5">
-                    <span>🗑️ Xác Nhận Xóa Vĩnh Viễn</span>
+                <button type="button" onclick="closeResetDataModal()" class="px-4 py-2 border rounded font-semibold text-slate-600 hover:bg-slate-100 text-xs">Hủy Bỏ</button>
+                <button type="button" id="btn-confirm-reset-data" onclick="executeResetData()" disabled class="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-xs text-xs flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    <span>Xác Nhận Xóa Vĩnh Viễn</span>
                 </button>
             </div>
         </div>
