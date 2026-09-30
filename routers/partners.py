@@ -145,6 +145,7 @@ def export_contacts_excel(type: str = "customer"):
 
 @router.get("/template-excel")
 def download_contacts_template(type: str = "customer"):
+    type = (type or "customer").strip().lower()
     wb = openpyxl.Workbook()
     ws = wb.active
     label = "Mau_Khach_Hang" if type == "customer" else "Mau_Nha_Cung_Cap"
@@ -189,7 +190,12 @@ def download_contacts_template(type: str = "customer"):
     return Response(
         content=buf.getvalue(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
 
 @router.post("/import-excel")

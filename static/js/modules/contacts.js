@@ -489,11 +489,16 @@
             if (modal) modal.classList.add('hidden');
         }
 
+        function downloadContactTemplate() {
+            const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
+            window.location.href = `/api/contacts/template-excel?type=${encodeURIComponent(type)}&_t=${Date.now()}`;
+        }
+
         function updateDownloadTemplateLink() {
             const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
             const link = document.getElementById('btn-download-contact-template') || document.getElementById('link-download-contact-template');
             if (link) {
-                link.href = `/api/contacts/template-excel?type=${type}`;
+                link.href = `/api/contacts/template-excel?type=${type}&_t=${Date.now()}`;
                 link.setAttribute('download', type === 'customer' ? 'Mau_Khach_Hang.xlsx' : 'Mau_Nha_Cung_Cap.xlsx');
             }
         }
