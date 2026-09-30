@@ -1464,7 +1464,10 @@ def init_db():
         cur.execute("INSERT INTO bom (product_id, material_id, quantity) VALUES (4, 3, 1.5)")
 
     # Tự động quét và gộp các đối tác trùng tên (contacts deduplication)
-    merge_duplicate_contacts(conn)
+    try:
+        merge_duplicate_contacts(conn)
+    except Exception as e:
+        pass
 
     conn.commit()
     conn.close()
@@ -1524,29 +1527,38 @@ def merge_duplicate_contacts(conn=None) -> dict:
                 new_address = dup["address"]
 
         for dup_id in dup_ids:
-            cur.execute("UPDATE purchases SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE oem_orders SET partner_id = ? WHERE partner_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE inventory_logs SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE warehouses SET supplier_id = ? WHERE supplier_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE cashbook SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE orders SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE pets SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE pet_service_tickets SET customer_id = ? WHERE customer_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE hotel_bookings SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
-            cur.execute("UPDATE spa_wallet_logs SET contact_id = ? WHERE contact_id = ?", (master_id, dup_id))
+            for tbl, col in [
+                ("purchases", "supplier_id"),
+                ("oem_orders", "partner_id"),
+                ("inventory_logs", "supplier_id"),
+                ("warehouses", "supplier_id"),
+                ("cashbook", "contact_id"),
+                ("orders", "customer_id"),
+                ("pets", "customer_id"),
+                ("pet_service_tickets", "customer_id"),
+                ("hotel_bookings", "contact_id"),
+                ("spa_wallet_transactions", "contact_id"),
+            ]:
+                try:
+                    cur.execute(f"UPDATE {tbl} SET {col} = ? WHERE {col} = ?", (master_id, dup_id))
+                except sqlite3.OperationalError:
+                    pass
             
             # Xử lý supplier_items tránh va chạm UNIQUE(supplier_id, item_type, product_id, ingredient_id)
-            cur.execute("SELECT id, item_type, product_id, ingredient_id FROM supplier_items WHERE supplier_id = ?", (dup_id,))
-            sitems = [dict(si) for si in cur.fetchall()]
-            for si in sitems:
-                cur.execute("""
-                    SELECT id FROM supplier_items 
-                    WHERE supplier_id = ? AND item_type = ? AND product_id IS ? AND ingredient_id IS ?
-                """, (master_id, si["item_type"], si["product_id"], si["ingredient_id"]))
-                if cur.fetchone():
-                    cur.execute("DELETE FROM supplier_items WHERE id = ?", (si["id"],))
-                else:
-                    cur.execute("UPDATE supplier_items SET supplier_id = ? WHERE id = ?", (master_id, si["id"]))
+            try:
+                cur.execute("SELECT id, item_type, product_id, ingredient_id FROM supplier_items WHERE supplier_id = ?", (dup_id,))
+                sitems = [dict(si) for si in cur.fetchall()]
+                for si in sitems:
+                    cur.execute("""
+                        SELECT id FROM supplier_items 
+                        WHERE supplier_id = ? AND item_type = ? AND product_id IS ? AND ingredient_id IS ?
+                    """, (master_id, si["item_type"], si["product_id"], si["ingredient_id"]))
+                    if cur.fetchone():
+                        cur.execute("DELETE FROM supplier_items WHERE id = ?", (si["id"],))
+                    else:
+                        cur.execute("UPDATE supplier_items SET supplier_id = ? WHERE id = ?", (master_id, si["id"]))
+            except sqlite3.OperationalError:
+                pass
             
             cur.execute("DELETE FROM contacts WHERE id = ?", (dup_id,))
             deleted_records_count += 1

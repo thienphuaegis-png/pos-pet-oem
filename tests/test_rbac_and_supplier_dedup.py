@@ -123,7 +123,7 @@ def test_merge_duplicate_contacts_engine():
         )
     """)
     cur.execute("""
-        CREATE TABLE spa_wallet_logs (
+        CREATE TABLE spa_wallet_transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             contact_id INTEGER
         )
