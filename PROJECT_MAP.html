@@ -548,7 +548,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-30)
-    const ROADMAP_VERSION = 'v3.1-2026-09-30';
+    const ROADMAP_VERSION = 'v3.2-2026-09-30';
     const DEFAULT_TASKS = [
       // 1. PHÂN HỆ DỊCH VỤ SPA
       { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
@@ -581,7 +581,11 @@
       { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal UI', done: true, note: 'customConfirm danger (icon đỏ, phím Enter/Esc), customAlert, showToast đồng bộ 100%' },
       { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: true, note: 'Hỗ trợ phím Enter/Esc trên customConfirm modal và hotkeys F1-F9' },
       { id: 'sys-4', cat: 'SYS', title: 'Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý', done: false, note: 'Chờ triển khai: tích hợp mô hình cục bộ hoặc Gemini web' },
-      { id: 'sys-5', cat: 'SYS', title: 'Đóng gói EXE — build_exe.bat + test chạy độc lập trên máy Windows', done: false, note: 'Chờ triển khai: đóng gói PyInstaller / Nuitka phân phối khách' },
+      { id: 'sys-5', cat: 'SYS', title: 'Đóng gói Portable EXE không console (System Tray pystray & Registry autostart)', done: true, note: 'PyInstaller --noconsole, redirect stdio pos_debug.log, pystray icon khay he thong' },
+      { id: 'sys-6', cat: 'SYS', title: 'Tu dong sao luu database Google Drive qua Apps Script Webhook', done: true, note: 'backup_service.py chay ngam moi 3600s, upload multipart webhook, tu xoa backup cu qua 7 ngay' },
+      { id: 'sys-7', cat: 'SYS', title: 'Bao mat quyen ca lam viec & xoa credentials khoi tai lieu', done: true, note: 'Admin/quan ly can_skip_shift=1 ban hang khong can mo ca, loai bo toan bo admin123 khoi .txt/.md' },
+      { id: 'sys-8', cat: 'SYS', title: 'Bo script cap nhat doc lap 100% ASCII (CAP_NHAT_NHANH.bat & zip)', done: true, note: 'Script khong dau tranh loi byte cmd.exe, sao luu DB truoc khi chep de, dong goi GOI_CAP_NHAT_NHANH.zip' },
+      { id: 'contacts-1', cat: 'Logic', title: 'Sua loi tai file mau & import Excel Khach Hang / Nha Cung Cap', done: true, note: 'Doi thu tu route tranh 422 Unprocessable Entity, nut download dynamic doc dung combobox & no-cache' },
 
       // 4. GIAO DIỆN & TRẢI NGHIỆM POS ĐÃ HOÀN THIỆN
       { id: 'ui-1', cat: 'UI', title: 'Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch canvas', done: true, note: 'Góc lượn scoop liền mạch tab đang chọn với vùng nội dung' },
