@@ -24,7 +24,7 @@ timeout /t 2 /nobreak >nul
 REM 3. Keo code moi nhat tu GitHub
 echo.
 echo [3/4] Dang tai code moi nhat tu GitHub...
-git pull origin main
+git pull github main 2>nul || git pull origin main
 if %errorlevel% neq 0 (
     echo.
     echo [CANH BAO] Khong the tai code moi (kiem tra mang hoac xung dot git).
