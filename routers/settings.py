@@ -295,7 +295,7 @@ def reset_database_data(req: ResetDataRequest):
 
     return {"status": "ok", "message": msg, "backup_file": backup_filename}
 
-@router.post("/api/settings/backup-drive-now")
+@router.post("/backup-drive-now")
 def trigger_google_drive_backup():
     """Kich hoat sao luu tuc thi len Google Drive qua Webhook"""
     from backup_service import backup_to_google_drive_webhook
