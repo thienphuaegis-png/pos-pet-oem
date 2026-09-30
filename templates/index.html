@@ -801,6 +801,12 @@
                         </span>
                         <span class="sidebar-text truncate">Ca Làm Việc</span>
                     </button>
+                    <button onclick="switchTab('guide')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="guide" data-tooltip="Hướng Dẫn Nghiệp Vụ">
+                        <span class="sidebar-icon bg-indigo-100 text-indigo-700">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Hướng Dẫn Nghiệp Vụ</span>
+                    </button>
                     <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="settings" data-role="owner" data-tooltip="Cài Đặt Hệ Thống">
                         <span class="sidebar-icon bg-slate-200 text-slate-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -5649,6 +5655,466 @@
                     <div class="flex justify-end pt-2 border-t">
                         <button onclick="closeModalTransferDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
                     </div>
+                </div>
+            </div>
+
+
+            <!-- TAB: HƯỚNG DẪN NGHIỆP VỤ (DOCS & WIKI LAYOUT) -->
+            <div id="tab-guide" class="hidden space-y-4">
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row min-h-[calc(100vh-8rem)]">
+
+                    <!-- SUB-SIDEBAR: 7 PHÂN HỆ NGHIỆP VỤ -->
+                    <aside class="w-full md:w-72 bg-slate-50/90 border-r border-slate-200/80 p-3.5 space-y-3 shrink-0 flex flex-col">
+                        <div class="px-2 py-1 border-b border-slate-200/60 pb-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 font-mono">7 SOP</span>
+                            </div>
+                        </div>
+
+                        <!-- 7 Sub-nav buttons -->
+                        <nav class="space-y-1 text-xs flex-1" id="guide-subnav">
+                            <button onclick="switchGuideSubTab('pos')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold bg-purple-100 text-purple-800 transition" data-guide="pos">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-purple-200 text-purple-800 flex items-center justify-center text-[10px] font-black shrink-0">1</span>
+                                    <span class="truncate">Bán Hàng POS & Ca</span>
+                                </span>
+                                <span class="text-[10px] font-mono bg-purple-200/70 text-purple-900 px-1 rounded shrink-0">F1-F9</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('spa')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="spa">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">2</span>
+                                    <span class="truncate">Tiếp Nhận & Spa</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">Pet Grooming</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('hotel')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="hotel">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">3</span>
+                                    <span class="truncate">Khách Sạn Hotel</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">16 Phòng</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('wallet')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="wallet">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">4</span>
+                                    <span class="truncate">Nạp Ví & Cấn Trừ</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">Ví Spa</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('cashbook')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="cashbook">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">5</span>
+                                    <span class="truncate">Sổ Quỹ & Công Nợ</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">VietQR</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('inventory')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="inventory">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">6</span>
+                                    <span class="truncate">Kho & Lệnh OEM</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">BOM Định Mức</span>
+                            </button>
+
+                            <button onclick="switchGuideSubTab('setup')" class="guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition" data-guide="setup">
+                                <span class="flex items-center gap-2.5 truncate">
+                                    <span class="w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">7</span>
+                                    <span class="truncate">Mạng LAN & Mẫu In</span>
+                                </span>
+                                <span class="text-[10px] font-mono text-slate-400">12 Mẫu</span>
+                            </button>
+                        </nav>
+
+                        <!-- Bottom Info Badge -->
+                        <div class="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
+                            <div class="p-2.5 bg-white rounded-xl border border-slate-200 space-y-1 shadow-xs">
+                                <div class="font-bold text-slate-700 flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                                    <span>Hệ Thống 100% Offline</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 leading-tight">Mọi quy trình được vẽ bằng vector SVG, hoạt động tức thì 0ms không phụ thuộc Internet.</p>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- RIGHT CONTENT AREA -->
+                    <section class="flex-1 p-5 sm:p-7 overflow-y-auto space-y-6" id="guide-content-area">
+
+                        <!-- SUB-DOC 1: BÁN HÀNG POS & CA LÀM VIỆC -->
+                        <div id="guide-sub-pos" class="guide-sub-panel space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 1: Bán Hàng Quầy POS & Ca Làm Việc</span>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                                        <span>Quy Trình Mở Ca, Bán Hàng Bằng Phím Tắt & Đóng Ca Z-Report</span>
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800">SOP Thu Ngân</span>
+                                    </h2>
+                                    <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">Áp dụng: Thu ngân, Chủ shop</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Chu trình khép kín từ lúc mở két tiền sáng, thanh toán quầy F1-F9, quét mã VietQR động đến đối soát tiền mặt cuối ngày.</p>
+                            </div>
+
+                            <!-- Sơ đồ SVG Flowchart -->
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                                        <span>SƠ ĐỒ LUỒNG VẬN HÀNH CA BÁN HÀNG POS</span>
+                                    </span>
+                                    <span class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">Tự động liên thông Sổ Quỹ</span>
+                                </div>
+                                <div class="w-full overflow-x-auto py-2">
+                                    <svg class="min-w-[680px] w-full h-32" viewBox="0 0 850 120" fill="none">
+                                        <!-- Step 1 -->
+                                        <rect x="10" y="20" width="150" height="80" rx="10" fill="#ffffff" stroke="#c084fc" stroke-width="2" />
+                                        <text x="85" y="45" font-size="11" font-weight="bold" fill="#581c87" text-anchor="middle">1. MỞ CA ĐẦU NGÀY</text>
+                                        <text x="85" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Đếm tiền mặt đầu ca</text>
+                                        <text x="85" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Khai báo quỹ két</text>
+
+                                        <line x1="160" y1="60" x2="200" y2="60" stroke="#9333ea" stroke-width="2" stroke-dasharray="4" />
+
+                                        <!-- Step 2 -->
+                                        <rect x="200" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2" />
+                                        <text x="280" y="45" font-size="11" font-weight="bold" fill="#1e3a8a" text-anchor="middle">2. BÁN HÀNG & QUÉT MÃ</text>
+                                        <text x="280" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Phím F1 tìm kiếm / Barcode</text>
+                                        <text x="280" y="80" font-size="10" fill="#6b7280" text-anchor="middle">F2 gán khách lẻ/sỉ</text>
+
+                                        <line x1="360" y1="60" x2="400" y2="60" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+
+                                        <!-- Step 3 -->
+                                        <rect x="400" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#34d399" stroke-width="2" />
+                                        <text x="480" y="45" font-size="11" font-weight="bold" fill="#065f46" text-anchor="middle">3. THANH TOÁN (F4)</text>
+                                        <text x="480" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Tiền mặt / VietQR động</text>
+                                        <text x="480" y="80" font-size="10" fill="#6b7280" text-anchor="middle">In bill K80 tự ngắt dao</text>
+
+                                        <line x1="560" y1="60" x2="600" y2="60" stroke="#10b981" stroke-width="2" stroke-dasharray="4" />
+
+                                        <!-- Step 4 -->
+                                        <rect x="600" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#f43f5e" stroke-width="2" />
+                                        <text x="680" y="45" font-size="11" font-weight="bold" fill="#881337" text-anchor="middle">4. KẾT CA (Z-REPORT)</text>
+                                        <text x="680" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Đếm 10 mệnh giá tiền</text>
+                                        <text x="680" y="80" font-size="10" fill="#6b7280" text-anchor="middle">In phiếu kiểm két Z</text>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- 4 Step Cards -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2 hover:border-purple-300 transition">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs">1</span>
+                                        <span class="font-bold text-slate-800 text-sm">Mở ca làm việc đầu ngày</span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Vào tab <strong>Ca Làm Việc</strong>, bấm nút <strong>[Mở Ca Mới]</strong>. Nhập số tiền mặt có sẵn trong két tiền (tiền thối ban đầu). Nếu tài khoản có quyền Quản Trị hoặc được cấp quyền <em>Bypass Shift</em>, bạn có thể bán hàng trực tiếp mà không cần mở ca.
+                                    </p>
+                                    <div class="p-2 bg-purple-50 rounded border border-purple-200 text-purple-900 font-mono text-[11px]">
+                                        💡 Tiền đầu ca được tự động ghi nhận vào dòng tiền két để đối soát cuối ca.
+                                    </div>
+                                </div>
+
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2 hover:border-blue-300 transition">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">2</span>
+                                        <span class="font-bold text-slate-800 text-sm">Thao tác quầy bán hàng F1-F9</span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Tại quầy POS chuyên dụng: Bấm <code>F1</code> để con trỏ nhảy vào ô tìm kiếm hàng hóa (hỗ trợ gõ tên không dấu hoặc bắn máy quét mã vạch). Bấm <code>F2</code> để gõ SĐT khách hàng tích điểm. Bấm <code>F4</code> để mở nhanh cửa sổ thanh toán.
+                                    </p>
+                                    <div class="p-2 bg-slate-100 rounded border border-slate-200 text-slate-700 font-mono text-[11px]">
+                                        ⌨️ <strong>Hotkeys:</strong> <code>F1</code> Tìm hàng | <code>F2</code> Khách | <code>F4</code> Thanh toán | <code>Esc</code> Đóng popup.
+                                    </div>
+                                </div>
+
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2 hover:border-emerald-300 transition">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">3</span>
+                                        <span class="font-bold text-slate-800 text-sm">Thanh toán VietQR & In hóa đơn</span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Chọn phương thức thanh toán: <strong>Tiền mặt</strong> (phần mềm tự tính tiền thừa trả khách), <strong>Chuyển khoản</strong> (hiển thị mã VietQR động đúng số tiền và nội dung đơn để khách quét bằng app ngân hàng), hoặc <strong>Ghi nợ</strong>.
+                                    </p>
+                                </div>
+
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2 hover:border-rose-300 transition">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-full bg-rose-600 text-white font-bold flex items-center justify-center text-xs">4</span>
+                                        <span class="font-bold text-slate-800 text-sm">Đóng ca & In Z-Report đối soát két</span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Hết ca, thu ngân vào tab Ca Làm Việc bấm <strong>[Đóng Ca]</strong>. Điền số lượng tờ tiền thực tế theo 10 mệnh giá (từ 500đ đến 500.000đ). Hệ thống tự tính chênh lệch thừa/thiếu so với doanh thu lý thuyết và in phiếu Z-Report nhiệt 80mm.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 2: DỊCH VỤ SPA GROOMING -->
+                        <div id="guide-sub-spa" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 2: Tiếp Nhận & Spa Grooming Thú Cưng</span>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                                        <span>Tiếp Nhận Hàng Loạt, Điều Chỉnh Gói Minh Bạch & Cấn Trừ Ví</span>
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800">SOP Quầy Spa</span>
+                                    </h2>
+                                    <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">Áp dụng: Kỹ thuật viên Spa, Quản lý</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Quy chuẩn 4 bước tiếp nhận thú cưng theo cân nặng, bảng phân công kíp thợ, gọi đón một chạm và tự động khấu trừ ví trả trước.</p>
+                            </div>
+
+                            <!-- Sơ đồ SVG Flowchart -->
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                                        <span>SƠ ĐỒ VẬN HÀNH DỊCH VỤ SPA & ĐIỀU PHỐI THỢ</span>
+                                    </span>
+                                    <span class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">Cấn trừ sạch Ví Spa</span>
+                                </div>
+                                <div class="w-full overflow-x-auto py-2">
+                                    <svg class="min-w-[680px] w-full h-32" viewBox="0 0 850 120" fill="none">
+                                        <rect x="10" y="20" width="150" height="80" rx="10" fill="#ffffff" stroke="#c084fc" stroke-width="2" />
+                                        <text x="85" y="45" font-size="11" font-weight="bold" fill="#581c87" text-anchor="middle">1. TIẾP NHẬN & CÂN</text>
+                                        <text x="85" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Cân ký thực tế</text>
+                                        <text x="85" y="80" font-size="10" fill="#6b7280" text-anchor="middle">In Phiếu Nhận K80</text>
+
+                                        <line x1="160" y1="60" x2="200" y2="60" stroke="#9333ea" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="200" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2" />
+                                        <text x="280" y="45" font-size="11" font-weight="bold" fill="#1e3a8a" text-anchor="middle">2. PHÂN KÍP THỢ</text>
+                                        <text x="280" y="65" font-size="10" fill="#6b7280" text-anchor="middle">1 Thợ Cắt + 2 Thợ Tắm</text>
+                                        <text x="280" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Bulk toolbar 1 chạm</text>
+
+                                        <line x1="360" y1="60" x2="400" y2="60" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="400" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2" />
+                                        <text x="480" y="45" font-size="11" font-weight="bold" fill="#78350f" text-anchor="middle">3. ĐỔI GÓI NẾU CẦN</text>
+                                        <text x="480" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Lông rối / Viêm da / Ve</text>
+                                        <text x="480" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Gạch giá cũ minh bạch</text>
+
+                                        <line x1="560" y1="60" x2="600" y2="60" stroke="#d97706" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="600" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+                                        <text x="680" y="45" font-size="11" font-weight="bold" fill="#064e3b" text-anchor="middle">4. GỌI ĐÓN & TRỪ VÍ</text>
+                                        <text x="680" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Gọi đón đồng bộ chủ</text>
+                                        <text x="680" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Trừ ví + thu phần thiếu</text>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Details -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">💡 Quy tắc đổi gói dịch vụ an toàn:</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Khi bé lên bàn spa phát hiện phát sinh cạo lông rối bết hoặc trị liệu ve rận: Nhấp vào ô <strong>Dịch Vụ</strong> trên bảng, chọn gói mới và bấm vào chip lý do (<em>Lông rối bết, Viêm da, Bé khó làm, Khách đổi ý</em>). Hệ thống sẽ giữ nguyên gói cũ bị gạch ngang và in đầy đủ lịch sử này lên phiếu K80 trả bé.
+                                    </p>
+                                </div>
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">💡 Cơ chế cấn trừ sạch ví (Lựa chọn A):</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Khi thanh toán trả bé: Nếu khách có ví nạp trước, hệ thống tự động ưu tiên cấn trừ sạch số dư ví. Nếu ví không đủ, hệ thống tự tách phần chênh lệch thành khoản <strong>Thu Ngoài</strong> (tiền mặt hoặc chuyển khoản) và ghi đúng số tiền thu ngoài này vào Sổ Quỹ.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 3: KHÁCH SẠN PET HOTEL -->
+                        <div id="guide-sub-hotel" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 3: Khách Sạn Thú Cưng Pet Hotel</span>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                                        <span>Quản Lý 16 Buồng Phòng, Nhận Phòng Theo Lô & Thu Cọc K80</span>
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">SOP Khách Sạn</span>
+                                    </h2>
+                                    <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">Áp dụng: Quản lý phòng, Thu ngân</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Cơ chế quản lý 16 buồng phòng phân khu độc lập, tiếp nhận nhiều bé cùng lúc, thu tiền cọc và 3 chế độ xem Lưới, Bảng, Gantt.</p>
+                            </div>
+
+                            <!-- Sơ đồ SVG Flowchart -->
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <svg class="w-4 h-4 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                                        <span>SƠ ĐỒ TIẾP NHẬN & QUẢN LÝ KHÁCH SẠN THÚ CƯNG</span>
+                                    </span>
+                                    <span class="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">Đối soát tiền cọc K80</span>
+                                </div>
+                                <div class="w-full overflow-x-auto py-2">
+                                    <svg class="min-w-[680px] w-full h-32" viewBox="0 0 850 120" fill="none">
+                                        <rect x="10" y="20" width="150" height="80" rx="10" fill="#ffffff" stroke="#fb7185" stroke-width="2" />
+                                        <text x="85" y="45" font-size="11" font-weight="bold" fill="#881337" text-anchor="middle">1. CHỌN BUỒNG PHÒNG</text>
+                                        <text x="85" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Khu Mèo C01-C08</text>
+                                        <text x="85" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Khu Chó D01-D06 / VIP</text>
+
+                                        <line x1="160" y1="60" x2="200" y2="60" stroke="#f43f5e" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="200" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#c084fc" stroke-width="2" />
+                                        <text x="280" y="45" font-size="11" font-weight="bold" fill="#581c87" text-anchor="middle">2. CHECK-IN THEO LÔ</text>
+                                        <text x="280" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Gán nhiều bé vào phòng</text>
+                                        <text x="280" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Ghi đồ gửi & dặn dò</text>
+
+                                        <line x1="360" y1="60" x2="400" y2="60" stroke="#9333ea" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="400" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2" />
+                                        <text x="480" y="45" font-size="11" font-weight="bold" fill="#1e3a8a" text-anchor="middle">3. THU CỌC & IN PHIẾU</text>
+                                        <text x="480" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Phiếu nhận K80 có cam kết</text>
+                                        <text x="480" y="80" font-size="10" fill="#6b7280" text-anchor="middle">2 chữ ký chủ nuôi & NV</text>
+
+                                        <line x1="560" y1="60" x2="600" y2="60" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+
+                                        <rect x="600" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+                                        <text x="680" y="45" font-size="11" font-weight="bold" fill="#064e3b" text-anchor="middle">4. CHECK-OUT & ĐỐI SOÁT</text>
+                                        <text x="680" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Tính ngày lưu trú thực tế</text>
+                                        <text x="680" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Trừ tiền cọc, thu phần còn</text>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="border border-slate-200 rounded-xl p-4 bg-white text-xs space-y-2">
+                                <span class="font-bold text-slate-800 text-sm block">💡 3 Chế độ xem thông minh tại Tab Khách Sạn:</span>
+                                <ul class="list-disc list-inside text-slate-600 space-y-1">
+                                    <li><strong>Chế độ Lưới (Grid):</strong> Hiển thị trực quan từng ô phòng, màu sắc báo hiệu (Xanh = Trống, Tím = Đang có bé ở, Vàng = Đang dọn vệ sinh). Bấm vào phòng để xem Drawer trượt thông tin bé.</li>
+                                    <li><strong>Chế độ Bảng (Table):</strong> Dành cho quản lý lọc theo ngày dự kiến trả phòng, tra cứu nhanh tên bé hoặc SĐT chủ nuôi.</li>
+                                    <li><strong>Chế độ Lịch Gantt (Timeline):</strong> Dòng thời gian 7 ngày giúp nắm trước công suất buồng phòng và lịch đặt trước.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 4: NẠP VÍ & CẤN TRỪ VÍ -->
+                        <div id="guide-sub-wallet" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 4: Nạp Gói Ví Trả Trước & Cấn Trừ Tiền</span>
+                                </div>
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1">
+                                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                                        <span>Gói Topup Trả Trước, Tách Dòng Tiền & Quy Tắc An Toàn Số Dư</span>
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">SOP Ví Dịch Vụ</span>
+                                    </h2>
+                                    <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">Áp dụng: Thu ngân, Kế toán</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Quy định hạch toán tiền nạp ví vào ca, in phiếu thu K80 ngầm và nguyên tắc tách biệt ví dịch vụ với hàng hóa bán lẻ.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">1. Nạp gói ví tại Tab Bảng Giá</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Gói Topup đã được gom về Sub-tab thứ 4 trong <strong>Bảng Giá</strong> (<code>tab-price-lists</code>). Khi khách nạp tiền: Vào thông tin khách hàng bấm <strong>[+ Nạp Ví]</strong>, chọn gói tương ứng (VD: Nạp 2.000.000đ tặng 300.000đ). Tiền thu thực tế được tự động cộng vào két ca và ghi phiếu thu vào Sổ Quỹ.
+                                    </p>
+                                </div>
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">2. Nguyên tắc an toàn dòng tiền</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Ví Spa <strong>chỉ được dùng để thanh toán dịch vụ Spa / Khách sạn</strong>, không áp dụng cho hàng hóa bán lẻ (thức ăn, cát vệ sinh). Điều này chống thất thoát hàng hóa tồn kho và đảm bảo doanh thu bán lẻ là tiền thật.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 5: SỔ QUỸ & CÔNG NỢ -->
+                        <div id="guide-sub-cashbook" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 5: Sổ Quỹ Thu Chi & Dòng Tiền Công Nợ</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-900 mt-1">Theo Dõi Dòng Tiền Két, Ngân Hàng & Đối Soát Hóa Đơn Gốc</h2>
+                                <p class="text-xs text-slate-500 mt-1">Phân định rõ ràng giữa Sổ Quỹ Tiền Mặt và Tài Khoản Ngân Hàng, kiểm tra ngược nguồn gốc phiếu qua Drawer trượt.</p>
+                            </div>
+
+                            <div class="border border-slate-200 rounded-xl p-4 bg-white text-xs space-y-3">
+                                <span class="font-bold text-slate-800 text-sm block">💡 Drawer đối soát nguồn gốc phiếu Thu/Chi:</span>
+                                <p class="text-slate-600 leading-relaxed">
+                                    Mỗi dòng phiếu thu/chi tự động sinh ra từ đơn bán hàng hoặc đơn nhập hàng đều có icon xem chi tiết. Khi bấm vào, một Drawer trượt từ mép phải sẽ hiển thị toàn bộ hóa đơn gốc (danh sách món, tên thợ, chiết khấu) ở chế độ <strong>Chỉ Đọc (Read-only)</strong> để kế toán đối chiếu mà không sợ bị sửa nhầm dữ liệu.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 6: KHO & SẢN XUẤT OEM -->
+                        <div id="guide-sub-inventory" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 6: Kho Hàng, Đơn PO & Gia Công OEM</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-900 mt-1">Định Mức BOM Sản Xuất & Quy Trình Nhập Hàng PO 2 Bước</h2>
+                                <p class="text-xs text-slate-500 mt-1">Tự động trừ tem nhãn, chai lọ bao bì theo công thức BOM khi tạo lệnh sản xuất và kiểm soát tồn kho thực tế.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">Công thức BOM tự động</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Khi tạo Lệnh sản xuất 100 chai sữa tắm: Phần mềm tự động tra cứu công thức BOM và xuất kho đúng 100 vỏ chai, 100 nắp, 100 tem nhãn và 50 lít dung dịch nền, đảm bảo số liệu tồn kho nguyên phụ liệu chuẩn xác 100%.
+                                    </p>
+                                </div>
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">Nhập hàng PO 2 bước</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Bước 1: Lập đơn đặt hàng PO gửi nhà cung cấp. Bước 2: Khi hàng về đến tiệm, thủ kho kiểm đếm thực tế và bấm [Nhập Kho], phần mềm mới chính thức tăng tồn kho và ghi nhận công nợ phải trả.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB-DOC 7: MẠNG LAN & MẪU IN -->
+                        <div id="guide-sub-setup" class="guide-sub-panel hidden space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                    <span>Tài Liệu Nghiệp Vụ</span>
+                                    <span>/</span>
+                                    <span class="text-purple-600 font-semibold">Phân Hệ 7: Kết Nối Mạng LAN & Cấu Hình Mẫu In</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-900 mt-1">Kết Nối Máy Phụ Qua Mạng LAN, Quét Mã QR & Tùy Chỉnh 12 Mẫu In</h2>
+                                <p class="text-xs text-slate-500 mt-1">Hướng dẫn kết nối máy thu ngân phụ bằng IP nội bộ hoặc mã QR và thiết lập font in đậm cho máy in nhiệt K80/A4.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">Dò IP máy chủ tự động</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Tại máy con: Chạy file <code>KET_NOI_MAY_CON.bat</code>. Script PowerShell sẽ tự động quét dải mạng LAN để tìm thấy máy chủ POS trong 2 giây mà không cần cấu hình IP tĩnh thủ công. Ngoài ra có thể quét mã QR sinh từ <code>make_qr.py</code> để mở quầy trên điện thoại/máy tính bảng.
+                                    </p>
+                                </div>
+                                <div class="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
+                                    <span class="font-bold text-slate-800 text-sm block">Tùy biến 12 mẫu in nghiệp vụ</span>
+                                    <p class="text-slate-600 leading-relaxed">
+                                        Vào <strong>Cài Đặt > Mẫu In</strong>: Bật/tắt các trường dữ liệu tùy biến (thông tin bé, chữ ký, ghi chú cọc), xem trước tức thì trên khung Canvas Visual Preview và bật tính năng <strong>In Đậm Cố Định</strong> để hóa đơn sắc nét trên mọi loại đầu in nhiệt.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </section>
                 </div>
             </div>
 

@@ -27,6 +27,8 @@ class TestHtmlIntegrity(unittest.TestCase):
             'tab-cashbook',
             'tab-cashflow-debts',
             'tab-reports',
+            'tab-shifts',
+            'tab-guide',
             'tab-settings',
         ]
         for tid in expected_tabs:
@@ -48,7 +50,7 @@ class TestHtmlIntegrity(unittest.TestCase):
         sidebar_nav = self.soup.find(id='sidebar-nav')
         self.assertIsNotNone(sidebar_nav, 'Phải có nav id=sidebar-nav')
         buttons = sidebar_nav.find_all('button', class_='tab-btn')
-        self.assertEqual(len(buttons), 14, 'Sidebar phải có 14 nút điều hướng')
+        self.assertEqual(len(buttons), 15, 'Sidebar phải có 15 nút điều hướng')
         for btn in buttons:
             icon_span = btn.find('span', class_='sidebar-icon')
             self.assertIsNotNone(icon_span, f"Nút {btn.get('data-tab')} thiếu thẻ span.sidebar-icon")

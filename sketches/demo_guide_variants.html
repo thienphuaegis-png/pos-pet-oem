@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>So Sánh Các Mẫu Thiết Kế Tab Hướng Dẫn Nghiệp Vụ POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-3 sm:p-6 antialiased">
+
+  <!-- TOP HEADER SWITCHER -->
+  <header class="max-w-7xl mx-auto mb-6 bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">Brainstorming Concept</span>
+          <span class="text-xs text-slate-400">Vị trí: Ngay trên Tab Cài Đặt</span>
+        </div>
+        <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">So Sánh 3 Phương Án: Tab Hướng Dẫn Nghiệp Vụ Trực Quan</h1>
+        <p class="text-xs text-slate-500 mt-0.5">Sơ đồ logic tương tác, luồng thao tác chuẩn SOP, 100% vector SVG & Tailwind UI (Hoàn toàn Offline)</p>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="flex items-center bg-slate-100 p-1.5 rounded-xl border border-slate-200 self-start md:self-auto">
+        <button onclick="switchVariant('v1')" id="btn-v1" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
+          <span>Mẫu 1: Docs & Wiki Nghiệp Vụ (Khuyên dùng)</span>
+        </button>
+        <button onclick="switchVariant('v2')" id="btn-v2" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
+          <span>Mẫu 2: Sơ Đồ Khối Tương Tác (Flowchart Map)</span>
+        </button>
+        <button onclick="switchVariant('v3')" id="btn-v3" class="px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Mẫu 3: Card Nhiệm Vụ & Tình Huống Quầy</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto">
+
+    <!-- =========================================================================
+         VARIANT 1: DOCS & WIKI LAYOUT (SIDEBAR DANH MỤC TRÁI + NỘI DUNG CHI TIẾT PHẢI)
+         ========================================================================= -->
+    <div id="variant-1" class="space-y-4">
+      <div class="bg-purple-50/70 border border-purple-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-purple-900">
+        <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>
+          <strong>Đặc điểm Mẫu 1:</strong> Chuẩn tài liệu vận hành (Knowledge Base / SOP). Sidebar trái chia theo 7 nhóm nghiệp vụ lớn, bên phải hiển thị sơ đồ logic (Flowchart SVG), các bước thực hiện thao tác (Bước 1, 2, 3), hình minh họa màn hình thu nhỏ, và các mẹo xử lý tình huống thực tế.
+        </div>
+      </div>
+
+      <!-- Live Mockup Shell -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[620px]">
+        
+        <!-- Left Sub-Sidebar (Danh mục nghiệp vụ) -->
+        <aside class="w-full md:w-64 bg-slate-50/90 border-r border-slate-200 p-3 space-y-4 shrink-0">
+          <div class="px-2 py-1">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Danh Mục Hướng Dẫn</span>
+          </div>
+
+          <nav class="space-y-1 text-xs">
+            <!-- Group 1: Bán Hàng & Quầy -->
+            <div>
+              <button onclick="showDoc('doc-pos')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-bold bg-purple-100 text-purple-800 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                  <span>1. Bán Hàng POS & Ca</span>
+                </span>
+                <span class="text-[10px] bg-purple-200/80 px-1.5 py-0.5 rounded font-mono">F1-F9</span>
+              </button>
+            </div>
+
+            <!-- Group 2: Dịch Vụ Spa -->
+            <div>
+              <button onclick="showDoc('doc-spa')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span>2. Tiếp Nhận & Spa Grooming</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Group 3: Khách Sạn Hotel -->
+            <div>
+              <button onclick="showDoc('doc-hotel')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+                  <span>3. Khách Sạn Thú Cưng</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Group 4: Ví & Điểm -->
+            <div>
+              <button onclick="showDoc('doc-wallet')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                  <span>4. Nạp Ví & Cấn Trừ Tiền</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Group 5: Sổ Quỹ & Công Nợ -->
+            <div>
+              <button onclick="showDoc('doc-cashbook')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span>5. Sổ Quỹ & Két Tiền</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Group 6: Kho & Sản Xuất OEM -->
+            <div>
+              <button onclick="showDoc('doc-inventory')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+                  <span>6. Kho Hàng & Lệnh OEM</span>
+                </span>
+              </button>
+            </div>
+
+            <!-- Group 7: Mạng LAN & Cài Đặt Máy In -->
+            <div>
+              <button onclick="showDoc('doc-setup')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                  <span>7. Kết Nối Mạng & Mẫu In</span>
+                </span>
+              </button>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- Right Content Body -->
+        <section class="flex-1 p-5 sm:p-6 space-y-6 overflow-y-auto">
+          
+          <!-- Breadcrumb & Header -->
+          <div class="border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-2 text-xs text-slate-400 font-medium">
+              <span>Hướng Dẫn Sử Dụng</span>
+              <span>/</span>
+              <span class="text-purple-600 font-semibold">Phân Hệ 2: Tiếp Nhận & Spa Grooming Thú Cưng</span>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2.5">
+              <span>Quy Trình Tiếp Nhận Bé, Gán Thợ & Trả Bé Cấn Trừ Ví</span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">SOP Quầy Spa</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">Hướng dẫn cách tạo vé dịch vụ theo cân nặng, chọn thợ cắt/tắm, in phiếu nhận K80 và thanh toán tự động khấu trừ ví trả trước.</p>
+          </div>
+
+          <!-- SƠ ĐỒ LOGIC NGHIỆP VỤ (Interactive Logic Flowchart SVG) -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                <span>SƠ ĐỒ LUỒNG VẬN HÀNH 4 BƯỚC QUẦY SPA</span>
+              </span>
+              <span class="text-[11px] text-slate-500 font-mono">100% Tự Động Hóa</span>
+            </div>
+
+            <!-- Flowchart SVG graphic -->
+            <div class="w-full overflow-x-auto py-2">
+              <svg class="min-w-[620px] w-full h-32" viewBox="0 0 800 120" fill="none">
+                <!-- Step 1: Tiếp nhận -->
+                <rect x="10" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#c084fc" stroke-width="2" />
+                <text x="90" y="45" font-size="12" font-weight="bold" fill="#581c87" text-anchor="middle">1. TIẾP NHẬN & CÂN</text>
+                <text x="90" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Nhập SĐT + Chọn Bé</text>
+                <text x="90" y="80" font-size="10" fill="#6b7280" text-anchor="middle">In Phiếu Nhận K80</text>
+
+                <!-- Arrow 1 -->
+                <line x1="170" y1="60" x2="210" y2="60" stroke="#9333ea" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrow)" />
+
+                <!-- Step 2: Phân công -->
+                <rect x="210" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2" />
+                <text x="290" y="45" font-size="12" font-weight="bold" fill="#1e3a8a" text-anchor="middle">2. GÁN THỢ & LÀM SPA</text>
+                <text x="290" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Gán Thợ Cắt + 2 Thợ Tắm</text>
+                <text x="290" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Bảng điều phối 0ms</text>
+
+                <!-- Arrow 2 -->
+                <line x1="370" y1="60" x2="410" y2="60" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
+
+                <!-- Step 3: Gọi đón -->
+                <rect x="410" y="20" width="160" height="80" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2" />
+                <text x="490" y="45" font-size="12" font-weight="bold" fill="#78350f" text-anchor="middle">3. XONG & GỌI ĐÓN</text>
+                <text x="490" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Click 1 Chạm Đồng Bộ</text>
+                <text x="490" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Áp dụng cho nhiều bé</text>
+
+                <!-- Arrow 3 -->
+                <line x1="570" y1="60" x2="610" y2="60" stroke="#10b981" stroke-width="2" stroke-dasharray="4" />
+
+                <!-- Step 4: Trả bé & Trừ ví -->
+                <rect x="610" y="20" width="170" height="80" rx="10" fill="#ffffff" stroke="#10b981" stroke-width="2" />
+                <text x="695" y="45" font-size="12" font-weight="bold" fill="#064e3b" text-anchor="middle">4. TRẢ BÉ & THANH TOÁN</text>
+                <text x="695" y="65" font-size="10" fill="#6b7280" text-anchor="middle">Cấn trừ sạch Ví Spa</text>
+                <text x="695" y="80" font-size="10" fill="#6b7280" text-anchor="middle">Thu ngoài -> Sổ Quỹ</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- CÁC BƯỚC THAO TÁC THỰC TẾ CHI TIẾT -->
+          <div class="space-y-4">
+            <h3 class="text-sm font-bold text-slate-800">Chi Tiết Từng Bước Thao Tác Tại Quầy:</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <!-- Step 1 Card -->
+              <div class="border border-slate-200 rounded-xl p-3.5 space-y-2 bg-white hover:border-purple-300 transition">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs">1</span>
+                  <span class="font-bold text-slate-800">Tiếp nhận bé mới / Đợt nhiều bé</span>
+                </div>
+                <p class="text-slate-600 leading-relaxed">
+                  Tại Tab <strong>Dịch Vụ & Spa</strong>, bấm nút <strong>[+ Nhận Bé Spa]</strong> hoặc <strong>[Tiếp Nhận Hàng Loạt]</strong>. Gõ SĐT hoặc Tên chủ nuôi. Nếu khách có sẵn ví trả trước, số dư ví sẽ hiển thị ngay dạng badge màu tím.
+                </p>
+                <div class="p-2 bg-slate-50 rounded border border-slate-200 font-mono text-[11px] text-slate-600">
+                  💡 <strong>Phím tắt:</strong> Bấm phím <code>F2</code> để mở nhanh modal tiếp nhận.
+                </div>
+              </div>
+
+              <!-- Step 2 Card -->
+              <div class="border border-slate-200 rounded-xl p-3.5 space-y-2 bg-white hover:border-blue-300 transition">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">2</span>
+                  <span class="font-bold text-slate-800">Điều chỉnh gói & Đổi giá minh bạch</span>
+                </div>
+                <p class="text-slate-600 leading-relaxed">
+                  Nếu lúc tắm phát hiện bé bị ve, viêm da hoặc lông rối bết nặng cần cạo: click vào ô <strong>Dịch Vụ</strong> trên bảng, chọn gói mới và tích chọn lý do. Hệ thống sẽ gạch ngang gói cũ và in rõ lên hóa đơn K80 cho khách đối soát.
+                </p>
+                <div class="p-2 bg-amber-50 rounded border border-amber-200 text-amber-800 font-medium">
+                  ⚠️ Không tự ý đổi giá mà không chọn lý do để tránh khiếu nại cuối ngày.
+                </div>
+              </div>
+
+              <!-- Step 3 Card -->
+              <div class="border border-slate-200 rounded-xl p-3.5 space-y-2 bg-white hover:border-emerald-300 transition">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">3</span>
+                  <span class="font-bold text-slate-800">Gán thợ & Theo dõi tiến độ thời gian thực</span>
+                </div>
+                <p class="text-slate-600 leading-relaxed">
+                  Quản lý có thể chọn nhiều vé trên bảng và dùng <strong>Thanh công cụ nổi (Bulk Toolbar)</strong> ở mép dưới để gán thợ cắt, thợ tắm 1 và thợ tắm 2 một lần. Toàn bộ cập nhật phản hồi <strong>0ms tức thì</strong> không tải lại trang.
+                </p>
+              </div>
+
+              <!-- Step 4 Card -->
+              <div class="border border-slate-200 rounded-xl p-3.5 space-y-2 bg-white hover:border-purple-300 transition">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-purple-900 text-white font-bold flex items-center justify-center text-xs">4</span>
+                  <span class="font-bold text-slate-800">Trả bé & Cơ chế cấn trừ sạch ví</span>
+                </div>
+                <p class="text-slate-600 leading-relaxed">
+                  Khi bấm <strong>[Thanh Toán Trả Bé]</strong>: Nếu khách có ví, phần mềm tự ưu tiên trừ sạch ví trước. Nếu ví thiếu tiền, phần mềm tự tính khoản thu ngoài cần thanh toán tiền mặt/chuyển khoản và chỉ ghi nhận khoản thu ngoài vào <strong>Sổ Quỹ</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         VARIANT 2: INTERACTIVE FLOWCHART MAP (SƠ ĐỒ KHỐI TƯƠNG TÁC DẠNG CANVAS)
+         ========================================================================= -->
+    <div id="variant-2" class="hidden space-y-4">
+      <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-900">
+        <svg class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>
+          <strong>Đặc điểm Mẫu 2:</strong> Bản đồ trực quan (Interactive Node Map). Người dùng nhìn thấy toàn bộ chu trình vận hành của tiệm từ lúc mở ca sáng đến đóng ca tối. Click vào từng nút trên sơ đồ sẽ mở cửa sổ trượt (Drawer) hiển thị ảnh minh họa và các bước thực tế của nút đó.
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm min-h-[500px]">
+        <div class="text-center mb-6">
+          <h3 class="text-base font-bold text-slate-900">BẢN ĐỒ TOÀN CẢNH CHU TRÌNH VẬN HÀNH TIỆM THÚ CƯNG (ONE-DAY CYCLE)</h3>
+          <p class="text-xs text-slate-500">Bấm vào từng khối chức năng bên dưới để xem chi tiết thao tác</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+          <!-- Col 1 -->
+          <div class="space-y-3">
+            <div class="p-3 bg-purple-50 border-2 border-purple-300 rounded-xl text-center cursor-pointer hover:shadow-md transition">
+              <span class="text-xs font-extrabold text-purple-900 block">ĐẦU NGÀY: MỞ CA</span>
+              <p class="text-[11px] text-slate-600 mt-1">Đếm tiền mặt đầu ca, kiểm tra giấy in K80 & đăng nhập</p>
+            </div>
+            <div class="text-center text-slate-400">↓</div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center cursor-pointer hover:border-purple-400 transition">
+              <span class="text-xs font-bold text-slate-800 block">KIỂM KÊ KHO</span>
+              <p class="text-[11px] text-slate-500 mt-1">Quét mã vạch kiểm hàng date, hạt, thuốc thú y</p>
+            </div>
+          </div>
+
+          <!-- Col 2 -->
+          <div class="space-y-3">
+            <div class="p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-center cursor-pointer hover:shadow-md transition">
+              <span class="text-xs font-extrabold text-emerald-900 block">TRONG NGÀY: TIẾP NHẬN</span>
+              <p class="text-[11px] text-slate-600 mt-1">Cân ký, soi da ve rận, in phiếu nhận K80 hẹn giờ</p>
+            </div>
+            <div class="text-center text-slate-400">↓</div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center cursor-pointer hover:border-emerald-400 transition">
+              <span class="text-xs font-bold text-slate-800 block">GỬI HOTEL LƯU TRÚ</span>
+              <p class="text-[11px] text-slate-500 mt-1">Chọn buồng phòng mèo/chó, nhận tiền cọc</p>
+            </div>
+          </div>
+
+          <!-- Col 3 -->
+          <div class="space-y-3">
+            <div class="p-3 bg-blue-50 border-2 border-blue-300 rounded-xl text-center cursor-pointer hover:shadow-md transition">
+              <span class="text-xs font-extrabold text-blue-900 block">BÁN HÀNG & THU NGÂN</span>
+              <p class="text-[11px] text-slate-600 mt-1">Bán lẻ quầy POS, quét VietQR động, tích lũy điểm</p>
+            </div>
+            <div class="text-center text-slate-400">↓</div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center cursor-pointer hover:border-blue-400 transition">
+              <span class="text-xs font-bold text-slate-800 block">NẠP VÍ GÓI DỊCH VỤ</span>
+              <p class="text-[11px] text-slate-500 mt-1">Tư vấn gói 10 lần tặng 2, trừ ví trả trước</p>
+            </div>
+          </div>
+
+          <!-- Col 4 -->
+          <div class="space-y-3">
+            <div class="p-3 bg-rose-50 border-2 border-rose-300 rounded-xl text-center cursor-pointer hover:shadow-md transition">
+              <span class="text-xs font-extrabold text-rose-900 block">CUỐI NGÀY: KẾT CA (Z)</span>
+              <p class="text-[11px] text-slate-600 mt-1">Bảng đếm 10 mệnh giá, in Z-Report, đối soát lệch két</p>
+            </div>
+            <div class="text-center text-slate-400">↓</div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center cursor-pointer hover:border-rose-400 transition">
+              <span class="text-xs font-bold text-slate-800 block">SAO LƯU & SYNC MÂY</span>
+              <p class="text-[11px] text-slate-500 mt-1">Auto backup .db & đồng bộ dữ liệu về Supabase</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================================
+         VARIANT 3: TASK CARDS & QUẦY SITUATIONS (TÌNH HUỐNG THỰC TẾ)
+         ========================================================================= -->
+    <div id="variant-3" class="hidden space-y-4">
+      <div class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
+        <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div>
+          <strong>Đặc điểm Mẫu 3:</strong> Dạng Card theo "Câu hỏi tình huống" (FAQ / Troubleshooting). Giúp nhân viên mới gặp sự cố gì là tra đúng card đó để xử lý nhanh (VD: Khách trả lại hàng thì bấm đâu? In bill bị đứt giấy thì làm sao? Khách gửi 3 bé cùng lúc nhận như thế nào?).
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Card 1 -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Tình huống 01</span>
+          <h4 class="text-xs font-bold text-slate-900">Khách gửi 3 bé chó cùng 1 lúc</h4>
+          <p class="text-xs text-slate-600">Dùng chức năng "Tiếp Nhận Hàng Loạt". Nhập 1 lần SĐT của khách, hệ thống tự bung danh sách các bé của chủ đó để tích chọn và phân thợ 1 lượt.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Tình huống 02</span>
+          <h4 class="text-xs font-bold text-slate-900">Máy in nhiệt K80 bị kẹt hoặc hết giấy</h4>
+          <p class="text-xs text-slate-600">Vào tab Hóa Đơn hoặc Lịch Sử Spa, tìm đúng mã hóa đơn và bấm nút [In Lại K80]. Toàn bộ dữ liệu được giữ nguyên và in lại không phát sinh hóa đơn mới.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Tình huống 03</span>
+          <h4 class="text-xs font-bold text-slate-900">Khách nợ tiền dịch vụ hoặc hàng hóa</h4>
+          <p class="text-xs text-slate-600">Chọn hình thức thanh toán "Ghi Nợ". Tiền tự động chuyển vào phân hệ Sổ Quỹ & Công Nợ để theo dõi đối soát và nhắc hẹn trả nợ.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- SCRIPT SWITCHER -->
+  <script>
+    function switchVariant(mode) {
+      const v1 = document.getElementById('variant-1');
+      const v2 = document.getElementById('variant-2');
+      const v3 = document.getElementById('variant-3');
+      const b1 = document.getElementById('btn-v1');
+      const b2 = document.getElementById('btn-v2');
+      const b3 = document.getElementById('btn-v3');
+
+      [v1, v2, v3].forEach(el => el.classList.add('hidden'));
+      [b1, b2, b3].forEach(btn => {
+        btn.className = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+      });
+
+      if (mode === 'v1') {
+        v1.classList.remove('hidden');
+        b1.className = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs flex items-center gap-1.5";
+      } else if (mode === 'v2') {
+        v2.classList.remove('hidden');
+        b2.className = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs flex items-center gap-1.5";
+      } else if (mode === 'v3') {
+        v3.classList.remove('hidden');
+        b3.className = "px-3.5 py-2 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs flex items-center gap-1.5";
+      }
+    }
+
+    function showDoc(docId) {
+      // Stub for doc switching
+      console.log('Switching doc:', docId);
+    }
+  </script>
+</body>
+</html>

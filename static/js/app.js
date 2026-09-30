@@ -2309,9 +2309,43 @@
                 if(typeof loadOEMData === 'function') loadOEMData();
             } else if (tabId === 'cashflow-debts') {
                 if(typeof loadCashflowDebtsData === 'function') loadCashflowDebtsData();
+            } else if (tabId === 'guide') {
+                if (subTabId) switchGuideSubTab(subTabId);
+                else switchGuideSubTab('pos');
             }
             stopPageLoader(220);
         }
+
+        function switchGuideSubTab(subId) {
+            const panels = document.querySelectorAll('.guide-sub-panel');
+            panels.forEach(p => p.classList.add('hidden'));
+
+            const targetPanel = document.getElementById('guide-sub-' + subId);
+            if (targetPanel) {
+                targetPanel.classList.remove('hidden');
+            }
+
+            const contentArea = document.getElementById('guide-content-area');
+            if (contentArea) contentArea.scrollTop = 0;
+
+            const buttons = document.querySelectorAll('.guide-nav-btn');
+            buttons.forEach(btn => {
+                const guideKey = btn.dataset.guide;
+                const badge = btn.querySelector('span > span');
+                if (guideKey === subId) {
+                    btn.className = "guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold bg-purple-100 text-purple-800 transition";
+                    if (badge) {
+                        badge.className = "w-5 h-5 rounded-lg bg-purple-200 text-purple-800 flex items-center justify-center text-[10px] font-black shrink-0";
+                    }
+                } else {
+                    btn.className = "guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition";
+                    if (badge) {
+                        badge.className = "w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0";
+                    }
+                }
+            });
+        }
+        window.switchGuideSubTab = switchGuideSubTab;
 
         function applyAppZoom(delta) {
             let current = parseInt(localStorage.getItem('appZoom') || '100', 10);
