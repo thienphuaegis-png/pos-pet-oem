@@ -475,6 +475,10 @@
         function openImportContactsModal() {
             const modal = document.getElementById('modal-contacts-import');
             if (modal) {
+                const selectType = document.getElementById('import-contact-type') || document.getElementById('import-contacts-type');
+                if (selectType) {
+                    selectType.value = currentContactTab || 'customer';
+                }
                 modal.classList.remove('hidden');
                 updateDownloadTemplateLink();
             }
@@ -513,18 +517,24 @@
                     method: 'POST',
                     body: formData
                 });
-                const result = await res.json();
+                let result;
+                try {
+                    result = await res.json();
+                } catch (_) {
+                    const text = await res.text();
+                    result = { detail: text || `HTTP ${res.status}` };
+                }
                 if (!res.ok) {
                     alert('Lỗi import: ' + (result.detail || 'Không thể nhập file'));
                     return;
                 }
-                alert(result.message || `Đã nhập thành công ${result.imported_count || 0} đối tác!`);
+                alert(result.message || `Đã nhập thành công đối tác!`);
                 closeImportContactsModal();
                 fileInput.value = '';
                 await loadContacts();
             } catch (e) {
                 console.error("submitImportContacts err:", e);
-                alert("Lỗi kết nối máy chủ");
+                alert("Lỗi kết nối máy chủ: " + (e.message || e));
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '🚀 Bắt Đầu Import'; }
             }
