@@ -8,15 +8,23 @@ echo.
 
 cd /d "%~dp0"
 
-echo [1/4] Dang tat may chu POS de giai phong file...
+echo [1/4] Dang tat may chu POS va cac tien trinh chay ngam...
 taskkill /F /IM POS_Mastercare.exe >nul 2>&1
+taskkill /F /IM python.exe >nul 2>&1
+taskkill /F /IM pythonw.exe >nul 2>&1
+taskkill /F /IM ngrok.exe >nul 2>&1
+taskkill /F /IM cloudflared.exe >nul 2>&1
+
+REM Quet va kill tat ca tien trinh chiem cong 8998, 8999
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8998" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8999" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
-powershell -NoProfile -Command "Start-Sleep -Seconds 1"
+
+REM Kill bang PowerShell de dam bao sach 100% khong con tien trinh nao giu file
+powershell -NoProfile -Command "Get-Process | Where-Object { $_.ProcessName -match 'POS_Mastercare|python|ngrok' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1"
 
 echo [2/4] Dang tim kiem Git tren may...
 set "GIT="
