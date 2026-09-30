@@ -25,6 +25,8 @@ class ContactCreate(BaseModel):
     type: str = "customer" # customer | supplier
     segment_id: Optional[int] = None
     debt: Optional[float] = 0.0
+    initial_debt_company: Optional[float] = 0.0
+    initial_debt_personal: Optional[float] = 0.0
 
 class ContactUpdate(BaseModel):
     name: str
@@ -33,9 +35,13 @@ class ContactUpdate(BaseModel):
     address: Optional[str] = ""
     segment_id: Optional[int] = None
     debt: Optional[float] = None
+    initial_debt_company: Optional[float] = None
+    initial_debt_personal: Optional[float] = None
 
 class ContactDebtAdjust(BaseModel):
-    debt: float
+    debt: Optional[float] = None
+    initial_debt_company: Optional[float] = None
+    initial_debt_personal: Optional[float] = None
     note: Optional[str] = ""
 
 class CustomerWarningUpdate(BaseModel):
@@ -403,9 +409,18 @@ def get_contact(contact_id: int):
 def create_contact(req: ContactCreate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
+    c_debt = float(req.initial_debt_company or 0.0)
+    p_debt = float(req.initial_debt_personal or 0.0)
     init_debt = float(req.debt or 0.0)
-    cur.execute("INSERT INTO contacts (type, name, phone, email, address, segment_id, debt) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, init_debt))
+    if (c_debt != 0 or p_debt != 0) and init_debt == 0:
+        init_debt = c_debt + p_debt
+    elif init_debt != 0 and c_debt == 0 and p_debt == 0:
+        p_debt = init_debt
+
+    cur.execute("""
+        INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, initial_debt_company, initial_debt_personal) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, init_debt, c_debt, p_debt))
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -415,18 +430,31 @@ def create_contact(req: ContactCreate, user=Depends(require_permission("partners
 def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_permission("partners.manage"))):
     conn = get_db()
     cur = conn.cursor()
+    cur.execute("SELECT id, debt, initial_debt_company, initial_debt_personal FROM contacts WHERE id = ?", (contact_id,))
+    c_exist = cur.fetchone()
+    if not c_exist:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy đối tác")
+
+    old_c_debt = float(c_exist["initial_debt_company"] or 0.0)
+    old_p_debt = float(c_exist["initial_debt_personal"] or 0.0)
+
+    new_c_debt = float(req.initial_debt_company) if req.initial_debt_company is not None else old_c_debt
+    new_p_debt = float(req.initial_debt_personal) if req.initial_debt_personal is not None else old_p_debt
+
     if req.debt is not None:
-        cur.execute("""
-            UPDATE contacts 
-            SET name = ?, phone = ?, email = ?, address = ?, segment_id = ?, debt = ? 
-            WHERE id = ?
-        """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, float(req.debt), contact_id))
+        new_debt = float(req.debt)
     else:
-        cur.execute("""
-            UPDATE contacts 
-            SET name = ?, phone = ?, email = ?, address = ?, segment_id = ? 
-            WHERE id = ?
-        """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, contact_id))
+        new_debt = new_c_debt + new_p_debt
+
+    cur.execute("""
+        UPDATE contacts 
+        SET name = ?, phone = ?, email = ?, address = ?, segment_id = ?, 
+            debt = ?, initial_debt_company = ?, initial_debt_personal = ? 
+        WHERE id = ?
+    """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), 
+          req.segment_id, new_debt, new_c_debt, new_p_debt, contact_id))
+
     conn.commit()
     conn.close()
     return {"status": "ok"}
@@ -435,18 +463,39 @@ def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_per
 def adjust_contact_debt(contact_id: int, req: ContactDebtAdjust, user=Depends(require_any_permission("partners.manage", "cashbook.manage", "oem.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, name, type, debt FROM contacts WHERE id = ?", (contact_id,))
+    cur.execute("SELECT id, name, type, debt, initial_debt_company, initial_debt_personal FROM contacts WHERE id = ?", (contact_id,))
     c = cur.fetchone()
     if not c:
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy đối tác")
     
-    old_debt = float(c["debt"] or 0.0)
-    new_debt = float(req.debt or 0.0)
-    cur.execute("UPDATE contacts SET debt = ? WHERE id = ?", (new_debt, contact_id))
+    old_c_debt = float(c["initial_debt_company"] or 0.0)
+    old_p_debt = float(c["initial_debt_personal"] or 0.0)
+
+    new_c_debt = float(req.initial_debt_company) if req.initial_debt_company is not None else old_c_debt
+    new_p_debt = float(req.initial_debt_personal) if req.initial_debt_personal is not None else old_p_debt
+
+    if req.debt is not None and req.initial_debt_company is None and req.initial_debt_personal is None:
+        new_debt = float(req.debt)
+        new_p_debt = new_debt
+        new_c_debt = 0.0
+    else:
+        new_debt = new_c_debt + new_p_debt
+
+    cur.execute("""
+        UPDATE contacts 
+        SET debt = ?, initial_debt_company = ?, initial_debt_personal = ? 
+        WHERE id = ?
+    """, (new_debt, new_c_debt, new_p_debt, contact_id))
+
     conn.commit()
     conn.close()
-    return {"status": "ok", "old_debt": old_debt, "new_debt": new_debt}
+    return {
+        "status": "ok", 
+        "new_debt": new_debt, 
+        "initial_debt_company": new_c_debt, 
+        "initial_debt_personal": new_p_debt
+    }
 
 @router.put("/{contact_id}/warning")
 def update_contact_warning(contact_id: int, req: CustomerWarningUpdate, user=Depends(require_permission("partners.manage"))):

@@ -776,7 +776,10 @@ def list_debt_suppliers():
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            c.id, c.name, c.phone, c.address, COALESCE(c.debt, 0) as initial_debt,
+            c.id, c.name, c.phone, c.address, 
+            COALESCE(c.debt, 0) as initial_debt,
+            COALESCE(c.initial_debt_company, 0) as initial_debt_company,
+            COALESCE(c.initial_debt_personal, 0) as initial_debt_personal,
             w.name as warehouse_name,
             (SELECT COUNT(*) FROM purchases p WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled') as po_debt_count,
             (SELECT COUNT(*) FROM oem_orders o WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED') as oem_debt_count,
@@ -809,13 +812,25 @@ def list_debt_suppliers():
     rows = []
     for r in cur.fetchall():
         d = dict(r)
-        initial_d = float(d.get("initial_debt", 0.0) or 0.0)
+        init_c = float(d.get("initial_debt_company", 0.0) or 0.0)
+        init_p = float(d.get("initial_debt_personal", 0.0) or 0.0)
+        init_total = float(d.get("initial_debt", 0.0) or 0.0)
+        
+        # Nếu chưa phân tách mà có initial_debt chung, gán tạm vào quỹ cá nhân
+        if init_c == 0.0 and init_p == 0.0 and init_total > 0.0:
+            init_p = init_total
+
         po_oem_company = float(d.get("debt_company", 0.0) or 0.0)
         po_oem_personal = float(d.get("debt_personal", 0.0) or 0.0)
         
-        # Nợ cá nhân bao gồm nợ đầu kỳ ghi nhận trong contacts.debt
-        d["debt_personal"] = round(po_oem_personal + initial_d, 2)
-        total_d = round(po_oem_company + d["debt_personal"], 2)
+        final_company_debt = round(po_oem_company + init_c, 2)
+        final_personal_debt = round(po_oem_personal + init_p, 2)
+        total_d = round(final_company_debt + final_personal_debt, 2)
+
+        d["initial_debt_company"] = init_c
+        d["initial_debt_personal"] = init_p
+        d["debt_company"] = final_company_debt
+        d["debt_personal"] = final_personal_debt
         d["debt"] = total_d
         d["total_debt"] = total_d
         rows.append(d)
@@ -918,15 +933,22 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     target_orders = pos + oems
     total_basket_debt = sum(o["debt_amount"] for o in target_orders)
     
-    if total_basket_debt <= 0:
+    cur.execute("SELECT initial_debt_company, initial_debt_personal, debt FROM contacts WHERE id = ?", (req.supplier_id,))
+    c_row = cur.fetchone()
+    init_c = float(c_row["initial_debt_company"] or 0.0) if c_row else 0.0
+    init_p = float(c_row["initial_debt_personal"] or 0.0) if c_row else 0.0
+    init_fund_debt = init_c if is_company else init_p
+    total_allowed_debt = round(total_basket_debt + init_fund_debt, 2)
+    
+    if total_allowed_debt <= 0:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Nhà cung cấp này hiện không có đơn nợ nào thuộc {fund_label}")
+        raise HTTPException(status_code=400, detail=f"Nhà cung cấp này hiện không có công nợ nào thuộc {fund_label}")
         
-    if req.amount > total_basket_debt + 0.01:
+    if req.amount > total_allowed_debt + 0.01:
         conn.close()
         raise HTTPException(
             status_code=400, 
-            detail=f"Số tiền thanh toán ({req.amount:,.0f} đ) vượt quá tổng nợ thuộc {fund_label} ({total_basket_debt:,.0f} đ). Vui lòng nhập tối đa {total_basket_debt:,.0f} đ."
+            detail=f"Số tiền thanh toán ({req.amount:,.0f} đ) vượt quá tổng nợ thuộc {fund_label} ({total_allowed_debt:,.0f} đ). Vui lòng nhập tối đa {total_allowed_debt:,.0f} đ."
         )
         
     rem = req.amount
@@ -943,6 +965,13 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
             payment_status = "PAID" if new_remaining <= 0 else "PARTIAL"
             cur.execute("UPDATE oem_orders SET remaining_payment = ?, deposit_amount = ?, payment_status = ? WHERE id = ?", (new_remaining, new_deposit, payment_status, o["id"]))
             
+    # Nếu còn dư tiền thanh toán sau khi trừ đơn -> trừ tiếp vào nợ đầu kỳ
+    if rem > 0:
+        if is_company:
+            cur.execute("UPDATE contacts SET initial_debt_company = MAX(0.0, initial_debt_company - ?) WHERE id = ?", (rem, req.supplier_id))
+        else:
+            cur.execute("UPDATE contacts SET initial_debt_personal = MAX(0.0, initial_debt_personal - ?) WHERE id = ?", (rem, req.supplier_id))
+
     cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?) WHERE id = ?", (req.amount, req.supplier_id))
     
     cb_code = generate_cashbook_code(cur, "PC-NH")
@@ -959,6 +988,8 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     conn.close()
     return {
         "success": True,
+        "status": "ok",
+        "paid_amount": req.amount,
         "message": f"Đã thanh toán {req.amount:,.0f} đ cho {supp['name']} bằng {fund_label} (đã cấn trừ {len(target_orders)} đơn)"
     }
 

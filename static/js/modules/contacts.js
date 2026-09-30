@@ -204,6 +204,20 @@
             document.getElementById('contact-form-address').value = '';
             const debtEl = document.getElementById('contact-form-debt');
             if (debtEl) debtEl.value = '0';
+            const debtCompEl = document.getElementById('contact-form-debt-company');
+            if (debtCompEl) debtCompEl.value = '0';
+            const debtPersEl = document.getElementById('contact-form-debt-personal');
+            if (debtPersEl) debtPersEl.value = '0';
+
+            const suppDebtBox = document.getElementById('contact-supplier-split-debt');
+            const custDebtBox = document.getElementById('contact-customer-single-debt');
+            if (defaultType === 'supplier') {
+                if (suppDebtBox) suppDebtBox.classList.remove('hidden');
+                if (custDebtBox) custDebtBox.classList.add('hidden');
+            } else {
+                if (suppDebtBox) suppDebtBox.classList.add('hidden');
+                if (custDebtBox) custDebtBox.classList.remove('hidden');
+            }
             
             // Populate segments
             const segSelect = document.getElementById('contact-form-segment');
@@ -234,6 +248,20 @@
             document.getElementById('contact-form-address').value = c.address || '';
             const debtEl = document.getElementById('contact-form-debt');
             if (debtEl) debtEl.value = c.debt || 0;
+            const debtCompEl = document.getElementById('contact-form-debt-company');
+            if (debtCompEl) debtCompEl.value = c.initial_debt_company || 0;
+            const debtPersEl = document.getElementById('contact-form-debt-personal');
+            if (debtPersEl) debtPersEl.value = c.initial_debt_personal || 0;
+
+            const suppDebtBox = document.getElementById('contact-supplier-split-debt');
+            const custDebtBox = document.getElementById('contact-customer-single-debt');
+            if (c.type === 'supplier') {
+                if (suppDebtBox) suppDebtBox.classList.remove('hidden');
+                if (custDebtBox) custDebtBox.classList.add('hidden');
+            } else {
+                if (suppDebtBox) suppDebtBox.classList.add('hidden');
+                if (custDebtBox) custDebtBox.classList.remove('hidden');
+            }
             
             const segSelect = document.getElementById('contact-form-segment');
             if (segSelect) {
@@ -265,6 +293,10 @@
             const segment_id = segVal ? parseInt(segVal) : null;
             const debtVal = document.getElementById('contact-form-debt')?.value;
             const debt = debtVal !== undefined && debtVal !== '' ? parseFloat(debtVal) : 0.0;
+            const debtCompVal = document.getElementById('contact-form-debt-company')?.value;
+            const initial_debt_company = debtCompVal !== undefined && debtCompVal !== '' ? parseFloat(debtCompVal) : 0.0;
+            const debtPersVal = document.getElementById('contact-form-debt-personal')?.value;
+            const initial_debt_personal = debtPersVal !== undefined && debtPersVal !== '' ? parseFloat(debtPersVal) : 0.0;
 
             if (!name) {
                 alert('Vui lòng nhập họ tên hoặc tên đơn vị đối tác!');
@@ -276,7 +308,10 @@
                     const res = await fetch(`/api/contacts/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, phone, email, address, segment_id, debt })
+                        body: JSON.stringify({ 
+                            name, phone, email, address, segment_id, debt,
+                            initial_debt_company, initial_debt_personal 
+                        })
                     });
                     if (!res.ok) {
                         const err = await res.json();
@@ -287,7 +322,10 @@
                     const res = await fetch('/api/contacts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type, name, phone, email, address, segment_id, debt })
+                        body: JSON.stringify({ 
+                            type, name, phone, email, address, segment_id, debt,
+                            initial_debt_company, initial_debt_personal 
+                        })
                     });
                     if (!res.ok) {
                         const err = await res.json();

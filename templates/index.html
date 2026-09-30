@@ -4380,6 +4380,42 @@
                 </div>
             </div>
 
+            <!-- MODAL: SỬA NHANH CÔNG NỢ ĐẦU KỲ NCC -->
+            <div id="modal-quick-edit-debt" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col text-xs">
+                    <div class="flex justify-between items-center border-b p-3.5 bg-sky-50 rounded-t-xl">
+                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                            <span>✏️ Chỉnh Sửa Công Nợ NCC</span>
+                        </h3>
+                        <button onclick="closeQuickEditDebtModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                    </div>
+                    <input type="hidden" id="qed-supp-id" value="">
+                    <div class="p-4 space-y-3">
+                        <div class="text-gray-600">
+                            Đối tác: <strong id="qed-supp-name" class="text-slate-800 text-sm"></strong>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-blue-700 mb-1">🏢 Nợ Quỹ Công Ty (đ):</label>
+                            <input type="number" id="qed-debt-company" oninput="updateQEDTotal()" class="border p-2 rounded w-full font-mono font-bold text-blue-700 bg-blue-50/40 text-sm" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-purple-700 mb-1">👤 Nợ Quỹ Cá Nhân (đ):</label>
+                            <input type="number" id="qed-debt-personal" oninput="updateQEDTotal()" class="border p-2 rounded w-full font-mono font-bold text-purple-700 bg-purple-50/40 text-sm" placeholder="0">
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded border flex justify-between items-center">
+                            <span class="font-bold text-gray-700">Tổng công nợ:</span>
+                            <strong id="qed-debt-total" class="font-mono text-rose-600 text-base font-black">0 đ</strong>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-gray-50 border-t flex justify-end gap-2 rounded-b-xl">
+                        <button onclick="closeQuickEditDebtModal()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100 font-bold">Hủy</button>
+                        <button onclick="submitQuickEditDebt()" id="qed-submit-btn" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow">
+                            Lưu Thay Đổi
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- TAB: BAO CAO -->
             <div id="tab-reports" class="hidden space-y-6">
                 <div class="flex items-center gap-2.5 bg-white p-4 rounded-xl shadow-xs border border-slate-200/80">
@@ -6997,12 +7033,24 @@
                         <option value="">-- Mặc định (Khách lẻ) --</option>
                     </select>
                 </div>
-                <div id="contact-debt-wrapper">
-                    <div class="flex items-center justify-between mb-1">
-                        <label class="block font-bold text-slate-700">Công Nợ Đầu Kỳ / Nợ Điều Chỉnh (đ):</label>
+                <div id="contact-debt-wrapper" class="space-y-2 border-t pt-2">
+                    <div class="flex items-center justify-between">
+                        <label class="block font-bold text-slate-700">Công Nợ Đầu Kỳ / Nợ Nhập Tay (đ):</label>
                         <span class="text-[10px] text-amber-600 font-semibold">(Admin / Quản lý chỉnh sửa)</span>
                     </div>
-                    <input type="number" id="contact-form-debt" class="border p-2 rounded w-full font-mono font-bold text-rose-600 bg-amber-50/40" placeholder="0" value="0">
+                    <div id="contact-supplier-split-debt" class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-blue-700 mb-0.5">🏢 Nợ Quỹ Công Ty:</label>
+                            <input type="number" id="contact-form-debt-company" class="border p-1.5 rounded w-full font-mono font-bold text-blue-700 bg-blue-50/50 text-xs" placeholder="0" value="0">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-purple-700 mb-0.5">👤 Nợ Quỹ Cá Nhân:</label>
+                            <input type="number" id="contact-form-debt-personal" class="border p-1.5 rounded w-full font-mono font-bold text-purple-700 bg-purple-50/50 text-xs" placeholder="0" value="0">
+                        </div>
+                    </div>
+                    <div id="contact-customer-single-debt" class="hidden">
+                        <input type="number" id="contact-form-debt" class="border p-2 rounded w-full font-mono font-bold text-rose-600 bg-amber-50/40 text-xs" placeholder="0" value="0">
+                    </div>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t">

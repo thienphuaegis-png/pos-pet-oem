@@ -275,6 +275,10 @@ def init_db():
         cur.execute("ALTER TABLE contacts ADD COLUMN is_flagged INTEGER DEFAULT 0")
     if 'warning_note' not in contact_cols:
         cur.execute("ALTER TABLE contacts ADD COLUMN warning_note TEXT DEFAULT ''")
+    if 'initial_debt_company' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN initial_debt_company REAL DEFAULT 0")
+    if 'initial_debt_personal' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN initial_debt_personal REAL DEFAULT 0")
 
     # 3. Danh muc san pham / dich vu / nguyen lieu
     cur.execute('''

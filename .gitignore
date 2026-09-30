@@ -23,6 +23,10 @@ ngrok.exe
 !POS_Mastercare.exe
 *.zip
 
+# SSH Deploy Keys
+deploy/id_pos_shop
+deploy/id_pos_shop.pub
+
 # Sinh ra khi cài đặt máy tiệm, mỗi máy mỗi khác
 deploy/QR_POS.png
 deploy/server_ip.txt

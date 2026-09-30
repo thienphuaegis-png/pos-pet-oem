@@ -202,7 +202,7 @@
                                 <button onclick="viewCFDSupplierOrders(${s.id}, '${s.name.replace(/'/g, "\\'")}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold border">
                                     🔍 Xem đơn nợ
                                 </button>
-                                <button onclick="quickEditSupplierDebt(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${totalDebt})" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold border border-sky-200" title="Chỉnh sửa công nợ đầu kỳ">
+                                <button onclick="quickEditSupplierDebt(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${s.debt_company || 0}, ${s.debt_personal || 0})" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold border border-sky-200" title="Chỉnh sửa công nợ đầu kỳ">
                                     ✏️ Sửa nợ
                                 </button>
                                 ${hasDebt ? `
@@ -500,30 +500,89 @@
             }
         }
 
-        async function quickEditSupplierDebt(supplierId, supplierName, currentDebt) {
-            const input = prompt(`[Admin] Chỉnh sửa công nợ đầu kỳ / nợ phải trả cho "${supplierName}":\n(Nhập số tiền VNĐ, ví dụ: 5000000)`, currentDebt || 0);
-            if (input === null) return;
-            const newDebt = parseFloat(String(input).replace(/[^0-9.-]+/g, ''));
-            if (isNaN(newDebt) || newDebt < 0) {
-                alert('Số tiền công nợ không hợp lệ!');
+        async function quickEditSupplierDebt(supplierId, supplierName, currentDebtCompany, currentDebtPersonal) {
+            const modal = document.getElementById('modal-quick-edit-debt');
+            if (modal) {
+                document.getElementById('qed-supp-id').value = supplierId;
+                document.getElementById('qed-supp-name').textContent = supplierName;
+                document.getElementById('qed-debt-company').value = currentDebtCompany || 0;
+                document.getElementById('qed-debt-personal').value = currentDebtPersonal || 0;
+                updateQEDTotal();
+                modal.classList.remove('hidden');
                 return;
             }
+
+            // Fallback prompt nếu modal chưa sẵn sàng
+            const cStr = prompt(`[Quỹ CÔNG TY] Nhập công nợ cho "${supplierName}":`, currentDebtCompany || 0);
+            if (cStr === null) return;
+            const pStr = prompt(`[Quỹ CÁ NHÂN] Nhập công nợ cho "${supplierName}":`, currentDebtPersonal || 0);
+            if (pStr === null) return;
+            
+            const newC = parseFloat(String(cStr).replace(/[^0-9.-]+/g, '')) || 0;
+            const newP = parseFloat(String(pStr).replace(/[^0-9.-]+/g, '')) || 0;
+
             try {
                 const res = await fetch(`/api/contacts/${supplierId}/debt`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ debt: newDebt })
+                    body: JSON.stringify({ initial_debt_company: newC, initial_debt_personal: newP })
                 });
                 if (!res.ok) {
                     const err = await res.json();
                     alert('Lỗi cập nhật nợ: ' + (err.detail || 'Không thể thực hiện'));
                     return;
                 }
-                alert(`Đã cập nhật công nợ cho "${supplierName}" thành ${formatMoney(newDebt)} thành công!`);
+                alert(`Đã cập nhật công nợ cho "${supplierName}" thành công!`);
                 await loadCFDSuppliers();
                 if (typeof loadContacts === 'function') loadContacts();
             } catch (e) {
                 console.error(e);
                 alert('Lỗi kết nối máy chủ!');
+            }
+        }
+
+        function updateQEDTotal() {
+            const cVal = parseFloat(document.getElementById('qed-debt-company')?.value || 0) || 0;
+            const pVal = parseFloat(document.getElementById('qed-debt-personal')?.value || 0) || 0;
+            const totalEl = document.getElementById('qed-debt-total');
+            if (totalEl) totalEl.textContent = formatMoney(cVal + pVal);
+        }
+
+        function closeQuickEditDebtModal() {
+            const modal = document.getElementById('modal-quick-edit-debt');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitQuickEditDebt() {
+            const supplierId = document.getElementById('qed-supp-id').value;
+            const cVal = parseFloat(document.getElementById('qed-debt-company').value || 0) || 0;
+            const pVal = parseFloat(document.getElementById('qed-debt-personal').value || 0) || 0;
+            const btn = document.getElementById('qed-submit-btn');
+
+            if (cVal < 0 || pVal < 0) {
+                alert('Số tiền công nợ không được âm!');
+                return;
+            }
+
+            try {
+                if (btn) { btn.disabled = true; btn.innerText = 'Đang lưu...'; }
+                const res = await fetch(`/api/contacts/${supplierId}/debt`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initial_debt_company: cVal, initial_debt_personal: pVal })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Lỗi cập nhật nợ: ' + (err.detail || 'Không thể thực hiện'));
+                    return;
+                }
+                closeQuickEditDebtModal();
+                await loadCFDSuppliers();
+                if (typeof loadContacts === 'function') loadContacts();
+            } catch (e) {
+                console.error(e);
+                alert('Lỗi kết nối máy chủ!');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerText = 'Lưu Thay Đổi'; }
             }
         }
