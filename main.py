@@ -5,6 +5,10 @@ import time
 import os
 import sys
 import subprocess
+try:
+    import passlib.handlers.bcrypt
+except Exception:
+    pass
 
 port = int(os.environ.get("POS_PORT", "8998"))
 
@@ -15,17 +19,18 @@ def start_ngrok(base_dir):
             subprocess.run([ngrok_exe, "config", "add-authtoken", "3K25d5cxaDd9RJc49PeyZgmDyDn_5YKJ9WoKu1ifynvjKanRh"], cwd=base_dir, capture_output=True)
         except Exception:
             pass
+        target = f"http://127.0.0.1:{port}"
         try:
             out = subprocess.check_output('tasklist /FI "IMAGENAME eq ngrok.exe"', shell=True).decode('utf-8', errors='ignore')
             if "ngrok.exe" not in out:
                 subprocess.Popen(
-                    [ngrok_exe, "http", str(port), "--url=womb-jitters-outfit.ngrok-free.dev"],
+                    [ngrok_exe, "http", target, "--url=womb-jitters-outfit.ngrok-free.dev"],
                     cwd=base_dir,
                     creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 )
         except Exception:
             subprocess.Popen(
-                [ngrok_exe, "http", str(port), "--url=womb-jitters-outfit.ngrok-free.dev"],
+                [ngrok_exe, "http", target, "--url=womb-jitters-outfit.ngrok-free.dev"],
                 cwd=base_dir,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
@@ -58,15 +63,20 @@ if __name__ == "__main__":
         safe_print("="*50)
 
     from server import app
-    # reload chi dung khi dev (source .py), khong dung khi da dong goi .exe - tranh watcher loop khong len duoc server
-    # POS_PRODUCTION=1 (may chu tiem): tat watcher - tiet kiem RAM va tranh
-    # reload giua luc git pull dang thay file trong khi cap nhat.
     is_frozen = getattr(sys, "frozen", False)
-    uvicorn.run(
-        "server:app",
-        host="0.0.0.0",
-        port=port,
-        reload=not (is_frozen or is_production),
-        reload_excludes=["*.log", "logs/*", "data/*", "*.db*", "*.db-wal", "*.db-shm", "backups/*"],
-        log_level="error"
-    )
+    if is_frozen:
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=port,
+            log_level="info"
+        )
+    else:
+        uvicorn.run(
+            "server:app",
+            host="0.0.0.0",
+            port=port,
+            reload=not is_production,
+            reload_excludes=["*.log", "logs/*", "data/*", "*.db*", "*.db-wal", "*.db-shm", "backups/*"],
+            log_level="error"
+        )

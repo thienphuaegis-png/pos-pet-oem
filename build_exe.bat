@@ -11,6 +11,18 @@ pyinstaller --noconfirm --onedir ^
     --icon "app_icon.ico" ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
+    --hidden-import "passlib.handlers.bcrypt" ^
+    --hidden-import "bcrypt" ^
+    --hidden-import "uvicorn.logging" ^
+    --hidden-import "uvicorn.loops" ^
+    --hidden-import "uvicorn.loops.auto" ^
+    --hidden-import "uvicorn.protocols" ^
+    --hidden-import "uvicorn.protocols.http" ^
+    --hidden-import "uvicorn.protocols.http.auto" ^
+    --hidden-import "uvicorn.protocols.websockets" ^
+    --hidden-import "uvicorn.protocols.websockets.auto" ^
+    --hidden-import "uvicorn.lifespan" ^
+    --hidden-import "uvicorn.lifespan.on" ^
     main.py
 
 echo.
