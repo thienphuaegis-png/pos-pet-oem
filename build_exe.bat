@@ -6,11 +6,15 @@ echo ========================================================
 cd /d %~dp0
 call .venv\Scripts\activate
 
-pyinstaller --noconfirm --onedir ^
+pyinstaller --noconfirm --onedir --noconsole ^
     --name "POS_Mastercare" ^
     --icon "app_icon.ico" ^
     --add-data "templates;templates" ^
     --add-data "static;static" ^
+    --hidden-import "pystray" ^
+    --hidden-import "pystray._win32" ^
+    --hidden-import "PIL" ^
+    --hidden-import "PIL.Image" ^
     --hidden-import "passlib.handlers.bcrypt" ^
     --hidden-import "bcrypt" ^
     --hidden-import "uvicorn.logging" ^
@@ -31,7 +35,11 @@ if not exist "dist\POS_Mastercare\data" mkdir "dist\POS_Mastercare\data"
 copy "data\pos.db" "dist\POS_Mastercare\data\pos.db" /Y
 copy "ngrok.exe" "dist\POS_Mastercare\ngrok.exe" /Y
 copy "logo Mastercare.png" "dist\POS_Mastercare\logo Mastercare.png" /Y
+copy "app_icon.ico" "dist\POS_Mastercare\app_icon.ico" /Y
 copy "HUONG_DAN_SU_DUNG.txt" "dist\POS_Mastercare\HUONG_DAN_SU_DUNG.txt" /Y
+copy "BAT_KHOI_DONG_CUNG_WINDOWS.bat" "dist\POS_Mastercare\BAT_KHOI_DONG_CUNG_WINDOWS.bat" /Y
+copy "TAT_KHOI_DONG_CUNG_WINDOWS.bat" "dist\POS_Mastercare\TAT_KHOI_DONG_CUNG_WINDOWS.bat" /Y
+copy "TAT_MAY_CHU.bat" "dist\POS_Mastercare\TAT_MAY_CHU.bat" /Y
 xcopy "templates" "dist\POS_Mastercare\templates\" /E /I /Y
 xcopy "static" "dist\POS_Mastercare\static\" /E /I /Y
 

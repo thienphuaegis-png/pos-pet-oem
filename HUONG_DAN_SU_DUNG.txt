@@ -1,23 +1,33 @@
 ============================================================
-           HƯỚNG DẪN SỬ DỤNG - POS MASTERCARE
+           HƯỚNG DẪN SỬ DỤNG - POS MASTERCARE (PORTABLE)
 ============================================================
 
 1. KHỞI ĐỘNG HỆ THỐNG:
    - Nhấp đúp vào file "POS_Mastercare.exe".
-   - Hệ thống sẽ tự động kích hoạt máy chủ POS nội bộ và đường truyền online.
-   - Trình duyệt web sẽ tự động mở trang bán hàng.
-   - KHÔNG tắt cửa sổ màu đen (Console) trong suốt quá trình sử dụng.
+   - Hệ thống chạy hoàn toàn ngầm dưới nền, KHÔNG CÒN CỬA SỔ ĐEN vướng víu.
+   - Biểu tượng logo Mastercare sẽ xuất hiện tại Khay hệ thống (System Tray) ở góc phải màn hình cạnh đồng hồ Windows.
+   - Trình duyệt sẽ tự động mở trang bán hàng.
+   - BẠN CÓ THỂ ĐÓNG TRÌNH DUYỆT BẤT KỲ LÚC NÀO, POS VẪN HOẠT ĐỘNG BÌNH THƯỜNG!
 
-2. TRUY CẬP HỆ THỐNG:
+2. THAO TÁC QUA BIỂU TƯỢNG GÓC PHẢI (SYSTEM TRAY):
+   - Nhấp đúp chuột trái vào icon: Mở ngay trang bán hàng.
+   - Bấm chuột phải vào icon sẽ có menu tiện ích:
+     + Bán Hàng POS (127.0.0.1:8998)
+     + Link Online (Ngrok)
+     + Tự khởi động cùng Windows (Tick chọn để bật/tắt)
+     + Thoát POS Mastercare (Dừng hoàn toàn hệ thống)
+
+3. TỰ ĐỘNG KHỞI ĐỘNG CÙNG WINDOWS:
+   - Cách 1: Chuột phải vào icon Mastercare ở góc phải đồng hồ -> Chọn "Tự khởi động cùng Windows".
+   - Cách 2: Nhấp đúp vào file "BAT_KHOI_DONG_CUNG_WINDOWS.bat".
+   - Mỗi sáng khi bật máy tính lên, POS sẽ tự động chạy ngầm sẵn sàng 24/7 mà không cần ai phải bấm mở.
+
+4. TRUY CẬP HỆ THỐNG:
    - Trên máy chủ: http://127.0.0.1:8998
-   - Trên điện thoại / iPad / Máy khác:
+   - Trên điện thoại / iPad / máy khác:
      https://womb-jitters-outfit.ngrok-free.dev
 
-3. TÀI KHOẢN ĐĂNG NHẬP:
-   - Đăng nhập bằng tài khoản và mật khẩu được chủ shop / quản lý bàn giao riêng.
-   - Để đảm bảo an toàn bảo mật, thông tin tài khoản không lưu trong file này.
-
-4. CẬP NHẬT & SAO LƯU:
-   - Dữ liệu được tự động sao lưu định kỳ lên Google Drive.
-   - Khi cần tắt hệ thống: Đóng cửa sổ ứng dụng "POS_Mastercare.exe".
+5. TẮT MÁY CHỦ:
+   - Chuột phải vào icon góc phải chọn "Thoát POS Mastercare".
+   - Hoặc nhấp đúp vào file "TAT_MAY_CHU.bat".
 ============================================================
