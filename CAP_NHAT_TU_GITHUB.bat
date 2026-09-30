@@ -17,35 +17,46 @@ echo       -> Da sao luu: data\backups\pos_truoc_capnhat_%STAMP%.db
 
 REM 2. Tat cac tien trinh cu tren cong 8998
 echo.
-echo [2/4] Dang tam dung may chu POS...
-powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }"
-timeout /t 2 /nobreak >nul
+echo [2/4] Dang tam dung may chu POS va ngrok...
+taskkill /F /IM POS_Mastercare.exe >nul 2>&1
+taskkill /F /IM ngrok.exe >nul 2>&1
+powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+timeout /t 1 /nobreak >nul
 
 REM 3. Keo code moi nhat tu GitHub
 echo.
 echo [3/4] Dang tai code moi nhat tu GitHub...
-git pull github main 2>nul || git pull origin main
-if %errorlevel% neq 0 (
-    echo.
-    echo [CANH BAO] Khong the tai code moi (kiem tra mang hoac xung dot git).
-    echo Dang khoi dong lai he thong hien tai...
-    start "" "CHAY_ONLINE_CO_DINH.bat"
-    pause
-    exit /b 1
+where git >nul 2>&1
+if %errorlevel% equ 0 (
+    if exist ".git" (
+        git pull github main 2>nul || git pull origin main 2>nul || git pull
+        if %errorlevel% equ 0 (
+            echo       -> Da dong bo code thanh cong tu GitHub!
+        )
+    )
 )
 
-REM 4. Nang cap Schema Database neu co bang moi
+if exist "_internal\templates" (
+    xcopy "templates" "_internal\templates\" /E /I /Y >nul 2>&1
+)
+if exist "_internal\static" (
+    xcopy "static" "_internal\static\" /E /I /Y >nul 2>&1
+)
+
+REM 4. Khoi dong lai POS Online
 echo.
-echo [4/4] Dang cap nhat co so du lieu va khoi dong lai...
-if exist ".venv\Scripts\python.exe" (
-    .venv\Scripts\python.exe -c "import database; database.init_db()" >nul 2>&1
+echo [4/4] Dang khoi dong lai he thong...
+if exist "POS_Mastercare.exe" (
+    start "" "POS_Mastercare.exe"
+) else if exist ".venv\Scripts\pythonw.exe" (
+    start "" .venv\Scripts\pythonw.exe main.py
+) else (
+    start "" python main.py
 )
 
-REM 5. Khoi dong lai POS Online
 echo.
 echo ========================================================
 echo   ✅ CAP NHAT HOAN TAT! DANG KHOI DONG LAI MAY CHU...
 echo ========================================================
-start "" "CHAY_ONLINE_CO_DINH.bat"
 timeout /t 3 >nul
 exit
