@@ -50,7 +50,7 @@
 
             // KPI
             const custDebt = allCust.reduce((sum, c) => sum + (c.debt || 0), 0);
-            const suppDebt = allSupp.reduce((sum, c) => sum + (c.debt || 0), 0);
+            const suppDebt = allSupp.reduce((sum, c) => sum + (c.total_debt !== undefined ? c.total_debt : (c.debt || 0)), 0);
             const elCustCount = document.getElementById('kpi-contacts-customers');
             const elSuppCount = document.getElementById('kpi-contacts-suppliers');
             const elCustDebt = document.getElementById('kpi-contacts-cust-debt');
@@ -122,9 +122,9 @@
                 } else {
                     tbodySupp.innerHTML = filteredSupp.map((c, idx) => {
                         const code = c.code || ('NCC' + String(c.id).padStart(4, '0'));
-                        const debtCompany = c.debt_company || 0;
-                        const debtPersonal = c.debt_personal || 0;
-                        const totalDebt = c.debt !== undefined ? c.debt : (debtCompany + debtPersonal);
+                        const debtCompany = Number(c.debt_company ?? c.initial_debt_company ?? 0);
+                        const debtPersonal = Number(c.debt_personal ?? c.initial_debt_personal ?? 0);
+                        const totalDebt = c.total_debt !== undefined ? Number(c.total_debt) : (c.debt !== undefined ? Number(c.debt) : (debtCompany + debtPersonal));
                         const debtStyle = totalDebt > 0 ? 'text-amber-700 font-bold' : 'text-gray-400';
 
                         return `

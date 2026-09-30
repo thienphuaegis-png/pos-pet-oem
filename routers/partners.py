@@ -138,7 +138,35 @@ def export_contacts_excel(type: str = "customer"):
     cur = conn.cursor()
     query = """
         SELECT c.*, cs.name as segment_name,
-               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count
+               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count,
+               -- Nợ Cty
+               (
+                   COALESCE(c.initial_debt_company, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate > 0 OR p.vat_amount > 0)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
+                   ), 0)
+               ) as calc_debt_company,
+               -- Nợ Cá nhân
+               (
+                   COALESCE(c.initial_debt_personal, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = c.id AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate = 0 OR p.vat_rate IS NULL) AND (p.vat_amount = 0 OR p.vat_amount IS NULL)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
+                   ), 0)
+               ) as calc_debt_personal
         FROM contacts c
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
         WHERE c.type = ?
@@ -162,7 +190,7 @@ def export_contacts_excel(type: str = "customer"):
     if type == "customer":
         headers = ["STT", "Tên Khách Hàng", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Số Thú Cưng", "Công Nợ (đ)"]
     else:
-        headers = ["STT", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Hiện Tại (đ)"]
+        headers = ["STT", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Nợ Quỹ Cty (VAT)", "Nợ Quỹ Cá Nhân", "Tổng Nợ Phải Trả (đ)"]
 
     ws.append(headers)
     for col_idx in range(1, len(headers) + 1):
@@ -175,7 +203,10 @@ def export_contacts_excel(type: str = "customer"):
         if type == "customer":
             ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["segment_name"] or "Khách lẻ", r["pets_count"] or 0, r["debt"] or 0])
         else:
-            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", r["debt"] or 0])
+            debt_c = r.get("calc_debt_company", 0.0)
+            debt_p = r.get("calc_debt_personal", 0.0)
+            total_d = round(debt_c + debt_p, 2)
+            ws.append([idx, r["name"] or "", r["phone"] or "", r["address"] or "", debt_c, debt_p, total_d])
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
