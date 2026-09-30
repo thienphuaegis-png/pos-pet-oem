@@ -20,6 +20,7 @@ dist/
 cloudflared.exe
 ngrok.exe
 *.exe
+!POS_Mastercare.exe
 *.zip
 
 # Sinh ra khi cài đặt máy tiệm, mỗi máy mỗi khác

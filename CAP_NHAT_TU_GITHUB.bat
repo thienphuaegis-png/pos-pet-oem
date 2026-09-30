@@ -55,14 +55,20 @@ if defined PYCMD (
 )
 
 echo [5/6] Dang khoi dong lai he thong POS...
-if exist "deploy\start_server.vbs" (
-    start "" wscript.exe "deploy\start_server.vbs"
+if exist "POS_Mastercare.exe" (
+    start "" "POS_Mastercare.exe"
+) else if exist "deploy\start_server.vbs" (
+    if exist ".venv\Scripts\python.exe" (
+        start "" wscript.exe "deploy\start_server.vbs"
+    ) else if exist ".venv\Scripts\pythonw.exe" (
+        start "" .venv\Scripts\pythonw.exe main.py
+    ) else (
+        start "" python main.py
+    )
 ) else if exist ".venv\Scripts\pythonw.exe" (
     start "" .venv\Scripts\pythonw.exe main.py
 ) else if exist ".venv\Scripts\python.exe" (
     start "" .venv\Scripts\python.exe main.py
-) else if exist "POS_Mastercare.exe" (
-    start "" "POS_Mastercare.exe"
 ) else (
     start "" python main.py
 )
