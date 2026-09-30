@@ -1,9 +1,20 @@
+import sys
+import os
+
+# Write all outputs and errors to a persistent debug log
+try:
+    log_dir = os.path.dirname(sys.executable if getattr(sys, "frozen", False) else __file__)
+    debug_log = open(os.path.join(log_dir, "pos_debug.log"), "w", encoding="utf-8", buffering=1)
+    sys.stdout = debug_log
+    sys.stderr = debug_log
+    print("=== POS STARTUP INITIATED ===")
+except Exception:
+    pass
+
 import uvicorn
 import webbrowser
 import threading
 import time
-import os
-import sys
 import subprocess
 try:
     import passlib.handlers.bcrypt
@@ -95,14 +106,19 @@ if __name__ == "__main__":
 
     def run_server():
         global global_server
-        config = uvicorn.Config(
-            app,
-            host="0.0.0.0",
-            port=port,
-            log_level="error" if getattr(sys, "frozen", False) else "info"
-        )
-        global_server = uvicorn.Server(config)
-        global_server.run()
+        try:
+            config = uvicorn.Config(
+                app,
+                host="0.0.0.0",
+                port=port,
+                log_level="error" if getattr(sys, "frozen", False) else "info"
+            )
+            global_server = uvicorn.Server(config)
+            global_server.run()
+        except Exception as e:
+            import traceback
+            with open(os.path.join(base_dir, "server_error.log"), "w", encoding="utf-8") as f:
+                traceback.print_exc(file=f)
 
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()

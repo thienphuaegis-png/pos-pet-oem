@@ -20,7 +20,8 @@ if not os.environ.get("POS_JWT_SECRET"):
     os.environ["POS_JWT_SECRET"] = secrets.token_hex(32)
 
 # Thiết lập ghi log ra file pos_app.log và console
-handlers = [logging.StreamHandler(sys.stdout)]
+stdout_stream = sys.stdout if sys.stdout is not None else open(os.devnull, "w", encoding="utf-8")
+handlers = [logging.StreamHandler(stdout_stream)]
 if not os.environ.get("VERCEL"):
     try:
         log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
