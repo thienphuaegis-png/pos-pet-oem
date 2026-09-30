@@ -42,13 +42,18 @@ if not defined GIT (
     exit /b 1
 )
 
-echo [1/3] Khoi tao ket noi Git...
+echo [1/3] Khoi tao ket noi Git qua Deploy Key...
 if not exist ".git" (
     "%GIT%" init >nul 2>&1
 )
 
+REM Thiet lap SSH Key tu dong khong hoi mat khau hay token
+set "KEYPATH=%~dp0deploy\id_pos_shop"
+set "KEYPATH=%KEYPATH:\=/%"
+"%GIT%" config core.sshCommand "ssh -i '%KEYPATH%' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
 "%GIT%" remote remove origin >nul 2>&1
-"%GIT%" remote add origin https://github.com/thienphuaegis-png/pos-pet-oem.git
+"%GIT%" remote add origin git@github.com:thienphuaegis-png/pos-pet-oem.git
 
 echo [2/3] Dang dong bo ma nguon va file chay moi nhat tu GitHub...
 "%GIT%" fetch origin main

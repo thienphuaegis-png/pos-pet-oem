@@ -37,6 +37,12 @@ if not defined GIT (
 )
 
 if defined GIT (
+    REM Neu co SSH key thi cau hinh tu dong
+    if exist "%~dp0deploy\id_pos_shop" (
+        set "KEYPATH=%~dp0deploy\id_pos_shop"
+        set "KEYPATH=!KEYPATH:\=/!"
+        "%GIT%" config core.sshCommand "ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+    )
     if exist ".git" (
         "%GIT%" fetch --all >nul 2>&1
         "%GIT%" pull origin main || "%GIT%" pull github main || "%GIT%" pull
