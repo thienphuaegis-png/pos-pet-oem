@@ -12,6 +12,11 @@ except Exception:
 
 port = int(os.environ.get("POS_PORT", "8998"))
 
+if getattr(sys, "frozen", False):
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
 def start_ngrok(target_dir):
     ngrok_exe = os.path.join(target_dir, "ngrok.exe")
     if os.path.exists(ngrok_exe):
