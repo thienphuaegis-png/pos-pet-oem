@@ -72,7 +72,7 @@ Bộ cài tự làm: cài Python + Git nếu thiếu, tạo môi trường, mở
 
 - In `deploy\QR_POS.png` dán ở quầy (điện thoại quét vào dùng)
 - Đưa `deploy\HUONG_DAN.md` cho người phụ trách đọc
-- **Đổi mật khẩu `admin/admin123` ngay tại chỗ**, đừng để tiệm tự làm
+- **Đổi mật khẩu quản trị ngay tại chỗ**, đừng để tiệm tự làm
 - Máy tính khác trong tiệm: chạy `CAI_MAY_CON.bat`, tự tìm ra máy chủ
 
 ---

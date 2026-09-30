@@ -27,14 +27,8 @@ Bật máy chủ lên là POS **tự chạy**, không cần làm gì.
 
 Trên máy chủ: bấm icon **POS PET OEM** trên màn hình Desktop.
 
-Đăng nhập lần đầu:
-
-| | |
-|---|---|
-| Tên đăng nhập | `admin` |
-| Mật khẩu | `admin123` |
-
-> ⚠️ **Đổi mật khẩu ngay sau lần đăng nhập đầu tiên.** Mật khẩu mặc định ai cũng biết. Vào mục Nhân viên → sửa tài khoản admin → đổi mật khẩu.
+Đăng nhập:
+Sử dụng tài khoản quản lý hoặc nhân viên đã được cấp riêng của tiệm.
 
 ---
 

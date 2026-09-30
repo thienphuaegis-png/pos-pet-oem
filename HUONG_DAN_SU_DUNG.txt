@@ -1,0 +1,23 @@
+============================================================
+           HƯỚNG DẪN SỬ DỤNG - POS MASTERCARE
+============================================================
+
+1. KHỞI ĐỘNG HỆ THỐNG:
+   - Nhấp đúp vào file "POS_Mastercare.exe".
+   - Hệ thống sẽ tự động kích hoạt máy chủ POS nội bộ và đường truyền online.
+   - Trình duyệt web sẽ tự động mở trang bán hàng.
+   - KHÔNG tắt cửa sổ màu đen (Console) trong suốt quá trình sử dụng.
+
+2. TRUY CẬP HỆ THỐNG:
+   - Trên máy chủ: http://127.0.0.1:8998
+   - Trên điện thoại / iPad / Máy khác:
+     https://womb-jitters-outfit.ngrok-free.dev
+
+3. TÀI KHOẢN ĐĂNG NHẬP:
+   - Đăng nhập bằng tài khoản và mật khẩu được chủ shop / quản lý bàn giao riêng.
+   - Để đảm bảo an toàn bảo mật, thông tin tài khoản không lưu trong file này.
+
+4. CẬP NHẬT & SAO LƯU:
+   - Dữ liệu được tự động sao lưu định kỳ lên Google Drive.
+   - Khi cần tắt hệ thống: Đóng cửa sổ ứng dụng "POS_Mastercare.exe".
+============================================================
