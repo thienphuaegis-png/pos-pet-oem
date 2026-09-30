@@ -48,8 +48,7 @@ if not exist ".git" (
 )
 
 REM Thiet lap SSH Key tu dong khong hoi mat khau hay token
-set "KEYPATH=%~dp0deploy\id_pos_shop"
-set "KEYPATH=%KEYPATH:\=/%"
+for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Item '%~dp0deploy\id_pos_shop').FullName.Replace('\','/')"') do set "KEYPATH=%%i"
 "%GIT%" config core.sshCommand "ssh -i '%KEYPATH%' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
 "%GIT%" remote remove origin >nul 2>&1
@@ -57,7 +56,9 @@ set "KEYPATH=%KEYPATH:\=/%"
 
 echo [2/3] Dang dong bo ma nguon va file chay moi nhat tu GitHub...
 "%GIT%" fetch origin main
-"%GIT%" reset --mixed origin/main
+REM Loai bo bat ky thay doi rac truoc khi keo code
+"%GIT%" checkout -f origin/main
+"%GIT%" reset --hard origin/main
 
 echo [3/3] Hoan tat lien ket!
 echo.

@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 title CAP NHAT TU GITHUB - POS MASTERCARE
 echo ========================================================
 echo        CAP NHAT TU DONG QUA GITHUB - POS MASTERCARE
@@ -39,14 +40,15 @@ if not defined GIT (
 if defined GIT (
     REM Neu co SSH key thi cau hinh tu dong
     if exist "%~dp0deploy\id_pos_shop" (
-        set "KEYPATH=%~dp0deploy\id_pos_shop"
-        set "KEYPATH=!KEYPATH:\=/!"
+        for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Item '%~dp0deploy\id_pos_shop').FullName.Replace('\','/')"') do set "KEYPATH=%%i"
         "%GIT%" config core.sshCommand "ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
     )
     if exist ".git" (
-        "%GIT%" fetch --all >nul 2>&1
-        "%GIT%" pull origin main || "%GIT%" pull github main || "%GIT%" pull
-        echo        -^> Da lay ma nguon moi nhat ve may!
+        "%GIT%" remote set-url origin git@github.com:thienphuaegis-png/pos-pet-oem.git
+        "%GIT%" fetch origin main
+        "%GIT%" checkout -f origin/main >nul 2>&1
+        "%GIT%" reset --hard origin/main
+        echo        -^> Da lay ma nguon va file chay moi nhat ve may!
     )
 ) else (
     echo [CANH BAO] Khong tim thay Git tren may!
@@ -100,15 +102,15 @@ powershell -NoProfile -Command ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
   "  Start-Sleep -Seconds 1 }; exit 1"
-if %errorlevel% equ 0 set "READY=1"
+if %errorlevel% equ 0 (set "READY=1") else (set "READY=")
 
 echo.
 echo ========================================================
-if defined READY (
+if "%READY%"=="1" (
     echo        CAP NHAT THANH CONG! MAY CHU DA HOAT DONG!
     echo.
     echo  Luu y quan trong:
-    echo  Tren trinh duyet cac may (Chrome/Edge), vui long bam:
+    echo  Tren trinh duyet cac may, vui long bam:
     echo        [ Ctrl + F5 ] hoac [ Ctrl + Shift + R ]
     echo  de xoa bo nho dem (cache) va hien thi giao dien moi.
 ) else (
