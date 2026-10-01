@@ -638,10 +638,17 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-09-30)
-    const ROADMAP_VERSION = 'v3.3-2026-09-30';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-01)
+    const ROADMAP_VERSION = 'v3.4-2026-10-01';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-09-30)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-01)
+      { id: 'pos-staff-clean', cat: 'UI', title: 'Dọn dẹp header POS: Ẩn selector nhân viên thừa góc phải', done: true, note: 'Ẩn an toàn #pos-staff-select tránh trùng với sidebar góc dưới bên trái, giữ nguyên tương thích API ca trực và phân quyền' },
+      { id: 'supp-assign-items', cat: 'PO', title: 'Form Nhập Hàng: Nút & Modal gán nhanh sản phẩm/nguyên liệu cho NCC', done: true, note: 'Nút ⚡ Gán hàng kèm popup tìm kiếm, lọc phân loại và tích chọn hàng loạt; tự động đồng bộ vào supplier_items' },
+      { id: 'debt-plan-forecast', cat: 'CASH', title: 'Quản lý Dòng Tiền & Công Nợ: Kế hoạch hẹn ngày trả nợ NCC (Theo đơn & 1 phần theo nợ)', done: true, note: 'Bảng supplier_debt_plans, hỗ trợ hẹn trả linh hoạt (50%/100%/tùy chọn), tự động đồng bộ dự báo chi theo quỹ Cty / Cá nhân' },
+      { id: 'audit-sheet-modern', cat: 'INV', title: 'Bảng Kiểm Kê Kho: Chuyển hoàn toàn sang Active Audit Sheet & Modal Lịch Sử', done: true, note: 'Bỏ hoàn toàn toggle View Mode; giao diện phẳng, category droplist lọc 1 chạm, phím Enter chuyển dòng mượt mà 0ms' },
+      { id: 'deploy-patch-auto', cat: 'SYS', title: 'Kịch bản cập nhật CAP_NHAT_1_CHAM.bat tự đồng bộ templates/static sang _internal', done: true, note: 'Tự động sao chép UI vào bản PyInstaller standalone và bổ sung fallback fetch HTTPS an toàn khi thiếu Deploy Key SSH' },
+
+      // 0.1 CẬP NHẬT TRƯỚC ĐÓ (2026-09-30)
       { id: 'po-debt-1', cat: 'PO', title: 'Phân tách công nợ NCC theo 2 quỹ (Quỹ Công Ty & Quỹ Cá Nhân)', done: true, note: 'Bổ sung initial_debt_company & initial_debt_personal, tự động cấn trừ khi thanh toán, đồng bộ nợ 2 quỹ trên Đối Tác, Dòng Tiền & Xuất Excel' },
       { id: 'deploy-ssh-1', cat: 'SYS', title: 'Kịch bản cập nhật 1-chạm (CAP_NHAT_1_CHAM.bat) qua Deploy Key SSH', done: true, note: 'Tự động quét & diệt tận gốc tiến trình POS/Python chạy ngầm khóa file, giải phóng port 8998/8999 và hard reset main an toàn' },
       { id: 'excel-import-1', cat: 'Logic', title: 'Khắc phục xung đột va chạm cột khi Import Excel (Nguyên liệu, Hàng hóa, BOM)', done: true, note: 'Thuật toán 2 lớp ưu tiên exact match, chống tình trạng cột Mã nguyên liệu bị nhận nhầm thành cột Tên nguyên liệu' },
