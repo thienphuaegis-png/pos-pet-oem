@@ -22,6 +22,9 @@ class ParseCashflowRequest(BaseModel):
     image_base64: Optional[str] = None
     mime_type: Optional[str] = "image/jpeg"
 
+class AISuggestBOMRequest(BaseModel):
+    product_id: int
+
 def get_gemini_config():
     conn = get_db()
     cur = conn.cursor()
@@ -401,3 +404,222 @@ async def parse_cashflow(req: ParseCashflowRequest):
 
     conn.close()
     return result
+
+def run_heuristic_bom_suggest(prod: Dict[str, Any], ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Gợi ý BOM bằng phân tích từ khóa offline khi không có API Key."""
+    name_lower = (prod.get("name") or "").lower()
+    cat_lower = (prod.get("category") or "").lower()
+    
+    # 1. Trích xuất dung tích / khối lượng số (vd: 250ml, 500g, 2.7kg)
+    vol_ml = None
+    weight_g = None
+    
+    m_ml = re.search(r'(\d+[\.,]?\d*)\s*(ml)', name_lower)
+    if m_ml:
+        vol_ml = float(m_ml.group(1).replace(',', '.'))
+    
+    m_l = re.search(r'(\d+[\.,]?\d*)\s*(l|lit|lít)\b', name_lower)
+    if m_l and not vol_ml:
+        vol_ml = float(m_l.group(1).replace(',', '.')) * 1000
+        
+    m_kg = re.search(r'(\d+[\.,]?\d*)\s*(kg|k)\b', name_lower)
+    if m_kg:
+        weight_g = float(m_kg.group(1).replace(',', '.')) * 1000
+        
+    m_g = re.search(r'(\d+[\.,]?\d*)\s*(g)\b', name_lower)
+    if m_g and not weight_g:
+        weight_g = float(m_g.group(1).replace(',', '.'))
+
+    suggestions = []
+    
+    # Heuristic cho Sữa tắm / Dung dịch
+    is_shampoo = "sữa tắm" in name_lower or "sua tam" in name_lower or "sữa tắm" in cat_lower
+    
+    for ing in ingredients:
+        ing_name = ing["name"].lower()
+        ing_unit = (ing["unit"] or "").lower()
+        
+        # 1. Khớp Dung Dịch
+        if is_shampoo:
+            if "dung dịch sữa tắm" in ing_name or ("sữa tắm" in ing_name and ing["type"] == "IS_PHYSICAL" and ("lít" in ing_unit or "lit" in ing_unit or "kg" in ing_unit)):
+                qty = 0.25
+                if vol_ml:
+                    qty = round(vol_ml / 1000.0, 3) if ("lít" in ing_unit or "lit" in ing_unit or "l" == ing_unit) else vol_ml
+                suggestions.append({
+                    "ingredient_id": ing["id"],
+                    "ingredient_name": ing["name"],
+                    "ingredient_code": ing["code"] or "-",
+                    "unit": ing["unit"],
+                    "type": ing["type"],
+                    "latest_cost": ing.get("latest_cost", 0),
+                    "quantity": qty,
+                    "reason": f"Dung dịch sữa tắm chiết rót ({qty} {ing['unit']})"
+                })
+                continue
+                
+        # 2. Khớp Vỏ chai / Bao bì theo số dung tích
+        if vol_ml:
+            vol_str = str(int(vol_ml))
+            if ("chai" in ing_name or "vỏ" in ing_name or "hũ" in ing_name) and vol_str in ing_name:
+                suggestions.append({
+                    "ingredient_id": ing["id"],
+                    "ingredient_name": ing["name"],
+                    "ingredient_code": ing["code"] or "-",
+                    "unit": ing["unit"],
+                    "type": ing["type"],
+                    "latest_cost": ing.get("latest_cost", 0),
+                    "quantity": 1.0,
+                    "reason": f"Vỏ bao bì tương ứng dung tích {vol_str}ml"
+                })
+                continue
+
+        # 3. Khớp Tem nhãn
+        if ("tem" in ing_name or "nhãn" in ing_name) and is_shampoo:
+            if vol_ml and str(int(vol_ml)) in ing_name:
+                suggestions.append({
+                    "ingredient_id": ing["id"],
+                    "ingredient_name": ing["name"],
+                    "ingredient_code": ing["code"] or "-",
+                    "unit": ing["unit"],
+                    "type": ing["type"],
+                    "latest_cost": ing.get("latest_cost", 0),
+                    "quantity": 1.0,
+                    "reason": "Tem nhãn sản phẩm theo dung tích"
+                })
+                continue
+                
+        # 4. Khớp Nắp / Vòi
+        if ("nắp" in ing_name or "vòi" in ing_name) and is_shampoo:
+            if len([s for s in suggestions if "nắp" in s["ingredient_name"].lower() or "vòi" in s["ingredient_name"].lower()]) == 0:
+                suggestions.append({
+                    "ingredient_id": ing["id"],
+                    "ingredient_name": ing["name"],
+                    "ingredient_code": ing["code"] or "-",
+                    "unit": ing["unit"],
+                    "type": ing["type"],
+                    "latest_cost": ing.get("latest_cost", 0),
+                    "quantity": 1.0,
+                    "reason": "Nắp / Vòi phụ kiện chai"
+                })
+                continue
+
+    return suggestions
+
+@router.post("/suggest-bom")
+async def ai_suggest_bom(req: AISuggestBOMRequest):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, code, name, category, sell_price, unit FROM products WHERE id = ?", (req.product_id,))
+    prod = cur.fetchone()
+    if not prod:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm!")
+    
+    prod_dict = dict(prod)
+    
+    cur.execute("""
+        SELECT i.id, i.code, i.name, i.unit, i.type,
+               COALESCE(
+                   (SELECT purchase_price FROM price_history ph 
+                    WHERE ph.ingredient_id = i.id 
+                    ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1),
+                   0
+               ) as latest_cost
+        FROM ingredients i
+        ORDER BY i.name ASC
+    """)
+    ingredients = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    
+    if not ingredients:
+        return {
+            "product_id": prod_dict["id"],
+            "product_name": prod_dict["name"],
+            "suggestions": [],
+            "source": "none",
+            "message": "Hệ thống chưa có nguyên liệu nào trong kho để gợi ý!"
+        }
+        
+    cfg = get_gemini_config()
+    api_key = cfg.get("gemini_api_key", "").strip()
+    model = cfg.get("gemini_model", "gemini-2.5-flash")
+    if model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
+        model = "gemini-2.5-flash"
+        
+    suggestions = []
+    source = "heuristic"
+    
+    # 1. Thử gọi AI Gemini nếu có key
+    if api_key:
+        ing_prompt_list = [
+            {"id": x["id"], "name": x["name"], "unit": x["unit"], "type": x["type"]}
+            for x in ingredients[:120]
+        ]
+        
+        prompt = f"""Bạn là chuyên gia định mức sản xuất & BOM (Bill of Materials) cho xưởng sản xuất gia công thú cưng, thức ăn và mỹ phẩm thú cưng.
+Tôi cần bạn phân tích thành phẩm sau để chọn các nguyên liệu/vật tư cấu thành:
+- Tên thành phẩm: "{prod_dict['name']}"
+- Mã: "{prod_dict['code'] or ''}"
+- Đơn vị tính: "{prod_dict['unit'] or ''}"
+- Nhóm: "{prod_dict['category'] or ''}"
+
+Dưới đây là danh sách nguyên vật liệu có sẵn trong kho:
+{json.dumps(ing_prompt_list, ensure_ascii=False)}
+
+Yêu cầu:
+1. Hãy phân tích xem sản phẩm này cần những nguyên vật liệu nào trong danh sách trên (ví dụ: chai sữa tắm 250ml thì cần dung dịch sữa tắm tương ứng ~0.25 Lít hoặc 250ml, vỏ chai 250ml ~1 cái, nắp ~1 cái, tem nhãn 250ml ~1 hoặc 2 tem; thức ăn hạt 500g thì hạt ~0.5kg + bao bì 1 túi...).
+2. Định lượng tiêu hao (quantity) phải quy đổi CHÍNH XÁC theo ĐƠN VỊ TÍNH (unit) của nguyên liệu đó.
+3. CHỈ chọn những nguyên liệu THỰC SỰ PHÙ HỢP và có trong danh sách trên.
+4. Trả về DUY NHẤT một mảng JSON (không bọc trong markdown hay bất kỳ lời dẫn nào) theo cấu trúc:
+[
+  {{"ingredient_id": int, "quantity": float, "reason": "Lý do ngắn gọn"}}
+]
+"""
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json"
+            }
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    parsed_ai = json.loads(raw_text)
+                    if isinstance(parsed_ai, list):
+                        ing_map = {x["id"]: x for x in ingredients}
+                        for item in parsed_ai:
+                            i_id = item.get("ingredient_id")
+                            if i_id in ing_map:
+                                ing = ing_map[i_id]
+                                qty = float(item.get("quantity", 1))
+                                suggestions.append({
+                                    "ingredient_id": i_id,
+                                    "ingredient_name": ing["name"],
+                                    "ingredient_code": ing["code"] or "-",
+                                    "unit": ing["unit"],
+                                    "type": ing["type"],
+                                    "latest_cost": ing["latest_cost"],
+                                    "quantity": qty,
+                                    "reason": item.get("reason", "Đề xuất bởi Gemini AI")
+                                })
+                        if suggestions:
+                            source = "gemini"
+        except Exception as e:
+            logger.warning(f"Lỗi gọi Gemini BOM suggest, fallback heuristic: {str(e)}")
+            
+    # 2. Nếu Gemini không trả về hoặc không có key -> Heuristic Rule-Based Offline
+    if not suggestions:
+        suggestions = run_heuristic_bom_suggest(prod_dict, ingredients)
+        source = "heuristic"
+        
+    return {
+        "product_id": prod_dict["id"],
+        "product_name": prod_dict["name"],
+        "source": source,
+        "suggestions": suggestions
+    }

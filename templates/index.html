@@ -1824,29 +1824,41 @@
                         <!-- Danh sách BOM hiện tại -->
                         <div class="space-y-2">
                             <div class="flex justify-between items-center">
-                                <span class="font-bold text-xs text-slate-700">Các thành phần cấu thành:</span>
-                                <button onclick="openModalAddBOMItem()" class="text-[11px] bg-sky-600 text-white px-2 py-0.5 rounded hover:bg-sky-700">
-                                    + Thêm thành phần
-                                </button>
+                                <span class="font-bold text-xs text-slate-800">Các thành phần cấu thành:</span>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="aiSuggestBOM()" class="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-md text-[11px] font-bold shadow-xs flex items-center gap-1 transition">
+                                        <span>✨</span> <span>AI Gợi Ý BOM</span>
+                                    </button>
+                                    <button type="button" onclick="openCloneBOMModal()" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[11px] font-semibold border border-slate-300 flex items-center gap-1 transition" title="Sao chép toàn bộ định lượng từ sản phẩm khác">
+                                        <span>📋</span> <span>Sao chép</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="overflow-x-auto max-h-[260px] border rounded">
+
+                            <!-- Thanh Quick-Search Thả Thẳng Vào Bảng (Không Cần Modal Che) -->
+                            <div class="relative" id="bom-quick-search-wrapper">
+                                <input type="text" id="bom-quick-search-input" oninput="filterBOMQuickSearch()" onfocus="showBOMQuickSearch()" placeholder="🔍 Gõ tên hoặc mã nguyên liệu để thêm nhanh..." class="w-full border border-slate-300 rounded-lg p-2 text-xs font-medium bg-white focus:outline-none focus:border-indigo-500 shadow-2xs">
+                                <div id="bom-quick-search-dropdown" class="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl z-30 hidden divide-y text-xs"></div>
+                            </div>
+
+                            <div class="overflow-x-auto max-h-[360px] border rounded-lg bg-white shadow-2xs">
                                 <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-gray-100 border-b text-[11px]">
+                                    <thead class="bg-slate-100 border-b text-[11px] text-slate-700 sticky top-0">
                                         <tr>
-                                            <th class="p-1.5">Nguyên liệu</th>
-                                            <th class="p-1.5 text-right">Định lượng</th>
-                                            <th class="p-1.5 text-right">Giá vốn</th>
-                                            <th class="p-1.5 text-center">Xóa</th>
+                                            <th class="p-2">Nguyên liệu</th>
+                                            <th class="p-2 text-right">Định lượng</th>
+                                            <th class="p-2 text-right">Giá vốn</th>
+                                            <th class="p-2 text-center w-12">Xóa</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="table-product-bom-items">
-                                        <tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa chọn sản phẩm</td></tr>
+                                    <tbody id="table-product-bom-items" class="divide-y">
+                                        <tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa chọn sản phẩm nào</td></tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div class="pt-2">
-                                <button onclick="recalculateActiveProductCost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded shadow">
-                                    🔄 Tính Toán & Cập Nhật Giá Cost Tự Động
+                                <button onclick="recalculateActiveProductCost()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-lg shadow-xs flex items-center justify-center gap-1.5 transition">
+                                    <span>🔄</span> <span>Tính Toán & Cập Nhật Giá Cost Tự Động</span>
                                 </button>
                             </div>
                         </div>
@@ -5441,6 +5453,96 @@
                     <div class="flex justify-end gap-2 pt-2 border-t">
                         <button onclick="closeModalBOMItem()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
                         <button onclick="addCurrentBOMItem()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold">Thêm Vào BOM</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: ✨ AI GỢI Ý CÔNG THỨC BOM (GEMINI 2.5 FLASH) -->
+            <div id="modal-ai-bom-suggest" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl p-5 w-[650px] max-w-full space-y-4 text-xs shadow-2xl flex flex-col max-h-[90vh]">
+                    <div class="flex justify-between items-start border-b pb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-lg font-bold">
+                                ✨
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-base text-slate-800">AI Đề Xuất Công Thức BOM</h3>
+                                    <span id="ai-bom-engine-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">Gemini 2.5 Flash</span>
+                                </div>
+                                <p class="text-slate-500 text-xs mt-0.5">Sản phẩm: <span id="ai-bom-prod-name" class="font-bold text-indigo-700">---</span></p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeAIBOMSuggestModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+                    </div>
+
+                    <div id="ai-bom-loading" class="py-12 flex flex-col items-center justify-center gap-3 text-slate-600">
+                        <div class="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p class="font-semibold text-xs animate-pulse">Gemini AI đang phân tích tên sản phẩm và rà quét 151 nguyên liệu trong kho...</p>
+                    </div>
+
+                    <div id="ai-bom-result-container" class="space-y-3 hidden flex-1 overflow-hidden flex flex-col">
+                        <div class="flex justify-between items-center bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl">
+                            <div class="text-indigo-900 font-semibold text-xs">
+                                💡 AI tìm thấy <span id="ai-bom-item-count" class="font-bold text-indigo-700">0</span> nguyên liệu phù hợp cấu thành nên sản phẩm này.
+                            </div>
+                            <button type="button" onclick="toggleAllAIBOMChecks(true)" class="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold">Chọn tất cả</button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl divide-y bg-slate-50/40">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-100 border-b text-[11px] text-slate-700 sticky top-0">
+                                    <tr>
+                                        <th class="p-2.5 text-center w-10">Chọn</th>
+                                        <th class="p-2.5">Nguyên liệu</th>
+                                        <th class="p-2.5 text-right w-28">Định lượng đề xuất</th>
+                                        <th class="p-2.5">Lý do AI chọn</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ai-bom-suggestions-tbody" class="divide-y bg-white">
+                                    <!-- Render hàng gợi ý -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-3 border-t">
+                        <div class="text-[11px] text-slate-400 italic">
+                            * Kiểm tra kỹ định lượng trước khi áp dụng.
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="closeAIBOMSuggestModal()" class="px-4 py-2 border rounded-xl text-slate-600 hover:bg-slate-100 font-semibold transition">Hủy</button>
+                            <button type="button" id="btn-apply-ai-bom" onclick="applyAIBOMSuggestions()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 transition">
+                                <span>✅</span> <span>Áp Dụng Vào BOM 1-Chạm</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: 📋 SAO CHÉP BOM TỪ SẢN PHẨM KHÁC -->
+            <div id="modal-clone-bom" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl p-5 w-96 max-w-full space-y-4 text-xs shadow-2xl">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">📋</span>
+                            <h3 class="font-bold text-sm text-slate-800">Sao Chép Định Lượng BOM</h3>
+                        </div>
+                        <button type="button" onclick="closeCloneBOMModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+                    </div>
+
+                    <div>
+                        <p class="text-slate-500 mb-2">Sao chép sang sản phẩm: <span id="clone-target-prod-name" class="font-bold text-indigo-700">---</span></p>
+                        <label class="block font-bold text-slate-700 mb-1">Chọn sản phẩm mẫu (có sẵn BOM):</label>
+                        <select id="clone-source-prod-select" class="w-full border border-slate-300 rounded-lg p-2.5 font-semibold bg-white focus:outline-none focus:border-indigo-500">
+                            <option value="">-- Chọn sản phẩm mẫu --</option>
+                        </select>
+                        <p class="text-[11px] text-slate-400 mt-1.5">Lưu ý: Toàn bộ định lượng hiện tại của sản phẩm đích sẽ được thay thế bằng định lượng của sản phẩm mẫu.</p>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button type="button" onclick="closeCloneBOMModal()" class="px-3.5 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Hủy</button>
+                        <button type="button" onclick="submitCloneBOM()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">🚀 Bắt Đầu Sao Chép</button>
                     </div>
                 </div>
             </div>
@@ -9168,7 +9270,7 @@
     <script src="/static/js/modules/contacts.js?v=20261001_03"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
-    <script src="/static/js/modules/productions.js?v=20261001_04"></script>
+    <script src="/static/js/modules/productions.js?v=20261001_05"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>

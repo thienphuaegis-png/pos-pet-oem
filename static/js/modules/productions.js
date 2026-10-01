@@ -2884,6 +2884,309 @@
             document.getElementById('modal-bom-item').classList.add('hidden');
         }
 
+        // --- QUICK-SEARCH NGUYÊN LIỆU THẢ THẲNG VÀO BẢNG (KHÔNG CẦN MODAL CHE) ---
+        window.showBOMQuickSearch = function() {
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            if (dd) dd.classList.remove('hidden');
+            window.filterBOMQuickSearch();
+        };
+
+        window.filterBOMQuickSearch = function() {
+            const kw = (document.getElementById('bom-quick-search-input')?.value || '').toLowerCase().trim();
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            if (!dd) return;
+
+            const list = (typeof costIngredients !== 'undefined' ? costIngredients : []);
+            const filtered = list.filter(ing => 
+                (ing.code && ing.code.toLowerCase().includes(kw)) || 
+                ing.name.toLowerCase().includes(kw)
+            );
+
+            if (filtered.length === 0) {
+                dd.innerHTML = '<div class="p-3 text-slate-400 text-center font-medium text-xs">Không tìm thấy nguyên liệu nào phù hợp</div>';
+                return;
+            }
+
+            dd.innerHTML = filtered.slice(0, 30).map(ing => `
+                <div onclick="quickAddBOMIngredient(${ing.id})" class="p-2.5 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition group">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-indigo-100 text-slate-600 group-hover:text-indigo-700 flex items-center justify-center font-bold text-xs">📦</span>
+                        <div>
+                            <div class="font-bold text-slate-800 group-hover:text-indigo-900">${ing.name}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">Mã: ${ing.code || '-'} | ĐVT: <span class="font-bold text-slate-600">${ing.unit}</span></div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</span>
+                        <div class="text-[11px] font-bold text-slate-700 mt-0.5">${formatMoney(ing.latest_cost || 0)}</div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.quickAddBOMIngredient = async function(ingId) {
+            const targetIds = [...selectedBOMProductIds];
+            if (targetIds.length === 0) {
+                alert('Vui lòng chọn sản phẩm ở ô bên trên trước khi thêm nguyên liệu!');
+                return;
+            }
+
+            const ing = (typeof costIngredients !== 'undefined' ? costIngredients : []).find(x => x.id === ingId);
+            if (!ing) return;
+
+            let defaultQty = 1.0;
+            const ingUnit = (ing.unit || '').toLowerCase();
+            if (ingUnit === 'lít' || ingUnit === 'lit' || ingUnit === 'l') {
+                defaultQty = 0.25;
+            }
+
+            for (const prodId of targetIds) {
+                await fetch(`/api/products/${prodId}/bom/${ingId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ quantity: defaultQty })
+                });
+            }
+
+            const input = document.getElementById('bom-quick-search-input');
+            if (input) input.value = '';
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            if (dd) dd.classList.add('hidden');
+
+            await loadProductBOMDetails(targetIds[targetIds.length - 1]);
+            await loadUnifiedInventory();
+
+            setTimeout(() => {
+                const inputs = document.querySelectorAll('#table-product-bom-items input[type="number"]');
+                if (inputs.length > 0) {
+                    inputs[inputs.length - 1].focus();
+                    inputs[inputs.length - 1].select();
+                }
+            }, 100);
+        };
+
+        // --- ✨ TÍNH NĂNG AI GỢI Ý BOM (GEMINI 2.5 FLASH) ---
+        let currentAISuggestions = [];
+
+        window.aiSuggestBOM = async function() {
+            const prodId = getActiveBOMTargetId();
+            if (!prodId) {
+                alert('Vui lòng chọn một sản phẩm trước để AI phân tích gợi ý!');
+                return;
+            }
+
+            const prod = (typeof allProducts !== 'undefined' ? allProducts : []).find(p => p.id === prodId);
+            const prodName = prod ? prod.name : 'Sản phẩm đang chọn';
+
+            const modal = document.getElementById('modal-ai-bom-suggest');
+            const loading = document.getElementById('ai-bom-loading');
+            const resultBox = document.getElementById('ai-bom-result-container');
+            const nameEl = document.getElementById('ai-bom-prod-name');
+
+            if (nameEl) nameEl.textContent = prodName;
+            if (loading) loading.classList.remove('hidden');
+            if (resultBox) resultBox.classList.add('hidden');
+            if (modal) modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/ai/suggest-bom', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ product_id: prodId })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Lỗi phân tích AI');
+                }
+
+                const data = await res.json();
+                currentAISuggestions = data.suggestions || [];
+
+                const badge = document.getElementById('ai-bom-engine-badge');
+                if (badge) {
+                    if (data.source === 'gemini') {
+                        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200';
+                        badge.textContent = '✨ Gemini 2.5 Flash';
+                    } else {
+                        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200';
+                        badge.textContent = '⚡ Heuristic Engine';
+                    }
+                }
+
+                document.getElementById('ai-bom-item-count').textContent = currentAISuggestions.length;
+
+                const tbody = document.getElementById('ai-bom-suggestions-tbody');
+                if (currentAISuggestions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Không tìm thấy nguyên liệu nào trong kho khớp với sản phẩm này.</td></tr>';
+                } else {
+                    tbody.innerHTML = currentAISuggestions.map((item, idx) => `
+                        <tr class="hover:bg-indigo-50/50 transition">
+                            <td class="p-2.5 text-center">
+                                <input type="checkbox" id="ai-bom-chk-${idx}" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                            </td>
+                            <td class="p-2.5">
+                                <div class="font-bold text-slate-800">${item.ingredient_name}</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Mã: ${item.ingredient_code} | Loại: ${item.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</div>
+                            </td>
+                            <td class="p-2.5 text-right font-mono">
+                                <div class="flex items-center justify-end gap-1">
+                                    <input type="number" id="ai-bom-qty-${idx}" step="any" min="0.0001" value="${item.quantity}" class="w-20 border border-slate-300 rounded px-2 py-1 text-right font-bold text-indigo-700 bg-white text-xs focus:ring-1 focus:ring-indigo-500">
+                                    <span class="text-[11px] font-semibold text-slate-500">${item.unit}</span>
+                                </div>
+                            </td>
+                            <td class="p-2.5 text-slate-600 text-xs">
+                                <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium text-[11px]">${item.reason || 'Đề xuất'}</span>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                if (loading) loading.classList.add('hidden');
+                if (resultBox) resultBox.classList.remove('hidden');
+            } catch (err) {
+                if (loading) loading.classList.add('hidden');
+                alert('Lỗi gợi ý AI: ' + err.message);
+                closeAIBOMSuggestModal();
+            }
+        };
+
+        window.toggleAllAIBOMChecks = function(checked) {
+            currentAISuggestions.forEach((_, idx) => {
+                const chk = document.getElementById(`ai-bom-chk-${idx}`);
+                if (chk) chk.checked = checked;
+            });
+        };
+
+        window.closeAIBOMSuggestModal = function() {
+            document.getElementById('modal-ai-bom-suggest')?.classList.add('hidden');
+        };
+
+        window.applyAIBOMSuggestions = async function() {
+            const prodId = getActiveBOMTargetId();
+            if (!prodId) return;
+
+            const itemsToApply = [];
+            currentAISuggestions.forEach((item, idx) => {
+                const chk = document.getElementById(`ai-bom-chk-${idx}`);
+                const qtyInput = document.getElementById(`ai-bom-qty-${idx}`);
+                if (chk && chk.checked) {
+                    const qty = parseFloat(qtyInput?.value || item.quantity);
+                    if (qty > 0) {
+                        itemsToApply.push({
+                            ingredient_id: item.ingredient_id,
+                            quantity: qty
+                        });
+                    }
+                }
+            });
+
+            if (itemsToApply.length === 0) {
+                alert('Vui lòng chọn ít nhất 1 nguyên liệu để áp dụng!');
+                return;
+            }
+
+            const btn = document.getElementById('btn-apply-ai-bom');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>⏳</span> <span>Đang lưu...</span>';
+            }
+
+            try {
+                let currentItems = (currentBOMData ? currentBOMData.bom_items : []).map(b => ({
+                    ingredient_id: b.ingredient_id,
+                    quantity: b.quantity
+                }));
+
+                itemsToApply.forEach(newItem => {
+                    const ex = currentItems.find(x => x.ingredient_id === newItem.ingredient_id);
+                    if (ex) {
+                        ex.quantity = newItem.quantity;
+                    } else {
+                        currentItems.push(newItem);
+                    }
+                });
+
+                const res = await fetch(`/api/products/${prodId}/bom`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ items: currentItems })
+                });
+
+                if (res.ok) {
+                    closeAIBOMSuggestModal();
+                    await loadProductBOMDetails(prodId);
+                    await loadUnifiedInventory();
+                    alert(`✅ Đã áp dụng thành công ${itemsToApply.length} thành phần BOM!`);
+                } else {
+                    const err = await res.json();
+                    alert('Lỗi áp dụng: ' + (err.detail || 'Không thể lưu BOM'));
+                }
+            } catch (e) {
+                alert('Lỗi mạng: ' + e.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>✅</span> <span>Áp Dụng Vào BOM 1-Chạm</span>';
+                }
+            }
+        };
+
+        // --- 📋 SAO CHÉP BOM TỪ SẢN PHẨM KHÁC ---
+        window.openCloneBOMModal = function() {
+            const prodId = getActiveBOMTargetId();
+            if (!prodId) {
+                alert('Vui lòng chọn sản phẩm đích cần cấu hình BOM trước!');
+                return;
+            }
+
+            const prod = (typeof allProducts !== 'undefined' ? allProducts : []).find(p => p.id === prodId);
+            const prodName = prod ? prod.name : 'Sản phẩm đang chọn';
+            document.getElementById('clone-target-prod-name').textContent = prodName;
+
+            const select = document.getElementById('clone-source-prod-select');
+            if (select) {
+                const otherProds = (typeof allProducts !== 'undefined' ? allProducts : []).filter(p => p.id !== prodId);
+                select.innerHTML = '<option value="">-- Chọn sản phẩm mẫu --</option>' + 
+                    otherProds.map(p => `<option value="${p.id}">${p.name} (${p.code || '-'})</option>`).join('');
+            }
+
+            document.getElementById('modal-clone-bom')?.classList.remove('hidden');
+        };
+
+        window.closeCloneBOMModal = function() {
+            document.getElementById('modal-clone-bom')?.classList.add('hidden');
+        };
+
+        window.submitCloneBOM = async function() {
+            const targetId = getActiveBOMTargetId();
+            const sourceId = parseInt(document.getElementById('clone-source-prod-select')?.value);
+
+            if (!targetId) return;
+            if (!sourceId) {
+                alert('Vui lòng chọn một sản phẩm mẫu để sao chép!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${targetId}/bom/clone-from/${sourceId}`, {
+                    method: 'POST'
+                });
+
+                if (res.ok) {
+                    closeCloneBOMModal();
+                    await loadProductBOMDetails(targetId);
+                    await loadUnifiedInventory();
+                    alert('✅ Đã sao chép toàn bộ định lượng BOM thành công!');
+                } else {
+                    const err = await res.json();
+                    alert('Lỗi sao chép: ' + (err.detail || 'Không thể sao chép BOM'));
+                }
+            } catch (e) {
+                alert('Lỗi kết nối: ' + e.message);
+            }
+        };
+
         function showBOMIngredientDropdown() {
             const dd = document.getElementById('bom-ing-dropdown-list');
             if (dd) dd.classList.remove('hidden');

@@ -166,6 +166,39 @@ def update_single_bom_item(product_id: int, ingredient_id: int, req: BOMSingleIt
     conn.close()
     return result
 
+@router.post("/api/products/{product_id}/bom/clone-from/{source_product_id}")
+def clone_product_bom(product_id: int, source_product_id: int):
+    if product_id == source_product_id:
+        raise HTTPException(status_code=400, detail="Không thể sao chép BOM từ chính sản phẩm này!")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Lấy BOM của sản phẩm nguồn
+        cur.execute("SELECT ingredient_id, quantity FROM product_bom WHERE product_id = ?", (source_product_id,))
+        source_items = cur.fetchall()
+        if not source_items:
+            raise HTTPException(status_code=400, detail="Sản phẩm nguồn chưa có thành phần BOM nào để sao chép!")
+        
+        # Xóa BOM cũ của sản phẩm đích
+        cur.execute("DELETE FROM product_bom WHERE product_id = ?", (product_id,))
+        
+        # Insert các thành phần từ nguồn sang đích
+        for item in source_items:
+            cur.execute(
+                "INSERT INTO product_bom (product_id, ingredient_id, quantity) VALUES (?, ?, ?)",
+                (product_id, item["ingredient_id"], item["quantity"])
+            )
+        conn.commit()
+        result = calculate_product_cost_internal(product_id, conn)
+    except HTTPException:
+        conn.close()
+        raise
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return result
+
 @router.get("/api/bom/export-excel")
 @router.get("/api/bom/export")
 def export_bom(product_id: Optional[int] = None):
