@@ -642,10 +642,12 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-01)
-    const ROADMAP_VERSION = 'v3.4-2026-10-01-aibom';
+    const ROADMAP_VERSION = 'v3.4-2026-10-01-complete';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-01)
-      { id: 'ai-bom-suggest-and-inline-search', cat: 'CASH', title: 'Nâng Cấp BOM Hiện Đại: Quick-Search Nguyên Liệu Thả Thẳng Vào Bảng & ✨ AI Gợi Ý BOM', done: true, note: 'Bỏ hoàn toàn modal che rườm rà. Thêm thanh quick-search thả nguyên liệu thẳng vào bảng BOM, sửa định lượng inline. Tích hợp AI Gemini 2.5 Flash gợi ý trọn bộ công thức BOM 1-chạm & Nút 📋 Sao chép BOM từ sản phẩm khác' },
+      { id: 'oem-services-catalog-and-bom-cost', cat: 'PROD', title: 'Danh mục 22 Dịch Vụ Gia Công OEM & File Nguyên Liệu Tính Giá Cost BOM', done: true, note: 'Bóc tách 22 mã dịch vụ OEM (sữa tắm chung dung tích 50ml, 250ml, 500ml, 2L; thịt tươi bóc tách theo từng loại; lau sàn, xịt khử mùi, rửa tay, rửa tai, serum, canxi, men & creatin). Xuất file Excel chuẩn hóa Danh_Sach_Nguyen_Lieu_Dich_Vu_OEM.xlsx' },
+      { id: 'quiet-toast-notifications', cat: 'UI', title: 'Tối ưu UX Thông báo: Thay thế modal alert chặn màn hình bằng Toast êm ái khi cập nhật nguyên liệu/NCC', done: true, note: 'Chuyển toàn bộ alert thành showToast tự ẩn sau 2s, không bắt người dùng bấm Đã hiểu nhiều lần gây phiền toái' },
+      { id: 'ai-bom-suggest-and-inline-search', cat: 'PROD', title: 'Nâng Cấp BOM Hiện Đại: Quick-Search Nguyên Liệu Thả Thẳng Vào Bảng & ✨ AI Gợi Ý BOM', done: true, note: 'Bỏ hoàn toàn modal che rườm rà. Thêm thanh quick-search thả nguyên liệu thẳng vào bảng BOM, sửa định lượng inline. Tích hợp AI Gemini 2.5 Flash gợi ý trọn bộ công thức BOM 1-chạm & Nút 📋 Sao chép BOM từ sản phẩm khác' },
       { id: 'ecomm-sync-shopee-tiktok', cat: 'ECOMM', title: 'Đồng bộ Đơn Hàng Sàn TMĐT (Shopee & TikTok Shop): Tự động trừ tồn kho & Ghi nhận Sổ Quỹ', done: false, note: 'Kế hoạch triển khai: 1) Import Excel đơn hàng hàng ngày/ca từ Shopee & TikTok Seller Center tự động map SKU cấn trừ tồn kho; 2) Tự động hóa kéo đơn ngầm qua Chrome CDP hoặc đồng bộ qua cổng trung gian Pancake/POSCAKE' },
       { id: 'ai-cashflow-assistant', cat: 'CASH', title: 'Trợ Lý Thu Chi AI: Tự động bóc tách Bill Chuyển Khoản (Ctrl+V) & Câu lệnh tự nhiên (Gemini 2.5 Flash)', done: true, note: 'Tích hợp Google Gemini 2.5 Flash Vision OCR đọc bill ngân hàng (MB, VCB, MoMo...) và Rule-based Regex offline. Nhận diện số tiền, mã GD (FT code), tài khoản quỹ, kiểm tra chống trùng bill và ghi sổ quỹ 1-chạm' },
       { id: 'ai-config-and-test-key', cat: 'SYS', title: 'Nút Kiểm Tra Key AI & Tự Động Thích Ứng Mô Hình Gemini 2.5 Flash Mới Nhất', done: true, note: 'Bổ sung nút 🔍 Kiểm Tra Key trong modal cài đặt AI; tự động gửi ping test nhẹ xác thực key, nâng cấp hỗ trợ Gemini 2.5 Flash siêu tốc và đóng gói lại POS_Mastercare.exe độc lập' },
