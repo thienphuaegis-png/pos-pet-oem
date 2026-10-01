@@ -123,3 +123,10 @@ def test_debt_payment_plan_flow(setup_db):
     forecast_res2 = client.get("/api/oem/cashflow-forecast")
     fc2 = forecast_res2.json()
     assert not any(x.get("order_type") == "DEBT_PLAN" and x.get("id") == plan_id for x in fc2["items"])
+
+def test_list_cashbook_api():
+    # Kiểm tra API danh sách sổ quỹ hoạt động bình thường, không bị lỗi 500
+    res = client.get("/api/cashbook?limit=50")
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, list)

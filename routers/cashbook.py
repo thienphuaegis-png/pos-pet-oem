@@ -164,8 +164,8 @@ def list_cashbook(
             pa.name as account_name,
             pa.owner_type as account_owner_type,
             pa.account_type,
-            COALESCE(ct.name, o_ct.name, pst_ct.name, pst.customer_name) as contact_name,
-            COALESCE(ct.phone, o_ct.phone, pst_ct.phone, pst.customer_phone) as contact_phone,
+            COALESCE(ct.name, o_ct.name, pst_ct.name) as contact_name,
+            COALESCE(ct.phone, o_ct.phone, pst_ct.phone) as contact_phone,
             o.code as ref_order_code,
             pst.code as ref_pet_service_code
         FROM cashbook cb
