@@ -236,16 +236,16 @@ def download_contacts_template(type: str = "customer"):
     align_center = Alignment(horizontal="center", vertical="center")
 
     if type == "customer":
-        headers = ["Tên Khách Hàng (*)", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Công Nợ Ban Đầu (đ)"]
+        headers = ["Tên Khách Hàng (*)", "Số Điện Thoại", "Địa Chỉ", "Nhóm Khách Hàng", "Công Nợ Ban Đầu (đ)", "Điểm Tích Lũy"]
         samples = [
-            ["Nguyễn Văn An", "0901234567", "123 Lê Lợi, Bến Tre", "Khách VIP", 0],
-            ["Trần Thị Mai", "0912345678", "456 Nguyễn Huệ, TP.HCM", "Khách lẻ", 150000]
+            ["Nguyễn Văn An", "0901234567", "123 Lê Lợi, Bến Tre", "Khách VIP", 0, 50],
+            ["Trần Thị Mai", "0912345678", "456 Nguyễn Huệ, TP.HCM", "Khách lẻ", 150000, 0]
         ]
     else:
-        headers = ["Tên Nhà Cung Cấp (*)", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Ban Đầu (đ)"]
+        headers = ["Tên Nhà Cung Cấp (*)", "Số Điện Thoại", "Địa Chỉ", "Công Nợ Ban Đầu (đ)", "Nợ Quỹ Công Ty (đ)", "Nợ Quỹ Cá Nhân (đ)"]
         samples = [
-            ["Công Ty Bao Bì Hưng Phát", "0283888999", "KCN Tân Bình, TP.HCM", 0],
-            ["Xưởng Chai Lọ Sài Gòn", "0933444555", "Bình Chánh, TP.HCM", 5000000]
+            ["Công ty TNHH Thức Ăn Chăn Nuôi", "02838123456", "KCN Tân Bình, TP.HCM", 5000000, 3000000, 2000000],
+            ["Hộ Kinh Doanh Phụ Kiện Pet", "0987654321", "Chợ Lớn, Quận 5, TP.HCM", 0, 0, 0]
         ]
 
     ws.append(headers)
@@ -296,18 +296,41 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
 
     header_row = [str(c or "").strip().lower() for c in rows[0]]
     
-    def find_col(aliases):
+    def find_col(exact_matches, partial_matches=None):
         for idx, h in enumerate(header_row):
-            for a in aliases:
-                if a in h:
+            for em in exact_matches:
+                if h == em.strip().lower():
                     return idx
+        if partial_matches:
+            for idx, h in enumerate(header_row):
+                for pm in partial_matches:
+                    if pm.strip().lower() in h:
+                        return idx
         return -1
 
-    idx_name = find_col(["tên", "name", "khách hàng", "nhà cung cấp"])
-    idx_phone = find_col(["thoại", "sđt", "phone", "điện thoại"])
-    idx_addr = find_col(["địa chỉ", "address"])
-    idx_group = find_col(["nhóm", "phân loại", "segment", "group"])
-    idx_debt = find_col(["nợ", "công nợ", "debt"])
+    idx_code = find_col(["mã khách hàng", "mã kh", "mã ncc", "mã đối tác", "mã", "code"], ["mã kh", "mã ncc", "mã"])
+    idx_name = find_col(
+        ["tên khách hàng", "tên khách", "tên ncc", "tên nhà cung cấp", "họ và tên", "họ tên", "tên", "name"],
+        ["tên", "name", "khách hàng", "nhà cung cấp"]
+    )
+    if idx_name == idx_code and idx_name != -1:
+        idx_name = -1
+        for idx, h in enumerate(header_row):
+            if idx != idx_code and any(pm in h for pm in ["tên", "name"]):
+                idx_name = idx
+                break
+
+    idx_phone = find_col(["số điện thoại", "điện thoại", "sđt", "phone", "hotline", "tel"], ["thoại", "sđt", "phone", "điện thoại"])
+    idx_addr = find_col(["địa chỉ", "địa chỉ giao hàng", "address"], ["địa chỉ", "address"])
+    idx_group = find_col(["nhóm khách hàng", "nhóm đối tác", "nhóm", "phân loại", "segment", "group"], ["nhóm", "phân loại", "segment", "group"])
+    idx_debt_comp = find_col(["nợ quỹ công ty", "nợ cty", "công nợ công ty", "công nợ cty", "nợ công ty ban đầu", "quỹ cty"], ["nợ cty", "nợ công ty", "quỹ cty", "quỹ công ty"])
+    idx_debt_pers = find_col(["nợ quỹ cá nhân", "nợ cá nhân", "công nợ cá nhân", "nợ cá nhân ban đầu", "quỹ cá nhân"], ["nợ cá nhân", "quỹ cá nhân"])
+    idx_debt = find_col(["công nợ ban đầu", "công nợ", "nợ", "debt", "nợ cũ"], ["công nợ ban đầu", "nợ cũ", "công nợ", "nợ", "debt"])
+    if idx_debt != -1 and idx_debt in (idx_debt_comp, idx_debt_pers):
+        idx_debt = -1
+
+    idx_points = find_col(["điểm", "điểm tích lũy", "points"], ["điểm", "point"])
+    idx_email = find_col(["email", "thư điện tử", "mail"], ["email", "mail"])
 
     if idx_name == -1:
         idx_name = 0
@@ -325,10 +348,17 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         s = str(val).strip()
         if s.endswith(".0"):
             s = s[:-2]
-        return re.sub(r"[\s\.\-\(\)]+", "", s)
+        s = re.sub(r"[\s\.\-\(\)]+", "", s)
+        if s.startswith("+84"):
+            s = "0" + s[3:]
+        elif s.startswith("84") and len(s) >= 11:
+            s = "0" + s[2:]
+        elif len(s) == 9 and s[0] in "35789":
+            s = "0" + s
+        return s
 
     # Load danh sách contacts hiện có của type này để so khớp chính xác Unicode
-    cur.execute("SELECT id, name, phone, address, debt, segment_id FROM contacts WHERE type = ?", (type,))
+    cur.execute("SELECT id, name, phone, email, address, debt, segment_id, points, initial_debt_company, initial_debt_personal FROM contacts WHERE type = ?", (type,))
     existing_list = [dict(r) for r in cur.fetchall()]
     contacts_by_phone = {clean_phone_number(c["phone"]): c for c in existing_list if c["phone"]}
     contacts_by_name = {str(c["name"] or "").strip().lower(): c for c in existing_list}
@@ -360,6 +390,35 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             except:
                 debt = 0.0
 
+        debt_comp = 0.0
+        if type == "supplier" and idx_debt_comp != -1 and idx_debt_comp < len(r) and r[idx_debt_comp] is not None:
+            try:
+                debt_comp = float(r[idx_debt_comp])
+            except:
+                debt_comp = 0.0
+
+        debt_pers = 0.0
+        if type == "supplier" and idx_debt_pers != -1 and idx_debt_pers < len(r) and r[idx_debt_pers] is not None:
+            try:
+                debt_pers = float(r[idx_debt_pers])
+            except:
+                debt_pers = 0.0
+
+        if type == "supplier":
+            if debt_comp != 0 or debt_pers != 0:
+                debt = debt_comp + debt_pers
+            elif debt != 0 and debt_comp == 0 and debt_pers == 0:
+                debt_pers = debt
+
+        points = 0
+        if idx_points != -1 and idx_points < len(r) and r[idx_points] is not None:
+            try:
+                points = int(float(r[idx_points]))
+            except:
+                points = 0
+
+        email = str(r[idx_email] or "").strip() if idx_email != -1 and idx_email < len(r) else ""
+
         # Kiểm tra trùng khớp 2 tầng (bằng Python Unicode sạch 100%):
         # Tầng 1: So khớp SĐT chuẩn hóa (nếu có SĐT)
         existing = None
@@ -372,36 +431,49 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         if existing:
             existing_id = existing["id"]
             new_phone = phone if phone else (existing.get("phone") or "")
+            new_email = email if email else (existing.get("email") or "")
             new_address = address if address else (existing.get("address") or "")
             new_debt = float(existing.get("debt") or 0.0) + (debt if debt != 0.0 else 0.0)
+            new_debt_comp = float(existing.get("initial_debt_company") or 0.0) + (debt_comp if debt_comp != 0.0 else 0.0)
+            new_debt_pers = float(existing.get("initial_debt_personal") or 0.0) + (debt_pers if debt_pers != 0.0 else 0.0)
+            new_points = int(existing.get("points") or 0) + (points if points > 0 else 0)
 
             cur.execute("""
                 UPDATE contacts 
-                SET name = ?, phone = ?, address = ?, segment_id = COALESCE(?, segment_id), debt = ?
+                SET name = ?, phone = ?, email = ?, address = ?, segment_id = COALESCE(?, segment_id), 
+                    debt = ?, points = ?, initial_debt_company = ?, initial_debt_personal = ?
                 WHERE id = ?
-            """, (name, new_phone, new_address, segment_id, new_debt, existing_id))
+            """, (name, new_phone, new_email, new_address, segment_id, new_debt, new_points, new_debt_comp, new_debt_pers, existing_id))
 
             existing["name"] = name
             existing["phone"] = new_phone
+            existing["email"] = new_email
             existing["address"] = new_address
             existing["debt"] = new_debt
+            existing["initial_debt_company"] = new_debt_comp
+            existing["initial_debt_personal"] = new_debt_pers
+            existing["points"] = new_points
             if new_phone:
                 contacts_by_phone[new_phone] = existing
             contacts_by_name[norm_name] = existing
             updated += 1
         else:
             cur.execute("""
-                INSERT INTO contacts (type, name, phone, address, segment_id, debt)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (type, name, phone, address, segment_id, debt))
+                INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, points, initial_debt_company, initial_debt_personal)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (type, name, phone, email, address, segment_id, debt, points, debt_comp, debt_pers))
             new_id = cur.lastrowid
             new_c = {
                 "id": new_id,
                 "name": name,
                 "phone": phone,
+                "email": email,
                 "address": address,
                 "segment_id": segment_id,
-                "debt": debt
+                "debt": debt,
+                "points": points,
+                "initial_debt_company": debt_comp,
+                "initial_debt_personal": debt_pers
             }
             if phone:
                 contacts_by_phone[phone] = new_c

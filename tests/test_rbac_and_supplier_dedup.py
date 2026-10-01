@@ -259,3 +259,106 @@ def test_adjust_contact_debt_api():
         cur.execute("DELETE FROM contacts WHERE id = ?", (c_id,))
         conn.commit()
         conn.close()
+
+@pytest.mark.anyio
+async def test_import_customer_excel_priority_and_phone():
+    """Kiểm tra import khách hàng: không đè mã lên tên, chuẩn hóa SĐT mất số 0 đầu, nhận diện điểm và email."""
+    from fastapi import UploadFile
+    from routers.partners import import_contacts_excel
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test')")
+    conn.commit()
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    # Cột 'Mã khách hàng' đi trước 'Tên khách hàng'
+    ws.append(["Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Địa chỉ", "Công nợ", "Điểm tích lũy"])
+    # SĐT mất số 0 đầu do định dạng số trong Excel (901234567)
+    ws.append(["KH0099", "Anh Phú Test", 901234567, "phu@test.com", "Bến Tre", 50000, 100])
+    # Cùng người nhưng lần 2 nhập SĐT chuẩn hóa 0901234567 -> phải UPDATE gộp, không tạo mới
+    ws.append(["KH0099", "Anh Phú Test", "0901234567", "phu_new@test.com", "Bến Tre Mới", 20000, 50])
+
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    try:
+        upload_file = UploadFile(filename="test_customers.xlsx", file=bio)
+        resp = await import_contacts_excel(file=upload_file, type="customer")
+
+        assert resp["status"] == "ok"
+        assert "Đã thêm mới 1 khách hàng, cập nhật 1 khách hàng" in resp["message"]
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, phone, email, address, debt, points FROM contacts WHERE LOWER(TRIM(name)) = 'anh phú test' AND type = 'customer'")
+        rows = cur.fetchall()
+        assert len(rows) == 1
+        row = dict(rows[0])
+        # Tên phải là 'Anh Phú Test', KHÔNG được lấy mã 'KH0099'
+        assert row["name"] == "Anh Phú Test"
+        # SĐT phải được bù số 0 đầu
+        assert row["phone"] == "0901234567"
+        assert row["email"] == "phu_new@test.com"
+        assert row["address"] == "Bến Tre Mới"
+        assert row["debt"] == 70000.0  # 50k + 20k
+        assert row["points"] == 150    # 100 + 50
+    finally:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test')")
+        conn.commit()
+        conn.close()
+
+@pytest.mark.anyio
+async def test_import_supplier_excel_two_funds():
+    """Kiểm tra import nhà cung cấp: nhận diện đúng nợ quỹ công ty và nợ quỹ cá nhân."""
+    from fastapi import UploadFile
+    from routers.partners import import_contacts_excel
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM contacts WHERE phone = '0988776655' OR name = 'NCC Thức Ăn Hoàng Gia'")
+    conn.commit()
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Mã NCC", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Nợ Quỹ Công Ty", "Nợ Quỹ Cá Nhân"])
+    ws.append(["NCC01", "NCC Thức Ăn Hoàng Gia", "0988776655", "Bến Tre", 3000000, 1500000])
+
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+
+    try:
+        upload_file = UploadFile(filename="test_suppliers_funds.xlsx", file=bio)
+        resp = await import_contacts_excel(file=upload_file, type="supplier")
+
+        assert resp["status"] == "ok"
+        assert "Đã thêm mới 1 nhà cung cấp" in resp["message"]
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, name, phone, debt, initial_debt_company, initial_debt_personal 
+            FROM contacts 
+            WHERE phone = '0988776655' AND type = 'supplier'
+        """)
+        rows = cur.fetchall()
+        assert len(rows) == 1
+        row = dict(rows[0])
+        assert row["name"] == "NCC Thức Ăn Hoàng Gia"
+        assert row["initial_debt_company"] == 3000000.0
+        assert row["initial_debt_personal"] == 1500000.0
+        assert row["debt"] == 4500000.0
+    finally:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM contacts WHERE phone = '0988776655' OR name = 'NCC Thức Ăn Hoàng Gia'")
+        conn.commit()
+        conn.close()
+
