@@ -48,14 +48,32 @@ if not defined GIT (
 )
 
 echo [3/4] Dang dong bo ma nguon moi nhat tu GitHub...
+set "FETCH_OK=0"
 if exist "deploy\id_pos_shop" (
     "%GIT%" config core.sshCommand "ssh -i deploy/id_pos_shop -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+    "%GIT%" remote set-url origin git@github.com:thienphuaegis-png/pos-pet-oem.git >nul 2>&1
+    "%GIT%" fetch origin main && set "FETCH_OK=1"
+)
+if "!FETCH_OK!"=="0" (
+    "%GIT%" remote set-url origin https://github.com/thienphuaegis-png/pos-pet-oem.git >nul 2>&1
+    "%GIT%" fetch origin main && set "FETCH_OK=1"
 )
 
-"%GIT%" remote set-url origin git@github.com:thienphuaegis-png/pos-pet-oem.git >nul 2>&1
-"%GIT%" fetch origin main
-"%GIT%" checkout -f origin/main >nul 2>&1
-"%GIT%" reset --hard origin/main
+if "!FETCH_OK!"=="1" (
+    "%GIT%" checkout -f origin/main >nul 2>&1
+    "%GIT%" reset --hard origin/main
+    echo        -^> Da dong bo ma nguon thanh cong:
+    "%GIT%" log -1 --format="           [%%h] %%s"
+) else (
+    echo [LOI] Khong the tai ma nguon tu GitHub. Vui long kiem tra mang!
+)
+
+REM Dong bo giao dien templates va static vao moi thu muc cua ban build
+if exist "_internal\templates" xcopy "templates" "_internal\templates\" /E /I /Y >nul 2>&1
+if exist "_internal\static" xcopy "static" "_internal\static\" /E /I /Y >nul 2>&1
+if exist "dist\POS_Mastercare\templates" xcopy "templates" "dist\POS_Mastercare\templates\" /E /I /Y >nul 2>&1
+if exist "dist\POS_Mastercare\_internal\templates" xcopy "templates" "dist\POS_Mastercare\_internal\templates\" /E /I /Y >nul 2>&1
+if exist "dist\POS_Mastercare\_internal\static" xcopy "static" "dist\POS_Mastercare\_internal\static\" /E /I /Y >nul 2>&1
 
 echo.
 echo [4/4] Dang khoi dong lai he thong POS...
