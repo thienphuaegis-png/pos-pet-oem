@@ -411,8 +411,12 @@
                 const whSel = document.getElementById('purchase-warehouse');
                 if (whSel && p.warehouse_id) whSel.value = p.warehouse_id;
 
-                const fundSel = document.getElementById('purchase-fund-source');
-                if (fundSel && p.fund_source) fundSel.value = p.fund_source;
+                if (typeof setPurchaseFundSource === 'function' && p.fund_source) {
+                    setPurchaseFundSource(p.fund_source);
+                } else {
+                    const fundSel = document.getElementById('purchase-fund-source');
+                    if (fundSel && p.fund_source) fundSel.value = p.fund_source;
+                }
 
                 if (p.expected_date) {
                     document.getElementById('purchase-expected-date').value = p.expected_date;
@@ -455,6 +459,23 @@
             }
         }
 
+        window.setPurchaseFundSource = function(fund) {
+            const input = document.getElementById('purchase-fund-source');
+            if (input) input.value = fund;
+
+            const pillPer = document.getElementById('pill-po-fund-personal');
+            const pillCty = document.getElementById('pill-po-fund-company');
+            if (pillPer && pillCty) {
+                if (fund === 'PERSONAL') {
+                    pillPer.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-purple-600 text-white shadow-xs";
+                    pillCty.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
+                } else {
+                    pillCty.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-blue-600 text-white shadow-xs";
+                    pillPer.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
+                }
+            }
+        };
+
         function resetPurchaseForm() {
             purchaseCart = [];
             document.getElementById('purchase-supplier').value = '';
@@ -465,6 +486,7 @@
             document.getElementById('purchase-vat-rate').value = 0;
             document.getElementById('purchase-paid').value = 0;
             document.getElementById('purchase-note').value = '';
+            if (typeof setPurchaseFundSource === 'function') setPurchaseFundSource('PERSONAL');
             const expInput = document.getElementById('purchase-expected-date');
             if (expInput) expInput.value = new Date().toISOString().split('T')[0];
             renderPurchaseItems();

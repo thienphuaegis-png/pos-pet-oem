@@ -4143,20 +4143,56 @@
                 <!-- Thanh Công Cụ & Bộ Lọc Sổ Quỹ -->
                 <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex flex-wrap items-center gap-2 flex-1">
-                        <select id="cashbook-filter-account" onchange="loadCashbook()" class="tui-input text-xs w-auto py-1 font-semibold text-slate-700">
-                            <option value="">Tất cả tài khoản / quỹ</option>
-                        </select>
-                        <select id="cashbook-filter-type" onchange="loadCashbook()" class="tui-input text-xs w-auto py-1 font-semibold text-slate-700">
-                            <option value="">Tất cả loại (Thu & Chi)</option>
-                            <option value="in">Chỉ Phiếu Thu (Vào)</option>
-                            <option value="out">Chỉ Phiếu Chi (Ra)</option>
-                        </select>
-                        <input id="cashbook-filter-search" oninput="filterCashbookTable()" placeholder="Tìm theo mã phiếu, hạng mục, ghi chú, đối tác..." class="tui-input text-xs flex-1 min-w-[200px]">
+                        <!-- Popup Trigger: Chọn Tài Khoản / Két Tiền -->
+                        <input type="hidden" id="cashbook-filter-account" value="">
+                        <select id="cashbook-filter-account-native" class="hidden"></select>
+                        <button type="button" id="btn-trigger-cashbook-acc" onclick="openCashbookAccPickerModal()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-indigo-50/60 hover:border-indigo-300 transition text-xs font-semibold text-slate-800 shadow-2xs">
+                            <span id="cashbook-acc-icon">🏦</span>
+                            <span id="cashbook-acc-label">Tất cả tài khoản / quỹ</span>
+                            <span class="text-[10px] text-slate-400">▾</span>
+                        </button>
+
+                        <!-- Segmented Pills: Lọc Thu / Chi (1 Chạm) -->
+                        <input type="hidden" id="cashbook-filter-type" value="">
+                        <div class="flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                            <button type="button" id="cb-pill-type-all" onclick="setCashbookFilterType('')" class="px-2.5 py-1 rounded-md font-bold text-xs transition bg-slate-800 text-white shadow-xs">
+                                Tất cả
+                            </button>
+                            <button type="button" id="cb-pill-type-in" onclick="setCashbookFilterType('in')" class="px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition">
+                                🟢 Thu (Vào)
+                            </button>
+                            <button type="button" id="cb-pill-type-out" onclick="setCashbookFilterType('out')" class="px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition">
+                                🔴 Chi (Ra)
+                            </button>
+                        </div>
+
+                        <input id="cashbook-filter-search" oninput="filterCashbookTable()" placeholder="🔍 Tìm theo mã phiếu, hạng mục, ghi chú, đối tác..." class="tui-input text-xs flex-1 min-w-[200px]">
                     </div>
                     <button onclick="loadCashbook()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                         <span>Làm mới</span>
                     </button>
+                </div>
+
+                <!-- MODAL POPUP: CHỌN TÀI KHOẢN SỔ QUỸ -->
+                <div id="modal-cashbook-acc-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                        <div class="flex justify-between items-center p-3 bg-slate-900 text-white rounded-t-xl">
+                            <h4 class="font-bold flex items-center gap-1.5 text-white">
+                                <span>🏦</span> <span>Chọn Tài Khoản / Két Tiền</span>
+                            </h4>
+                            <button onclick="closeCashbookAccPickerModal()" class="text-slate-400 hover:text-white text-base font-bold px-1.5">&times;</button>
+                        </div>
+                        <div class="p-2.5 bg-slate-50 border-b">
+                            <input type="text" id="cashbook-acc-search-input" oninput="filterCashbookAccPopupList()" placeholder="🔍 Gõ tìm tên ngân hàng, số TK, quỹ..." class="w-full p-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-indigo-500 bg-white">
+                        </div>
+                        <div id="cashbook-acc-popup-items" class="p-2 space-y-1.5 max-h-72 overflow-y-auto custom-scrollbar">
+                            <!-- Injected dynamically via JS -->
+                        </div>
+                        <div class="p-2 bg-slate-50 border-t flex justify-end">
+                            <button onclick="closeCashbookAccPickerModal()" class="px-3 py-1 border rounded text-slate-600 hover:bg-slate-200 font-medium">Đóng</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -4414,9 +4450,18 @@
                     <div class="p-4 space-y-3">
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Nhà cung cấp / Xưởng (*):</label>
-                            <select id="cfd-pay-supp-select" onchange="onCFDPaySupplierChange()" class="border p-2 rounded w-full font-bold bg-white text-slate-800">
-                                <!-- Suppliers list -->
-                            </select>
+                            <input type="hidden" id="cfd-pay-supp-select" value="">
+                            <select id="cfd-pay-supp-select-native" class="hidden"></select>
+                            <button type="button" id="btn-trigger-cfd-pay-supp" onclick="openCFDPaySuppPickerModal()" class="w-full flex items-center justify-between p-2 rounded-lg border-2 border-amber-200 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-400 transition text-left shadow-2xs group">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm">📦</span>
+                                    <div>
+                                        <div id="cfd-pay-supp-disp-name" class="font-bold text-slate-800 text-xs">Bấm để chọn Nhà Cung Cấp...</div>
+                                        <div id="cfd-pay-supp-disp-sub" class="text-[10px] text-slate-500">Xem danh sách NCC & số nợ thực tế</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-amber-600 font-bold group-hover:translate-x-0.5 transition">Chọn ▾</span>
+                            </button>
                         </div>
 
                         <div class="bg-slate-50 p-2.5 rounded border space-y-1.5">
@@ -4436,10 +4481,19 @@
 
                         <div>
                             <label class="block font-bold text-gray-700 mb-1">Nguồn tiền xuất chi (*):</label>
-                            <select id="cfd-pay-fund" onchange="onCFDPayFundChange()" class="border p-2 rounded w-full font-bold text-blue-700 bg-white">
-                                <option value="COMPANY">🏢 Quỹ Công Ty (Chỉ trừ đơn CÓ hóa đơn VAT)</option>
-                                <option value="PERSONAL">👤 Quỹ Cá Nhân (Chỉ trừ đơn KHÔNG hóa đơn VAT)</option>
+                            <input type="hidden" id="cfd-pay-fund" value="COMPANY">
+                            <select id="cfd-pay-fund-native" class="hidden">
+                                <option value="COMPANY">COMPANY</option>
+                                <option value="PERSONAL">PERSONAL</option>
                             </select>
+                            <div class="grid grid-cols-2 p-0.5 bg-slate-100 rounded-lg border border-slate-200 gap-1 text-[11px]">
+                                <button type="button" id="pill-cfd-fund-company" onclick="setCFDPayFund('COMPANY')" class="py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-blue-600 text-white shadow-xs">
+                                    <span>🏢</span> <span>Quỹ Cty (VAT)</span>
+                                </button>
+                                <button type="button" id="pill-cfd-fund-personal" onclick="setCFDPayFund('PERSONAL')" class="py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1">
+                                    <span>👤</span> <span>Cá Nhân (Ko VAT)</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -4464,6 +4518,27 @@
                         <button id="btn-cfd-submit-pay" onclick="submitPaySupplierDebt()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold shadow">
                             Xác Nhận Xuất Chi
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL POPUP: CHỌN NHÀ CUNG CẤP CHI TRẢ NỢ -->
+            <div id="modal-cfd-supp-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                    <div class="flex justify-between items-center p-3 bg-amber-900 text-white rounded-t-xl">
+                        <h4 class="font-bold flex items-center gap-1.5 text-white">
+                            <span>📦</span> <span>Chọn Nhà Cung Cấp / Đối Tác</span>
+                        </h4>
+                        <button onclick="closeCFDPaySuppPickerModal()" class="text-amber-200 hover:text-white text-base font-bold px-1.5">&times;</button>
+                    </div>
+                    <div class="p-2.5 bg-amber-50 border-b">
+                        <input type="text" id="cfd-supp-search-input" oninput="filterCFDPaySuppList()" placeholder="🔍 Gõ tên nhà cung cấp, SĐT để tìm nhanh..." class="w-full p-2 border border-amber-200 rounded-lg text-xs outline-none focus:border-amber-500 bg-white">
+                    </div>
+                    <div id="cfd-supp-popup-items" class="p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                        <!-- Suppliers injected dynamically via JS -->
+                    </div>
+                    <div class="p-2.5 bg-slate-50 border-t flex justify-end">
+                        <button onclick="closeCFDPaySuppPickerModal()" class="px-3 py-1 border rounded text-slate-600 hover:bg-slate-200 font-medium">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -4515,12 +4590,21 @@
                             </div>
                         </div>
 
-                        <!-- Dropdown chọn đơn nợ (ẩn khi chọn PARTIAL_DEBT) -->
+                        <!-- Popup Trigger chọn đơn nợ (ẩn khi chọn PARTIAL_DEBT) -->
                         <div id="plan-order-container" class="hidden">
                             <label class="block font-bold text-slate-700 mb-1">Chọn đơn nợ (*):</label>
-                            <select id="plan-purchase-select" onchange="onPlanOrderSelectChange()" class="border p-2 rounded w-full font-bold bg-white text-slate-800 outline-none focus:border-purple-500">
-                                <!-- Order options injected via JS -->
-                            </select>
+                            <input type="hidden" id="plan-purchase-select" value="">
+                            <select id="plan-purchase-select-native" class="hidden"></select>
+                            <button type="button" id="btn-trigger-plan-order" onclick="openPlanOrderPickerModal()" class="w-full flex items-center justify-between p-2 rounded-lg border-2 border-purple-200 bg-purple-50/40 hover:bg-purple-50 hover:border-purple-400 transition text-left shadow-2xs group">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm">🧾</span>
+                                    <div>
+                                        <div id="plan-order-disp-code" class="font-bold text-purple-900 text-xs">Bấm để chọn đơn nợ lẻ...</div>
+                                        <div id="plan-order-disp-sub" class="text-[10px] text-slate-500">Xem danh sách hóa đơn nhập hàng còn nợ</div>
+                                    </div>
+                                </div>
+                                <span class="text-xs text-purple-600 font-bold group-hover:translate-x-0.5 transition">Chọn ▾</span>
+                            </button>
                         </div>
 
                         <!-- Số tiền hẹn trả -->
@@ -4539,10 +4623,19 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block font-bold text-slate-700 mb-1">Nguồn tiền (*):</label>
-                                <select id="plan-fund-source" class="border p-2 rounded w-full font-bold text-slate-700 bg-white outline-none focus:border-purple-500">
-                                    <option value="PERSONAL">👤 Quỹ Cá Nhân</option>
-                                    <option value="COMPANY">🏢 Quỹ Công Ty</option>
+                                <input type="hidden" id="plan-fund-source" value="PERSONAL">
+                                <select id="plan-fund-source-native" class="hidden">
+                                    <option value="PERSONAL">PERSONAL</option>
+                                    <option value="COMPANY">COMPANY</option>
                                 </select>
+                                <div class="grid grid-cols-2 p-0.5 bg-slate-100 rounded-lg border border-slate-200 gap-1 text-[11px]">
+                                    <button type="button" id="pill-plan-fund-personal" onclick="setPlanFundSource('PERSONAL')" class="py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-purple-600 text-white shadow-xs">
+                                        <span>👤</span> <span>Cá Nhân</span>
+                                    </button>
+                                    <button type="button" id="pill-plan-fund-company" onclick="setPlanFundSource('COMPANY')" class="py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1">
+                                        <span>🏢</span> <span>Quỹ Cty</span>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block font-bold text-slate-700 mb-1">Ngày hẹn thanh toán (*):</label>
@@ -4562,6 +4655,27 @@
                         <button onclick="submitCreateDebtPlan()" id="btn-submit-debt-plan" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold shadow flex items-center gap-1.5 transition">
                             <span>💾 Lưu Kế Hoạch Hẹn Trả</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL POPUP: CHỌN ĐƠN NỢ LẺ CỦA NCC -->
+            <div id="modal-plan-order-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                    <div class="flex justify-between items-center p-3 bg-purple-900 text-white rounded-t-xl">
+                        <h4 class="font-bold flex items-center gap-1.5 text-white">
+                            <span>🧾</span> <span>Chọn Đơn Nhập Hàng Cần Hẹn Trả</span>
+                        </h4>
+                        <button onclick="closePlanOrderPickerModal()" class="text-purple-200 hover:text-white text-base font-bold px-1.5">&times;</button>
+                    </div>
+                    <div class="p-2.5 bg-purple-50 border-b">
+                        <input type="text" id="plan-order-search-input" oninput="filterPlanOrdersList()" placeholder="🔍 Gõ mã đơn, ngày, ghi chú để tìm nhanh..." class="w-full p-2 border border-purple-200 rounded-lg text-xs outline-none focus:border-purple-500 bg-white">
+                    </div>
+                    <div id="plan-order-popup-items" class="p-2 space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                        <!-- Orders injected dynamically via JS -->
+                    </div>
+                    <div class="p-2.5 bg-slate-50 border-t flex justify-end">
+                        <button onclick="closePlanOrderPickerModal()" class="px-3 py-1 border rounded text-slate-600 hover:bg-slate-200 font-medium">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -4729,10 +4843,19 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">Nguồn Tiền Chi Trả (*):</label>
-                                <select id="purchase-fund-source" class="border p-2 rounded w-full text-xs font-bold bg-white text-slate-700">
-                                    <option value="PERSONAL">👤 Quỹ Cá Nhân (Không VAT)</option>
-                                    <option value="COMPANY">🏢 Quỹ Công Ty (Có VAT)</option>
+                                <input type="hidden" id="purchase-fund-source" value="PERSONAL">
+                                <select id="purchase-fund-source-native" class="hidden">
+                                    <option value="PERSONAL">PERSONAL</option>
+                                    <option value="COMPANY">COMPANY</option>
                                 </select>
+                                <div class="grid grid-cols-2 p-0.5 bg-slate-100 rounded-lg border border-slate-200 gap-1 text-[11px]">
+                                    <button type="button" id="pill-po-fund-personal" onclick="setPurchaseFundSource('PERSONAL')" class="py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-purple-600 text-white shadow-xs">
+                                        <span>👤</span> <span>Cá Nhân (Ko VAT)</span>
+                                    </button>
+                                    <button type="button" id="pill-po-fund-company" onclick="setPurchaseFundSource('COMPANY')" class="py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1">
+                                        <span>🏢</span> <span>Quỹ Cty (VAT)</span>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">Dự Kiến Ngày Nhận:</label>
@@ -8965,14 +9088,14 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261001_02"></script>
-    <script src="/static/js/modules/contacts.js?v=20261001_02"></script>
+    <script src="/static/js/app.js?v=20261001_03"></script>
+    <script src="/static/js/modules/contacts.js?v=20261001_03"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
-    <script src="/static/js/modules/purchases.js?v=20261001_02"></script>
-    <script src="/static/js/modules/productions.js?v=20261001_02"></script>
-    <script src="/static/js/modules/cashflow.js?v=20261001_02"></script>
+    <script src="/static/js/modules/purchases.js?v=20261001_03"></script>
+    <script src="/static/js/modules/productions.js?v=20261001_03"></script>
+    <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
-    <script src="/static/js/pos.js?v=20261001_02"></script>
+    <script src="/static/js/pos.js?v=20261001_03"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
     <div id="modal-cash-counter" onclick="if(event.target === this) closeCashCounterModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm">

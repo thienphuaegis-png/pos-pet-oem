@@ -395,16 +395,58 @@
                 const accRes = await fetch('/api/payment-accounts?_t=' + Date.now());
                 window.allPaymentAccounts = await accRes.json();
 
-                // Render account filter dropdown
-                const filterAccSelect = document.getElementById('cashbook-filter-account');
-                if (filterAccSelect) {
-                    const currentVal = filterAccSelect.value;
+                // Render account filter popup items & native hidden select
+                const filterAccInput = document.getElementById('cashbook-filter-account');
+                const nativeSelect = document.getElementById('cashbook-filter-account-native');
+                const popupContainer = document.getElementById('cashbook-acc-popup-items');
+                const currentVal = filterAccInput ? filterAccInput.value : '';
+
+                if (popupContainer) {
+                    let itemsHtml = `
+                        <div onclick="selectCashbookAcc('', 'Tất cả tài khoản / quỹ', '', '', 0)" class="p-2.5 rounded-lg border ${!currentVal ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-200'} hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer flex items-center justify-between transition">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs">🏦</div>
+                                <div>
+                                    <div class="font-bold text-slate-800">Tất cả tài khoản / quỹ</div>
+                                    <div class="text-[10px] text-slate-500">Xem toàn bộ dòng tiền vào ra</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold ${!currentVal ? 'text-indigo-600' : 'text-slate-400'}">● Mặc định</span>
+                        </div>
+                    `;
+
+                    window.allPaymentAccounts.forEach(a => {
+                        const isCty = a.owner_type === 'COMPANY';
+                        const isBank = a.account_type === 'bank';
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        const isSelected = currentVal == a.id;
+                        itemsHtml += `
+                            <div onclick="selectCashbookAcc(${a.id}, '${a.name.replace(/'/g, "\\'")}', '${a.code}', '${a.owner_type}', ${a.current_balance || 0})" class="p-2.5 rounded-lg border ${isSelected ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200'} hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer flex items-center justify-between transition">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg ${isCty ? 'bg-indigo-600' : 'bg-purple-600'} text-white flex items-center justify-center font-bold text-xs">${icon}</div>
+                                    <div>
+                                        <div class="font-bold text-slate-800 text-xs">${a.name}</div>
+                                        <div class="text-[10px] ${isCty ? 'text-blue-700' : 'text-purple-700'} font-semibold">
+                                            ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'} • ${a.code} ${a.is_default ? '★' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono font-bold text-xs ${(a.current_balance || 0) >= 0 ? 'text-slate-800' : 'text-rose-600'}">${formatMoney(a.current_balance || 0)}</div>
+                                    <span class="text-[9px] text-indigo-600 font-bold">Chọn ➔</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    popupContainer.innerHTML = itemsHtml;
+                }
+
+                if (nativeSelect) {
                     let opts = '<option value="">🏦 Tất cả tài khoản / quỹ</option>';
                     window.allPaymentAccounts.forEach(a => {
-                        const ownerBadge = a.owner_type === 'COMPANY' ? '[Cty]' : '[Cá nhân]';
-                        opts += `<option value="${a.id}" ${currentVal == a.id ? 'selected' : ''}>${a.code} - ${a.name} ${ownerBadge} (${formatMoney(a.current_balance || 0)})</option>`;
+                        opts += `<option value="${a.id}" ${currentVal == a.id ? 'selected' : ''}>${a.code} - ${a.name}</option>`;
                     });
-                    filterAccSelect.innerHTML = opts;
+                    nativeSelect.innerHTML = opts;
                 }
 
                 // Render account KPI cards
@@ -490,11 +532,81 @@
             }
         }
 
+        function openCashbookAccPickerModal() {
+            const m = document.getElementById('modal-cashbook-acc-picker');
+            if (m) {
+                m.classList.remove('hidden');
+                const inp = document.getElementById('cashbook-acc-search-input');
+                if (inp) {
+                    inp.value = '';
+                    filterCashbookAccPopupList();
+                    setTimeout(() => inp.focus(), 100);
+                }
+            }
+        }
+
+        function closeCashbookAccPickerModal() {
+            document.getElementById('modal-cashbook-acc-picker')?.classList.add('hidden');
+        }
+
+        function filterCashbookAccPopupList() {
+            const q = (document.getElementById('cashbook-acc-search-input')?.value || '').toLowerCase().trim();
+            const items = document.querySelectorAll('#cashbook-acc-popup-items > div');
+            items.forEach(it => {
+                it.style.display = it.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        function selectCashbookAcc(accId, name, code, ownerType, balance) {
+            const input = document.getElementById('cashbook-filter-account');
+            const lbl = document.getElementById('cashbook-acc-label');
+            const icon = document.getElementById('cashbook-acc-icon');
+            if (input) input.value = accId ? String(accId) : '';
+
+            if (lbl) {
+                if (!accId) {
+                    lbl.innerText = 'Tất cả tài khoản / quỹ';
+                    if (icon) icon.innerText = '🏦';
+                } else {
+                    const badge = ownerType === 'COMPANY' ? '[Cty]' : '[Cá nhân]';
+                    lbl.innerText = `${name} ${badge} (${formatMoney(balance)})`;
+                    if (icon) icon.innerText = ownerType === 'COMPANY' ? '🏢' : '👤';
+                }
+            }
+            closeCashbookAccPickerModal();
+            loadCashbook();
+        }
+
+        function setCashbookFilterType(type) {
+            const input = document.getElementById('cashbook-filter-type');
+            if (input) input.value = type;
+
+            const pillAll = document.getElementById('cb-pill-type-all');
+            const pillIn = document.getElementById('cb-pill-type-in');
+            const pillOut = document.getElementById('cb-pill-type-out');
+
+            if (pillAll && pillIn && pillOut) {
+                pillAll.className = "px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:bg-slate-200 transition";
+                pillIn.className = "px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition";
+                pillOut.className = "px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition";
+
+                if (type === 'in') {
+                    pillIn.className = "px-2.5 py-1 rounded-md font-bold text-xs bg-emerald-600 text-white shadow-xs transition";
+                } else if (type === 'out') {
+                    pillOut.className = "px-2.5 py-1 rounded-md font-bold text-xs bg-rose-600 text-white shadow-xs transition";
+                } else {
+                    pillAll.className = "px-2.5 py-1 rounded-md font-bold text-xs bg-slate-800 text-white shadow-xs transition";
+                }
+            }
+            loadCashbook();
+        }
+
         function filterCashbookByAccount(accId) {
-            const filterAccSelect = document.getElementById('cashbook-filter-account');
-            if (filterAccSelect) {
-                filterAccSelect.value = accId;
-                loadCashbook();
+            const a = window.allPaymentAccounts?.find(x => x.id === accId);
+            if (a) {
+                selectCashbookAcc(a.id, a.name, a.code, a.owner_type, a.current_balance || 0);
+            } else {
+                selectCashbookAcc('', 'Tất cả tài khoản / quỹ', '', '', 0);
             }
         }
 

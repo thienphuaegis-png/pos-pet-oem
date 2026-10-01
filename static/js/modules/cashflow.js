@@ -378,24 +378,136 @@
             }
         }
 
-        // Lập phiếu thanh toán nợ cho NCC
-        function openModalPaySupplierDebt(selectedSupplierId = null) {
-            const selectEl = document.getElementById('cfd-pay-supp-select');
-            if (selectEl) {
-                const debtSuppliers = allCFDSuppliers.filter(s => (s.debt || 0) > 0);
-                const listToUse = debtSuppliers.length > 0 ? debtSuppliers : allCFDSuppliers;
-                selectEl.innerHTML = listToUse.map(s => `
-                    <option value="${s.id}" data-debt="${s.debt || 0}" data-debt-company="${s.debt_company || 0}" data-debt-personal="${s.debt_personal || 0}">
-                        ${s.name} - Tổng nợ: ${formatMoney(s.debt || 0)} (Cty: ${formatMoney(s.debt_company || 0)} | Cá nhân: ${formatMoney(s.debt_personal || 0)})
-                    </option>
-                `).join('');
+        // ==========================================
+        // POPUP CHỌN NCC & NGUỒN TIỀN TRẢ NỢ (NHÓM 1 & NHÓM 2)
+        // ==========================================
+        function setCFDPayFund(fund) {
+            const input = document.getElementById('cfd-pay-fund');
+            if (input) input.value = fund;
 
-                if (selectedSupplierId) {
-                    selectEl.value = selectedSupplierId;
+            const pillCty = document.getElementById('pill-cfd-fund-company');
+            const pillPer = document.getElementById('pill-cfd-fund-personal');
+            if (pillCty && pillPer) {
+                if (fund === 'COMPANY') {
+                    pillCty.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-blue-600 text-white shadow-xs";
+                    pillPer.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
+                } else {
+                    pillPer.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-purple-600 text-white shadow-xs";
+                    pillCty.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
                 }
             }
+            onCFDPayFundChange();
+        }
 
-            onCFDPaySupplierChange();
+        function openCFDPaySuppPickerModal() {
+            const m = document.getElementById('modal-cfd-supp-picker');
+            if (m) {
+                m.classList.remove('hidden');
+                const inp = document.getElementById('cfd-supp-search-input');
+                if (inp) {
+                    inp.value = '';
+                    filterCFDPaySuppList();
+                    setTimeout(() => inp.focus(), 100);
+                }
+            }
+        }
+
+        function closeCFDPaySuppPickerModal() {
+            document.getElementById('modal-cfd-supp-picker')?.classList.add('hidden');
+        }
+
+        function filterCFDPaySuppList() {
+            const q = (document.getElementById('cfd-supp-search-input')?.value || '').toLowerCase().trim();
+            const items = document.querySelectorAll('#cfd-supp-popup-items > div');
+            items.forEach(it => {
+                it.style.display = it.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        function selectCFDPaySupplier(suppId, name, phone, debtCty, debtPersonal) {
+            const input = document.getElementById('cfd-pay-supp-select');
+            if (input) input.value = suppId ? String(suppId) : '';
+
+            const dCty = parseFloat(debtCty) || 0;
+            const dPer = parseFloat(debtPersonal) || 0;
+            const total = dCty + dPer;
+
+            const dispName = document.getElementById('cfd-pay-supp-disp-name');
+            const dispSub = document.getElementById('cfd-pay-supp-disp-sub');
+            if (dispName) dispName.innerText = name;
+            if (dispSub) dispSub.innerText = `📞 ${phone || 'Không có SĐT'} • Tổng nợ: ${formatMoney(total)}`;
+
+            const elDebt = document.getElementById('cfd-pay-current-debt');
+            if (elDebt) elDebt.innerText = formatMoney(total);
+            const elCty = document.getElementById('cfd-pay-debt-company');
+            if (elCty) elCty.innerText = formatMoney(dCty);
+            const elPersonal = document.getElementById('cfd-pay-debt-personal');
+            if (elPersonal) elPersonal.innerText = formatMoney(dPer);
+
+            // Tự động gán quỹ
+            if (dCty > 0 && dPer === 0) {
+                setCFDPayFund('COMPANY');
+            } else if (dPer > 0 && dCty === 0) {
+                setCFDPayFund('PERSONAL');
+            } else {
+                setCFDPayFund('COMPANY');
+            }
+
+            closeCFDPaySuppPickerModal();
+        }
+
+        // Lập phiếu thanh toán nợ cho NCC
+        function openModalPaySupplierDebt(selectedSupplierId = null) {
+            const popupContainer = document.getElementById('cfd-supp-popup-items');
+            const nativeSelect = document.getElementById('cfd-pay-supp-select-native');
+
+            const debtSuppliers = allCFDSuppliers.filter(s => (s.debt || 0) > 0);
+            const listToUse = debtSuppliers.length > 0 ? debtSuppliers : allCFDSuppliers;
+
+            if (popupContainer) {
+                popupContainer.innerHTML = listToUse.map(s => {
+                    const dCty = parseFloat(s.debt_company) || 0;
+                    const dPer = parseFloat(s.debt_personal) || 0;
+                    const total = parseFloat(s.debt) || 0;
+                    return `
+                        <div onclick="selectCFDPaySupplier(${s.id}, '${s.name.replace(/'/g, "\\'")}', '${s.phone || ''}', ${dCty}, ${dPer})" class="p-2.5 rounded-lg border border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 cursor-pointer flex items-center justify-between transition">
+                            <div class="flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs">📦</span>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-xs">${s.name}</div>
+                                    <div class="text-[10px] text-slate-500">📞 ${s.phone || 'Chưa có SĐT'}</div>
+                                    <div class="text-[10px] space-x-1.5 mt-0.5">
+                                        <span class="text-blue-700 font-semibold">Cty: ${formatMoney(dCty)}</span>
+                                        <span class="text-purple-700 font-semibold">Cá nhân: ${formatMoney(dPer)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-slate-400">Tổng nợ:</div>
+                                <div class="font-mono font-bold text-rose-600 text-xs">${formatMoney(total)}</div>
+                                <span class="text-[9px] text-amber-600 font-bold">Chọn ➔</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            if (nativeSelect) {
+                nativeSelect.innerHTML = listToUse.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            }
+
+            let targetSupplier = null;
+            if (selectedSupplierId) {
+                targetSupplier = listToUse.find(s => s.id === selectedSupplierId);
+            }
+            if (!targetSupplier && listToUse.length > 0) {
+                targetSupplier = listToUse[0];
+            }
+
+            if (targetSupplier) {
+                selectCFDPaySupplier(targetSupplier.id, targetSupplier.name, targetSupplier.phone, targetSupplier.debt_company, targetSupplier.debt_personal);
+            }
+
             document.getElementById('cfd-pay-note').value = '';
             document.getElementById('modal-cfd-pay-supplier').classList.remove('hidden');
         }
@@ -405,39 +517,14 @@
         }
 
         function onCFDPaySupplierChange() {
-            const selectEl = document.getElementById('cfd-pay-supp-select');
-            const opt = selectEl?.selectedOptions[0];
-            const debt = parseFloat(opt?.getAttribute('data-debt')) || 0;
-            const debtCompany = parseFloat(opt?.getAttribute('data-debt-company')) || 0;
-            const debtPersonal = parseFloat(opt?.getAttribute('data-debt-personal')) || 0;
-            
-            const elDebt = document.getElementById('cfd-pay-current-debt');
-            if (elDebt) elDebt.innerText = formatMoney(debt);
-
-            const elCty = document.getElementById('cfd-pay-debt-company');
-            if (elCty) elCty.innerText = formatMoney(debtCompany);
-
-            const elPersonal = document.getElementById('cfd-pay-debt-personal');
-            if (elPersonal) elPersonal.innerText = formatMoney(debtPersonal);
-
-            // Tự động chọn quỹ hợp lý theo loại nợ
-            const fundSelect = document.getElementById('cfd-pay-fund');
-            if (fundSelect) {
-                if (debtCompany > 0 && debtPersonal === 0) {
-                    fundSelect.value = 'COMPANY';
-                } else if (debtPersonal > 0 && debtCompany === 0) {
-                    fundSelect.value = 'PERSONAL';
-                }
-            }
-
-            onCFDPayFundChange();
+            // Đã tích hợp qua selectCFDPaySupplier
         }
 
         function onCFDPayFundChange() {
-            const selectEl = document.getElementById('cfd-pay-supp-select');
-            const opt = selectEl?.selectedOptions[0];
-            const debtCompany = parseFloat(opt?.getAttribute('data-debt-company')) || 0;
-            const debtPersonal = parseFloat(opt?.getAttribute('data-debt-personal')) || 0;
+            const suppId = parseInt(document.getElementById('cfd-pay-supp-select')?.value) || 0;
+            const supp = allCFDSuppliers.find(s => s.id === suppId);
+            const debtCompany = parseFloat(supp?.debt_company) || 0;
+            const debtPersonal = parseFloat(supp?.debt_personal) || 0;
             const fund = document.getElementById('cfd-pay-fund')?.value || 'COMPANY';
 
             const maxDebt = (fund === 'COMPANY') ? debtCompany : debtPersonal;
@@ -454,10 +541,10 @@
         }
 
         function setCFDPayFullDebt() {
-            const selectEl = document.getElementById('cfd-pay-supp-select');
-            const opt = selectEl?.selectedOptions[0];
-            const debtCompany = parseFloat(opt?.getAttribute('data-debt-company')) || 0;
-            const debtPersonal = parseFloat(opt?.getAttribute('data-debt-personal')) || 0;
+            const suppId = parseInt(document.getElementById('cfd-pay-supp-select')?.value) || 0;
+            const supp = allCFDSuppliers.find(s => s.id === suppId);
+            const debtCompany = parseFloat(supp?.debt_company) || 0;
+            const debtPersonal = parseFloat(supp?.debt_personal) || 0;
             const fund = document.getElementById('cfd-pay-fund')?.value || 'COMPANY';
             const maxDebt = (fund === 'COMPANY') ? debtCompany : debtPersonal;
 
@@ -666,30 +753,107 @@
             }
         }
 
+        function setPlanFundSource(fund) {
+            const input = document.getElementById('plan-fund-source');
+            if (input) input.value = fund;
+
+            const pillPer = document.getElementById('pill-plan-fund-personal');
+            const pillCty = document.getElementById('pill-plan-fund-company');
+            if (pillPer && pillCty) {
+                if (fund === 'PERSONAL') {
+                    pillPer.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-purple-600 text-white shadow-xs";
+                    pillCty.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
+                } else {
+                    pillCty.className = "py-1.5 px-2 rounded-md font-bold transition flex items-center justify-center gap-1 bg-blue-600 text-white shadow-xs";
+                    pillPer.className = "py-1.5 px-2 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1";
+                }
+            }
+        }
+
+        function openPlanOrderPickerModal() {
+            const m = document.getElementById('modal-plan-order-picker');
+            if (m) {
+                m.classList.remove('hidden');
+                const inp = document.getElementById('plan-order-search-input');
+                if (inp) {
+                    inp.value = '';
+                    filterPlanOrdersList();
+                    setTimeout(() => inp.focus(), 100);
+                }
+            }
+        }
+
+        function closePlanOrderPickerModal() {
+            document.getElementById('modal-plan-order-picker')?.classList.add('hidden');
+        }
+
+        function filterPlanOrdersList() {
+            const q = (document.getElementById('plan-order-search-input')?.value || '').toLowerCase().trim();
+            const items = document.querySelectorAll('#plan-order-popup-items > div');
+            items.forEach(it => {
+                it.style.display = it.innerText.toLowerCase().includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        function selectPlanOrder(orderId, orderCode, debtAmount, hasVat) {
+            const input = document.getElementById('plan-purchase-select');
+            if (input) input.value = orderId ? String(orderId) : '';
+
+            const dispCode = document.getElementById('plan-order-disp-code');
+            const dispSub = document.getElementById('plan-order-disp-sub');
+            if (dispCode) dispCode.innerText = `Đơn: ${orderCode}`;
+            if (dispSub) dispSub.innerText = `Còn nợ: ${formatMoney(debtAmount)} • ${hasVat ? 'Quỹ Cty' : 'Quỹ Cá Nhân'}`;
+
+            document.getElementById('plan-amount').value = debtAmount;
+            setPlanFundSource(hasVat ? 'COMPANY' : 'PERSONAL');
+
+            closePlanOrderPickerModal();
+        }
+
         function renderPlanOrdersDropdown() {
-            const sel = document.getElementById('plan-purchase-select');
-            if (!sel) return;
+            const container = document.getElementById('plan-order-popup-items');
+            if (!container) return;
+
             if (currentPlanSupplierOrders.length === 0) {
-                sel.innerHTML = '<option value="">(Không có đơn nợ lẻ nào)</option>';
+                container.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs italic">Không có đơn nợ lẻ nào của nhà cung cấp này.</div>';
+                const dispCode = document.getElementById('plan-order-disp-code');
+                const dispSub = document.getElementById('plan-order-disp-sub');
+                if (dispCode) dispCode.innerText = '(Không có đơn nợ lẻ)';
+                if (dispSub) dispSub.innerText = 'NCC không còn hóa đơn nợ riêng biệt';
                 return;
             }
-            sel.innerHTML = currentPlanSupplierOrders.map(o => `
-                <option value="${o.id}" data-debt="${o.debt_amount}" data-type="${o.order_type}" data-vat="${o.has_vat}">
-                    ${o.code} - Còn nợ: ${formatMoney(o.debt_amount)} (${o.has_vat ? 'Quỹ Cty' : 'Cá Nhân'})
-                </option>
-            `).join('');
+
+            container.innerHTML = currentPlanSupplierOrders.map(o => {
+                const isCty = o.has_vat === 1 || o.has_vat === true;
+                return `
+                    <div onclick="selectPlanOrder(${o.id}, '${o.code}', ${o.debt_amount}, ${isCty})" class="p-2.5 rounded-lg border border-slate-200 hover:border-purple-400 hover:bg-purple-50/50 cursor-pointer flex items-center justify-between transition">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg ${isCty ? 'bg-indigo-600' : 'bg-purple-600'} text-white flex items-center justify-center font-bold text-xs">🧾</span>
+                            <div>
+                                <div class="font-bold text-slate-800 text-xs">${o.code}</div>
+                                <div class="text-[10px] ${isCty ? 'text-blue-700' : 'text-purple-700'} font-semibold">
+                                    ${isCty ? '🏢 Quỹ Cty (Có VAT)' : '👤 Quỹ Cá Nhân'} • ${o.order_type === 'OEM' ? 'OEM' : 'Nhập hàng'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-400">Còn nợ:</div>
+                            <div class="font-mono font-bold text-rose-600 text-xs">${formatMoney(o.debt_amount)}</div>
+                            <span class="text-[9px] text-purple-600 font-bold">Chọn ➔</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Mặc định chọn đơn đầu tiên
+            if (currentPlanSupplierOrders.length > 0) {
+                const first = currentPlanSupplierOrders[0];
+                selectPlanOrder(first.id, first.code, first.debt_amount, first.has_vat === 1 || first.has_vat === true);
+            }
         }
 
         function onPlanOrderSelectChange() {
-            const sel = document.getElementById('plan-purchase-select');
-            if (!sel || !sel.value) return;
-            const opt = sel.options[sel.selectedIndex];
-            if (opt) {
-                const debt = parseFloat(opt.getAttribute('data-debt')) || 0;
-                const hasVat = opt.getAttribute('data-vat') === '1';
-                document.getElementById('plan-amount').value = debt;
-                document.getElementById('plan-fund-source').value = hasVat ? 'COMPANY' : 'PERSONAL';
-            }
+            // Đã tích hợp qua selectPlanOrder
         }
 
         function setPlanQuickAmount(rate) {
