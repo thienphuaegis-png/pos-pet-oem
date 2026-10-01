@@ -2067,11 +2067,30 @@
                                 </div>
                             </div>
 
-                            <div class="flex justify-between items-center">
+                            <!-- Chọn mặt hàng điều chuyển (Cơ chế tìm kiếm thả dropdown giống Phiếu Nhập Hàng) -->
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 relative">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                                        <span>🔍</span> <span>Thêm Hàng Chuyển:</span>
+                                    </span>
+                                    <div class="relative flex-1 min-w-[320px]">
+                                        <input type="text" id="transfer-search-input" 
+                                               placeholder="🔍 Gõ tên hoặc mã hàng cần chuyển (không dấu: 'hop', 'chai', 'tem', 'sua')..." 
+                                               class="border border-slate-300 p-2 pr-8 rounded-lg w-full text-xs bg-white shadow-2xs outline-none focus:border-sky-500 font-medium" 
+                                               oninput="filterTransferSearch(this.value)"
+                                               onfocus="filterTransferSearch(this.value)"
+                                               autocomplete="off">
+                                        <span class="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none text-xs">▼</span>
+                                        <div id="transfer-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto hidden z-50 text-xs divide-y divide-slate-100 custom-scrollbar">
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-gray-500 italic">* Gõ tên hoặc mã, click vào mặt hàng để đưa ngay vào danh sách điều chuyển bên dưới.</p>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-1">
                                 <span class="font-bold text-xs text-slate-700">Danh sách các mặt hàng cần điều chuyển:</span>
-                                <button onclick="addTransferRow()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-2.5 py-1.5 rounded flex items-center gap-1">
-                                    + Thêm Dòng Chuyển Hàng
-                                </button>
+                                <span id="transfer-rows-count-badge" class="text-xs text-slate-500 font-medium">0 mặt hàng</span>
                             </div>
 
                             <div class="overflow-x-auto border rounded max-h-[380px]">
@@ -2097,27 +2116,6 @@
                                     🚀 Xác Nhận Điều Chuyển Hàng
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- DROPLIST POPUP: POPOVER THẢ XUỐNG TÌM KIẾM MẶT HÀNG CHUYỂN KHO -->
-                    <div id="transfer-item-popover" class="fixed hidden z-50 bg-white border border-slate-200 rounded-xl shadow-2xl flex flex-col text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-100" style="width: 360px;">
-                        <div class="p-2 bg-slate-50 border-b space-y-1.5">
-                            <div class="relative">
-                                <input type="text" id="tf-popover-search-input" oninput="filterTransferPopoverList()" placeholder="🔍 Tìm nhanh mã hoặc tên hàng..." class="w-full pl-7 pr-2.5 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-sky-500 bg-white">
-                                <span class="absolute left-2 top-2 text-slate-400">🔍</span>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-500">
-                                <div class="flex items-center gap-1">
-                                    <button type="button" onclick="setTransferPopoverFilter('all')" id="btn-tf-pop-all" class="px-2 py-0.5 rounded font-bold bg-sky-600 text-white text-[10px]">Tất cả</button>
-                                    <button type="button" onclick="setTransferPopoverFilter('product')" id="btn-tf-pop-prod" class="px-2 py-0.5 rounded font-medium text-slate-600 hover:bg-slate-200 text-[10px]">📦 Hàng Hóa</button>
-                                    <button type="button" onclick="setTransferPopoverFilter('ingredient')" id="btn-tf-pop-ing" class="px-2 py-0.5 rounded font-medium text-slate-600 hover:bg-slate-200 text-[10px]">🧪 Nguyên Liệu</button>
-                                </div>
-                                <span id="tf-popover-count" class="text-[10px]">0 món</span>
-                            </div>
-                        </div>
-                        <div id="tf-popover-items" class="p-1.5 space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
-                            <!-- Injected dynamically -->
                         </div>
                     </div>
 
@@ -9129,7 +9127,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261001_05"></script>
+    <script src="/static/js/app.js?v=20261001_06"></script>
     <script src="/static/js/modules/contacts.js?v=20261001_03"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>

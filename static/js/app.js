@@ -1467,207 +1467,129 @@
                 const res = await fetch(`/api/inventory/unified?warehouse_id=${whId}`);
                 const data = await res.json();
                 transferSourceItems = (data.items || []).filter(it => it.quantity > 0);
+                currentTransferRows = [];
+                const searchInp = document.getElementById('transfer-search-input');
+                if (searchInp) searchInp.value = '';
+                const resBox = document.getElementById('transfer-search-results');
+                if (resBox) resBox.classList.add('hidden');
                 renderTransferRows();
             } catch (e) {
                 console.error("onTransferFromChange error:", e);
             }
         }
 
-        let currentTransferPopoverRowIdx = null;
-        let currentTransferPopoverFilterType = 'all';
+        function filterTransferSearch(val) {
+            const resBox = document.getElementById('transfer-search-results');
+            if (!resBox) return;
 
-        function toggleTransferItemPopover(event, rowIdx) {
-            event.stopPropagation();
-            const popover = document.getElementById('transfer-item-popover');
-            if (!popover) return;
-
-            // Nếu đang mở đúng dòng này thì bấm lại để đóng
-            if (!popover.classList.contains('hidden') && currentTransferPopoverRowIdx === rowIdx) {
-                closeTransferItemPopover();
+            const fromWh = document.getElementById('transfer-from-wh')?.value;
+            if (!fromWh) {
+                resBox.innerHTML = '<div class="p-3 text-amber-600 bg-amber-50 text-center font-medium">⚠️ Vui lòng chọn Kho Xuất trước khi chọn mặt hàng</div>';
+                resBox.classList.remove('hidden');
                 return;
             }
 
             if (!transferSourceItems || transferSourceItems.length === 0) {
-                alert("Kho xuất không còn mặt hàng nào có tồn kho (>0) để chuyển!");
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Kho xuất không có mặt hàng nào còn tồn (>0)</div>';
+                resBox.classList.remove('hidden');
                 return;
             }
 
-            currentTransferPopoverRowIdx = rowIdx;
-            const btn = event.currentTarget;
-            const rect = btn.getBoundingClientRect();
+            const q = (val || '').trim();
+            const matches = [];
 
-            // Tính vị trí nổi dưới mép nút
-            let top = rect.bottom + 4;
-            const left = rect.left;
-            const popoverHeight = 280;
-
-            // Nếu chạm đáy màn hình thì lật ngược lên trên
-            if (top + popoverHeight > window.innerHeight && rect.top > popoverHeight) {
-                top = rect.top - popoverHeight - 4;
-            }
-
-            popover.style.top = `${top}px`;
-            popover.style.left = `${left}px`;
-            popover.style.width = `${Math.max(rect.width, 360)}px`;
-            popover.classList.remove('hidden');
-
-            const searchInp = document.getElementById('tf-popover-search-input');
-            if (searchInp) {
-                searchInp.value = '';
-                setTimeout(() => searchInp.focus(), 60);
-            }
-            setTransferPopoverFilter('all');
-
-            // Click ra ngoài để đóng
-            document.removeEventListener('click', onOutsideClickTransferPopover);
-            setTimeout(() => {
-                document.addEventListener('click', onOutsideClickTransferPopover);
-            }, 50);
-        }
-
-        function closeTransferItemPopover() {
-            const popover = document.getElementById('transfer-item-popover');
-            if (popover) popover.classList.add('hidden');
-            currentTransferPopoverRowIdx = null;
-            document.removeEventListener('click', onOutsideClickTransferPopover);
-        }
-
-        function onOutsideClickTransferPopover(e) {
-            const popover = document.getElementById('transfer-item-popover');
-            if (popover && !popover.contains(e.target)) {
-                closeTransferItemPopover();
-            }
-        }
-
-        function setTransferPopoverFilter(type) {
-            currentTransferPopoverFilterType = type;
-            const pillAll = document.getElementById('btn-tf-pop-all');
-            const pillProd = document.getElementById('btn-tf-pop-prod');
-            const pillIng = document.getElementById('btn-tf-pop-ing');
-
-            const activeCls = "px-2 py-0.5 rounded font-bold bg-sky-600 text-white text-[10px] transition";
-            const inactiveCls = "px-2 py-0.5 rounded text-slate-600 hover:bg-slate-200 text-[10px] transition";
-
-            if (pillAll) pillAll.className = type === 'all' ? activeCls : inactiveCls;
-            if (pillProd) pillProd.className = type === 'product' ? activeCls : inactiveCls;
-            if (pillIng) pillIng.className = type === 'ingredient' ? activeCls : inactiveCls;
-
-            renderTransferPopoverItems();
-        }
-
-        function filterTransferPopoverList() {
-            renderTransferPopoverItems();
-        }
-
-        function renderTransferPopoverItems() {
-            const container = document.getElementById('tf-popover-items');
-            if (!container) return;
-
-            const q = (document.getElementById('tf-popover-search-input')?.value || '').toLowerCase().trim();
-
-            let filtered = (transferSourceItems || []).filter(it => {
-                if (currentTransferPopoverFilterType !== 'all' && it.item_type !== currentTransferPopoverFilterType) return false;
-                if (!q) return true;
-                const matchName = (it.name || '').toLowerCase().includes(q);
-                const matchSku = (it.sku || it.code || '').toLowerCase().includes(q);
-                return matchName || matchSku;
+            transferSourceItems.forEach(item => {
+                const searchText = `${item.name} ${item.sku || item.code || ''} ${item.unit || ''}`;
+                if (!q || (typeof fuzzyMatch === 'function' && fuzzyMatch(q, searchText)) || searchText.toLowerCase().includes(q.toLowerCase())) {
+                    matches.push(item);
+                }
             });
 
-            const countEl = document.getElementById('tf-popover-count');
-            if (countEl) countEl.innerText = `${filtered.length} món`;
-
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="p-4 text-center text-slate-400">Không tìm thấy mặt hàng phù hợp</div>';
+            if (matches.length === 0) {
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy mặt hàng phù hợp trong kho xuất</div>';
+                resBox.classList.remove('hidden');
                 return;
             }
 
-            let selectedKey = null;
-            if (currentTransferPopoverRowIdx !== null && currentTransferRows[currentTransferPopoverRowIdx]) {
-                selectedKey = currentTransferRows[currentTransferPopoverRowIdx].item_key;
-            }
-
-            container.innerHTML = filtered.map(it => {
-                const key = `${it.item_type}_${it.id}`;
-                const isProd = it.item_type === 'product';
-                const isSelected = key === selectedKey;
+            resBox.innerHTML = matches.slice(0, 30).map(m => {
+                const isProd = m.item_type === 'product';
                 const badge = isProd 
-                    ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
-                    : '<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                    ? '<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>'
+                    : '<span class="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>';
 
                 return `
-                    <div onclick="selectTransferPopoverItem('${key}')" class="p-1.5 rounded-lg border ${isSelected ? 'border-sky-500 bg-sky-50/70' : 'border-slate-100 hover:border-sky-300 hover:bg-slate-50'} cursor-pointer flex items-center justify-between transition group">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-6 h-6 rounded ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-[10px] shrink-0">${isProd ? '📦' : '🧪'}</span>
-                            <div class="min-w-0">
-                                <div class="font-bold text-slate-800 text-xs truncate group-hover:text-sky-600">${it.name}</div>
-                                <div class="text-[10px] text-slate-400 flex items-center gap-1">
-                                    ${it.sku || it.code ? `<span class="font-mono text-slate-500">${it.sku || it.code}</span> •` : ''}
-                                    ${badge}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right shrink-0 pl-2">
-                            <span class="font-mono font-bold text-slate-800 text-xs">${it.quantity.toLocaleString('vi-VN')}</span>
-                            <span class="text-[10px] text-slate-500">${it.unit}</span>
+                <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition-colors">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-lg ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
+                        <div>
+                            <div class="font-bold text-slate-800 text-xs">${m.name}</div>
+                            <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.sku || m.code || '---'} | ĐVT: ${m.unit} • ${badge}</div>
                         </div>
                     </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-gray-400">Tồn kho xuất:</div>
+                        <div class="font-bold text-sky-700 font-mono text-xs">${m.quantity.toLocaleString('vi-VN')} <span class="text-[10px] font-normal text-slate-500">${m.unit}</span></div>
+                    </div>
+                </div>
                 `;
             }).join('');
+
+            resBox.classList.remove('hidden');
         }
 
-        function selectTransferPopoverItem(key) {
-            const parts = key.split('_');
-            const type = parts[0];
-            const id = parseInt(parts[1]);
-            const found = transferSourceItems.find(it => it.item_type === type && it.id === id);
+        function addTransferItemFromSearch(type, targetId) {
+            const resBox = document.getElementById('transfer-search-results');
+            if (resBox) resBox.classList.add('hidden');
+            const searchInput = document.getElementById('transfer-search-input');
+            if (searchInput) searchInput.value = '';
+
+            const found = (transferSourceItems || []).find(it => it.item_type === type && it.id === targetId);
             if (!found) return;
 
-            if (currentTransferPopoverRowIdx !== null && currentTransferRows[currentTransferPopoverRowIdx]) {
-                const r = currentTransferRows[currentTransferPopoverRowIdx];
-                r.item_key = key;
-                r.item_type = type;
-                r.item_id = id;
-                r.name = found.name;
-                r.sku = found.sku || found.code || '';
-                r.stock = found.quantity;
-                r.unit = found.unit;
-                if (r.quantity > found.quantity) r.quantity = found.quantity;
+            const existing = currentTransferRows.find(x => x.item_type === type && x.item_id === targetId);
+            if (existing) {
+                if (existing.quantity < found.quantity) {
+                    existing.quantity += 1;
+                } else {
+                    if (window.showToast) window.showToast(`Đã đạt số lượng tồn kho tối đa (${found.quantity} ${found.unit})`, 'warning');
+                }
+            } else {
+                currentTransferRows.push({
+                    item_key: `${type}_${targetId}`,
+                    item_type: type,
+                    item_id: targetId,
+                    name: found.name,
+                    sku: found.sku || found.code || '',
+                    stock: found.quantity,
+                    unit: found.unit,
+                    quantity: 1
+                });
             }
 
-            closeTransferItemPopover();
             renderTransferRows();
         }
 
-        function addTransferRow() {
-            if (!transferSourceItems || transferSourceItems.length === 0) {
-                alert("Kho xuất không còn mặt hàng nào có tồn kho (>0) để chuyển!");
-                return;
+        // Đóng dropdown tìm kiếm khi click ngoài
+        document.addEventListener('click', function(e) {
+            const box = document.getElementById('transfer-search-results');
+            const inp = document.getElementById('transfer-search-input');
+            if (box && !box.contains(e.target) && e.target !== inp) {
+                box.classList.add('hidden');
             }
-
-            currentTransferRows.push({
-                item_key: `${transferSourceItems[0].item_type}_${transferSourceItems[0].id}`,
-                item_type: transferSourceItems[0].item_type,
-                item_id: transferSourceItems[0].id,
-                name: transferSourceItems[0].name,
-                sku: transferSourceItems[0].sku || transferSourceItems[0].code || '',
-                stock: transferSourceItems[0].quantity,
-                unit: transferSourceItems[0].unit,
-                quantity: 1
-            });
-
-            renderTransferRows();
-        }
+        });
 
         function removeTransferRow(idx) {
             currentTransferRows.splice(idx, 1);
-            if (currentTransferPopoverRowIdx === idx) closeTransferItemPopover();
             renderTransferRows();
         }
 
         function renderTransferRows() {
             const tbody = document.getElementById('table-transfer-rows');
+            const badgeCount = document.getElementById('transfer-rows-count-badge');
+            if (badgeCount) badgeCount.innerText = `${currentTransferRows.length} mặt hàng`;
+
             if (!currentTransferRows || currentTransferRows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400">Chưa có dòng nào. Bấm <b>"+ Thêm Dòng Chuyển Hàng"</b> để bắt đầu.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400">Chưa có mặt hàng nào. Gõ vào ô <b>"🔍 Thêm Hàng Chuyển"</b> ở trên để chọn.</td></tr>';
                 return;
             }
 
@@ -1681,14 +1603,13 @@
                     <tr class="border-b text-xs hover:bg-slate-50/50 transition">
                         <td class="p-2 text-center text-gray-400 font-bold">${idx + 1}</td>
                         <td class="p-2">
-                            <button type="button" id="btn-tf-droplist-${idx}" onclick="toggleTransferItemPopover(event, ${idx})" class="w-full text-left px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-sky-500 rounded-lg shadow-2xs flex items-center justify-between gap-1.5 transition text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-sky-500" title="Bấm để tìm và chọn mặt hàng khác">
-                                <span class="truncate flex items-center gap-1.5 min-w-0">
-                                    <span class="shrink-0">${isProd ? '📦' : '🧪'}</span>
-                                    <span class="truncate">${row.name}</span>
-                                    <span class="text-[10px] text-slate-400 font-normal shrink-0">(Tồn: ${row.stock.toLocaleString('vi-VN')} ${row.unit})</span>
-                                </span>
-                                <span class="text-slate-400 text-[10px] shrink-0 ml-1">▼</span>
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
+                                <div>
+                                    <div class="font-bold text-slate-800 text-xs">${row.name}</div>
+                                    <div class="text-[10px] text-gray-400 font-mono">Mã: ${row.sku || '---'}</div>
+                                </div>
+                            </div>
                         </td>
                         <td class="p-2 text-center">${badge}</td>
                         <td class="p-2 text-right font-bold text-slate-700 font-mono">${row.stock.toLocaleString('vi-VN')}</td>
