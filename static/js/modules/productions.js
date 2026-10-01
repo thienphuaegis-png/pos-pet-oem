@@ -2675,7 +2675,10 @@
                     closeModalIngredient();
                     await loadCostIngredients();
                     await loadUnifiedInventory();
-                    alert('Đã cập nhật thông tin nguyên liệu thành công!');
+                    // Đã cập nhật thành công - dùng toast nhẹ nhàng, không chặn modal popup
+                    if (window.showToast) {
+                        window.showToast('Đã lưu thông tin nguyên liệu!', 'success', 2000);
+                    }
                 } else {
                     const err = await res.json();
                     alert('Lỗi: ' + (err.detail || 'Không thể cập nhật nguyên liệu'));
