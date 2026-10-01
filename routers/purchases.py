@@ -66,7 +66,7 @@ def get_supplier_items(supplier_id: int):
            END as unit,
            CASE 
                WHEN si.item_type = 'product' THEN p.cost_price 
-               ELSE 0.0 
+               ELSE COALESCE(NULLIF(si.default_cost, 0), (SELECT purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0.0)
            END as cost_price
     FROM supplier_items si
     LEFT JOIN products p ON si.item_type = 'product' AND si.product_id = p.id

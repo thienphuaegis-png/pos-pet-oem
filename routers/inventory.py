@@ -115,7 +115,10 @@ def list_ingredients(warehouse_id: Optional[int] = None):
             (SELECT GROUP_CONCAT(DISTINCT c.name) 
              FROM supplier_items si 
              JOIN contacts c ON si.supplier_id = c.id 
-             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names,
+            (SELECT GROUP_CONCAT(DISTINCT si.supplier_id) 
+             FROM supplier_items si 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_ids
         FROM inventory inv
         JOIN ingredients i ON i.id = inv.ingredient_id
         WHERE inv.warehouse_id = ?
@@ -136,7 +139,10 @@ def list_ingredients(warehouse_id: Optional[int] = None):
             (SELECT GROUP_CONCAT(DISTINCT c.name) 
              FROM supplier_items si 
              JOIN contacts c ON si.supplier_id = c.id 
-             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_names,
+            (SELECT GROUP_CONCAT(DISTINCT si.supplier_id) 
+             FROM supplier_items si 
+             WHERE si.item_type = 'ingredient' AND si.ingredient_id = i.id) as supplier_ids
         FROM ingredients i
         ORDER BY i.id DESC
         '''
@@ -177,6 +183,14 @@ def create_ingredient(ing: IngredientCreate, user=Depends(require_permission("in
                 "INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, ?)",
                 (ing_id, ing.initial_cost, "Khởi tạo ban đầu")
             )
+
+        # Gắn nhiều nhà cung cấp nếu có
+        if ing.supplier_ids:
+            for s_id in ing.supplier_ids:
+                cur.execute(
+                    "INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, ingredient_id, default_cost) VALUES (?, 'ingredient', ?, ?)",
+                    (s_id, ing_id, ing.initial_cost or 0)
+                )
 
         conn.commit()
     except Exception as e:
@@ -536,6 +550,15 @@ def update_ingredient(ingredient_id: int, ing: IngredientUpdate, user=Depends(re
                 (ingredient_id, ing.latest_cost)
             )
 
+        if ing.supplier_ids is not None:
+            cur.execute("DELETE FROM supplier_items WHERE item_type = 'ingredient' AND ingredient_id = ?", (ingredient_id,))
+            cost = ing.latest_cost or 0
+            for s_id in ing.supplier_ids:
+                cur.execute(
+                    "INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, ingredient_id, default_cost) VALUES (?, 'ingredient', ?, ?)",
+                    (s_id, ingredient_id, cost)
+                )
+
         # Nếu đổi sang SERVICE thì xóa tồn kho
         if ing.type == 'SERVICE':
             cur.execute("DELETE FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
@@ -714,12 +737,23 @@ def get_ingredient_detail(ingredient_id: int):
     ''', (ingredient_id,))
     logs = [dict(r) for r in cur.fetchall()]
 
+    # Danh sách NCC cung cấp
+    cur.execute('''
+    SELECT c.id, c.name, c.phone, si.default_cost
+    FROM supplier_items si
+    JOIN contacts c ON si.supplier_id = c.id
+    WHERE si.item_type = 'ingredient' AND si.ingredient_id = ?
+    ORDER BY c.name ASC
+    ''', (ingredient_id,))
+    suppliers = [dict(r) for r in cur.fetchall()]
+
     conn.close()
     return {
         "ingredient": dict(ing),
         "stocks": stocks,
         "price_history": prices,
-        "logs": logs
+        "logs": logs,
+        "suppliers": suppliers
     }
 
 # --- 4. Quản lý kho hàng mở rộng (Warehouses Overview, Unified Inventory, Transfers, Audits) ---

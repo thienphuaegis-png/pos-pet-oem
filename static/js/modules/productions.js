@@ -2307,6 +2307,21 @@
             await loadUnifiedInventory();
         }
 
+        async function populateIngredientSuppliersDropdown(selectedIds = []) {
+            try {
+                const res = await fetch('/api/contacts?type=supplier');
+                const suppliers = await res.json();
+                const sel = document.getElementById('modal-ing-suppliers');
+                if (!sel) return;
+                sel.innerHTML = suppliers.map(s => {
+                    const isSelected = selectedIds.includes(s.id) ? 'selected' : '';
+                    return `<option value="${s.id}" ${isSelected}>${s.name} ${s.phone ? '(' + s.phone + ')' : ''}</option>`;
+                }).join('');
+            } catch (e) {
+                console.error("populateIngredientSuppliersDropdown error:", e);
+            }
+        }
+
         function openModalAddIngredient() {
             document.getElementById('modal-ing-title').innerText = 'Thêm Nguyên Liệu / Dịch Vụ Mới';
             document.getElementById('btn-save-ing').innerText = 'Lưu Thành Phần';
@@ -2317,11 +2332,12 @@
             document.getElementById('modal-ing-type').value = 'IS_PHYSICAL';
             document.getElementById('modal-ing-stock').value = '0';
             document.getElementById('modal-ing-cost').value = '0';
+            populateIngredientSuppliersDropdown([]);
             document.getElementById('modal-ing-stock-group').classList.remove('hidden');
             document.getElementById('modal-ingredient').classList.remove('hidden');
         }
 
-        function openModalEditIngredient(id) {
+        async function openModalEditIngredient(id) {
             const ing = costIngredients.find(x => x.id === id);
             if (!ing) return alert('Không tìm thấy thông tin nguyên liệu!');
 
@@ -2333,6 +2349,20 @@
             document.getElementById('modal-ing-unit').value = ing.unit || 'cái';
             document.getElementById('modal-ing-type').value = ing.type || 'IS_PHYSICAL';
             document.getElementById('modal-ing-cost').value = ing.latest_cost || 0;
+
+            // Nạp danh sách NCC đã chọn
+            let attachedSuppIds = [];
+            if (ing.supplier_ids) {
+                attachedSuppIds = String(ing.supplier_ids).split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+            } else if (ing.supplier_names) {
+                try {
+                    const resSupp = await fetch('/api/contacts?type=supplier');
+                    const allSupps = await resSupp.json();
+                    const suppNames = ing.supplier_names.split(',').map(s => s.trim().toLowerCase());
+                    attachedSuppIds = allSupps.filter(s => suppNames.includes(s.name.toLowerCase())).map(s => s.id);
+                } catch (e) {}
+            }
+            populateIngredientSuppliersDropdown(attachedSuppIds);
             
             // Khi sửa thì ẩn ô tồn ban đầu để tránh sai lệch thẻ kho
             document.getElementById('modal-ing-stock-group').classList.add('hidden');
@@ -2353,6 +2383,9 @@
             const type = document.getElementById('modal-ing-type').value;
             const cost = parseFloat(document.getElementById('modal-ing-cost').value) || 0;
 
+            const suppSelect = document.getElementById('modal-ing-suppliers');
+            const supplier_ids = suppSelect ? Array.from(suppSelect.selectedOptions).map(opt => parseInt(opt.value)) : [];
+
             if (id) {
                 // Cập nhật nguyên liệu hiện có
                 const payload = {
@@ -2360,7 +2393,8 @@
                     name: name,
                     unit: unit,
                     type: type,
-                    latest_cost: cost
+                    latest_cost: cost,
+                    supplier_ids: supplier_ids
                 };
                 const res = await fetch(`/api/ingredients/${id}`, {
                     method: 'PUT',
@@ -2385,7 +2419,8 @@
                     type: type,
                     initial_stock: parseFloat(document.getElementById('modal-ing-stock').value) || 0,
                     initial_cost: cost,
-                    warehouse_id: 1
+                    warehouse_id: 1,
+                    supplier_ids: supplier_ids
                 };
                 const res = await fetch('/api/ingredients', {
                     method: 'POST',
@@ -2761,6 +2796,15 @@
                 document.getElementById('ing-detail-title').textContent = ing.name;
                 document.getElementById('ing-detail-code').textContent = ing.code || '-';
                 document.getElementById('ing-detail-unit').textContent = ing.unit || 'cái';
+
+                const suppEl = document.getElementById('ing-detail-suppliers');
+                if (suppEl) {
+                    if (data.suppliers && data.suppliers.length > 0) {
+                        suppEl.innerHTML = data.suppliers.map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] mr-1">🏭 ${s.name}</span>`).join('');
+                    } else {
+                        suppEl.textContent = 'Chưa gán';
+                    }
+                }
 
                 const badge = document.getElementById('ing-detail-badge');
                 if (ing.type === 'SERVICE') {

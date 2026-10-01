@@ -4854,6 +4854,11 @@
                             <input id="modal-ing-cost" type="number" step="any" class="border p-2 rounded w-full" value="0">
                         </div>
                     </div>
+                    <div>
+                        <label class="block font-bold mb-1">Nhà cung cấp (giữ Ctrl để chọn nhiều NCC):</label>
+                        <select id="modal-ing-suppliers" multiple class="border p-2 rounded w-full h-24 text-xs font-medium focus:ring-1 focus:ring-emerald-500">
+                        </select>
+                    </div>
                     <div class="flex justify-end gap-2 pt-2 border-t">
                         <button onclick="closeModalIngredient()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
                         <button id="btn-save-ing" onclick="saveIngredient()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold">Lưu Thành Phần</button>
@@ -4978,7 +4983,7 @@
                                 <h3 id="ing-detail-title" class="font-bold text-base text-slate-800">Sữa đặc Ngôi Sao</h3>
                                 <span id="ing-detail-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Vật lý</span>
                             </div>
-                            <p class="text-gray-500 text-[11px] mt-0.5">Mã: <span id="ing-detail-code" class="font-mono font-bold text-slate-700">NL-SUA</span> | Đơn vị: <span id="ing-detail-unit">lon</span></p>
+                            <p class="text-gray-500 text-[11px] mt-0.5">Mã: <span id="ing-detail-code" class="font-mono font-bold text-slate-700">NL-SUA</span> | Đơn vị: <span id="ing-detail-unit">lon</span> | Nhà cung cấp: <span id="ing-detail-suppliers" class="font-medium text-slate-700">Chưa gán</span></p>
                         </div>
                         <button onclick="closeModalIngredientDetail()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
                     </div>

@@ -78,6 +78,7 @@ class IngredientCreate(BaseModel):
     initial_stock: float = 0
     initial_cost: float = 0
     warehouse_id: Optional[int] = 1
+    supplier_ids: Optional[List[int]] = None
 
 class IngredientUpdate(BaseModel):
     code: Optional[str] = None
@@ -85,6 +86,7 @@ class IngredientUpdate(BaseModel):
     unit: str
     type: str = "IS_PHYSICAL"
     latest_cost: Optional[float] = None
+    supplier_ids: Optional[List[int]] = None
 
 class WarehouseCreate(BaseModel):
     code: Optional[str] = None
