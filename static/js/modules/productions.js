@@ -2307,20 +2307,144 @@
             await loadUnifiedInventory();
         }
 
+        let currentIngSuppliers = [];
+        let selectedIngSupplierIds = [];
+
         async function populateIngredientSuppliersDropdown(selectedIds = []) {
             try {
-                const res = await fetch('/api/contacts?type=supplier');
-                const suppliers = await res.json();
-                const sel = document.getElementById('modal-ing-suppliers');
-                if (!sel) return;
-                sel.innerHTML = suppliers.map(s => {
-                    const isSelected = selectedIds.includes(s.id) ? 'selected' : '';
-                    return `<option value="${s.id}" ${isSelected}>${s.name} ${s.phone ? '(' + s.phone + ')' : ''}</option>`;
-                }).join('');
+                selectedIngSupplierIds = [...selectedIds];
+                if (currentIngSuppliers.length === 0) {
+                    const res = await fetch('/api/contacts?type=supplier');
+                    currentIngSuppliers = await res.json();
+                }
+                renderIngSuppOptions();
+                updateIngSuppTags();
             } catch (e) {
                 console.error("populateIngredientSuppliersDropdown error:", e);
             }
         }
+
+        function toggleIngSuppDropdown(e) {
+            if (e) e.stopPropagation();
+            const popup = document.getElementById('popup-ing-suppliers');
+            if (!popup) return;
+            const isHidden = popup.classList.contains('hidden');
+            if (isHidden) {
+                popup.classList.remove('hidden');
+                document.getElementById('search-ing-supp')?.focus();
+            } else {
+                popup.classList.add('hidden');
+            }
+        }
+
+        function closeIngSuppDropdown() {
+            document.getElementById('popup-ing-suppliers')?.classList.add('hidden');
+        }
+
+        function filterIngSuppDropdown() {
+            const kw = (document.getElementById('search-ing-supp')?.value || '').trim().toLowerCase();
+            renderIngSuppOptions(kw);
+        }
+
+        function renderIngSuppOptions(keyword = '') {
+            const container = document.getElementById('list-ing-supp-options');
+            if (!container) return;
+
+            const filtered = currentIngSuppliers.filter(s => {
+                if (!keyword) return true;
+                const name = (s.name || '').toLowerCase();
+                const phone = (s.phone || '').toLowerCase();
+                return name.includes(keyword) || phone.includes(keyword);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhà cung cấp nào</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(s => {
+                const isChecked = selectedIngSupplierIds.includes(s.id);
+                return `
+                    <label class="flex items-center justify-between p-1.5 hover:bg-emerald-50/70 rounded cursor-pointer transition select-none group">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" value="${s.id}" ${isChecked ? 'checked' : ''} 
+                                   onchange="onToggleIngSuppOption(${s.id}, this.checked)"
+                                   class="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer">
+                            <span class="font-medium text-slate-800 group-hover:text-emerald-700">${s.name}</span>
+                        </div>
+                        ${s.phone ? `<span class="text-[10px] text-gray-400 font-mono">${s.phone}</span>` : ''}
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function onToggleIngSuppOption(id, checked) {
+            if (checked) {
+                if (!selectedIngSupplierIds.includes(id)) selectedIngSupplierIds.push(id);
+            } else {
+                selectedIngSupplierIds = selectedIngSupplierIds.filter(x => x !== id);
+            }
+            updateIngSuppTags();
+        }
+
+        function removeSelectedIngSupp(id, e) {
+            if (e) e.stopPropagation();
+            selectedIngSupplierIds = selectedIngSupplierIds.filter(x => x !== id);
+            renderIngSuppOptions(document.getElementById('search-ing-supp')?.value || '');
+            updateIngSuppTags();
+        }
+
+        function selectAllIngSupp(select) {
+            if (select) {
+                const kw = (document.getElementById('search-ing-supp')?.value || '').trim().toLowerCase();
+                const filtered = currentIngSuppliers.filter(s => {
+                    if (!kw) return true;
+                    return (s.name || '').toLowerCase().includes(kw) || (s.phone || '').toLowerCase().includes(kw);
+                });
+                filtered.forEach(s => {
+                    if (!selectedIngSupplierIds.includes(s.id)) selectedIngSupplierIds.push(s.id);
+                });
+            } else {
+                selectedIngSupplierIds = [];
+            }
+            renderIngSuppOptions(document.getElementById('search-ing-supp')?.value || '');
+            updateIngSuppTags();
+        }
+
+        function updateIngSuppTags() {
+            const tagsBox = document.getElementById('ing-supp-selected-tags');
+            const badgeEl = document.getElementById('ing-supp-count-badge');
+            if (!tagsBox) return;
+
+            if (selectedIngSupplierIds.length === 0) {
+                tagsBox.innerHTML = '<span class="text-gray-400 italic">-- Bấm để chọn nhà cung cấp --</span>';
+                if (badgeEl) badgeEl.classList.add('hidden');
+                return;
+            }
+
+            if (badgeEl) {
+                badgeEl.textContent = `${selectedIngSupplierIds.length} đã chọn`;
+                badgeEl.classList.remove('hidden');
+            }
+
+            tagsBox.innerHTML = selectedIngSupplierIds.map(id => {
+                const s = currentIngSuppliers.find(x => x.id === id);
+                const name = s ? s.name : `NCC #${id}`;
+                return `
+                    <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full text-[11px] font-medium shadow-xs">
+                        <span>🏭 ${name}</span>
+                        <button type="button" onclick="removeSelectedIngSupp(${id}, event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
+                    </span>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('container-ing-suppliers');
+            if (container && !container.contains(e.target)) {
+                closeIngSuppDropdown();
+            }
+        });
 
         function openModalAddIngredient() {
             document.getElementById('modal-ing-title').innerText = 'Thêm Nguyên Liệu / Dịch Vụ Mới';
@@ -2370,6 +2494,7 @@
         }
 
         function closeModalIngredient() {
+            closeIngSuppDropdown();
             document.getElementById('modal-ingredient').classList.add('hidden');
         }
 
@@ -2382,9 +2507,7 @@
             const unit = document.getElementById('modal-ing-unit').value.trim() || 'cái';
             const type = document.getElementById('modal-ing-type').value;
             const cost = parseFloat(document.getElementById('modal-ing-cost').value) || 0;
-
-            const suppSelect = document.getElementById('modal-ing-suppliers');
-            const supplier_ids = suppSelect ? Array.from(suppSelect.selectedOptions).map(opt => parseInt(opt.value)) : [];
+            const supplier_ids = [...selectedIngSupplierIds];
 
             if (id) {
                 // Cập nhật nguyên liệu hiện có

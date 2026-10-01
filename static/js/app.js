@@ -1887,22 +1887,147 @@
             }
         }
 
+        let currentProdSuppliers = [];
+        let selectedProdSupplierIds = [];
+
         async function populateProductSuppliersDropdown(selectedIds = []) {
             try {
-                const res = await fetch('/api/contacts?type=supplier');
-                const suppliers = await res.json();
-                const sel = document.getElementById('modal-prod-suppliers');
-                if (!sel) return;
-                sel.innerHTML = suppliers.map(s => {
-                    const isSelected = selectedIds.includes(s.id) ? 'selected' : '';
-                    return `<option value="${s.id}" ${isSelected}>${s.name} ${s.phone ? '(' + s.phone + ')' : ''}</option>`;
-                }).join('');
+                selectedProdSupplierIds = [...selectedIds];
+                if (currentProdSuppliers.length === 0) {
+                    const res = await fetch('/api/contacts?type=supplier');
+                    currentProdSuppliers = await res.json();
+                }
+                renderProdSuppOptions();
+                updateProdSuppTags();
             } catch (e) {
                 console.error("populateProductSuppliersDropdown error:", e);
             }
         }
 
+        function toggleProdSuppDropdown(e) {
+            if (e) e.stopPropagation();
+            const popup = document.getElementById('popup-prod-suppliers');
+            if (!popup) return;
+            const isHidden = popup.classList.contains('hidden');
+            if (isHidden) {
+                popup.classList.remove('hidden');
+                document.getElementById('search-prod-supp')?.focus();
+            } else {
+                popup.classList.add('hidden');
+            }
+        }
+
+        function closeProdSuppDropdown() {
+            document.getElementById('popup-prod-suppliers')?.classList.add('hidden');
+        }
+
+        function filterProdSuppDropdown() {
+            const kw = (document.getElementById('search-prod-supp')?.value || '').trim().toLowerCase();
+            renderProdSuppOptions(kw);
+        }
+
+        function renderProdSuppOptions(keyword = '') {
+            const container = document.getElementById('list-prod-supp-options');
+            if (!container) return;
+
+            const filtered = currentProdSuppliers.filter(s => {
+                if (!keyword) return true;
+                const name = (s.name || '').toLowerCase();
+                const phone = (s.phone || '').toLowerCase();
+                return name.includes(keyword) || phone.includes(keyword);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhà cung cấp nào</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(s => {
+                const isChecked = selectedProdSupplierIds.includes(s.id);
+                return `
+                    <label class="flex items-center justify-between p-1.5 hover:bg-sky-50/70 rounded cursor-pointer transition select-none group">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" value="${s.id}" ${isChecked ? 'checked' : ''} 
+                                   onchange="onToggleProdSuppOption(${s.id}, this.checked)"
+                                   class="rounded text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer">
+                            <span class="font-medium text-slate-800 group-hover:text-sky-700">${s.name}</span>
+                        </div>
+                        ${s.phone ? `<span class="text-[10px] text-gray-400 font-mono">${s.phone}</span>` : ''}
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function onToggleProdSuppOption(id, checked) {
+            if (checked) {
+                if (!selectedProdSupplierIds.includes(id)) selectedProdSupplierIds.push(id);
+            } else {
+                selectedProdSupplierIds = selectedProdSupplierIds.filter(x => x !== id);
+            }
+            updateProdSuppTags();
+        }
+
+        function removeSelectedProdSupp(id, e) {
+            if (e) e.stopPropagation();
+            selectedProdSupplierIds = selectedProdSupplierIds.filter(x => x !== id);
+            renderProdSuppOptions(document.getElementById('search-prod-supp')?.value || '');
+            updateProdSuppTags();
+        }
+
+        function selectAllProdSupp(select) {
+            if (select) {
+                const kw = (document.getElementById('search-prod-supp')?.value || '').trim().toLowerCase();
+                const filtered = currentProdSuppliers.filter(s => {
+                    if (!kw) return true;
+                    return (s.name || '').toLowerCase().includes(kw) || (s.phone || '').toLowerCase().includes(kw);
+                });
+                filtered.forEach(s => {
+                    if (!selectedProdSupplierIds.includes(s.id)) selectedProdSupplierIds.push(s.id);
+                });
+            } else {
+                selectedProdSupplierIds = [];
+            }
+            renderProdSuppOptions(document.getElementById('search-prod-supp')?.value || '');
+            updateProdSuppTags();
+        }
+
+        function updateProdSuppTags() {
+            const tagsBox = document.getElementById('prod-supp-selected-tags');
+            const badgeEl = document.getElementById('prod-supp-count-badge');
+            if (!tagsBox) return;
+
+            if (selectedProdSupplierIds.length === 0) {
+                tagsBox.innerHTML = '<span class="text-gray-400 italic">-- Bấm để chọn nhà cung cấp --</span>';
+                if (badgeEl) badgeEl.classList.add('hidden');
+                return;
+            }
+
+            if (badgeEl) {
+                badgeEl.textContent = `${selectedProdSupplierIds.length} đã chọn`;
+                badgeEl.classList.remove('hidden');
+            }
+
+            tagsBox.innerHTML = selectedProdSupplierIds.map(id => {
+                const s = currentProdSuppliers.find(x => x.id === id);
+                const name = s ? s.name : `NCC #${id}`;
+                return `
+                    <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-full text-[11px] font-medium shadow-xs">
+                        <span>🏭 ${name}</span>
+                        <button type="button" onclick="removeSelectedProdSupp(${id}, event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
+                    </span>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('container-prod-suppliers');
+            if (container && !container.contains(e.target)) {
+                closeProdSuppDropdown();
+            }
+        });
+
         function closeModalProduct() {
+            closeProdSuppDropdown();
             document.getElementById('modal-product')?.classList.add('hidden');
         }
 
@@ -1916,9 +2041,7 @@
             const cost_price = parseFloat(document.getElementById('modal-prod-cost').value) || 0;
             const sell_price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
-
-            const suppSelect = document.getElementById('modal-prod-suppliers');
-            const supplier_ids = Array.from(suppSelect.selectedOptions).map(opt => parseInt(opt.value));
+            const supplier_ids = [...selectedProdSupplierIds];
 
             if (!name) {
                 alert("Vui lòng nhập tên sản phẩm!");
