@@ -566,39 +566,52 @@
             }
         }
 
+        let currentPurchaseSubView = 'list';
+
         function togglePurchaseSubView(view) {
+            currentPurchaseSubView = view;
             const listView = document.getElementById('purchase-list-view');
             const compareView = document.getElementById('purchase-compare-view');
             const priceHistView = document.getElementById('purchase-price-history-view');
 
-            const btnCompare = document.getElementById('btn-purchase-compare');
-            const btnPriceHist = document.getElementById('btn-purchase-price-hist');
+            const tabList = document.getElementById('btn-subtab-po-list');
+            const tabCompare = document.getElementById('btn-subtab-po-compare');
+            const tabPriceHist = document.getElementById('btn-subtab-po-price-hist');
 
             // Ẩn tất cả view
             if (listView) listView.classList.add('hidden');
             if (compareView) compareView.classList.add('hidden');
             if (priceHistView) priceHistView.classList.add('hidden');
 
-            const resetBtn = (btn) => {
-                if (btn) btn.className = 'bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
-            };
-            const activeBtn = (btn) => {
-                if (btn) btn.className = 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded shadow flex items-center gap-1';
-            };
+            const inactiveCls = "py-1.5 px-3 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
+            const activeCls = "py-1.5 px-3 rounded-md font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-xs";
 
-            [btnCompare, btnPriceHist].forEach(resetBtn);
+            if (tabList) tabList.className = inactiveCls;
+            if (tabCompare) tabCompare.className = inactiveCls;
+            if (tabPriceHist) tabPriceHist.className = inactiveCls;
 
             if (view === 'compare') {
                 if (compareView) compareView.classList.remove('hidden');
-                activeBtn(btnCompare);
+                if (tabCompare) tabCompare.className = activeCls;
                 loadPriceComparisonData();
             } else if (view === 'price-history') {
                 if (priceHistView) priceHistView.classList.remove('hidden');
-                activeBtn(btnPriceHist);
+                if (tabPriceHist) tabPriceHist.className = activeCls;
                 loadPriceHistoryAllData();
             } else {
-                // Mặc định về danh sách
+                // Mặc định về danh sách đơn hàng
                 if (listView) listView.classList.remove('hidden');
+                if (tabList) tabList.className = activeCls;
+                loadPurchasesList();
+            }
+        }
+
+        function refreshCurrentPurchaseSubView() {
+            if (currentPurchaseSubView === 'compare') {
+                loadPriceComparisonData();
+            } else if (currentPurchaseSubView === 'price-history') {
+                loadPriceHistoryAllData();
+            } else {
                 loadPurchasesList();
             }
         }

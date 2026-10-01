@@ -205,6 +205,9 @@
             justify-content: center;
             border-radius: 0.6rem;
         }
+        #main-sidebar.collapsed .sidebar-text-collapsed {
+            display: block !important;
+        }
         .sidebar-icon {
             font-size: 1.25rem; /* 20px */
             line-height: 1;
@@ -848,6 +851,15 @@
                         <button onclick="handleLogout()" class="text-xs bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 px-2 py-1.5 rounded-lg font-semibold transition cursor-pointer shrink-0" data-tooltip="Đăng Xuất">
                             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                         </button>
+                    </div>
+                    <!-- App Version & Status -->
+                    <div id="sidebar-app-version" class="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-400 font-medium select-none">
+                        <span class="sidebar-text font-mono truncate" title="Phiên bản phần mềm POS Mastercare">v3.4.1 • 2026.10.01</span>
+                        <span class="sidebar-text-collapsed hidden font-mono text-[9px] font-bold text-slate-400 mx-auto" title="v3.4.1">v3.4</span>
+                        <span class="sidebar-text flex items-center gap-1 text-emerald-600 font-semibold shrink-0">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Sẵn sàng</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -3261,23 +3273,31 @@
                             <p class="text-xs text-slate-500">Theo dõi đơn đặt hàng NCC, in phiếu kiểm đếm cầm tay cho thủ kho, điều chỉnh số lượng và nhận hàng thực tế</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="openCreatePurchaseModal()" id="btn-purchase-new" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
-                            <span>Tạo Đơn Đặt Hàng Mới</span>
-                        </button>
-                        <button onclick="loadPurchasesList()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
-                            <span>Làm Mới</span>
-                        </button>
-                        <button onclick="togglePurchaseSubView('compare')" id="btn-purchase-compare" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-lg shadow-2xs flex items-center gap-1.5 transition">
-                            <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
-                            <span>So Sánh Giá NCC</span>
-                        </button>
-                        <button onclick="togglePurchaseSubView('price-history')" id="btn-purchase-price-hist" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold px-3 py-2 rounded-lg shadow-2xs flex items-center gap-1.5 transition">
-                            <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                            <span>Biến Động Giá</span>
-                        </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Segmented Sub-Tabs -->
+                        <div class="flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 gap-1 text-xs">
+                            <button type="button" onclick="togglePurchaseSubView('list')" id="btn-subtab-po-list" class="py-1.5 px-3 rounded-md font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-xs">
+                                <span>📦</span> <span>Đơn Hàng & Nhập Kho</span>
+                            </button>
+                            <button type="button" onclick="togglePurchaseSubView('compare')" id="btn-subtab-po-compare" class="py-1.5 px-3 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                                <span>⚖️</span> <span>So Sánh Giá NCC</span>
+                            </button>
+                            <button type="button" onclick="togglePurchaseSubView('price-history')" id="btn-subtab-po-price-hist" class="py-1.5 px-3 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+                                <span>📈</span> <span>Biến Động Giá</span>
+                            </button>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="refreshCurrentPurchaseSubView()" title="Làm mới dữ liệu tab hiện tại" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-xs flex items-center gap-1 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                                <span>Làm Mới</span>
+                            </button>
+                            <button onclick="openCreatePurchaseModal()" id="btn-purchase-new" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                                <span>+ Tạo Đơn Hàng Mới</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -9091,7 +9111,7 @@
     <script src="/static/js/app.js?v=20261001_03"></script>
     <script src="/static/js/modules/contacts.js?v=20261001_03"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
-    <script src="/static/js/modules/purchases.js?v=20261001_03"></script>
+    <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
     <script src="/static/js/modules/productions.js?v=20261001_03"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
