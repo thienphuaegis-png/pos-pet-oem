@@ -2084,43 +2084,78 @@
                 const res = await fetch(url);
                 costIngredients = await res.json();
                 
-                const tbody = document.getElementById('table-cost-ingredients');
-                if (!tbody) return;
-
-                if (costIngredients.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="p-3 text-center text-gray-400">Không có nguyên liệu nào trong kho này</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = costIngredients.map(ing => `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-2 font-mono font-bold text-slate-700">${ing.code || '-'}</td>
-                        <td class="p-2 font-medium text-slate-800">${ing.name}</td>
-                        <td class="p-2 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">
-                                ${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}
-                            </span>
-                        </td>
-                        <td class="p-2">
-                            ${ing.supplier_names 
-                                ? ing.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
-                                : '<span class="text-gray-400 italic text-xs">---</span>'}
-                        </td>
-                        <td class="p-2 text-right font-bold ${ing.type === 'SERVICE' ? 'text-gray-400' : (ing.total_stock <= 5 ? 'text-rose-600' : 'text-slate-700')}">
-                            ${ing.type === 'SERVICE' ? '-' : ing.total_stock}
-                        </td>
-                        <td class="p-2 text-gray-500">${ing.unit}</td>
-                        <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
-                        <td class="p-2 text-center space-x-1 whitespace-nowrap">
-                            <button onclick="viewIngredientDetail(${ing.id})" class="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded hover:bg-sky-100 font-medium" title="Xem chi tiết biến động & lịch sử giá">🔍 Chi tiết</button>
-                            <button onclick="openModalEditIngredient(${ing.id})" class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded hover:bg-amber-100 font-medium" title="Chỉnh sửa thông tin nguyên liệu">✏️ Sửa</button>
-                            <button onclick="deleteIngredientItem(${ing.id}, '${encodeURIComponent(ing.name)}')" class="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded hover:bg-rose-100 font-medium" title="Xóa nguyên liệu này">🗑️ Xóa</button>
-                        </td>
-                    </tr>
-                `).join('');
+                filterCostIngredientsTable();
             } catch (e) {
-                console.error(e);
+                console.error("loadCostIngredients error:", e);
             }
+        }
+
+        function filterCostIngredientsTable() {
+            const tbody = document.getElementById('table-cost-ingredients');
+            if (!tbody) return;
+
+            const kw = (document.getElementById('cost-ing-search')?.value || '').trim().toLowerCase();
+            const typeFilter = document.getElementById('cost-ing-type-filter')?.value || '';
+            const clearBtn = document.getElementById('cost-ing-search-clear');
+            if (clearBtn) {
+                if (kw) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+
+            const filtered = (costIngredients || []).filter(ing => {
+                const matchType = !typeFilter || ing.type === typeFilter;
+                if (!matchType) return false;
+                if (!kw) return true;
+
+                const code = (ing.code || '').toLowerCase();
+                const name = (ing.name || '').toLowerCase();
+                const supps = (ing.supplier_names || '').toLowerCase();
+                return code.includes(kw) || name.includes(kw) || supps.includes(kw);
+            });
+
+            const countBadge = document.getElementById('cost-ing-count-badge');
+            if (countBadge) {
+                countBadge.textContent = `Hiển thị ${filtered.length}/${costIngredients.length} nguyên liệu`;
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 italic">🔍 Không tìm thấy nguyên liệu nào phù hợp ${kw ? `với "${kw}"` : ''}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(ing => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2 font-mono font-bold text-slate-700">${ing.code || '-'}</td>
+                    <td class="p-2 font-medium text-slate-800">${ing.name}</td>
+                    <td class="p-2 text-center">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">
+                            ${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}
+                        </span>
+                    </td>
+                    <td class="p-2">
+                        ${ing.supplier_names 
+                            ? ing.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                            : '<span class="text-gray-400 italic text-xs">---</span>'}
+                    </td>
+                    <td class="p-2 text-right font-bold ${ing.type === 'SERVICE' ? 'text-gray-400' : (ing.total_stock <= 5 ? 'text-rose-600' : 'text-slate-700')}">
+                        ${ing.type === 'SERVICE' ? '-' : ing.total_stock}
+                    </td>
+                    <td class="p-2 text-gray-500">${ing.unit}</td>
+                    <td class="p-2 text-right font-medium text-slate-700">${formatMoney(ing.latest_cost)}</td>
+                    <td class="p-2 text-center space-x-1 whitespace-nowrap">
+                        <button onclick="viewIngredientDetail(${ing.id})" class="text-xs bg-sky-50 text-sky-600 border border-sky-200 px-2 py-0.5 rounded hover:bg-sky-100 font-medium" title="Xem chi tiết biến động & lịch sử giá">🔍 Chi tiết</button>
+                        <button onclick="openModalEditIngredient(${ing.id})" class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded hover:bg-amber-100 font-medium" title="Chỉnh sửa thông tin nguyên liệu">✏️ Sửa</button>
+                        <button onclick="deleteIngredientItem(${ing.id}, '${encodeURIComponent(ing.name)}')" class="text-xs bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded hover:bg-rose-100 font-medium" title="Xóa nguyên liệu này">🗑️ Xóa</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function clearCostIngredientSearch() {
+            const input = document.getElementById('cost-ing-search');
+            if (input) input.value = '';
+            filterCostIngredientsTable();
+            input?.focus();
         }
 
         async function loadCostProductOptions() {
