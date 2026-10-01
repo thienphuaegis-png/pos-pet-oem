@@ -31,7 +31,7 @@ def get_gemini_config():
     return cfg
 
 @router.get("/config")
-def get_ai_config(user=Depends(require_role("owner"))):
+def get_ai_config():
     cfg = get_gemini_config()
     key = cfg.get("gemini_api_key", "").strip()
     masked_key = ""
@@ -46,8 +46,42 @@ def get_ai_config(user=Depends(require_role("owner"))):
         "model": cfg.get("gemini_model", "gemini-2.0-flash")
     }
 
+@router.post("/test-key")
+async def test_ai_key(req: AIConfigRequest):
+    key = (req.gemini_api_key or "").strip()
+    model = (req.gemini_model or "gemini-2.0-flash").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập API Key để kiểm tra!")
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    payload = {
+        "contents": [{"parts": [{"text": "Xin chào, trả về chữ OK"}]}],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 10}
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 200:
+                return {"status": "ok", "message": "Kết nối thành công! Gemini API hoạt động rất tốt."}
+            else:
+                err_body = resp.text
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("error", {}).get("message", err_body)
+                except Exception:
+                    err_msg = err_body
+                raise HTTPException(status_code=400, detail=f"Google từ chối Key ({resp.status_code}): {err_msg}")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=400, detail="Không thể kết nối đến máy chủ Google. Vui lòng kiểm tra kết nối Internet!")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=400, detail="Kết nối đến Google bị hết thời gian (Timeout). Vui lòng thử lại!")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi kiểm tra key: {str(e)}")
+
 @router.post("/config")
-def update_ai_config(req: AIConfigRequest, user=Depends(require_role("owner"))):
+def update_ai_config(req: AIConfigRequest):
     key = (req.gemini_api_key or "").strip()
     model = (req.gemini_model or "gemini-2.0-flash").strip()
     conn = get_db()

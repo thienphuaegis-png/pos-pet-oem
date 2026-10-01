@@ -347,6 +347,62 @@
     };
 
     // --- CẤU HÌNH AI GEMINI ---
+    window.testAIKey = async function() {
+        const key = (document.getElementById('cfg-gemini-key')?.value || '').trim();
+        const model = document.getElementById('cfg-gemini-model')?.value || 'gemini-2.0-flash';
+        const testResEl = document.getElementById('cfg-gemini-test-result');
+
+        if (!key) {
+            alert("Vui lòng nhập API Key để kiểm tra!");
+            return;
+        }
+
+        if (testResEl) {
+            testResEl.className = "p-2.5 rounded-lg text-xs border bg-sky-50 text-sky-800 border-sky-200 block";
+            testResEl.innerHTML = "⏳ Đang gửi yêu cầu test đến Google Gemini API...";
+        }
+
+        const btn = document.getElementById('btn-test-ai-key');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "Đang test...";
+        }
+
+        try {
+            const res = await fetch('/api/ai/test-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    gemini_api_key: key,
+                    gemini_model: model
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                if (testResEl) {
+                    testResEl.className = "p-2.5 rounded-lg text-xs border bg-emerald-50 text-emerald-800 border-emerald-300 block font-semibold";
+                    testResEl.innerHTML = `✅ ${data.message}`;
+                }
+            } else {
+                if (testResEl) {
+                    testResEl.className = "p-2.5 rounded-lg text-xs border bg-rose-50 text-rose-800 border-rose-300 block font-semibold";
+                    testResEl.innerHTML = `❌ ${data.detail || "Không thể xác thực Key"}`;
+                }
+            }
+        } catch (e) {
+            if (testResEl) {
+                testResEl.className = "p-2.5 rounded-lg text-xs border bg-rose-50 text-rose-800 border-rose-300 block font-semibold";
+                testResEl.innerHTML = `❌ Lỗi mạng: ${e.message}`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "🔍 Kiểm Tra Key";
+            }
+        }
+    };
+
     window.openAIConfigModal = async function() {
         const modal = document.getElementById('modal-ai-config');
         if (modal) modal.classList.remove('hidden');

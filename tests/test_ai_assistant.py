@@ -35,3 +35,9 @@ def test_api_parse_cashflow_text():
     assert data["amount"] == 200000
     assert "available_accounts" in data
     assert "is_duplicate" in data
+
+def test_api_test_key_validation():
+    # Test key rỗng
+    res = client.post("/api/ai/test-key", json={"gemini_api_key": ""})
+    assert res.status_code == 400
+    assert "Vui lòng nhập API Key" in res.json()["detail"]

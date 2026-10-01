@@ -9171,7 +9171,7 @@
     <script src="/static/js/modules/productions.js?v=20261001_04"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
-    <script src="/static/js/modules/ai_assistant.js?v=20261001_01"></script>
+    <script src="/static/js/modules/ai_assistant.js?v=20261001_02"></script>
     <script src="/static/js/pos.js?v=20261001_03"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
@@ -11473,11 +11473,19 @@
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash (Ổn định)</option>
                     </select>
                 </div>
+
+                <!-- Box hiển thị kết quả kiểm tra key -->
+                <div id="cfg-gemini-test-result" class="hidden"></div>
             </div>
 
-            <div class="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onclick="closeAIConfigModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Hủy</button>
-                <button type="button" onclick="saveAIConfig()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
+            <div class="flex justify-between items-center pt-2 border-t">
+                <button type="button" id="btn-test-ai-key" onclick="testAIKey()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-indigo-700 rounded-lg font-bold border border-slate-300 flex items-center gap-1 transition">
+                    <span>🔍</span> <span>Kiểm Tra Key</span>
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeAIConfigModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Hủy</button>
+                    <button type="button" onclick="saveAIConfig()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
+                </div>
             </div>
         </div>
     </div>
