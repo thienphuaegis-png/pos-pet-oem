@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/ai", tags=["AI Assistant"])
 
 class AIConfigRequest(BaseModel):
     gemini_api_key: str
-    gemini_model: Optional[str] = "gemini-2.0-flash"
+    gemini_model: Optional[str] = "gemini-2.5-flash"
 
 class ParseCashflowRequest(BaseModel):
     text: Optional[str] = None
@@ -43,47 +43,54 @@ def get_ai_config():
     return {
         "has_key": bool(key),
         "masked_key": masked_key,
-        "model": cfg.get("gemini_model", "gemini-2.0-flash")
+        "model": cfg.get("gemini_model", "gemini-2.5-flash")
     }
 
 @router.post("/test-key")
 async def test_ai_key(req: AIConfigRequest):
     key = (req.gemini_api_key or "").strip()
-    model = (req.gemini_model or "gemini-2.0-flash").strip()
+    model = (req.gemini_model or "gemini-2.5-flash").strip()
     if not key:
         raise HTTPException(status_code=400, detail="Vui lòng nhập API Key để kiểm tra!")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    payload = {
-        "contents": [{"parts": [{"text": "Xin chào, trả về chữ OK"}]}],
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 10}
-    }
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                return {"status": "ok", "message": "Kết nối thành công! Gemini API hoạt động rất tốt."}
-            else:
-                err_body = resp.text
-                try:
-                    err_json = resp.json()
-                    err_msg = err_json.get("error", {}).get("message", err_body)
-                except Exception:
-                    err_msg = err_body
-                raise HTTPException(status_code=400, detail=f"Google từ chối Key ({resp.status_code}): {err_msg}")
-    except httpx.ConnectError:
-        raise HTTPException(status_code=400, detail="Không thể kết nối đến máy chủ Google. Vui lòng kiểm tra kết nối Internet!")
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=400, detail="Kết nối đến Google bị hết thời gian (Timeout). Vui lòng thử lại!")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Lỗi kiểm tra key: {str(e)}")
+    # Danh sách model thử nghiệm (ưu tiên gemini-2.5-flash)
+    test_models = [model]
+    if model != "gemini-2.5-flash":
+        test_models.append("gemini-2.5-flash")
+    
+    last_err = ""
+    for m in test_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={key}"
+        payload = {
+            "contents": [{"parts": [{"text": "Xin chào, trả về chữ OK"}]}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 10}
+        }
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    return {"status": "ok", "message": f"Kết nối thành công! Đã kích hoạt mô hình '{m}'."}
+                else:
+                    err_body = resp.text
+                    try:
+                        err_json = resp.json()
+                        err_msg = err_json.get("error", {}).get("message", err_body)
+                    except Exception:
+                        err_msg = err_body
+                    last_err = f"Google từ chối Key ({resp.status_code}): {err_msg}"
+        except httpx.ConnectError:
+            raise HTTPException(status_code=400, detail="Không thể kết nối đến máy chủ Google. Vui lòng kiểm tra mạng Internet!")
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=400, detail="Kết nối đến Google bị hết thời gian (Timeout). Vui lòng thử lại!")
+        except Exception as e:
+            last_err = f"Lỗi kiểm tra key: {str(e)}"
+    
+    raise HTTPException(status_code=400, detail=last_err)
 
 @router.post("/config")
 def update_ai_config(req: AIConfigRequest):
     key = (req.gemini_api_key or "").strip()
-    model = (req.gemini_model or "gemini-2.0-flash").strip()
+    model = (req.gemini_model or "gemini-2.5-flash").strip()
     conn = get_db()
     cur = conn.cursor()
     cur.execute("INSERT INTO settings (key, value) VALUES ('gemini_api_key', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (key, key))
@@ -167,7 +174,11 @@ def parse_text_offline(text: str) -> Dict[str, Any]:
     }
 
 async def call_gemini_vision(api_key: str, model: str, prompt: str, image_b64: str, mime_type: str) -> Dict[str, Any]:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    target_model = model or "gemini-2.5-flash"
+    if target_model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
+        target_model = "gemini-2.5-flash"
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     
     payload = {
@@ -210,7 +221,9 @@ async def parse_cashflow(req: ParseCashflowRequest):
     """
     cfg = get_gemini_config()
     api_key = cfg.get("gemini_api_key", "").strip()
-    model = cfg.get("gemini_model", "gemini-2.0-flash")
+    model = cfg.get("gemini_model", "gemini-2.5-flash")
+    if model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
+        model = "gemini-2.5-flash"
 
     result = {}
 

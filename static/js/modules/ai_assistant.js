@@ -349,7 +349,7 @@
     // --- CẤU HÌNH AI GEMINI ---
     window.testAIKey = async function() {
         const key = (document.getElementById('cfg-gemini-key')?.value || '').trim();
-        const model = document.getElementById('cfg-gemini-model')?.value || 'gemini-2.0-flash';
+        const model = document.getElementById('cfg-gemini-model')?.value || 'gemini-2.5-flash';
         const testResEl = document.getElementById('cfg-gemini-test-result');
 
         if (!key) {
@@ -436,7 +436,7 @@
 
     window.saveAIConfig = async function() {
         const key = (document.getElementById('cfg-gemini-key')?.value || '').trim();
-        const model = document.getElementById('cfg-gemini-model')?.value || 'gemini-2.0-flash';
+        const model = document.getElementById('cfg-gemini-model')?.value || 'gemini-2.5-flash';
 
         if (!key) {
             alert("Vui lòng nhập API Key từ Google AI Studio!");
