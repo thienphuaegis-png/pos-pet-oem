@@ -1473,23 +1473,149 @@
             }
         }
 
-        function addTransferRow() {
+        let currentTransferPickingRowIdx = null;
+        let currentTransferFilterType = 'all';
+
+        function openTransferItemPicker(rowIdx = null) {
             if (!transferSourceItems || transferSourceItems.length === 0) {
                 alert("Kho xuất không còn mặt hàng nào có tồn kho (>0) để chuyển!");
                 return;
             }
+            currentTransferPickingRowIdx = rowIdx;
+            const m = document.getElementById('modal-transfer-item-picker');
+            if (m) {
+                m.classList.remove('hidden');
+                const inp = document.getElementById('transfer-item-search-input');
+                if (inp) {
+                    inp.value = '';
+                    setTimeout(() => inp.focus(), 100);
+                }
+                setTransferItemFilterType('all');
+            }
+        }
 
-            currentTransferRows.push({
-                item_key: `${transferSourceItems[0].item_type}_${transferSourceItems[0].id}`,
-                item_type: transferSourceItems[0].item_type,
-                item_id: transferSourceItems[0].id,
-                name: transferSourceItems[0].name,
-                stock: transferSourceItems[0].quantity,
-                unit: transferSourceItems[0].unit,
-                quantity: 1
+        function closeTransferItemPickerModal() {
+            document.getElementById('modal-transfer-item-picker')?.classList.add('hidden');
+            currentTransferPickingRowIdx = null;
+        }
+
+        function setTransferItemFilterType(type) {
+            currentTransferFilterType = type;
+            const pillAll = document.getElementById('pill-tf-type-all');
+            const pillProd = document.getElementById('pill-tf-type-prod');
+            const pillIng = document.getElementById('pill-tf-type-ing');
+
+            const activeCls = "px-2.5 py-0.5 rounded font-bold bg-sky-600 text-white shadow-2xs transition";
+            const inactiveCls = "px-2.5 py-0.5 rounded font-medium text-slate-600 hover:bg-slate-200 transition";
+
+            if (pillAll) pillAll.className = type === 'all' ? activeCls : inactiveCls;
+            if (pillProd) pillProd.className = type === 'product' ? activeCls : inactiveCls;
+            if (pillIng) pillIng.className = type === 'ingredient' ? activeCls : inactiveCls;
+
+            renderTransferItemPopupList();
+        }
+
+        function filterTransferItemPopupList() {
+            renderTransferItemPopupList();
+        }
+
+        function renderTransferItemPopupList() {
+            const container = document.getElementById('transfer-item-popup-items');
+            if (!container) return;
+
+            const q = (document.getElementById('transfer-item-search-input')?.value || '').toLowerCase().trim();
+            
+            let filtered = (transferSourceItems || []).filter(it => {
+                if (currentTransferFilterType !== 'all' && it.item_type !== currentTransferFilterType) return false;
+                if (!q) return true;
+                const matchName = (it.name || '').toLowerCase().includes(q);
+                const matchSku = (it.sku || it.code || '').toLowerCase().includes(q);
+                return matchName || matchSku;
             });
 
+            const countBadge = document.getElementById('transfer-items-count-badge');
+            if (countBadge) countBadge.innerText = `${filtered.length} / ${transferSourceItems.length} mặt hàng`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-6 text-center text-slate-400">Không tìm thấy mặt hàng nào phù hợp trong kho xuất.</div>';
+                return;
+            }
+
+            // Lấy item_key của dòng đang chọn (nếu có)
+            let selectedKey = null;
+            if (currentTransferPickingRowIdx !== null && currentTransferPickingRowIdx >= 0 && currentTransferRows[currentTransferPickingRowIdx]) {
+                selectedKey = currentTransferRows[currentTransferPickingRowIdx].item_key;
+            }
+
+            container.innerHTML = filtered.map(it => {
+                const key = `${it.item_type}_${it.id}`;
+                const isProd = it.item_type === 'product';
+                const isSelected = key === selectedKey;
+                const badge = isProd 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">📦 Hàng Hóa</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">🧪 Nguyên Liệu</span>';
+
+                return `
+                    <div onclick="selectTransferItem('${key}')" class="p-2.5 rounded-lg border ${isSelected ? 'border-sky-500 bg-sky-50/60' : 'border-slate-200'} hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer flex items-center justify-between transition group">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-8 h-8 rounded-lg ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-800 text-xs truncate group-hover:text-sky-600">${it.name}</div>
+                                <div class="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                    ${it.sku || it.code ? `<span class="font-mono font-semibold text-slate-500">${it.sku || it.code}</span> •` : ''}
+                                    ${badge}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0 pl-2">
+                            <div class="text-[10px] text-slate-400">Tồn kho xuất:</div>
+                            <div class="font-mono font-bold text-slate-800 text-xs">${it.quantity.toLocaleString('vi-VN')} <span class="text-[10px] font-normal text-slate-500">${it.unit}</span></div>
+                            <span class="text-[9px] text-sky-600 font-bold group-hover:underline">Chọn ➔</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectTransferItem(key) {
+            const parts = key.split('_');
+            const type = parts[0];
+            const id = parseInt(parts[1]);
+            const found = transferSourceItems.find(it => it.item_type === type && it.id === id);
+            if (!found) return;
+
+            if (currentTransferPickingRowIdx === null || currentTransferPickingRowIdx === -1) {
+                // Thêm dòng mới
+                currentTransferRows.push({
+                    item_key: key,
+                    item_type: type,
+                    item_id: id,
+                    name: found.name,
+                    sku: found.sku || found.code || '',
+                    stock: found.quantity,
+                    unit: found.unit,
+                    quantity: 1
+                });
+            } else if (currentTransferPickingRowIdx >= 0 && currentTransferRows[currentTransferPickingRowIdx]) {
+                // Cập nhật dòng hiện tại
+                const r = currentTransferRows[currentTransferPickingRowIdx];
+                r.item_key = key;
+                r.item_type = type;
+                r.item_id = id;
+                r.name = found.name;
+                r.sku = found.sku || found.code || '';
+                r.stock = found.quantity;
+                r.unit = found.unit;
+                if (r.quantity > found.quantity) r.quantity = found.quantity;
+            }
+
+            closeTransferItemPickerModal();
             renderTransferRows();
+        }
+
+        function addTransferRow() {
+            // Mở thẳng popup tìm kiếm để chọn mặt hàng
+            openTransferItemPicker(-1);
         }
 
         function removeTransferRow(idx) {
@@ -1498,25 +1624,13 @@
         }
 
         function onTransferItemSelect(idx, val) {
-            const parts = val.split('_');
-            const type = parts[0];
-            const id = parseInt(parts[1]);
-            const found = transferSourceItems.find(it => it.item_type === type && it.id === id);
-            if (found) {
-                currentTransferRows[idx].item_key = val;
-                currentTransferRows[idx].item_type = type;
-                currentTransferRows[idx].item_id = id;
-                currentTransferRows[idx].name = found.name;
-                currentTransferRows[idx].stock = found.quantity;
-                currentTransferRows[idx].unit = found.unit;
-            }
-            renderTransferRows();
+            selectTransferItem(val);
         }
 
         function renderTransferRows() {
             const tbody = document.getElementById('table-transfer-rows');
             if (!currentTransferRows || currentTransferRows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dòng nào. Bấm "+ Thêm Dòng Chuyển Hàng" để bắt đầu.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400">Chưa có dòng nào. Bấm <b>"+ Thêm Dòng Chuyển Hàng"</b> để chọn mặt hàng từ popup.</td></tr>';
                 return;
             }
 
@@ -1526,30 +1640,31 @@
                     ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
                     : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
 
-                const optionsHtml = transferSourceItems.map(it => `
-                    <option value="${it.item_type}_${it.id}" ${row.item_key === `${it.item_type}_${it.id}` ? 'selected' : ''}>
-                        ${it.name} (Tồn: ${it.quantity} ${it.unit})
-                    </option>
-                `).join('');
-
                 return `
-                    <tr class="border-b text-xs">
-                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                    <tr class="border-b text-xs hover:bg-slate-50/50 transition">
+                        <td class="p-2 text-center text-gray-400 font-bold">${idx + 1}</td>
                         <td class="p-2">
-                            <select onchange="onTransferItemSelect(${idx}, this.value)" class="border p-1.5 rounded w-full font-bold text-slate-800">
-                                ${optionsHtml}
-                            </select>
+                            <button type="button" onclick="openTransferItemPicker(${idx})" class="w-full text-left p-1.5 bg-white hover:bg-sky-50/30 border border-slate-200 hover:border-sky-400 rounded-lg shadow-2xs flex items-center justify-between gap-2 transition group cursor-pointer" title="Bấm để đổi mặt hàng">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-slate-800 truncate text-xs group-hover:text-sky-600">${row.name}</div>
+                                        <div class="text-[10px] text-slate-400">Tồn kho xuất: <b class="text-slate-600 font-mono">${row.stock.toLocaleString('vi-VN')} ${row.unit}</b></div>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-sky-600 font-bold px-1.5 py-0.5 bg-sky-50 group-hover:bg-sky-100 rounded shrink-0 border border-sky-100">Đổi ▾</span>
+                            </button>
                         </td>
                         <td class="p-2 text-center">${badge}</td>
-                        <td class="p-2 text-right font-bold text-slate-700">${row.stock.toLocaleString('vi-VN')}</td>
+                        <td class="p-2 text-right font-bold text-slate-700 font-mono">${row.stock.toLocaleString('vi-VN')}</td>
                         <td class="p-2 text-right">
                             <input type="number" step="any" min="0.001" max="${row.stock}" value="${row.quantity}" 
                                    oninput="currentTransferRows[${idx}].quantity = parseFloat(this.value) || 0" 
-                                   class="border p-1 text-right font-bold w-24 rounded bg-sky-50 border-sky-300">
+                                   class="border p-1 text-right font-bold w-24 rounded bg-sky-50 border-sky-300 focus:outline-none focus:ring-1 focus:ring-sky-500 font-mono">
                         </td>
                         <td class="p-2 text-gray-500">${row.unit || 'cái'}</td>
                         <td class="p-2 text-center">
-                            <button onclick="removeTransferRow(${idx})" class="text-rose-500 hover:text-rose-700 font-bold text-base">🗑️</button>
+                            <button type="button" onclick="removeTransferRow(${idx})" class="p-1 text-slate-400 hover:text-rose-600 font-bold rounded hover:bg-rose-50 transition" title="Xóa dòng này">🗑️</button>
                         </td>
                     </tr>
                 `;

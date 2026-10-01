@@ -2100,6 +2100,39 @@
                         </div>
                     </div>
 
+                    <!-- MODAL POPUP: CHỌN MẶT HÀNG CẦN CHUYỂN KHO -->
+                    <div id="modal-transfer-item-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+                        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                            <div class="flex justify-between items-center p-3 bg-slate-900 text-white rounded-t-xl">
+                                <h4 class="font-bold flex items-center gap-1.5 text-white">
+                                    <span>📦</span> <span>Chọn Mặt Hàng Cần Điều Chuyển</span>
+                                </h4>
+                                <button onclick="closeTransferItemPickerModal()" class="text-slate-400 hover:text-white text-base font-bold px-1.5">&times;</button>
+                            </div>
+                            <div class="p-3 bg-slate-50 border-b space-y-2">
+                                <div class="relative">
+                                    <input type="text" id="transfer-item-search-input" oninput="filterTransferItemPopupList()" placeholder="🔍 Gõ tìm theo mã hàng (SKU), tên hàng hóa, nguyên liệu..." class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-sky-500 bg-white">
+                                    <span class="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <div class="flex items-center gap-1">
+                                        <button type="button" onclick="setTransferItemFilterType('all')" id="pill-tf-type-all" class="px-2.5 py-0.5 rounded font-bold bg-sky-600 text-white shadow-2xs">Tất cả</button>
+                                        <button type="button" onclick="setTransferItemFilterType('product')" id="pill-tf-type-prod" class="px-2.5 py-0.5 rounded font-medium text-slate-600 hover:bg-slate-200">📦 Hàng Hóa</button>
+                                        <button type="button" onclick="setTransferItemFilterType('ingredient')" id="pill-tf-type-ing" class="px-2.5 py-0.5 rounded font-medium text-slate-600 hover:bg-slate-200">🧪 Nguyên Liệu</button>
+                                    </div>
+                                    <span id="transfer-items-count-badge" class="text-slate-500 font-medium">0 mặt hàng có tồn</span>
+                                </div>
+                            </div>
+                            <div id="transfer-item-popup-items" class="p-2 space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar">
+                                <!-- Injected dynamically via JS -->
+                            </div>
+                            <div class="p-2.5 bg-slate-50 border-t flex justify-between items-center text-slate-500 text-[11px]">
+                                <span>💡 Bấm vào mặt hàng để chọn ngay vào danh sách</span>
+                                <button onclick="closeTransferItemPickerModal()" class="px-3 py-1 border border-slate-300 rounded-lg bg-white text-slate-700 hover:bg-slate-100 font-semibold">Đóng</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- VIEW 2: LỊCH SỬ CHUYỂN KHO -->
                     <div id="transfer-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
                         <div class="flex justify-between items-center border-b pb-2">
@@ -9108,7 +9141,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261001_03"></script>
+    <script src="/static/js/app.js?v=20261001_04"></script>
     <script src="/static/js/modules/contacts.js?v=20261001_03"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
