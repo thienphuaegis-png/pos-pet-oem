@@ -692,6 +692,21 @@ def init_db():
     if 'default_cost' not in si_cols:
         cur.execute("ALTER TABLE supplier_items ADD COLUMN default_cost REAL DEFAULT 0")
 
+    # Bang ke hoach hen tra no NCC (ho tro tra mot phan khong theo don hoac tra theo don)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS supplier_debt_plans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        supplier_id INTEGER NOT NULL,
+        purchase_id INTEGER,
+        plan_date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        fund_source TEXT NOT NULL DEFAULT 'PERSONAL',
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(supplier_id) REFERENCES contacts(id) ON DELETE CASCADE
+    )''')
+
     cur.execute("PRAGMA table_info(productions)")
     prod_cols = [c[1] for c in cur.fetchall()]
     if 'warehouse_id' not in prod_cols:

@@ -706,9 +706,30 @@ def get_cashflow_forecast(days: int = 30):
         WHERE p.status = 'pending' AND (p.total_amount - COALESCE(p.paid_amount, 0)) > 0
     """)
     po_rows = [dict(r) for r in cur.fetchall()]
+
+    # 3. Kế hoạch hẹn trả nợ NCC (debt payment plans đang chờ chi)
+    cur.execute("""
+        SELECT 
+            dp.id,
+            COALESCE(p.code, 'HẸN TRẢ NỢ NCC') as code,
+            dp.plan_date as expected_delivery_date,
+            dp.fund_source,
+            dp.amount,
+            c.name as partner_name,
+            'DEBT_PLAN' as order_type,
+            dp.status,
+            dp.note,
+            dp.supplier_id,
+            dp.purchase_id
+        FROM supplier_debt_plans dp
+        LEFT JOIN contacts c ON dp.supplier_id = c.id
+        LEFT JOIN purchases p ON dp.purchase_id = p.id
+        WHERE dp.status = 'PENDING'
+    """)
+    plan_rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     
-    all_forecasts = oem_rows + po_rows
+    all_forecasts = oem_rows + po_rows + plan_rows
     
     # Tính tổng theo từng nguồn tiền
     total_company = sum(f["amount"] for f in all_forecasts if f.get("fund_source") == "COMPANY")
@@ -1071,3 +1092,44 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
         "remaining_order_debt": new_debt,
         "message": f"Đã thanh toán {alloc:,.0f} đ cho đơn {order_code} ({fund_text})"
     }
+
+class CreateDebtPlanRequest(BaseModel):
+    supplier_id: int
+    plan_date: str
+    amount: float
+    fund_source: str = "PERSONAL"
+    purchase_id: Optional[int] = None
+    note: Optional[str] = None
+
+@router.post("/api/cashflow-debts/payment-plans")
+def create_debt_payment_plan(req: CreateDebtPlanRequest, user=Depends(require_any_permission("oem.manage", "partners.manage", "cashbook.manage"))):
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Số tiền hẹn trả phải lớn hơn 0")
+    if not req.plan_date:
+        raise HTTPException(status_code=400, detail="Vui lòng chọn ngày hẹn thanh toán")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM contacts WHERE id = ?", (req.supplier_id,))
+    supp = cur.fetchone()
+    if not supp:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhà cung cấp")
+        
+    cur.execute("""
+        INSERT INTO supplier_debt_plans (supplier_id, purchase_id, plan_date, amount, fund_source, note, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
+    """, (req.supplier_id, req.purchase_id, req.plan_date, req.amount, req.fund_source, req.note))
+    plan_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "id": plan_id, "message": f"Đã lưu kế hoạch hẹn trả nợ {req.amount:,.0f} đ vào ngày {req.plan_date}"}
+
+@router.delete("/api/cashflow-debts/payment-plans/{plan_id}")
+def cancel_debt_payment_plan(plan_id: int, user=Depends(require_any_permission("oem.manage", "partners.manage", "cashbook.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM supplier_debt_plans WHERE id = ?", (plan_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": "Đã hủy kế hoạch hẹn trả nợ"}

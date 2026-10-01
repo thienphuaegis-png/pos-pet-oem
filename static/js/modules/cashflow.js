@@ -83,27 +83,39 @@
             container.innerHTML = items.map(it => {
                 const dateStr = it.expected_delivery_date || 'Chưa định ngày';
                 const isCty = it.fund_source === 'COMPANY';
+                const isDebtPlan = it.order_type === 'DEBT_PLAN';
+
                 return `
-                    <div class="flex flex-wrap items-center justify-between bg-slate-50 hover:bg-slate-100 p-2.5 rounded-lg border border-slate-200 text-xs gap-2 transition-colors">
+                    <div class="flex flex-wrap items-center justify-between ${isDebtPlan ? 'bg-purple-50/70 border-purple-200' : 'bg-slate-50 border-slate-200'} hover:bg-slate-100 p-2.5 rounded-lg border text-xs gap-2 transition-colors">
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-purple-100 text-purple-700 border border-purple-200'}">
                                 ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
                             </span>
                             <div>
-                                <span class="font-bold text-slate-800">${it.code}</span> - 
+                                <span class="font-bold ${isDebtPlan ? 'text-purple-900' : 'text-slate-800'}">${isDebtPlan ? '📌 [HẸN TRẢ NỢ NCC]' : it.code}</span> - 
                                 <span class="text-slate-700 font-semibold">${it.partner_name || 'Nhà cung cấp'}</span>
-                                <span class="text-[10px] text-slate-500 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>
+                                ${isDebtPlan ? `<span class="text-[11px] text-purple-700 italic ml-1 font-medium">"${it.note || 'Hẹn trả nợ'}"</span>` : `<span class="text-[10px] text-slate-500 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>`}
                             </div>
                         </div>
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-3">
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-500">Hạn nhận (trừ hao ±1 ngày):</div>
-                                <div class="font-mono text-slate-800 font-bold">📅 ${dateStr}</div>
+                                <div class="text-[10px] text-slate-500">${isDebtPlan ? 'Ngày hẹn trả:' : 'Hạn nhận (±1 ngày):'}</div>
+                                <div class="font-mono ${isDebtPlan ? 'text-purple-800' : 'text-slate-800'} font-bold">📅 ${dateStr}</div>
                             </div>
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-500">Dự kiến chi:</div>
+                                <div class="text-[10px] text-slate-500">${isDebtPlan ? 'Số tiền hẹn trả:' : 'Dự kiến chi:'}</div>
                                 <div class="font-mono font-black text-rose-600 text-sm">${formatMoney(it.amount)}</div>
                             </div>
+                            ${isDebtPlan ? `
+                                <div class="flex items-center gap-1.5 ml-1">
+                                    <button onclick="executeDebtPlanPayment(${it.id}, ${it.supplier_id}, ${it.amount}, '${it.fund_source}', '${(it.partner_name || '').replace(/'/g, "\\'")}', '${(it.note || '').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs shadow-xs flex items-center gap-1" title="Chi trả khoản hẹn này">
+                                        ⚡ Chi trả
+                                    </button>
+                                    <button onclick="cancelDebtPlan(${it.id})" class="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 rounded font-bold text-xs border border-rose-200" title="Hủy kế hoạch hẹn trả">
+                                        ✕
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -206,6 +218,9 @@
                                     ✏️ Sửa nợ
                                 </button>
                                 ${hasDebt ? `
+                                    <button onclick="openModalCreateDebtPlan(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${s.debt_company || 0}, ${s.debt_personal || 0})" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold border border-purple-200" title="Tạo kế hoạch hẹn ngày thanh toán nợ">
+                                        📅 Hẹn trả
+                                    </button>
                                     <button onclick="openModalPaySupplierDebt(${s.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded font-bold shadow-sm">
                                         💳 Trả nợ
                                     </button>
@@ -585,4 +600,198 @@
             } finally {
                 if (btn) { btn.disabled = false; btn.innerText = 'Lưu Thay Đổi'; }
             }
+        }
+
+        // ==========================================
+        // KẾ HOẠCH HẸN TRẢ NỢ NCC (DEBT PAYMENT PLANS)
+        // ==========================================
+        let currentPlanSupplierOrders = [];
+
+        async function openModalCreateDebtPlan(supplierId, supplierName, debtCty, debtPersonal) {
+            document.getElementById('plan-supplier-id').value = supplierId;
+            document.getElementById('plan-supp-name-display').innerText = `Nhà cung cấp: ${supplierName}`;
+
+            const dCty = parseFloat(debtCty) || 0;
+            const dPer = parseFloat(debtPersonal) || 0;
+            const dTotal = dCty + dPer;
+
+            document.getElementById('plan-debt-company').innerText = formatMoney(dCty);
+            document.getElementById('plan-debt-personal').innerText = formatMoney(dPer);
+            document.getElementById('plan-debt-total').innerText = formatMoney(dTotal);
+
+            const radioPartial = document.querySelector('input[name="plan_type"][value="PARTIAL_DEBT"]');
+            if (radioPartial) radioPartial.checked = true;
+            togglePlanTypeView('PARTIAL_DEBT');
+
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + 3);
+            const dateStr = targetDate.toISOString().split('T')[0];
+            const dateInput = document.getElementById('plan-date');
+            if (dateInput) dateInput.value = dateStr;
+
+            document.getElementById('plan-amount').value = dTotal > 0 ? dTotal : '';
+
+            const fundSelect = document.getElementById('plan-fund-source');
+            if (fundSelect) {
+                fundSelect.value = (dCty > 0 && dPer === 0) ? 'COMPANY' : 'PERSONAL';
+            }
+
+            document.getElementById('plan-note').value = 'Hẹn thanh toán nợ đợt này';
+            document.getElementById('modal-cfd-debt-plan').classList.remove('hidden');
+
+            currentPlanSupplierOrders = [];
+            try {
+                const res = await fetch(`/api/cashflow-debts/suppliers/${supplierId}/orders`);
+                if (res.ok) {
+                    currentPlanSupplierOrders = await res.json();
+                    renderPlanOrdersDropdown();
+                }
+            } catch (e) {
+                console.error("Lỗi nạp đơn nợ của NCC:", e);
+            }
+        }
+
+        function closeModalCreateDebtPlan() {
+            document.getElementById('modal-cfd-debt-plan')?.classList.add('hidden');
+        }
+
+        function togglePlanTypeView(type) {
+            const orderBox = document.getElementById('plan-order-container');
+            if (!orderBox) return;
+            if (type === 'BY_ORDER') {
+                orderBox.classList.remove('hidden');
+                onPlanOrderSelectChange();
+            } else {
+                orderBox.classList.add('hidden');
+            }
+        }
+
+        function renderPlanOrdersDropdown() {
+            const sel = document.getElementById('plan-purchase-select');
+            if (!sel) return;
+            if (currentPlanSupplierOrders.length === 0) {
+                sel.innerHTML = '<option value="">(Không có đơn nợ lẻ nào)</option>';
+                return;
+            }
+            sel.innerHTML = currentPlanSupplierOrders.map(o => `
+                <option value="${o.id}" data-debt="${o.debt_amount}" data-type="${o.order_type}" data-vat="${o.has_vat}">
+                    ${o.code} - Còn nợ: ${formatMoney(o.debt_amount)} (${o.has_vat ? 'Quỹ Cty' : 'Cá Nhân'})
+                </option>
+            `).join('');
+        }
+
+        function onPlanOrderSelectChange() {
+            const sel = document.getElementById('plan-purchase-select');
+            if (!sel || !sel.value) return;
+            const opt = sel.options[sel.selectedIndex];
+            if (opt) {
+                const debt = parseFloat(opt.getAttribute('data-debt')) || 0;
+                const hasVat = opt.getAttribute('data-vat') === '1';
+                document.getElementById('plan-amount').value = debt;
+                document.getElementById('plan-fund-source').value = hasVat ? 'COMPANY' : 'PERSONAL';
+            }
+        }
+
+        function setPlanQuickAmount(rate) {
+            const dTotalText = document.getElementById('plan-debt-total').innerText.replace(/[^0-9]/g, '');
+            const dTotal = parseFloat(dTotalText) || 0;
+            const amt = Math.round(dTotal * rate);
+            document.getElementById('plan-amount').value = amt;
+        }
+
+        async function submitCreateDebtPlan() {
+            const suppId = parseInt(document.getElementById('plan-supplier-id').value);
+            const planType = document.querySelector('input[name="plan_type"]:checked')?.value || 'PARTIAL_DEBT';
+            const amount = parseFloat(document.getElementById('plan-amount').value) || 0;
+            const fundSource = document.getElementById('plan-fund-source').value;
+            const planDate = document.getElementById('plan-date').value;
+            const note = document.getElementById('plan-note').value.trim();
+
+            if (!suppId) {
+                alert("Lỗi: Không tìm thấy nhà cung cấp!");
+                return;
+            }
+            if (amount <= 0) {
+                alert("Vui lòng nhập số tiền hẹn trả lớn hơn 0!");
+                document.getElementById('plan-amount')?.focus();
+                return;
+            }
+            if (!planDate) {
+                alert("Vui lòng chọn ngày hẹn thanh toán!");
+                document.getElementById('plan-date')?.focus();
+                return;
+            }
+
+            let purchaseId = null;
+            if (planType === 'BY_ORDER') {
+                const orderVal = document.getElementById('plan-purchase-select').value;
+                if (orderVal) purchaseId = parseInt(orderVal);
+            }
+
+            const btn = document.getElementById('btn-submit-debt-plan');
+            if (btn) btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/cashflow-debts/payment-plans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supplier_id: suppId,
+                        plan_date: planDate,
+                        amount: amount,
+                        fund_source: fundSource,
+                        purchase_id: purchaseId,
+                        note: note
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi tạo kế hoạch: " + (err.detail || "Không thể lưu"));
+                    return;
+                }
+
+                const result = await res.json();
+                alert(result.message || "Đã lưu kế hoạch hẹn trả nợ!");
+                closeModalCreateDebtPlan();
+
+                await loadCashflowDebtsData();
+            } catch (e) {
+                console.error("submitCreateDebtPlan error:", e);
+                alert("Lỗi kết nối máy chủ!");
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function cancelDebtPlan(planId) {
+            if (!confirm("Bạn có chắc chắn muốn HỦY kế hoạch hẹn trả nợ này?")) return;
+            try {
+                const res = await fetch(`/api/cashflow-debts/payment-plans/${planId}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể hủy"));
+                    return;
+                }
+                await loadCashflowDebtsData();
+            } catch (e) {
+                console.error("cancelDebtPlan error:", e);
+                alert("Lỗi kết nối máy chủ!");
+            }
+        }
+
+        function executeDebtPlanPayment(planId, suppId, amount, fundSource, suppName, note) {
+            openModalPaySupplierDebt(suppId);
+            setTimeout(() => {
+                const amtInput = document.getElementById('cfd-pay-amount');
+                const fundSelect = document.getElementById('cfd-pay-fund');
+                const noteInput = document.getElementById('cfd-pay-note');
+
+                if (amtInput) amtInput.value = amount;
+                if (fundSelect) {
+                    fundSelect.value = fundSource;
+                    if (typeof onCFDPayFundChange === 'function') onCFDPayFundChange();
+                }
+                if (noteInput) noteInput.value = note ? `Thanh toán theo kế hoạch: ${note}` : `Chi trả theo kế hoạch hẹn nợ`;
+            }, 300);
         }

@@ -877,4 +877,88 @@ def delete_purchase(code: str, user=Depends(require_role("owner"))):
     conn.close()
     return {"status": "ok", "message": f"Đã hủy phiếu nhập {code}"}
 
+@router.get("/api/suppliers/{supplier_id}/assignable-items")
+def get_supplier_assignable_items(supplier_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT product_id FROM supplier_items WHERE supplier_id = ? AND item_type = 'product'", (supplier_id,))
+    assigned_prod_ids = set(r[0] for r in cur.fetchall() if r[0])
+    
+    cur.execute("SELECT ingredient_id FROM supplier_items WHERE supplier_id = ? AND item_type = 'ingredient'", (supplier_id,))
+    assigned_ing_ids = set(r[0] for r in cur.fetchall() if r[0])
+    
+    cur.execute("SELECT id, code, name, unit, cost_price, category FROM products WHERE is_active = 1 ORDER BY name ASC")
+    products = [
+        {
+            "id": r["id"],
+            "item_type": "product",
+            "code": r["code"] or "",
+            "name": r["name"],
+            "unit": r["unit"] or "cái",
+            "cost_price": r["cost_price"] or 0,
+            "category": r["category"] or "Hàng Hóa",
+            "is_assigned": r["id"] in assigned_prod_ids
+        }
+        for r in cur.fetchall()
+    ]
+    
+    cur.execute("""
+        SELECT i.id, i.code, i.name, i.unit, i.type as ing_type,
+               COALESCE((SELECT purchase_price FROM price_history WHERE ingredient_id = i.id ORDER BY effective_date DESC LIMIT 1), 0) as cost_price
+        FROM ingredients i
+        ORDER BY i.name ASC
+    """)
+    ingredients = [
+        {
+            "id": r["id"],
+            "item_type": "ingredient",
+            "code": r["code"] or "",
+            "name": r["name"],
+            "unit": r["unit"] or "kg",
+            "cost_price": r["cost_price"] or 0,
+            "category": "Nguyên Liệu",
+            "is_assigned": r["id"] in assigned_ing_ids
+        }
+        for r in cur.fetchall()
+    ]
+    
+    conn.close()
+    return {
+        "supplier_id": supplier_id,
+        "items": products + ingredients
+    }
+
+class SupplierItemAssignPayload(BaseModel):
+    items: List[dict]
+
+@router.post("/api/suppliers/{supplier_id}/assign-items")
+def assign_supplier_items(supplier_id: int, payload: SupplierItemAssignPayload):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM supplier_items WHERE supplier_id = ?", (supplier_id,))
+        for it in payload.items:
+            itype = it.get("item_type")
+            iid = it.get("item_id")
+            if not itype or not iid:
+                continue
+            if itype == "product":
+                cur.execute(
+                    "INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, product_id, default_cost) VALUES (?, 'product', ?, ?)",
+                    (supplier_id, iid, it.get("cost_price", 0))
+                )
+            elif itype == "ingredient":
+                cur.execute(
+                    "INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, ingredient_id, default_cost) VALUES (?, 'ingredient', ?, ?)",
+                    (supplier_id, iid, it.get("cost_price", 0))
+                )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": f"Đã gán {len(payload.items)} mặt hàng cho nhà cung cấp!"}
+
 # San xuat (BOM Execution)

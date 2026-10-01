@@ -919,13 +919,8 @@
                 </select>
             </div>
 
-            <!-- Staff Selector -->
-            <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <select id="pos-staff-select" class="bg-transparent font-bold text-slate-700 focus:outline-none cursor-pointer">
-                    <!-- Staff options injected via JS -->
-                </select>
-            </div>
+            <!-- Staff Selector (Hidden - user name displayed on sidebar) -->
+            <select id="pos-staff-select" class="hidden"></select>
 
             <!-- Back to Management Page Button -->
             <button onclick="switchTab('orders')" class="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-xs transition">
@@ -4473,6 +4468,104 @@
                 </div>
             </div>
 
+            <!-- MODAL: LẬP KẾ HOẠCH HẸN TRẢ NỢ NCC -->
+            <div id="modal-cfd-debt-plan" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200">
+                    <div class="flex justify-between items-center p-3.5 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-t-xl">
+                        <div>
+                            <h3 class="font-bold text-sm text-white flex items-center gap-1.5">
+                                <span>📅 Lập Kế Hoạch Hẹn Trả Nợ NCC</span>
+                            </h3>
+                            <p class="text-[11px] text-purple-200" id="plan-supp-name-display">Nhà cung cấp: ...</p>
+                        </div>
+                        <button onclick="closeModalCreateDebtPlan()" class="text-slate-300 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10 transition">&times;</button>
+                    </div>
+
+                    <div class="p-4 space-y-3 bg-white">
+                        <input type="hidden" id="plan-supplier-id">
+
+                        <!-- Thông tin nợ hiện tại -->
+                        <div class="bg-purple-50/70 p-3 rounded-lg border border-purple-200 space-y-1.5">
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-blue-700 font-bold">🏢 Nợ Có Thuế (Quỹ Cty):</span>
+                                <strong id="plan-debt-company" class="font-mono text-blue-700 text-xs">0 đ</strong>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-purple-700 font-bold">👤 Nợ Không Thuế (Quỹ Cá Nhân):</span>
+                                <strong id="plan-debt-personal" class="font-mono text-purple-700 text-xs">0 đ</strong>
+                            </div>
+                            <div class="border-t border-purple-200 pt-1 flex justify-between items-center">
+                                <span class="text-slate-700 font-bold">Tổng nợ hiện tại:</span>
+                                <strong id="plan-debt-total" class="font-mono text-rose-600 text-sm">0 đ</strong>
+                            </div>
+                        </div>
+
+                        <!-- Hình thức hẹn trả -->
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1.5">Hình thức hẹn trả:</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer bg-slate-50 hover:bg-purple-50 transition">
+                                    <input type="radio" name="plan_type" value="PARTIAL_DEBT" checked onchange="togglePlanTypeView('PARTIAL_DEBT')" class="text-purple-600 focus:ring-purple-500">
+                                    <span class="font-semibold text-slate-800 text-[11px]">Trả 1 phần theo nợ (Không theo đơn)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer bg-slate-50 hover:bg-purple-50 transition">
+                                    <input type="radio" name="plan_type" value="BY_ORDER" onchange="togglePlanTypeView('BY_ORDER')" class="text-purple-600 focus:ring-purple-500">
+                                    <span class="font-semibold text-slate-800 text-[11px]">Trả theo đơn nợ cụ thể</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Dropdown chọn đơn nợ (ẩn khi chọn PARTIAL_DEBT) -->
+                        <div id="plan-order-container" class="hidden">
+                            <label class="block font-bold text-slate-700 mb-1">Chọn đơn nợ (*):</label>
+                            <select id="plan-purchase-select" onchange="onPlanOrderSelectChange()" class="border p-2 rounded w-full font-bold bg-white text-slate-800 outline-none focus:border-purple-500">
+                                <!-- Order options injected via JS -->
+                            </select>
+                        </div>
+
+                        <!-- Số tiền hẹn trả -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block font-bold text-slate-700">Số tiền hẹn trả (*):</label>
+                                <div class="flex gap-1">
+                                    <button type="button" onclick="setPlanQuickAmount(0.5)" class="text-[10px] bg-slate-100 hover:bg-purple-100 text-slate-700 px-1.5 py-0.5 rounded border">50% nợ</button>
+                                    <button type="button" onclick="setPlanQuickAmount(1)" class="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 font-bold">100% nợ</button>
+                                </div>
+                            </div>
+                            <input type="number" id="plan-amount" step="any" min="1" placeholder="Nhập số tiền hẹn trả (VNĐ)..." class="border p-2 rounded w-full font-mono font-black text-rose-600 text-base outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                        </div>
+
+                        <!-- Nguồn tiền & Ngày hẹn -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Nguồn tiền (*):</label>
+                                <select id="plan-fund-source" class="border p-2 rounded w-full font-bold text-slate-700 bg-white outline-none focus:border-purple-500">
+                                    <option value="PERSONAL">👤 Quỹ Cá Nhân</option>
+                                    <option value="COMPANY">🏢 Quỹ Công Ty</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Ngày hẹn thanh toán (*):</label>
+                                <input type="date" id="plan-date" class="border p-2 rounded w-full font-medium bg-white outline-none focus:border-purple-500">
+                            </div>
+                        </div>
+
+                        <!-- Ghi chú hẹn trả -->
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Ghi chú hẹn trả:</label>
+                            <input type="text" id="plan-note" placeholder="Vd: Hẹn cuối tuần thanh toán trước một phần..." class="border p-2 rounded w-full outline-none focus:border-purple-500 text-xs">
+                        </div>
+                    </div>
+
+                    <div class="p-3 border-t bg-slate-50 rounded-b-xl flex justify-between items-center">
+                        <button onclick="closeModalCreateDebtPlan()" class="px-4 py-1.5 border rounded text-gray-600 hover:bg-gray-100 font-medium">Đóng</button>
+                        <button onclick="submitCreateDebtPlan()" id="btn-submit-debt-plan" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold shadow flex items-center gap-1.5 transition">
+                            <span>💾 Lưu Kế Hoạch Hẹn Trả</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- MODAL: SỬA NHANH CÔNG NỢ ĐẦU KỲ NCC -->
             <div id="modal-quick-edit-debt" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col text-xs">
@@ -4611,7 +4704,12 @@
                         <!-- Thông tin chung phiếu nhập -->
                         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 border-b pb-4">
                             <div class="relative">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Nhà Cung Cấp (*):</label>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="block text-xs font-bold text-slate-700">Nhà Cung Cấp (*):</label>
+                                    <button type="button" onclick="openQuickAssignSupplierModal()" title="Gán nhanh các sản phẩm / nguyên liệu cho NCC này" class="text-[11px] text-sky-600 hover:text-sky-800 font-bold flex items-center gap-0.5 hover:underline bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
+                                        <span>⚡ Gán hàng</span>
+                                    </button>
+                                </div>
                                 <input type="hidden" id="purchase-supplier" value="">
                                 <div class="relative flex items-center">
                                     <input type="text" id="purchase-supplier-search" 
@@ -4756,6 +4854,55 @@
                             </div>
                         </div>
                     </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: GÁN NHANH SẢN PHẨM & NGUYÊN LIỆU CHO NHÀ CUNG CẤP -->
+            <div id="modal-quick-assign-supplier" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+                <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden border border-slate-200">
+                    <div class="p-3.5 bg-gradient-to-r from-slate-900 to-sky-950 text-white flex justify-between items-center shrink-0">
+                        <div>
+                            <h3 class="font-bold text-sm flex items-center gap-2">
+                                <span>⚡ Gán Danh Mục Mặt Hàng Cung Cấp</span>
+                            </h3>
+                            <p class="text-[11px] text-sky-200" id="assign-supplier-name-display">Đang chọn NCC: ...</p>
+                        </div>
+                        <button onclick="closeQuickAssignSupplierModal()" class="text-slate-300 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10 transition">&times;</button>
+                    </div>
+
+                    <!-- Toolbar lọc & tìm kiếm -->
+                    <div class="p-3 bg-slate-50 border-b flex flex-wrap items-center gap-2 text-xs shrink-0">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                            <input type="text" id="assign-item-search" oninput="filterAssignItemsList()" placeholder="Tìm kiếm theo mã, tên mặt hàng..." class="w-full pl-8 pr-3 py-1.5 border rounded-lg text-xs bg-white outline-none focus:border-sky-500 shadow-2xs">
+                        </div>
+                        <select id="assign-item-filter-type" onchange="filterAssignItemsList()" class="border p-1.5 rounded-lg text-xs bg-white font-medium text-slate-700 outline-none">
+                            <option value="ALL">Tất cả mặt hàng</option>
+                            <option value="ASSIGNED">Chỉ món đã chọn</option>
+                            <option value="PRODUCT">Chỉ Hàng Hóa</option>
+                            <option value="INGREDIENT">Chỉ Nguyên Liệu</option>
+                        </select>
+                        <div class="flex items-center gap-1 ml-auto">
+                            <button type="button" onclick="selectAllAssignItems(true)" class="px-2 py-1 bg-white border border-slate-300 hover:bg-slate-100 rounded text-[11px] font-semibold text-slate-700">Chọn hết</button>
+                            <button type="button" onclick="selectAllAssignItems(false)" class="px-2 py-1 bg-white border border-slate-300 hover:bg-slate-100 rounded text-[11px] font-semibold text-rose-600">Bỏ chọn</button>
+                        </div>
+                    </div>
+
+                    <!-- Danh sách mặt hàng checkbox -->
+                    <div class="p-3 overflow-y-auto flex-1 divide-y divide-slate-100 text-xs" id="assign-items-list-container">
+                        <div class="text-center py-8 text-gray-400">Đang tải danh sách mặt hàng...</div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="p-3 bg-slate-100 border-t flex justify-between items-center text-xs shrink-0">
+                        <span id="assign-items-count-summary" class="font-bold text-slate-600">Đã chọn: 0 món</span>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="closeQuickAssignSupplierModal()" class="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-semibold">Đóng</button>
+                            <button type="button" onclick="saveQuickAssignSupplierItems()" id="btn-save-assign-items" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 transition">
+                                <span>💾 Lưu Gán Hàng</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8818,14 +8965,14 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261001_01"></script>
-    <script src="/static/js/modules/contacts.js?v=20261001_01"></script>
+    <script src="/static/js/app.js?v=20261001_02"></script>
+    <script src="/static/js/modules/contacts.js?v=20261001_02"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
-    <script src="/static/js/modules/purchases.js?v=20261001_01"></script>
-    <script src="/static/js/modules/productions.js?v=20261001_01"></script>
-    <script src="/static/js/modules/cashflow.js?v=20260930_02"></script>
+    <script src="/static/js/modules/purchases.js?v=20261001_02"></script>
+    <script src="/static/js/modules/productions.js?v=20261001_02"></script>
+    <script src="/static/js/modules/cashflow.js?v=20261001_02"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
-    <script src="/static/js/pos.js?v=20260923_14"></script>
+    <script src="/static/js/pos.js?v=20261001_02"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
     <div id="modal-cash-counter" onclick="if(event.target === this) closeCashCounterModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm">

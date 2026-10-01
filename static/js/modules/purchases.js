@@ -1065,3 +1065,193 @@
             }
         }
 
+        // ==========================================
+        // GÁN NHANH SẢN PHẨM & NGUYÊN LIỆU CHO NCC
+        // ==========================================
+        let assignSupplierItemsRaw = [];
+        let currentAssignSupplierId = null;
+
+        async function openQuickAssignSupplierModal() {
+            const suppIdInput = document.getElementById('purchase-supplier');
+            const suppSearchInput = document.getElementById('purchase-supplier-search');
+            const suppId = suppIdInput ? parseInt(suppIdInput.value) : null;
+            const suppName = suppSearchInput ? suppSearchInput.value : '';
+
+            if (!suppId) {
+                alert("Vui lòng chọn Nhà Cung Cấp trước khi gán hàng!");
+                suppSearchInput?.focus();
+                return;
+            }
+
+            currentAssignSupplierId = suppId;
+            const modal = document.getElementById('modal-quick-assign-supplier');
+            const nameDisplay = document.getElementById('assign-supplier-name-display');
+            const container = document.getElementById('assign-items-list-container');
+            const searchInput = document.getElementById('assign-item-search');
+            const filterType = document.getElementById('assign-item-filter-type');
+
+            if (nameDisplay) nameDisplay.textContent = `Đang chọn NCC: ${suppName || ('#' + suppId)}`;
+            if (searchInput) searchInput.value = '';
+            if (filterType) filterType.value = 'ALL';
+            if (container) container.innerHTML = '<div class="text-center py-8 text-gray-400">Đang tải danh sách mặt hàng...</div>';
+            if (modal) modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/suppliers/${suppId}/assignable-items`);
+                if (!res.ok) throw new Error("Không thể tải danh sách mặt hàng");
+                const data = await res.json();
+                assignSupplierItemsRaw = data.items || [];
+                renderAssignItemsList();
+            } catch (err) {
+                console.error("openQuickAssignSupplierModal error:", err);
+                if (container) container.innerHTML = '<div class="text-center py-8 text-rose-500 font-bold">Lỗi tải danh mục mặt hàng</div>';
+            }
+        }
+
+        function closeQuickAssignSupplierModal() {
+            document.getElementById('modal-quick-assign-supplier')?.classList.add('hidden');
+        }
+
+        function filterAssignItemsList() {
+            renderAssignItemsList();
+        }
+
+        function selectAllAssignItems(checked) {
+            const kw = (document.getElementById('assign-item-search')?.value || '').trim().toLowerCase();
+            const typeFilter = document.getElementById('assign-item-filter-type')?.value || 'ALL';
+
+            assignSupplierItemsRaw.forEach(it => {
+                let matchType = true;
+                if (typeFilter === 'PRODUCT') matchType = it.item_type === 'product';
+                else if (typeFilter === 'INGREDIENT') matchType = it.item_type === 'ingredient';
+                else if (typeFilter === 'ASSIGNED') matchType = it.is_assigned;
+
+                let matchKw = true;
+                if (kw) {
+                    const c = (it.code || '').toLowerCase();
+                    const n = (it.name || '').toLowerCase();
+                    matchKw = c.includes(kw) || n.includes(kw);
+                }
+
+                if (matchType && matchKw) {
+                    it.is_assigned = checked;
+                }
+            });
+
+            renderAssignItemsList();
+        }
+
+        function toggleAssignItemCheck(idx, checked) {
+            if (assignSupplierItemsRaw[idx]) {
+                assignSupplierItemsRaw[idx].is_assigned = checked;
+                updateAssignItemsSummary();
+            }
+        }
+
+        function updateAssignItemsSummary() {
+            const count = assignSupplierItemsRaw.filter(x => x.is_assigned).length;
+            const el = document.getElementById('assign-items-count-summary');
+            if (el) el.textContent = `Đã chọn: ${count} món (${count}/${assignSupplierItemsRaw.length})`;
+        }
+
+        function renderAssignItemsList() {
+            const container = document.getElementById('assign-items-list-container');
+            if (!container) return;
+
+            const kw = (document.getElementById('assign-item-search')?.value || '').trim().toLowerCase();
+            const typeFilter = document.getElementById('assign-item-filter-type')?.value || 'ALL';
+
+            const filtered = assignSupplierItemsRaw.filter(it => {
+                if (typeFilter === 'PRODUCT' && it.item_type !== 'product') return false;
+                if (typeFilter === 'INGREDIENT' && it.item_type !== 'ingredient') return false;
+                if (typeFilter === 'ASSIGNED' && !it.is_assigned) return false;
+
+                if (kw) {
+                    const c = (it.code || '').toLowerCase();
+                    const n = (it.name || '').toLowerCase();
+                    if (!c.includes(kw) && !n.includes(kw)) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-400 italic">Không có mặt hàng nào phù hợp với bộ lọc</div>';
+                updateAssignItemsSummary();
+                return;
+            }
+
+            container.innerHTML = filtered.map(it => {
+                const rawIdx = assignSupplierItemsRaw.indexOf(it);
+                const isProd = it.item_type === 'product';
+                const badge = isProd 
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">Hàng Hóa</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Nguyên Liệu</span>';
+
+                return `
+                    <label class="flex items-center justify-between p-2 hover:bg-sky-50/70 rounded-lg cursor-pointer transition select-none ${it.is_assigned ? 'bg-sky-50/40' : ''}">
+                        <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
+                            <input type="checkbox" ${it.is_assigned ? 'checked' : ''} 
+                                   onchange="toggleAssignItemCheck(${rawIdx}, this.checked)"
+                                   class="rounded text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer shrink-0">
+                            <div class="truncate">
+                                <div class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                    <span class="truncate">${it.name}</span>
+                                    ${badge}
+                                </div>
+                                <div class="text-[11px] text-gray-400 font-mono">
+                                    Mã: ${it.code || '-'} | ĐVT: ${it.unit} | Giá vốn: ${Number(it.cost_price || 0).toLocaleString('vi-VN')} đ
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-[11px] font-bold ${it.is_assigned ? 'text-sky-600' : 'text-gray-300'}">
+                                ${it.is_assigned ? '✓ Đang cấp' : 'Chưa cấp'}
+                            </span>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+
+            updateAssignItemsSummary();
+        }
+
+        async function saveQuickAssignSupplierItems() {
+            if (!currentAssignSupplierId) return;
+            const btn = document.getElementById('btn-save-assign-items');
+            if (btn) btn.disabled = true;
+
+            const selectedItems = assignSupplierItemsRaw
+                .filter(x => x.is_assigned)
+                .map(x => ({
+                    item_type: x.item_type,
+                    item_id: x.id,
+                    cost_price: x.cost_price || 0
+                }));
+
+            try {
+                const res = await fetch(`/api/suppliers/${currentAssignSupplierId}/assign-items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: selectedItems })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert("Lỗi lưu gán hàng: " + (err.detail || "Không thể lưu"));
+                    return;
+                }
+
+                alert(`Đã gán thành công ${selectedItems.length} mặt hàng cho nhà cung cấp!`);
+                closeQuickAssignSupplierModal();
+
+                if (typeof loadSupplierItemsForFuzzy === 'function') {
+                    await loadSupplierItemsForFuzzy(currentAssignSupplierId);
+                }
+            } catch (err) {
+                console.error("saveQuickAssignSupplierItems error:", err);
+                alert("Lỗi kết nối khi lưu gán hàng!");
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
