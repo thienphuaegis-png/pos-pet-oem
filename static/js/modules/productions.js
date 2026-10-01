@@ -482,7 +482,7 @@
                 }
 
                 // 2. Fetch cashbook data with filters
-                const selectedAcc = filterAccSelect ? filterAccSelect.value : '';
+                const selectedAcc = filterAccInput ? filterAccInput.value : '';
                 const selectedType = document.getElementById('cashbook-filter-type')?.value || '';
                 
                 let query = `/api/cashbook?limit=150&_t=${Date.now()}`;
