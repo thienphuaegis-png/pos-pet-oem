@@ -722,31 +722,28 @@
         }
 
         // --- SUB 4: KIỂM KÊ KHO ---
-        function toggleAuditView(view) {
-            if (view === 'create') {
-                document.getElementById('audit-create-view').classList.remove('hidden');
-                document.getElementById('audit-list-view').classList.add('hidden');
-                document.getElementById('btn-audit-create').className = 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
-                document.getElementById('btn-audit-list').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
-            } else {
-                document.getElementById('audit-create-view').classList.add('hidden');
-                document.getElementById('audit-list-view').classList.remove('hidden');
-                document.getElementById('btn-audit-create').className = 'bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
-                document.getElementById('btn-audit-list').className = 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1';
-                loadStockAuditsList();
-            }
+        let rawAuditWarehouseItems = [];
+        let auditCategories = [];
+        let selectedAuditCategories = []; // [] = toàn bộ kho
+        let auditSearchKw = '';
+
+        function generateAuditCodeDisplay() {
+            const now = new Date();
+            const dateStr = String(now.getDate()).padStart(2, '0') + String(now.getMonth() + 1).padStart(2, '0') + String(now.getFullYear()).slice(-2);
+            const rand = Math.floor(100 + Math.random() * 900);
+            const el = document.getElementById('audit-code-display');
+            if (el) el.textContent = `KK-${dateStr}-${rand}`;
         }
 
         async function initStockAuditView() {
-            toggleAuditView('create');
+            generateAuditCodeDisplay();
             try {
                 const res = await fetch('/api/warehouses');
-                allWarehouses = await res.json();
+                const allWarehouses = await res.json();
                 const sel = document.getElementById('audit-wh-select');
-                sel.innerHTML = '<option value="">-- Chọn kho kiểm kê --</option>' + 
-                    allWarehouses.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+                if (!sel) return;
+                sel.innerHTML = allWarehouses.map(w => `<option value="${w.id}">${w.name} ${w.is_default ? '(Mặc định)' : ''}</option>`).join('');
                 if (allWarehouses.length > 0) {
-                    sel.value = allWarehouses[0].id;
                     loadAuditItemsForWarehouse(allWarehouses[0].id);
                 }
             } catch (e) {
@@ -757,7 +754,11 @@
         async function loadAuditItemsForWarehouse(whId) {
             if (!whId) {
                 document.getElementById('table-audit-items').innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho</td></tr>';
+                rawAuditWarehouseItems = [];
                 currentAuditItems = [];
+                auditCategories = [];
+                selectedAuditCategories = [];
+                updateAuditCatTriggerUI();
                 return;
             }
 
@@ -767,70 +768,341 @@
             try {
                 const res = await fetch(`/api/inventory/unified?warehouse_id=${whId}`);
                 const data = await res.json();
-                currentAuditItems = (data.items || []).map(item => ({
-                    ...item,
-                    actual_qty: item.quantity,
-                    diff_qty: 0,
-                    note: ''
-                }));
+                
+                rawAuditWarehouseItems = (data.items || []).map(item => {
+                    let catName = item.category || (item.item_type === 'product' ? 'Hàng Hóa' : 'Nguyên Liệu');
+                    return {
+                        ...item,
+                        category: catName,
+                        actual_qty: item.quantity,
+                        diff_qty: 0,
+                        note: ''
+                    };
+                });
 
-                renderAuditTable();
+                // Trích xuất danh sách danh mục duy nhất
+                const catSet = new Set();
+                rawAuditWarehouseItems.forEach(it => {
+                    if (it.category) catSet.add(it.category);
+                });
+                auditCategories = Array.from(catSet);
+                selectedAuditCategories = []; // Mặc định chọn tất cả
+                
+                renderAuditCatDropdownOptions();
+                updateAuditCatTriggerUI();
+                applyAuditFilterAndRender();
             } catch (e) {
                 console.error("loadAuditItemsForWarehouse error:", e);
                 tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-red-500">Lỗi nạp dữ liệu kiểm kê</td></tr>';
             }
         }
 
-        function renderAuditTable() {
-            const tbody = document.getElementById('table-audit-items');
-            if (!currentAuditItems || currentAuditItems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Kho này chưa có mặt hàng nào</td></tr>';
-                document.getElementById('audit-sum-count').innerText = '0';
-                document.getElementById('audit-sum-diff').innerText = '0';
+        // --- DROPLIST POPUP CHỌN NHIỀU NHÓM HÀNG ---
+        function toggleAuditCatDropdown(e) {
+            if (e) e.stopPropagation();
+            const popup = document.getElementById('popup-audit-categories');
+            if (!popup) return;
+            const isHidden = popup.classList.contains('hidden');
+            if (isHidden) {
+                popup.classList.remove('hidden');
+                document.getElementById('search-audit-cat')?.focus();
+            } else {
+                popup.classList.add('hidden');
+            }
+        }
+
+        function closeAuditCatDropdown() {
+            document.getElementById('popup-audit-categories')?.classList.add('hidden');
+        }
+
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('container-audit-categories');
+            if (container && !container.contains(e.target)) {
+                closeAuditCatDropdown();
+            }
+        });
+
+        function filterAuditCatDropdown() {
+            const kw = (document.getElementById('search-audit-cat')?.value || '').trim().toLowerCase();
+            renderAuditCatDropdownOptions(kw);
+        }
+
+        function renderAuditCatDropdownOptions(keyword = '') {
+            const container = document.getElementById('list-audit-cat-options');
+            if (!container) return;
+
+            const filtered = auditCategories.filter(cat => !keyword || cat.toLowerCase().includes(keyword));
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhóm hàng nào</div>';
                 return;
             }
 
-            let totalDiff = 0;
-            tbody.innerHTML = currentAuditItems.map((item, idx) => {
-                totalDiff += (item.diff_qty || 0);
-                const isProd = item.item_type === 'product';
-                const badge = isProd 
-                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
-                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+            container.innerHTML = filtered.map(cat => {
+                const isChecked = selectedAuditCategories.length === 0 || selectedAuditCategories.includes(cat);
+                const count = rawAuditWarehouseItems.filter(x => x.category === cat).length;
+                return `
+                    <label class="flex items-center justify-between p-1.5 hover:bg-sky-50 rounded cursor-pointer transition select-none group">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" value="${cat}" ${isChecked ? 'checked' : ''} 
+                                   onchange="onToggleAuditCatOption('${cat.replace(/'/g, "\\'")}', this.checked)"
+                                   class="rounded text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer">
+                            <span class="font-medium text-slate-800 group-hover:text-sky-700">${cat}</span>
+                        </div>
+                        <span class="text-[10px] text-gray-400 font-mono">${count} món</span>
+                    </label>
+                `;
+            }).join('');
+        }
 
+        function onToggleAuditCatOption(catName, checked) {
+            if (selectedAuditCategories.length === 0) {
+                selectedAuditCategories = [...auditCategories];
+            }
+
+            if (checked) {
+                if (!selectedAuditCategories.includes(catName)) selectedAuditCategories.push(catName);
+            } else {
+                selectedAuditCategories = selectedAuditCategories.filter(c => c !== catName);
+            }
+
+            if (selectedAuditCategories.length === auditCategories.length) {
+                selectedAuditCategories = [];
+            }
+
+            renderAuditCatDropdownOptions(document.getElementById('search-audit-cat')?.value || '');
+            updateAuditCatTriggerUI();
+            applyAuditFilterAndRender();
+        }
+
+        function selectAllAuditCats(select) {
+            if (select) {
+                selectedAuditCategories = []; // Mặc định trống = Tất cả
+            } else {
+                selectedAuditCategories = ['__NONE__'];
+            }
+            renderAuditCatDropdownOptions(document.getElementById('search-audit-cat')?.value || '');
+            updateAuditCatTriggerUI();
+            applyAuditFilterAndRender();
+        }
+
+        function removeSelectedAuditCat(catName, e) {
+            if (e) e.stopPropagation();
+            if (selectedAuditCategories.length === 0) {
+                selectedAuditCategories = auditCategories.filter(c => c !== catName);
+            } else {
+                selectedAuditCategories = selectedAuditCategories.filter(c => c !== catName);
+            }
+            renderAuditCatDropdownOptions(document.getElementById('search-audit-cat')?.value || '');
+            updateAuditCatTriggerUI();
+            applyAuditFilterAndRender();
+        }
+
+        function updateAuditCatTriggerUI() {
+            const tagsBox = document.getElementById('audit-cat-selected-tags');
+            const badgeEl = document.getElementById('audit-cat-count-badge');
+            if (!tagsBox) return;
+
+            if (selectedAuditCategories.length === 0) {
+                tagsBox.innerHTML = '<span class="text-sky-700 font-semibold">📦 Toàn bộ nhóm mặt hàng (Kho)</span>';
+                if (badgeEl) badgeEl.textContent = 'Toàn bộ kho';
+                return;
+            }
+
+            if (selectedAuditCategories.includes('__NONE__')) {
+                tagsBox.innerHTML = '<span class="text-gray-400 italic">Chưa chọn nhóm hàng nào</span>';
+                if (badgeEl) badgeEl.textContent = '0 nhóm';
+                return;
+            }
+
+            if (badgeEl) badgeEl.textContent = `${selectedAuditCategories.length}/${auditCategories.length} nhóm`;
+            tagsBox.innerHTML = selectedAuditCategories.map(cat => `
+                <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded text-[11px] font-medium shadow-xs">
+                    <span>🏷️ ${cat}</span>
+                    <button type="button" onclick="removeSelectedAuditCat('${cat.replace(/'/g, "\\'")}', event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
+                </span>
+            `).join('');
+        }
+
+        // --- LỌC BẢNG & TÌM KIẾM MẶT HÀNG ---
+        function filterAuditTableItems() {
+            auditSearchKw = (document.getElementById('audit-item-search')?.value || '').trim().toLowerCase();
+            const clearBtn = document.getElementById('audit-item-search-clear');
+            if (clearBtn) {
+                if (auditSearchKw) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+            renderAuditTable();
+        }
+
+        function clearAuditItemSearch() {
+            const input = document.getElementById('audit-item-search');
+            if (input) input.value = '';
+            auditSearchKw = '';
+            document.getElementById('audit-item-search-clear')?.classList.add('hidden');
+            input?.focus();
+            renderAuditTable();
+        }
+
+        function applyAuditFilterAndRender() {
+            if (selectedAuditCategories.length === 0) {
+                currentAuditItems = [...rawAuditWarehouseItems];
+            } else if (selectedAuditCategories.includes('__NONE__')) {
+                currentAuditItems = [];
+            } else {
+                currentAuditItems = rawAuditWarehouseItems.filter(it => selectedAuditCategories.includes(it.category));
+            }
+            renderAuditTable();
+        }
+
+        function renderAuditTable() {
+            const tbody = document.getElementById('table-audit-items');
+            if (!tbody) return;
+
+            const filtered = currentAuditItems.filter(it => {
+                if (!auditSearchKw) return true;
+                const code = (it.code || '').toLowerCase();
+                const name = (it.name || '').toLowerCase();
+                return code.includes(auditSearchKw) || name.includes(auditSearchKw);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Không có mặt hàng nào phù hợp với phạm vi đang chọn</td></tr>';
+                updateAuditStats();
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((item, idx) => {
                 const diffColor = item.diff_qty > 0 ? 'text-emerald-600 font-bold' : (item.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
                 const diffPrefix = item.diff_qty > 0 ? '+' : '';
+                const isDiff = item.diff_qty !== 0;
 
                 return `
-                    <tr class="border-b hover:bg-gray-50 text-xs">
+                    <tr id="audit-row-${item.id}-${item.item_type}" class="border-b hover:bg-gray-50 text-xs ${isDiff ? 'bg-rose-50/40' : ''}">
                         <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
-                        <td class="p-2 font-mono font-bold text-slate-600">${item.code || '-'}</td>
+                        <td class="p-2 font-mono font-bold text-slate-700">${item.code || '-'}</td>
                         <td class="p-2 font-bold text-slate-800">${item.name}</td>
-                        <td class="p-2 text-center">${badge}</td>
-                        <td class="p-2 text-gray-500">${item.unit || 'cái'}</td>
+                        <td class="p-2">
+                            <span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                                ${item.category}
+                            </span>
+                        </td>
+                        <td class="p-2 text-center text-gray-500">${item.unit || 'cái'}</td>
                         <td class="p-2 text-right font-medium text-slate-700">${item.quantity.toLocaleString('vi-VN')}</td>
                         <td class="p-2 text-right">
-                            <input type="number" step="any" value="${item.actual_qty}" oninput="calcAuditDiff(${idx}, this.value)" class="border p-1 text-right font-bold w-24 rounded bg-amber-50 border-amber-300">
+                            <input type="number" step="any" value="${item.actual_qty}" 
+                                   onkeydown="handleAuditKeyDown(event, ${idx})"
+                                   oninput="updateAuditItemActual(${item.id}, '${item.item_type}', this.value)" 
+                                   class="audit-actual-input border p-1 text-right font-bold w-24 rounded bg-amber-50 border-amber-300 focus:bg-white focus:border-sky-500 outline-none">
                         </td>
-                        <td class="p-2 text-right ${diffColor}">${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}</td>
+                        <td class="p-2 text-right ${diffColor}" id="audit-diff-${item.id}-${item.item_type}">
+                            ${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}
+                        </td>
                         <td class="p-2">
-                            <input type="text" placeholder="Lý do lệch..." oninput="currentAuditItems[${idx}].note = this.value" class="border p-1 w-full rounded text-[11px]">
+                            <input type="text" placeholder="Lý do lệch..." value="${item.note || ''}" 
+                                   oninput="updateAuditItemNote(${item.id}, '${item.item_type}', this.value)" 
+                                   class="border p-1 w-full rounded text-[11px] outline-none focus:border-sky-500">
                         </td>
                     </tr>
                 `;
             }).join('');
 
-            document.getElementById('audit-sum-count').innerText = currentAuditItems.length.toLocaleString('vi-VN');
-            const sumDiffEl = document.getElementById('audit-sum-diff');
-            sumDiffEl.innerText = (totalDiff > 0 ? '+' : '') + totalDiff.toLocaleString('vi-VN');
-            sumDiffEl.className = totalDiff > 0 ? 'font-bold text-emerald-600' : (totalDiff < 0 ? 'font-bold text-rose-600' : 'font-bold text-slate-700');
+            updateAuditStats();
         }
 
-        function calcAuditDiff(idx, val) {
+        // Bấm Enter tự động nhảy focus xuống ô tiếp theo
+        function handleAuditKeyDown(e, currentIdx) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const allInputs = document.querySelectorAll('.audit-actual-input');
+                if (currentIdx + 1 < allInputs.length) {
+                    allInputs[currentIdx + 1].focus();
+                    allInputs[currentIdx + 1].select();
+                }
+            }
+        }
+
+        // Cập nhật DOM cụ thể tại dòng (chống giật, không mất focus)
+        function updateAuditItemActual(id, itemType, val) {
             const actual = parseFloat(val) || 0;
-            currentAuditItems[idx].actual_qty = actual;
-            currentAuditItems[idx].diff_qty = actual - currentAuditItems[idx].quantity;
+            const item = currentAuditItems.find(x => x.id === id && x.item_type === itemType);
+            if (!item) return;
+
+            item.actual_qty = actual;
+            item.diff_qty = actual - item.quantity;
+
+            // Đồng bộ sang raw list
+            const rawIt = rawAuditWarehouseItems.find(x => x.id === id && x.item_type === itemType);
+            if (rawIt) {
+                rawIt.actual_qty = actual;
+                rawIt.diff_qty = item.diff_qty;
+            }
+
+            const diffEl = document.getElementById(`audit-diff-${id}-${itemType}`);
+            const rowEl = document.getElementById(`audit-row-${id}-${itemType}`);
+
+            if (diffEl) {
+                const diffColor = item.diff_qty > 0 ? 'text-emerald-600 font-bold' : (item.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
+                const diffPrefix = item.diff_qty > 0 ? '+' : '';
+                diffEl.textContent = `${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}`;
+                diffEl.className = `p-2 text-right ${diffColor}`;
+            }
+
+            if (rowEl) {
+                if (item.diff_qty !== 0) rowEl.classList.add('bg-rose-50/40');
+                else rowEl.classList.remove('bg-rose-50/40');
+            }
+
+            updateAuditStats();
+        }
+
+        function updateAuditItemNote(id, itemType, val) {
+            const item = currentAuditItems.find(x => x.id === id && x.item_type === itemType);
+            if (item) item.note = val;
+            const rawIt = rawAuditWarehouseItems.find(x => x.id === id && x.item_type === itemType);
+            if (rawIt) rawIt.note = val;
+        }
+
+        function quickSyncAuditToSystem() {
+            currentAuditItems.forEach(it => {
+                it.actual_qty = it.quantity;
+                it.diff_qty = 0;
+            });
             renderAuditTable();
+        }
+
+        function quickClearAuditActual() {
+            currentAuditItems.forEach(it => {
+                it.actual_qty = 0;
+                it.diff_qty = -it.quantity;
+            });
+            renderAuditTable();
+        }
+
+        function updateAuditStats() {
+            const diffItems = currentAuditItems.filter(it => it.diff_qty !== 0);
+            const totalDiffQty = currentAuditItems.reduce((sum, it) => sum + it.diff_qty, 0);
+            const matchedCount = currentAuditItems.length - diffItems.length;
+
+            document.getElementById('audit-sum-count').innerText = currentAuditItems.length.toLocaleString('vi-VN');
+            document.getElementById('audit-sum-match').innerText = matchedCount.toLocaleString('vi-VN');
+            document.getElementById('audit-sum-diff-items').innerText = `${diffItems.length} món`;
+
+            const sumDiffEl = document.getElementById('audit-sum-diff');
+            if (sumDiffEl) {
+                sumDiffEl.innerText = (totalDiffQty > 0 ? '+' : '') + totalDiffQty.toLocaleString('vi-VN');
+                sumDiffEl.className = totalDiffQty > 0 ? 'font-bold text-emerald-600' : (totalDiffQty < 0 ? 'font-bold text-rose-600' : 'font-bold text-slate-800');
+            }
+        }
+
+        // --- MODAL LỊCH SỬ KIỂM KÊ ---
+        function openModalAuditHistory() {
+            document.getElementById('modal-audit-history')?.classList.remove('hidden');
+            loadStockAuditsList();
+        }
+
+        function closeModalAuditHistory() {
+            document.getElementById('modal-audit-history')?.classList.add('hidden');
         }
 
         async function submitStockAudit() {
@@ -841,10 +1113,11 @@
             }
 
             if (!currentAuditItems || currentAuditItems.length === 0) {
-                alert("Không có mặt hàng nào để kiểm kê!");
+                alert("Không có mặt hàng nào trong phạm vi kiểm kê!");
                 return;
             }
 
+            const scopeDesc = selectedAuditCategories.length === 0 ? "toàn bộ kho" : `${selectedAuditCategories.length} nhóm đã chọn`;
             const note = document.getElementById('audit-note').value.trim();
             const itemsPayload = currentAuditItems.map(it => ({
                 item_type: it.item_type,
@@ -855,7 +1128,7 @@
                 note: it.note || ''
             }));
 
-            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng? Tồn kho hệ thống sẽ được cập nhật theo số thực tế.`)) return;
+            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng (${scopeDesc})?\nTồn kho hệ thống sẽ được cập nhật theo số thực tế.`)) return;
 
             try {
                 const res = await fetch('/api/inventory/audit', {
@@ -863,7 +1136,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         warehouse_id: whId,
-                        note: note || 'Kiểm kê kho',
+                        note: note || `Kiểm kê kho (${scopeDesc})`,
                         items: itemsPayload
                     })
                 });
@@ -876,9 +1149,12 @@
 
                 const result = await res.json();
                 alert(`Đã hoàn tất kiểm kê kho! Mã phiếu: ${result.audit_code}`);
+                
+                // Reset tờ phiếu mới
                 document.getElementById('audit-note').value = '';
-                loadAuditItemsForWarehouse(whId);
-                loadUnifiedInventory();
+                generateAuditCodeDisplay();
+                await loadAuditItemsForWarehouse(whId);
+                await loadUnifiedInventory();
             } catch (e) {
                 console.error("submitStockAudit error:", e);
                 alert("Lỗi kết nối khi gửi phiếu kiểm kê");

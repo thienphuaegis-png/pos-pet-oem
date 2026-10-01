@@ -1851,82 +1851,152 @@
                 
                 <!-- SUB 4: KIỂM KÊ KHO -->
                 <div id="inv-sub-audit" class="hidden space-y-4">
+                    <!-- HEADER TỜ PHIẾU KIỂM KÊ -->
                     <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
                         <div>
-                            <h2 class="text-lg font-bold text-slate-800">⚖️ Kiểm Kê Kho & Cân Bằng Tồn Kho</h2>
-                            <p class="text-xs text-gray-500">Đối soát số lượng thực tế với phần mềm, tự động tính chênh lệch và cập nhật số dư kho</p>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-lg font-extrabold text-slate-800">⚖️ Phiếu Kiểm Kê & Cân Bằng Tồn Kho</h2>
+                                <span id="audit-code-display" class="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">KK-LIVE</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-0.5">Nhập số lượng thực tế đếm được để đối soát và cân bằng số dư kho tức thì</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="toggleAuditView('create')" id="btn-audit-create" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
-                                ➕ Tạo Phiếu Kiểm Kê
-                            </button>
-                            <button onclick="toggleAuditView('list')" id="btn-audit-list" class="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
-                                📋 Lịch Sử Kiểm Kê
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="openModalAuditHistory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded shadow-sm border flex items-center gap-1.5 transition">
+                                📋 Lịch Sử Phiếu Kiểm
                             </button>
                         </div>
                     </div>
 
-                    <!-- VIEW 1: TẠO PHIẾU KIỂM KÊ -->
-                    <div id="audit-create-view" class="space-y-4">
-                        <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-3 text-xs">
-                                <div>
-                                    <label class="block font-bold text-slate-700 mb-1">Chọn Kho Cần Kiểm Kê (*):</label>
-                                    <select id="audit-wh-select" class="border p-2 rounded w-full font-bold text-slate-800 bg-sky-50 border-sky-300" onchange="loadAuditItemsForWarehouse(this.value)">
-                                        <option value="">-- Chọn kho kiểm kê --</option>
-                                    </select>
+                    <!-- THÔNG TIN PHIẾU: KHO + DROPLIST POPUP NHÓM HÀNG + GHI CHÚ -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm border space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
+                            <!-- Cột 1: Kho kiểm kê (3 cols) -->
+                            <div class="md:col-span-3">
+                                <label class="block font-bold text-slate-700 mb-1">Kho Kiểm Kê (*):</label>
+                                <select id="audit-wh-select" class="border p-2 rounded w-full font-bold text-sky-800 bg-sky-50 border-sky-300 focus:ring-1 focus:ring-sky-500 outline-none" onchange="loadAuditItemsForWarehouse(this.value)">
+                                    <option value="">-- Chọn kho kiểm kê --</option>
+                                </select>
+                            </div>
+
+                            <!-- Cột 2: DROPLIST POPUP CHỌN NHIỀU NHÓM HÀNG (5 cols) -->
+                            <div class="md:col-span-5 relative" id="container-audit-categories">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block font-bold text-slate-700">Nhóm Hàng Cần Kiểm:</label>
+                                    <span id="audit-cat-count-badge" class="text-[10px] text-sky-600 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">Toàn bộ kho</span>
                                 </div>
-                                <div>
-                                    <label class="block font-bold text-slate-700 mb-1">Ghi Chú Đợt Kiểm Kê:</label>
-                                    <input type="text" id="audit-note" class="border p-2 rounded w-full" placeholder="Ví dụ: Kiểm kê định kỳ cuối tháng, kiểm đột xuất...">
+                                <!-- Trigger Box -->
+                                <div id="btn-toggle-audit-cat" onclick="toggleAuditCatDropdown(event)" 
+                                     class="border p-2 rounded bg-white flex flex-wrap items-center justify-between gap-1.5 cursor-pointer hover:border-sky-500 min-h-[38px] transition shadow-sm focus:ring-1 focus:ring-sky-500">
+                                    <div id="audit-cat-selected-tags" class="flex flex-wrap items-center gap-1 flex-1 text-xs">
+                                        <span class="text-sky-700 font-semibold">📦 Toàn bộ nhóm mặt hàng (Kho)</span>
+                                    </div>
+                                    <span class="text-gray-400 text-xs ml-1 select-none">▾</span>
+                                </div>
+
+                                <!-- Dropdown Popup -->
+                                <div id="popup-audit-categories" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl p-2.5 z-50 space-y-2 text-xs">
+                                    <!-- Search box -->
+                                    <div class="relative">
+                                        <input type="text" id="search-audit-cat" oninput="filterAuditCatDropdown()" 
+                                               placeholder="🔍 Tìm nhóm hàng..." 
+                                               class="w-full border rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-sky-500 outline-none">
+                                    </div>
+                                    <!-- Select All / Clear Quick Actions -->
+                                    <div class="flex justify-between items-center px-1 text-[11px] text-slate-500 border-b pb-1">
+                                        <button type="button" onclick="selectAllAuditCats(true)" class="hover:text-sky-600 font-semibold hover:underline">Chọn tất cả</button>
+                                        <button type="button" onclick="selectAllAuditCats(false)" class="hover:text-rose-600 hover:underline">Bỏ chọn hết</button>
+                                    </div>
+                                    <!-- List options -->
+                                    <div id="list-audit-cat-options" class="max-h-48 overflow-y-auto space-y-1 divide-y divide-slate-50">
+                                        <!-- Checkbox items dynamically rendered -->
+                                    </div>
+                                    <div class="pt-1 border-t flex justify-end">
+                                        <button type="button" onclick="closeAuditCatDropdown()" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-[11px] font-bold shadow-sm">Xong</button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-xs text-slate-700">Danh sách mặt hàng trong kho:</span>
-                                <span class="text-[11px] text-gray-400">Nhập số lượng thực tế đếm được vào cột "Tồn Thực Tế"</span>
+                            <!-- Cột 3: Ghi chú đợt kiểm (4 cols) -->
+                            <div class="md:col-span-4">
+                                <label class="block font-bold text-slate-700 mb-1">Ghi Chú Đợt Kiểm Kê:</label>
+                                <input type="text" id="audit-note" class="border p-2 rounded w-full text-xs focus:ring-1 focus:ring-sky-500 outline-none" placeholder="Ví dụ: Kiểm kê định kỳ, kiểm đột xuất...">
+                            </div>
+                        </div>
+
+                        <!-- THANH TÌM KIẾM MẶT HÀNG & THAO TÁC BẢNG -->
+                        <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t">
+                            <div class="relative flex-1 min-w-[220px] max-w-sm">
+                                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</span>
+                                <input type="text" id="audit-item-search" oninput="filterAuditTableItems()" 
+                                       placeholder="Tìm nhanh theo mã hoặc tên mặt hàng..." 
+                                       class="w-full border rounded pl-8 pr-7 py-1.5 text-xs focus:ring-1 focus:ring-sky-500 outline-none">
+                                <button type="button" id="audit-item-search-clear" onclick="clearAuditItemSearch()" 
+                                        class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 font-bold text-xs">✕</button>
                             </div>
 
-                            <div class="overflow-x-auto max-h-[420px] border rounded">
-                                <table class="w-full text-left border-collapse text-xs">
-                                    <thead class="bg-gray-50 sticky top-0 border-b">
-                                        <tr>
-                                            <th class="p-2 w-12">STT</th>
-                                            <th class="p-2">Mã</th>
-                                            <th class="p-2">Tên mặt hàng</th>
-                                            <th class="p-2 text-center">Phân loại</th>
-                                            <th class="p-2">ĐVT</th>
-                                            <th class="p-2 text-right">Tồn hệ thống</th>
-                                            <th class="p-2 text-right w-32">Tồn thực tế (*)</th>
-                                            <th class="p-2 text-right">Chênh lệch</th>
-                                            <th class="p-2">Ghi chú mặt hàng</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="table-audit-items">
-                                        <tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho để nạp danh sách hàng</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="flex justify-between items-center pt-2 border-t text-xs">
-                                <div class="text-gray-500">
-                                    Tổng số mặt hàng kiểm: <span id="audit-sum-count" class="font-bold text-slate-800">0</span> | 
-                                    Tổng lệch: <span id="audit-sum-diff" class="font-bold text-slate-800">0</span>
-                                </div>
-                                <button onclick="submitStockAudit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded shadow">
-                                    ⚡ Cân Bằng Kho & Hoàn Tất Kiểm Kê
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="quickSyncAuditToSystem()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-2.5 py-1.5 rounded transition flex items-center gap-1" title="Điền nhanh tồn thực tế bằng số tồn sổ sách cho tất cả mặt hàng đang xem">
+                                    ⚡ Gán thực tế = Sổ sách
+                                </button>
+                                <button type="button" onclick="quickClearAuditActual()" class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 font-bold px-2.5 py-1.5 rounded transition flex items-center gap-1" title="Xóa trắng để đếm lại từ đầu">
+                                    🔄 Xóa về 0
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- VIEW 2: LỊCH SỬ PHIẾU KIỂM KÊ -->
-                    <div id="audit-list-view" class="hidden bg-white p-4 rounded-lg shadow-sm border space-y-3">
-                        <div class="flex justify-between items-center border-b pb-2">
-                            <h3 class="font-bold text-xs text-slate-700">Danh Sách Các Đợt Kiểm Kê Đã Thực Hiện</h3>
-                            <button onclick="loadStockAuditsList()" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded text-slate-700 font-bold">🔄 Tải lại</button>
+                        <!-- BẢNG MẶT HÀNG KIỂM ĐẾM -->
+                        <div class="overflow-x-auto max-h-[440px] border rounded">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-gray-50 sticky top-0 border-b">
+                                    <tr>
+                                        <th class="p-2 w-12 text-center">STT</th>
+                                        <th class="p-2 w-28">Mã</th>
+                                        <th class="p-2">Tên mặt hàng / Nguyên liệu</th>
+                                        <th class="p-2 w-36">Nhóm danh mục</th>
+                                        <th class="p-2 w-16 text-center">ĐVT</th>
+                                        <th class="p-2 text-right w-24">Tồn sổ sách</th>
+                                        <th class="p-2 text-right w-32">Tồn thực tế (*)</th>
+                                        <th class="p-2 text-right w-24">Chênh lệch</th>
+                                        <th class="p-2">Ghi chú lý do lệch</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-audit-items">
+                                    <tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho để nạp danh sách hàng</td></tr>
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="overflow-x-auto max-h-[500px]">
+
+                        <!-- FOOTER TỔNG KẾT & CÂN BẰNG KHO -->
+                        <div class="flex flex-wrap justify-between items-center pt-2 border-t text-xs gap-3">
+                            <div class="flex items-center gap-4 text-gray-600">
+                                <div>Tổng số mặt hàng: <span id="audit-sum-count" class="font-bold text-slate-800">0</span></div>
+                                <div>Khớp: <span id="audit-sum-match" class="font-bold text-emerald-600">0</span></div>
+                                <div>Lệch: <span id="audit-sum-diff-items" class="font-bold text-rose-600">0 món</span></div>
+                                <div>Tổng SL lệch: <span id="audit-sum-diff" class="font-bold text-slate-800">0</span></div>
+                            </div>
+                            <button onclick="submitStockAudit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg shadow-md flex items-center gap-1.5 transition text-xs">
+                                ⚡ Cân Bằng Kho & Hoàn Tất Phiếu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL LỊCH SỬ CÁC ĐỢT KIỂM KÊ -->
+                <div id="modal-audit-history" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border">
+                        <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">📋 Lịch Sử Các Đợt Kiểm Kê Kho</h3>
+                                <p class="text-[11px] text-gray-500">Danh sách các phiếu kiểm kê và cân bằng kho đã hoàn thành</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="loadStockAuditsList()" class="text-xs bg-white hover:bg-gray-100 border px-2.5 py-1.5 rounded font-bold text-slate-700 flex items-center gap-1 shadow-xs">
+                                    🔄 Tải lại
+                                </button>
+                                <button type="button" onclick="closeModalAuditHistory()" class="text-gray-400 hover:text-gray-600 p-1 rounded font-bold text-base">✕</button>
+                            </div>
+                        </div>
+                        <div class="p-4 overflow-y-auto flex-1">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-gray-50 sticky top-0 border-b">
                                     <tr>
@@ -1936,13 +2006,18 @@
                                         <th class="p-2.5 text-right">Số món kiểm</th>
                                         <th class="p-2.5 text-right">Tổng chênh lệch</th>
                                         <th class="p-2.5">Ghi chú</th>
-                                        <th class="p-2.5 text-center">Chi tiết</th>
+                                        <th class="p-2.5 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-audit-history">
-                                    <tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dữ liệu</td></tr>
+                                    <tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải lịch sử...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="p-3 border-t bg-gray-50 flex justify-end">
+                            <button type="button" onclick="closeModalAuditHistory()" class="px-4 py-1.5 border rounded bg-white text-gray-600 hover:bg-gray-100 font-bold text-xs shadow-xs">
+                                Đóng
+                            </button>
                         </div>
                     </div>
                 </div>
