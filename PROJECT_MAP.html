@@ -201,6 +201,9 @@
           <button onclick="setCategoryFilter('UI')" data-cat="UI" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
             🎨 Giao Diện Đã Xong
           </button>
+          <button onclick="setCategoryFilter('ECOMM')" data-cat="ECOMM" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🛍️ Sàn TMĐT
+          </button>
         </div>
 
         <!-- Search & Status dropdown -->
@@ -639,9 +642,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-01)
-    const ROADMAP_VERSION = 'v3.4-2026-10-01';
+    const ROADMAP_VERSION = 'v3.4-2026-10-01-ecomm';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-01)
+      { id: 'ecomm-sync-shopee-tiktok', cat: 'ECOMM', title: 'Đồng bộ Đơn Hàng Sàn TMĐT (Shopee & TikTok Shop): Tự động trừ tồn kho & Ghi nhận Sổ Quỹ', done: false, note: 'Kế hoạch triển khai: 1) Import Excel đơn hàng hàng ngày/ca từ Shopee & TikTok Seller Center tự động map SKU cấn trừ tồn kho; 2) Tự động hóa kéo đơn ngầm qua Chrome CDP hoặc đồng bộ qua cổng trung gian Pancake/POSCAKE' },
       { id: 'ai-cashflow-assistant', cat: 'CASH', title: 'Trợ Lý Thu Chi AI: Tự động bóc tách Bill Chuyển Khoản (Ctrl+V) & Câu lệnh tự nhiên (Gemini 2.5 Flash)', done: true, note: 'Tích hợp Google Gemini 2.5 Flash Vision OCR đọc bill ngân hàng (MB, VCB, MoMo...) và Rule-based Regex offline. Nhận diện số tiền, mã GD (FT code), tài khoản quỹ, kiểm tra chống trùng bill và ghi sổ quỹ 1-chạm' },
       { id: 'ai-config-and-test-key', cat: 'SYS', title: 'Nút Kiểm Tra Key AI & Tự Động Thích Ứng Mô Hình Gemini 2.5 Flash Mới Nhất', done: true, note: 'Bổ sung nút 🔍 Kiểm Tra Key trong modal cài đặt AI; tự động gửi ping test nhẹ xác thực key, nâng cấp hỗ trợ Gemini 2.5 Flash siêu tốc và đóng gói lại POS_Mastercare.exe độc lập' },
       { id: 'transfer-item-quick-search', cat: 'INV', title: 'Điều Chuyển Kho: Chuẩn hóa cơ chế tìm kiếm gợi ý thêm hàng 1 chạm theo mẫu Phiếu Nhập Hàng', done: true, note: 'Thay thế hoàn toàn nút thêm dòng và modal/droplist chọn rườm rà bằng thanh tìm kiếm thông minh phía trên bảng (hỗ trợ gõ không dấu, hiển thị tồn kho xuất, badge phân loại). Click kết quả tự động bay vào bảng hoặc tăng số lượng, click ngoài tự ẩn mượt mà' },
@@ -806,6 +810,7 @@
       } else {
         filtered.forEach((t, idx) => {
           const catBadges = {
+            ECOMM: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200">🛍️ Sàn TMĐT</span>',
             SPA: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">🐾 Spa</span>',
             BILL: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🧾 Hóa Đơn</span>',
             SYS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">🏨 Hệ Thống</span>',
