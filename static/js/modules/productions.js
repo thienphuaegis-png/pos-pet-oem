@@ -7065,15 +7065,22 @@
 
         // --- QUẢN LÝ GÁN KHO CHO NHÀ MÁY (MODAL) ---
         async function openModalManageOEMFactories() {
-            if (!allContacts || allContacts.length === 0) {
-                if (typeof loadContacts === 'function') await loadContacts();
-            }
-            if (!allWarehouses || allWarehouses.length === 0) {
-                try {
-                    const resWh = await fetch('/api/warehouses');
-                    if (resWh.ok) allWarehouses = await resWh.json();
-                } catch(e) {}
-            }
+            // Luôn fetch mới nhất danh bạ đối tác và kho hàng từ database để không bị dính cache cũ
+            try {
+                if (typeof loadContacts === 'function') {
+                    await loadContacts();
+                } else {
+                    const resC = await fetch('/api/contacts');
+                    if (resC.ok) allContacts = await resC.json();
+                }
+            } catch(e) {}
+
+            try {
+                const resWh = await fetch('/api/warehouses');
+                if (resWh.ok) {
+                    allWarehouses = await resWh.json();
+                }
+            } catch(e) {}
 
             const suppInput = document.getElementById('oem-link-supplier-input');
             const suppHidden = document.getElementById('oem-link-supplier-sel');
@@ -7081,8 +7088,12 @@
             if (suppInput) suppInput.value = '';
 
             const whSel = document.getElementById('oem-link-warehouse-sel');
-            if (whSel && allWarehouses) {
-                whSel.innerHTML = allWarehouses.map(w => `<option value="${w.id}">📦 ${w.name}</option>`).join('');
+            if (whSel) {
+                if (allWarehouses && allWarehouses.length > 0) {
+                    whSel.innerHTML = allWarehouses.map(w => `<option value="${w.id}">📦 ${w.name} (${w.code || '-'})</option>`).join('');
+                } else {
+                    whSel.innerHTML = '<option value="">-- Chưa có kho nào --</option>';
+                }
             }
 
             await renderManageFactoriesTable();

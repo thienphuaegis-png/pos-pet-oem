@@ -927,9 +927,15 @@
                     return;
                 }
 
+                // Cập nhật lại biến toàn cục allWarehouses cho toàn hệ thống
+                try {
+                    const resWh = await fetch('/api/warehouses');
+                    if (resWh.ok) window.allWarehouses = allWarehouses = await resWh.json();
+                } catch (e) {}
+
                 closeModalWarehouse();
                 loadWarehousesList();
-                alert("Đã lưu thông tin kho hàng thành công!");
+                window.showToast ? window.showToast("Đã lưu thông tin kho hàng thành công!", 'success') : alert("Đã lưu thông tin kho hàng thành công!");
             } catch (e) {
                 console.error("saveWarehouse error:", e);
                 alert("Lỗi kết nối khi lưu kho");
