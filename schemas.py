@@ -343,6 +343,8 @@ class OEMOrderCreate(BaseModel):
     fund_source: str = "COMPANY"
     vat_percent: float = 8.0
     discount_percent: float = 0.0
+    discount_amount: Optional[float] = None
+    discount_type: Optional[str] = "percent"  # 'percent' hoac 'amount'
     deposit_amount: float = 0.0
     note: Optional[str] = ""
     items: List[OEMOrderItemIn]
@@ -354,6 +356,8 @@ class OEMOrderUpdate(BaseModel):
     expected_delivery_date: Optional[str] = None
     vat_percent: float = 0.0
     discount_percent: float = 0.0
+    discount_amount: Optional[float] = None
+    discount_type: Optional[str] = "percent"
     note: Optional[str] = ""
     fund_source: Optional[str] = "COMPANY"
     items: List[OEMOrderItemIn]

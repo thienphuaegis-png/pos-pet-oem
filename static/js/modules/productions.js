@@ -6420,11 +6420,14 @@
             today.setDate(today.getDate() + 5);
             document.getElementById('oem-create-date').value = today.toISOString().split('T')[0];
 
+            setOEMDiscountType('percent');
             document.getElementById('oem-create-discount').value = '5';
             document.getElementById('oem-create-vat').value = '8';
             document.getElementById('oem-create-fund').value = 'COMPANY';
             document.getElementById('oem-create-deposit').value = '0';
             document.getElementById('oem-create-note').value = '';
+            const quickInp = document.getElementById('oem-prod-quick-search-input');
+            if (quickInp) quickInp.value = '';
 
             const itemsBody = document.getElementById('oem-create-items-body');
             if (itemsBody) {
@@ -6601,162 +6604,184 @@
             document.querySelectorAll('.oem-prod-popup-menu').forEach(p => p.classList.add('hidden'));
         }
 
-        // Thêm dòng sản phẩm dạng Combobox Popup Search
-        function addOEMProductRow() {
-            const itemsBody = document.getElementById('oem-create-items-body');
-            if (!itemsBody) return;
-            const tr = document.createElement('tr');
-            tr.className = 'border-b hover:bg-slate-50 oem-item-row relative';
-            tr.innerHTML = `
-                <td class="p-2 relative">
-                    <div class="relative">
-                        <input type="text" 
-                            placeholder="🔍 Gõ tìm sản phẩm gia công..." 
-                            autocomplete="off"
-                            onclick="showOEMProductPopup(this)" 
-                            oninput="filterOEMProductPopup(this)"
-                            class="oem-prod-search-input border p-1.5 rounded w-full font-bold text-slate-800 bg-white pr-7 text-xs focus:ring-1 focus:ring-amber-500">
-                        <input type="hidden" class="oem-prod-id" value="">
-                        <input type="hidden" class="oem-prod-unit" value="chai">
-                        <button type="button" onclick="clearOEMRowProduct(this)" class="oem-row-clear-btn hidden absolute right-2 top-2 text-gray-400 hover:text-rose-600 font-bold text-xs">✕</button>
-                    </div>
-                    <!-- Popup danh sách sản phẩm -->
-                    <div class="oem-prod-popup-menu hidden absolute left-2 right-2 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y text-xs">
-                    </div>
-                </td>
-                <td class="p-2">
-                    <input type="number" step="any" min="1" value="1000" class="oem-prod-qty border p-1.5 rounded w-full text-right font-mono font-bold text-slate-800" oninput="recalcCreateOEMMath()">
-                </td>
-                <td class="p-2">
-                    <input type="number" step="any" min="0" value="18288" class="oem-prod-price border p-1.5 rounded w-full text-right font-mono font-bold text-slate-800" oninput="recalcCreateOEMMath()">
-                </td>
-                <td class="p-2 text-right font-mono font-bold text-slate-700 oem-row-total">
-                    18.288.000 đ
-                </td>
-                <td class="p-2 text-center">
-                    <button type="button" onclick="removeOEMProductRow(this)" class="text-rose-500 hover:text-rose-700 font-bold text-sm">✕</button>
-                </td>
-            `;
-            itemsBody.appendChild(tr);
-
-            // Nếu nhà máy có sản phẩm và chỉ có 1-2 sản phẩm, tự động gợi ý
-            if (currentFactoryProducts.length > 0 && itemsBody.children.length === 1) {
-                const firstProd = currentFactoryProducts[0];
-                const searchInp = tr.querySelector('.oem-prod-search-input');
-                const idInp = tr.querySelector('.oem-prod-id');
-                const priceInp = tr.querySelector('.oem-prod-price');
-                const clearBtn = tr.querySelector('.oem-row-clear-btn');
-                if (searchInp && idInp) {
-                    idInp.value = firstProd.id;
-                    searchInp.value = `${firstProd.code ? '['+firstProd.code+'] ' : ''}${firstProd.name}`;
-                    if (firstProd.cost_price > 0 && priceInp) priceInp.value = firstProd.cost_price;
-                    if (clearBtn) clearBtn.classList.remove('hidden');
-                }
-            }
-
-            recalcCreateOEMMath();
+        // --- QUICK-SEARCH SẢN PHẨM THẢ THẲNG VÀO BẢNG ĐƠN OEM (CHUẨN POS) ---
+        function showOEMQuickSearchDropdown() {
+            filterOEMQuickSearchDropdown();
+            document.getElementById('oem-prod-quick-search-dropdown')?.classList.remove('hidden');
         }
+        window.showOEMQuickSearchDropdown = showOEMQuickSearchDropdown;
 
-        function removeOEMProductRow(btn) {
-            const tr = btn.closest('tr');
-            if (tr) tr.remove();
-            recalcCreateOEMMath();
-        }
-
-        function clearOEMRowProduct(btn) {
-            const row = btn.closest('.oem-item-row');
-            if (!row) return;
-            row.querySelector('.oem-prod-search-input').value = '';
-            row.querySelector('.oem-prod-id').value = '';
-            btn.classList.add('hidden');
-            recalcCreateOEMMath();
-        }
-
-        function showOEMProductPopup(inputEl) {
-            const row = inputEl.closest('.oem-item-row');
-            if (!row) return;
-            const popup = row.querySelector('.oem-prod-popup-menu');
-            if (!popup) return;
-            filterOEMProductPopup(inputEl);
-            popup.classList.remove('hidden');
-        }
-
-        function filterOEMProductPopup(inputEl) {
-            const row = inputEl.closest('.oem-item-row');
-            if (!row) return;
-            const popup = row.querySelector('.oem-prod-popup-menu');
-            if (!popup) return;
+        function filterOEMQuickSearchDropdown() {
+            const input = document.getElementById('oem-prod-quick-search-input');
+            const dd = document.getElementById('oem-prod-quick-search-dropdown');
+            if (!dd) return;
 
             if (!selectedOEMFactory) {
-                popup.innerHTML = `
-                    <div class="p-3 text-center text-amber-800 bg-amber-50 font-medium">
-                        ⚠️ Vui lòng chọn Nhà Máy Gia Công ở trên trước!
+                dd.innerHTML = `
+                    <div class="p-3 text-center text-amber-800 bg-amber-50 font-bold">
+                        ⚠️ Vui lòng chọn Nhà Máy Gia Công ở ô bên trên trước!
                     </div>
                 `;
-                popup.classList.remove('hidden');
+                dd.classList.remove('hidden');
                 return;
             }
 
-            const q = (inputEl.value || '').toLowerCase().trim();
-            const sourceList = currentFactoryProducts.length > 0 ? currentFactoryProducts : (allProducts || []);
+            const q = (input?.value || '').toLowerCase().trim();
+            const sourceList = (currentFactoryProducts && currentFactoryProducts.length > 0)
+                ? currentFactoryProducts
+                : (allProducts || []);
+
             const filtered = sourceList.filter(p => 
                 p.name.toLowerCase().includes(q) || 
                 (p.code && p.code.toLowerCase().includes(q))
             );
 
             if (filtered.length === 0) {
-                popup.innerHTML = `
+                dd.innerHTML = `
                     <div class="p-3 text-center text-gray-500">
                         Không tìm thấy sản phẩm phù hợp.<br>
                         <button type="button" onclick="openModalAddProductToFactory()" class="mt-1 text-emerald-700 font-bold underline">+ Gán thêm sản phẩm cho xưởng này</button>
                     </div>
                 `;
             } else {
-                popup.innerHTML = filtered.map(p => `
-                    <div onclick="selectOEMProductItem(this, ${p.id})" class="p-2 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition">
-                        <div>
-                            <div class="font-bold text-slate-800">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
-                            <div class="text-[10px] text-gray-500">ĐVT: ${p.unit || 'chai'} | Giá gốc: ${formatMoney(p.cost_price||0)}</div>
+                dd.innerHTML = filtered.slice(0, 30).map(p => `
+                    <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition group">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">📦</span>
+                            <div>
+                                <div class="font-bold text-slate-800 group-hover:text-amber-900">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
+                                <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | Đơn giá niêm yết: <strong class="text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</strong></div>
+                            </div>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex items-center gap-2">
                             <span class="text-[10px] ${p.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'} px-1.5 py-0.5 rounded font-bold">
                                 ${p.bom_count > 0 ? 'Có định mức BOM' : 'Chưa có BOM'}
+                            </span>
+                            <span class="text-xs bg-slate-100 group-hover:bg-amber-600 group-hover:text-white px-2 py-1 rounded-md font-bold transition">
+                                + Thêm
                             </span>
                         </div>
                     </div>
                 `).join('');
             }
-            popup.classList.remove('hidden');
+            dd.classList.remove('hidden');
         }
+        window.filterOEMQuickSearchDropdown = filterOEMQuickSearchDropdown;
 
-        function selectOEMProductItem(itemEl, productId) {
-            const row = itemEl.closest('.oem-item-row');
-            if (!row) return;
-
+        function quickAddOEMProduct(productId) {
             const p = (currentFactoryProducts.length > 0 ? currentFactoryProducts : allProducts).find(x => x.id === productId);
             if (!p) return;
 
-            const searchInp = row.querySelector('.oem-prod-search-input');
-            const idInp = row.querySelector('.oem-prod-id');
-            const unitInp = row.querySelector('.oem-prod-unit');
-            const clearBtn = row.querySelector('.oem-row-clear-btn');
-            const priceInp = row.querySelector('.oem-prod-price');
+            const itemsBody = document.getElementById('oem-create-items-body');
+            if (!itemsBody) return;
 
-            if (searchInp) searchInp.value = `${p.code ? '['+p.code+'] ' : ''}${p.name}`;
-            if (idInp) idInp.value = p.id;
-            if (unitInp) unitInp.value = p.unit || 'chai';
-            if (clearBtn) clearBtn.classList.remove('hidden');
+            // Kiểm tra xem sản phẩm đã có trong bảng chưa, nếu có thì tăng số lượng
+            const existingRows = document.querySelectorAll('.oem-item-row');
+            let found = false;
+            existingRows.forEach(r => {
+                const idInp = r.querySelector('.oem-prod-id');
+                if (idInp && parseInt(idInp.value) === productId) {
+                    const qtyInp = r.querySelector('.oem-prod-qty');
+                    if (qtyInp) {
+                        qtyInp.value = (parseFloat(qtyInp.value) || 0) + 100;
+                        qtyInp.focus();
+                        qtyInp.select();
+                    }
+                    found = true;
+                }
+            });
 
-            // Đơn giá niêm yết: nếu sản phẩm có giá vốn thì lấy, không thì giữ mặc định
-            if (p.cost_price > 0 && priceInp) {
-                priceInp.value = p.cost_price;
+            if (!found) {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
+                tr.innerHTML = `
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800 text-xs">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
+                        <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | ${p.bom_count > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 italic">Chưa có định mức BOM</span>'}</div>
+                        <input type="hidden" class="oem-prod-id" value="${p.id}">
+                        <input type="hidden" class="oem-prod-unit" value="${p.unit || 'chai'}">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" step="any" min="1" value="1000" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" step="any" min="0" value="${p.cost_price > 0 ? p.cost_price : 18288}" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                    </td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
+                        0 đ
+                    </td>
+                    <td class="p-2.5 text-center">
+                        <button type="button" onclick="removeOEMProductRow(this)" class="text-slate-400 hover:text-rose-600 font-bold text-base p-1 transition" title="Xóa dòng này">✕</button>
+                    </td>
+                `;
+                itemsBody.appendChild(tr);
+
+                // Focus vào ô số lượng của dòng vừa tạo để gõ nhanh
+                setTimeout(() => {
+                    const lastQty = tr.querySelector('.oem-prod-qty');
+                    if (lastQty) {
+                        lastQty.focus();
+                        lastQty.select();
+                    }
+                }, 50);
             }
 
-            const popup = row.querySelector('.oem-prod-popup-menu');
-            if (popup) popup.classList.add('hidden');
+            // Xóa input và ẩn dropdown tìm kiếm
+            const input = document.getElementById('oem-prod-quick-search-input');
+            if (input) input.value = '';
+            document.getElementById('oem-prod-quick-search-dropdown')?.classList.add('hidden');
 
             recalcCreateOEMMath();
         }
+        window.quickAddOEMProduct = quickAddOEMProduct;
+
+        // Đóng dropdown tìm kiếm khi click ngoài
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('oem-prod-quick-search-wrapper');
+            const dd = document.getElementById('oem-prod-quick-search-dropdown');
+            if (wrap && dd && !wrap.contains(e.target)) {
+                dd.classList.add('hidden');
+            }
+        });
+
+        function removeOEMProductRow(btn) {
+            const tr = btn.closest('tr');
+            if (tr) tr.remove();
+            recalcCreateOEMMath();
+        }
+        window.removeOEMProductRow = removeOEMProductRow;
+
+        function setOEMDiscountType(type) {
+            const hidden = document.getElementById('oem-create-discount-type');
+            const btnPct = document.getElementById('btn-oem-discount-type-pct');
+            const btnVnd = document.getElementById('btn-oem-discount-type-vnd');
+            const input = document.getElementById('oem-create-discount');
+            if (hidden) hidden.value = type;
+
+            if (type === 'amount') {
+                if (btnVnd) {
+                    btnVnd.className = 'px-1.5 py-0.5 bg-emerald-600 text-white transition';
+                }
+                if (btnPct) {
+                    btnPct.className = 'px-1.5 py-0.5 bg-white text-slate-700 hover:bg-slate-100 transition';
+                }
+                if (input && (parseFloat(input.value) <= 100)) {
+                    input.placeholder = 'Số tiền (đ)';
+                }
+            } else {
+                if (btnPct) {
+                    btnPct.className = 'px-1.5 py-0.5 bg-emerald-600 text-white transition';
+                }
+                if (btnVnd) {
+                    btnVnd.className = 'px-1.5 py-0.5 bg-white text-slate-700 hover:bg-slate-100 transition';
+                }
+                if (input) {
+                    input.placeholder = '%';
+                }
+            }
+            recalcCreateOEMMath();
+        }
+        window.setOEMDiscountType = setOEMDiscountType;
 
         // Tính toán số tiền & đối chiếu tồn kho BOM thực tế
         async function recalcCreateOEMMath() {
@@ -6781,16 +6806,28 @@
                 }
             });
 
-            const discountPct = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
+            const discountType = document.getElementById('oem-create-discount-type')?.value || 'percent';
+            const discountInputVal = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
             const vatPct = parseFloat(document.getElementById('oem-create-vat')?.value) || 0;
 
-            const discountAmount = totalRaw * (discountPct / 100);
-            const rawAfterDiscount = totalRaw - discountAmount;
+            let discountAmount = 0;
+            let discountDisplayLabel = '0%';
+
+            if (discountType === 'amount') {
+                discountAmount = Math.min(totalRaw, discountInputVal);
+                const calcPct = totalRaw > 0 ? ((discountAmount / totalRaw) * 100).toFixed(1) : 0;
+                discountDisplayLabel = `${formatMoney(discountAmount)} (${calcPct}%)`;
+            } else {
+                discountAmount = totalRaw * (discountInputVal / 100);
+                discountDisplayLabel = `${discountInputVal}%`;
+            }
+
+            const rawAfterDiscount = Math.max(0, totalRaw - discountAmount);
             const vatAmount = totalRaw * (vatPct / 100); // VAT trên giá thô
             const totalFinal = rawAfterDiscount + vatAmount;
 
             document.getElementById('oem-math-raw').innerText = formatMoney(totalRaw);
-            document.getElementById('oem-lbl-discount').innerText = `${discountPct}%`;
+            document.getElementById('oem-lbl-discount').innerText = discountDisplayLabel;
             document.getElementById('oem-math-discount').innerText = `- ${formatMoney(discountAmount)}`;
             document.getElementById('oem-lbl-vat').innerText = `${vatPct}%`;
             document.getElementById('oem-math-vat').innerText = `+ ${formatMoney(vatAmount)}`;
@@ -6896,7 +6933,8 @@
             const destWhId = parseInt(document.getElementById('oem-create-dest-warehouse')?.value) || 1;
             const fundSource = document.getElementById('oem-create-fund')?.value || 'COMPANY';
             const expectedDate = document.getElementById('oem-create-date')?.value;
-            const discountPct = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
+            const discountType = document.getElementById('oem-create-discount-type')?.value || 'percent';
+            const discountVal = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
             const vatPct = parseFloat(document.getElementById('oem-create-vat')?.value) || 0;
             const depositAmount = parseFloat(document.getElementById('oem-create-deposit')?.value) || 0;
             const note = document.getElementById('oem-create-note')?.value || '';
@@ -6925,7 +6963,9 @@
                 oem_warehouse_id: oemWhId,
                 dest_warehouse_id: destWhId,
                 expected_delivery_date: expectedDate,
-                discount_percent: discountPct,
+                discount_type: discountType,
+                discount_percent: discountType === 'percent' ? discountVal : 0,
+                discount_amount: discountType === 'amount' ? discountVal : null,
                 vat_percent: vatPct,
                 fund_source: fundSource,
                 note: note,

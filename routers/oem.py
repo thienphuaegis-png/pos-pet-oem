@@ -289,10 +289,21 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
     try:
         code = generate_oem_code(cur)
         total_raw = sum(it.ordered_qty * it.unit_price for it in req.items)
-        discount_factor = 1.0 - (req.discount_percent / 100.0)
-        vat_factor = 1.0 + (req.vat_percent / 100.0)
-        total_final = total_raw * discount_factor * vat_factor
+
+        # Tính chiết khấu theo % hoặc theo số tiền cụ thể
+        if getattr(req, "discount_type", "percent") == "amount" and req.discount_amount is not None:
+            discount_val = max(0.0, float(req.discount_amount))
+            discount_pct = (discount_val / total_raw * 100.0) if total_raw > 0 else 0.0
+        else:
+            discount_pct = max(0.0, float(req.discount_percent or 0.0))
+            discount_val = total_raw * (discount_pct / 100.0)
+
+        raw_after_discount = max(0.0, total_raw - discount_val)
+        vat_amount = total_raw * (req.vat_percent / 100.0)
+        total_final = raw_after_discount + vat_amount
         remaining = max(0.0, total_final - req.deposit_amount)
+        discount_factor = (raw_after_discount / total_raw) if total_raw > 0 else 1.0
+        vat_factor = 1.0 + (req.vat_percent / 100.0)
         
         status = "DEPOSITED" if req.deposit_amount > 0 else "DRAFT"
         deposit_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if req.deposit_amount > 0 else None
@@ -308,7 +319,7 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
         """, (
             code, req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             status, req.expected_delivery_date, req.fund_source,
-            req.vat_percent, req.discount_percent, req.deposit_amount, deposit_date,
+            req.vat_percent, discount_pct, req.deposit_amount, deposit_date,
             total_raw, total_final, remaining,
             "PARTIAL" if req.deposit_amount > 0 else "UNPAID", req.note or ""
         ))
@@ -363,10 +374,20 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             raise HTTPException(status_code=400, detail="Chỉ có thể sửa đơn khi chưa nhận hàng!")
 
         total_raw = sum(it.ordered_qty * it.unit_price for it in req.items)
-        discount_factor = 1.0 - (req.discount_percent / 100.0)
-        vat_factor = 1.0 + (req.vat_percent / 100.0)
-        total_final = total_raw * discount_factor * vat_factor
+
+        if getattr(req, "discount_type", "percent") == "amount" and req.discount_amount is not None:
+            discount_val = max(0.0, float(req.discount_amount))
+            discount_pct = (discount_val / total_raw * 100.0) if total_raw > 0 else 0.0
+        else:
+            discount_pct = max(0.0, float(req.discount_percent or 0.0))
+            discount_val = total_raw * (discount_pct / 100.0)
+
+        raw_after_discount = max(0.0, total_raw - discount_val)
+        vat_amount = total_raw * (req.vat_percent / 100.0)
+        total_final = raw_after_discount + vat_amount
         remaining = max(0.0, total_final - (o["deposit_amount"] or 0.0))
+        discount_factor = (raw_after_discount / total_raw) if total_raw > 0 else 1.0
+        vat_factor = 1.0 + (req.vat_percent / 100.0)
 
         cur.execute("""
             UPDATE oem_orders
@@ -376,7 +397,7 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
-            req.expected_delivery_date, req.vat_percent, req.discount_percent,
+            req.expected_delivery_date, req.vat_percent, discount_pct,
             total_raw, total_final, remaining, req.note or "", order_id
         ))
 

@@ -3708,8 +3708,15 @@
                                 <input id="oem-create-date" type="date" class="border p-2 rounded w-full font-bold">
                             </div>
                             <div>
-                                <label class="block font-bold text-gray-700 mb-1">Chiết khấu (%):</label>
-                                <input id="oem-create-discount" type="number" step="any" min="0" max="100" value="5" oninput="recalcCreateOEMMath()" class="border p-2 rounded w-full font-bold text-emerald-600">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block font-bold text-gray-700">Chiết khấu:</label>
+                                    <div class="inline-flex rounded-md shadow-2xs border border-slate-300 overflow-hidden text-[10px] font-bold">
+                                        <button type="button" id="btn-oem-discount-type-pct" onclick="setOEMDiscountType('percent')" class="px-1.5 py-0.5 bg-emerald-600 text-white transition">%</button>
+                                        <button type="button" id="btn-oem-discount-type-vnd" onclick="setOEMDiscountType('amount')" class="px-1.5 py-0.5 bg-white text-slate-700 hover:bg-slate-100 transition">VNĐ</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="oem-create-discount-type" value="percent">
+                                <input id="oem-create-discount" type="number" step="any" min="0" value="5" oninput="recalcCreateOEMMath()" class="border p-2 rounded w-full font-bold text-emerald-600 focus:ring-1 focus:ring-emerald-500">
                             </div>
                             <div>
                                 <label class="block font-bold text-gray-700 mb-1">Thuế VAT (%):</label>
@@ -3721,35 +3728,46 @@
                             </div>
                         </div>
 
-                        <!-- Danh sách sản phẩm đặt gia công -->
+                        <!-- Danh sách sản phẩm đặt gia công (Thanh Quick-Search thả thẳng vào bảng chuẩn POS) -->
                         <div class="space-y-2">
                             <div class="flex justify-between items-center">
                                 <div>
-                                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide">📦 Sản Phẩm Gia Công Thuộc Nhà Máy Này</h4>
+                                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide">📦 Danh Sách Sản Phẩm Đặt Gia Công</h4>
                                     <p class="text-[10px] text-gray-500" id="oem-prod-filter-hint">Vui lòng chọn nhà máy trước để lọc sản phẩm</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <button type="button" onclick="openModalAddProductToFactory()" id="btn-add-prod-to-factory" class="hidden text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded font-bold hover:bg-emerald-100">
                                         ➕ Gán SP khác cho xưởng
                                     </button>
-                                    <button type="button" onclick="addOEMProductRow()" class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-bold hover:bg-indigo-100 flex items-center gap-1">
-                                        ➕ Thêm Dòng Sản Phẩm
-                                    </button>
                                 </div>
                             </div>
-                            <div class="border rounded-lg overflow-visible">
+
+                            <!-- Thanh tìm kiếm sản phẩm thả thẳng vào bảng -->
+                            <div class="relative" id="oem-prod-quick-search-wrapper">
+                                <input type="text" id="oem-prod-quick-search-input" 
+                                       placeholder="🔍 Gõ tên hoặc mã sản phẩm gia công để thêm nhanh vào đơn..." 
+                                       autocomplete="off"
+                                       onclick="showOEMQuickSearchDropdown()" 
+                                       oninput="filterOEMQuickSearchDropdown()" 
+                                       class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-amber-500 shadow-2xs">
+                                <div id="oem-prod-quick-search-dropdown" 
+                                     class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto divide-y text-xs">
+                                </div>
+                            </div>
+
+                            <div class="border rounded-lg overflow-x-auto bg-white">
                                 <table class="w-full text-left text-xs">
                                     <thead>
                                         <tr class="bg-slate-100 text-slate-700 border-b">
-                                            <th class="p-2 w-5/12">Sản Phẩm Gia Công (Gõ tìm kiếm)</th>
-                                            <th class="p-2 w-28 text-right">SL Đặt</th>
-                                            <th class="p-2 w-32 text-right">Đơn Giá Niêm Yết (đ)</th>
-                                            <th class="p-2 w-32 text-right">Thành Tiền Thô</th>
-                                            <th class="p-2 w-10 text-center">Xóa</th>
+                                            <th class="p-2.5 w-5/12">Sản Phẩm Gia Công</th>
+                                            <th class="p-2.5 w-32 text-right">SL Đặt</th>
+                                            <th class="p-2.5 w-36 text-right">Đơn Giá Niêm Yết (đ)</th>
+                                            <th class="p-2.5 w-36 text-right">Thành Tiền Thô</th>
+                                            <th class="p-2.5 w-12 text-center">Xóa</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="oem-create-items-body">
-                                        <!-- Dynamic items with searchable popup combobox -->
+                                    <tbody id="oem-create-items-body" class="divide-y">
+                                        <!-- Dynamic items added directly via quick-search -->
                                     </tbody>
                                 </table>
                             </div>
