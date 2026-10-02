@@ -7075,11 +7075,10 @@
                 } catch(e) {}
             }
 
-            const suppSel = document.getElementById('oem-link-supplier-sel');
-            if (suppSel) {
-                const suppliers = (allContacts || []).filter(c => c.type === 'supplier');
-                suppSel.innerHTML = suppliers.map(s => `<option value="${s.id}">🏭 ${s.name} ${s.phone ? '('+s.phone+')' : ''}</option>`).join('');
-            }
+            const suppInput = document.getElementById('oem-link-supplier-input');
+            const suppHidden = document.getElementById('oem-link-supplier-sel');
+            if (suppHidden) suppHidden.value = '';
+            if (suppInput) suppInput.value = '';
 
             const whSel = document.getElementById('oem-link-warehouse-sel');
             if (whSel && allWarehouses) {
@@ -7089,6 +7088,70 @@
             await renderManageFactoriesTable();
             document.getElementById('modal-manage-oem-factories').classList.remove('hidden');
         }
+
+        // --- TÌM KIẾM TỨC THÌ CHO DROPLIST NHÀ CUNG CẤP GÁN KHO OEM ---
+        function getOEMSuppliersList() {
+            return (allContacts || []).filter(c => c.type === 'supplier');
+        }
+
+        function showOEMLinkSupplierDropdown() {
+            filterOEMLinkSupplierDropdown();
+            document.getElementById('oem-link-supplier-dropdown')?.classList.remove('hidden');
+        }
+        window.showOEMLinkSupplierDropdown = showOEMLinkSupplierDropdown;
+
+        function filterOEMLinkSupplierDropdown() {
+            const input = document.getElementById('oem-link-supplier-input');
+            const dd = document.getElementById('oem-link-supplier-dropdown');
+            if (!dd) return;
+            const kw = (input?.value || '').trim().toLowerCase();
+            const list = getOEMSuppliersList();
+
+            const filtered = list.filter(s => {
+                const name = (s.name || '').toLowerCase();
+                const phone = (s.phone || '').toLowerCase();
+                return name.includes(kw) || phone.includes(kw);
+            });
+
+            if (filtered.length === 0) {
+                dd.innerHTML = '<div class="p-3 text-slate-400 text-center italic text-xs">Không tìm thấy nhà cung cấp nào phù hợp</div>';
+                dd.classList.remove('hidden');
+                return;
+            }
+
+            dd.innerHTML = filtered.slice(0, 30).map(s => `
+                <div onclick="selectOEMLinkSupplier(${s.id}, '${(s.name || '').replace(/'/g, "\\'")}')" 
+                     class="p-2.5 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition group">
+                    <div>
+                        <div class="font-bold text-slate-800 group-hover:text-amber-900">🏭 ${s.name}</div>
+                        ${s.phone ? `<div class="text-[10px] text-slate-400 font-mono">SĐT: ${s.phone}</div>` : ''}
+                    </div>
+                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold group-hover:bg-amber-100 group-hover:text-amber-800">Chọn</span>
+                </div>
+            `).join('');
+            dd.classList.remove('hidden');
+        }
+        window.filterOEMLinkSupplierDropdown = filterOEMLinkSupplierDropdown;
+
+        function selectOEMLinkSupplier(id, name) {
+            const hidden = document.getElementById('oem-link-supplier-sel');
+            const input = document.getElementById('oem-link-supplier-input');
+            const dd = document.getElementById('oem-link-supplier-dropdown');
+
+            if (hidden) hidden.value = id;
+            if (input) input.value = `🏭 ${name}`;
+            if (dd) dd.classList.add('hidden');
+        }
+        window.selectOEMLinkSupplier = selectOEMLinkSupplier;
+
+        // Đóng dropdown khi click ra ngoài
+        document.addEventListener('click', function(e) {
+            const input = document.getElementById('oem-link-supplier-input');
+            const dd = document.getElementById('oem-link-supplier-dropdown');
+            if (dd && input && !input.contains(e.target) && !dd.contains(e.target)) {
+                dd.classList.add('hidden');
+            }
+        });
 
         function closeModalManageOEMFactories() {
             document.getElementById('modal-manage-oem-factories')?.classList.add('hidden');
