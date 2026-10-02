@@ -6626,6 +6626,14 @@
                 return;
             }
 
+            // Lấy danh sách các sản phẩm đang có trong bảng cùng số lượng đã đặt
+            const existingQtyMap = new Map();
+            document.querySelectorAll('.oem-item-row').forEach(r => {
+                const id = parseInt(r.querySelector('.oem-prod-id')?.value);
+                const qty = parseFloat(r.querySelector('.oem-prod-qty')?.value) || 0;
+                if (id) existingQtyMap.set(id, qty);
+            });
+
             const q = (input?.value || '').toLowerCase().trim();
             const sourceList = (currentFactoryProducts && currentFactoryProducts.length > 0)
                 ? currentFactoryProducts
@@ -6644,25 +6652,74 @@
                     </div>
                 `;
             } else {
-                dd.innerHTML = filtered.slice(0, 30).map(p => `
-                    <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition group">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 rounded bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">📦</span>
-                            <div>
-                                <div class="font-bold text-slate-800 group-hover:text-amber-900">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
-                                <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | Đơn giá niêm yết: <strong class="text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</strong></div>
+                // Tách làm 2 nhóm: Chưa chọn (lên trên) vs Đã chọn (xuống dưới & làm mờ)
+                const unselectedList = filtered.filter(p => !existingQtyMap.has(p.id));
+                const selectedList = filtered.filter(p => existingQtyMap.has(p.id));
+
+                let html = '';
+
+                // 1. NHÓM CHƯA CHỌN
+                if (unselectedList.length > 0) {
+                    html += `
+                        <div class="bg-slate-50 px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                            <span>📦 Chưa chọn vào đơn (${unselectedList.length})</span>
+                            <span class="text-slate-400 italic font-normal">Click để thêm nhanh</span>
+                        </div>
+                    `;
+                    html += unselectedList.map(p => `
+                        <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition group">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">📦</span>
+                                <div>
+                                    <div class="font-bold text-slate-800 group-hover:text-amber-900">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
+                                    <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | Đơn giá niêm yết: <strong class="text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</strong></div>
+                                </div>
+                            </div>
+                            <div class="text-right flex items-center gap-2 shrink-0">
+                                <span class="text-[10px] ${p.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'} px-1.5 py-0.5 rounded font-bold">
+                                    ${p.bom_count > 0 ? 'Có BOM' : 'Chưa BOM'}
+                                </span>
+                                <span class="text-xs bg-slate-100 group-hover:bg-amber-600 group-hover:text-white px-2.5 py-1 rounded-md font-bold transition">
+                                    + Thêm
+                                </span>
                             </div>
                         </div>
-                        <div class="text-right flex items-center gap-2">
-                            <span class="text-[10px] ${p.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'} px-1.5 py-0.5 rounded font-bold">
-                                ${p.bom_count > 0 ? 'Có định mức BOM' : 'Chưa có BOM'}
-                            </span>
-                            <span class="text-xs bg-slate-100 group-hover:bg-amber-600 group-hover:text-white px-2 py-1 rounded-md font-bold transition">
-                                + Thêm
-                            </span>
+                    `).join('');
+                }
+
+                // 2. NHÓM ĐÃ CHỌN (ĐẨY XUỐNG DƯỚI & LÀM MỜ)
+                if (selectedList.length > 0) {
+                    html += `
+                        <div class="bg-emerald-50/70 px-3 py-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
+                            <span>✓ Đã có trong đơn (${selectedList.length})</span>
+                            <span class="text-emerald-600 font-normal">Click để tăng thêm SL</span>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                    html += selectedList.map(p => {
+                        const currentQty = existingQtyMap.get(p.id) || 0;
+                        return `
+                            <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group border-l-4 border-l-emerald-500">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                                    <div>
+                                        <div class="font-bold text-slate-700 line-through decoration-slate-400 group-hover:no-underline">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
+                                        <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                            <span>ĐVT: ${p.unit || 'chai'}</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px]">Đã lên đơn: ${currentQty.toLocaleString('vi-VN')} ${p.unit || 'chai'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <span class="text-[11px] bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white text-slate-700 px-2 py-1 rounded-md font-bold transition">
+                                        + Tăng SL
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                dd.innerHTML = html;
             }
             dd.classList.remove('hidden');
         }
@@ -6732,6 +6789,11 @@
             document.getElementById('oem-prod-quick-search-dropdown')?.classList.add('hidden');
 
             recalcCreateOEMMath();
+            // Cập nhật lại trạng thái droplist tìm kiếm nếu đang mở
+            const dd = document.getElementById('oem-prod-quick-search-dropdown');
+            if (dd && !dd.classList.contains('hidden')) {
+                filterOEMQuickSearchDropdown();
+            }
         }
         window.quickAddOEMProduct = quickAddOEMProduct;
 
@@ -6748,6 +6810,11 @@
             const tr = btn.closest('tr');
             if (tr) tr.remove();
             recalcCreateOEMMath();
+            // Nếu dropdown tìm kiếm đang mở, tự động cập nhật lại danh sách để phản ánh ngay
+            const dd = document.getElementById('oem-prod-quick-search-dropdown');
+            if (dd && !dd.classList.contains('hidden')) {
+                filterOEMQuickSearchDropdown();
+            }
         }
         window.removeOEMProductRow = removeOEMProductRow;
 
