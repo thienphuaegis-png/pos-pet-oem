@@ -230,7 +230,8 @@ def get_oem_order_detail(order_id: int):
             oi.*,
             p.code as product_code,
             p.name as product_name,
-            p.unit as product_unit
+            p.unit as product_unit,
+            (SELECT COUNT(*) FROM product_bom WHERE product_id = p.id) as bom_count
         FROM oem_order_items oi
         JOIN products p ON oi.product_id = p.id
         WHERE oi.order_id = ?
@@ -393,12 +394,13 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             UPDATE oem_orders
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
-                total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?
+                total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
+                fund_source = ?
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             req.expected_delivery_date, req.vat_percent, discount_pct,
-            total_raw, total_final, remaining, req.note or "", order_id
+            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", order_id
         ))
 
         cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))

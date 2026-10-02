@@ -1901,6 +1901,8 @@
             const itemsPayload = currentTransferRows.map(r => ({
                 item_type: r.item_type,
                 item_id: r.item_id,
+                product_id: r.item_type === 'product' ? r.item_id : null,
+                ingredient_id: r.item_type === 'ingredient' ? r.item_id : null,
                 quantity: r.quantity
             }));
 
@@ -1925,7 +1927,7 @@
                 }
 
                 const result = await res.json();
-                alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code}`);
+                alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`);
                 document.getElementById('transfer-note').value = '';
                 currentTransferRows = [];
                 onTransferFromChange();
@@ -1950,11 +1952,11 @@
 
                 tbody.innerHTML = list.map(t => `
                     <tr class="border-b hover:bg-gray-50 text-xs">
-                        <td class="p-2.5 font-mono font-bold text-sky-700">${t.transfer_code}</td>
+                        <td class="p-2.5 font-mono font-bold text-sky-700">${t.transfer_code || t.code}</td>
                         <td class="p-2.5 text-gray-500 whitespace-nowrap">${t.created_at || '-'}</td>
                         <td class="p-2.5 font-bold text-rose-700">${t.from_warehouse_name || 'Kho xuất'}</td>
                         <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
-                        <td class="p-2.5 text-right font-medium">${(t.items_count || 0).toLocaleString('vi-VN')} món</td>
+                        <td class="p-2.5 text-right font-medium">${(t.items_count || t.item_count || 0).toLocaleString('vi-VN')} món</td>
                         <td class="p-2.5 text-gray-500">${t.note || '-'}</td>
                         <td class="p-2.5 text-center">
                             <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold">
@@ -1977,7 +1979,7 @@
             try {
                 const res = await fetch(`/api/inventory/transfers/${transferId}`);
                 const data = await res.json();
-                document.getElementById('view-transfer-code').innerText = data.transfer_code;
+                document.getElementById('view-transfer-code').innerText = data.transfer_code || data.code;
                 document.getElementById('view-transfer-date').innerText = 'Thời gian: ' + (data.created_at || '-');
                 document.getElementById('view-transfer-from').innerText = data.from_warehouse_name;
                 document.getElementById('view-transfer-to').innerText = data.to_warehouse_name;
@@ -1990,7 +1992,7 @@
                     return `
                         <tr class="border-b text-[11px]">
                             <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
-                            <td class="p-2 font-bold text-slate-800">${it.name}</td>
+                            <td class="p-2 font-bold text-slate-800">${it.name || it.item_name}</td>
                             <td class="p-2 text-center">${badge}</td>
                             <td class="p-2 text-right font-bold text-sky-700">${it.quantity.toLocaleString('vi-VN')}</td>
                             <td class="p-2 text-gray-500">${it.unit || 'cái'}</td>

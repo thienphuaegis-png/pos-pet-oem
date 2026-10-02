@@ -6471,8 +6471,14 @@
             const depositInp = document.getElementById('oem-create-deposit');
             if (depositInp) depositInp.disabled = false;
             const btnSubmit = document.getElementById('btn-submit-create-oem');
-            if (btnSubmit) btnSubmit.innerText = '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
+            }
+            const modalTitle = document.querySelector('#modal-create-oem h3 span');
+            if (modalTitle) modalTitle.innerText = '➕ Lập Đơn Đặt Gia Công OEM Mới';
         }
+        window.closeModalCreateOEM = closeModalCreateOEM;
 
         async function loadOEMFactoriesList() {
             try {
@@ -6823,6 +6829,57 @@
         }
         window.quickAddOEMProduct = quickAddOEMProduct;
 
+        function renderOEMItemRow(item) {
+            const p = (currentFactoryProducts && currentFactoryProducts.length > 0 ? currentFactoryProducts : (allProducts || [])).find(x => x.id === item.product_id) || {};
+            const code = item.product_code || p.code || '';
+            const name = item.product_name || p.name || 'Sản phẩm';
+            const unit = item.product_unit || p.unit || 'chai';
+            const bomCount = item.bom_count !== undefined ? item.bom_count : (p.bom_count || 0);
+            const qty = item.ordered_qty !== undefined ? item.ordered_qty : 1000;
+            const price = item.unit_price !== undefined ? item.unit_price : (p.cost_price > 0 ? p.cost_price : 18288);
+
+            const tr = document.createElement('tr');
+            tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
+            tr.innerHTML = `
+                <td class="p-2.5">
+                    <div class="font-bold text-slate-800 text-xs">${code ? '['+code+'] ' : ''}${name}</div>
+                    <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${unit}</strong> | ${bomCount > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 italic">Chưa có định mức BOM</span>'}</div>
+                    <input type="hidden" class="oem-prod-id" value="${item.product_id}">
+                    <input type="hidden" class="oem-prod-unit" value="${unit}">
+                </td>
+                <td class="p-2.5">
+                    <input type="number" step="any" min="1" value="${qty}" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                </td>
+                <td class="p-2.5">
+                    <input type="number" step="any" min="0" value="${price}" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                </td>
+                <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
+                    0 đ
+                </td>
+                <td class="p-2.5 text-center">
+                    <button type="button" onclick="removeOEMProductRow(this)" class="text-slate-400 hover:text-rose-600 font-bold text-base p-1 transition" title="Xóa dòng này">✕</button>
+                </td>
+            `;
+            return tr;
+        }
+        window.renderOEMItemRow = renderOEMItemRow;
+
+        function addOEMProductRow(item = null) {
+            const itemsBody = document.getElementById('oem-create-items-body');
+            if (!itemsBody) return;
+            if (item && item.product_id) {
+                const tr = renderOEMItemRow(item);
+                itemsBody.appendChild(tr);
+            } else if (currentFactoryProducts && currentFactoryProducts.length > 0) {
+                const first = currentFactoryProducts[0];
+                const existing = Array.from(document.querySelectorAll('.oem-item-row .oem-prod-id')).some(inp => parseInt(inp.value) === first.id);
+                if (!existing) {
+                    quickAddOEMProduct(first.id);
+                }
+            }
+        }
+        window.addOEMProductRow = addOEMProductRow;
+
         // Đóng dropdown tìm kiếm khi click ngoài
         document.addEventListener('click', function(e) {
             const wrap = document.getElementById('oem-prod-quick-search-wrapper');
@@ -7142,44 +7199,92 @@
 
             editingOEMOrderId = orderId;
 
+            // Thiết lập xưởng được chọn
+            const factory = allOEMFactories.find(f => f.id === order.partner_id);
+            selectedOEMFactory = factory || {
+                id: order.partner_id,
+                name: order.partner_name,
+                warehouse_id: order.oem_warehouse_id,
+                warehouse_name: order.oem_warehouse_name
+            };
+
+            // Tải danh sách sản phẩm thuộc xưởng này để phục vụ quick-search
+            if (selectedOEMFactory && selectedOEMFactory.id) {
+                try {
+                    const resP = await fetch(`/api/oem/factories/${selectedOEMFactory.id}/products`);
+                    if (resP.ok) {
+                        currentFactoryProducts = await resP.json();
+                    } else {
+                        currentFactoryProducts = [];
+                    }
+                } catch(e) {
+                    currentFactoryProducts = [];
+                }
+            }
+
             const destWhSel = document.getElementById('oem-create-dest-warehouse');
             if (destWhSel && allWarehouses) {
                 destWhSel.innerHTML = allWarehouses.map(w => `<option value="${w.id}">📦 ${w.name} ${w.is_oem ? '(Kho Xưởng)' : ''}</option>`).join('');
             }
 
-            document.getElementById('oem-create-partner').value = order.partner_id;
-            document.getElementById('oem-create-warehouse').value = order.oem_warehouse_id;
-            document.getElementById('oem-create-dest-warehouse').value = order.dest_warehouse_id;
+            document.getElementById('oem-create-partner').value = order.partner_id || '';
+            document.getElementById('oem-create-warehouse').value = order.oem_warehouse_id || '';
+            document.getElementById('oem-create-dest-warehouse').value = order.dest_warehouse_id || '1';
             document.getElementById('oem-create-date').value = order.expected_delivery_date || '';
-            document.getElementById('oem-create-discount').value = order.discount_percent ?? 0;
+
+            if (order.discount_amount && order.discount_amount > 0) {
+                setOEMDiscountType('amount');
+                document.getElementById('oem-create-discount').value = order.discount_amount;
+            } else {
+                setOEMDiscountType('percent');
+                document.getElementById('oem-create-discount').value = order.discount_percent ?? 0;
+            }
+
             document.getElementById('oem-create-vat').value = order.vat_percent ?? 0;
             document.getElementById('oem-create-fund').value = order.fund_source || 'COMPANY';
             document.getElementById('oem-create-deposit').value = order.deposit_amount ?? 0;
             document.getElementById('oem-create-deposit').disabled = true;
             document.getElementById('oem-create-note').value = order.note || '';
 
-            const factory = allOEMFactories.find(f => f.id === order.partner_id);
             const searchInput = document.getElementById('oem-factory-search-input');
-            if (searchInput) searchInput.value = factory ? `🏭 ${factory.name}` : '';
+            if (searchInput) searchInput.value = factory ? `🏭 ${factory.name}` : (order.partner_name ? `🏭 ${order.partner_name}` : '');
+
+            const badge = document.getElementById('oem-factory-badge');
+            const whName = document.getElementById('oem-factory-wh-name');
+            if (badge && whName) {
+                whName.innerText = order.oem_warehouse_name || (factory ? factory.warehouse_name : '');
+                badge.classList.remove('hidden');
+            }
+            document.getElementById('oem-factory-clear-btn')?.classList.remove('hidden');
+
+            const hint = document.getElementById('oem-prod-filter-hint');
+            if (hint) {
+                hint.innerText = `Đang hiển thị ${currentFactoryProducts.length} sản phẩm cấu hình cho xưởng ${factory ? factory.name : (order.partner_name || '')}`;
+            }
+            document.getElementById('btn-add-prod-to-factory')?.classList.remove('hidden');
+
+            const quickInp = document.getElementById('oem-prod-quick-search-input');
+            if (quickInp) quickInp.value = '';
 
             const itemsBody = document.getElementById('oem-create-items-body');
             if (itemsBody) itemsBody.innerHTML = '';
             (order.items || []).forEach(it => {
-                addOEMProductRow();
-                const rows = document.querySelectorAll('.oem-item-row');
-                const tr = rows[rows.length - 1];
-                tr.querySelector('.oem-prod-id').value = it.product_id;
-                tr.querySelector('.oem-prod-search-input').value = `${it.product_code || ''} - ${it.product_name || ''}`;
-                tr.querySelector('.oem-prod-qty').value = it.ordered_qty;
-                tr.querySelector('.oem-prod-price').value = it.unit_price;
+                const tr = renderOEMItemRow(it);
+                itemsBody.appendChild(tr);
             });
-            recalcCreateOEMMath();
+            await recalcCreateOEMMath();
 
             const btnSubmit = document.getElementById('btn-submit-create-oem');
-            if (btnSubmit) btnSubmit.innerText = '💾 Lưu Thay Đổi';
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = '💾 Lưu Thay Đổi';
+            }
+            const modalTitle = document.querySelector('#modal-create-oem h3 span');
+            if (modalTitle) modalTitle.innerText = `✏️ Chỉnh Sửa Đơn Gia Công OEM (${order.code})`;
 
             document.getElementById('modal-create-oem').classList.remove('hidden');
         }
+        window.openModalEditOEM = openModalEditOEM;
 
         async function deleteOEMOrder(orderId, orderCode) {
             if (!confirm(`Hủy đơn OEM ${orderCode}?\nNếu đã cọc tiền, hệ thống sẽ tự động hoàn cọc vào Sổ Quỹ. Đơn sẽ bị XÓA HẲN, không thể khôi phục.`)) return;

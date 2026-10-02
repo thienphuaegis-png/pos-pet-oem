@@ -1027,7 +1027,10 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
             if it.quantity <= 0:
                 continue
             if it.item_type == 'product':
-                cur.execute("SELECT name, unit FROM products WHERE id = ?", (it.product_id,))
+                prod_id = it.product_id or it.item_id
+                if not prod_id:
+                    continue
+                cur.execute("SELECT name, unit FROM products WHERE id = ?", (prod_id,))
                 p_row = cur.fetchone()
                 item_name = p_row["name"] if p_row else "Sản phẩm"
                 unit = p_row["unit"] if p_row else "cái"
@@ -1038,10 +1041,10 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.from_warehouse_id, it.product_id, -it.quantity, it.quantity))
+                ''', (req.from_warehouse_id, prod_id, -it.quantity, it.quantity))
                 
                 cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
-                            (req.from_warehouse_id, it.product_id))
+                            (req.from_warehouse_id, prod_id))
                 bal_from = cur.fetchone()["quantity"]
                 
                 # Cộng kho nhận
@@ -1050,30 +1053,33 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.to_warehouse_id, it.product_id, it.quantity, it.quantity))
+                ''', (req.to_warehouse_id, prod_id, it.quantity, it.quantity))
                 
                 cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
-                            (req.to_warehouse_id, it.product_id))
+                            (req.to_warehouse_id, prod_id))
                 bal_to = cur.fetchone()["quantity"]
                 
                 # Logs
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?)
-                ''', (it.product_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
+                ''', (prod_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
                 
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?)
-                ''', (it.product_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
+                ''', (prod_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
                 
                 cur.execute('''
                 INSERT INTO warehouse_transfer_items (transfer_id, item_type, product_id, item_name, unit, quantity)
                 VALUES (?, 'product', ?, ?, ?, ?)
-                ''', (transfer_id, it.product_id, item_name, unit, it.quantity))
+                ''', (transfer_id, prod_id, item_name, unit, it.quantity))
                 
             elif it.item_type == 'ingredient':
-                cur.execute("SELECT name, unit, type FROM ingredients WHERE id = ?", (it.ingredient_id,))
+                ing_id = it.ingredient_id or it.item_id
+                if not ing_id:
+                    continue
+                cur.execute("SELECT name, unit, type FROM ingredients WHERE id = ?", (ing_id,))
                 ing_row = cur.fetchone()
                 if not ing_row or ing_row["type"] == 'SERVICE':
                     continue
@@ -1086,10 +1092,10 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
                     quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.from_warehouse_id, it.ingredient_id, -it.quantity, it.quantity))
+                ''', (req.from_warehouse_id, ing_id, -it.quantity, it.quantity))
                 
                 cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
-                            (req.from_warehouse_id, it.ingredient_id))
+                            (req.from_warehouse_id, ing_id))
                 bal_from = cur.fetchone()["quantity"]
                 
                 # Cộng kho nhận
@@ -1098,27 +1104,27 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
                     quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.to_warehouse_id, it.ingredient_id, it.quantity, it.quantity))
+                ''', (req.to_warehouse_id, ing_id, it.quantity, it.quantity))
                 
                 cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
-                            (req.to_warehouse_id, it.ingredient_id))
+                            (req.to_warehouse_id, ing_id))
                 bal_to = cur.fetchone()["quantity"]
                 
                 # Logs
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?)
-                ''', (it.ingredient_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
+                ''', (ing_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
                 
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?)
-                ''', (it.ingredient_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
+                ''', (ing_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
                 
                 cur.execute('''
                 INSERT INTO warehouse_transfer_items (transfer_id, item_type, ingredient_id, item_name, unit, quantity)
                 VALUES (?, 'ingredient', ?, ?, ?, ?)
-                ''', (transfer_id, it.ingredient_id, item_name, unit, it.quantity))
+                ''', (transfer_id, ing_id, item_name, unit, it.quantity))
                 
         conn.commit()
     except Exception as e:
@@ -1126,7 +1132,7 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
-    return {"status": "ok", "code": code}
+    return {"status": "ok", "code": code, "transfer_code": code, "id": transfer_id}
 
 @router.get("/api/inventory/transfers")
 def list_transfers():
@@ -1135,9 +1141,11 @@ def list_transfers():
     cur.execute('''
     SELECT 
         t.*,
+        t.code as transfer_code,
         w1.name as from_warehouse_name,
         w2.name as to_warehouse_name,
-        (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as item_count
+        (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as item_count,
+        (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as items_count
     FROM warehouse_transfers t
     JOIN warehouses w1 ON t.from_warehouse_id = w1.id
     JOIN warehouses w2 ON t.to_warehouse_id = w2.id
@@ -1145,10 +1153,36 @@ def list_transfers():
     ''')
     transfers = [dict(r) for r in cur.fetchall()]
     for t in transfers:
-        cur.execute("SELECT * FROM warehouse_transfer_items WHERE transfer_id = ?", (t["id"],))
+        cur.execute("SELECT *, item_name as name FROM warehouse_transfer_items WHERE transfer_id = ?", (t["id"],))
         t["items"] = [dict(r) for r in cur.fetchall()]
     conn.close()
     return transfers
+
+@router.get("/api/inventory/transfers/{transfer_id}")
+def get_transfer_detail(transfer_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT 
+        t.*,
+        t.code as transfer_code,
+        w1.name as from_warehouse_name,
+        w2.name as to_warehouse_name,
+        (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as items_count
+    FROM warehouse_transfers t
+    JOIN warehouses w1 ON t.from_warehouse_id = w1.id
+    JOIN warehouses w2 ON t.to_warehouse_id = w2.id
+    WHERE t.id = ?
+    ''', (transfer_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu chuyển kho")
+    data = dict(row)
+    cur.execute("SELECT *, item_name as name FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+    data["items"] = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return data
 
 @router.post("/api/inventory/audit")
 def create_stock_audit(req: AuditCreate, user=Depends(require_permission("inventory.manage"))):

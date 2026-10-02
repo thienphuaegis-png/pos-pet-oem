@@ -127,6 +127,7 @@ class InventoryAdjust(BaseModel):
 
 class TransferItemIn(BaseModel):
     item_type: str # product hoac ingredient
+    item_id: Optional[int] = None
     product_id: Optional[int] = None
     ingredient_id: Optional[int] = None
     quantity: float
