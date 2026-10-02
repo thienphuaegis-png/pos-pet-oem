@@ -18,6 +18,84 @@
                 return container;
             }
 
+            window.showConfirmModal = function(options) {
+                return new Promise((resolve) => {
+                    const {
+                        title = 'Xác nhận',
+                        message = 'Bạn có chắc chắn muốn thực hiện?',
+                        subMessage = '',
+                        confirmText = 'Đồng ý',
+                        cancelText = 'Hủy bỏ',
+                        type = 'danger' // danger, warning, primary
+                    } = options;
+
+                    // Xóa modal cũ nếu còn
+                    const old = document.getElementById('global-confirm-modal');
+                    if (old) old.remove();
+
+                    let btnClass = 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200';
+                    let iconBg = 'bg-rose-100 text-rose-600 border border-rose-200';
+                    let icon = '🗑️';
+
+                    if (type === 'warning') {
+                        btnClass = 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-200';
+                        iconBg = 'bg-amber-100 text-amber-600 border border-amber-200';
+                        icon = '⚠️';
+                    } else if (type === 'primary') {
+                        btnClass = 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200';
+                        iconBg = 'bg-indigo-100 text-indigo-600 border border-indigo-200';
+                        icon = '✨';
+                    }
+
+                    const modal = document.createElement('div');
+                    modal.id = 'global-confirm-modal';
+                    modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[9999999] flex items-center justify-center p-4 transition-all duration-200 opacity-0';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-2xl p-6 w-[440px] max-w-full shadow-2xl border border-slate-100 transform scale-95 transition-all duration-200 space-y-4">
+                            <div class="flex items-start gap-3.5">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${iconBg}">
+                                    ${icon}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="text-base font-bold text-slate-900 leading-snug">${title}</h3>
+                                    <div class="text-xs font-medium text-slate-700 mt-1.5 leading-relaxed break-words">
+                                        ${message}
+                                    </div>
+                                    ${subMessage ? `<div class="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 mt-2.5 leading-normal">${subMessage}</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                                <button type="button" id="btn-modal-cancel" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 transition">
+                                    ${cancelText}
+                                </button>
+                                <button type="button" id="btn-modal-confirm" class="px-4 py-2 rounded-xl text-xs font-bold ${btnClass} shadow-xs transition">
+                                    ${confirmText}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+
+                    // Animate in
+                    requestAnimationFrame(() => {
+                        modal.classList.remove('opacity-0');
+                        modal.querySelector('div').classList.remove('scale-95');
+                    });
+
+                    const cleanup = (val) => {
+                        modal.classList.add('opacity-0');
+                        modal.querySelector('div').classList.add('scale-95');
+                        setTimeout(() => modal.remove(), 150);
+                        resolve(val);
+                    };
+
+                    document.getElementById('btn-modal-confirm').onclick = () => cleanup(true);
+                    document.getElementById('btn-modal-cancel').onclick = () => cleanup(false);
+                    modal.onclick = (e) => { if (e.target === modal) cleanup(false); };
+                });
+            };
+
             window.showToast = function(message, type = 'info', duration = 3200) {
                 if (!document.body) {
                     window.addEventListener('DOMContentLoaded', () => window.showToast(message, type, duration));
@@ -2569,64 +2647,93 @@
 
         async function deleteProductItem(productId, encodedName) {
             const name = decodeURIComponent(encodedName);
-            if (!confirm(`Bạn có chắc chắn muốn ẨN hàng hóa:\n"${name}"?\n(Hàng hóa sẽ được ẩn khỏi danh mục tồn kho và POS, nhưng lịch sử đơn hàng cũ vẫn được giữ nguyên)`)) {
-                return;
-            }
+            const confirmed = await window.showConfirmModal({
+                title: 'Xóa hoặc Ẩn Hàng Hóa',
+                message: `Bạn có chắc chắn muốn xóa/ẩn hàng hóa <span class="font-bold text-rose-600">"${name}"</span>?`,
+                subMessage: 'Hệ thống tự động kiểm tra: Nếu hàng hóa chưa từng có giao dịch bán hoặc nhập, hệ thống sẽ XÓA HẲN. Nếu đã có lịch sử hóa đơn, hàng sẽ được ẨN để bảo toàn dữ liệu sổ sách kế toán.',
+                confirmText: 'Đồng ý thực hiện',
+                cancelText: 'Hủy bỏ',
+                type: 'danger'
+            });
+
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
+                const data = await res.json();
                 if (res.ok) {
-                    alert(`Đã ẩn hàng hóa "${name}" thành công!`);
+                    if (window.showToast) {
+                        window.showToast(data.message || `Đã xử lý hàng hóa "${name}"`, 'success');
+                    } else {
+                        alert(data.message || `Đã xử lý thành công!`);
+                    }
                     await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
                 } else {
-                    const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể ẩn hàng hóa"));
+                    if (window.showToast) {
+                        window.showToast("Lỗi: " + (data.detail || "Không thể thực hiện"), 'error');
+                    } else {
+                        alert("Lỗi: " + (data.detail || "Không thể thực hiện"));
+                    }
                 }
             } catch (e) {
                 console.error("deleteProductItem error:", e);
-                alert("Lỗi kết nối khi ẩn hàng hóa");
+                window.showToast ? window.showToast("Lỗi kết nối máy chủ", 'error') : alert("Lỗi kết nối khi xóa hàng hóa");
             }
         }
 
         async function restoreProductItem(productId, encodedName) {
             const name = decodeURIComponent(encodedName);
-            if (!confirm(`Bạn có muốn BỎ ẨN (khôi phục) hàng hóa:\n"${name}"?\n(Hàng hóa sẽ xuất hiện lại trong danh mục tồn kho và POS)`)) {
-                return;
-            }
+            const confirmed = await window.showConfirmModal({
+                title: 'Khôi Phục Hàng Hóa',
+                message: `Bạn có muốn BỎ ẨN (khôi phục) hàng hóa <span class="font-bold text-indigo-600">"${name}"</span>?`,
+                subMessage: 'Hàng hóa sẽ xuất hiện lại bình thường trong bảng tồn kho và màn hình bán hàng POS.',
+                confirmText: 'Khôi phục ngay',
+                cancelText: 'Giữ nguyên',
+                type: 'primary'
+            });
+
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/products/${productId}/restore`, { method: 'POST' });
+                const data = await res.json();
                 if (res.ok) {
-                    alert(`Đã khôi phục hàng hóa "${name}" thành công!`);
+                    window.showToast ? window.showToast(`Đã khôi phục hàng hóa "${name}"`, 'success') : alert(`Đã khôi phục thành công!`);
                     await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
                 } else {
-                    const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể khôi phục"));
+                    window.showToast ? window.showToast("Lỗi: " + (data.detail || "Không thể khôi phục"), 'error') : alert("Lỗi: " + (data.detail || "Không thể khôi phục"));
                 }
             } catch (e) {
                 console.error("restoreProductItem error:", e);
-                alert("Lỗi kết nối khi khôi phục hàng hóa");
+                window.showToast ? window.showToast("Lỗi kết nối máy chủ", 'error') : alert("Lỗi kết nối khi khôi phục hàng hóa");
             }
         }
 
         async function deleteIngredientItem(ingId, encodedName) {
             const name = decodeURIComponent(encodedName);
-            if (!confirm(`Bạn có chắc chắn muốn XÓA nguyên liệu:\n"${name}"?\n(Dữ liệu tồn kho, giá nhập và liên kết BOM liên quan sẽ bị xóa)`)) {
-                return;
-            }
+            const confirmed = await window.showConfirmModal({
+                title: 'Xóa Nguyên Vật Liệu',
+                message: `Bạn có chắc chắn muốn XÓA nguyên liệu <span class="font-bold text-rose-600">"${name}"</span>?`,
+                subMessage: 'Cảnh báo: Dữ liệu tồn kho, giá nhập và liên kết BOM liên quan đến nguyên liệu này sẽ bị dọn dẹp.',
+                confirmText: 'Xóa nguyên liệu',
+                cancelText: 'Hủy bỏ',
+                type: 'danger'
+            });
+
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/ingredients/${ingId}`, { method: 'DELETE' });
                 if (res.ok) {
-                    alert(`Đã xóa nguyên liệu "${name}" thành công!`);
-                    await Promise.all([loadUnifiedInventory(), loadCostIngredients()]);
+                    window.showToast ? window.showToast(`Đã xóa nguyên liệu "${name}"`, 'success') : alert(`Đã xóa thành công!`);
+                    await Promise.all([loadCostIngredients(), loadUnifiedInventory()]);
                 } else {
                     const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể xóa nguyên liệu"));
+                    window.showToast ? window.showToast("Lỗi: " + (err.detail || "Không thể xóa"), 'error') : alert("Lỗi: " + (err.detail || "Không thể xóa nguyên liệu"));
                 }
             } catch (e) {
                 console.error("deleteIngredientItem error:", e);
-                alert("Lỗi kết nối khi xóa nguyên liệu");
+                window.showToast ? window.showToast("Lỗi kết nối máy chủ", 'error') : alert("Lỗi kết nối khi xóa nguyên liệu");
             }
         }
 

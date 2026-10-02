@@ -495,24 +495,56 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
     return {"status": "ok"}
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int):
+def delete_product(product_id: int, force: bool = False):
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM products WHERE id = ?", (product_id,))
-        if not cur.fetchone():
+        cur.execute("SELECT id, name, code FROM products WHERE id = ?", (product_id,))
+        p = cur.fetchone()
+        if not p:
             conn.close()
             raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-        
-        # Soft delete (ẩn sản phẩm để bảo toàn lịch sử hóa đơn, sản xuất)
+
+        # Kiểm tra xem sản phẩm đã từng phát sinh giao dịch thật chưa
+        cur.execute("SELECT COUNT(*) FROM order_items WHERE product_id = ?", (product_id,))
+        order_count = cur.fetchone()[0]
+
+        cur.execute("SELECT COUNT(*) FROM purchase_items WHERE product_id = ?", (product_id,))
+        purchase_count = cur.fetchone()[0]
+
+        has_transactions = (order_count > 0 or purchase_count > 0)
+
+        # Nếu không có giao dịch (hoặc người dùng yêu cầu force xóa hẳn khi chưa có gd): XÓA VĨNH VIỄN
+        if not has_transactions:
+            # Dọn dẹp các bảng phụ thuộc trước khi xóa sản phẩm
+            cur.execute("DELETE FROM item_units WHERE item_type = 'product' AND item_id = ?", (product_id,))
+            cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
+            cur.execute("DELETE FROM product_inventory WHERE product_id = ?", (product_id,))
+            cur.execute("DELETE FROM product_bom WHERE product_id = ?", (product_id,))
+            cur.execute("DELETE FROM inventory_logs WHERE product_id = ?", (product_id,))
+            cur.execute("DELETE FROM products WHERE id = ?", (product_id,))
+            conn.commit()
+            conn.close()
+            return {
+                "status": "deleted_permanent",
+                "message": f"Đã xóa vĩnh viễn sản phẩm '{p['name']}' do chưa phát sinh giao dịch."
+            }
+
+        # Nếu ĐÃ có giao dịch bán/nhập: Soft delete (ẩn sản phẩm để bảo vệ sổ sách kế toán)
         cur.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
         cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
         conn.commit()
+        conn.close()
+        return {
+            "status": "hidden",
+            "message": f"Sản phẩm '{p['name']}' đã có lịch sử hóa đơn nên đã được chuyển sang trạng thái ẨN để bảo toàn sổ sách."
+        }
+    except HTTPException:
+        conn.close()
+        raise
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
-    conn.close()
-    return {"status": "ok"}
 
 @router.post("/{product_id}/restore")
 def restore_product(product_id: int):
