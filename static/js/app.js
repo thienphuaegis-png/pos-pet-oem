@@ -2645,6 +2645,34 @@
             }
         }
 
+        async function clearAllProductsQuick() {
+            const confirmed = await window.showConfirmModal({
+                title: 'Xóa Sạch Toàn Bộ Hàng Hóa',
+                message: 'Bạn có chắc chắn muốn <span class="font-bold text-rose-600">XÓA SẠCH toàn bộ danh mục hàng hóa</span> trong hệ thống?',
+                subMessage: 'Thao tác này chỉ xóa Hàng Hóa để bạn Import lại từ file Excel mới. Dữ liệu Nguyên Liệu Kho, Sổ Quỹ Thu Chi và Khách Hàng vẫn được giữ nguyên an toàn.',
+                confirmText: 'Xác nhận xóa sạch',
+                cancelText: 'Hủy bỏ',
+                type: 'danger'
+            });
+
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/products/clear/all-products', { method: 'DELETE' });
+                const data = await res.json();
+                if (res.ok) {
+                    window.showToast ? window.showToast(data.message || 'Đã dọn sạch hàng hóa thành công!', 'success', 3500) : alert(data.message);
+                    await Promise.all([loadUnifiedInventory(), loadCostProductOptions()]);
+                } else {
+                    window.showToast ? window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error') : alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+                }
+            } catch (e) {
+                console.error('clearAllProductsQuick error:', e);
+                window.showToast ? window.showToast('Lỗi kết nối máy chủ', 'error') : alert('Lỗi kết nối khi dọn sạch hàng hóa');
+            }
+        }
+        window.clearAllProductsQuick = clearAllProductsQuick;
+
         async function deleteProductItem(productId, encodedName) {
             const name = decodeURIComponent(encodedName);
             const confirmed = await window.showConfirmModal({

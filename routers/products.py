@@ -515,7 +515,7 @@ def delete_product(product_id: int, force: bool = False):
         has_transactions = (order_count > 0 or purchase_count > 0)
 
         # Nếu không có giao dịch (hoặc người dùng yêu cầu force xóa hẳn khi chưa có gd): XÓA VĨNH VIỄN
-        if not has_transactions:
+        if not has_transactions or force:
             # Dọn dẹp các bảng phụ thuộc trước khi xóa sản phẩm
             cur.execute("DELETE FROM item_units WHERE item_type = 'product' AND item_id = ?", (product_id,))
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
@@ -527,7 +527,7 @@ def delete_product(product_id: int, force: bool = False):
             conn.close()
             return {
                 "status": "deleted_permanent",
-                "message": f"Đã xóa vĩnh viễn sản phẩm '{p['name']}' do chưa phát sinh giao dịch."
+                "message": f"Đã xóa vĩnh viễn sản phẩm '{p['name']}'."
             }
 
         # Nếu ĐÃ có giao dịch bán/nhập: Soft delete (ẩn sản phẩm để bảo vệ sổ sách kế toán)
@@ -545,6 +545,29 @@ def delete_product(product_id: int, force: bool = False):
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/clear/all-products")
+def clear_all_products_api():
+    """API xóa sạch toàn bộ hàng hóa để chuẩn bị import lại từ đầu"""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM item_units WHERE item_type = 'product'")
+        cur.execute("DELETE FROM supplier_items WHERE item_type = 'product'")
+        cur.execute("DELETE FROM product_inventory")
+        cur.execute("DELETE FROM product_bom")
+        cur.execute("DELETE FROM inventory_logs WHERE product_id IS NOT NULL")
+        cur.execute("DELETE FROM products")
+        try:
+            cur.execute("DELETE FROM sqlite_sequence WHERE name IN ('products', 'product_inventory', 'item_units')")
+        except Exception:
+            pass
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": "Đã xóa sạch toàn bộ hàng hóa. Bạn có thể import file mới ngay bây giờ."}
 
 @router.post("/{product_id}/restore")
 def restore_product(product_id: int):
