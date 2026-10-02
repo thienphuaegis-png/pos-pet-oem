@@ -642,9 +642,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-02)
-    const ROADMAP_VERSION = 'v3.7-2026-10-02-oem-pos-ux';
+    const ROADMAP_VERSION = 'v3.8-2026-10-02-contacts-import';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-02)
+      { id: 'contacts-import-code-and-notes', cat: 'PROD', title: 'Nâng Cấp Import Khách Hàng: Giữ Nguyên Mã Cũ (ID KH...), Ghi Chú Giao Hàng & Auto-Map Nhóm Đại Lý', done: true, note: 'Bổ sung cột code và note vào bảng contacts; nâng cấp bộ đọc Import Excel tự động nhận diện cột ID, Notes, map nhóm Đại lý/Khách lẻ và chuẩn hóa sạch SĐT thiếu số 0' },
       { id: 'oem-quick-search-and-dual-discount', cat: 'PROD', title: 'Hiện Đại Hóa Lập Đơn OEM: Quick-Search Thả Thẳng Vào Bảng & Chiết Khấu Kép (% / VNĐ)', done: true, note: 'Bỏ nút bấm thêm dòng rườm rà; gõ tìm kiếm sản phẩm thả thẳng vào bảng đơn OEM chuẩn POS; hỗ trợ chuyển đổi chiết khấu linh hoạt giữa % và số tiền VNĐ trực tiếp' },
       { id: 'pos-product-lifecycle-bulk-actions', cat: 'PROD', title: 'Quản Lý Vòng Đời Hàng Hóa Chuẩn POS: Checkbox Hàng Loạt, Ngừng Kinh Doanh & Dọn Sạch Catalog An Toàn', done: true, note: 'Bổ sung checkbox chọn nhiều mặt hàng + Floating Action Bar (Ngừng kinh doanh, Xóa đã chọn an toàn); tự động bảo vệ hàng còn tồn kho và lịch sử hóa đơn; đưa nút Dọn sạch catalog vào Cài Đặt bảo vệ bằng mật mã XOA HANG HOA' },
       { id: 'unit-conversion-and-cost-perm', cat: 'PROD', title: 'Quy Đổi Đơn Vị Tính Theo Mặt Hàng (Thùng/Chai) & Bảo Mật Ẩn Giá Vốn (RBAC)', done: true, note: 'Bảng item_units quy đổi tỷ lệ riêng cho từng SP; tự động nhân ratio trừ tồn kho và ghi nhận lịch sử; phân quyền inventory.view_cost ẩn giá vốn/lợi nhuận khỏi API và UI cho cashier' },

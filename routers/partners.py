@@ -308,7 +308,7 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
                         return idx
         return -1
 
-    idx_code = find_col(["mã khách hàng", "mã kh", "mã ncc", "mã đối tác", "mã", "code"], ["mã kh", "mã ncc", "mã"])
+    idx_code = find_col(["mã khách hàng", "mã kh", "mã ncc", "mã đối tác", "mã", "code", "id", "customerid"], ["mã kh", "mã ncc", "mã"])
     idx_name = find_col(
         ["tên khách hàng", "tên khách", "tên ncc", "tên nhà cung cấp", "họ và tên", "họ tên", "tên", "name"],
         ["tên", "name", "khách hàng", "nhà cung cấp"]
@@ -322,7 +322,7 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
 
     idx_phone = find_col(["số điện thoại", "điện thoại", "sđt", "phone", "hotline", "tel"], ["thoại", "sđt", "phone", "điện thoại"])
     idx_addr = find_col(["địa chỉ", "địa chỉ giao hàng", "address"], ["địa chỉ", "address"])
-    idx_group = find_col(["nhóm khách hàng", "nhóm đối tác", "nhóm", "phân loại", "segment", "group"], ["nhóm", "phân loại", "segment", "group"])
+    idx_group = find_col(["nhóm khách hàng", "nhóm đối tác", "nhóm", "phân loại", "segment", "group", "customergroup"], ["nhóm", "phân loại", "segment", "group"])
     idx_debt_comp = find_col(["nợ quỹ công ty", "nợ cty", "công nợ công ty", "công nợ cty", "nợ công ty ban đầu", "quỹ cty"], ["nợ cty", "nợ công ty", "quỹ cty", "quỹ công ty"])
     idx_debt_pers = find_col(["nợ quỹ cá nhân", "nợ cá nhân", "công nợ cá nhân", "nợ cá nhân ban đầu", "quỹ cá nhân"], ["nợ cá nhân", "quỹ cá nhân"])
     idx_debt = find_col(["công nợ ban đầu", "công nợ", "nợ", "debt", "nợ cũ"], ["công nợ ban đầu", "nợ cũ", "công nợ", "nợ", "debt"])
@@ -331,6 +331,7 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
 
     idx_points = find_col(["điểm", "điểm tích lũy", "points"], ["điểm", "point"])
     idx_email = find_col(["email", "thư điện tử", "mail"], ["email", "mail"])
+    idx_note = find_col(["ghi chú", "note", "notes", "lưu ý"], ["ghi chú", "note"])
 
     if idx_name == -1:
         idx_name = 0
@@ -358,8 +359,9 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         return s
 
     # Load danh sách contacts hiện có của type này để so khớp chính xác Unicode
-    cur.execute("SELECT id, name, phone, email, address, debt, segment_id, points, initial_debt_company, initial_debt_personal FROM contacts WHERE type = ?", (type,))
+    cur.execute("SELECT id, name, phone, email, address, debt, segment_id, points, initial_debt_company, initial_debt_personal, code, note FROM contacts WHERE type = ?", (type,))
     existing_list = [dict(r) for r in cur.fetchall()]
+    contacts_by_code = {str(c["code"] or "").strip().upper(): c for c in existing_list if c.get("code")}
     contacts_by_phone = {clean_phone_number(c["phone"]): c for c in existing_list if c["phone"]}
     contacts_by_name = {str(c["name"] or "").strip().lower(): c for c in existing_list}
 
@@ -375,8 +377,11 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             continue
 
         norm_name = name.lower()
+        code = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) else ""
+        norm_code = code.upper() if code else ""
         phone = clean_phone_number(r[idx_phone] if idx_phone != -1 and idx_phone < len(r) else "")
         address = str(r[idx_addr] or "").strip() if idx_addr != -1 and idx_addr < len(r) else ""
+        note = str(r[idx_note] or "").strip() if idx_note != -1 and idx_note < len(r) else ""
         
         segment_id = None
         if type == "customer" and idx_group != -1 and idx_group < len(r):
@@ -386,21 +391,21 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         debt = 0.0
         if idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None:
             try:
-                debt = float(r[idx_debt])
+                debt = float(str(r[idx_debt]).replace(",", "").strip())
             except:
                 debt = 0.0
 
         debt_comp = 0.0
         if type == "supplier" and idx_debt_comp != -1 and idx_debt_comp < len(r) and r[idx_debt_comp] is not None:
             try:
-                debt_comp = float(r[idx_debt_comp])
+                debt_comp = float(str(r[idx_debt_comp]).replace(",", "").strip())
             except:
                 debt_comp = 0.0
 
         debt_pers = 0.0
         if type == "supplier" and idx_debt_pers != -1 and idx_debt_pers < len(r) and r[idx_debt_pers] is not None:
             try:
-                debt_pers = float(r[idx_debt_pers])
+                debt_pers = float(str(r[idx_debt_pers]).replace(",", "").strip())
             except:
                 debt_pers = 0.0
 
@@ -419,20 +424,25 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
 
         email = str(r[idx_email] or "").strip() if idx_email != -1 and idx_email < len(r) else ""
 
-        # Kiểm tra trùng khớp 2 tầng (bằng Python Unicode sạch 100%):
-        # Tầng 1: So khớp SĐT chuẩn hóa (nếu có SĐT)
+        # Kiểm tra trùng khớp 3 tầng (bằng Python Unicode sạch 100%):
+        # Tầng 1: So khớp Mã KH/NCC (nếu có mã)
         existing = None
-        if phone and phone in contacts_by_phone:
+        if norm_code and norm_code in contacts_by_code:
+            existing = contacts_by_code[norm_code]
+        # Tầng 2: So khớp SĐT chuẩn hóa (nếu có SĐT)
+        elif phone and phone in contacts_by_phone:
             existing = contacts_by_phone[phone]
-        # Tầng 2: Nếu không có SĐT hoặc chưa khớp SĐT, so khớp theo Tên chuẩn hóa
+        # Tầng 3: Nếu không có SĐT hoặc chưa khớp SĐT, so khớp theo Tên chuẩn hóa
         elif norm_name in contacts_by_name:
             existing = contacts_by_name[norm_name]
 
         if existing:
             existing_id = existing["id"]
+            new_code = code if code else (existing.get("code") or "")
             new_phone = phone if phone else (existing.get("phone") or "")
             new_email = email if email else (existing.get("email") or "")
             new_address = address if address else (existing.get("address") or "")
+            new_note = note if note else (existing.get("note") or "")
             new_debt = float(existing.get("debt") or 0.0) + (debt if debt != 0.0 else 0.0)
             new_debt_comp = float(existing.get("initial_debt_company") or 0.0) + (debt_comp if debt_comp != 0.0 else 0.0)
             new_debt_pers = float(existing.get("initial_debt_personal") or 0.0) + (debt_pers if debt_pers != 0.0 else 0.0)
@@ -441,40 +451,49 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             cur.execute("""
                 UPDATE contacts 
                 SET name = ?, phone = ?, email = ?, address = ?, segment_id = COALESCE(?, segment_id), 
-                    debt = ?, points = ?, initial_debt_company = ?, initial_debt_personal = ?
+                    debt = ?, points = ?, initial_debt_company = ?, initial_debt_personal = ?,
+                    code = COALESCE(?, code), note = COALESCE(?, note)
                 WHERE id = ?
-            """, (name, new_phone, new_email, new_address, segment_id, new_debt, new_points, new_debt_comp, new_debt_pers, existing_id))
+            """, (name, new_phone, new_email, new_address, segment_id, new_debt, new_points, new_debt_comp, new_debt_pers, new_code or None, new_note or None, existing_id))
 
             existing["name"] = name
+            existing["code"] = new_code
             existing["phone"] = new_phone
             existing["email"] = new_email
             existing["address"] = new_address
+            existing["note"] = new_note
             existing["debt"] = new_debt
             existing["initial_debt_company"] = new_debt_comp
             existing["initial_debt_personal"] = new_debt_pers
             existing["points"] = new_points
+            if new_code:
+                contacts_by_code[new_code.upper()] = existing
             if new_phone:
                 contacts_by_phone[new_phone] = existing
             contacts_by_name[norm_name] = existing
             updated += 1
         else:
             cur.execute("""
-                INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, points, initial_debt_company, initial_debt_personal)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (type, name, phone, email, address, segment_id, debt, points, debt_comp, debt_pers))
+                INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, points, initial_debt_company, initial_debt_personal, code, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (type, name, phone, email, address, segment_id, debt, points, debt_comp, debt_pers, code or None, note or ""))
             new_id = cur.lastrowid
             new_c = {
                 "id": new_id,
                 "name": name,
+                "code": code,
                 "phone": phone,
                 "email": email,
                 "address": address,
+                "note": note,
                 "segment_id": segment_id,
                 "debt": debt,
                 "points": points,
                 "initial_debt_company": debt_comp,
                 "initial_debt_personal": debt_pers
             }
+            if code:
+                contacts_by_code[code.upper()] = new_c
             if phone:
                 contacts_by_phone[phone] = new_c
             contacts_by_name[norm_name] = new_c

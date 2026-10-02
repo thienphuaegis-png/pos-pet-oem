@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Demo Trực Quan: Chuột Bay Figma vs Trạng Thái Online POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; }
+        .cursor-trail { pointer-events: none; transition: transform 0.08s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 p-6 text-xs">
+    <div class="max-w-5xl mx-auto space-y-6">
+        <!-- HEADER -->
+        <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex justify-between items-center">
+            <div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Phòng Thí Nghiệm UX/UI</span>
+                <h1 class="text-base font-bold text-white mt-1">SO SÁNH THỰC TẾ: CHUỘT BAY ĐA NGƯỜI (FIGMA) VS TRẠNG THÁI ONLINE (KIOTVIET/ERP)</h1>
+            </div>
+            <div class="text-[11px] text-slate-400">Rê chuột thử vào 2 khung bên dưới để cảm nhận sự khác biệt!</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- DEMO 1: CHUỘT BAY FIGMA -->
+            <div class="bg-slate-800/80 p-5 rounded-2xl border border-rose-500/30 space-y-3 relative overflow-hidden flex flex-col" id="figma-container" onmousemove="moveSimulatedCursor(event)">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                    <div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">Mô hình 1: Con trỏ chuột bay (Multiplayer Cursors)</span>
+                        <h2 class="text-xs font-bold text-slate-200 mt-1">Hiện con trỏ chuột của người khác bay khắp màn hình</h2>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 text-[11px] leading-relaxed">
+                    ⚠️ <strong>Nhược điểm thực tế:</strong> Khi thu ngân đang tập trung quét mã hoặc bấm số tiền, con trỏ chuột của máy khác bay qua che khuất nút bấm hoặc làm hoa mắt giật mình tưởng máy bị hack.
+                </div>
+
+                <!-- Mô phỏng màn hình bán hàng bị chuột che -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 space-y-3 relative h-64 overflow-hidden select-none">
+                    <div class="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-2">
+                        <span class="font-bold text-slate-300">Đơn hàng #HD-9921</span>
+                        <span class="text-emerald-400 font-mono font-bold">195.000 đ</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="p-2 bg-slate-800 rounded flex justify-between items-center">
+                            <span>Sữa tắm Gemini 250ml</span>
+                            <span class="font-bold">x1</span>
+                        </div>
+                        <div class="p-2 bg-slate-800 rounded flex justify-between items-center">
+                            <span>Xịt trị ve ghẻ 100ml</span>
+                            <span class="font-bold">x2</span>
+                        </div>
+                    </div>
+                    <button class="w-full py-2.5 bg-emerald-600 font-bold rounded-lg text-white mt-4">
+                        💳 THANH TOÁN (F9)
+                    </button>
+
+                    <!-- CON TRỎ CHUỘT MÔ PHỎNG BAY QUA BAY LẠI -->
+                    <div id="sim-cursor-1" class="absolute cursor-trail transition-all duration-300 z-30" style="top: 80px; left: 120px;">
+                        <svg class="w-5 h-5 text-rose-500 drop-shadow-md" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3l7 18 3-7 7-3L3 3z"/></svg>
+                        <div class="px-2 py-0.5 bg-rose-600 text-white rounded text-[10px] font-bold shadow-md -mt-1 ml-3 whitespace-nowrap">
+                            👤 Anh Phú (Chủ shop)
+                        </div>
+                    </div>
+
+                    <div id="sim-cursor-2" class="absolute cursor-trail transition-all duration-500 z-30" style="top: 170px; left: 240px;">
+                        <svg class="w-5 h-5 text-purple-500 drop-shadow-md" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3l7 18 3-7 7-3L3 3z"/></svg>
+                        <div class="px-2 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold shadow-md -mt-1 ml-3 whitespace-nowrap">
+                            👤 Kế toán Hương
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEMO 2: PRESENCE & AVATAR ONLINE (CHUẨN ERP) -->
+            <div class="bg-slate-800/80 p-5 rounded-2xl border border-emerald-500/30 space-y-3 flex flex-col">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                    <div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Mô hình 2: Trạng thái Online (Khuyên Dùng)</span>
+                        <h2 class="text-xs font-bold text-slate-200 mt-1">Gọn gàng trên thanh tiêu đề: Ai đang làm gì, ở đâu</h2>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-emerald-300 text-[11px] leading-relaxed">
+                    ✨ <strong>Ưu điểm vượt trội:</strong> Không gây phiền nhiễu cho người bán. Vừa biết ai đang online, vừa chống đụng độ dữ liệu (khóa đơn khi có người khác đang sửa).
+                </div>
+
+                <!-- Mô phỏng thanh tiêu đề POS có Live Presence -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 space-y-3 h-64 overflow-hidden flex flex-col justify-between">
+                    <!-- Thanh Topbar mô phỏng -->
+                    <div class="flex justify-between items-center bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/80">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-200">🛒 POS Bán Hàng</span>
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 3 người online
+                            </span>
+                        </div>
+
+                        <!-- Danh sách Avatar những ai đang online -->
+                        <div class="flex items-center -space-x-2">
+                            <div class="relative group cursor-pointer">
+                                <div class="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold border-2 border-slate-800 text-[11px]">
+                                    P
+                                </div>
+                                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-slate-800"></span>
+                                <!-- Tooltip chi tiết người này đang làm gì -->
+                                <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-48 bg-slate-950 p-2.5 rounded-xl shadow-2xl border border-slate-700 text-[11px] z-50">
+                                    <div class="font-bold text-white">Bùi Thiên Phú (Chủ shop)</div>
+                                    <div class="text-slate-400 text-[10px]">💻 Máy tính (Ở nhà)</div>
+                                    <div class="text-emerald-400 text-[10px] mt-1">📍 Đang xem Báo cáo doanh thu</div>
+                                    <div class="text-slate-500 text-[9px] mt-0.5">Vừa thao tác 3 giây trước</div>
+                                </div>
+                            </div>
+
+                            <div class="relative group cursor-pointer">
+                                <div class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold border-2 border-slate-800 text-[11px]">
+                                    N
+                                </div>
+                                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-slate-800"></span>
+                                <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-48 bg-slate-950 p-2.5 rounded-xl shadow-2xl border border-slate-700 text-[11px] z-50">
+                                    <div class="font-bold text-white">Bé Nga (Thu ngân 1)</div>
+                                    <div class="text-slate-400 text-[10px]">🖥️ POS Cửa Hàng</div>
+                                    <div class="text-amber-400 text-[10px] mt-1">📍 Đang tạo đơn bán hàng</div>
+                                    <div class="text-slate-500 text-[9px] mt-0.5">Vừa quét mã sản phẩm</div>
+                                </div>
+                            </div>
+
+                            <div class="relative group cursor-pointer">
+                                <div class="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold border-2 border-slate-800 text-[11px]">
+                                    K
+                                </div>
+                                <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-slate-800"></span>
+                                <div class="hidden group-hover:block absolute right-0 top-full mt-2 w-48 bg-slate-950 p-2.5 rounded-xl shadow-2xl border border-slate-700 text-[11px] z-50">
+                                    <div class="font-bold text-white">Thủ Kho Nam</div>
+                                    <div class="text-slate-400 text-[10px]">📱 Điện thoại kho</div>
+                                    <div class="text-indigo-400 text-[10px] mt-1">📍 Đang kiểm đếm kho xưởng</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner chống đụng độ dữ liệu -->
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between text-amber-300">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">⚠️</span>
+                            <div>
+                                <div class="font-bold">Đơn hàng #HD-9921 đang được mở</div>
+                                <div class="text-[10px] text-amber-400/80">Thu ngân Nga đang nhập đơn trên máy POS tiệm</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">Chế độ xem</span>
+                    </div>
+
+                    <div class="text-center text-slate-500 text-[11px] italic">
+                        (Rê chuột vào các Avatar chữ P, N, K ở góc trên để xem chi tiết ai đang làm gì)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Hiệu ứng chuột bay mô phỏng lượn qua lượn lại ở Demo 1
+        let angle1 = 0;
+        let angle2 = Math.PI;
+        setInterval(() => {
+            angle1 += 0.05;
+            angle2 += 0.03;
+            const c1 = document.getElementById('sim-cursor-1');
+            const c2 = document.getElementById('sim-cursor-2');
+            if (c1) {
+                c1.style.left = (150 + Math.cos(angle1) * 80) + 'px';
+                c1.style.top = (110 + Math.sin(angle1) * 45) + 'px';
+            }
+            if (c2) {
+                c2.style.left = (220 + Math.sin(angle2) * 90) + 'px';
+                c2.style.top = (140 + Math.cos(angle2) * 50) + 'px';
+            }
+        }, 50);
+    </script>
+</body>
+</html>

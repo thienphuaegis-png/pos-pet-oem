@@ -271,6 +271,10 @@ def init_db():
 
     cur.execute("PRAGMA table_info(contacts)")
     contact_cols = [c[1] for c in cur.fetchall()]
+    if 'code' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN code TEXT")
+    if 'note' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN note TEXT DEFAULT ''")
     if 'is_flagged' not in contact_cols:
         cur.execute("ALTER TABLE contacts ADD COLUMN is_flagged INTEGER DEFAULT 0")
     if 'warning_note' not in contact_cols:
