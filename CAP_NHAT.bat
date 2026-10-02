@@ -97,13 +97,17 @@ if "!FETCH_OK!"=="1" (
     exit /b 1
 )
 
-REM Tu dong chay nang cap co so du lieu (migration) neu co python
-if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" database.py >nul 2>&1
-) else (
-    where python >nul 2>&1
-    if !errorlevel! equ 0 python database.py >nul 2>&1
-)
+    REM Tu dong chay nang cap co so du lieu (migration) neu co python
+    if exist ".venv\Scripts\python.exe" (
+        ".venv\Scripts\python.exe" database.py >nul 2>&1
+        ".venv\Scripts\python.exe" scripts\import_full_google_sheets_history.py >nul 2>&1
+    ) else (
+        where python >nul 2>&1
+        if !errorlevel! equ 0 (
+            python database.py >nul 2>&1
+            python scripts\import_full_google_sheets_history.py >nul 2>&1
+        )
+    )
 
 REM Dong bo giao dien templates/static vao thu muc ban build neu co
 if exist "_internal\templates" xcopy "templates" "_internal\templates\" /E /I /Y >nul 2>&1
