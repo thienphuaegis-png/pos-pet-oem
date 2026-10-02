@@ -80,7 +80,7 @@ async def import_orders_excel(file: UploadFile = File(...)):
     ws_items = wb['Order_Details'] if 'Order_Details' in sheet_names else (wb[sheet_names[1]] if len(sheet_names) > 1 else None)
     item_rows = list(ws_items.iter_rows(values_only=True)) if ws_items else []
 
-    conn = get_db_connection()
+    conn = get_db()
     cur = conn.cursor()
     try:
         # Load maps
@@ -154,10 +154,11 @@ async def import_orders_excel(file: UploadFile = File(...)):
             # Insert order items
             ord_items = items_by_order.get(code, [])
             for itm in ord_items:
+                subtot = max(0.0, itm["quantity"] * itm["price"] - itm["discount"])
                 cur.execute("""
-                    INSERT INTO order_items (order_id, product_id, quantity, price, discount)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (order_id, itm["product_id"], itm["quantity"], itm["price"], itm["discount"]))
+                    INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit_ratio, unit)
+                    VALUES (?, ?, ?, ?, ?, 1, 'cái')
+                """, (order_id, itm["product_id"], itm["quantity"], itm["price"], subtot))
                 items_count += 1
 
         conn.commit()
