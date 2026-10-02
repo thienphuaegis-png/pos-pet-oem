@@ -3470,6 +3470,32 @@
             document.getElementById('modal-ingredient-detail').classList.add('hidden');
         }
 
+        async function handleOrdersExcelUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                if (typeof showToast === 'function') showToast('Đang tải và xử lý file hóa đơn...', 'info');
+                const res = await fetch('/api/orders/import-excel', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Import thất bại');
+                if (typeof showToast === 'function') showToast(data.message || 'Import hóa đơn thành công!', 'success');
+                else alert(data.message || 'Import thành công!');
+                await loadOrdersList();
+            } catch (err) {
+                console.error("handleOrdersExcelUpload error:", err);
+                if (typeof showToast === 'function') showToast("Lỗi nhập hóa đơn: " + err.message, "error");
+                else alert("Lỗi nhập hóa đơn: " + err.message);
+            } finally {
+                e.target.value = '';
+            }
+        }
+        window.handleOrdersExcelUpload = handleOrdersExcelUpload;
+
         // --- QUẢN LÝ DANH SÁCH HÓA ĐƠN BÁN HÀNG ---
         let allOrdersData = [];
 

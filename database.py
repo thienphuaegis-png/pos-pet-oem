@@ -1121,6 +1121,8 @@ def init_db():
     order_cols = [c[1] for c in cur.fetchall()]
     if "spa_wallet_deduction" not in order_cols:
         cur.execute("ALTER TABLE orders ADD COLUMN spa_wallet_deduction REAL DEFAULT 0")
+    if "shipping_fee" not in order_cols:
+        cur.execute("ALTER TABLE orders ADD COLUMN shipping_fee REAL DEFAULT 0")
 
     # Migration: thêm column is_oem và supplier_id vào warehouses nếu chưa có
     cur.execute("PRAGMA table_info(warehouses)")

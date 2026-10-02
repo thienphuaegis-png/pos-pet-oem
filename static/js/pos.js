@@ -1065,7 +1065,13 @@ function updateFinancialSummary() {
     const spaWalletDisplay = document.getElementById('pos-spa-wallet-deduct-display');
 
     // Khách cần trả
-    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount);
+    const shippingFee = parseFloat(tab.shipping_fee) || 0;
+    const shipInput = document.getElementById('pos-shipping-fee-input');
+    if (shipInput && document.activeElement !== shipInput) {
+        shipInput.value = shippingFee > 0 ? shippingFee : '';
+    }
+
+    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee);
     document.getElementById('pos-final-amount-display').innerText = formatMoney(finalAmount);
 
     // Khách thanh toán (auto-fill nếu chưa gõ tay)
@@ -1210,8 +1216,22 @@ function getPosFinalAmount(tab) {
     const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
     const billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
-    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount);
+    const shippingFee = parseFloat(tab.shipping_fee) || 0;
+    return Math.max(0, subtotal - billDisc - (tab.coupon_discount || 0) - pointsAmount + shippingFee);
 }
+
+function updateShippingFee(val) {
+    const tab = getActiveTab();
+    tab.shipping_fee = Math.max(0, parseFloat(val) || 0);
+    calculateCartTotals();
+    renderQuickCashButtons();
+    const paidInput = document.getElementById('pos-paid-input');
+    const finalAmount = getPosFinalAmount(tab);
+    if (paidInput && !tab.split_payment) {
+        paidInput.value = formatMoney(finalAmount);
+    }
+}
+window.updateShippingFee = updateShippingFee;
 
 function removeSplitPaymentLine(idx) {
     const tab = getActiveTab();
@@ -1566,6 +1586,7 @@ async function submitPOSOrder() {
             customer_id: customerId,
             staff_id: staffId,
             discount: totalDiscount,
+            shipping_fee: parseFloat(tab.shipping_fee) || 0,
             paid_amount: paidAmount,
             account_id: tab.account_id || null,
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,

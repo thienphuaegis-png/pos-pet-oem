@@ -18,6 +18,7 @@ class OrderCreate(BaseModel):
     customer_id: int
     staff_id: int
     discount: float = 0
+    shipping_fee: Optional[float] = 0.0
     paid_amount: float
     note: Optional[str] = ""
     warehouse_id: Optional[int] = 1 # Kho xuất nguyên liệu
@@ -32,6 +33,7 @@ class OrderUpdate(BaseModel):
     customer_id: Optional[int] = None
     staff_id: Optional[int] = None
     discount: Optional[float] = None
+    shipping_fee: Optional[float] = None
     paid_amount: Optional[float] = None
     note: Optional[str] = None
     warehouse_id: Optional[int] = 1

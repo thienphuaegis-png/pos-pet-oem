@@ -1072,6 +1072,19 @@
                         <span id="pos-points-discount-display" class="font-bold text-emerald-600">0 đ</span>
                     </div>
 
+                    <!-- Phí giao hàng / Ship -->
+                    <div class="flex justify-between items-center pt-1 border-t border-slate-100">
+                        <span class="text-slate-600 flex items-center gap-1">
+                            <span>🚚 Phí giao hàng:</span>
+                        </span>
+                        <div class="relative w-28">
+                            <input type="number" step="1000" min="0" id="pos-shipping-fee-input" 
+                                   placeholder="0" value="0"
+                                   oninput="updateShippingFee(this.value)"
+                                   class="w-full text-right font-bold text-indigo-700 text-xs border border-slate-200 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white">
+                        </div>
+                    </div>
+
                     <!-- Khách cần trả (Highlight) -->
                     <div class="flex justify-between items-baseline pt-2 border-t border-slate-200">
                         <span class="font-bold text-slate-800 text-sm">Khách cần trả:</span>
@@ -1178,6 +1191,11 @@
                             <span id="orders-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">0 hóa đơn</span>
                         </div>
                         <div class="flex items-center gap-2">
+                            <input type="file" id="import-orders-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleOrdersExcelUpload(event)">
+                            <button onclick="document.getElementById('import-orders-file').click()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span>📥 Nhập Excel Hóa Đơn</span>
+                            </button>
                             <input type="text" id="search-orders" placeholder="Tìm mã đơn, khách, SĐT..." class="tui-input text-xs w-64" oninput="filterOrdersList()">
                             <button onclick="loadOrdersList()" class="tui-btn-primary text-xs flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
@@ -9386,7 +9404,7 @@
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
-    <script src="/static/js/modules/productions.js?v=20261001_06"></script>
+    <script src="/static/js/modules/productions.js?v=20261002_02"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>

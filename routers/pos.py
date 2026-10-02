@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 import datetime
 import time
 from database import get_db
@@ -57,7 +57,121 @@ def clear_draft(current: Optional[dict] = Depends(get_optional_user)):
     return {"message": "cleared"}
 
 
-@router.get("/api/orders")
+@router.post("/api/orders/import-excel")
+async def import_orders_excel(file: UploadFile = File(...)):
+    """
+    Import hóa đơn từ file Excel đa-sheet (Sheet Invoices + Sheet Order_Details)
+    """
+    import openpyxl, io
+    content = await file.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"File Excel không hợp lệ: {str(e)}")
+
+    sheet_names = wb.sheetnames
+    inv_sheet_name = 'Invoices' if 'Invoices' in sheet_names else sheet_names[0]
+    ws_inv = wb[inv_sheet_name]
+    inv_rows = list(ws_inv.iter_rows(values_only=True))
+    if len(inv_rows) <= 1:
+        raise HTTPException(status_code=400, detail="Sheet Invoices không có dữ liệu!")
+
+    # Sheet chi tiết món
+    ws_items = wb['Order_Details'] if 'Order_Details' in sheet_names else (wb[sheet_names[1]] if len(sheet_names) > 1 else None)
+    item_rows = list(ws_items.iter_rows(values_only=True)) if ws_items else []
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        # Load maps
+        cur.execute("SELECT id, code FROM contacts WHERE type = 'customer'")
+        cust_map = {r["code"]: r["id"] for r in cur.fetchall()}
+
+        cur.execute("SELECT id, UPPER(code) as code FROM products")
+        prod_map = {r["code"]: r["id"] for r in cur.fetchall()}
+
+        # Map chi tiết món theo mã đơn
+        items_by_order = {}
+        if item_rows and len(item_rows) > 1:
+            for r in item_rows[1:]:
+                if not r or len(r) < 3 or not r[1]:
+                    continue
+                o_code = str(r[1]).strip()
+                p_code = str(r[2]).strip().upper()
+                p_id = prod_map.get(p_code)
+                if not p_id:
+                    # Tự tạo mặt hàng nếu chưa có để không mất dữ liệu
+                    cur.execute("""
+                        INSERT INTO products (code, name, type, cost_price, sell_price, unit, stock, category)
+                        VALUES (?, ?, 'product', 0, ?, 'cái', 0, 'Khác')
+                    """, (str(r[2]).strip(), f"Sản phẩm {r[2]}", float(r[4] or 0)))
+                    p_id = cur.lastrowid
+                    prod_map[p_code] = p_id
+
+                qty = float(r[3] or 1)
+                price = float(r[4] or 0)
+                disc = float(r[5] or 0) if len(r) > 5 else 0
+                items_by_order.setdefault(o_code, []).append({
+                    "product_id": p_id,
+                    "quantity": qty,
+                    "price": price,
+                    "discount": disc
+                })
+
+        orders_count = 0
+        items_count = 0
+
+        for r in inv_rows[1:]:
+            if not r or not r[0]:
+                continue
+            code = str(r[0]).strip()
+            c_code = str(r[1] or "").strip()
+            cid = cust_map.get(c_code, 1) # Mặc định khách lẻ nếu ko tìm thấy
+            total = float(r[2] or 0)
+            disc = float(r[3] or 0)
+            ship = float(r[4] or 0) if len(r) > 4 else 0.0
+            final = float(r[5] or 0) if len(r) > 5 else (total - disc + ship)
+            paid = float(r[6] or 0) if len(r) > 6 else final
+            debt = float(r[7] or 0) if len(r) > 7 else max(0.0, final - paid)
+            note = str(r[8] or "") if len(r) > 8 else ""
+            status = str(r[9] or "completed") if len(r) > 9 else "completed"
+            c_at = str(r[10] or "") if len(r) > 10 else None
+
+            # Xóa đơn cũ nếu trùng mã để ghi đè sạch sẽ
+            cur.execute("SELECT id FROM orders WHERE code = ?", (code,))
+            ex = cur.fetchone()
+            if ex:
+                cur.execute("DELETE FROM order_items WHERE order_id = ?", (ex["id"],))
+                cur.execute("DELETE FROM orders WHERE id = ?", (ex["id"],))
+
+            cur.execute("""
+                INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, status, created_at)
+                VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now', 'localtime')))
+            """, (code, cid, total, disc, ship, final, paid, debt, note, status, c_at))
+            order_id = cur.lastrowid
+            orders_count += 1
+
+            # Insert order items
+            ord_items = items_by_order.get(code, [])
+            for itm in ord_items:
+                cur.execute("""
+                    INSERT INTO order_items (order_id, product_id, quantity, price, discount)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (order_id, itm["product_id"], itm["quantity"], itm["price"], itm["discount"]))
+                items_count += 1
+
+        conn.commit()
+        return {
+            "success": True,
+            "message": f"Đã nhập thành công {orders_count} hóa đơn và {items_count} chi tiết sản phẩm!",
+            "orders_imported": orders_count,
+            "items_imported": items_count
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lưu hóa đơn: {str(e)}")
+    finally:
+        conn.close()
 def list_orders(limit: int = 50):
     conn = get_db()
     cur = conn.cursor()
@@ -155,7 +269,8 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
             else:
                 wallet_deduction = max_usable
 
-        final_amount = max(0.0, total_amount - req.discount - wallet_deduction)
+        shipping_fee = max(0.0, float(req.shipping_fee or 0.0))
+        final_amount = max(0.0, total_amount - req.discount - wallet_deduction + shipping_fee)
         actual_paid = min(req.paid_amount, final_amount) if req.paid_amount > 0 else 0.0
         debt_amount = max(0.0, final_amount - actual_paid)
         
@@ -189,9 +304,9 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     raise HTTPException(status_code=400, detail="Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.")
 
         cur.execute("""
-        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction))
+        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
