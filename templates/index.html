@@ -2126,30 +2126,27 @@
                                 </div>
                             </div>
 
-                            <!-- Chọn mặt hàng điều chuyển (Cơ chế tìm kiếm thả dropdown giống Phiếu Nhập Hàng) -->
-                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 relative">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
-                                        <span>🔍</span> <span>Thêm Hàng Chuyển:</span>
-                                    </span>
-                                    <div class="relative flex-1 min-w-[320px]">
-                                        <input type="text" id="transfer-search-input" 
-                                               placeholder="🔍 Gõ tên hoặc mã hàng cần chuyển (không dấu: 'hop', 'chai', 'tem', 'sua')..." 
-                                               class="border border-slate-300 p-2 pr-8 rounded-lg w-full text-xs bg-white shadow-2xs outline-none focus:border-sky-500 font-medium" 
-                                               oninput="filterTransferSearch(this.value)"
-                                               onfocus="filterTransferSearch(this.value)"
-                                               autocomplete="off">
-                                        <span class="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none text-xs">▼</span>
-                                        <div id="transfer-search-results" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto hidden z-50 text-xs divide-y divide-slate-100 custom-scrollbar">
-                                        </div>
+                            <!-- Chọn mặt hàng điều chuyển: Thanh Quick-Search thả thẳng vào bảng chuẩn OEM / POS -->
+                            <div class="space-y-2">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide">📦 Danh Sách Mặt Hàng Điều Chuyển</h4>
+                                        <p class="text-[10px] text-gray-500" id="transfer-wh-hint">Vui lòng chọn Kho Xuất để tìm kiếm mặt hàng còn tồn</p>
+                                    </div>
+                                    <span id="transfer-rows-count-badge" class="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full font-mono">0 mặt hàng</span>
+                                </div>
+
+                                <div class="relative" id="transfer-search-wrapper">
+                                    <input type="text" id="transfer-search-input" 
+                                           placeholder="🔍 Gõ tên hoặc mã hàng cần chuyển để thêm nhanh vào phiếu..." 
+                                           autocomplete="off"
+                                           onclick="showTransferQuickSearchDropdown()" 
+                                           oninput="filterTransferSearch(this.value)" 
+                                           class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-sky-500 shadow-2xs">
+                                    <div id="transfer-search-results" 
+                                         class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto divide-y text-xs">
                                     </div>
                                 </div>
-                                <p class="text-[11px] text-gray-500 italic">* Gõ tên hoặc mã, click vào mặt hàng để đưa ngay vào danh sách điều chuyển bên dưới.</p>
-                            </div>
-
-                            <div class="flex justify-between items-center pt-1">
-                                <span class="font-bold text-xs text-slate-700">Danh sách các mặt hàng cần điều chuyển:</span>
-                                <span id="transfer-rows-count-badge" class="text-xs text-slate-500 font-medium">0 mặt hàng</span>
                             </div>
 
                             <div class="overflow-x-auto border rounded max-h-[380px]">
@@ -9400,7 +9397,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261002_01"></script>
+    <script src="/static/js/app.js?v=20261002_02"></script>
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>

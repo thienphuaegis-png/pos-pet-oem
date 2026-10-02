@@ -1712,11 +1712,22 @@
                 if (searchInp) searchInp.value = '';
                 const resBox = document.getElementById('transfer-search-results');
                 if (resBox) resBox.classList.add('hidden');
+                const hint = document.getElementById('transfer-wh-hint');
+                if (hint) {
+                    hint.innerText = `Đang hiển thị ${transferSourceItems.length} mặt hàng còn tồn (>0) tại kho này`;
+                }
                 renderTransferRows();
             } catch (e) {
                 console.error("onTransferFromChange error:", e);
             }
         }
+
+        function showTransferQuickSearchDropdown() {
+            const input = document.getElementById('transfer-search-input');
+            filterTransferSearch(input ? input.value : '');
+            document.getElementById('transfer-search-results')?.classList.remove('hidden');
+        }
+        window.showTransferQuickSearchDropdown = showTransferQuickSearchDropdown;
 
         function filterTransferSearch(val) {
             const resBox = document.getElementById('transfer-search-results');
@@ -1724,69 +1735,154 @@
 
             const fromWh = document.getElementById('transfer-from-wh')?.value;
             if (!fromWh) {
-                resBox.innerHTML = '<div class="p-3 text-amber-600 bg-amber-50 text-center font-medium">⚠️ Vui lòng chọn Kho Xuất trước khi chọn mặt hàng</div>';
+                resBox.innerHTML = `
+                    <div class="p-3 text-center text-amber-800 bg-amber-50 font-bold">
+                        ⚠️ Vui lòng chọn Kho Xuất ở ô bên trên trước!
+                    </div>
+                `;
                 resBox.classList.remove('hidden');
                 return;
             }
 
             if (!transferSourceItems || transferSourceItems.length === 0) {
-                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Kho xuất không có mặt hàng nào còn tồn (>0)</div>';
+                resBox.innerHTML = `
+                    <div class="p-3 text-center text-gray-500 italic">
+                        Kho xuất không có mặt hàng nào còn tồn (>0)
+                    </div>
+                `;
                 resBox.classList.remove('hidden');
                 return;
             }
 
-            const q = (val || '').trim();
+            const q = (val || '').toLowerCase().trim();
             const matches = [];
 
             transferSourceItems.forEach(item => {
-                const searchText = `${item.name} ${item.sku || item.code || ''} ${item.unit || ''}`;
-                if (!q || (typeof fuzzyMatch === 'function' && fuzzyMatch(q, searchText)) || searchText.toLowerCase().includes(q.toLowerCase())) {
+                const searchText = `${item.name} ${item.sku || item.code || ''} ${item.unit || ''}`.toLowerCase();
+                if (!q || (typeof fuzzyMatch === 'function' && fuzzyMatch(q, searchText)) || searchText.includes(q)) {
                     matches.push(item);
                 }
             });
 
             if (matches.length === 0) {
-                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy mặt hàng phù hợp trong kho xuất</div>';
+                resBox.innerHTML = `
+                    <div class="p-3 text-center text-gray-500 italic">
+                        Không tìm thấy mặt hàng phù hợp trong kho xuất
+                    </div>
+                `;
                 resBox.classList.remove('hidden');
                 return;
             }
 
-            resBox.innerHTML = matches.slice(0, 30).map(m => {
-                const isProd = m.item_type === 'product';
-                const badge = isProd 
-                    ? '<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>'
-                    : '<span class="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>';
+            // Phân tách 2 nhóm như màn OEM: Nhóm chưa chọn & Nhóm đã có trong phiếu
+            const existingQtyMap = new Map();
+            currentTransferRows.forEach(r => {
+                existingQtyMap.set(`${r.item_type}_${r.item_id}`, r.quantity);
+            });
 
-                return `
-                <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition-colors">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-7 h-7 rounded-lg ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
-                        <div>
-                            <div class="font-bold text-slate-800 text-xs">${m.name}</div>
-                            <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.sku || m.code || '---'} | ĐVT: ${m.unit} • ${badge}</div>
+            const unselectedList = [];
+            const selectedList = [];
+
+            matches.forEach(item => {
+                const key = `${item.item_type}_${item.id}`;
+                if (existingQtyMap.has(key)) {
+                    selectedList.push(item);
+                } else {
+                    unselectedList.push(item);
+                }
+            });
+
+            let html = '';
+
+            // 1. NHÓM CHƯA CHỌN VÀO PHIẾU
+            if (unselectedList.length > 0) {
+                html += `
+                    <div class="bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>📦 Chưa chọn vào phiếu (${unselectedList.length})</span>
+                        <span class="text-slate-400 italic font-normal">Click để thêm nhanh</span>
+                    </div>
+                `;
+                html += unselectedList.slice(0, 30).map(m => {
+                    const isProd = m.item_type === 'product';
+                    const badge = isProd 
+                        ? '<span class="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>'
+                        : '<span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>';
+
+                    return `
+                    <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition group">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
+                            <div>
+                                <div class="font-bold text-slate-800 group-hover:text-sky-900 text-xs">${m.name}</div>
+                                <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.sku || m.code || '---'} | ĐVT: <strong class="text-slate-700">${m.unit}</strong> • ${badge}</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex items-center gap-2.5 shrink-0">
+                            <div>
+                                <div class="text-[10px] text-gray-400">Tồn kho xuất:</div>
+                                <div class="font-bold text-sky-700 font-mono text-xs">${m.quantity.toLocaleString('vi-VN')} <span class="text-[10px] font-normal text-slate-500">${m.unit}</span></div>
+                            </div>
+                            <span class="text-xs bg-slate-100 group-hover:bg-sky-600 group-hover:text-white px-2.5 py-1 rounded-md font-bold transition">
+                                + Thêm
+                            </span>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-[10px] text-gray-400">Tồn kho xuất:</div>
-                        <div class="font-bold text-sky-700 font-mono text-xs">${m.quantity.toLocaleString('vi-VN')} <span class="text-[10px] font-normal text-slate-500">${m.unit}</span></div>
-                    </div>
-                </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
+            }
 
+            // 2. NHÓM ĐÃ CÓ TRONG PHIẾU (LÀM MỜ VÀ ĐẨY XUỐNG DƯỚI)
+            if (selectedList.length > 0) {
+                html += `
+                    <div class="bg-emerald-50/70 px-3 py-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
+                        <span>✓ Đã có trong phiếu (${selectedList.length})</span>
+                        <span class="text-emerald-600 font-normal">Click để tăng thêm SL</span>
+                    </div>
+                `;
+                html += selectedList.slice(0, 30).map(m => {
+                    const isProd = m.item_type === 'product';
+                    const currentQty = existingQtyMap.get(`${m.item_type}_${m.id}`) || 0;
+                    return `
+                    <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group border-l-4 border-l-emerald-500">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                            <div>
+                                <div class="font-bold text-slate-700 line-through decoration-slate-400 group-hover:no-underline text-xs">${m.name}</div>
+                                <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <span>ĐVT: ${m.unit}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px]">Đã chuyển: ${currentQty.toLocaleString('vi-VN')} ${m.unit}</span>
+                                    <span class="text-gray-400">(Tồn: ${m.quantity.toLocaleString('vi-VN')})</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-xs bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white text-slate-700 px-2.5 py-1 rounded-md font-bold transition">
+                                + Tăng SL
+                            </span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            resBox.innerHTML = html;
             resBox.classList.remove('hidden');
         }
+        window.filterTransferSearch = filterTransferSearch;
 
         function addTransferItemFromSearch(type, targetId) {
-            const resBox = document.getElementById('transfer-search-results');
-            if (resBox) resBox.classList.add('hidden');
-            const searchInput = document.getElementById('transfer-search-input');
-            if (searchInput) searchInput.value = '';
-
             const found = (transferSourceItems || []).find(it => it.item_type === type && it.id === targetId);
             if (!found) return;
 
-            const existing = currentTransferRows.find(x => x.item_type === type && x.item_id === targetId);
+            let targetIdx = -1;
+            const existing = currentTransferRows.find((x, idx) => {
+                if (x.item_type === type && x.item_id === targetId) {
+                    targetIdx = idx;
+                    return true;
+                }
+                return false;
+            });
+
             if (existing) {
                 if (existing.quantity < found.quantity) {
                     existing.quantity += 1;
@@ -1804,17 +1900,36 @@
                     unit: found.unit,
                     quantity: 1
                 });
+                targetIdx = currentTransferRows.length - 1;
             }
 
             renderTransferRows();
+
+            // Focus vào ô số lượng của dòng vừa chọn
+            setTimeout(() => {
+                const rows = document.querySelectorAll('#table-transfer-rows tr');
+                if (rows && rows[targetIdx]) {
+                    const qtyInp = rows[targetIdx].querySelector('input[type="number"]');
+                    if (qtyInp) {
+                        qtyInp.focus();
+                        qtyInp.select();
+                    }
+                }
+            }, 50);
+
+            // Xóa input và ẩn dropdown tìm kiếm
+            const searchInput = document.getElementById('transfer-search-input');
+            if (searchInput) searchInput.value = '';
+            document.getElementById('transfer-search-results')?.classList.add('hidden');
         }
+        window.addTransferItemFromSearch = addTransferItemFromSearch;
 
         // Đóng dropdown tìm kiếm khi click ngoài
         document.addEventListener('click', function(e) {
-            const box = document.getElementById('transfer-search-results');
-            const inp = document.getElementById('transfer-search-input');
-            if (box && !box.contains(e.target) && e.target !== inp) {
-                box.classList.add('hidden');
+            const wrap = document.getElementById('transfer-search-wrapper');
+            const resBox = document.getElementById('transfer-search-results');
+            if (wrap && resBox && !wrap.contains(e.target)) {
+                resBox.classList.add('hidden');
             }
         });
 
