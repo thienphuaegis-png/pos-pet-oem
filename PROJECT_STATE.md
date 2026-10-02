@@ -1,52 +1,56 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-09-30 — Mở Rộng Phân Quyền Sổ Quỹ, Dòng Tiền, Khách Hàng Cho Thu Ngân/Thủ Kho & Khử Trùng NCC Khi Import  
-**Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`)  
+**Checkpoint:** 2026-10-02 — Chuẩn Hóa Điều Chuyển Kho (OEM Style + In-App Modal) & Sửa Lỗi Sửa Đơn Đặt Gia Công OEM  
+**Server:** `http://127.0.0.1:8998` / `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
 **Archive Log:** `docs/archive/STATE_2026_09.md` (lịch sử chi tiết các phiên trước)
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-09-30)
-- **Mở Rộng Phân Quyền Sidebar & Backend (`rbac-1`):**
-  - Mở quyền truy cập trên thanh điều hướng cho 3 tab: `contacts` (Khách Hàng & Đối Tác), `cashbook` (Sổ Quỹ Thu Chi), `cashflow-debts` (Dòng Tiền & Nợ NCC) cho cả 4 vai trò: `owner, accountant, cashier, warehouse`.
-  - Cập nhật `DEFAULT_ROLE_PERMS` và tự động migration trong `database.py`: Cấp đầy đủ `cashbook.manage` và `partners.manage` cho `cashier` và `warehouse`.
-  - Nới lỏng quyền thanh toán công nợ NCC (`/api/cashflow-debts/pay-supplier`, `/api/cashflow-debts/pay-order`): Cho phép người dùng sở hữu bất kỳ quyền nào trong `oem.manage`, `partners.manage` hoặc `cashbook.manage`.
-- **Sửa Lỗi Nhân Đôi Nhà Cung Cấp Khi Import Excel (`contacts-2`):**
-  - Hàm làm sạch SĐT `clean_phone_number()` loại bỏ đuôi số thực `.0`, ký tự đặc biệt, khoảng trắng thừa.
-  - Cơ chế so khớp 2 tầng bằng Python UTF-8 sạch 100%: Tầng 1 khớp theo SĐT chuẩn hóa; Tầng 2 khớp theo Tên chuẩn hóa `name.strip().lower()`. Khi tìm thấy, thực hiện `UPDATE` và cộng dồn công nợ ban đầu thay vì chèn dòng trùng.
-- **Engine & Script Tự Động Khử Trùng Đối Tác Database (`contacts-3`):**
-  - Hàm `merge_duplicate_contacts()` trong `database.py` tự động quét các đối tác trùng tên, chọn bản ghi chính `master_id`, dồn công nợ, điểm, số dư ví, chuyển giao khóa ngoại từ 11 bảng (`purchases`, `oem_orders`, `supplier_items`, `inventory_logs`, `warehouses`, `cashbook`, `orders`, `pets`, `pet_service_tickets`, `hotel_bookings`, `spa_wallet_logs`) và dọn dẹp các bản ghi phụ.
-  - Cung cấp script dòng lệnh độc lập `scripts/deduplicate_contacts.py`.
-- **Đóng Gói Portable Windows Chạy Ngầm Khay Hệ Thống & Auto-Backup Google Drive (`sys-5, sys-6`):**
-  - PyInstaller `--noconsole` tích hợp icon khay hệ thống `pystray`, redirect stdio vào `pos_debug.log`.
-  - Tích hợp `backup_service.py` chạy ngầm định kỳ 1 giờ/lần sao lưu DB lên Google Drive qua Apps Script Webhook.
+## 1. Phiên Hiện Tại ✅ (2026-10-02)
+- **Sửa Lỗi Backend & Frontend Phân Hệ Điều Chuyển Kho (`INV`):**
+  - Nhận diện linh hoạt trường `item_id`, `product_id`, `ingredient_id` trong payload POST `/api/inventory/transfer`, khắc phục lỗi `NOT NULL constraint failed: product_inventory.product_id`.
+  - Trả về đồng thời `code`, `transfer_code`, `id`; chuẩn hóa bảng lịch sử và chi tiết phiếu.
+  - Bổ sung endpoint `GET /api/inventory/transfers/{transfer_id}` xem chi tiết đợt chuyển.
+  - Viết suite test tự động `tests/test_warehouse_transfers.py` (Pass 100%).
+- **Chuẩn Hóa Giao Diện Thêm Hàng Điều Chuyển Kho Sang Chuẩn OEM (`UI / INV`):**
+  - Thanh tìm kiếm full-width, hiển thị dropdown phân tách 2 nhóm rõ ràng: `📦 Chưa chọn vào phiếu` và `✓ Đã có trong phiếu (làm mờ, badge đã chuyển, nút + Tăng SL)`.
+  - Thao tác 1-chạm: Click chọn tự động đổ vào bảng và focus/bôi đen ngay ô số lượng để nhập nhanh.
+  - Thay thế popup `confirm()` mặc định của trình duyệt bằng **Modal Xác Nhận In-App chuyên nghiệp** (thẻ Kho Xuất đỏ, Kho Nhập xanh, tóm tắt danh sách món, nút Xác Nhận Chuyển và Hủy Bỏ).
+  - Toàn bộ cảnh báo chuyển kho chuyển sang Toast notification không chặn màn hình.
+- **Sửa Lỗi Nút "✏️ Sửa" Đơn Đặt Gia Công OEM (`PROD`):**
+  - Bổ sung hàm `renderOEMItemRow` và `addOEMProductRow` thay thế hàm cũ đã bị mất do đợt nâng cấp trước.
+  - Viết lại toàn bộ hàm `openModalEditOEM`: gán lại nhà máy, kho NVL xưởng, kho đích, hạn giao, nguồn tiền, chiết khấu (% / VNĐ), VAT; khóa ô tiền cọc đợt 1; nạp danh sách món vào bảng và tự động đối chiếu tồn kho BOM.
+  - Cập nhật backend `routers/oem.py`: bổ sung `bom_count` và cập nhật trường `fund_source` vào DB khi sửa đơn OEM.
+- **Biên Dịch & Đóng Gói Portable:**
+  - Build lại hoàn chỉnh file thực thi `POS_Mastercare.exe` (onefile) cập nhật các routes và mã JavaScript mới nhất.
+  - Tăng cache buster: `app.js?v=20261002_03`, `productions.js?v=20261002_03`.
+  - Đã đẩy toàn bộ lên remote GitHub `main` (`d4c005a`).
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- `tests/test_rbac_and_supplier_dedup.py`: **PASS 5/5** (Xác minh hiển thị sidebar 4 vai trò, phân quyền DB, engine gộp đối tác trùng, import Excel chống nhân đôi).
-- `tests/test_html_integrity.py`: **PASS 5/5** (Toàn vẹn 14 tabs con trực tiếp, 15 nút điều hướng sidebar).
-- `tests/test_checkpoint_integrity.py`: **PASS 4/4** (Toàn vẹn Checkpoint Protocol & Roadmap).
-- `tests/test_auth.py`: **PASS 8/8** (Xác thực, phân quyền RBAC & ca làm việc).
-- `tests/test_spa_wallet_hotel_rules.py`: **PASS 4/4** (Ví Spa không cấn trừ tiền phòng khách sạn).
+- `tests/test_warehouse_transfers.py`: **PASS 1/1** (Tạo phiếu chuyển kho hàng hóa & nguyên liệu, kiểm tra chi tiết và danh sách).
+- `tests/test_git_hygiene.py`: **PASS 6/6** (Đảm bảo an toàn repo, không track file rác/bí mật, POS_Mastercare.exe được track chuẩn).
 
 ---
 
 ## 3. Files Thay Đổi Chính
 | Module / File | Trách nhiệm |
 |---|---|
-| `templates/index.html` | Mở `data-role` cho `contacts`, `cashbook`, `cashflow-debts` cho `owner,accountant,cashier,warehouse` |
-| `database.py` | Cập nhật `DEFAULT_ROLE_PERMS`, migration quyền, bổ sung engine `merge_duplicate_contacts()` |
-| `dependencies.py` | Bổ sung helper dependency `require_any_permission()` |
-| `routers/oem.py` | Cho phép `oem.manage`, `partners.manage`, `cashbook.manage` thanh toán nợ NCC |
-| `routers/partners.py` | Chuẩn hóa SĐT, so khớp kép 2 tầng chống trùng đối tác khi import Excel |
-| `scripts/deduplicate_contacts.py` | Script dòng lệnh độc lập quét và gộp đối tác trùng lặp |
-| `tests/test_rbac_and_supplier_dedup.py` | Suite kiểm thử tự động toàn diện cho phân quyền và khử trùng đối tác |
+| `routers/inventory.py` | Linh hoạt `prod_id`/`ing_id`/`item_id`, bổ sung GET chi tiết phiếu chuyển kho |
+| `schemas.py` | Bổ sung `item_id` vào `TransferItemIn` |
+| `routers/oem.py` | Bổ sung `bom_count` và cập nhật `fund_source` trong `update_oem_order` |
+| `static/js/app.js` | Dropdown chuyển kho 2 nhóm chuẩn OEM, in-app confirm modal, toast alerts |
+| `static/js/modules/productions.js` | Sửa hoàn chỉnh logic nút sửa đơn OEM, `renderOEMItemRow`, `openModalEditOEM` |
+| `templates/index.html` | Cập nhật cấu trúc quick-search chuyển kho và tăng version cache busters |
+| `POS_Mastercare.exe` | Binary portable onefile biên dịch mới nhất |
+| `tests/test_warehouse_transfers.py` | Test suite tự động cho tính năng chuyển kho |
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+- [ ] `ecomm-sync`: Nghiên cứu kịch bản kéo đơn sàn TMĐT (Shopee/TikTok Shop) tự động trừ tồn kho.
 - [ ] `bill-5`: Kiểm tra và chuẩn hóa in ấn K80/A4 trên máy in vật lý tại quầy thực tế.
 - [ ] `cloud-2`: Tích hợp đồng bộ dữ liệu thời gian thực giữa quầy offline và Supabase Cloud.
 - [ ] `sys-4`: Chuẩn bị kiến trúc schema & hook cho chức năng AI trợ lý quầy.
