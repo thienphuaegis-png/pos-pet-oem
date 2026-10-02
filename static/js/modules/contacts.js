@@ -80,8 +80,8 @@
                         const code = c.code || ('KH' + String(c.id).padStart(4, '0'));
                         const safeName = escapeJs(c.name || '');
                         const petCount = c.pets_count || c.pet_count || 0;
-                        const groupBadge = c.group_name
-                            ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200 text-[11px]">${c.group_name}</span>`
+                        const groupBadge = c.group_name || (c.segment_name)
+                            ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200 text-[11px]">${c.group_name || c.segment_name}</span>`
                             : `<span class="text-gray-400 italic text-[11px]">Mặc định</span>`;
                         const debtStyle = c.debt > 0 ? 'text-rose-600 font-bold' : 'text-gray-400';
                         const spaBal = Number(c.spa_wallet_balance || 0);
@@ -95,12 +95,12 @@
                             <td class="p-2.5 font-bold text-slate-800">${c.name}</td>
                             <td class="p-2.5 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">---</span>'}</td>
                             <td class="p-2.5 text-gray-500">${c.address || '<span class="text-gray-300">---</span>'}</td>
-                            <td class="p-2.5 text-center">${groupBadge}</td>
                             <td class="p-2.5 text-center">
                                 <button onclick="openCustomerPetsModal(${c.id}, '${safeName}')" class="px-2 py-0.5 rounded font-bold text-[11px] bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 shadow-sm transition">
                                     🐾 ${petCount} bé
                                 </button>
                             </td>
+                            <td class="p-2.5 text-center">${groupBadge}</td>
                             <td class="p-2.5 text-right font-mono">${spaBalHtml}</td>
                             <td class="p-2.5 text-right font-mono ${debtStyle}">${formatMoney(c.debt || 0)}</td>
                             <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
