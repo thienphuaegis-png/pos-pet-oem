@@ -7174,12 +7174,12 @@
             await loadOEMFactoriesList();
 
             if (allOEMFactories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="p-3 text-center text-gray-400 italic">Chưa có nhà máy nào được gán kho xưởng. Hãy chọn ở ô phía trên để gán!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400 italic">Chưa có nhà máy nào được gán kho xưởng. Hãy chọn ở ô phía trên để gán!</td></tr>';
                 return;
             }
 
             tbody.innerHTML = allOEMFactories.map(f => `
-                <tr class="border-b hover:bg-slate-50">
+                <tr class="border-b hover:bg-slate-50 transition">
                     <td class="p-2 font-bold text-slate-800">
                         🏭 ${f.name}
                         ${f.phone ? `<span class="text-gray-400 text-[10px] ml-1">(${f.phone})</span>` : ''}
@@ -7190,9 +7190,48 @@
                     <td class="p-2 text-center font-bold text-amber-700 font-mono">
                         ${f.product_count} sản phẩm
                     </td>
+                    <td class="p-2 text-center">
+                        <button type="button" onclick="unlinkFactoryWarehouse(${f.warehouse_id}, '${(f.name || '').replace(/'/g, "\\'")}', '${(f.warehouse_name || '').replace(/'/g, "\\'")}')"
+                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold transition flex items-center justify-center gap-1 mx-auto"
+                                title="Gỡ kho này khỏi nhà máy">
+                            <span>🔗✕</span> <span>Gỡ kho</span>
+                        </button>
+                    </td>
                 </tr>
             `).join('');
         }
+
+        async function unlinkFactoryWarehouse(warehouseId, factoryNam, warehouseName) {
+            const confirmed = await window.showConfirmModal({
+                title: 'Gỡ Kho Khỏi Nhà Máy',
+                message: `Bạn có chắc muốn gỡ kho <span class="font-bold text-emerald-700">"${warehouseName}"</span> khỏi nhà máy <span class="font-bold text-slate-800">"${factoryNam}"</span>?`,
+                subMessage: 'Lưu ý: Kho hàng và số lượng tồn kho vẫn được giữ nguyên vẹn an toàn, chỉ hủy việc tự động nhận diện kho này khi tạo đơn gia công OEM.',
+                confirmText: 'Đồng ý gỡ',
+                cancelText: 'Hủy bỏ',
+                type: 'warning'
+            });
+
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/oem/factories/unlink-warehouse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ warehouse_id: warehouseId })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Không thể gỡ kho');
+                }
+
+                window.showToast ? window.showToast(`Đã gỡ kho "${warehouseName}" thành công!`, 'success') : alert(`Đã gỡ kho thành công!`);
+                await renderManageFactoriesTable();
+            } catch (e) {
+                window.showToast ? window.showToast('Lỗi: ' + e.message, 'error') : alert('Lỗi: ' + e.message);
+            }
+        }
+        window.unlinkFactoryWarehouse = unlinkFactoryWarehouse;
 
         async function submitLinkFactoryWarehouse() {
             const suppId = parseInt(document.getElementById('oem-link-supplier-sel')?.value);

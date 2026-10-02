@@ -68,6 +68,9 @@ def list_oem_factories():
     conn.close()
     return rows
 
+class UnlinkWarehouseRequest(BaseModel):
+    warehouse_id: int
+
 @router.post("/api/oem/factories/link-warehouse")
 def link_factory_warehouse(req: LinkWarehouseRequest, user=Depends(require_permission("oem.manage"))):
     """Gán nhà máy với một kho hàng để nhận diện kho tự động"""
@@ -77,6 +80,16 @@ def link_factory_warehouse(req: LinkWarehouseRequest, user=Depends(require_permi
     conn.commit()
     conn.close()
     return {"success": True, "message": "Đã gán nhà máy với kho xưởng thành công"}
+
+@router.post("/api/oem/factories/unlink-warehouse")
+def unlink_factory_warehouse(req: UnlinkWarehouseRequest, user=Depends(require_permission("oem.manage"))):
+    """Gỡ liên kết kho xưởng khỏi nhà máy gia công"""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE warehouses SET supplier_id = NULL, is_oem = 0 WHERE id = ?", (req.warehouse_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Đã gỡ liên kết kho xưởng thành công"}
 
 @router.get("/api/oem/factories/{supplier_id}/products")
 def list_factory_products(supplier_id: int):
