@@ -1658,10 +1658,6 @@
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                                     <span>Xuất Hủy</span>
                                 </button>
-                                <button onclick="clearAllProductsQuick()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 transition shadow-2xs" title="Xóa sạch toàn bộ danh mục hàng hóa để import lại từ đầu">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    <span>Xóa Hết Hàng Hóa</span>
-                                </button>
                                 <button onclick="loadUnifiedInventory()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition">
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                                     <span>Tải lại</span>
@@ -1674,6 +1670,9 @@
                             <table class="w-full text-left text-xs table-floating-cards">
                                 <thead class="bg-gray-50/70 select-none">
                                     <tr>
+                                        <th class="p-2.5 text-center w-8">
+                                            <input type="checkbox" id="chk-select-all-unified" onchange="toggleSelectAllUnified(this.checked)" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                        </th>
                                         <th class="p-2.5 cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('code')">
                                             Mã hàng <span id="sort-icon-code" class="text-gray-400">↕</span>
                                         </th>
@@ -1709,6 +1708,29 @@
                             </table>
                         </div>
                         <div id="pagination-unified-inventory"></div>
+
+                        <!-- Floating Bulk Action Bar khi chọn >= 1 mặt hàng -->
+                        <div id="unified-bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 z-40 backdrop-blur-md hidden transition-all duration-200">
+                            <div class="text-xs font-semibold flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold" id="bulk-selected-count">0</span>
+                                <span>mặt hàng đang chọn</span>
+                            </div>
+                            <div class="h-4 w-px bg-slate-700"></div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="bulkSetProductStatus(0)" class="px-3 py-1.5 bg-amber-600/90 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
+                                    <span>🚫</span> <span>Ngừng kinh doanh</span>
+                                </button>
+                                <button type="button" onclick="bulkSetProductStatus(1)" class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
+                                    <span>✅</span> <span>Kinh doanh lại</span>
+                                </button>
+                                <button type="button" onclick="bulkDeleteProductsAction()" class="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
+                                    <span>🗑️</span> <span>Xóa đã chọn</span>
+                                </button>
+                                <button type="button" onclick="clearUnifiedSelection()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition ml-1" title="Bỏ chọn">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -7440,7 +7462,42 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                        <!-- Nút 0: Chỉ dọn sạch danh mục hàng hóa để nạp mới -->
+                        <div class="border border-indigo-200 bg-indigo-50/40 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-xs hover:border-indigo-300 transition">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" x2="12" y1="22.08" y2="12"/></svg>
+                                    </span>
+                                    <div>
+                                        <h3 class="font-bold text-slate-900 text-xs">Dọn Sạch Danh Mục Hàng Hóa</h3>
+                                        <span class="text-[10px] font-semibold text-indigo-800 bg-indigo-100/80 px-2 py-0.5 rounded-md border border-indigo-200/60">Để nhập lại từ Excel mới</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Xóa trắng toàn bộ sản phẩm thành phẩm trong kho để Import danh mục chuẩn.
+                                </p>
+                                <ul class="text-xs text-slate-700 space-y-1.5 bg-white p-3 rounded-lg border border-indigo-200/80">
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa toàn bộ <strong>Hàng Hóa & Đơn vị quy đổi</strong>.</span>
+                                    </li>
+                                    <li class="text-rose-600 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+                                        <span>Xóa liên kết tồn kho thành phẩm & cấu hình BOM.</span>
+                                    </li>
+                                    <li class="text-emerald-700 font-semibold flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                        <span>GIỮ NGUYÊN: Nguyên liệu xưởng, Sổ quỹ, Khách hàng & Hóa đơn.</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <button type="button" onclick="openResetDataModal('clear_catalog_only')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-xs text-xs flex items-center justify-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                <span>Dọn Sạch Danh Mục Hàng Hóa</span>
+                            </button>
+                        </div>
                         <!-- Nút 1: Chỉ xóa giao dịch & KH -->
                         <div class="border border-amber-200 bg-amber-50/40 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-xs hover:border-amber-300 transition">
                             <div class="space-y-2.5">

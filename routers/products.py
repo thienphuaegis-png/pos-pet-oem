@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 from typing import Optional
 from database import get_db
-from schemas import ProductCreate, ProductUpdate
+from schemas import ProductCreate, ProductUpdate, ProductBulkStatusIn, ProductBulkDeleteIn
 from logger_config import get_module_logger
 from dependencies import get_optional_user, can_view_cost
 import io
@@ -493,6 +493,103 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
+
+@router.post("/bulk-status")
+def bulk_update_product_status(req: ProductBulkStatusIn):
+    if not req.product_ids:
+        return {"status": "ok", "updated_count": 0}
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        placeholders = ",".join(["?"] * len(req.product_ids))
+        cur.execute(f"UPDATE products SET is_active = ? WHERE id IN ({placeholders})", [req.is_active] + req.product_ids)
+        affected = cur.rowcount
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    action_text = "tiếp tục kinh doanh" if req.is_active == 1 else "ngừng kinh doanh"
+    return {
+        "status": "ok",
+        "updated_count": affected,
+        "message": f"Đã chuyển {affected} sản phẩm sang trạng thái {action_text}."
+    }
+
+@router.post("/bulk-delete")
+def bulk_delete_products(req: ProductBulkDeleteIn):
+    if not req.product_ids:
+        return {"status": "ok", "deleted_count": 0, "inactivated_count": 0, "skipped_has_stock": 0}
+    conn = get_db()
+    cur = conn.cursor()
+    deleted_count = 0
+    inactivated_count = 0
+    skipped_has_stock = 0
+    skipped_names = []
+
+    try:
+        for pid in req.product_ids:
+            cur.execute("SELECT id, name, code, stock FROM products WHERE id = ?", (pid,))
+            p = cur.fetchone()
+            if not p:
+                continue
+
+            # 1. Kiểm tra tồn kho thực tế
+            cur.execute("SELECT COALESCE(SUM(quantity), 0) FROM product_inventory WHERE product_id = ?", (pid,))
+            inv_stock = cur.fetchone()[0]
+            total_stock = float(p["stock"] or 0) + float(inv_stock)
+
+            # Nếu còn tồn kho > 0 và không bắt buộc force: Không xóa, cảnh báo người dùng
+            if total_stock > 0 and not req.force:
+                skipped_has_stock += 1
+                skipped_names.append(f"{p['name']} (tồn: {total_stock})")
+                continue
+
+            # 2. Kiểm tra xem có giao dịch bán hoặc nhập chưa
+            cur.execute("SELECT COUNT(*) FROM order_items WHERE product_id = ?", (pid,))
+            order_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM purchase_items WHERE product_id = ?", (pid,))
+            purchase_count = cur.fetchone()[0]
+
+            has_transactions = (order_count > 0 or purchase_count > 0)
+
+            if has_transactions and not req.force:
+                # Đã có giao dịch: chỉ chuyển sang ngừng kinh doanh để giữ toàn vẹn kế toán
+                cur.execute("UPDATE products SET is_active = 0 WHERE id = ?", (pid,))
+                cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (pid,))
+                inactivated_count += 1
+            else:
+                # Chưa từng có giao dịch (hoặc force): xóa vĩnh viễn
+                cur.execute("DELETE FROM item_units WHERE item_type = 'product' AND item_id = ?", (pid,))
+                cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (pid,))
+                cur.execute("DELETE FROM product_inventory WHERE product_id = ?", (pid,))
+                cur.execute("DELETE FROM product_bom WHERE product_id = ?", (pid,))
+                cur.execute("DELETE FROM inventory_logs WHERE product_id = ?", (pid,))
+                cur.execute("DELETE FROM products WHERE id = ?", (pid,))
+                deleted_count += 1
+
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+
+    msg_parts = []
+    if deleted_count > 0:
+        msg_parts.append(f"Đã xóa vĩnh viễn {deleted_count} sản phẩm chưa phát sinh đơn")
+    if inactivated_count > 0:
+        msg_parts.append(f"Đã chuyển {inactivated_count} sản phẩm có hóa đơn cũ sang Ngừng kinh doanh")
+    if skipped_has_stock > 0:
+        msg_parts.append(f"Bỏ qua {skipped_has_stock} sản phẩm còn tồn kho")
+
+    return {
+        "status": "ok",
+        "deleted_count": deleted_count,
+        "inactivated_count": inactivated_count,
+        "skipped_has_stock": skipped_has_stock,
+        "skipped_names": skipped_names,
+        "message": "; ".join(msg_parts) if msg_parts else "Không có thay đổi nào."
+    }
 
 @router.delete("/{product_id}")
 def delete_product(product_id: int, force: bool = False):

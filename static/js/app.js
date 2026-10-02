@@ -514,6 +514,129 @@
             renderUnifiedInventoryTable();
         }
 
+        // --- QUẢN LÝ CHECKBOX HÀNG LOẠT TRÊN BẢNG TỒN KHO ---
+        let selectedUnifiedItemIds = new Set();
+
+        function toggleSelectAllUnified(checked) {
+            const checkboxes = document.querySelectorAll('.chk-item-unified');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const id = parseInt(cb.dataset.id);
+                if (checked) {
+                    selectedUnifiedItemIds.add(id);
+                } else {
+                    selectedUnifiedItemIds.delete(id);
+                }
+            });
+            updateUnifiedBulkActionBar();
+        }
+        window.toggleSelectAllUnified = toggleSelectAllUnified;
+
+        function toggleItemUnified(id, checked) {
+            if (checked) {
+                selectedUnifiedItemIds.add(id);
+            } else {
+                selectedUnifiedItemIds.delete(id);
+            }
+            const allBoxes = document.querySelectorAll('.chk-item-unified');
+            const allChecked = allBoxes.length > 0 && Array.from(allBoxes).every(b => b.checked);
+            const masterChk = document.getElementById('chk-select-all-unified');
+            if (masterChk) masterChk.checked = allChecked;
+            updateUnifiedBulkActionBar();
+        }
+        window.toggleItemUnified = toggleItemUnified;
+
+        function clearUnifiedSelection() {
+            selectedUnifiedItemIds.clear();
+            const masterChk = document.getElementById('chk-select-all-unified');
+            if (masterChk) masterChk.checked = false;
+            document.querySelectorAll('.chk-item-unified').forEach(b => b.checked = false);
+            updateUnifiedBulkActionBar();
+        }
+        window.clearUnifiedSelection = clearUnifiedSelection;
+
+        function updateUnifiedBulkActionBar() {
+            const bar = document.getElementById('unified-bulk-action-bar');
+            const countEl = document.getElementById('bulk-selected-count');
+            const count = selectedUnifiedItemIds.size;
+            if (!bar) return;
+            if (count > 0) {
+                if (countEl) countEl.innerText = count;
+                bar.classList.remove('hidden');
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+        window.updateUnifiedBulkActionBar = updateUnifiedBulkActionBar;
+
+        async function bulkSetProductStatus(isActive) {
+            const ids = Array.from(selectedUnifiedItemIds);
+            if (ids.length === 0) return;
+            const actionText = isActive === 1 ? 'Kinh doanh lại' : 'Ngừng kinh doanh';
+            const confirmed = await window.showConfirmModal({
+                title: `${actionText} Hàng Loạt`,
+                message: `Bạn có chắc chắn muốn chuyển <span class="font-bold text-indigo-600">${ids.length} mặt hàng</span> đã chọn sang trạng thái <strong>${actionText}</strong>?`,
+                subMessage: isActive === 1 ? 'Mặt hàng sẽ xuất hiện lại trên POS và đơn nhập hàng.' : 'Mặt hàng sẽ tạm ẩn khỏi màn hình POS để tránh bán nhầm.',
+                confirmText: 'Đồng ý',
+                cancelText: 'Hủy bỏ',
+                type: isActive === 1 ? 'primary' : 'warning'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/products/bulk-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_ids: ids, is_active: isActive })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.showToast ? window.showToast(data.message || 'Cập nhật thành công!', 'success') : alert(data.message);
+                    clearUnifiedSelection();
+                    await loadUnifiedInventory();
+                } else {
+                    window.showToast ? window.showToast('Lỗi: ' + (data.detail || 'Không thể cập nhật'), 'error') : alert('Lỗi: ' + data.detail);
+                }
+            } catch (e) {
+                window.showToast ? window.showToast('Lỗi kết nối máy chủ', 'error') : alert('Lỗi kết nối máy chủ');
+            }
+        }
+        window.bulkSetProductStatus = bulkSetProductStatus;
+
+        async function bulkDeleteProductsAction() {
+            const ids = Array.from(selectedUnifiedItemIds);
+            if (ids.length === 0) return;
+
+            const confirmed = await window.showConfirmModal({
+                title: 'Xóa / Ngừng Kinh Doanh Hàng Loạt',
+                message: `Bạn có chắc chắn muốn xử lý <span class="font-bold text-rose-600">${ids.length} mặt hàng</span> đã chọn?`,
+                subMessage: 'Hệ thống tự động kiểm tra: Mặt hàng còn tồn kho > 0 sẽ được giữ lại an toàn; Mặt hàng có đơn cũ chuyển sang Ngừng kinh doanh; Mặt hàng chưa từng phát sinh đơn sẽ xóa vĩnh viễn.',
+                confirmText: 'Xác nhận xử lý',
+                cancelText: 'Hủy bỏ',
+                type: 'danger'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/products/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_ids: ids, force: false })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window.showToast ? window.showToast(data.message || 'Đã xử lý xong danh sách!', 'success', 3500) : alert(data.message);
+                    clearUnifiedSelection();
+                    await loadUnifiedInventory();
+                } else {
+                    window.showToast ? window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error') : alert('Lỗi: ' + data.detail);
+                }
+            } catch (e) {
+                window.showToast ? window.showToast('Lỗi kết nối máy chủ', 'error') : alert('Lỗi kết nối máy chủ');
+            }
+        }
+        window.bulkDeleteProductsAction = bulkDeleteProductsAction;
+
         function renderUnifiedInventoryTable() {
             const tbody = document.getElementById('table-unified-inventory');
             if (!tbody) return;
@@ -628,8 +751,14 @@
                     ? ` <span class="ml-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200" title="${item.units.map(u => `1 ${u.unit_name} = ${u.ratio} ${item.unit || 'cái'}`).join(' | ')}">+${item.units.length} ĐV</span>`
                     : '';
 
+                const isSelected = selectedUnifiedItemIds.has(item.id);
+                const chkCell = isProd
+                    ? `<td class="p-2.5 text-center"><input type="checkbox" data-id="${item.id}" onchange="toggleItemUnified(${item.id}, this.checked)" ${isSelected ? 'checked' : ''} class="chk-item-unified w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"></td>`
+                    : '<td class="p-2.5 text-center text-slate-300">--</td>';
+
                 return `
-                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
+                    <tr class="card-row card-row-anim text-xs select-none ${isSelected ? 'bg-indigo-50/50' : ''}" style="--row-idx: ${idx};">
+                        ${chkCell}
                         <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
                         <td class="p-2.5 font-bold text-slate-800">${item.name} <span class="ml-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${item.category || 'Khác'}</span></td>
                         <td class="p-2.5 text-center">${badge}</td>
@@ -3408,7 +3537,17 @@
                 btn.className = 'px-5 py-2 bg-slate-300 cursor-not-allowed text-white font-bold rounded shadow text-xs flex items-center gap-1.5';
             }
 
-            if (mode === 'transactions_and_customers') {
+            if (mode === 'clear_catalog_only') {
+                desc.innerHTML = `
+                    <div class="font-bold text-indigo-900 mb-1">Chế độ: DỌN SẠCH DANH MỤC HÀNG HÓA ĐỂ IMPORT MỚI</div>
+                    <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                        <li>Toàn bộ Hàng Hóa thành phẩm, đơn vị quy đổi và liên kết tồn kho thành phẩm sẽ bị xóa trắng.</li>
+                        <li><strong>Giữ nguyên:</strong> Nguyên vật liệu xưởng, Sổ quỹ thu chi, Danh bạ Khách hàng và Hóa đơn cũ.</li>
+                        <li>Chuỗi xác thực bắt buộc: <strong class="text-indigo-700">XOA HANG HOA</strong></li>
+                    </ul>
+                `;
+                if (txt) txt.placeholder = "XOA HANG HOA";
+            } else if (mode === 'transactions_and_customers') {
                 desc.innerHTML = `
                     <div class="font-bold text-amber-900 mb-1">Chế độ: XÓA GIAO DỊCH & KHÁCH HÀNG (GIỮ HÀNG HÓA)</div>
                     <ul class="list-disc pl-4 space-y-1 text-slate-700">
@@ -3416,16 +3555,20 @@
                         <li>Danh bạ Khách Hàng và hồ sơ thú cưng/dịch vụ sẽ bị xóa.</li>
                         <li>Sổ quỹ thu chi, đơn nhập hàng và số tồn kho sẽ được đưa về 0.</li>
                         <li><strong>Giữ nguyên:</strong> Danh mục Hàng hóa, Nguyên liệu, Bảng giá, NCC, Công thức BOM và Mẫu in.</li>
+                        <li>Chuỗi xác thực bắt buộc: <strong class="text-rose-700">XOA HET DU LIEU</strong></li>
                     </ul>
                 `;
+                if (txt) txt.placeholder = "XOA HET DU LIEU";
             } else if (mode === 'factory_reset') {
                 desc.innerHTML = `
                     <div class="font-bold text-rose-900 mb-1">Chế độ: KHÔI PHỤC CÀI ĐẶT GỐC (FACTORY RESET)</div>
                     <ul class="list-disc pl-4 space-y-1 text-rose-800">
                         <li><strong>CỰC KỲ NGUY HIỂM:</strong> Xóa 100% dữ liệu hàng hóa, khách hàng, nhà cung cấp, hóa đơn, tồn kho, sổ quỹ và bảng giá.</li>
                         <li>Đưa phần mềm về trạng thái trống hoàn toàn như khi mới cài đặt.</li>
+                        <li>Chuỗi xác thực bắt buộc: <strong class="text-rose-700">XOA HET DU LIEU</strong></li>
                     </ul>
                 `;
+                if (txt) txt.placeholder = "XOA HET DU LIEU";
             }
 
             if (modal) modal.classList.remove('hidden');
@@ -3442,7 +3585,9 @@
             const txt = (document.getElementById('reset-data-confirm-text')?.value || '').trim().toUpperCase();
             const btn = document.getElementById('btn-confirm-reset-data');
 
-            if (chk && txt === 'XOA HET DU LIEU') {
+            const validConfirm = (currentResetMode === 'clear_catalog_only') ? 'XOA HANG HOA' : 'XOA HET DU LIEU';
+
+            if (chk && txt === validConfirm) {
                 if (btn) {
                     btn.disabled = false;
                     btn.className = 'px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow text-xs flex items-center gap-1.5 cursor-pointer';

@@ -203,15 +203,16 @@ import datetime
 from pydantic import BaseModel
 
 class ResetDataRequest(BaseModel):
-    mode: str # 'transactions_and_customers' hoặc 'factory_reset'
+    mode: str # 'transactions_and_customers', 'factory_reset', hoặc 'clear_catalog_only'
     confirm_text: str
 
 @router.post("/reset-data")
-def reset_database_data(req: ResetDataRequest):
-    if req.confirm_text.strip().upper() != "XOA HET DU LIEU":
-        raise HTTPException(status_code=400, detail="Chuỗi xác nhận không chính xác! Vui lòng nhập đúng: XOA HET DU LIEU")
+def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"))):
+    valid_confirm = "XOA HANG HOA" if req.mode == "clear_catalog_only" else "XOA HET DU LIEU"
+    if req.confirm_text.strip().upper() != valid_confirm:
+        raise HTTPException(status_code=400, detail=f"Chuỗi xác nhận không chính xác! Vui lòng nhập đúng: {valid_confirm}")
 
-    if req.mode not in ('transactions_and_customers', 'factory_reset'):
+    if req.mode not in ('transactions_and_customers', 'factory_reset', 'clear_catalog_only'):
         raise HTTPException(status_code=400, detail="Chế độ xóa dữ liệu không hợp lệ")
 
     from database import get_db, get_db_path
@@ -222,7 +223,7 @@ def reset_database_data(req: ResetDataRequest):
         backup_dir = os.path.join(os.path.dirname(db_path), "backups")
         os.makedirs(backup_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"pos_backup_pre_reset_{timestamp}.db"
+        backup_filename = f"pos_backup_pre_reset_{req.mode}_{timestamp}.db"
         backup_filepath = os.path.join(backup_dir, backup_filename)
         shutil.copy2(db_path, backup_filepath)
         logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filepath}")
@@ -233,7 +234,26 @@ def reset_database_data(req: ResetDataRequest):
     conn = get_db()
     cur = conn.cursor()
     try:
-        if req.mode == 'transactions_and_customers':
+        if req.mode == 'clear_catalog_only':
+            # Chế độ 3: Chỉ dọn sạch danh mục Hàng Hóa để nạp lại từ đầu
+            cur.execute("DELETE FROM item_units WHERE item_type = 'product'")
+            cur.execute("DELETE FROM supplier_items WHERE item_type = 'product'")
+            cur.execute("DELETE FROM product_inventory")
+            cur.execute("DELETE FROM product_bom")
+            cur.execute("DELETE FROM inventory_logs WHERE product_id IS NOT NULL")
+            cur.execute("DELETE FROM products")
+            try:
+                cur.execute("DELETE FROM sqlite_sequence WHERE name IN ('products', 'product_inventory', 'item_units')")
+            except Exception:
+                pass
+            conn.commit()
+            conn.close()
+            return {
+                "status": "ok",
+                "message": "Đã dọn sạch toàn bộ danh mục hàng hóa an toàn! Bạn có thể import file Excel mới ngay bây giờ."
+            }
+
+        elif req.mode == 'transactions_and_customers':
             # Che do 1: Xoa hoa don, khach hang, so quy, nhap hang, dich vu thu cung.
             # GIU LAI: Hang hoa (products, ingredients), bang gia (price_lists), cau hinh (settings), kho (warehouses)
             tables_to_clear = [

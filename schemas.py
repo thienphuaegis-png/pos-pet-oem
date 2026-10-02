@@ -60,6 +60,17 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     supplier_ids: Optional[List[int]] = None
 
+class ProductBulkStatusIn(BaseModel):
+    product_ids: List[int]
+    is_active: int
+
+class ProductBulkDeleteIn(BaseModel):
+    product_ids: List[int]
+    force: Optional[bool] = False
+
+class ResetCatalogIn(BaseModel):
+    confirm_code: str
+
 class WriteOffItemIn(BaseModel):
     item_type: str # 'product' or 'ingredient'
     item_id: int
