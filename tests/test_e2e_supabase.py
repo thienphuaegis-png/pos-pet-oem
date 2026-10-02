@@ -1,7 +1,22 @@
 import os
 import sys
 
-os.environ["DATABASE_URL"] = "postgresql://postgres.ifhlvbplslznumfpeojy:Sdt0388408876!@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+import pytest
+
+# Test tích hợp THẬT với Supabase: chạy có chủ đích bằng
+#   pytest tests/test_e2e_supabase.py -m supabase --no-header
+# Bỏ qua trong lần chạy mặc định vì việc set DATABASE_URL ở import-time làm
+# mọi test SQLite chạy sau trong cùng process đi sang Postgres và fail.
+pytestmark = pytest.mark.supabase
+
+_DB_URL = os.environ.get("SUPABASE_DATABASE_URL")
+if not os.environ.get("RUN_SUPABASE_E2E") or not _DB_URL:
+    pytest.skip(
+        "Cần RUN_SUPABASE_E2E=1 và SUPABASE_DATABASE_URL để chạy test Supabase thật",
+        allow_module_level=True,
+    )
+
+os.environ["DATABASE_URL"] = _DB_URL
 os.environ["VERCEL"] = "1"
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -3,8 +3,9 @@ import re
 import pytest
 from collections.abc import Mapping
 
-# Import adapter classes from database
-os.environ["DATABASE_URL"] = "postgresql://postgres.ifhlvbplslznumfpeojy:Sdt0388408876!@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+# Chỉ test các hàm/lớp adapter thuần (RowWrapper, translate_query) - không kết nối DB thật.
+# KHÔNG set DATABASE_URL ở đây: biến môi trường sống suốt process pytest và sẽ
+# đẩy mọi test SQLite khác sang Postgres (lỗi relation "sqlite_master" does not exist).
 import database
 
 def test_row_wrapper():

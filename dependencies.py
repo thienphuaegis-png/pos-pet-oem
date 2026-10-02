@@ -131,3 +131,12 @@ def require_any_permission(*perm_keys: str):
                 return user
         raise HTTPException(status_code=403, detail="Không có quyền truy cập")
     return checker
+
+
+def can_view_cost(user) -> bool:
+    """User có được xem giá vốn / giá trị tồn / lợi nhuận không. user=None (chưa login) -> False."""
+    if not user:
+        return False
+    if user.get("role") in ("owner", "admin"):
+        return True
+    return check_permission(user["id"], user.get("role", ""), "inventory.view_cost")

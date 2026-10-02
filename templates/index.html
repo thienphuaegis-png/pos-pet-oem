@@ -1603,7 +1603,7 @@
                                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-between">
+                        <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center justify-between col-cost" id="kpi-card-inv-val">
                             <div>
                                 <div class="text-[11px] font-bold text-slate-400 uppercase">Tổng Giá Trị Tồn Kho (Vốn)</div>
                                 <div id="kpi-inv-val" class="text-2xl font-black text-rose-600 mt-0.5">0 đ</div>
@@ -1687,17 +1687,20 @@
                                             Số lượng tồn <span id="sort-icon-quantity" class="text-gray-400">↕</span>
                                         </th>
                                         <th class="p-2.5">ĐVT</th>
-                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('cost_price')">
+                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100 col-cost" onclick="sortUnifiedTable('cost_price')">
                                             Giá vốn <span id="sort-icon-cost_price" class="text-gray-400">↕</span>
                                         </th>
-                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('total_value')">
+                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100" onclick="sortUnifiedTable('sell_price')">
+                                            Giá bán <span id="sort-icon-sell_price" class="text-gray-400">↕</span>
+                                        </th>
+                                        <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100 col-cost" onclick="sortUnifiedTable('total_value')">
                                             Tổng giá trị tồn <span id="sort-icon-total_value" class="text-gray-400">↕</span>
                                         </th>
                                         <th class="p-2.5 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-unified-inventory">
-                                    <tr><td colspan="10" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
+                                    <tr><td colspan="11" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -6008,7 +6011,7 @@
                         <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, gói, lon...">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div>
+                        <div class="col-cost">
                             <label class="block font-bold mb-1">Giá vốn (đ):</label>
                             <input id="modal-prod-cost" type="number" class="border p-2 rounded w-full" value="0">
                         </div>
@@ -6016,6 +6019,31 @@
                             <label class="block font-bold mb-1">Giá bán niêm yết (đ):</label>
                             <input id="modal-prod-price" type="number" class="border p-2 rounded w-full" value="0">
                         </div>
+                    </div>
+                    <!-- ĐƠN VỊ QUY ĐỔI: 1 Thùng = 16 Chai, mỗi mặt hàng một hệ số riêng -->
+                    <div id="modal-prod-units-group" class="border border-indigo-200 bg-indigo-50/40 rounded-lg p-2.5 space-y-2 hidden">
+                        <div class="flex items-center justify-between">
+                            <label class="font-bold text-indigo-800 text-xs">📦 Đơn vị quy đổi (bán theo thùng/lốc)</label>
+                            <button type="button" onclick="addProdUnitRow()" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[11px] font-bold shadow-sm">+ Thêm đơn vị</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-snug">
+                            Đơn vị cơ bản là <strong id="prod-base-unit-label">cái</strong> — tồn kho và giá vốn luôn tính theo đơn vị này.
+                            Để trống Giá bán thì hệ thống tự tính = hệ số × giá bán cơ bản.
+                        </p>
+                        <table class="w-full text-[11px]">
+                            <thead class="text-slate-500">
+                                <tr>
+                                    <th class="text-left font-bold pb-1">Tên đơn vị</th>
+                                    <th class="text-right font-bold pb-1 w-24">= ? <span id="prod-base-unit-label2">cái</span></th>
+                                    <th class="text-right font-bold pb-1 w-28">Giá bán (đ)</th>
+                                    <th class="text-center font-bold pb-1 w-16">Mặc định</th>
+                                    <th class="w-8"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-prod-units">
+                                <tr><td colspan="5" class="text-center text-slate-400 italic py-2">Chưa thiết lập đơn vị quy đổi nào</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                     <div id="modal-prod-stock-group">
                         <label class="block font-bold mb-1">Tồn kho ban đầu (Kho Tổng):</label>

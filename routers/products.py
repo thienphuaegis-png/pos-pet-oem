@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 from typing import Optional
 from database import get_db
 from schemas import ProductCreate, ProductUpdate
 from logger_config import get_module_logger
+from dependencies import get_optional_user, can_view_cost
 import io
 import time
 import openpyxl
@@ -33,7 +34,7 @@ def clean_num(val):
         return 0.0
 
 @router.get("")
-def list_products(category: Optional[str] = None):
+def list_products(category: Optional[str] = None, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     query = '''
@@ -54,6 +55,19 @@ def list_products(category: Optional[str] = None):
     '''
     cur.execute(query, tuple(params))
     rows = [dict(r) for r in cur.fetchall()]
+
+    # Gắn đơn vị quy đổi để POS cho chọn Thùng/Chai
+    cur.execute("SELECT item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units WHERE item_type = 'product' ORDER BY ratio")
+    units_map = {}
+    for u in cur.fetchall():
+        units_map.setdefault(u["item_id"], []).append(dict(u))
+    for r in rows:
+        r["units"] = units_map.get(r["id"], [])
+
+    if not can_view_cost(user):
+        for r in rows:
+            r.pop("cost_price", None)
+
     conn.close()
     return rows
 
@@ -73,7 +87,8 @@ def list_product_categories():
 
 @router.get("/export-excel")
 @router.get("/export")
-def export_products(warehouse_id: Optional[int] = None):
+def export_products(warehouse_id: Optional[int] = None, user=Depends(get_optional_user)):
+    show_cost = can_view_cost(user)
     conn = get_db()
     cur = conn.cursor()
     
@@ -160,6 +175,10 @@ def export_products(warehouse_id: Optional[int] = None):
         ws.cell(row=row_idx, column=8).number_format = "#,##0"
         ws.cell(row=row_idx, column=9).number_format = "#,##0"
         ws.cell(row=row_idx, column=10).alignment = align_left
+
+    # Không có quyền xem giá vốn -> bỏ hẳn cột "Giá vốn" khỏi file xuất
+    if not show_cost:
+        ws.delete_cols(7)
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -439,30 +458,34 @@ def create_product(p: ProductCreate):
     return {"status": "ok", "id": pid}
 
 @router.put("/{product_id}")
-def update_product(product_id: int, p: ProductUpdate):
+def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id, code, category FROM products WHERE id = ?", (product_id,))
+        cur.execute("SELECT id, code, category, cost_price FROM products WHERE id = ?", (product_id,))
         existing = cur.fetchone()
         if not existing:
             conn.close()
             raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-        
+
         code = p.code if p.code else existing["code"]
         category = p.category if p.category is not None else (existing["category"] if "category" in existing.keys() else "Khác")
+        # Không có quyền xem giá vốn (hoặc không gửi lên) -> giữ nguyên giá vốn cũ, không bị về 0
+        cost_price = existing["cost_price"] or 0
+        if p.cost_price is not None and can_view_cost(user):
+            cost_price = p.cost_price
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?
             WHERE id = ?
-        ''', (code, p.name, p.type, p.cost_price, p.sell_price, p.unit, category, product_id))
+        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
             for s_id in p.supplier_ids:
                 cur.execute(
                     "INSERT INTO supplier_items (supplier_id, item_type, product_id, default_cost) VALUES (?, 'product', ?, ?)",
-                    (s_id, product_id, p.cost_price)
+                    (s_id, product_id, cost_price)
                 )
         conn.commit()
     except Exception as e:
@@ -576,6 +599,85 @@ def convert_product_to_ingredient(product_id: int):
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok", "ingredient_id": ing_id, "message": f"Đã chuyển '{p['name']}' thành nguyên liệu thành công!"}
+
+# ========================================================
+# QUY ĐỔI ĐƠN VỊ TÍNH (1 Thùng = 16 Chai) - mỗi mặt hàng một tỉ lệ riêng
+# Đơn vị cơ bản không nằm trong item_units: nó là products.unit với ratio = 1
+# ========================================================
+
+def _base_unit_info(cur, item_type: str, item_id: int):
+    if item_type == "ingredient":
+        cur.execute("SELECT unit, 0 as sell_price FROM ingredients WHERE id = ?", (item_id,))
+    else:
+        cur.execute("SELECT unit, sell_price FROM products WHERE id = ?", (item_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mặt hàng")
+    return row["unit"] or "cái", row["sell_price"] or 0
+
+
+@router.get("/{item_id}/units")
+def list_item_units(item_id: int, item_type: str = "product"):
+    """Trả về base unit (ratio=1) + các đơn vị quy đổi đã thiết lập."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        base_unit, base_price = _base_unit_info(cur, item_type, item_id)
+        cur.execute("""SELECT id, unit_name, ratio, sell_price, is_default_sale FROM item_units
+                       WHERE item_type = ? AND item_id = ? ORDER BY ratio""", (item_type, item_id))
+        units = [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return {
+        "base": {"unit_name": base_unit, "ratio": 1, "sell_price": base_price, "is_base": True},
+        "units": units,
+    }
+
+
+@router.put("/{item_id}/units")
+def save_item_units(item_id: int, payload: dict, item_type: str = "product"):
+    """Ghi đè toàn bộ danh sách đơn vị quy đổi của 1 mặt hàng.
+    payload = {"units": [{"unit_name": "Thùng", "ratio": 16, "sell_price": 0, "is_default_sale": 0}]}"""
+    units = payload.get("units") or []
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        base_unit, _ = _base_unit_info(cur, item_type, item_id)
+        seen = set()
+        cleaned = []
+        for u in units:
+            name = (u.get("unit_name") or "").strip()
+            ratio = clean_num(u.get("ratio"))
+            if not name:
+                continue
+            if ratio <= 0:
+                raise HTTPException(status_code=400, detail=f"Hệ số quy đổi của '{name}' phải lớn hơn 0")
+            if name.lower() == base_unit.strip().lower():
+                raise HTTPException(status_code=400, detail=f"'{name}' đang là đơn vị cơ bản, không cần khai lại")
+            if name.lower() in seen:
+                raise HTTPException(status_code=400, detail=f"Đơn vị '{name}' bị khai trùng")
+            seen.add(name.lower())
+            cleaned.append((name, ratio, clean_num(u.get("sell_price")), 1 if u.get("is_default_sale") else 0))
+
+        if sum(c[3] for c in cleaned) > 1:
+            raise HTTPException(status_code=400, detail="Chỉ được chọn 1 đơn vị bán mặc định")
+
+        cur.execute("DELETE FROM item_units WHERE item_type = ? AND item_id = ?", (item_type, item_id))
+        cur.executemany("""INSERT INTO item_units (item_type, item_id, unit_name, ratio, sell_price, is_default_sale)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        [(item_type, item_id, *c) for c in cleaned])
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "count": len(cleaned), "message": f"Đã lưu {len(cleaned)} đơn vị quy đổi"}
+
 
 # ========================================================
 # CRUD CHO NGUYÊN LIỆU (INGREDIENTS) & KHO (WAREHOUSES)

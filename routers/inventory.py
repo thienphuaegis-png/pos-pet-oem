@@ -12,7 +12,7 @@ from schemas import (
     InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
 )
 from logger_config import get_module_logger
-from dependencies import require_permission
+from dependencies import require_permission, get_optional_user, can_view_cost
 
 logger = get_module_logger("inventory")
 
@@ -149,6 +149,15 @@ def list_ingredients(warehouse_id: Optional[int] = None):
         cur.execute(query)
 
     rows = [dict(r) for r in cur.fetchall()]
+
+    # Gắn đơn vị quy đổi để Nhập hàng cho chọn Thùng/Chai
+    cur.execute("SELECT item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units WHERE item_type = 'ingredient' ORDER BY ratio")
+    ing_units_map = {}
+    for u in cur.fetchall():
+        ing_units_map.setdefault(u["item_id"], []).append(dict(u))
+    for r in rows:
+        r["units"] = ing_units_map.get(r["id"], [])
+
     conn.close()
     return rows
 
@@ -804,7 +813,8 @@ def get_warehouses_overview():
     return res
 
 @router.get("/api/inventory/unified")
-def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optional[str] = None, search: Optional[str] = None, low_stock: Optional[bool] = False, show_hidden: Optional[bool] = False):
+def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optional[str] = None, search: Optional[str] = None, low_stock: Optional[bool] = False, show_hidden: Optional[bool] = False, user=Depends(get_optional_user)):
+    show_cost = can_view_cost(user)
     conn = get_db()
     cur = conn.cursor()
     
@@ -959,16 +969,34 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
         filtered.append(r)
         
     filtered.sort(key=lambda x: (x["warehouse_name"], x["name"]))
-    
+
     total_qty = sum(r["quantity"] for r in filtered)
     total_val = sum(r["total_value"] for r in filtered)
-    
+
+    # Gắn danh sách đơn vị quy đổi (ngoài đơn vị cơ bản) cho từng mặt hàng
+    cur.execute("SELECT item_type, item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units ORDER BY ratio")
+    units_map = {}
+    for u in cur.fetchall():
+        units_map.setdefault((u["item_type"], u["item_id"]), []).append({
+            "unit_name": u["unit_name"], "ratio": u["ratio"],
+            "sell_price": u["sell_price"], "is_default_sale": u["is_default_sale"],
+        })
+    for r in filtered:
+        r["units"] = units_map.get((r["item_type"], r["id"]), [])
+
+    # Không có quyền xem giá vốn -> xóa hẳn khỏi payload, không chỉ ẩn ở UI
+    if not show_cost:
+        for r in filtered:
+            r.pop("cost_price", None)
+            r.pop("total_value", None)
+
     conn.close()
     return {
         "items": filtered,
         "total_count": len(filtered),
         "total_quantity": total_qty,
-        "total_value": total_val
+        "total_value": total_val if show_cost else None,
+        "can_view_cost": show_cost
     }
 
 @router.post("/api/inventory/transfer")

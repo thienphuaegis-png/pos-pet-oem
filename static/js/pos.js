@@ -545,7 +545,11 @@ async function addProductToActiveCart(productId) {
             price_list_name: hasCustomPrice ? (tab.customer?.price_list_name || null) : null,
             discount_val: 0,
             discount_type: 'vnd',
-            quantity: 1
+            quantity: 1,
+            base_unit: p.unit || 'cái',
+            base_price: p.sell_price || 0,
+            unit_ratio: 1,
+            units: p.units || []
         });
     }
 
@@ -598,6 +602,21 @@ function renderActiveTabCart() {
             : `-${formatMoney(item.discount_val)}`;
 
         const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
+
+        const baseUnit = item.base_unit || item.unit || 'cái';
+        const extraUnits = item.units || [];
+        const unitCell = extraUnits.length
+            ? `<select onchange="changeItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                   <option value="1" ${(item.unit_ratio || 1) == 1 ? 'selected' : ''}>${baseUnit}</option>
+                   ${extraUnits.map(u => `<option value="${u.ratio}" ${(item.unit_ratio || 1) == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
+               </select>`
+            : baseUnit;
+
+        // Hiện quy đổi ra đơn vị cơ bản khi đang bán theo thùng/lốc
+        const convHint = (item.unit_ratio && item.unit_ratio != 1)
+            ? `<div class="text-[10px] text-indigo-600 font-semibold">= ${(item.quantity * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+            : '';
+
         return `
             <div class="px-4 py-2.5 grid gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px; --row-idx: ${idx};">
                 <!-- Nút xóa -->
@@ -620,18 +639,21 @@ function renderActiveTabCart() {
                     ${comboBadge}${item.name}
                 </div>
 
-                <!-- ĐVT -->
+                <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
                 <div class="text-center text-slate-500 text-[11px]">
-                    ${item.unit || 'cái'}
+                    ${unitCell}
                 </div>
 
                 <!-- Số lượng (Bộ nút + -) -->
-                <div class="flex items-center justify-center gap-1">
-                    <button onclick="changeItemQty(${idx}, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">-</button>
-                    <input type="number" min="1" value="${item.quantity}" 
-                           onchange="updateItemQtyDirect(${idx}, this.value)"
-                           class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
-                    <button onclick="changeItemQty(${idx}, 1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">+</button>
+                <div>
+                    <div class="flex items-center justify-center gap-1">
+                        <button onclick="changeItemQty(${idx}, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">-</button>
+                        <input type="number" min="1" value="${item.quantity}" 
+                               onchange="updateItemQtyDirect(${idx}, this.value)"
+                               class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <button onclick="changeItemQty(${idx}, 1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">+</button>
+                    </div>
+                    ${convHint}
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
@@ -680,6 +702,28 @@ function updateItemQtyDirect(idx, val) {
         renderInvoiceTabs();
         renderActiveTabCart();
     }
+}
+
+// Đổi đơn vị bán (Chai <-> Thùng): giá tự đổi theo sell_price của đơn vị, chưa đặt thì = hệ số x giá cơ bản
+function changeItemUnit(idx, ratioStr) {
+    const tab = getActiveTab();
+    const item = tab.cart[idx];
+    if (!item) return;
+
+    const ratio = parseFloat(ratioStr) || 1;
+    const basePrice = item.base_price || item.original_price || 0;
+    const picked = (item.units || []).find(u => u.ratio == ratio);
+
+    item.unit_ratio = ratio;
+    item.unit = picked ? picked.unit_name : (item.base_unit || item.unit);
+    item.price = picked
+        ? (picked.sell_price > 0 ? picked.sell_price : basePrice * ratio)
+        : basePrice;
+    item.original_price = item.price;
+    item.price_list_name = null;   // Giá theo đơn vị thắng bảng giá, tránh hiểu nhầm nguồn giá
+
+    renderInvoiceTabs();
+    renderActiveTabCart();
 }
 
 function removeCartItem(idx) {
@@ -1530,7 +1574,9 @@ async function submitPOSOrder() {
             items: tab.cart.map(i => ({
                 product_id: i.product_id,
                 quantity: i.quantity,
-                price: i.price
+                price: i.price,
+                unit: i.unit,
+                unit_ratio: i.unit_ratio || 1
             }))
         };
 

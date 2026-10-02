@@ -236,6 +236,9 @@
                             product_id: null,
                             name: ing.name,
                             unit: ing.unit || 'đv',
+                            base_unit: ing.unit || 'đv',
+                            unit_ratio: 1,
+                            units: ing.units || [],
                             quantity: 1,
                             cost_price: ing.latest_cost || 0
                         });
@@ -254,6 +257,9 @@
                             product_id: prod.id,
                             name: prod.name,
                             unit: prod.unit || 'cái',
+                            base_unit: prod.unit || 'cái',
+                            unit_ratio: 1,
+                            units: prod.units || [],
                             quantity: 1,
                             cost_price: prod.cost_price || 0
                         });
@@ -288,8 +294,25 @@
             const num = parseFloat(val) || 0;
             if (field === 'quantity') purchaseCart[idx].quantity = num;
             if (field === 'cost_price') purchaseCart[idx].cost_price = num;
-            renderPurchaseItems(false);
+            renderPurchaseItems(field === 'quantity' && (purchaseCart[idx].unit_ratio || 1) != 1);
         }
+
+        // Đổi đơn vị nhập (Chai <-> Thùng): giá nhập quy theo đơn vị đang chọn
+        function changePurchaseItemUnit(idx, ratioStr) {
+            const item = purchaseCart[idx];
+            if (!item) return;
+            const oldRatio = item.unit_ratio || 1;
+            const ratio = parseFloat(ratioStr) || 1;
+            const picked = (item.units || []).find(u => u.ratio == ratio);
+
+            // Giữ giá vốn / đơn vị cơ bản không đổi, chỉ nhân lại theo đơn vị mới
+            const baseCost = item.cost_price / oldRatio;
+            item.unit_ratio = ratio;
+            item.unit = picked ? picked.unit_name : (item.base_unit || item.unit);
+            item.cost_price = Math.round(baseCost * ratio);
+            renderPurchaseItems();
+        }
+        window.changePurchaseItemUnit = changePurchaseItemUnit;
 
         function renderPurchaseItems(rebuildDOM = true) {
             const tbody = document.getElementById('purchase-items-table');
@@ -309,16 +332,30 @@
                         ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>' 
                         : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
 
+                    // Nhập theo Thùng/Lốc: tồn kho vẫn cộng theo đơn vị cơ bản
+                    const baseUnit = item.base_unit || item.unit || 'cái';
+                    const extraUnits = item.units || [];
+                    const unitCell = extraUnits.length
+                        ? `<select onchange="changePurchaseItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer">
+                               <option value="1" ${(item.unit_ratio || 1) == 1 ? 'selected' : ''}>${baseUnit}</option>
+                               ${extraUnits.map(u => `<option value="${u.ratio}" ${(item.unit_ratio || 1) == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
+                           </select>`
+                        : (item.unit || '');
+                    const convHint = (item.unit_ratio && item.unit_ratio != 1)
+                        ? `<div class="text-[10px] text-indigo-600 font-semibold mt-0.5">= ${(item.quantity * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+                        : '';
+
                     return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2 text-center text-gray-400">${idx + 1}</td>
                         <td class="p-2 font-medium text-slate-800">${item.name}</td>
                         <td class="p-2 text-center">${badge}</td>
-                        <td class="p-2 text-center text-gray-500">${item.unit}</td>
+                        <td class="p-2 text-center text-gray-500">${unitCell}</td>
                         <td class="p-2 text-right">
                             <input type="number" step="any" min="0.001" value="${item.quantity}" 
                                 class="border p-1 rounded w-20 text-right font-bold text-sky-700" 
                                 oninput="updatePurchaseItemField(${idx}, 'quantity', this.value)">
+                            ${convHint}
                         </td>
                         <td class="p-2 text-right">
                             <input type="number" step="any" min="0" value="${item.cost_price}" 
@@ -431,15 +468,23 @@
                 document.getElementById('purchase-paid').value = p.paid_amount || 0;
 
                 // Đổ danh sách items vào purchaseCart
-                purchaseCart = (p.items || []).map(item => ({
-                    item_type: item.item_type,
-                    product_id: item.product_id,
-                    ingredient_id: item.ingredient_id,
-                    name: item.item_name,
-                    unit: item.unit,
-                    quantity: item.quantity,
-                    cost_price: item.cost_price
-                }));
+                purchaseCart = (p.items || []).map(item => {
+                    const src = item.item_type === 'ingredient'
+                        ? (costIngredients || []).find(x => x.id === item.ingredient_id)
+                        : (allProducts || []).find(x => x.id === item.product_id);
+                    return {
+                        item_type: item.item_type,
+                        product_id: item.product_id,
+                        ingredient_id: item.ingredient_id,
+                        name: item.item_name,
+                        unit: item.unit,
+                        base_unit: src?.unit || item.unit,
+                        unit_ratio: item.unit_ratio || 1,
+                        units: src?.units || [],
+                        quantity: item.quantity,
+                        cost_price: item.cost_price
+                    };
+                });
 
                 renderPurchaseItems();
 
@@ -527,6 +572,7 @@
                     ingredient_id: i.ingredient_id,
                     item_name: i.name,
                     unit: i.unit,
+                    unit_ratio: i.unit_ratio || 1,
                     quantity: i.quantity,
                     cost_price: i.cost_price
                 }))

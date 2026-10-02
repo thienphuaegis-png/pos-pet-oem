@@ -346,6 +346,15 @@
         }
 
         // --- SUB 1: TỒN KHO TỔNG HỢP ---
+        let canViewCost = true;
+
+        // Ẩn/hiện mọi phần tử giá vốn theo quyền inventory.view_cost (backend đã xóa dữ liệu, đây chỉ là lớp UI)
+        function applyCostVisibility() {
+            document.querySelectorAll('.col-cost').forEach(el => {
+                el.style.display = canViewCost ? '' : 'none';
+            });
+        }
+
         async function loadUnifiedInventory() {
             try {
                 const whId = document.getElementById('unified-wh-filter')?.value || '';
@@ -379,6 +388,10 @@
                 document.getElementById('kpi-inv-count').innerText = (data.total_count || 0).toLocaleString('vi-VN');
                 document.getElementById('kpi-inv-qty').innerText = (data.total_quantity || 0).toLocaleString('vi-VN');
                 document.getElementById('kpi-inv-val').innerText = formatMoney(data.total_value || 0);
+
+                // Không có quyền xem giá vốn -> ẩn hẳn cột giá vốn / giá trị tồn / KPI vốn
+                canViewCost = data.can_view_cost !== false;
+                applyCostVisibility();
 
                 await populateUnifiedCategoryFilter();
                 renderUnifiedInventoryTable();
@@ -428,7 +441,7 @@
             if (!tbody) return;
 
             if (!unifiedInventoryData || unifiedInventoryData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
                 return;
             }
 
@@ -525,6 +538,18 @@
                     `;
                 }
 
+                // Giá bán: nguyên liệu không bán trực tiếp -> gạch ngang
+                const sellCell = item.item_type === 'ingredient'
+                    ? '<span class="text-slate-300 italic">---</span>'
+                    : (item.sell_price > 0
+                        ? `<span class="font-semibold text-sky-700">${formatMoney(item.sell_price)}</span>`
+                        : '<span class="text-slate-400">0 đ</span>');
+
+                // Đơn vị quy đổi đã thiết lập (1 Thùng = 16 Chai)
+                const unitBadge = (item.units && item.units.length)
+                    ? ` <span class="ml-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200" title="${item.units.map(u => `1 ${u.unit_name} = ${u.ratio} ${item.unit || 'cái'}`).join(' | ')}">+${item.units.length} ĐV</span>`
+                    : '';
+
                 return `
                     <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
                         <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
@@ -533,15 +558,17 @@
                         <td class="p-2.5">${suppBadge}</td>
                         <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
                         <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
-                        <td class="p-2.5 text-gray-500">${item.unit || 'cái'}</td>
-                        <td class="p-2.5 text-right font-medium text-gray-700">${formatMoney(item.cost_price)}</td>
-                        <td class="p-2.5 text-right font-bold text-rose-600">${formatMoney(item.total_value)}</td>
+                        <td class="p-2.5 text-gray-500">${item.unit || 'cái'}${unitBadge}</td>
+                        <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${formatMoney(item.cost_price)}</td>
+                        <td class="p-2.5 text-right">${sellCell}</td>
+                        <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${formatMoney(item.total_value)}</td>
                         <td class="p-2.5 text-center">${actionButtons}</td>
                     </tr>
                 `;
             }).join('');
 
             renderPaginationBar('pagination-unified-inventory', unifiedInventoryPage, totalPages, totalItems, 'changeUnifiedInventoryPage');
+            applyCostVisibility();
         }
 
         // --- MODAL: THẺ KHO / NHẬT KÝ BIẾN ĐỘNG ---
@@ -2144,6 +2171,103 @@
             return loadProductCategoriesDropdown();
         }
 
+        // --- ĐƠN VỊ QUY ĐỔI TRONG MODAL HÀNG HÓA (1 Thùng = 16 Chai) ---
+        let prodUnitRows = [];
+
+        function syncProdBaseUnitLabel() {
+            const base = document.getElementById('modal-prod-unit')?.value?.trim() || 'cái';
+            ['prod-base-unit-label', 'prod-base-unit-label2'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = base;
+            });
+        }
+
+        function renderProdUnitRows() {
+            const tbody = document.getElementById('table-prod-units');
+            if (!tbody) return;
+            syncProdBaseUnitLabel();
+            if (!prodUnitRows.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 italic py-2">Chưa thiết lập đơn vị quy đổi nào</td></tr>';
+                return;
+            }
+            tbody.innerHTML = prodUnitRows.map((u, i) => `
+                <tr>
+                    <td class="py-1 pr-1"><input type="text" value="${u.unit_name || ''}" oninput="prodUnitRows[${i}].unit_name = this.value" placeholder="Thùng" class="border rounded px-1.5 py-1 w-full text-[11px]"></td>
+                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.ratio || ''}" oninput="prodUnitRows[${i}].ratio = this.value" placeholder="16" class="border rounded px-1.5 py-1 w-full text-right text-[11px]"></td>
+                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.sell_price || 0}" oninput="prodUnitRows[${i}].sell_price = this.value" class="border rounded px-1.5 py-1 w-full text-right text-[11px]"></td>
+                    <td class="py-1 text-center"><input type="radio" name="prod-unit-default" ${u.is_default_sale ? 'checked' : ''} onchange="setProdUnitDefault(${i})"></td>
+                    <td class="py-1 text-center"><button type="button" onclick="removeProdUnitRow(${i})" class="text-rose-600 hover:text-rose-800 font-bold" title="Xóa đơn vị">×</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function addProdUnitRow() {
+            prodUnitRows.push({ unit_name: '', ratio: '', sell_price: 0, is_default_sale: 0 });
+            renderProdUnitRows();
+        }
+
+        function removeProdUnitRow(idx) {
+            prodUnitRows.splice(idx, 1);
+            renderProdUnitRows();
+        }
+
+        function setProdUnitDefault(idx) {
+            prodUnitRows.forEach((u, i) => { u.is_default_sale = (i === idx) ? 1 : 0; });
+        }
+
+        async function loadProdUnits(productId) {
+            prodUnitRows = [];
+            const group = document.getElementById('modal-prod-units-group');
+            if (!productId) {
+                // Hàng hóa mới: phải lưu lần đầu để có id, rồi mới thiết lập đơn vị
+                group?.classList.add('hidden');
+                renderProdUnitRows();
+                return;
+            }
+            group?.classList.remove('hidden');
+            try {
+                const res = await fetch(`/api/products/${productId}/units`);
+                const data = await res.json();
+                prodUnitRows = (data.units || []).map(u => ({ ...u }));
+            } catch (e) {
+                console.error('loadProdUnits error:', e);
+            }
+            renderProdUnitRows();
+        }
+
+        async function saveProdUnits(productId) {
+            if (!productId) return true;
+            const units = prodUnitRows
+                .filter(u => (u.unit_name || '').trim())
+                .map(u => ({
+                    unit_name: (u.unit_name || '').trim(),
+                    ratio: parseFloat(u.ratio) || 0,
+                    sell_price: parseFloat(u.sell_price) || 0,
+                    is_default_sale: u.is_default_sale ? 1 : 0
+                }));
+            try {
+                const res = await fetch(`/api/products/${productId}/units`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ units })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi đơn vị quy đổi: ' + (err.detail || 'Không lưu được'));
+                    return false;
+                }
+            } catch (e) {
+                alert('Lỗi kết nối khi lưu đơn vị quy đổi');
+                return false;
+            }
+            return true;
+        }
+
+        window.addProdUnitRow = addProdUnitRow;
+        window.removeProdUnitRow = removeProdUnitRow;
+        window.setProdUnitDefault = setProdUnitDefault;
+        window.prodUnitRows = prodUnitRows;
+
         // --- MODAL PRODUCT CRUD (THÊM / SỬA / XÓA HÀNG HÓA) ---
         async function openModalProductUnified() {
             document.getElementById('modal-prod-title').innerText = 'Thêm Hàng Hóa Mới';
@@ -2157,6 +2281,7 @@
             document.getElementById('modal-prod-stock').value = '0';
             document.getElementById('modal-prod-stock-group').classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
+            await loadProdUnits(null);
 
             await Promise.all([populateProductSuppliersDropdown([]), loadProductCategoriesDropdown('Khác')]);
             document.getElementById('modal-product').classList.remove('hidden');
@@ -2200,6 +2325,8 @@
                     await populateProductSuppliersDropdown([]);
                 }
                 await loadProductCategoriesDropdown(p.category || 'Khác');
+                await loadProdUnits(p.id);
+                applyCostVisibility();
 
                 document.getElementById('modal-product').classList.remove('hidden');
             } catch (e) {
@@ -2385,7 +2512,8 @@
             const type = document.getElementById('modal-prod-type').value;
             const category = (document.getElementById('modal-prod-category')?.value || '').trim() || 'Khác';
             const unit = document.getElementById('modal-prod-unit').value.trim() || 'cái';
-            const cost_price = parseFloat(document.getElementById('modal-prod-cost').value) || 0;
+            // Không có quyền xem giá vốn -> gửi null để backend giữ nguyên giá vốn cũ
+            const cost_price = canViewCost ? (parseFloat(document.getElementById('modal-prod-cost').value) || 0) : null;
             const sell_price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
             const supplier_ids = [...selectedProdSupplierIds];
@@ -2419,10 +2547,20 @@
                     return;
                 }
 
+                // Lưu đơn vị quy đổi (chỉ khi đang sửa - hàng mới cần có id trước)
+                if (id) {
+                    const okUnits = await saveProdUnits(id);
+                    if (!okUnits) return;
+                }
+
                 closeModalProduct();
                 await Promise.all([loadUnifiedInventory(), loadCostProductOptions(), loadProductCategoriesDropdown()]);
                 if (typeof loadPriceListCategories === 'function') loadPriceListCategories();
-                alert(id ? "Đã cập nhật hàng hóa thành công!" : "Đã thêm hàng hóa mới thành công!");
+                if (typeof showToast === 'function') {
+                    showToast(id ? 'Đã cập nhật hàng hóa' : 'Đã thêm hàng hóa mới', 'success');
+                } else {
+                    alert(id ? "Đã cập nhật hàng hóa thành công!" : "Đã thêm hàng hóa mới thành công!");
+                }
             } catch (e) {
                 console.error("saveProductForm error:", e);
                 alert("Lỗi kết nối khi lưu sản phẩm");

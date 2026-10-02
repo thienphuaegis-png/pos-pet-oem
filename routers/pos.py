@@ -208,10 +208,15 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
         for item in req.items:
             subtotal = item.quantity * item.price
+            # Quy doi don vi ban: quantity/price theo don vi da chon (vd Thung), ton kho tru theo don vi co ban
+            ratio = float(item.unit_ratio or 1)
+            if ratio <= 0:
+                ratio = 1.0
+            base_qty = round(item.quantity * ratio, 4)
             cur.execute("""
-            INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
-            VALUES (?, ?, ?, ?, ?)
-            """, (order_id, item.product_id, item.quantity, item.price, subtotal))
+            INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (order_id, item.product_id, item.quantity, item.price, subtotal, item.unit, ratio))
 
             cur.execute("SELECT type FROM products WHERE id = ?", (item.product_id,))
             prod_type = cur.fetchone()
@@ -228,7 +233,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
                 for comp in combo_components:
                     comp_id = comp["product_id"]
-                    comp_qty = comp["component_qty"] * item.quantity
+                    comp_qty = comp["component_qty"] * base_qty
 
                     cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (comp_qty, comp_id))
                     cur.execute("""
@@ -269,14 +274,14 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 """, (None, warehouse_id, item.quantity, 0, order_id, code, f"Ban combo {code} x{item.quantity}"))
 
             else:
-                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (item.quantity, item.product_id))
+                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (base_qty, item.product_id))
                 cur.execute("""
                 INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity - ?,
                     updated_at = CURRENT_TIMESTAMP
-                """, (warehouse_id, item.product_id, -item.quantity, item.quantity))
+                """, (warehouse_id, item.product_id, -base_qty, base_qty))
 
                 cur.execute("""
                 SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
@@ -289,7 +294,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 for bom in bom_rows:
                     if bom["ingredient_type"] == 'SERVICE':
                         continue
-                    total_consumed = bom["quantity"] * item.quantity
+                    total_consumed = bom["quantity"] * base_qty
                     cur.execute("""
                     INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
                     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -440,7 +445,8 @@ def delete_order(code: str, user=Depends(require_role("owner"))):
 
         for item in items:
             prod_id = item["product_id"]
-            qty = item["quantity"]
+            # Hoan tra theo don vi co ban: nhan he so quy doi da chot luc ban
+            qty = item["quantity"] * (float(item["unit_ratio"] or 1) if "unit_ratio" in item.keys() else 1.0)
 
             cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (qty, prod_id))
             cur.execute("""
@@ -528,12 +534,13 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             cur.execute("SELECT * FROM order_items WHERE order_id = ?", (order_id,))
             old_items = cur.fetchall()
             for oitem in old_items:
-                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (oitem["quantity"], oitem["product_id"]))
+                old_base_qty = oitem["quantity"] * (float(oitem["unit_ratio"] or 1) if "unit_ratio" in oitem.keys() else 1.0)
+                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (old_base_qty, oitem["product_id"]))
                 cur.execute("""
                 UPDATE product_inventory 
                 SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
                 WHERE warehouse_id = ? AND product_id = ?
-                """, (oitem["quantity"], warehouse_id, oitem["product_id"]))
+                """, (old_base_qty, warehouse_id, oitem["product_id"]))
 
                 cur.execute("""
                 SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
@@ -544,7 +551,7 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
                         cur.execute("""
                         UPDATE inventory SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
                         WHERE warehouse_id = ? AND ingredient_id = ?
-                        """, (bom["quantity"] * oitem["quantity"], warehouse_id, bom["ingredient_id"]))
+                        """, (bom["quantity"] * old_base_qty, warehouse_id, bom["ingredient_id"]))
 
             cur.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
             cur.execute("DELETE FROM inventory_logs WHERE order_id = ? OR order_code = ?", (order_id, code))
@@ -553,18 +560,22 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             for nitem in req.items:
                 subtotal = nitem.quantity * nitem.price
                 total_amount += subtotal
+                n_ratio = float(nitem.unit_ratio or 1)
+                if n_ratio <= 0:
+                    n_ratio = 1.0
+                n_base_qty = round(nitem.quantity * n_ratio, 4)
                 cur.execute("""
-                INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
-                VALUES (?, ?, ?, ?, ?)
-                """, (order_id, nitem.product_id, nitem.quantity, nitem.price, subtotal))
+                INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (order_id, nitem.product_id, nitem.quantity, nitem.price, subtotal, nitem.unit, n_ratio))
 
-                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (nitem.quantity, nitem.product_id))
+                cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (n_base_qty, nitem.product_id))
                 cur.execute("""
                 INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
-                """, (warehouse_id, nitem.product_id, -nitem.quantity, nitem.quantity))
+                """, (warehouse_id, nitem.product_id, -n_base_qty, n_base_qty))
 
                 cur.execute("""
                 SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
@@ -572,7 +583,7 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
                 """, (nitem.product_id,))
                 for bom in cur.fetchall():
                     if bom["ingredient_type"] != 'SERVICE':
-                        t_consumed = bom["quantity"] * nitem.quantity
+                        t_consumed = bom["quantity"] * n_base_qty
                         cur.execute("""
                         INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
                         VALUES (?, ?, ?, CURRENT_TIMESTAMP)

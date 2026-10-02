@@ -800,12 +800,12 @@ def init_db():
     )''')
     # Seed mac dinh = giu nguyen hanh vi cu (require_role cung truoc day)
     PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
-                 "partners.manage", "price_lists.manage", "inventory.manage", "oem.manage",
+                 "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
                  "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
     DEFAULT_ROLE_PERMS = {
         "cashier": {"pos.sell", "cashbook.manage", "partners.manage"},
-        "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order"},
-        "warehouse": {"purchases.manage", "inventory.manage", "cashbook.manage", "partners.manage"},
+        "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order", "inventory.view_cost"},
+        "warehouse": {"purchases.manage", "inventory.manage", "cashbook.manage", "partners.manage", "inventory.view_cost"},
     }
     for role, perms in DEFAULT_ROLE_PERMS.items():
         for key in PERM_KEYS:
@@ -828,6 +828,41 @@ def init_db():
                 ON CONFLICT(role, perm_key) DO UPDATE SET allowed = 1
             """, (role, key))
         cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_rbac_cashbook_partners', '1')")
+
+    # Migration 2026-10-02: quyen xem gia von (inventory.view_cost) - accountant/warehouse duoc xem, cashier/staff khong
+    cur.execute("SELECT value FROM settings WHERE key = 'migration_rbac_view_cost'")
+    if not cur.fetchone():
+        for role, allowed in [("accountant", 1), ("warehouse", 1), ("cashier", 0), ("staff", 0)]:
+            cur.execute("""
+                INSERT INTO role_permissions (role, perm_key, allowed) VALUES (?, 'inventory.view_cost', ?)
+                ON CONFLICT(role, perm_key) DO UPDATE SET allowed = excluded.allowed
+            """, (role, allowed))
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_rbac_view_cost', '1')")
+
+    # 9b2. Quy doi don vi tinh theo tung mat hang (1 Thung = 16 Chai, moi mat hang mot ti le rieng)
+    # Don vi co ban KHONG luu o day: van la products.unit / ingredients.unit voi ratio = 1
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS item_units (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_type TEXT NOT NULL DEFAULT 'product',   -- 'product' hoac 'ingredient'
+        item_id INTEGER NOT NULL,
+        unit_name TEXT NOT NULL,                     -- 'Thung', 'Loc'...
+        ratio REAL NOT NULL DEFAULT 1,               -- so don vi co ban trong 1 don vi nay
+        sell_price REAL DEFAULT 0,                   -- 0 = tu tinh ratio * gia base
+        is_default_sale INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(item_type, item_id, unit_name)
+    )''')
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_item_units_item ON item_units(item_type, item_id)")
+
+    # Ghi vet he so quy doi tai thoi diem giao dich (sua ratio sau nay khong lam sai lech don cu)
+    for tbl in ("purchase_items", "order_items"):
+        cur.execute(f"PRAGMA table_info({tbl})")
+        cols = [c[1] for c in cur.fetchall()]
+        if cols and 'unit_ratio' not in cols:
+            cur.execute(f"ALTER TABLE {tbl} ADD COLUMN unit_ratio REAL DEFAULT 1")
+        if cols and 'unit' not in cols:
+            cur.execute(f"ALTER TABLE {tbl} ADD COLUMN unit TEXT")
 
     # 9c. Bat/tat module theo he thong (an tab cho MOI role khi tat)
     DEFAULT_MODULES = {"module_oem": "1", "module_pet_services": "1", "module_price_lists": "1", "module_hotel": "1"}

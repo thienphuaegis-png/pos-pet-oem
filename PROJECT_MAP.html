@@ -641,10 +641,12 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-01)
-    const ROADMAP_VERSION = 'v3.4-2026-10-01-complete';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-02)
+    const ROADMAP_VERSION = 'v3.5-2026-10-02-cleanup';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-01)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-02)
+      { id: 'unit-conversion-and-cost-perm', cat: 'PROD', title: 'Quy Đổi Đơn Vị Tính Theo Mặt Hàng (Thùng/Chai) & Bảo Mật Ẩn Giá Vốn (RBAC)', done: true, note: 'Bảng item_units quy đổi tỷ lệ riêng cho từng SP; tự động nhân ratio trừ tồn kho và ghi nhận lịch sử; phân quyền inventory.view_cost ẩn giá vốn/lợi nhuận khỏi API và UI cho cashier' },
+      { id: 'repo-cleanup-and-shop-deploy-scripts', cat: 'SYS', title: 'Chuẩn Hóa Cấu Trúc Repo & Kịch Bản Cập Nhật / Dọn Dẹp Máy Tiệm 1-Chạm', done: true, note: 'Gom gọn 16 file bat/test tản mát vào deploy/ và tests/manual/. Thư mục gốc chỉ giữ 2 file CHAY_POS.bat và CAP_NHAT.bat; tạo scripts/DON_DEP_MAY_TIEM.bat tự động backup DB ra Desktop và gỡ kẹt Git' },
       { id: 'oem-services-catalog-and-bom-cost', cat: 'PROD', title: 'Danh mục 22 Dịch Vụ Gia Công OEM & File Nguyên Liệu Tính Giá Cost BOM', done: true, note: 'Bóc tách 22 mã dịch vụ OEM (sữa tắm chung dung tích 50ml, 250ml, 500ml, 2L; thịt tươi bóc tách theo từng loại; lau sàn, xịt khử mùi, rửa tay, rửa tai, serum, canxi, men & creatin). Xuất file Excel chuẩn hóa Danh_Sach_Nguyen_Lieu_Dich_Vu_OEM.xlsx' },
       { id: 'quiet-toast-notifications', cat: 'UI', title: 'Tối ưu UX Thông báo: Thay thế modal alert chặn màn hình bằng Toast êm ái khi cập nhật nguyên liệu/NCC', done: true, note: 'Chuyển toàn bộ alert thành showToast tự ẩn sau 2s, không bắt người dùng bấm Đã hiểu nhiều lần gây phiền toái' },
       { id: 'ai-bom-suggest-and-inline-search', cat: 'PROD', title: 'Nâng Cấp BOM Hiện Đại: Quick-Search Nguyên Liệu Thả Thẳng Vào Bảng & ✨ AI Gợi Ý BOM', done: true, note: 'Bỏ hoàn toàn modal che rườm rà. Thêm thanh quick-search thả nguyên liệu thẳng vào bảng BOM, sửa định lượng inline. Tích hợp AI Gemini 2.5 Flash gợi ý trọn bộ công thức BOM 1-chạm & Nút 📋 Sao chép BOM từ sản phẩm khác' },

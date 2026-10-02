@@ -6,6 +6,8 @@ class OrderItemIn(BaseModel):
     product_id: int
     quantity: float
     price: float
+    unit: Optional[str] = None       # Đơn vị bán đã chọn (Thùng/Chai)
+    unit_ratio: Optional[float] = 1  # Số đơn vị cơ bản trong 1 đơn vị đã chọn
 
 class PaymentSplitIn(BaseModel):
     method: str  # cash, transfer, card, ewallet
@@ -52,7 +54,7 @@ class ProductUpdate(BaseModel):
     code: Optional[str] = None
     name: str
     type: str = "product"
-    cost_price: float = 0
+    cost_price: Optional[float] = None  # None = giữ nguyên giá vốn cũ (nhân viên không có quyền xem/sửa)
     sell_price: float = 0
     unit: str = "cái"
     category: Optional[str] = None
@@ -160,6 +162,7 @@ class PurchaseItemIn(BaseModel):
     ingredient_id: Optional[int] = None
     item_name: Optional[str] = ""
     unit: Optional[str] = ""
+    unit_ratio: Optional[float] = 1  # 1 Thùng = 16 Chai -> nhập 2 thùng cộng tồn 32 chai
     quantity: float
     cost_price: float
 

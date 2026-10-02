@@ -462,12 +462,13 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
             prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
             cur.execute('''
             INSERT INTO purchase_items (
-                purchase_id, item_type, product_id, ingredient_id, item_name, unit, quantity, cost_price, subtotal, actual_quantity
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 purchase_id, item.item_type, prod_id_val, item.ingredient_id,
-                item.item_name, item.unit, item.quantity, item.cost_price, subtotal, item.quantity
+                item.item_name, item.unit, max(float(item.unit_ratio or 1), 0.000001),
+                item.quantity, item.cost_price, subtotal, item.quantity
             ))
 
         conn.commit()
@@ -519,12 +520,13 @@ def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permiss
             prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
             cur.execute('''
             INSERT INTO purchase_items (
-                purchase_id, item_type, product_id, ingredient_id, item_name, unit, quantity, cost_price, subtotal, actual_quantity
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 purchase_id, item.item_type, prod_id_val, item.ingredient_id,
-                item.item_name, item.unit, item.quantity, item.cost_price, subtotal, item.quantity
+                item.item_name, item.unit, max(float(item.unit_ratio or 1), 0.000001),
+                item.quantity, item.cost_price, subtotal, item.quantity
             ))
 
         conn.commit()
@@ -580,6 +582,14 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
 
             cur.execute("UPDATE purchase_items SET actual_quantity = ?, subtotal = ? WHERE id = ?", (qty, subtotal, item_id))
 
+            # Quy doi don vi: qty/cost dang theo don vi nhap (vd Thung), ton kho & gia von luu theo don vi co ban (Chai)
+            ratio = float(item["unit_ratio"] or 1) if "unit_ratio" in item.keys() else 1.0
+            if ratio <= 0:
+                ratio = 1.0
+            base_qty = round(qty * ratio, 4)
+            base_cost = round(cost / ratio, 4)
+            unit_note = f" ({qty:g} {item['unit']} x {ratio:g})" if ratio != 1 else ""
+
             item_type = item["item_type"]
             if item_type == 'ingredient' and item["ingredient_id"]:
                 ing_id = item["ingredient_id"]
@@ -589,27 +599,27 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
                 ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
                     quantity = quantity + ?,
                     updated_at = CURRENT_TIMESTAMP
-                ''', (warehouse_id, ing_id, qty, qty))
+                ''', (warehouse_id, ing_id, base_qty, base_qty))
 
                 cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, ing_id))
                 bal_row = cur.fetchone()
-                balance_after = bal_row["quantity"] if bal_row else qty
+                balance_after = bal_row["quantity"] if bal_row else base_qty
 
                 cur.execute('''
                 INSERT INTO price_history (ingredient_id, supplier_id, purchase_price, note)
                 VALUES (?, ?, ?, ?)
-                ''', (ing_id, p["supplier_id"], cost, f"Nhận hàng thực tế phiếu {code}"))
+                ''', (ing_id, p["supplier_id"], base_cost, f"Nhận hàng thực tế phiếu {code}{unit_note}"))
 
                 cur.execute('''
                 INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
                 VALUES (?, ?, 'PURCHASE', ?, ?, ?, ?)
-                ''', (ing_id, warehouse_id, qty, balance_after, p["supplier_id"], f"Nhận hàng thực tế phiếu {code}"))
+                ''', (ing_id, warehouse_id, base_qty, balance_after, p["supplier_id"], f"Nhận hàng thực tế phiếu {code}{unit_note}"))
 
             elif item["product_id"]:
                 prod_id = item["product_id"]
                 cur.execute(
                     "UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ?",
-                    (qty, cost, prod_id)
+                    (base_qty, base_cost, prod_id)
                 )
                 cur.execute('''
                 INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
@@ -617,16 +627,16 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = quantity + ?,
                     updated_at = CURRENT_TIMESTAMP
-                ''', (warehouse_id, prod_id, qty, qty))
+                ''', (warehouse_id, prod_id, base_qty, base_qty))
 
                 cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, prod_id))
                 bal_p = cur.fetchone()
-                bal_p_after = bal_p["quantity"] if bal_p else qty
+                bal_p_after = bal_p["quantity"] if bal_p else base_qty
 
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
                 VALUES ('product', ?, ?, 'PURCHASE', ?, ?, ?, ?)
-                ''', (prod_id, warehouse_id, qty, bal_p_after, p["supplier_id"], f"Nhận hàng thực tế phiếu {code}"))
+                ''', (prod_id, warehouse_id, base_qty, bal_p_after, p["supplier_id"], f"Nhận hàng thực tế phiếu {code}{unit_note}"))
 
         # Tính toán lại tổng tiền dựa trên số lượng thực nhận
         vat_rate = p["vat_rate"] or 0

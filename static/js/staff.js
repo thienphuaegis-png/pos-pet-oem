@@ -153,6 +153,7 @@ const PERM_LABEL = {
   "partners.manage": "Quản lý KH/NCC",
   "price_lists.manage": "Quản lý Bảng Giá",
   "inventory.manage": "Quản lý Kho",
+  "inventory.view_cost": "Xem giá vốn & lợi nhuận",
   "oem.manage": "Quản lý OEM",
   "reports.view": "Xem Báo Cáo",
   "shifts.approve": "Duyệt Ca Làm Việc",
