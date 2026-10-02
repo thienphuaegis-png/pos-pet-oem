@@ -26,7 +26,8 @@
                         subMessage = '',
                         confirmText = 'Đồng ý',
                         cancelText = 'Hủy bỏ',
-                        type = 'danger' // danger, warning, primary
+                        type = 'danger', // danger, warning, primary, transfer, success
+                        icon: customIcon = null
                     } = options;
 
                     // Xóa modal cũ nếu còn
@@ -35,16 +36,24 @@
 
                     let btnClass = 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200';
                     let iconBg = 'bg-rose-100 text-rose-600 border border-rose-200';
-                    let icon = '🗑️';
+                    let icon = customIcon || '🗑️';
 
                     if (type === 'warning') {
                         btnClass = 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-200';
                         iconBg = 'bg-amber-100 text-amber-600 border border-amber-200';
-                        icon = '⚠️';
+                        icon = customIcon || '⚠️';
                     } else if (type === 'primary') {
                         btnClass = 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200';
                         iconBg = 'bg-indigo-100 text-indigo-600 border border-indigo-200';
-                        icon = '✨';
+                        icon = customIcon || '✨';
+                    } else if (type === 'transfer' || type === 'info') {
+                        btnClass = 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-200';
+                        iconBg = 'bg-sky-100 text-sky-700 border border-sky-200';
+                        icon = customIcon || '🔄';
+                    } else if (type === 'success') {
+                        btnClass = 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200';
+                        iconBg = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+                        icon = customIcon || '✅';
                     }
 
                     const modal = document.createElement('div');
@@ -1983,32 +1992,39 @@
         }
 
         async function submitStockTransfer() {
-            const fromWh = parseInt(document.getElementById('transfer-from-wh').value);
-            const toWh = parseInt(document.getElementById('transfer-to-wh').value);
-            const note = document.getElementById('transfer-note').value.trim();
+            const fromWhEl = document.getElementById('transfer-from-wh');
+            const toWhEl = document.getElementById('transfer-to-wh');
+            const fromWh = parseInt(fromWhEl?.value);
+            const toWh = parseInt(toWhEl?.value);
+            const note = document.getElementById('transfer-note')?.value.trim() || '';
 
             if (!fromWh || !toWh) {
-                alert("Vui lòng chọn cả kho xuất và kho nhập!");
+                if (window.showToast) window.showToast("⚠️ Vui lòng chọn cả kho xuất và kho nhập!", "warning");
+                else alert("Vui lòng chọn cả kho xuất và kho nhập!");
                 return;
             }
 
             if (fromWh === toWh) {
-                alert("Kho xuất và kho nhập phải khác nhau!");
+                if (window.showToast) window.showToast("⚠️ Kho xuất và kho nhập phải khác nhau!", "warning");
+                else alert("Kho xuất và kho nhập phải khác nhau!");
                 return;
             }
 
             if (!currentTransferRows || currentTransferRows.length === 0) {
-                alert("Vui lòng thêm ít nhất một mặt hàng để chuyển!");
+                if (window.showToast) window.showToast("⚠️ Vui lòng thêm ít nhất một mặt hàng để chuyển!", "warning");
+                else alert("Vui lòng thêm ít nhất một mặt hàng để chuyển!");
                 return;
             }
 
             for (const r of currentTransferRows) {
                 if (r.quantity <= 0) {
-                    alert(`Số lượng chuyển cho "${r.name}" phải lớn hơn 0!`);
+                    if (window.showToast) window.showToast(`⚠️ Số lượng chuyển cho "${r.name}" phải lớn hơn 0!`, "warning");
+                    else alert(`Số lượng chuyển cho "${r.name}" phải lớn hơn 0!`);
                     return;
                 }
                 if (r.quantity > r.stock) {
-                    alert(`Số lượng chuyển cho "${r.name}" (${r.quantity}) vượt quá tồn kho hiện có (${r.stock})!`);
+                    if (window.showToast) window.showToast(`⚠️ Số lượng chuyển cho "${r.name}" (${r.quantity}) vượt quá tồn kho hiện có (${r.stock})!`, "warning");
+                    else alert(`Số lượng chuyển cho "${r.name}" (${r.quantity}) vượt quá tồn kho hiện có (${r.stock})!`);
                     return;
                 }
             }
@@ -2021,7 +2037,45 @@
                 quantity: r.quantity
             }));
 
-            if (!confirm(`Xác nhận chuyển ${itemsPayload.length} mặt hàng từ kho xuất sang kho nhập?`)) return;
+            const fromWhName = fromWhEl?.selectedOptions[0]?.text || 'Kho xuất';
+            const toWhName = toWhEl?.selectedOptions[0]?.text || 'Kho nhập';
+
+            const previewItemsHtml = currentTransferRows.slice(0, 4).map(r => `
+                <div class="flex items-center justify-between text-[11px] py-1 border-b border-slate-100 last:border-0">
+                    <span class="truncate max-w-[220px] font-medium text-slate-800">• ${r.name}</span>
+                    <span class="font-mono font-bold text-sky-700">${r.quantity.toLocaleString('vi-VN')} <span class="font-normal text-slate-500">${r.unit || 'cái'}</span></span>
+                </div>
+            `).join('') + (currentTransferRows.length > 4 ? `<div class="text-[10px] text-gray-400 italic text-center pt-1.5">...và ${currentTransferRows.length - 4} mặt hàng khác</div>` : '');
+
+            const confirmed = await window.showConfirmModal({
+                title: 'Xác Nhận Điều Chuyển Kho',
+                message: `Bạn có chắc chắn muốn chuyển <strong class="text-sky-700 font-bold">${itemsPayload.length} mặt hàng</strong> sang kho nhận?`,
+                subMessage: `
+                    <div class="space-y-2.5">
+                        <div class="grid grid-cols-2 gap-2 text-[11px] pb-2 border-b border-slate-200">
+                            <div>
+                                <span class="text-gray-400 block text-[10px] uppercase font-bold">📤 Kho Xuất:</span>
+                                <strong class="text-rose-700 font-bold block mt-0.5">${fromWhName}</strong>
+                            </div>
+                            <div>
+                                <span class="text-gray-400 block text-[10px] uppercase font-bold">📥 Kho Nhập:</span>
+                                <strong class="text-emerald-700 font-bold block mt-0.5">${toWhName}</strong>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Mặt hàng & số lượng chuyển:</div>
+                            ${previewItemsHtml}
+                        </div>
+                        ${note ? `<div class="text-[11px] text-slate-600 bg-amber-50/60 p-2 rounded border border-amber-200/80">📝 Ghi chú: <em>"${note}"</em></div>` : ''}
+                    </div>
+                `,
+                confirmText: '🚀 Xác Nhận Chuyển',
+                cancelText: '✕ Hủy Bỏ',
+                type: 'transfer',
+                icon: '🔄'
+            });
+
+            if (!confirmed) return;
 
             try {
                 const res = await fetch('/api/inventory/transfer', {
@@ -2036,20 +2090,27 @@
                 });
 
                 if (!res.ok) {
-                    const err = await res.json();
-                    alert("Lỗi chuyển kho: " + (err.detail || "Không thể thực hiện chuyển kho"));
+                    const err = await res.json().catch(() => ({}));
+                    const msg = err.detail || "Không thể thực hiện chuyển kho";
+                    if (window.showToast) window.showToast("❌ Lỗi chuyển kho: " + msg, "error");
+                    else alert("Lỗi chuyển kho: " + msg);
                     return;
                 }
 
                 const result = await res.json();
-                alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`);
+                if (window.showToast) {
+                    window.showToast(`✅ Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`, "success", 4000);
+                } else {
+                    alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`);
+                }
                 document.getElementById('transfer-note').value = '';
                 currentTransferRows = [];
                 onTransferFromChange();
                 loadUnifiedInventory();
             } catch (e) {
                 console.error("submitStockTransfer error:", e);
-                alert("Lỗi kết nối khi gửi phiếu chuyển kho");
+                if (window.showToast) window.showToast("❌ Lỗi kết nối khi gửi phiếu chuyển kho", "error");
+                else alert("Lỗi kết nối khi gửi phiếu chuyển kho");
             }
         }
 
