@@ -173,6 +173,8 @@ async def import_orders_excel(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Lỗi khi lưu hóa đơn: {str(e)}")
     finally:
         conn.close()
+
+@router.get("/api/orders")
 def list_orders(limit: int = 50):
     conn = get_db()
     cur = conn.cursor()
