@@ -1209,6 +1209,9 @@
                             <table class="w-full text-left text-xs table-floating-cards">
                                 <thead class="bg-slate-50/70 text-slate-600 font-bold">
                                     <tr>
+                                        <th class="p-3 w-10 text-center">
+                                            <input type="checkbox" id="check-all-orders" onchange="toggleCheckAllOrders(this.checked)" class="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4" title="Chọn tất cả hóa đơn trên trang này">
+                                        </th>
                                         <th class="p-3">Mã Đơn</th>
                                         <th class="p-3">Thời Gian</th>
                                         <th class="p-3">Khách Hàng</th>
@@ -1223,12 +1226,32 @@
                                 </thead>
                                 <tbody id="orders-table-body">
                                     <tr>
-                                        <td colspan="10" class="p-6 text-center text-gray-400 italic">Đang tải danh sách hóa đơn...</td>
+                                        <td colspan="11" class="p-6 text-center text-gray-400 italic">Đang tải danh sách hóa đơn...</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                         <div id="pagination-orders"></div>
+                    </div>
+
+                    <!-- Floating Action Bar for Bulk Order Staff Update -->
+                    <div id="orders-bulk-action-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl z-40 flex items-center gap-3.5 border border-slate-700 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-[11px]" id="orders-selected-count">0</span>
+                            <span class="font-bold">hóa đơn đã chọn</span>
+                        </div>
+                        <div class="h-4 w-px bg-slate-700"></div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-300">Chuyển sang Thu Ngân:</span>
+                            <select id="orders-bulk-staff-select" class="bg-slate-800 text-white font-bold border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-sky-500">
+                                <option value="">-- Chọn thu ngân mới --</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="submitBulkUpdateOrderStaff()" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span>⚡ Cập Nhật Thu Ngân</span>
+                        </button>
+                        <button type="button" onclick="clearOrderSelection()" class="text-slate-400 hover:text-white px-2 py-1 rounded transition text-xs font-semibold" title="Bỏ chọn">✕ Hủy</button>
                     </div>
                 </div>
 
@@ -9413,7 +9436,7 @@
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
-    <script src="/static/js/modules/productions.js?v=20261003_01"></script>
+    <script src="/static/js/modules/productions.js?v=20261003_02"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>

@@ -237,3 +237,88 @@ def test_order_edit_api(client):
         conn.commit()
         conn.close()
 
+def test_bulk_update_order_staff(client):
+    login_res = client.post("/api/auth/login", data={"username": "admin", "password": "admin123"})
+    assert login_res.status_code == 200
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    ts = int(time.time() * 1000)
+    p_code = f"SP-BULK-{ts}"
+    res_p = client.post("/api/products", json={
+        "code": p_code,
+        "name": f"Hạt Thử Nghiệm {ts}",
+        "type": "product",
+        "sell_price": 50000,
+        "cost_price": 30000
+    }, headers=headers)
+    assert res_p.status_code == 200
+    p_id = res_p.json()["id"]
+
+    res_c = client.post("/api/contacts", json={
+        "name": f"Khách Bulk Staff {ts}",
+        "phone": f"093{ts % 1000000:07d}",
+        "type": "customer"
+    }, headers=headers)
+    assert res_c.status_code == 200
+    cust_id = res_c.json()["id"]
+
+    # Lấy danh sách staff
+    res_staff = client.get("/api/staff", headers=headers)
+    assert res_staff.status_code == 200
+    staff_list = res_staff.json()
+    assert len(staff_list) >= 1
+    staff1_id = staff_list[0]["id"]
+    staff2_id = staff_list[1]["id"] if len(staff_list) > 1 else staff1_id
+
+    # Tạo 2 đơn hàng với staff1
+    res_ord1 = client.post("/api/orders", json={
+        "customer_id": cust_id,
+        "staff_id": staff1_id,
+        "items": [{"product_id": p_id, "quantity": 1, "price": 50000}],
+        "paid_amount": 50000,
+        "note": "Đơn 1"
+    }, headers=headers)
+    assert res_ord1.status_code == 200
+    code1 = res_ord1.json()["order_code"]
+
+    res_ord2 = client.post("/api/orders", json={
+        "customer_id": cust_id,
+        "staff_id": staff1_id,
+        "items": [{"product_id": p_id, "quantity": 1, "price": 50000}],
+        "paid_amount": 50000,
+        "note": "Đơn 2"
+    }, headers=headers)
+    assert res_ord2.status_code == 200
+    code2 = res_ord2.json()["order_code"]
+
+    try:
+        # Cập nhật hàng loạt sang staff2_id (hoặc staff1_id)
+        res_bulk = client.post("/api/orders/bulk-update-staff", json={
+            "order_codes": [code1, code2],
+            "new_staff_id": staff2_id
+        }, headers=headers)
+        assert res_bulk.status_code == 200
+        bulk_data = res_bulk.json()
+        assert bulk_data["status"] == "ok"
+        assert bulk_data["updated_count"] == 2
+
+        # Kiểm tra lại cả 2 đơn
+        res_get1 = client.get(f"/api/orders/{code1}", headers=headers)
+        res_get2 = client.get(f"/api/orders/{code2}", headers=headers)
+        assert res_get1.status_code == 200 and res_get1.json()["staff_id"] == staff2_id
+        assert res_get2.status_code == 200 and res_get2.json()["staff_id"] == staff2_id
+    finally:
+        conn = get_db()
+        cur = conn.cursor()
+        for c in [code1, code2]:
+            cur.execute("DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE code = ?)", (c,))
+            cur.execute("DELETE FROM cashbook WHERE ref_id IN (SELECT id FROM orders WHERE code = ?) AND ref_type = 'order'", (c,))
+            cur.execute("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE code = ?)", (c,))
+            cur.execute("DELETE FROM inventory_logs WHERE order_code = ?", (c,))
+            cur.execute("DELETE FROM orders WHERE code = ?", (c,))
+        cur.execute("DELETE FROM products WHERE id = ?", (p_id,))
+        cur.execute("DELETE FROM contacts WHERE id = ?", (cust_id,))
+        conn.commit()
+        conn.close()
+

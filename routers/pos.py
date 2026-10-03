@@ -6,7 +6,12 @@ from schemas import OrderCreate, OrderUpdate
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
 from dependencies import get_current_user, get_optional_user, require_role, require_permission
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
+
+class BulkUpdateStaffReq(BaseModel):
+    order_codes: List[str]
+    new_staff_id: int
 
 logger = get_module_logger("pos")
 
@@ -190,6 +195,41 @@ def list_orders(limit: int = 50):
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+@router.post("/api/orders/bulk-update-staff")
+def bulk_update_order_staff(req: BulkUpdateStaffReq, user=Depends(require_permission("pos.edit_delete_order"))):
+    """Cập nhật hàng loạt thu ngân cho danh sách hóa đơn được chọn."""
+    if not req.order_codes:
+        raise HTTPException(status_code=400, detail="Vui lòng chọn ít nhất 1 hóa đơn để cập nhật")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id, name FROM staff WHERE id = ? AND is_active = 1", (req.new_staff_id,))
+        staff = cur.fetchone()
+        if not staff:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên hoặc tài khoản đã bị khóa")
+
+        placeholders = ",".join("?" for _ in req.order_codes)
+        cur.execute(f"UPDATE orders SET staff_id = ? WHERE code IN ({placeholders})", [req.new_staff_id] + req.order_codes)
+        updated_count = cur.rowcount
+        conn.commit()
+    except HTTPException:
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    conn.close()
+    return {
+        "status": "ok",
+        "updated_count": updated_count,
+        "staff_id": staff["id"],
+        "staff_name": staff["name"]
+    }
 
 @router.get("/api/orders/{code}")
 def get_order_detail(code: str):

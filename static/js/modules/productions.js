@@ -3530,6 +3530,7 @@
 
         let ordersCurrentPage = 1;
         let allCachedOrders = [];
+        let selectedOrderCodes = new Set();
 
         function changeOrdersPage(newPage) {
             ordersCurrentPage = newPage;
@@ -3545,9 +3546,10 @@
             if (!tbody) return;
 
             if (!allCachedOrders || allCachedOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
                 const pContainer = document.getElementById('pagination-orders');
                 if (pContainer) pContainer.innerHTML = '';
+                updateOrdersBulkActionBar();
                 return;
             }
 
@@ -3562,9 +3564,13 @@
                 const debtHtml = debt > 0 
                     ? `<span class="text-rose-600 font-bold">${formatMoney(debt)}</span>` 
                     : `<span class="text-emerald-600 font-medium">0 đ</span>`;
+                const isChecked = selectedOrderCodes.has(ord.code);
 
                 return `
-                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
+                    <tr class="card-row card-row-anim text-xs select-none ${isChecked ? 'bg-sky-50/70' : ''}" style="--row-idx: ${idx};">
+                        <td class="p-3 text-center">
+                            <input type="checkbox" value="${ord.code}" class="order-select-chk rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4" onchange="onOrderCheckChange(this)" ${isChecked ? 'checked' : ''}>
+                        </td>
                         <td class="p-3 font-mono font-bold text-sky-700 cursor-pointer hover:underline" onclick="viewOrderDetailModal('${ord.code}')">
                             ${ord.code}
                         </td>
@@ -3597,7 +3603,128 @@
             if (typeof renderPaginationBar === 'function') {
                 renderPaginationBar('pagination-orders', ordersCurrentPage, totalPages, totalItems, 'changeOrdersPage');
             }
+            updateOrdersBulkActionBar();
         }
+
+        function onOrderCheckChange(checkboxEl) {
+            if (checkboxEl.checked) {
+                selectedOrderCodes.add(checkboxEl.value);
+            } else {
+                selectedOrderCodes.delete(checkboxEl.value);
+            }
+            const row = checkboxEl.closest('tr');
+            if (row) {
+                if (checkboxEl.checked) row.classList.add('bg-sky-50/70');
+                else row.classList.remove('bg-sky-50/70');
+            }
+            updateOrdersBulkActionBar();
+        }
+        window.onOrderCheckChange = onOrderCheckChange;
+
+        function toggleCheckAllOrders(checked) {
+            const chks = document.querySelectorAll('.order-select-chk');
+            chks.forEach(chk => {
+                chk.checked = checked;
+                if (checked) selectedOrderCodes.add(chk.value);
+                else selectedOrderCodes.delete(chk.value);
+                const row = chk.closest('tr');
+                if (row) {
+                    if (checked) row.classList.add('bg-sky-50/70');
+                    else row.classList.remove('bg-sky-50/70');
+                }
+            });
+            updateOrdersBulkActionBar();
+        }
+        window.toggleCheckAllOrders = toggleCheckAllOrders;
+
+        function clearOrderSelection() {
+            selectedOrderCodes.clear();
+            const chks = document.querySelectorAll('.order-select-chk');
+            chks.forEach(chk => {
+                chk.checked = false;
+                const row = chk.closest('tr');
+                if (row) row.classList.remove('bg-sky-50/70');
+            });
+            const allChk = document.getElementById('check-all-orders');
+            if (allChk) allChk.checked = false;
+            updateOrdersBulkActionBar();
+        }
+        window.clearOrderSelection = clearOrderSelection;
+
+        async function updateOrdersBulkActionBar() {
+            const bar = document.getElementById('orders-bulk-action-bar');
+            const countEl = document.getElementById('orders-selected-count');
+            const count = selectedOrderCodes.size;
+            if (countEl) countEl.textContent = count;
+
+            const allChk = document.getElementById('check-all-orders');
+            const pageChks = document.querySelectorAll('.order-select-chk');
+            if (allChk && pageChks.length > 0) {
+                const allChecked = Array.from(pageChks).every(c => c.checked);
+                allChk.checked = allChecked;
+            } else if (allChk) {
+                allChk.checked = false;
+            }
+
+            if (!bar) return;
+            if (count > 0) {
+                bar.classList.remove('hidden');
+                // Nạp danh sách nhân viên vào dropdown nếu chưa có
+                const sel = document.getElementById('orders-bulk-staff-select');
+                if (sel) {
+                    if (!allStaff || allStaff.length === 0) {
+                        try {
+                            const resS = await fetch('/api/staff');
+                            if (resS.ok) allStaff = await resS.json();
+                        } catch(e) {}
+                    }
+                    if (sel.options.length <= 1 && allStaff && allStaff.length > 0) {
+                        sel.innerHTML = '<option value="">-- Chọn thu ngân mới --</option>' +
+                            allStaff.map(s => `<option value="${s.id}">${s.name} (${s.role || 'staff'})</option>`).join('');
+                    }
+                }
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+        window.updateOrdersBulkActionBar = updateOrdersBulkActionBar;
+
+        async function submitBulkUpdateOrderStaff() {
+            const count = selectedOrderCodes.size;
+            if (count === 0) return alert('Vui lòng chọn ít nhất 1 hóa đơn để cập nhật!');
+
+            const sel = document.getElementById('orders-bulk-staff-select');
+            const staffId = parseInt(sel?.value);
+            if (!staffId) return alert('Vui lòng chọn thu ngân mới từ danh sách!');
+
+            const staffName = sel.options[sel.selectedIndex]?.text || '';
+            if (!confirm(`Bạn có chắc chắn muốn chuyển ${count} hóa đơn đã chọn sang thu ngân "${staffName}"?`)) return;
+
+            try {
+                const res = await fetch('/api/orders/bulk-update-staff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_codes: Array.from(selectedOrderCodes),
+                        new_staff_id: staffId
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(`✅ Đã cập nhật thành công ${data.updated_count || count} hóa đơn sang thu ngân "${data.staff_name || staffName}"!`);
+                    clearOrderSelection();
+                    if (typeof loadOrdersList === 'function') await loadOrdersList();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Lỗi: ' + (err.detail || 'Không thể cập nhật thu ngân hàng loạt'));
+                }
+            } catch (e) {
+                console.error('submitBulkUpdateOrderStaff error:', e);
+                alert('Lỗi kết nối khi cập nhật thu ngân: ' + e.message);
+            }
+        }
+        window.submitBulkUpdateOrderStaff = submitBulkUpdateOrderStaff;
 
         // --- XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG TỪ LOGS ---
         let currentViewedOrderCode = null;
