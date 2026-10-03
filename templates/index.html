@@ -1434,7 +1434,15 @@
                             <select id="pl-matrix-category" onchange="debounceLoadPriceMatrix()" class="tui-input text-xs w-auto py-1 font-medium bg-white text-slate-700">
                                 <option value="">Tất cả nhóm</option>
                             </select>
-                            <input type="text" id="pl-matrix-search" oninput="debounceLoadPriceMatrix()" placeholder="Tìm kiếm sản phẩm..." class="tui-input text-xs w-48">
+                            <input type="text" id="pl-matrix-search" oninput="debounceLoadPriceMatrix()" placeholder="Tìm kiếm sản phẩm..." class="tui-input text-xs w-44">
+                            <button type="button" onclick="openModalImportPriceList()" title="Import giá sản phẩm từ file Excel để thêm giá đại lý nhanh" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold shadow-xs flex items-center gap-1 transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                <span>📥 Import Excel</span>
+                            </button>
+                            <button type="button" onclick="exportPriceListExcel()" title="Tải danh sách sản phẩm mẫu kèm giá hiện tại để chỉnh sửa giá đại lý" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold shadow-xs flex items-center gap-1 transition">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                                <span>📄 Xuất Mẫu</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -3959,7 +3967,11 @@
                         <!-- Dynamic detail content -->
                     </div>
 
-                    <div class="p-3 border-t bg-slate-50 rounded-b-xl flex justify-end">
+                    <div class="p-3 border-t bg-slate-50 rounded-b-xl flex justify-between items-center">
+                        <button type="button" onclick="printOEMInspectionFromDetail()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1.5 shadow transition">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                            <span>🖨️ In Phiếu Kiểm Đếm (A4)</span>
+                        </button>
                         <button onclick="closeModalDetailOEM()" class="px-4 py-1.5 border rounded text-gray-600 hover:bg-gray-100 font-medium">Đóng</button>
                     </div>
                 </div>
@@ -9401,7 +9413,7 @@
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
-    <script src="/static/js/modules/productions.js?v=20261002_03"></script>
+    <script src="/static/js/modules/productions.js?v=20261003_01"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
@@ -9798,6 +9810,52 @@
             <div class="flex justify-end gap-2 pt-2 border-t">
                 <button onclick="closePriceListModal()" class="px-3 py-1.5 border rounded text-xs text-gray-600 hover:bg-gray-100 font-bold">Đóng</button>
                 <button onclick="savePriceList()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-bold shadow">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: IMPORT GIÁ SẢN PHẨM THEO BẢNG GIÁ (GIÁ ĐẠI LÝ) -->
+    <div id="modal-import-price-list" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full space-y-4 p-5 text-xs">
+            <div class="flex justify-between items-center border-b pb-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center font-bold text-sm">📥</span>
+                    <h3 class="font-bold text-sm text-slate-800">Nhập Giá Đại Lý / Bảng Giá Từ Excel</h3>
+                </div>
+                <button onclick="closeModalImportPriceList()" class="text-gray-400 hover:text-gray-600 text-base font-bold">✕</button>
+            </div>
+            
+            <div class="space-y-3">
+                <div class="bg-sky-50 border border-sky-200 rounded-lg p-3 text-sky-900 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-[11px] text-sky-800">Bảng giá áp dụng:</span>
+                        <span id="import-pl-target-name" class="font-bold bg-sky-200/80 text-sky-900 px-2 py-0.5 rounded text-[11px]">-</span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                        Cột đối chiếu: <strong>Mã SP</strong> (hoặc <strong>Tên sản phẩm</strong>).<br>
+                        Cột giá: <strong>Giá riêng / Giá đại lý</strong> (hoặc <strong>Đơn giá</strong>, <strong>Giá bán</strong>).
+                    </p>
+                    <div class="pt-1.5 border-t border-sky-200/60 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-500">Chưa có danh sách chuẩn?</span>
+                        <button type="button" onclick="exportPriceListExcel()" class="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 hover:underline font-bold text-[11px]">
+                            📄 Tải file mẫu danh sách SP (.xlsx)
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Chọn file Excel (.xlsx) hoặc CSV:</label>
+                    <input type="file" id="import-pl-file-input" accept=".xlsx, .xls, .csv" class="border p-2 rounded w-full bg-slate-50 text-xs">
+                </div>
+
+                <div id="import-pl-status" class="hidden text-xs p-2.5 rounded leading-relaxed"></div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeModalImportPriceList()" class="px-3.5 py-1.5 border rounded text-slate-600 hover:bg-slate-100 font-bold transition">Đóng</button>
+                <button id="btn-do-import-pl" onclick="submitImportPriceList()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold flex items-center gap-1.5 shadow transition">
+                    <span>🚀 Bắt đầu Nhập</span>
+                </button>
             </div>
         </div>
     </div>
@@ -10738,6 +10796,107 @@
             loadPriceLists();
         } else {
             alert('Lỗi áp dụng giảm giá hàng loạt');
+        }
+    }
+
+    function openModalImportPriceList() {
+        const sel = document.getElementById('pl-select-price-list');
+        const plId = sel ? sel.value : null;
+        if (!plId) {
+            alert('Vui lòng chọn 1 bảng giá trước khi nhập file Excel!');
+            return;
+        }
+        const plName = sel.options[sel.selectedIndex]?.text || `Bảng giá #${plId}`;
+        const targetNameEl = document.getElementById('import-pl-target-name');
+        if (targetNameEl) targetNameEl.textContent = plName;
+        
+        const fileInput = document.getElementById('import-pl-file-input');
+        if (fileInput) fileInput.value = '';
+        
+        const statusBox = document.getElementById('import-pl-status');
+        if (statusBox) {
+            statusBox.className = 'hidden';
+            statusBox.innerHTML = '';
+        }
+        
+        document.getElementById('modal-import-price-list')?.classList.remove('hidden');
+    }
+
+    function closeModalImportPriceList() {
+        document.getElementById('modal-import-price-list')?.classList.add('hidden');
+    }
+
+    function exportPriceListExcel() {
+        const sel = document.getElementById('pl-select-price-list');
+        const plId = sel ? sel.value : null;
+        if (!plId) {
+            alert('Vui lòng chọn 1 bảng giá để xuất file mẫu!');
+            return;
+        }
+        window.location.href = `/api/price-lists/${plId}/export-excel`;
+    }
+
+    async function submitImportPriceList() {
+        const sel = document.getElementById('pl-select-price-list');
+        const plId = sel ? sel.value : null;
+        if (!plId) {
+            alert('Vui lòng chọn bảng giá!');
+            return;
+        }
+        const fileInput = document.getElementById('import-pl-file-input');
+        const file = fileInput?.files?.[0];
+        if (!file) {
+            alert('Vui lòng chọn file Excel (.xlsx) hoặc CSV để nhập!');
+            return;
+        }
+
+        const btn = document.getElementById('btn-do-import-pl');
+        const statusBox = document.getElementById('import-pl-status');
+
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Đang xử lý...';
+        statusBox.className = 'text-xs p-2.5 rounded bg-amber-50 text-amber-800 border border-amber-200 block';
+        statusBox.innerText = 'Đang đọc dữ liệu Excel và cập nhật giá đại lý...';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch(`/api/price-lists/${plId}/import-excel`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 Bắt đầu Nhập</span>';
+
+            if (res.ok && data.success) {
+                let msg = `✅ Đã cập nhật bảng giá thành công!\n- Thêm giá riêng mới: ${data.created}\n- Cập nhật giá riêng: ${data.updated}`;
+                if (data.skipped > 0) msg += `\n- Bỏ qua: ${data.skipped}`;
+                if (data.errors && data.errors.length > 0) {
+                    msg += `\n⚠️ Có ${data.errors.length} dòng lỗi:\n` + data.errors.slice(0, 5).join('\n');
+                }
+                
+                statusBox.className = 'text-xs p-2.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 block whitespace-pre-line';
+                statusBox.innerText = msg;
+                
+                if (typeof window.clearPriceListsCache === 'function') window.clearPriceListsCache();
+                loadPriceMatrix(plId);
+                loadPriceLists();
+                
+                setTimeout(() => {
+                    alert(msg);
+                    closeModalImportPriceList();
+                }, 400);
+            } else {
+                statusBox.className = 'text-xs p-2.5 rounded bg-rose-50 text-rose-800 border border-rose-200 block';
+                statusBox.innerText = '❌ Lỗi: ' + (data.detail || 'Không thể nhập file');
+            }
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 Bắt đầu Nhập</span>';
+            statusBox.className = 'text-xs p-2.5 rounded bg-rose-50 text-rose-800 border border-rose-200 block';
+            statusBox.innerText = '❌ Lỗi mạng hoặc server: ' + e.message;
         }
     }
 

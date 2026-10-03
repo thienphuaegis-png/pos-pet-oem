@@ -98,11 +98,12 @@ def list_factory_products(supplier_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            p.id, p.code, p.name, p.unit, COALESCE(si.default_cost, p.cost_price) as cost_price, p.sell_price,
+            p.id, p.code, p.name, p.unit, COALESCE(MAX(si.default_cost), p.cost_price, 0) as cost_price, p.sell_price,
             (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
         FROM supplier_items si
         JOIN products p ON si.product_id = p.id
         WHERE si.supplier_id = ? AND si.item_type = 'product' AND p.is_active = 1
+        GROUP BY p.id
         ORDER BY p.name ASC
     """, (supplier_id,))
     rows = [dict(r) for r in cur.fetchall()]

@@ -3744,15 +3744,32 @@
 
                 // Populate customer options
                 const custSelect = document.getElementById('edit-order-cust');
-                custSelect.innerHTML = contacts.map(c => `
-                    <option value="${c.id}" ${c.id === editingOrderData.customer_id ? 'selected' : ''}>${c.name} ${c.phone ? '(' + c.phone + ')' : ''}</option>
-                `).join('');
+                if (custSelect) {
+                    if (!allContacts || allContacts.length === 0) {
+                        try {
+                            const cRes = await fetch('/api/contacts?type=customer');
+                            if (cRes.ok) allContacts = await cRes.json();
+                        } catch(e) {}
+                    }
+                    const customers = (allContacts || []).filter(c => c.type === 'customer' || !c.type);
+                    custSelect.innerHTML = customers.map(c => `
+                        <option value="${c.id}" ${c.id === editingOrderData.customer_id ? 'selected' : ''}>${c.name} ${c.phone ? '(' + c.phone + ')' : ''}</option>
+                    `).join('');
+                }
 
                 // Populate staff options
                 const staffSelect = document.getElementById('edit-order-staff');
-                staffSelect.innerHTML = (allStaff || []).map(s => `
-                    <option value="${s.id}" ${s.id === editingOrderData.staff_id ? 'selected' : ''}>${s.name}</option>
-                `).join('');
+                if (staffSelect) {
+                    if (!allStaff || allStaff.length === 0) {
+                        try {
+                            const sRes = await fetch('/api/staff');
+                            if (sRes.ok) allStaff = await sRes.json();
+                        } catch(e) {}
+                    }
+                    staffSelect.innerHTML = (allStaff || []).map(s => `
+                        <option value="${s.id}" ${s.id === editingOrderData.staff_id ? 'selected' : ''}>${s.name}</option>
+                    `).join('');
+                }
 
                 document.getElementById('edit-order-discount').value = editingOrderData.discount || 0;
                 document.getElementById('edit-order-paid').value = editingOrderData.paid_amount || 0;
@@ -3764,9 +3781,10 @@
                 document.getElementById('modal-order-edit').classList.remove('hidden');
             } catch (e) {
                 console.error("openModalEditOrder error:", e);
-                alert("Lỗi khi mở form sửa đơn!");
+                alert("Lỗi khi mở form sửa đơn: " + (e.message || e));
             }
         }
+        window.openModalEditOrder = openModalEditOrder;
 
         function openModalEditOrderFromView() {
             if (currentViewedOrderCode) {
@@ -3943,6 +3961,9 @@
                 alert("Lỗi kết nối khi cập nhật đơn hàng!");
             }
         }
+        window.openModalEditOrderFromView = openModalEditOrderFromView;
+        window.closeModalEditOrder = closeModalEditOrder;
+        window.saveEditOrder = saveEditOrder;
 
         // --- CANVAS DRAG & DROP ENGINE ---
         let multiTemplates = {
@@ -6314,6 +6335,7 @@
                         <td class="p-2.5 text-center">${statusBadge}</td>
                         <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
                             <button onclick="viewOEMOrderDetail(${o.id})" class="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 px-2 py-1 rounded font-bold" title="Xem chi tiết đơn và vật tư BOM">🔍 Chi tiết</button>
+                            <button onclick="printOEMInspectionSheet(${o.id})" class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded font-bold" title="In phiếu kiểm nhận hàng cầm tay cho thủ kho">🖨️ In Phiếu Kiểm</button>
                             ${canReceive ? `
                                 <button onclick="openModalReceiveOEM(${o.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded font-bold shadow" title="Nhận hàng thực tế từ xưởng & trừ kho tem chai">📥 Nhận hàng</button>
                                 <button onclick="openModalEditOEM(${o.id})" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded font-bold" title="Sửa đơn đặt gia công">✏️ Sửa</button>
@@ -6447,8 +6469,8 @@
             document.getElementById('oem-create-date').value = today.toISOString().split('T')[0];
 
             setOEMDiscountType('percent');
-            document.getElementById('oem-create-discount').value = '5';
-            document.getElementById('oem-create-vat').value = '8';
+            document.getElementById('oem-create-discount').value = '0';
+            document.getElementById('oem-create-vat').value = '0';
             document.getElementById('oem-create-fund').value = 'COMPANY';
             document.getElementById('oem-create-deposit').value = '0';
             document.getElementById('oem-create-note').value = '';
@@ -6579,11 +6601,10 @@
             const btnAddProd = document.getElementById('btn-add-prod-to-factory');
             if (btnAddProd) btnAddProd.classList.remove('hidden');
 
-            // Reset và thêm 1 dòng sản phẩm sẵn sàng
+            // Reset danh sách sản phẩm để người dùng tự chọn, không tự động điền sẵn
             const itemsBody = document.getElementById('oem-create-items-body');
             if (itemsBody) {
                 itemsBody.innerHTML = '';
-                addOEMProductRow();
             }
 
             recalcCreateOEMMath();
@@ -6783,6 +6804,7 @@
             if (!found) {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
+                const initialPrice = p.cost_price > 0 ? p.cost_price : (p.sell_price > 0 ? p.sell_price : 0);
                 tr.innerHTML = `
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
@@ -6791,10 +6813,10 @@
                         <input type="hidden" class="oem-prod-unit" value="${p.unit || 'chai'}">
                     </td>
                     <td class="p-2.5">
-                        <input type="number" step="any" min="1" value="1000" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                        <input type="number" step="any" min="1" value="" placeholder="Nhập SL" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                     </td>
                     <td class="p-2.5">
-                        <input type="number" step="any" min="0" value="${p.cost_price > 0 ? p.cost_price : 18288}" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                        <input type="number" step="any" min="0" value="${initialPrice > 0 ? initialPrice : ''}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                     </td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
                         0 đ
@@ -6810,7 +6832,6 @@
                     const lastQty = tr.querySelector('.oem-prod-qty');
                     if (lastQty) {
                         lastQty.focus();
-                        lastQty.select();
                     }
                 }, 50);
             }
@@ -6835,8 +6856,9 @@
             const name = item.product_name || p.name || 'Sản phẩm';
             const unit = item.product_unit || p.unit || 'chai';
             const bomCount = item.bom_count !== undefined ? item.bom_count : (p.bom_count || 0);
-            const qty = item.ordered_qty !== undefined ? item.ordered_qty : 1000;
-            const price = item.unit_price !== undefined ? item.unit_price : (p.cost_price > 0 ? p.cost_price : 18288);
+            const qty = (item.ordered_qty !== undefined && item.ordered_qty !== null && item.ordered_qty !== '') ? item.ordered_qty : '';
+            const defaultCost = p.cost_price > 0 ? p.cost_price : (p.sell_price > 0 ? p.sell_price : 0);
+            const price = (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') ? item.unit_price : (defaultCost > 0 ? defaultCost : '');
 
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
@@ -6848,10 +6870,10 @@
                     <input type="hidden" class="oem-prod-unit" value="${unit}">
                 </td>
                 <td class="p-2.5">
-                    <input type="number" step="any" min="1" value="${qty}" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                    <input type="number" step="any" min="1" value="${qty}" placeholder="Nhập SL" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                 </td>
                 <td class="p-2.5">
-                    <input type="number" step="any" min="0" value="${price}" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                    <input type="number" step="any" min="0" value="${price}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                 </td>
                 <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
                     0 đ
@@ -6870,12 +6892,6 @@
             if (item && item.product_id) {
                 const tr = renderOEMItemRow(item);
                 itemsBody.appendChild(tr);
-            } else if (currentFactoryProducts && currentFactoryProducts.length > 0) {
-                const first = currentFactoryProducts[0];
-                const existing = Array.from(document.querySelectorAll('.oem-item-row .oem-prod-id')).some(inp => parseInt(inp.value) === first.id);
-                if (!existing) {
-                    quickAddOEMProduct(first.id);
-                }
             }
         }
         window.addOEMProductRow = addOEMProductRow;
@@ -7708,7 +7724,10 @@
         }
 
         // --- MODAL: XEM CHI TIẾT ĐƠN OEM ---
+        let currentViewedOEMOrderId = null;
+
         async function viewOEMOrderDetail(orderId) {
+            currentViewedOEMOrderId = orderId;
             try {
                 const res = await fetch(`/api/oem/orders/${orderId}`);
                 if (!res.ok) return alert('Không tìm thấy chi tiết đơn OEM');
@@ -7795,6 +7814,205 @@
         function closeModalDetailOEM() {
             document.getElementById('modal-detail-oem')?.classList.add('hidden');
         }
+        window.closeModalDetailOEM = closeModalDetailOEM;
+
+        async function printOEMInspectionSheet(orderId) {
+            try {
+                const res = await fetch(`/api/oem/orders/${orderId}`);
+                if (!res.ok) return alert('Không tìm thấy thông tin đơn OEM để in phiếu kiểm!');
+                const ord = await res.json();
+
+                const company = window.companySettings || {};
+                const storeName = company.shop_name || company.app_name || 'HỆ THỐNG POS PET CARE';
+                const storeAddr = company.shop_address || 'Địa chỉ: Việt Nam';
+                const storePhone = company.shop_phone ? ` - ĐT: ${company.shop_phone}` : '';
+
+                const today = new Date();
+                const printDateStr = `Ngày ${today.getDate()} tháng ${today.getMonth() + 1} năm ${today.getFullYear()}`;
+
+                const itemsRows = (ord.items || []).map((it, idx) => `
+                    <tr>
+                        <td style="border: 1px solid #333; padding: 6px 8px; text-align: center;">${idx + 1}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; font-family: monospace; font-weight: bold;">${it.product_code || '-'}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; font-weight: bold;">${it.product_name}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; text-align: center;">${it.product_unit || 'Chai/Cái'}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right; font-weight: bold; font-family: monospace;">${(it.ordered_qty || 0).toLocaleString('vi-VN')}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; text-align: right; font-weight: bold; font-family: monospace; background: #fafafa;">${it.received_qty > 0 ? it.received_qty.toLocaleString('vi-VN') : ''}</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px; text-align: center;">[  ] Đạt &nbsp; [  ] Lỗi</td>
+                        <td style="border: 1px solid #333; padding: 6px 8px;"></td>
+                    </tr>
+                `).join('');
+
+                let bomSection = '';
+                if (ord.materials_needed && ord.materials_needed.length > 0) {
+                    const bomRows = ord.materials_needed.map((m, idx) => `
+                        <tr>
+                            <td style="border: 1px solid #333; padding: 5px 8px; text-align: center;">${idx + 1}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px;">${m.ingredient_name}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px; text-align: center;">${m.ingredient_type === 'IS_PHYSICAL' ? 'Vật tư (Chai/Tem)' : 'Dịch vụ'}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px; text-align: right; font-family: monospace;">${m.bom_qty} ${m.ingredient_unit}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px; text-align: right; font-weight: bold; font-family: monospace;">${(m.needed_qty || 0).toLocaleString('vi-VN')} ${m.ingredient_unit}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px; text-align: right; font-family: monospace;">${(m.current_stock_at_oem || 0).toLocaleString('vi-VN')} ${m.ingredient_unit}</td>
+                            <td style="border: 1px solid #333; padding: 5px 8px;"></td>
+                        </tr>
+                    `).join('');
+
+                    bomSection = `
+                        <div style="margin-top: 15px;">
+                            <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 5px; color: #1e293b;">
+                                II. ĐỐI CHIẾU VẬT TƯ TIÊU HAO GỬI XƯỞNG (THEO ĐỊNH MỨC BOM)
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                <thead>
+                                    <tr style="background: #f1f5f9;">
+                                        <th style="border: 1px solid #333; padding: 6px; width: 35px; text-align: center;">STT</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: left;">Tên Vật Tư (Tem, Chai, Lọ, Thùng)</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: center; width: 110px;">Phân Loại</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: right; width: 90px;">Định Mức/SP</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: right; width: 100px;">Tổng Cần Dùng</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: right; width: 100px;">Tồn Tại Xưởng</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: left; width: 100px;">Ghi Chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${bomRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                const printHtml = `
+                    <div style="width: 200mm; max-width: 200mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 13px; line-height: 1.45; color: #000; padding: 6mm 4mm;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+                            <div>
+                                <div style="font-weight: bold; text-transform: uppercase; font-size: 14px;">${storeName}</div>
+                                <div style="font-size: 11px; margin-top: 2px;">${storeAddr}${storePhone}</div>
+                            </div>
+                            <div style="text-align: right; font-size: 12px;">
+                                <div>Mã phiếu OEM: <strong style="font-family: monospace; font-size: 14px;">${ord.code}</strong></div>
+                                <div style="font-size: 11px; color: #555;">In lúc: ${new Date().toLocaleString('vi-VN')}</div>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; margin: 15px 0 18px 0;">
+                            <h1 style="margin: 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">PHIẾU KIỂM ĐẾM NHẬN HÀNG GIA CÔNG OEM</h1>
+                            <div style="font-style: italic; font-size: 12px; margin-top: 4px;">${printDateStr}</div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-bottom: 15px; font-size: 12.5px; background: #fafafa; padding: 8px 12px; border: 1px dashed #bbb; border-radius: 4px;">
+                            <div>• Nhà máy gia công: <strong>${ord.partner_name || '-'}</strong> ${ord.partner_phone ? `(${ord.partner_phone})` : ''}</div>
+                            <div>• Kho xưởng NVL: <strong>${ord.oem_warehouse_name || '-'}</strong></div>
+                            <div>• Kho nhận thành phẩm: <strong>${ord.dest_warehouse_name || 'Kho Tổng'}</strong></div>
+                            <div>• Ngày hẹn giao: <strong style="font-family: monospace;">${ord.expected_delivery_date || '-'}</strong></div>
+                            <div>• Nguồn tiền thanh toán: <strong>${ord.fund_source === 'COMPANY' ? 'Quỹ Công Ty (Cty)' : 'Quỹ Cá Nhân (Cá nhân)'}</strong></div>
+                            <div>• Ghi chú đơn: <em>${ord.note || '(Không có)'}</em></div>
+                        </div>
+
+                        <div style="margin-bottom: 12px;">
+                            <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 5px; color: #1e293b;">
+                                I. DANH SÁCH THÀNH PHẨM ĐẶT HÀNG & KIỂM ĐẾM THỰC TẾ
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                                <thead>
+                                    <tr style="background: #f1f5f9;">
+                                        <th style="border: 1px solid #333; padding: 6px; width: 35px; text-align: center;">STT</th>
+                                        <th style="border: 1px solid #333; padding: 6px; width: 90px; text-align: left;">Mã SP</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: left;">Tên Sản Phẩm Gia Công</th>
+                                        <th style="border: 1px solid #333; padding: 6px; width: 60px; text-align: center;">ĐVT</th>
+                                        <th style="border: 1px solid #333; padding: 6px; width: 85px; text-align: right;">SL Đặt</th>
+                                        <th style="border: 1px solid #333; padding: 6px; width: 95px; text-align: right;">SL Thực Nhận</th>
+                                        <th style="border: 1px solid #333; padding: 6px; width: 120px; text-align: center;">Tình Trạng</th>
+                                        <th style="border: 1px solid #333; padding: 6px; text-align: left;">Ghi Chú Kiểm Hàng</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsRows}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        ${bomSection}
+
+                        <div style="margin-top: 15px; font-size: 11.5px; font-style: italic; color: #444;">
+                            * Lưu ý: Thủ kho kiểm đếm kỹ số lượng, ngoại quan bao bì, tem nhãn, hạn sử dụng trước khi ký xác nhận nhập kho.
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 12.5px; page-break-inside: avoid;">
+                            <div style="width: 30%;">
+                                <div style="font-weight: bold; text-transform: uppercase;">ĐẠI DIỆN GIAO HÀNG</div>
+                                <div style="font-style: italic; font-size: 11px;">(Xưởng gia công ký & họ tên)</div>
+                                <div style="height: 65px;"></div>
+                                <div>................................................</div>
+                            </div>
+                            <div style="width: 30%;">
+                                <div style="font-weight: bold; text-transform: uppercase;">THỦ KHO KIỂM NHẬN</div>
+                                <div style="font-style: italic; font-size: 11px;">(Ký & ghi rõ họ tên)</div>
+                                <div style="height: 65px;"></div>
+                                <div>................................................</div>
+                            </div>
+                            <div style="width: 30%;">
+                                <div style="font-weight: bold; text-transform: uppercase;">QUẢN LÝ / KẾ TOÁN</div>
+                                <div style="font-style: italic; font-size: 11px;">(Ký & ghi rõ họ tên)</div>
+                                <div style="height: 65px;"></div>
+                                <div>................................................</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                let iframe = document.getElementById('iframe-oem-inspection-print');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'iframe-oem-inspection-print';
+                    iframe.style.position = 'fixed';
+                    iframe.style.left = '-9999px';
+                    iframe.style.top = '-9999px';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    document.body.appendChild(iframe);
+                }
+
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Phiếu Kiểm Đếm OEM - ${ord.code}</title>
+                        <style>
+                            @page { size: A4 portrait; margin: 8mm 10mm; }
+                            @media print {
+                                html, body { margin: 0; padding: 0; background: #fff; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${printHtml}
+                    </body>
+                    </html>
+                `);
+                doc.close();
+
+                setTimeout(() => {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }, 300);
+
+            } catch (err) {
+                console.error('printOEMInspectionSheet error:', err);
+                alert('Lỗi in phiếu kiểm OEM: ' + err.message);
+            }
+        }
+        window.printOEMInspectionSheet = printOEMInspectionSheet;
+
+        function printOEMInspectionFromDetail() {
+            if (currentViewedOEMOrderId) {
+                printOEMInspectionSheet(currentViewedOEMOrderId);
+            }
+        }
+        window.printOEMInspectionFromDetail = printOEMInspectionFromDetail;
 
         window.viewOrderDetailModal = viewOrderDetailModal;
         window.openCashbookLinkedDoc = openCashbookLinkedDoc;

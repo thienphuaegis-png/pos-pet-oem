@@ -1,13 +1,35 @@
-from fastapi import APIRouter, HTTPException
+import io
+import csv
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from fastapi import APIRouter, HTTPException, Depends, Response, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
 from schemas import PriceListCreate, PriceListUpdate, ProductPriceCreate, ProductPriceUpdate, CustomerSegmentCreate, CustomerSegmentUpdate
 from logger_config import get_module_logger
-from fastapi import Depends
 from dependencies import require_permission
 
 logger = get_module_logger("price_lists")
+
+def clean_num(val):
+    if val is None or val == "":
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).replace("đ", "").replace("₫", "").replace(" ", "").strip()
+    if "." in s and "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "." in s and len(s.split(".")[-1]) == 3:
+        s = s.replace(".", "")
+    elif "," in s and len(s.split(",")[-1]) == 3:
+        s = s.replace(",", "")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return 0.0
 
 router = APIRouter(prefix="/api/price-lists", tags=["Price Lists"])
 
@@ -225,6 +247,259 @@ def remove_product_price(price_list_id: int, product_id: int, user=Depends(requi
     conn.commit()
     conn.close()
     return {"status": "ok"}
+
+# ========== EXCEL IMPORT & EXPORT BẢNG GIÁ ==========
+@router.get("/{price_list_id}/export-excel")
+def export_price_list_excel(price_list_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, code, name FROM price_lists WHERE id = ?", (price_list_id,))
+    pl = cur.fetchone()
+    if not pl:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy bảng giá")
+
+    cur.execute("""
+        SELECT 
+            p.id as product_id, p.code as product_code, p.name as product_name, p.unit,
+            COALESCE(p.category, 'Khác') as category,
+            COALESCE(p.sell_price, 0) as default_retail_price,
+            ppl.price as custom_price,
+            ppl.min_qty,
+            ppl.discount_percent
+        FROM products p
+        LEFT JOIN product_price_list ppl ON ppl.product_id = p.id AND ppl.price_list_id = ?
+        WHERE (p.type = 'product' OR p.type IS NULL) AND COALESCE(p.is_active, 1) = 1
+        ORDER BY p.name ASC
+    """, (price_list_id,))
+    rows = cur.fetchall()
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bang_Gia_SP"
+
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    align_center = Alignment(horizontal="center", vertical="center")
+
+    headers = [
+        "Mã sản phẩm", 
+        "Tên sản phẩm", 
+        "Nhóm hàng", 
+        "ĐVT", 
+        "Giá bán lẻ mặc định (đ)", 
+        "Giá riêng / Giá đại lý (đ)", 
+        "Số lượng tối thiểu", 
+        "Chiết khấu (%)"
+    ]
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = align_center
+
+    for r in rows:
+        custom_val = r["custom_price"] if r["custom_price"] is not None and r["custom_price"] > 0 else ""
+        min_qty_val = r["min_qty"] if r["min_qty"] is not None else 1
+        disc_val = r["discount_percent"] if r["discount_percent"] is not None else 0
+        ws.append([
+            r["product_code"] or "",
+            r["product_name"] or "",
+            r["category"] or "",
+            r["unit"] or "",
+            r["default_retail_price"] or 0,
+            custom_val,
+            min_qty_val,
+            disc_val
+        ])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 15)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    
+    code_clean = (pl["code"] or "PL").replace(" ", "_")
+    filename = f"Bang_Gia_{code_clean}.xlsx"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+@router.post("/{price_list_id}/import-excel")
+async def import_price_list_excel(price_list_id: int, file: UploadFile = File(...), user=Depends(require_permission("price_lists.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM price_lists WHERE id = ?", (price_list_id,))
+    pl = cur.fetchone()
+    if not pl:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy bảng giá")
+
+    content = await file.read()
+    if not content:
+        conn.close()
+        raise HTTPException(status_code=400, detail="File rỗng!")
+
+    rows = []
+    filename = file.filename.lower() if file.filename else ""
+    if filename.endswith(".csv"):
+        text = content.decode("utf-8-sig", errors="replace")
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+    else:
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            sheet = wb.active
+            rows = list(sheet.iter_rows(values_only=True))
+        except Exception as e:
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel: {str(e)}")
+
+    if len(rows) < 2:
+        conn.close()
+        raise HTTPException(status_code=400, detail="File không có dữ liệu (yêu cầu tối thiểu 1 dòng tiêu đề và 1 dòng dữ liệu)")
+
+    header_row = [str(c or "").strip().lower() for c in rows[0]]
+
+    def find_col(exact_matches, partial_matches=None):
+        for idx, h in enumerate(header_row):
+            for em in exact_matches:
+                if h == em.strip().lower():
+                    return idx
+        if partial_matches:
+            for idx, h in enumerate(header_row):
+                for pm in partial_matches:
+                    if pm.strip().lower() in h:
+                        return idx
+        return -1
+
+    idx_code = find_col(["mã sản phẩm", "mã sp", "mã hàng", "mã", "code", "sku"], ["mã", "code", "sku"])
+    idx_name = find_col(["tên sản phẩm", "tên sp", "tên hàng", "tên hàng hóa", "tên", "name"], ["tên", "name", "sản phẩm"])
+    if idx_name == idx_code and idx_name != -1:
+        idx_name = -1
+        for idx, h in enumerate(header_row):
+            if idx != idx_code and any(pm in h for pm in ["tên", "name"]):
+                idx_name = idx
+                break
+
+    # Ưu tiên cột giá đại lý / giá riêng trước để tránh bắt nhầm cột 'Giá bán lẻ mặc định'
+    idx_price = find_col(
+        ["giá riêng / giá đại lý (đ)", "giá riêng", "giá đại lý", "giá sỉ", "giá mới", "giá bảng giá", "giá riêng theo bảng", "giá đại lý (đ)", "giá riêng (đ)"],
+        ["đại lý", "giá riêng", "bảng giá", "giá sỉ"]
+    )
+    if idx_price == -1:
+        # Fallback tìm cột giá chung nếu file người dùng tự tạo đơn giản
+        idx_price = find_col(["giá", "giá bán", "đơn giá", "price"], ["giá", "price", "đơn giá"])
+
+    idx_min_qty = find_col(["số lượng tối thiểu", "số lượng tối thiểu (min)", "min_qty", "sl tối thiểu"], ["tối thiểu", "min_qty"])
+    idx_discount = find_col(["chiết khấu", "chiết khấu (%)", "chiết khấu %", "discount", "discount_percent", "% ck"], ["chiết khấu", "discount"])
+
+    if idx_code == -1 and idx_name == -1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Mã sản phẩm' hoặc 'Tên sản phẩm' trong file!")
+
+    if idx_price == -1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Giá riêng / Giá đại lý' trong file!")
+
+    cur.execute("SELECT id, code, name FROM products WHERE (type = 'product' OR type IS NULL)")
+    all_prods = cur.fetchall()
+    prod_by_code = {str(p["code"]).strip().lower(): p["id"] for p in all_prods if p["code"]}
+    prod_by_name = {str(p["name"]).strip().lower(): p["id"] for p in all_prods if p["name"]}
+
+    created_count = 0
+    updated_count = 0
+    skipped_count = 0
+    errors = []
+
+    for row_idx, r in enumerate(rows[1:], start=2):
+        if not r or all(c is None or str(c).strip() == "" for c in r):
+            continue
+
+        code_val = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) and r[idx_code] is not None else ""
+        name_val = str(r[idx_name] or "").strip() if idx_name != -1 and idx_name < len(r) and r[idx_name] is not None else ""
+        raw_price = r[idx_price] if idx_price < len(r) and r[idx_price] is not None else None
+
+        if not code_val and not name_val:
+            continue
+
+        if raw_price is None or str(raw_price).strip() == "":
+            skipped_count += 1
+            continue
+
+        price_val = clean_num(raw_price)
+        if price_val < 0:
+            errors.append(f"Dòng {row_idx}: Giá không hợp lệ ({raw_price})")
+            continue
+
+        pid = None
+        if code_val and code_val.lower() in prod_by_code:
+            pid = prod_by_code[code_val.lower()]
+        elif name_val and name_val.lower() in prod_by_name:
+            pid = prod_by_name[name_val.lower()]
+
+        if not pid:
+            err_label = f"mã '{code_val}'" if code_val else f"tên '{name_val}'"
+            errors.append(f"Dòng {row_idx}: Không tìm thấy sản phẩm ({err_label}) trong hệ thống")
+            continue
+
+        min_qty = 1.0
+        if idx_min_qty != -1 and idx_min_qty < len(r) and r[idx_min_qty] is not None:
+            mq = clean_num(r[idx_min_qty])
+            if mq > 0:
+                min_qty = mq
+
+        discount_pct = 0.0
+        if idx_discount != -1 and idx_discount < len(r) and r[idx_discount] is not None:
+            dp = clean_num(r[idx_discount])
+            if dp >= 0:
+                discount_pct = dp
+
+        cur.execute("SELECT id FROM product_price_list WHERE product_id = ? AND price_list_id = ?", (pid, price_list_id))
+        existing_price = cur.fetchone()
+
+        if price_val == 0:
+            if existing_price:
+                cur.execute("DELETE FROM product_price_list WHERE id = ?", (existing_price["id"],))
+                updated_count += 1
+            else:
+                skipped_count += 1
+            continue
+
+        if existing_price:
+            cur.execute("""
+                UPDATE product_price_list
+                SET price = ?, min_qty = ?, discount_percent = ?
+                WHERE id = ?
+            """, (price_val, min_qty, discount_pct, existing_price["id"]))
+            updated_count += 1
+        else:
+            cur.execute("""
+                INSERT INTO product_price_list (product_id, price_list_id, price, min_qty, discount_percent)
+                VALUES (?, ?, ?, ?, ?)
+            """, (pid, price_list_id, price_val, min_qty, discount_pct))
+            created_count += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "price_list_id": price_list_id,
+        "price_list_name": pl["name"],
+        "created": created_count,
+        "updated": updated_count,
+        "skipped": skipped_count,
+        "errors": errors,
+        "total": len(rows) - 1
+    }
 
 # ========== PRICE LIST SPA ITEMS ==========
 from schemas import PriceListSpaItemCreate

@@ -744,7 +744,7 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             cb_code = generate_cashbook_code(cur, "PT-BH")
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
-            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?)
+            VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?)
             """, (cb_code, actual_new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat)"))
 
         conn.commit()
