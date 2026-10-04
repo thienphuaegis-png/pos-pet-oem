@@ -241,6 +241,7 @@ async function initPOS() {
 
         initPrintTemplatesFromSettings();
         renderStaffOptions();
+        renderMobileCatalog();
         await restoreDraftIfAny();
         renderInvoiceTabs();
         renderActiveTabCart();
@@ -275,6 +276,7 @@ async function reloadPOSData() {
         ]);
         posProducts = p;
         posContacts = ct;
+        renderMobileCatalog();
         alert("Đã cập nhật danh sách hàng hóa!");
     } catch (e) {
         alert("Lỗi khi tải lại dữ liệu");
@@ -618,7 +620,7 @@ function renderActiveTabCart() {
             : '';
 
         return `
-            <div class="px-4 py-2.5 grid gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px; --row-idx: ${idx};">
+            <div class="cart-row-responsive px-3 md:px-4 py-2 md:py-2.5 grid gap-1.5 md:gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="--row-idx: ${idx};">
                 <!-- Nút xóa -->
                 <div class="text-center">
                     <button onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer" title="Xóa khỏi đơn">
@@ -627,37 +629,37 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- STT -->
-                <div class="text-center font-bold text-slate-400">${idx + 1}</div>
+                <div class="text-center font-bold text-slate-400 row-desktop-only">${idx + 1}</div>
 
                 <!-- Mã hàng -->
-                <div class="font-mono font-bold text-slate-600 text-[11px] truncate" title="${item.code || '-'}">
+                <div class="font-mono font-bold text-slate-600 text-[11px] truncate row-desktop-only" title="${item.code || '-'}">
                     ${item.code || '-'}
                 </div>
 
                 <!-- Tên hàng hóa -->
-                <div class="font-semibold text-slate-800 line-clamp-1" title="${item.name}">
+                <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
                     ${comboBadge}${item.name}
                 </div>
 
                 <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
-                <div class="text-center text-slate-500 text-[11px]">
+                <div class="text-center text-slate-500 text-[11px] row-desktop-only">
                     ${unitCell}
                 </div>
 
                 <!-- Số lượng (Bộ nút + -) -->
-                <div>
+                <div class="qty-col">
                     <div class="flex items-center justify-center gap-1">
-                        <button onclick="changeItemQty(${idx}, -1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">-</button>
+                        <button onclick="changeItemQty(${idx}, -1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">-</button>
                         <input type="number" min="1" value="${item.quantity}" 
                                onchange="updateItemQtyDirect(${idx}, this.value)"
-                               class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
-                        <button onclick="changeItemQty(${idx}, 1)" class="w-5 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs">+</button>
+                               class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-1 md:py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <button onclick="changeItemQty(${idx}, 1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">+</button>
                     </div>
                     ${convHint}
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="text-right cursor-pointer" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                <div class="text-right cursor-pointer price-col" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
                     <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1.5 flex-nowrap whitespace-nowrap">
                         ${(item.price !== item.original_price) ? `<span class="text-slate-400 line-through font-normal text-[11px]">${formatMoney(item.original_price)}</span>` : ''}
                         <span class="font-bold text-slate-800">${formatMoney(item.price)}</span>
@@ -668,12 +670,18 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Thành tiền -->
-                <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap">
+                <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap subtotal-col">
                     ${formatMoney(itemSubtotal)}
                 </div>
             </div>
         `;
     }).join('');
+
+    const mobileCartBadge = document.getElementById('mobile-cart-badge');
+    if (mobileCartBadge) {
+        const totalQty = tab.cart ? tab.cart.reduce((s, i) => s + i.quantity, 0) : 0;
+        mobileCartBadge.innerText = `${totalQty} món`;
+    }
 
     updateFinancialSummary();
 }
@@ -1073,6 +1081,11 @@ function updateFinancialSummary() {
 
     const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee);
     document.getElementById('pos-final-amount-display').innerText = formatMoney(finalAmount);
+
+    const mobileTotalPay = document.getElementById('mobile-total-pay-display');
+    if (mobileTotalPay) {
+        mobileTotalPay.innerText = formatMoney(finalAmount);
+    }
 
     // Khách thanh toán (auto-fill nếu chưa gõ tay)
     const paidInput = document.getElementById('pos-paid-input');
@@ -3084,6 +3097,84 @@ window.closeTopupSpaModal = closeTopupSpaModal;
 window.onSelectTopupPackageRadio = onSelectTopupPackageRadio;
 window.submitTopupSpaRecharge = submitTopupSpaRecharge;
 window.toggleUseSpaWallet = toggleUseSpaWallet;
+
+// ====================================================
+// MOBILE RESPONSIVE ADAPTER & CATALOG LOGIC
+// ====================================================
+function toggleMobilePaymentSheet(show) {
+    const sidebar = document.getElementById('pos-payment-sidebar');
+    if (!sidebar) return;
+    if (show === undefined) {
+        sidebar.classList.toggle('hidden');
+    } else if (show) {
+        sidebar.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('hidden');
+    }
+}
+
+function renderMobileCatalog(query = '', category = '') {
+    const grid = document.getElementById('mobile-product-grid');
+    if (!grid) return;
+    if (!posProducts || posProducts.length === 0) {
+        grid.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-6">Đang tải danh sách món...</div>';
+        return;
+    }
+    let list = posProducts;
+    if (category) {
+        const catNorm = category.toLowerCase().trim();
+        list = list.filter(p => (p.category_name || p.type || '').toLowerCase().includes(catNorm));
+    }
+    if (query) {
+        list = list.filter(p => matchQuery(p.name, query) || matchQuery(p.code, query) || matchQuery(p.barcode, query));
+    }
+    if (list.length === 0) {
+        grid.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-6">Không tìm thấy sản phẩm phù hợp</div>';
+        return;
+    }
+    grid.innerHTML = list.slice(0, 40).map(p => {
+        const price = p.sell_price || 0;
+        const icon = p.type === 'service' ? '🛁' : '📦';
+        return `
+            <div onclick="addProductToActiveCart(${p.id})" class="bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between active:scale-95 transition cursor-pointer select-none">
+                <div>
+                    <div class="h-12 bg-slate-50 rounded-lg flex items-center justify-center text-xl mb-1">${icon}</div>
+                    <div class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug" title="${p.name}">${p.name}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 truncate">${p.code || ''} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</div>
+                </div>
+                <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5">
+                    <span class="font-mono-num font-extrabold text-xs text-sky-600">${formatMoney(price)}</span>
+                    <span class="w-6 h-6 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-sm">+</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterMobileCatalog(query) {
+    const activeCatBtn = document.querySelector('#mobile-category-pills button.active');
+    const cat = activeCatBtn ? (activeCatBtn.getAttribute('data-cat') || '') : '';
+    renderMobileCatalog(query, cat);
+}
+
+function filterMobileCategory(category) {
+    document.querySelectorAll('#mobile-category-pills button').forEach(btn => {
+        btn.classList.remove('active', 'bg-sky-600', 'text-white');
+        btn.classList.add('bg-slate-100', 'text-slate-600');
+    });
+    const clickedBtn = window.event?.currentTarget;
+    if (clickedBtn) {
+        clickedBtn.classList.add('active', 'bg-sky-600', 'text-white');
+        clickedBtn.classList.remove('bg-slate-100', 'text-slate-600');
+    }
+    const q = document.getElementById('mobile-search-catalog-input')?.value || '';
+    renderMobileCatalog(q, category);
+}
+
+window.toggleMobilePaymentSheet = toggleMobilePaymentSheet;
+window.renderMobileCatalog = renderMobileCatalog;
+window.filterMobileCatalog = filterMobileCatalog;
+window.filterMobileCategory = filterMobileCategory;
 
 // Xuất các hàm điều khiển in ấn & thanh toán ra window
 window.printDraftOrder = printDraftOrder;

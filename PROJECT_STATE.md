@@ -1,13 +1,32 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-02 — Chuẩn Hóa Điều Chuyển Kho (OEM Style + In-App Modal) & Sửa Lỗi Sửa Đơn Đặt Gia Công OEM  
+**Checkpoint:** 2026-10-04 — Tối Ưu Giao Diện Toàn Diện Trên Điện Thoại (Mobile Responsive & POS Split-Screen)  
 **Server:** `http://127.0.0.1:8998` / `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db`)  
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`  
 **Archive Log:** `docs/archive/STATE_2026_09.md` (lịch sử chi tiết các phiên trước)
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-02)
+## 1. Phiên Hiện Tại ✅ (2026-10-04)
+- **Tối Ưu Màn Hình Bán Hàng Thu Ngân POS Cho Điện Thoại (`templates/pos.html` & `static/js/pos.js`):**
+  - Áp dụng mô hình **Split-Screen 40/60**:
+    - Nửa trên (38vh): Giỏ hàng trực tiếp `#cart-items-container`. Thiết kế dòng co giãn 2 hàng, nút tăng giảm `+`/`-` 28px chạm mượt mà ngón tay, không bị tràn 8 cột.
+    - Nửa dưới (60% còn lại): Lưới chọn món nhanh `#mobile-quick-catalog` với tìm kiếm và phân loại ngang, chạm thẻ sản phẩm tự động thêm vào giỏ.
+    - Chân trang cố định `#mobile-pos-bottom-bar`: Luôn ghim tổng tiền cần thu + Nút "Thanh Toán →".
+    - Drawer thanh toán: Sidebar thanh toán tự động chuyển thành Bottom Sheet trượt lên khi bấm thanh toán.
+    - Giữ nguyên 100% phím tắt F3/F4/F9 và bố cục 3 cột trên máy tính để bàn (>= 768px).
+- **Tối Ưu Toàn Bộ Hệ Thống Quản Trị Cho Điện Thoại (`templates/index.html` & `static/js/app.js`):**
+  - **Thanh Điều Hướng Đáy (#mobile-main-bottom-nav):** Chuẩn app mobile 5 nút gồm `[🛒 Bán Hàng]`, `[📋 Đơn Hàng]`, `[🐱 Dịch Vụ]`, `[👥 Khách Hàng]`, `[☰ Menu Khác]`. Tự động đồng bộ màu nút active khi chuyển tab.
+  - **Off-canvas Sidebar Drawer:** Trên điện thoại, `#main-sidebar` ẩn sang trái (`-translate-x-full`). Bấm nút `Menu ☰` sẽ trượt mượt mà ra ngoài kèm lớp phủ tối màu backdrop `#mobile-sidebar-backdrop`. Tự đóng khi chọn tab.
+  - **CSS Responsive Toàn Cục:** Bọc đệm chân trang `pb-20` tránh bị che khuất; tự động ép mọi Modal co giãn vừa vặn màn hình điện thoại (`max-w-[calc(100vw-16px)]`); bật cuộn cảm ứng `-webkit-overflow-scrolling: touch;` cho các bảng biểu.
+- **Bộ Kiểm Thử Tự Động (TDD):**
+  - `tests/test_pos_mobile_responsive.py`: Pass 100%.
+  - `tests/test_mobile_all_pages_responsive.py`: Pass 100%.
+  - Toàn bộ suite HTML và CSS integrity: Pass 100%.
+
+---
+
+## 2. Phiên Trước (2026-10-02)
 - **Sửa Lỗi Backend & Frontend Phân Hệ Điều Chuyển Kho (`INV`):**
   - Nhận diện linh hoạt trường `item_id`, `product_id`, `ingredient_id` trong payload POST `/api/inventory/transfer`, khắc phục lỗi `NOT NULL constraint failed: product_inventory.product_id`.
   - Trả về đồng thời `code`, `transfer_code`, `id`; chuẩn hóa bảng lịch sử và chi tiết phiếu.

@@ -3296,8 +3296,28 @@
                 if (tabId === 'pos') {
                     mainContainer.className = "flex-1 overflow-hidden p-0 flex flex-col bg-slate-100";
                 } else {
-                    mainContainer.className = "flex-1 overflow-y-auto p-6 bg-slate-100";
+                    mainContainer.className = "flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6 bg-slate-100";
                 }
+            }
+
+            // Đóng mobile sidebar drawer nếu đang mở
+            if (typeof toggleMobileSidebar === 'function') {
+                toggleMobileSidebar(false);
+            }
+
+            // Đồng bộ trạng thái active trên Mobile Bottom Bar
+            document.querySelectorAll('.mob-bottom-btn').forEach(b => {
+                b.classList.remove('text-sky-600');
+                b.classList.add('text-slate-400');
+                const span = b.querySelector('span');
+                if (span) { span.classList.remove('font-bold'); span.classList.add('font-semibold'); }
+            });
+            const activeMobBtn = document.getElementById('mob-nav-' + tabId);
+            if (activeMobBtn) {
+                activeMobBtn.classList.add('text-sky-600');
+                activeMobBtn.classList.remove('text-slate-400');
+                const span = activeMobBtn.querySelector('span');
+                if (span) { span.classList.add('font-bold'); span.classList.remove('font-semibold'); }
             }
 
             document.querySelectorAll('.tab-btn').forEach(b => {

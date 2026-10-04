@@ -31,6 +31,24 @@
             width: 5.5rem !important; /* 88px - rộng rãi, không bị tràn nút đăng xuất */
         }
 
+        /* ==================== GLOBAL MOBILE RESPONSIVENESS ==================== */
+        @media (max-width: 768px) {
+            /* Tránh bị che khuất bởi thanh bottom nav */
+            main, .tab-pane, #tab-content-area, .content-container, #main-content-area {
+                padding-bottom: 4.5rem !important;
+            }
+            /* Modal toàn màn hình/tự co giãn trên mobile */
+            .modal-content, [id^="modal-"] > div:not(.fixed), [id*="-modal"] > div:not(.fixed) {
+                max-width: calc(100vw - 16px) !important;
+                max-height: 90vh !important;
+                margin: 8px auto !important;
+            }
+            /* Bảng dữ liệu tự động cuộn ngang mượt */
+            .overflow-x-auto, table {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
         /* ==================== TAILWIND UI DESIGN SYSTEM TOKENS ==================== */
         .tui-card {
             background-color: #ffffff;
@@ -707,8 +725,10 @@
     </div>
 </div>
     <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Backdrop for Mobile -->
+        <div id="mobile-sidebar-backdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden transition-opacity"></div>
         <!-- Sidebar -->
-        <div id="main-sidebar" class="w-60 bg-white text-slate-700 flex flex-col justify-between shrink-0 select-none z-30">
+        <div id="main-sidebar" class="fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:static w-60 bg-white text-slate-700 flex flex-col justify-between shrink-0 select-none z-50 transition-transform duration-200 ease-in-out">
             <div class="flex flex-col min-h-0 flex-1">
                 <!-- Header Logo & Toggle Button -->
                 <div id="sidebar-header" class="p-3 border-b border-slate-100 flex items-center justify-between gap-1 shrink-0">
@@ -717,8 +737,12 @@
                         <span id="sidebar-app-icon" class="text-xl shrink-0">⚡</span>
                         <span id="sidebar-app-name" class="sidebar-text text-base font-extrabold text-sky-600 truncate">POS Offline</span>
                     </div>
-                    <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">
+                    <button id="btn-toggle-sidebar" onclick="toggleSidebarCollapse()" class="hidden md:inline-flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" title="Thu gọn / Mở rộng menu">
                         ◀
+                    </button>
+                    <!-- Mobile close button -->
+                    <button type="button" onclick="toggleMobileSidebar(false)" class="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition shrink-0 font-bold text-sm" title="Đóng menu">
+                        ✕
                     </button>
                 </div>
                 <!-- Navigation Tabs (Flat UI - Inverted Curved Scoop) -->
@@ -9432,7 +9456,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261002_03"></script>
+    <script src="/static/js/app.js?v=20261004_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
@@ -11905,5 +11929,48 @@
         </div>
     </div>
 </div>
+
+<!-- ==================== FIXED MOBILE BOTTOM BAR ==================== -->
+<nav id="mobile-main-bottom-nav" class="fixed bottom-0 inset-x-0 h-14 bg-white/95 backdrop-blur border-t border-slate-200 px-2 flex md:hidden items-center justify-around z-40 shadow-lg select-none">
+    <button onclick="switchTab('pos')" id="mob-nav-pos" class="mob-bottom-btn flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-sky-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <span class="text-[10px] font-bold">Bán Hàng</span>
+    </button>
+    <button onclick="switchTab('orders')" id="mob-nav-orders" class="mob-bottom-btn flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6"/><path d="M16 12h-6"/><path d="M16 16h-4"/></svg>
+        <span class="text-[10px] font-semibold">Đơn Hàng</span>
+    </button>
+    <button onclick="switchTab('pet-services')" id="mob-nav-pet-services" class="mob-bottom-btn flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.8A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+        <span class="text-[10px] font-semibold">Dịch Vụ</span>
+    </button>
+    <button onclick="switchTab('contacts')" id="mob-nav-contacts" class="mob-bottom-btn flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="text-[10px] font-semibold">Khách Hàng</span>
+    </button>
+    <button onclick="toggleMobileSidebar(true)" id="mob-nav-menu" class="mob-bottom-btn flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <span class="text-[10px] font-semibold">Menu ☰</span>
+    </button>
+</nav>
+
+<script>
+function toggleMobileSidebar(show) {
+    const sidebar = document.getElementById('main-sidebar');
+    const backdrop = document.getElementById('mobile-sidebar-backdrop');
+    if (!sidebar) return;
+    const isOpening = (show !== undefined) ? show : sidebar.classList.contains('-translate-x-full');
+    if (isOpening) {
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        if (backdrop) backdrop.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('-translate-x-full');
+        sidebar.classList.remove('translate-x-0');
+        if (backdrop) backdrop.classList.add('hidden');
+    }
+}
+window.toggleMobileSidebar = toggleMobileSidebar;
+</script>
 </body>
 </html>

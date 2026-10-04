@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Bán Hàng Mobile: PA1 Split Screen vs PA2 Direct Stepper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #090d16;
+            color: #f1f5f9;
+        }
+        .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .phone-frame {
+            box-shadow: 0 0 0 10px #1e293b, 0 0 0 12px #334155, 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            border-radius: 42px;
+        }
+        .notch {
+            width: 110px;
+            height: 22px;
+            background: #1e293b;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+        @keyframes highlightAdd {
+            0% { background-color: rgba(99, 102, 241, 0.25); transform: scale(0.98); }
+            100% { background-color: #ffffff; transform: scale(1); }
+        }
+        .item-added {
+            animation: highlightAdd 0.35s ease-out;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 min-h-screen">
+
+    <!-- Header bar -->
+    <div class="max-w-5xl mx-auto mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+            <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Mobile POS Prototype • Live Interactive</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-white">Thử Nghiệm Thao Tác Bán Hàng Trên Điện Thoại</h1>
+            <p class="text-xs md:text-sm text-slate-400">Chạm trực tiếp vào món bên dưới để thử độ mượt và cảm giác nhìn giỏ hàng.</p>
+        </div>
+
+        <!-- Controls: Variant switcher -->
+        <div class="flex flex-wrap items-center gap-2">
+            <div class="bg-slate-900 border border-slate-700 p-1 rounded-xl flex gap-1 text-xs font-semibold">
+                <button onclick="switchVariant('split')" id="btn-var-split" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition flex items-center gap-1.5">
+                    <span>⚡ PA 1: Chia đôi Trên/Dưới</span>
+                    <span class="text-[10px] bg-indigo-800 px-1.5 py-0.5 rounded text-indigo-200">Khuyên dùng</span>
+                </button>
+                <button onclick="switchVariant('stepper')" id="btn-var-stepper" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">
+                    🛍️ PA 2: Nút +/- trên thẻ
+                </button>
+            </div>
+            <button onclick="resetCart()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700">
+                ↺ Xóa giỏ thử lại
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Interactive Playground -->
+    <div class="max-w-5xl mx-auto flex flex-col items-center justify-center">
+
+        <!-- Phone Mockup Container -->
+        <div class="phone-frame bg-slate-950 p-2 overflow-hidden transition-all duration-300 w-[390px] h-[790px] flex flex-col relative">
+            
+            <!-- Notch & Status bar -->
+            <div class="h-6 w-full flex items-center justify-between px-6 shrink-0 text-[11px] font-semibold text-slate-400 z-50">
+                <span>09:41</span>
+                <div class="notch mx-auto -mt-2"></div>
+                <div class="flex items-center gap-1 text-[10px]">
+                    <span>📶</span>
+                    <span>100%</span>
+                </div>
+            </div>
+
+            <!-- Inside Screen -->
+            <div class="flex-1 bg-slate-100 text-slate-900 rounded-[30px] overflow-hidden flex flex-col relative select-none">
+                
+                <!-- Common App Header (Minimal) -->
+                <div class="bg-indigo-600 text-white px-3 py-2 flex items-center justify-between shrink-0 shadow-xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center text-xs font-bold">⚡</span>
+                        <span class="text-xs font-bold">Quầy Thu Ngân • Ca Sáng</span>
+                    </div>
+                    <div class="text-[11px] bg-indigo-700/60 px-2 py-0.5 rounded-full font-mono-num" id="header-item-count">
+                        0 món
+                    </div>
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- VARIANT 1: SPLIT SCREEN (40% Cart TOP, 60% Items BOTTOM) -->
+                <!-- ======================================================== -->
+                <div id="container-split" class="flex-1 flex flex-col overflow-hidden">
+                    
+                    <!-- TOP HALF: LIVE CART (Cao ~38%, luôn thấy hàng đã chọn) -->
+                    <div class="h-[210px] bg-white border-b-2 border-indigo-200/80 flex flex-col shrink-0 shadow-xs">
+                        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
+                            <span class="flex items-center gap-1 text-indigo-700">
+                                🛒 Giỏ hàng (<span id="split-cart-count">0</span>)
+                            </span>
+                            <span class="text-[10px] text-slate-400 font-normal">Chạm +/- để đổi số lượng</span>
+                        </div>
+
+                        <!-- Scrollable Cart Item List -->
+                        <div id="split-cart-list" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1.5 text-xs">
+                            <!-- Empty Cart Placeholder -->
+                            <div id="split-empty-msg" class="h-full flex flex-col items-center justify-center text-slate-400 py-6">
+                                <span class="text-2xl mb-1">🛒</span>
+                                <span class="text-xs">Chưa có món nào trong giỏ</span>
+                                <span class="text-[10px] text-indigo-500 mt-1 font-medium">↓ Chạm vào sản phẩm bên dưới để thêm</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DIVIDER BAR -->
+                    <div class="bg-indigo-50 px-3 py-1 border-b border-indigo-100 flex items-center justify-between text-[11px]">
+                        <span class="font-bold text-indigo-900">Danh mục sản phẩm & dịch vụ</span>
+                        <span class="text-[10px] text-indigo-600 font-semibold">Vuốt để chọn ↓</span>
+                    </div>
+
+                    <!-- BOTTOM HALF: PRODUCTS SELECTOR -->
+                    <div class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                        <!-- Search & Quick Filter -->
+                        <div class="p-2 bg-white border-b border-slate-200 flex gap-1.5 shrink-0">
+                            <input type="text" placeholder="Tìm tên món / quét mã..." class="flex-1 bg-slate-100 text-xs rounded-lg px-2.5 py-1.5 outline-none border-0">
+                            <button class="bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                📷 Quét
+                            </button>
+                        </div>
+
+                        <!-- Category Pills -->
+                        <div class="flex gap-1 px-2 py-1.5 bg-white border-b border-slate-100 overflow-x-auto no-scrollbar shrink-0 text-xs">
+                            <button class="px-2.5 py-0.5 rounded-full bg-indigo-600 text-white font-medium shrink-0 text-[11px]">Tất cả</button>
+                            <button class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Spa & Tắm</button>
+                            <button class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Thức ăn</button>
+                            <button class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Cát & Khay</button>
+                        </div>
+
+                        <!-- Product Grid (Compact 2 cols, tap to add) -->
+                        <div class="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 pb-20">
+                            <div onclick="cartAdd(1)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between active:scale-95 transition cursor-pointer">
+                                <div>
+                                    <div class="h-14 bg-amber-50 rounded-lg flex items-center justify-center text-2xl mb-1">🐱</div>
+                                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">Royal Canin Kitten</h4>
+                                    <p class="text-[10px] text-slate-400">Kho: 24 gói</p>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1">
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">385k</span>
+                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">+</span>
+                                </div>
+                            </div>
+
+                            <div onclick="cartAdd(2)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between active:scale-95 transition cursor-pointer">
+                                <div>
+                                    <div class="h-14 bg-pink-50 rounded-lg flex items-center justify-center text-2xl mb-1">🛁</div>
+                                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">Combo Spa &lt; 5kg</h4>
+                                    <p class="text-[10px] text-slate-400">Dịch vụ 45p</p>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1">
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">180k</span>
+                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">+</span>
+                                </div>
+                            </div>
+
+                            <div onclick="cartAdd(3)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between active:scale-95 transition cursor-pointer">
+                                <div>
+                                    <div class="h-14 bg-emerald-50 rounded-lg flex items-center justify-center text-2xl mb-1">📦</div>
+                                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">Cát Đậu Nành 6L</h4>
+                                    <p class="text-[10px] text-slate-400">Kho: 60 bao</p>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1">
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">95k</span>
+                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">+</span>
+                                </div>
+                            </div>
+
+                            <div onclick="cartAdd(4)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between active:scale-95 transition cursor-pointer">
+                                <div>
+                                    <div class="h-14 bg-orange-50 rounded-lg flex items-center justify-center text-2xl mb-1">🐟</div>
+                                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1">Pate Ciao Mèo 40g</h4>
+                                    <p class="text-[10px] text-slate-400">Kho: 120 gói</p>
+                                </div>
+                                <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1">
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">18k</span>
+                                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">+</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FIXED BOTTOM BAR: ALWAYS VISIBLE GRAND TOTAL & PAY BUTTON -->
+                    <div class="absolute bottom-0 inset-x-0 p-2.5 bg-white border-t border-slate-200 flex items-center justify-between shadow-lg z-30">
+                        <div>
+                            <div class="text-[10px] text-slate-500 font-medium">Tổng tiền cần thu:</div>
+                            <div class="font-mono-num text-base font-black text-indigo-600 leading-tight" id="split-grand-total">0đ</div>
+                        </div>
+                        <button onclick="quickPay()" class="bg-emerald-600 active:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-1.5">
+                            <span>Thu Tiền / QR</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- ======================================================== -->
+                <!-- VARIANT 2: DIRECT STEPPER (Nút +/- trực tiếp trên thẻ) -->
+                <!-- ======================================================== -->
+                <div id="container-stepper" class="flex-1 flex flex-col overflow-hidden hidden">
+                    <!-- Search bar -->
+                    <div class="p-2.5 bg-white border-b border-slate-200 flex gap-2">
+                        <input type="text" placeholder="Tìm sản phẩm / dịch vụ..." class="w-full bg-slate-100 text-xs rounded-xl px-3 py-2 border-0 outline-none">
+                    </div>
+
+                    <!-- Full-screen product list with built-in Stepper -->
+                    <div class="flex-1 overflow-y-auto p-3 space-y-2.5 pb-24">
+                        
+                        <!-- Item 1 Card -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl shrink-0">🐱</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Royal Canin Kitten 2kg</h4>
+                                    <div class="font-mono-num text-xs font-extrabold text-indigo-600 mt-0.5">385.000đ</div>
+                                    <span class="text-[10px] text-slate-400">Kho: 24</span>
+                                </div>
+                            </div>
+                            <!-- Live Stepper for Item 1 -->
+                            <div id="stepper-item-1" class="flex items-center">
+                                <button onclick="cartAdd(1)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold">
+                                    + Thêm
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Item 2 Card -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-pink-50 rounded-xl flex items-center justify-center text-2xl shrink-0">🛁</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Combo Spa &lt; 5kg</h4>
+                                    <div class="font-mono-num text-xs font-extrabold text-indigo-600 mt-0.5">180.000đ</div>
+                                    <span class="text-[10px] text-slate-400">Dịch vụ 45p</span>
+                                </div>
+                            </div>
+                            <!-- Live Stepper for Item 2 -->
+                            <div id="stepper-item-2" class="flex items-center">
+                                <button onclick="cartAdd(2)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold">
+                                    + Thêm
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Item 3 Card -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl shrink-0">📦</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Cát Đậu Nành 6L</h4>
+                                    <div class="font-mono-num text-xs font-extrabold text-indigo-600 mt-0.5">95.000đ</div>
+                                    <span class="text-[10px] text-slate-400">Kho: 60</span>
+                                </div>
+                            </div>
+                            <!-- Live Stepper for Item 3 -->
+                            <div id="stepper-item-3" class="flex items-center">
+                                <button onclick="cartAdd(3)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold">
+                                    + Thêm
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Item 4 Card -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-2xl shrink-0">🐟</div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">Pate Ciao Mèo 40g</h4>
+                                    <div class="font-mono-num text-xs font-extrabold text-indigo-600 mt-0.5">18.000đ</div>
+                                    <span class="text-[10px] text-slate-400">Kho: 120</span>
+                                </div>
+                            </div>
+                            <!-- Live Stepper for Item 4 -->
+                            <div id="stepper-item-4" class="flex items-center">
+                                <button onclick="cartAdd(4)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold">
+                                    + Thêm
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- STICKY MINI CART DOCK FOR VARIANT 2 -->
+                    <div class="absolute bottom-0 inset-x-0 p-3 bg-white/95 backdrop-blur border-t border-slate-200 flex items-center justify-between shadow-xl z-30">
+                        <div>
+                            <div class="text-[10px] text-slate-500 font-medium">Đang chọn: <span id="v2-cart-items-count" class="font-bold text-slate-800">0 món</span></div>
+                            <div class="font-mono-num text-base font-extrabold text-indigo-600 leading-tight" id="v2-grand-total">0đ</div>
+                        </div>
+                        <button onclick="quickPay()" class="bg-emerald-600 active:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-md">
+                            Thanh Toán Ngay →
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Home Bar Indicator -->
+            <div class="h-4 w-full flex items-center justify-center shrink-0">
+                <div class="w-28 h-1 bg-slate-600 rounded-full"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script: Interactive logic -->
+    <script>
+        const products = {
+            1: { id: 1, name: "Royal Canin Kitten", price: 385000, icon: "🐱" },
+            2: { id: 2, name: "Combo Spa < 5kg", price: 180000, icon: "🛁" },
+            3: { id: 3, name: "Cát Đậu Nành 6L", price: 95000, icon: "📦" },
+            4: { id: 4, name: "Pate Ciao Mèo 40g", price: 18000, icon: "🐟" }
+        };
+
+        let cart = {}; // { id: qty }
+
+        function formatMoney(num) {
+            return num.toLocaleString('vi-VN') + 'đ';
+        }
+
+        function cartAdd(id) {
+            cart[id] = (cart[id] || 0) + 1;
+            renderAll();
+        }
+
+        function cartMinus(id) {
+            if (cart[id]) {
+                cart[id]--;
+                if (cart[id] <= 0) delete cart[id];
+            }
+            renderAll();
+        }
+
+        function cartRemove(id) {
+            delete cart[id];
+            renderAll();
+        }
+
+        function resetCart() {
+            cart = {};
+            renderAll();
+        }
+
+        function renderAll() {
+            let totalMoney = 0;
+            let totalItems = 0;
+            const splitList = document.getElementById('split-cart-list');
+            const emptyMsg = document.getElementById('split-empty-msg');
+
+            // Render Split Cart (PA 1)
+            let html = '';
+            for (let id in cart) {
+                const item = products[id];
+                const qty = cart[id];
+                const lineTotal = item.price * qty;
+                totalMoney += lineTotal;
+                totalItems += qty;
+
+                html += `
+                <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 item-added">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="font-bold text-slate-800 truncate">${item.icon} ${item.name}</div>
+                        <div class="text-[10px] text-indigo-600 font-mono-num font-semibold">${formatMoney(lineTotal)}</div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="cartMinus(${id})" class="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs active:bg-slate-100">-</button>
+                        <span class="w-5 text-center font-mono-num font-extrabold text-xs text-slate-900">${qty}</span>
+                        <button onclick="cartAdd(${id})" class="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs active:bg-indigo-100">+</button>
+                        <button onclick="cartRemove(${id})" class="w-6 h-6 text-slate-400 hover:text-rose-500 ml-1 text-xs">✕</button>
+                    </div>
+                </div>`;
+            }
+
+            if (totalItems === 0) {
+                splitList.innerHTML = `<div id="split-empty-msg" class="h-full flex flex-col items-center justify-center text-slate-400 py-6">
+                    <span class="text-2xl mb-1">🛒</span>
+                    <span class="text-xs">Chưa có món nào trong giỏ</span>
+                    <span class="text-[10px] text-indigo-500 mt-1 font-medium">↓ Chạm vào sản phẩm bên dưới để thêm</span>
+                </div>`;
+            } else {
+                splitList.innerHTML = html;
+            }
+
+            document.getElementById('split-cart-count').textContent = totalItems;
+            document.getElementById('header-item-count').textContent = totalItems + ' món';
+            document.getElementById('split-grand-total').textContent = formatMoney(totalMoney);
+            document.getElementById('v2-grand-total').textContent = formatMoney(totalMoney);
+            document.getElementById('v2-cart-items-count').textContent = totalItems + ' món';
+
+            // Render Stepper Buttons (PA 2)
+            [1, 2, 3, 4].forEach(id => {
+                const stepEl = document.getElementById('stepper-item-' + id);
+                const q = cart[id] || 0;
+                if (q === 0) {
+                    stepEl.innerHTML = `
+                        <button onclick="cartAdd(${id})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold active:scale-95 transition">
+                            + Thêm
+                        </button>`;
+                } else {
+                    stepEl.innerHTML = `
+                        <div class="flex items-center gap-1.5 bg-indigo-50 p-1 rounded-xl border border-indigo-200">
+                            <button onclick="cartMinus(${id})" class="w-6 h-6 rounded-lg bg-white text-indigo-700 font-bold text-xs shadow-xs">-</button>
+                            <span class="w-6 text-center font-mono-num font-bold text-xs text-indigo-900">${q}</span>
+                            <button onclick="cartAdd(${id})" class="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-xs">+</button>
+                        </div>`;
+                }
+            });
+        }
+
+        function switchVariant(v) {
+            const vSplit = document.getElementById('container-split');
+            const vStepper = document.getElementById('container-stepper');
+            const btnS = document.getElementById('btn-var-split');
+            const btnSt = document.getElementById('btn-var-stepper');
+
+            if (v === 'split') {
+                vSplit.classList.remove('hidden');
+                vStepper.classList.add('hidden');
+                btnS.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition flex items-center gap-1.5';
+                btnSt.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+            } else {
+                vSplit.classList.add('hidden');
+                vStepper.classList.remove('hidden');
+                btnSt.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition flex items-center gap-1.5';
+                btnS.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+            }
+        }
+
+        function quickPay() {
+            let total = 0;
+            for (let id in cart) total += products[id].price * cart[id];
+            if (total === 0) {
+                alert('Giỏ hàng đang trống!');
+                return;
+            }
+            alert('Mở cổng thanh toán: ' + formatMoney(total) + '\n- Quét mã VietQR động\n- Hoặc nhận tiền mặt');
+        }
+
+        // Init with 1 item so user sees immediately
+        cartAdd(1);
+    </script>
+</body>
+</html>

@@ -72,15 +72,45 @@
                 margin: 0;
             }
         }
+        @media (min-width: 768px) {
+            .cart-row-responsive {
+                grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;
+            }
+        }
+        @media (max-width: 767px) {
+            .cart-row-responsive {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                padding: 8px 10px !important;
+                gap: 6px !important;
+            }
+            .cart-row-responsive .row-desktop-only {
+                display: none !important;
+            }
+            .cart-row-responsive .item-name-col {
+                flex: 1 1 50%;
+                min-width: 140px;
+            }
+            .cart-row-responsive .qty-col {
+                order: 3;
+            }
+            .cart-row-responsive .price-col {
+                display: none !important;
+            }
+            .cart-row-responsive .subtotal-col {
+                order: 4;
+                margin-left: auto;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 h-screen w-screen overflow-hidden flex flex-col select-none">
 
     <!-- ==================== TOP NAVIGATION BAR ==================== -->
-    <header class="bg-white border-b border-slate-200 h-14 px-4 flex items-center justify-between gap-3 shrink-0 shadow-sm z-30">
+    <header class="bg-white border-b border-slate-200 h-14 px-3 md:px-4 flex items-center justify-between gap-2 md:gap-3 shrink-0 shadow-sm z-30">
         
         <!-- Left: Product Search Box with Dropdown -->
-        <div class="relative w-80 lg:w-96">
+        <div class="relative flex-1 md:flex-initial md:w-80 lg:w-96">
             <div class="relative flex items-center">
                 <span class="absolute left-3 text-slate-400 text-sm">🔍</span>
                 <input type="text" id="pos-search-input" 
@@ -97,12 +127,12 @@
         </div>
 
         <!-- Center: Invoice Tabs -->
-        <div class="flex-1 flex items-center gap-1.5 overflow-x-auto px-2 max-w-2xl" id="invoice-tabs-bar">
+        <div class="hidden md:flex flex-1 items-center gap-1.5 overflow-x-auto px-2 max-w-2xl" id="invoice-tabs-bar">
             <!-- Tabs injected dynamically via JS -->
         </div>
 
         <!-- Right: Action Icons & Staff & Back to Admin -->
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <!-- Clock -->
             <div class="hidden xl:flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-50 border px-2.5 py-1.5 rounded-lg">
                 <span>🕒</span>
@@ -110,12 +140,12 @@
             </div>
 
             <!-- Refresh button -->
-            <button onclick="reloadPOSData()" title="Tải lại dữ liệu (F5)" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition border border-transparent hover:border-slate-200">
+            <button onclick="reloadPOSData()" title="Tải lại dữ liệu (F5)" class="p-1.5 md:p-2 text-slate-500 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition border border-transparent hover:border-slate-200">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
 
             <!-- Print Template Selector -->
-            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs" title="Chọn mẫu in hóa đơn trước khi bán hàng">
+            <div class="hidden md:flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs" title="Chọn mẫu in hóa đơn trước khi bán hàng">
                 <span class="text-slate-400">🖨️</span>
                 <select id="pos-template-select" onchange="changeActivePrintTemplate(this.value)" class="bg-transparent font-bold text-sky-700 focus:outline-none cursor-pointer">
                     <!-- Dynamic template options -->
@@ -123,7 +153,7 @@
             </div>
 
             <!-- Staff Selector -->
-            <div class="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
+            <div class="hidden md:flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs">
                 <span class="text-slate-400">👤</span>
                 <select id="pos-staff-select" class="bg-transparent font-bold text-slate-700 focus:outline-none cursor-pointer">
                     <!-- Staff options injected via JS -->
@@ -131,21 +161,30 @@
             </div>
 
             <!-- Back to Management Page Button -->
-            <a href="/" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow transition">
+            <a href="/" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-2.5 md:px-3 py-1.5 rounded-lg shadow transition">
                 <span>📊</span>
-                <span>Quản Lý</span>
+                <span class="hidden sm:inline">Quản Lý</span>
             </a>
         </div>
     </header>
 
     <!-- ==================== MAIN CONTENT AREA ==================== -->
-    <main class="flex-1 flex overflow-hidden">
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
-        <!-- LEFT & CENTER: CART PRODUCT TABLE (65% width) -->
-        <section class="flex-1 flex flex-col bg-white border-r border-slate-200 overflow-hidden">
+        <!-- LEFT & CENTER: CART PRODUCT TABLE (Tầng 1: 38vh trên Mobile, 100% trên Desktop) -->
+        <section class="h-[38vh] md:h-full flex flex-col bg-white border-b md:border-b-0 md:border-r border-slate-200 overflow-hidden shrink-0 md:flex-1">
             
-            <!-- Table Header -->
-            <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 grid grid-cols-12 gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0">
+            <!-- Mobile Cart Header (Chỉ hiện trên mobile) -->
+            <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between md:hidden shrink-0">
+                <span class="font-bold text-xs text-slate-700 flex items-center gap-1.5">
+                    <span>🛒 Giỏ Hàng</span>
+                    <span id="mobile-cart-badge" class="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-700">0 món</span>
+                </span>
+                <span class="text-[10px] text-slate-400">Chạm +/- để đổi SL</span>
+            </div>
+
+            <!-- Table Header (Desktop) -->
+            <div class="hidden md:grid bg-slate-50 border-b border-slate-200 px-4 py-2.5 grid-cols-12 gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider shrink-0">
                 <div class="col-span-1 text-center">Xóa</div>
                 <div class="col-span-1 text-center">STT</div>
                 <div class="col-span-2">Mã hàng</div>
@@ -157,12 +196,12 @@
             </div>
 
             <!-- Table Rows (Scrollable) -->
-            <div id="cart-items-container" class="flex-1 overflow-y-auto divide-y divide-slate-100">
+            <div id="cart-items-container" class="flex-1 overflow-y-auto divide-y divide-slate-100 p-1 md:p-0">
                 <!-- Cart item rows injected here -->
             </div>
 
-            <!-- Footer of Left Area: Order Note & Item Counter -->
-            <div class="bg-slate-50 border-t border-slate-200 p-3 flex items-center justify-between gap-4 shrink-0">
+            <!-- Footer of Left Area: Order Note & Item Counter (Desktop) -->
+            <div class="hidden md:flex bg-slate-50 border-t border-slate-200 p-3 items-center justify-between gap-4 shrink-0">
                 <div class="flex-1 flex items-center gap-2">
                     <span class="text-slate-400 text-sm">✏️</span>
                     <input type="text" id="pos-order-note" 
@@ -177,10 +216,46 @@
             </div>
         </section>
 
-        <!-- RIGHT SIDEBAR: PAYMENT & CUSTOMER (35% width, min 360px, max 420px) -->
-        <aside class="w-96 lg:w-[410px] bg-slate-50 flex flex-col justify-between overflow-y-auto shrink-0 shadow-inner">
+        <!-- TẦNG 2: LƯỚI CHỌN MÓN CHẠM NHANH CHO MOBILE (60% DƯỚI) -->
+        <section id="mobile-quick-catalog" class="flex-1 flex flex-col overflow-hidden bg-slate-50 md:hidden pb-14">
+            <!-- Search & Category Header -->
+            <div class="p-2 bg-white border-b border-slate-200 flex flex-col gap-1.5 shrink-0 shadow-xs">
+                <div class="relative flex-1">
+                    <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    <input type="text" id="mobile-search-catalog-input" oninput="filterMobileCatalog(this.value)" placeholder="Tìm món / chạm để thêm..." class="w-full pl-7 pr-3 py-1.5 text-xs bg-slate-100 border-0 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+                <!-- Category Pills -->
+                <div class="flex gap-1 overflow-x-auto no-scrollbar text-xs py-0.5" id="mobile-category-pills">
+                    <button type="button" data-cat="" onclick="filterMobileCategory('')" class="mob-cat-btn active px-2.5 py-1 rounded-full bg-sky-600 text-white font-medium shrink-0 text-[11px]">Tất cả</button>
+                    <button type="button" data-cat="spa" onclick="filterMobileCategory('spa')" class="mob-cat-btn px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Spa & Tắm</button>
+                    <button type="button" data-cat="thức ăn" onclick="filterMobileCategory('thức ăn')" class="mob-cat-btn px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Thức ăn</button>
+                    <button type="button" data-cat="cát" onclick="filterMobileCategory('cát')" class="mob-cat-btn px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Cát vệ sinh</button>
+                    <button type="button" data-cat="dịch vụ" onclick="filterMobileCategory('dịch vụ')" class="mob-cat-btn px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0 text-[11px]">Dịch vụ</button>
+                </div>
+            </div>
+
+            <!-- Mobile Product Grid -->
+            <div id="mobile-product-grid" class="flex-1 overflow-y-auto p-2 grid grid-cols-2 gap-2 content-start">
+                <!-- Dynamically rendered from posProducts -->
+            </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR: PAYMENT & CUSTOMER (Desktop cố định, Mobile là Bottom Sheet/Drawer) -->
+        <aside id="pos-payment-sidebar" class="fixed inset-0 z-50 md:static md:z-auto bg-black/60 md:bg-transparent hidden md:flex flex-col justify-end md:justify-between transition-all duration-200">
+            <!-- Click backdrop outside to close on mobile -->
+            <div class="flex-1 md:hidden" onclick="toggleMobilePaymentSheet(false)"></div>
             
-            <div class="p-4 space-y-3.5">
+            <div class="w-full md:w-96 lg:w-[410px] bg-slate-50 flex flex-col justify-between overflow-y-auto max-h-[90vh] md:max-h-full rounded-t-3xl md:rounded-none shadow-2xl md:shadow-inner shrink-0">
+                <!-- Mobile Drawer Header -->
+                <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 md:hidden bg-white rounded-t-3xl shrink-0">
+                    <span class="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+                        <span>💳</span>
+                        <span>Thông Tin Thanh Toán</span>
+                    </span>
+                    <button type="button" onclick="toggleMobilePaymentSheet(false)" class="p-1 text-slate-400 hover:text-slate-700 font-bold text-base">✕ Đóng</button>
+                </div>
+
+                <div class="p-4 space-y-3.5">
 
                 <!-- 1. Customer Section -->
                 <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative">
@@ -317,8 +392,21 @@
                     <span>THANH TOÁN (F9)</span>
                 </button>
             </div>
+            </div>
         </aside>
     </main>
+
+    <!-- ==================== FIXED STICKY MOBILE BOTTOM BAR ==================== -->
+    <div id="mobile-pos-bottom-bar" class="fixed bottom-0 inset-x-0 h-14 bg-white/95 backdrop-blur border-t border-slate-200 px-3 items-center justify-between shadow-lg z-30 flex md:hidden">
+        <div>
+            <div class="text-[10px] text-slate-500 font-semibold leading-none">Khách cần trả:</div>
+            <div class="font-mono-num text-base font-black text-sky-600 leading-tight" id="mobile-total-pay-display">0 đ</div>
+        </div>
+        <button type="button" onclick="toggleMobilePaymentSheet(true)" class="bg-sky-600 active:bg-sky-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 transition">
+            <span>💳 Thanh Toán</span>
+            <span class="text-sm font-bold">→</span>
+        </button>
+    </div>
 
     <!-- ==================== MODAL: CHỈNH GIÁ & GIẢM GIÁ SẢN PHẨM ==================== -->
     <div id="modal-item-price" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
@@ -445,6 +533,6 @@
     </div>
 
     <!-- Dedicated POS Logic -->
-    <script src="/static/js/pos.js?v=20260919_18"></script>
+    <script src="/static/js/pos.js?v=20261004_01"></script>
 </body>
 </html>

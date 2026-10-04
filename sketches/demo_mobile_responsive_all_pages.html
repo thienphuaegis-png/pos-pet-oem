@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Tối Ưu Mobile Toàn Diện - Pet Care POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0b0f19;
+            color: #f1f5f9;
+        }
+        .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Mobile Frame Styling */
+        .phone-bezel {
+            box-shadow: 0 0 0 10px #1e293b, 0 0 0 12px #334155, 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            border-radius: 44px;
+        }
+        .notch {
+            width: 120px;
+            height: 24px;
+            background: #1e293b;
+            border-bottom-left-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 min-h-screen">
+
+    <!-- Header bar -->
+    <div class="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+            <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider mb-1">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Mobile UX Prototype • All-In-One</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-white">Giao Diện POS Pet Care Trên Điện Thoại</h1>
+            <p class="text-xs md:text-sm text-slate-400">Xem thử cả 5 màn hình chính khi tối ưu sang chuẩn Touch / Mobile First.</p>
+        </div>
+
+        <!-- Controls: Page Selector & Mode -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Screen Select Tabs -->
+            <div class="bg-slate-900 border border-slate-700 p-1 rounded-xl flex gap-1 text-xs font-semibold">
+                <button onclick="setScreen('pos')" id="tab-btn-pos" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition">1. Bán Hàng</button>
+                <button onclick="setScreen('orders')" id="tab-btn-orders" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">2. Đơn Hàng</button>
+                <button onclick="setScreen('dashboard')" id="tab-btn-dashboard" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">3. Tổng Quan</button>
+                <button onclick="setScreen('inventory')" id="tab-btn-inventory" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">4. Tồn Kho</button>
+                <button onclick="setScreen('customers')" id="tab-btn-customers" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">5. Sổ Nợ</button>
+            </div>
+            <!-- Viewport Switcher -->
+            <div class="bg-slate-900 border border-slate-700 p-1 rounded-xl flex gap-1 text-xs">
+                <button onclick="setFrameWidth('390px')" id="w-btn-mobile" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-indigo-400 font-bold">📱 Phone (390px)</button>
+                <button onclick="setFrameWidth('768px')" id="w-btn-tablet" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white">📟 Tablet (768px)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="max-w-6xl mx-auto flex flex-col items-center justify-center">
+
+        <!-- Phone Device Frame Container -->
+        <div id="phone-container" class="phone-bezel bg-slate-950 p-2 overflow-hidden transition-all duration-300 w-[390px] h-[780px] flex flex-col relative">
+            
+            <!-- Notch & Status bar -->
+            <div class="h-6 w-full flex items-center justify-between px-6 shrink-0 text-[11px] font-semibold text-slate-400 z-50">
+                <span>09:41</span>
+                <div class="notch mx-auto -mt-2"></div>
+                <div class="flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 18.25c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l.64-.64C7.93 20.26 9.88 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7 0-1.66.58-3.18 1.55-4.39l9.84 9.84c-1.21.97-2.73 1.55-4.39 1.55zm5.45-2.61L7.61 6.55C8.82 5.58 10.34 5 12 5c3.87 0 7 3.13 7 7 0 1.66-.58 3.18-1.55 4.39z"/></svg>
+                    <span>5G</span>
+                    <div class="w-5 h-2.5 border border-slate-400 rounded-sm p-0.5 flex items-center">
+                        <div class="w-3 h-full bg-emerald-400 rounded-2xs"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen Viewport (Inside phone) -->
+            <div id="screen-viewport" class="flex-1 bg-slate-50 text-slate-900 rounded-[32px] overflow-hidden flex flex-col relative select-none">
+                
+                <!-- ==================== SCREEN 1: BÁN HÀNG POS ==================== -->
+                <div id="view-pos" class="screen-view flex-1 flex flex-col overflow-hidden">
+                    <!-- Top header: Shop & Branch -->
+                    <div class="bg-indigo-600 text-white p-3 pt-2 shrink-0 shadow-sm flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-black text-sm">⚡</span>
+                            <div>
+                                <h2 class="text-xs font-bold leading-tight">Pet Care Master</h2>
+                                <p class="text-[10px] text-indigo-200">Bàn 01 • Bán lẻ</p>
+                            </div>
+                        </div>
+                        <button onclick="toggleSheet()" class="relative p-2 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                            <span id="badge-cart" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">2</span>
+                        </button>
+                    </div>
+
+                    <!-- Search & Scan Bar -->
+                    <div class="p-2.5 bg-white border-b border-slate-200 flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" placeholder="Tìm sản phẩm / dịch vụ..." class="w-full bg-slate-100 text-xs rounded-xl pl-8 pr-3 py-2 border-0 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <button class="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 active:bg-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                            <span>Quét</span>
+                        </button>
+                    </div>
+
+                    <!-- Horizontal Category Filter -->
+                    <div class="flex gap-1.5 p-2 bg-white border-b border-slate-100 overflow-x-auto no-scrollbar shrink-0 text-xs">
+                        <button class="px-3 py-1 rounded-full bg-indigo-600 text-white font-medium shrink-0">Tất cả</button>
+                        <button class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0">Spa & Cắt lông</button>
+                        <button class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0">Thức ăn chó mèo</button>
+                        <button class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0">Khách sạn</button>
+                        <button class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-medium shrink-0">Phụ kiện</button>
+                    </div>
+
+                    <!-- Products Grid (2 columns on mobile, touch cards) -->
+                    <div class="flex-1 overflow-y-auto p-2.5 grid grid-cols-2 gap-2 pb-24">
+                        <!-- Product 1 -->
+                        <div onclick="addToCart('Hạt Royal Canin Kitten 2kg', 385000)" class="bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between active:scale-97 transition cursor-pointer">
+                            <div>
+                                <div class="w-full h-24 bg-amber-50 rounded-lg flex items-center justify-center text-3xl mb-1.5">🐱</div>
+                                <h3 class="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug">Hạt Royal Canin Kitten 2kg</h3>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Kho: 28 gói</p>
+                            </div>
+                            <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
+                                <span class="font-mono-num text-xs font-bold text-indigo-600">385.000đ</span>
+                                <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">+</span>
+                            </div>
+                        </div>
+
+                        <!-- Product 2 -->
+                        <div onclick="addToCart('Combo Spa Tắm Vệ Sinh < 5kg', 180000)" class="bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between active:scale-97 transition cursor-pointer">
+                            <div>
+                                <div class="w-full h-24 bg-pink-50 rounded-lg flex items-center justify-center text-3xl mb-1.5">🛁</div>
+                                <h3 class="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug">Combo Spa Tắm Vệ Sinh &lt; 5kg</h3>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Dịch vụ • 60 phút</p>
+                            </div>
+                            <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
+                                <span class="font-mono-num text-xs font-bold text-indigo-600">180.000đ</span>
+                                <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">+</span>
+                            </div>
+                        </div>
+
+                        <!-- Product 3 -->
+                        <div onclick="addToCart('Cát Vệ Sinh Cát Đậu Nành 6L', 95000)" class="bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between active:scale-97 transition cursor-pointer">
+                            <div>
+                                <div class="w-full h-24 bg-emerald-50 rounded-lg flex items-center justify-center text-3xl mb-1.5">📦</div>
+                                <h3 class="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug">Cát Vệ Sinh Đậu Nành 6L</h3>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Kho: 64 bao</p>
+                            </div>
+                            <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
+                                <span class="font-mono-num text-xs font-bold text-indigo-600">95.000đ</span>
+                                <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">+</span>
+                            </div>
+                        </div>
+
+                        <!-- Product 4 -->
+                        <div onclick="addToCart('Pate Ciao Cho Mèo Gói 40g', 18000)" class="bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between active:scale-97 transition cursor-pointer">
+                            <div>
+                                <div class="w-full h-24 bg-orange-50 rounded-lg flex items-center justify-center text-3xl mb-1.5">🐟</div>
+                                <h3 class="text-xs font-semibold text-slate-800 line-clamp-2 leading-snug">Pate Ciao Mèo Gói 40g</h3>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Kho: 120 gói</p>
+                            </div>
+                            <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
+                                <span class="font-mono-num text-xs font-bold text-indigo-600">18.000đ</span>
+                                <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">+</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Sticky Bottom Bar for Mobile Cart -->
+                    <div class="absolute bottom-0 inset-x-0 p-2 bg-white/90 backdrop-blur border-t border-slate-200 flex items-center justify-between gap-3 shadow-lg z-20">
+                        <div onclick="toggleSheet()" class="flex items-center gap-2 cursor-pointer">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm relative">
+                                🛒
+                                <span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center">2</span>
+                            </div>
+                            <div>
+                                <div class="font-mono-num text-sm font-extrabold text-slate-900 leading-tight">565.000đ</div>
+                                <div class="text-[10px] text-slate-500">2 món • Chạm xem chi tiết</div>
+                            </div>
+                        </div>
+                        <button onclick="alert('Đã chuyển màn hình thanh toán QR/Tiền mặt!')" class="bg-emerald-600 active:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md flex items-center gap-1.5">
+                            <span>Thanh Toán</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Cart Drawer / Bottom Sheet (Hidden by default, slides up) -->
+                    <div id="cart-sheet" class="absolute inset-0 bg-black/40 z-40 transition-opacity duration-300 hidden opacity-0 flex flex-col justify-end" onclick="toggleSheet()">
+                        <div class="bg-white rounded-t-3xl max-h-[80%] flex flex-col p-4 shadow-2xl" onclick="event.stopPropagation()">
+                            <div class="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-3"></div>
+                            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                                <h3 class="font-bold text-sm text-slate-800">Giỏ hàng hiện tại (2)</h3>
+                                <button onclick="toggleSheet()" class="text-xs text-slate-400 font-semibold">Đóng ✕</button>
+                            </div>
+                            <div class="divide-y divide-slate-100 overflow-y-auto max-h-52 my-2 text-xs">
+                                <div class="py-2.5 flex items-center justify-between">
+                                    <div class="flex-1 pr-2">
+                                        <div class="font-semibold text-slate-800">Hạt Royal Canin 2kg</div>
+                                        <div class="text-[10px] text-indigo-600 font-mono-num">385.000đ</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="w-6 h-6 rounded bg-slate-100 text-slate-600 font-bold">-</button>
+                                        <span class="font-mono-num font-bold">1</span>
+                                        <button class="w-6 h-6 rounded bg-slate-100 text-slate-600 font-bold">+</button>
+                                    </div>
+                                </div>
+                                <div class="py-2.5 flex items-center justify-between">
+                                    <div class="flex-1 pr-2">
+                                        <div class="font-semibold text-slate-800">Spa Tắm Vệ Sinh &lt; 5kg</div>
+                                        <div class="text-[10px] text-indigo-600 font-mono-num">180.000đ</div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="w-6 h-6 rounded bg-slate-100 text-slate-600 font-bold">-</button>
+                                        <span class="font-mono-num font-bold">1</span>
+                                        <button class="w-6 h-6 rounded bg-slate-100 text-slate-600 font-bold">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between mb-3 text-xs">
+                                <span class="text-slate-500 font-medium">Tổng thanh toán:</span>
+                                <span class="font-mono-num text-base font-extrabold text-indigo-600">565.000đ</span>
+                            </div>
+                            <button onclick="toggleSheet()" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">Xác nhận đơn hàng</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== SCREEN 2: DANH SÁCH ĐƠN HÀNG ==================== -->
+                <div id="view-orders" class="screen-view flex-1 flex flex-col overflow-hidden hidden">
+                    <!-- Top header -->
+                    <div class="bg-white p-3 border-b border-slate-200 shrink-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <h2 class="text-sm font-bold text-slate-900">Danh Sách Đơn Hàng</h2>
+                            <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Hôm nay (14)</span>
+                        </div>
+                        <input type="text" placeholder="Tìm theo mã đơn, tên khách, SĐT..." class="w-full bg-slate-100 text-xs rounded-xl px-3 py-2 border-0 outline-none">
+                    </div>
+
+                    <!-- Status Filter Pills -->
+                    <div class="flex gap-1.5 p-2 bg-slate-100 overflow-x-auto no-scrollbar shrink-0 text-xs border-b border-slate-200">
+                        <button class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-medium shrink-0">Tất cả</button>
+                        <button class="px-2.5 py-1 rounded-lg bg-white text-slate-600 font-medium shrink-0 border border-slate-200">Đã thanh toán</button>
+                        <button class="px-2.5 py-1 rounded-lg bg-white text-amber-600 font-medium shrink-0 border border-slate-200">Còn nợ</button>
+                        <button class="px-2.5 py-1 rounded-lg bg-white text-slate-400 font-medium shrink-0 border border-slate-200">Đã hủy</button>
+                    </div>
+
+                    <!-- Orders Cards (Card-based UI instead of squished tables) -->
+                    <div class="flex-1 overflow-y-auto p-2.5 space-y-2">
+                        <!-- Order Card 1 -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                <div>
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">#HD-2026-089</span>
+                                    <span class="text-[10px] text-slate-400 ml-1.5">10:15 • NV: Lan Anh</span>
+                                </div>
+                                <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md">Hoàn tất</span>
+                            </div>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">Anh Phú • 0918.xxx.888</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">3 món: Hạt Royal Canin, Cát Đậu Nành...</div>
+                            </div>
+                            <div class="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-slate-100">
+                                <span class="font-mono-num text-sm font-extrabold text-slate-900">480.000đ</span>
+                                <div class="flex gap-1.5">
+                                    <button class="px-2 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg">Xem</button>
+                                    <button class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg">In bill</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 2 -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                <div>
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">#HD-2026-088</span>
+                                    <span class="text-[10px] text-slate-400 ml-1.5">09:40 • NV: Tuấn</span>
+                                </div>
+                                <span class="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-md">Nợ 150.000đ</span>
+                            </div>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">Chị Mai • 0903.xxx.112</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">1 món: Combo Spa Tắm Cắt Trọn Gói</div>
+                            </div>
+                            <div class="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-slate-100">
+                                <span class="font-mono-num text-sm font-extrabold text-slate-900">350.000đ</span>
+                                <div class="flex gap-1.5">
+                                    <button class="px-2 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg">Thu nợ</button>
+                                    <button class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg">In bill</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 3 -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                <div>
+                                    <span class="font-mono-num text-xs font-bold text-indigo-600">#HD-2026-087</span>
+                                    <span class="text-[10px] text-slate-400 ml-1.5">08:20 • NV: Lan Anh</span>
+                                </div>
+                                <span class="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-md">Hoàn tất</span>
+                            </div>
+                            <div class="text-xs">
+                                <div class="font-bold text-slate-800">Khách vãng lai</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">2 món: Xương gặm cho chó, Dầu tắm</div>
+                            </div>
+                            <div class="flex items-center justify-between mt-3 pt-2 border-t border-dashed border-slate-100">
+                                <span class="font-mono-num text-sm font-extrabold text-slate-900">125.000đ</span>
+                                <div class="flex gap-1.5">
+                                    <button class="px-2 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg">Xem</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== SCREEN 3: TỔNG QUAN & BÁO CÁO ==================== -->
+                <div id="view-dashboard" class="screen-view flex-1 flex flex-col overflow-hidden hidden">
+                    <div class="bg-white p-3 border-b border-slate-200 shrink-0 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-900">Báo Cáo Hôm Nay</h2>
+                            <p class="text-[10px] text-slate-400">Cập nhật: 09:41 AM</p>
+                        </div>
+                        <select class="bg-slate-100 text-[11px] font-semibold rounded-lg px-2 py-1 border-0">
+                            <option>Hôm nay</option>
+                            <option>Tuần này</option>
+                            <option>Tháng này</option>
+                        </select>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-3 space-y-3">
+                        <!-- Revenue Stat Card -->
+                        <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white p-4 rounded-2xl shadow-sm">
+                            <span class="text-xs text-indigo-200 font-medium">Doanh thu thực thu</span>
+                            <div class="font-mono-num text-2xl font-black mt-1">12.450.000đ</div>
+                            <div class="mt-3 flex items-center justify-between text-xs pt-2 border-t border-indigo-400/30">
+                                <span>28 Đơn hàng</span>
+                                <span class="text-emerald-300 font-bold">▲ +18.4% vs hqua</span>
+                            </div>
+                        </div>
+
+                        <!-- 2x2 Mini Stat Grid -->
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-white p-3 rounded-xl border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Tiền mặt</div>
+                                <div class="font-mono-num font-bold text-slate-800 text-sm mt-0.5">5.200.000đ</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Chuyển khoản (VietQR)</div>
+                                <div class="font-mono-num font-bold text-slate-800 text-sm mt-0.5">7.250.000đ</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Ghi nợ phát sinh</div>
+                                <div class="font-mono-num font-bold text-rose-600 text-sm mt-0.5">450.000đ</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Khách mới</div>
+                                <div class="font-mono-num font-bold text-emerald-600 text-sm mt-0.5">6 khách</div>
+                            </div>
+                        </div>
+
+                        <!-- Top Service / Products -->
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <h3 class="text-xs font-bold text-slate-800 mb-2">Bán chạy nhất</h3>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-600">1. Combo Spa Chó Cỏ</span>
+                                    <span class="font-mono-num font-bold">12 lượt</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-600">2. Hạt Royal Canin</span>
+                                    <span class="font-mono-num font-bold">8 gói</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-600">3. Cát Đậu Nành 6L</span>
+                                    <span class="font-mono-num font-bold">6 bao</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== SCREEN 4: TỒN KHO & NHẬP HÀNG ==================== -->
+                <div id="view-inventory" class="screen-view flex-1 flex flex-col overflow-hidden hidden">
+                    <div class="bg-white p-3 border-b border-slate-200 shrink-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <h2 class="text-sm font-bold text-slate-900">Quản Lý Tồn Kho</h2>
+                            <button class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">+ Nhập kho</button>
+                        </div>
+                        <input type="text" placeholder="Tìm theo tên sản phẩm, mã barcode..." class="w-full bg-slate-100 text-xs rounded-xl px-3 py-2 border-0 outline-none">
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-2.5 space-y-2">
+                        <!-- Inventory Item 1 (Out of stock alert) -->
+                        <div class="bg-white p-3 rounded-2xl border border-rose-200 shadow-xs">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-[10px] bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded">Sắp hết hàng</span>
+                                    <h4 class="text-xs font-bold text-slate-800 mt-1">Sữa Tắm Bio-Care 200ml</h4>
+                                    <p class="text-[10px] text-slate-400">Mã: BIO-002 • ĐVT: Chai</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono-num text-rose-600 font-extrabold text-sm">Tồn: 2</div>
+                                    <div class="text-[10px] text-slate-400 font-mono-num">Vốn: 45k</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inventory Item 2 -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Đủ hàng</span>
+                                    <h4 class="text-xs font-bold text-slate-800 mt-1">Hạt Me-O Cá Ngừ 1.2kg</h4>
+                                    <p class="text-[10px] text-slate-400">Mã: MEO-012 • ĐVT: Gói</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono-num text-slate-800 font-extrabold text-sm">Tồn: 45</div>
+                                    <div class="text-[10px] text-slate-400 font-mono-num">Vốn: 72k</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Inventory Item 3 -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Đủ hàng</span>
+                                    <h4 class="text-xs font-bold text-slate-800 mt-1">Cát Vệ Sinh Min 8L</h4>
+                                    <p class="text-[10px] text-slate-400">Mã: CAT-MIN8 • ĐVT: Túi</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono-num text-slate-800 font-extrabold text-sm">Tồn: 30</div>
+                                    <div class="text-[10px] text-slate-400 font-mono-num">Vốn: 40k</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== SCREEN 5: KHÁCH HÀNG & SỔ NỢ ==================== -->
+                <div id="view-customers" class="screen-view flex-1 flex flex-col overflow-hidden hidden">
+                    <div class="bg-white p-3 border-b border-slate-200 shrink-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <h2 class="text-sm font-bold text-slate-900">Sổ Nợ & Khách Hàng</h2>
+                            <button class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg">+ Thêm khách</button>
+                        </div>
+                        <input type="text" placeholder="Tìm theo tên hoặc SĐT..." class="w-full bg-slate-100 text-xs rounded-xl px-3 py-2 border-0 outline-none">
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-2.5 space-y-2">
+                        <!-- Customer 1 (Debt) -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs">P</div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800">Bùi Thiên Phú</h4>
+                                        <p class="text-[10px] text-slate-400">0918.xxx.888 • VIP 2</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] text-rose-500 font-medium">Nợ hiện tại</span>
+                                    <div class="font-mono-num text-rose-600 font-black text-xs">250.000đ</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100 text-[10px]">
+                                <a href="tel:0918000000" class="flex-1 py-1.5 bg-slate-100 font-semibold text-slate-700 rounded-lg text-center">📞 Gọi điện</a>
+                                <button class="flex-1 py-1.5 bg-rose-50 font-bold text-rose-600 rounded-lg text-center">Thu nợ ngay</button>
+                            </div>
+                        </div>
+
+                        <!-- Customer 2 (Clean) -->
+                        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-xs">M</div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-800">Chị Hoàng Mai</h4>
+                                        <p class="text-[10px] text-slate-400">0903.xxx.112 • Thân thiết</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] text-emerald-600 font-medium">Công nợ: 0đ</span>
+                                    <div class="text-[10px] text-slate-400">Điểm: 120</div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100 text-[10px]">
+                                <button class="flex-1 py-1.5 bg-slate-100 font-semibold text-slate-700 rounded-lg">Xem lịch sử spa</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== FIXED APP BOTTOM NAVIGATION BAR ==================== -->
+                <nav class="h-14 bg-white border-t border-slate-200 px-3 flex items-center justify-around shrink-0 z-30 shadow-md">
+                    <button onclick="setScreen('pos')" id="nav-pos" class="flex flex-col items-center gap-0.5 text-indigo-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                        <span class="text-[9px] font-bold">Bán Hàng</span>
+                    </button>
+                    <button onclick="setScreen('orders')" id="nav-orders" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        <span class="text-[9px] font-semibold">Đơn Hàng</span>
+                    </button>
+                    <button onclick="setScreen('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span class="text-[9px] font-semibold">Báo Cáo</span>
+                    </button>
+                    <button onclick="setScreen('inventory')" id="nav-inventory" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        <span class="text-[9px] font-semibold">Kho Hàng</span>
+                    </button>
+                    <button onclick="setScreen('customers')" id="nav-customers" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <span class="text-[9px] font-semibold">Sổ Nợ</span>
+                    </button>
+                </nav>
+
+            </div>
+
+            <!-- Home indicator bar -->
+            <div class="h-4 w-full flex items-center justify-center shrink-0">
+                <div class="w-32 h-1 bg-slate-600 rounded-full"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script: Switch screens & viewport -->
+    <script>
+        const screens = ['pos', 'orders', 'dashboard', 'inventory', 'customers'];
+        
+        function setScreen(target) {
+            screens.forEach(s => {
+                const el = document.getElementById('view-' + s);
+                const navBtn = document.getElementById('nav-' + s);
+                const tabBtn = document.getElementById('tab-btn-' + s);
+                if (s === target) {
+                    el.classList.remove('hidden');
+                    navBtn.className = 'flex flex-col items-center gap-0.5 text-indigo-600';
+                    tabBtn.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition';
+                } else {
+                    el.classList.add('hidden');
+                    navBtn.className = 'flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-600';
+                    tabBtn.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+                }
+            });
+        }
+
+        function setFrameWidth(w) {
+            const container = document.getElementById('phone-container');
+            const btnM = document.getElementById('w-btn-mobile');
+            const btnT = document.getElementById('w-btn-tablet');
+            container.style.width = w;
+            if (w === '390px') {
+                btnM.className = 'px-2.5 py-1.5 rounded-lg bg-slate-800 text-indigo-400 font-bold';
+                btnT.className = 'px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white';
+            } else {
+                btnT.className = 'px-2.5 py-1.5 rounded-lg bg-slate-800 text-indigo-400 font-bold';
+                btnM.className = 'px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white';
+            }
+        }
+
+        function toggleSheet() {
+            const sheet = document.getElementById('cart-sheet');
+            if (sheet.classList.contains('hidden')) {
+                sheet.classList.remove('hidden');
+                setTimeout(() => sheet.classList.remove('opacity-0'), 10);
+            } else {
+                sheet.classList.add('opacity-0');
+                setTimeout(() => sheet.classList.add('hidden'), 300);
+            }
+        }
+
+        function addToCart(name, price) {
+            alert('Đã thêm vào giỏ: ' + name);
+        }
+    </script>
+</body>
+</html>
