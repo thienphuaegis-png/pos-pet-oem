@@ -8,6 +8,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Bán Hàng POS - KiotViet Offline</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2222%22 font-size=%2222%22>🛒</text></svg>">
+    <script>
+        // Tự động nhận diện thiết bị: Nếu là điện thoại, tự động chuyển sang giao diện chuyên biệt /pos/m
+        if (window.innerWidth < 768 && !window.location.search.includes('force=desktop')) {
+            window.location.replace('/pos/m');
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom scrollbars */

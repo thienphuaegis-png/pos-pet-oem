@@ -197,6 +197,9 @@ def get_template_path():
 def get_pos_template_path():
     return find_resource_path(os.path.join("templates", "pos.html"))
 
+def get_pos_mobile_template_path():
+    return find_resource_path(os.path.join("templates", "pos_mobile.html"))
+
 APP_VERSION = "3.0"  # đồng bộ với PROJECT_STATE.md
 
 @app.get("/api/ping", include_in_schema=False)
@@ -259,6 +262,14 @@ def pos_page():
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>POS template not found</h1>"
+
+@app.get("/pos/m", response_class=HTMLResponse)
+def pos_mobile_page():
+    path = get_pos_mobile_template_path()
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>POS Mobile template not found</h1>"
 
 # Đăng ký toàn bộ các sub-routers
 app.include_router(auth_router)
