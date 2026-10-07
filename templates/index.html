@@ -1244,6 +1244,7 @@
 
                 <!-- SUBVIEW 1: HÓA ĐƠN BÁN LẺ -->
                 <div id="orders-subview-retail" class="space-y-4">
+                    <!-- Header Action Bar -->
                     <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
                         <div class="flex items-center gap-3">
                             <h2 class="text-base font-bold text-slate-900">Danh Sách Hóa Đơn Bán Hàng</h2>
@@ -1255,11 +1256,107 @@
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 <span>📥 Nhập Excel Hóa Đơn</span>
                             </button>
-                            <input type="text" id="search-orders" placeholder="Tìm mã đơn, khách, SĐT..." class="tui-input text-xs w-64" oninput="filterOrdersList()">
                             <button onclick="loadOrdersList()" class="tui-btn-primary text-xs flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                                 <span>Tải lại</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- THANH BỘ LỌC HÓA ĐƠN NÂNG CAO (SERVER-SIDE MULTI-DIMENSIONAL FILTER) -->
+                    <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 space-y-2.5 text-xs">
+                        <!-- Hàng 1: Tìm kiếm chính, Thu ngân, Khách hàng & Hình thức thanh toán -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 items-center">
+                            <!-- Tìm kiếm từ khóa mã đơn / SĐT / Tên (Ưu tiên ô đầu tiên) -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">🔍 Tìm Đơn / Khách / SĐT:</label>
+                                <input type="text" id="search-orders" placeholder="Mã HD, tên, số điện thoại..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 font-semibold focus:bg-white" onkeydown="if(event.key==='Enter') applyOrdersFilters()">
+                            </div>
+
+                            <!-- Thu ngân / Nhân viên -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Thu Ngân / Bán Hàng:</label>
+                                <select id="filter-order-staff" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700">
+                                    <option value="">-- Tất cả nhân viên --</option>
+                                    <!-- Dynamic staff options -->
+                                </select>
+                            </div>
+
+                            <!-- Khách hàng -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Khách Hàng:</label>
+                                <select id="filter-order-customer" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700">
+                                    <option value="">-- Tất cả khách hàng --</option>
+                                    <!-- Dynamic customer options -->
+                                </select>
+                            </div>
+
+                            <!-- Hình thức thanh toán -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Hình Thức Thanh Toán:</label>
+                                <select id="filter-order-payment" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700">
+                                    <option value="">-- Tất cả hình thức --</option>
+                                    <option value="cash">Tiền mặt</option>
+                                    <option value="transfer">Chuyển khoản (VietQR)</option>
+                                    <option value="card">Thẻ quẹt POS</option>
+                                    <option value="wallet">Cấn trừ Ví Spa</option>
+                                    <option value="ewallet">Ví điện tử</option>
+                                </select>
+                            </div>
+
+                            <!-- Có chứa sản phẩm / dịch vụ -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Chứa Sản Phẩm / Dịch Vụ:</label>
+                                <input type="text" id="filter-order-product" placeholder="Gõ tên hoặc mã món..." class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-700 focus:bg-white" onkeydown="if(event.key==='Enter') applyOrdersFilters()">
+                            </div>
+                        </div>
+
+                        <!-- Hàng 2: Mốc thời gian, Khoảng ngày, Công nợ & Cụm nút tác vụ -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 items-end pt-1 border-t border-slate-100">
+                            <!-- Kỳ nhanh -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Mốc Thời Gian:</label>
+                                <select id="filter-order-date-preset" onchange="onOrderDatePresetChange(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700">
+                                    <option value="all">Tất cả thời gian</option>
+                                    <option value="today">Hôm nay</option>
+                                    <option value="yesterday">Hôm qua</option>
+                                    <option value="7days">7 ngày qua</option>
+                                    <option value="this_month">Tháng này</option>
+                                    <option value="last_month">Tháng trước</option>
+                                </select>
+                            </div>
+
+                            <!-- Khoảng ngày Từ - Đến -->
+                            <div class="sm:col-span-2 flex items-center gap-1.5">
+                                <div class="flex-1">
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Từ Ngày:</label>
+                                    <input type="date" id="filter-order-from-date" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-700">
+                                </div>
+                                <div class="flex-1">
+                                    <label class="block text-[11px] font-bold text-slate-500 mb-1">Đến Ngày:</label>
+                                    <input type="date" id="filter-order-to-date" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-700">
+                                </div>
+                            </div>
+
+                            <!-- Trạng thái công nợ -->
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 mb-1">Trạng Thái Công Nợ:</label>
+                                <select id="filter-order-debt" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700">
+                                    <option value="">-- Tất cả trạng thái --</option>
+                                    <option value="paid">✅ Đã trả đủ (Hết nợ)</option>
+                                    <option value="has_debt">⚠️ Còn nợ tiền</option>
+                                </select>
+                            </div>
+
+                            <!-- Nút hành động Lọc & Xóa lọc -->
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="applyOrdersFilters()" class="flex-1 py-2 px-3 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-lg font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition">
+                                    <span>🔍 Lọc Đơn</span>
+                                </button>
+                                <button type="button" onclick="resetOrdersFilters()" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-lg font-bold text-xs transition" title="Xóa toàn bộ bộ lọc">
+                                    <span>✕ Xóa Lọc</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -9805,7 +9902,7 @@
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
-    <script src="/static/js/modules/productions.js?v=20261007_01"></script>
+    <script src="/static/js/modules/productions.js?v=20261007_03"></script>
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>

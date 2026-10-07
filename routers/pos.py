@@ -180,18 +180,110 @@ async def import_orders_excel(file: UploadFile = File(...)):
         conn.close()
 
 @router.get("/api/orders")
-def list_orders(limit: int = 50):
+def list_orders(
+    limit: int = 100,
+    offset: int = 0,
+    query: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    product_keyword: Optional[str] = None,
+    debt_status: Optional[str] = None
+):
+    """
+    Truy vấn danh sách hóa đơn bán hàng hỗ trợ bộ lọc đa tiêu chí từ Server/CSDL:
+    - Tìm kiếm chung: mã đơn, tên khách, SĐT
+    - Khoảng ngày (from_date, to_date)
+    - Hình thức thanh toán (cash, transfer, card, wallet)
+    - Nhân viên tạo đơn (staff_id)
+    - Khách hàng (customer_id)
+    - Có chứa sản phẩm / dịch vụ (product_keyword)
+    - Trạng thái công nợ (paid: hết nợ, has_debt: còn nợ)
+    """
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("""
+
+    where_clauses = ["1=1"]
+    params = []
+
+    # 1. Tìm kiếm text chung
+    if query:
+        q_term = f"%{query.strip()}%"
+        where_clauses.append("(o.code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)")
+        params.extend([q_term, q_term, q_term])
+
+    # 2. Khoảng thời gian
+    if from_date:
+        where_clauses.append("o.created_at >= ?")
+        params.append(f"{from_date.strip()} 00:00:00")
+    if to_date:
+        where_clauses.append("o.created_at <= ?")
+        params.append(f"{to_date.strip()} 23:59:59")
+
+    # 3. Nhân viên tạo đơn
+    if staff_id:
+        where_clauses.append("o.staff_id = ?")
+        params.append(staff_id)
+
+    # 4. Khách hàng
+    if customer_id:
+        where_clauses.append("o.customer_id = ?")
+        params.append(customer_id)
+
+    # 5. Trạng thái công nợ
+    if debt_status == "has_debt":
+        where_clauses.append("o.debt_amount > 0")
+    elif debt_status == "paid":
+        where_clauses.append("(o.debt_amount IS NULL OR o.debt_amount <= 0)")
+
+    # 6. Có chứa sản phẩm / dịch vụ
+    if product_keyword:
+        p_term = f"%{product_keyword.strip()}%"
+        where_clauses.append("""
+        o.id IN (
+            SELECT oi.order_id 
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.id
+            WHERE p.name LIKE ? OR p.code LIKE ?
+        )
+        """)
+        params.extend([p_term, p_term])
+
+    # 7. Hình thức thanh toán
+    if payment_method:
+        m = payment_method.strip().lower()
+        if m == "wallet":
+            where_clauses.append("o.spa_wallet_deduction > 0")
+        else:
+            where_clauses.append("""
+            (
+                o.id IN (SELECT order_id FROM order_payments WHERE method = ?)
+                OR o.id IN (
+                    SELECT ref_id FROM cashbook 
+                    WHERE ref_type = 'order' AND account_id IN (
+                        SELECT id FROM payment_accounts WHERE account_type = ?
+                    )
+                )
+            )
+            """)
+            params.extend([m, m])
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
     SELECT o.*, c.name as customer_name, s.name as staff_name,
            (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
     FROM orders o
     LEFT JOIN contacts c ON o.customer_id = c.id
     LEFT JOIN staff s ON o.staff_id = s.id
+    WHERE {where_sql}
     ORDER BY o.id DESC
-    LIMIT ?
-    """, (limit,))
+    LIMIT ? OFFSET ?
+    """
+    params.extend([limit, offset])
+
+    cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows

@@ -3499,33 +3499,139 @@
         // --- QUẢN LÝ DANH SÁCH HÓA ĐƠN BÁN HÀNG ---
         let allOrdersData = [];
 
-        async function loadOrdersList() {
-            const tbody = document.getElementById('orders-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400 italic">Đang tải danh sách hóa đơn...</td></tr>';
-            try {
-                const res = await fetch('/api/orders?limit=200');
-                if (!res.ok) throw new Error('Không thể tải hóa đơn');
-                allOrdersData = await res.json();
-                renderOrdersTable(allOrdersData);
-            } catch (e) {
-                console.error("loadOrdersList error:", e);
-                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-red-500 italic">Lỗi khi tải danh sách hóa đơn!</td></tr>';
+        function onOrderDatePresetChange(val) {
+            const fromInp = document.getElementById('filter-order-from-date');
+            const toInp = document.getElementById('filter-order-to-date');
+            if (!fromInp || !toInp) return;
+
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+            if (val === 'all') {
+                fromInp.value = '';
+                toInp.value = '';
+            } else if (val === 'today') {
+                fromInp.value = fmt(now);
+                toInp.value = fmt(now);
+            } else if (val === 'yesterday') {
+                const yest = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                fromInp.value = fmt(yest);
+                toInp.value = fmt(yest);
+            } else if (val === '7days') {
+                const d7 = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+                fromInp.value = fmt(d7);
+                toInp.value = fmt(now);
+            } else if (val === 'this_month') {
+                fromInp.value = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
+                toInp.value = fmt(now);
+            } else if (val === 'last_month') {
+                fromInp.value = fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+                toInp.value = fmt(new Date(now.getFullYear(), now.getMonth(), 0));
+            }
+        }
+        window.onOrderDatePresetChange = onOrderDatePresetChange;
+
+        async function initOrderFilterDropdowns() {
+            // Nạp danh sách nhân viên vào dropdown lọc nếu chưa có
+            const staffSelect = document.getElementById('filter-order-staff');
+            if (staffSelect && staffSelect.options.length <= 1) {
+                try {
+                    const res = await fetch('/api/staff');
+                    if (res.ok) {
+                        const staffList = await res.json();
+                        staffList.forEach(s => {
+                            const opt = document.createElement('option');
+                            opt.value = s.id;
+                            opt.textContent = s.name;
+                            staffSelect.appendChild(opt);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Lỗi nạp staff filter:", e);
+                }
+            }
+
+            // Nạp danh sách khách hàng vào dropdown lọc nếu chưa có
+            const custSelect = document.getElementById('filter-order-customer');
+            if (custSelect && custSelect.options.length <= 1) {
+                try {
+                    const res = await fetch('/api/contacts?type=customer&limit=500');
+                    if (res.ok) {
+                        const customers = await res.json();
+                        customers.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c.id;
+                            opt.textContent = `${c.name} (${c.phone || 'K-SĐT'})`;
+                            custSelect.appendChild(opt);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Lỗi nạp customer filter:", e);
+                }
             }
         }
 
-        function filterOrdersList() {
-            const term = (document.getElementById('search-orders')?.value || '').toLowerCase().trim();
-            if (!term) {
+        async function loadOrdersList() {
+            await initOrderFilterDropdowns();
+            await applyOrdersFilters();
+        }
+
+        async function applyOrdersFilters() {
+            const tbody = document.getElementById('orders-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Đang lọc danh sách hóa đơn từ máy chủ...</td></tr>';
+
+            const fromDate = document.getElementById('filter-order-from-date')?.value || '';
+            const toDate = document.getElementById('filter-order-to-date')?.value || '';
+            const payment = document.getElementById('filter-order-payment')?.value || '';
+            const staffId = document.getElementById('filter-order-staff')?.value || '';
+            const custId = document.getElementById('filter-order-customer')?.value || '';
+            const prodKw = document.getElementById('filter-order-product')?.value || '';
+            const debt = document.getElementById('filter-order-debt')?.value || '';
+            const term = (document.getElementById('search-orders')?.value || '').trim();
+
+            const params = new URLSearchParams();
+            params.append('limit', '300');
+            if (fromDate) params.append('from_date', fromDate);
+            if (toDate) params.append('to_date', toDate);
+            if (payment) params.append('payment_method', payment);
+            if (staffId) params.append('staff_id', staffId);
+            if (custId) params.append('customer_id', custId);
+            if (prodKw) params.append('product_keyword', prodKw);
+            if (debt) params.append('debt_status', debt);
+            if (term) params.append('query', term);
+
+            try {
+                const res = await fetch(`/api/orders?${params.toString()}`);
+                if (!res.ok) throw new Error('Không thể tải hóa đơn');
+                allOrdersData = await res.json();
+                ordersCurrentPage = 1;
                 renderOrdersTable(allOrdersData);
-                return;
+            } catch (e) {
+                console.error("applyOrdersFilters error:", e);
+                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-red-500 italic">Lỗi khi lọc danh sách hóa đơn!</td></tr>';
             }
-            const filtered = allOrdersData.filter(o => 
-                (o.code && o.code.toLowerCase().includes(term)) ||
-                (o.customer_name && o.customer_name.toLowerCase().includes(term)) ||
-                (o.staff_name && o.staff_name.toLowerCase().includes(term))
-            );
-            renderOrdersTable(filtered);
+        }
+        window.applyOrdersFilters = applyOrdersFilters;
+
+        function resetOrdersFilters() {
+            document.getElementById('filter-order-date-preset').value = 'all';
+            document.getElementById('filter-order-from-date').value = '';
+            document.getElementById('filter-order-to-date').value = '';
+            document.getElementById('filter-order-payment').value = '';
+            document.getElementById('filter-order-staff').value = '';
+            document.getElementById('filter-order-customer').value = '';
+            document.getElementById('filter-order-product').value = '';
+            document.getElementById('filter-order-debt').value = '';
+            document.getElementById('search-orders').value = '';
+            applyOrdersFilters();
+        }
+        window.resetOrdersFilters = resetOrdersFilters;
+
+        function filterOrdersList() {
+            // Khi gõ ô search-orders, gọi lọc trực tiếp
+            applyOrdersFilters();
         }
 
         let ordersCurrentPage = 1;
