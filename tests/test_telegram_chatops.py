@@ -243,49 +243,65 @@ def test_telegram_settings_api():
     from server import app
     client = TestClient(app)
 
-    # Đăng nhập lấy token owner
-    login_res = client.post("/api/auth/login", data={"username": "admin", "password": "admin123"})
-    if login_res.status_code != 200:
-        login_res = client.post("/api/auth/login", data={"username": "admin", "password": "123"})
-    assert login_res.status_code == 200
-    token = login_res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 1. Cập nhật cấu hình bot
-    cfg_res = client.post("/api/settings/telegram/config", json={
-        "bot_token": "TEST_TOKEN_123456",
-        "is_enabled": True
-    }, headers=headers)
-    assert cfg_res.status_code == 200
-
-    # 2. Tạo 1 yêu cầu pending
-    bot.register_admin_request(999003, username="owner_test", first_name="Owner")
-
-    # 3. Lấy dữ liệu settings
-    get_res = client.get("/api/settings/telegram", headers=headers)
-    assert get_res.status_code == 200
-    data = get_res.json()
-    assert data["bot_token"] == "TEST_TOKEN_123456"
-    assert data["is_enabled"] is True
-    assert any(r["chat_id"] == 999003 for r in data["requests"])
-
-    # 4. Duyệt admin qua API
-    appr_res = client.post("/api/settings/telegram/approve", json={"chat_id": 999003}, headers=headers)
-    assert appr_res.status_code == 200
-    assert bot.is_admin(999003) is True
-
-    # 5. Xóa admin qua API
-    rej_res = client.post("/api/settings/telegram/reject", json={"chat_id": 999003}, headers=headers)
-    assert rej_res.status_code == 200
-    assert bot.is_admin(999003) is False
-
-    # Cleanup
+    # Lưu cấu hình thực tế trước khi chạy test để không làm hỏng bot của người dùng
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM telegram_admins WHERE chat_id = 999003")
-    cur.execute("DELETE FROM telegram_admin_requests WHERE chat_id = 999003")
-    conn.commit()
+    cur.execute("SELECT value FROM settings WHERE key = 'telegram_bot_token'")
+    r_tok = cur.fetchone()
+    saved_token = r_tok[0] if r_tok else ""
+    cur.execute("SELECT value FROM settings WHERE key = 'telegram_bot_enabled'")
+    r_en = cur.fetchone()
+    saved_enabled = r_en[0] if r_en else "0"
     conn.close()
+
+    try:
+        # Đăng nhập lấy token owner
+        login_res = client.post("/api/auth/login", data={"username": "admin", "password": "admin123"})
+        if login_res.status_code != 200:
+            login_res = client.post("/api/auth/login", data={"username": "admin", "password": "123"})
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Cập nhật cấu hình bot
+        cfg_res = client.post("/api/settings/telegram/config", json={
+            "bot_token": "TEST_TOKEN_123456",
+            "is_enabled": True
+        }, headers=headers)
+        assert cfg_res.status_code == 200
+
+        # 2. Tạo 1 yêu cầu pending
+        bot.register_admin_request(999003, username="owner_test", first_name="Owner")
+
+        # 3. Lấy dữ liệu settings
+        get_res = client.get("/api/settings/telegram", headers=headers)
+        assert get_res.status_code == 200
+        data = get_res.json()
+        assert data["bot_token"] == "TEST_TOKEN_123456"
+        assert data["is_enabled"] is True
+        assert any(r["chat_id"] == 999003 for r in data["requests"])
+
+        # 4. Duyệt admin qua API
+        appr_res = client.post("/api/settings/telegram/approve", json={"chat_id": 999003}, headers=headers)
+        assert appr_res.status_code == 200
+        assert bot.is_admin(999003) is True
+
+        # 5. Xóa admin qua API
+        rej_res = client.post("/api/settings/telegram/reject", json={"chat_id": 999003}, headers=headers)
+        assert rej_res.status_code == 200
+        assert bot.is_admin(999003) is False
+    finally:
+        # Khôi phục token và trạng thái ban đầu của hệ thống
+        bot.set_telegram_setting("telegram_bot_token", saved_token)
+        bot.set_telegram_setting("telegram_bot_enabled", saved_enabled)
+
+        # Cleanup
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM telegram_admins WHERE chat_id = 999003")
+        cur.execute("DELETE FROM telegram_admin_requests WHERE chat_id = 999003")
+        conn.commit()
+        conn.close()
 
 def test_telegram_reports_and_categories():
     admin_id = 999001
