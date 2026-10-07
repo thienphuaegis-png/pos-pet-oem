@@ -8,7 +8,7 @@
                 .cart-grid-header,
                 .cart-row-responsive {
                     display: grid !important;
-                    grid-template-columns: 36px 36px 90px minmax(140px, 1fr) 54px 104px 160px 110px !important;
+                    grid-template-columns: 34px 34px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
                     gap: 8px !important;
                 }
             }
@@ -702,14 +702,20 @@ function renderActiveTabCart() {
                 </div>
 
                 <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="text-right cursor-pointer price-col" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
-                    <div class="font-bold text-slate-700 hover:text-sky-600 flex items-center justify-end gap-1.5 flex-nowrap whitespace-nowrap">
-                        ${(item.price !== item.original_price) ? `<span class="text-slate-400 line-through font-normal text-[11px]">${formatMoney(item.original_price)}</span>` : ''}
-                        <span class="font-bold text-slate-800">${formatMoney(item.price)}</span>
-                        ${item.price !== item.original_price ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
+                <div class="text-right cursor-pointer price-col flex flex-col items-end justify-center select-none" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                    <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
+                    <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
+                        <span class="font-bold text-slate-800 text-xs">${formatMoney(item.price)}</span>
+                        ${item.price !== item.original_price ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
                         <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                     </div>
-                    ${hasDiscount ? `<div class="text-[10px] text-rose-500 font-bold">${discountText}</div>` : ''}
+                    <!-- Dòng 2: Giá niêm yết cũ & mức giảm đỏ (thẳng hàng bên dưới, không lấn sang trái) -->
+                    ${(item.price !== item.original_price || hasDiscount) ? `
+                        <div class="flex items-center justify-end gap-1 text-[10px] leading-tight mt-0.5 whitespace-nowrap">
+                            ${item.price !== item.original_price ? `<span class="text-slate-400 line-through font-normal text-[10px]">${formatMoney(item.original_price)}</span>` : ''}
+                            ${hasDiscount ? `<span class="text-rose-500 font-bold">${discountText}</span>` : ''}
+                        </div>
+                    ` : ''}
                 </div>
 
                 <!-- Thành tiền -->
