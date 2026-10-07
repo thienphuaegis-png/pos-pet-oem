@@ -139,6 +139,19 @@ def test_cancel_order_and_change_payment():
     """, (o_id, p_id))
 
     cur.execute("""
+    INSERT INTO order_payments (order_id, method, amount, account_id)
+    VALUES (?, 'cash', 30000, 1)
+    """, (o_id,))
+
+    # Tạo khách hàng có ví Spa và nợ để test hoàn tiền trọn gói
+    cur.execute("""
+    INSERT INTO contacts (type, name, phone, debt, spa_wallet_balance)
+    VALUES ('customer', 'Khách Test Hủy Đơn', '0988777666', 10000, 50000)
+    """)
+    cust_id = cur.lastrowid
+    cur.execute("UPDATE orders SET customer_id = ?, debt_amount = 10000, spa_wallet_deduction = 20000 WHERE id = ?", (cust_id, o_id))
+
+    cur.execute("""
     INSERT INTO cashbook (code, type, category, amount, ref_type, ref_id, note, account_id)
     VALUES ('PT-TEST-01', 'in', 'Thu tien ban hang', 30000, 'order', ?, 'Test don', 1)
     """, (o_id,))
@@ -154,7 +167,24 @@ def test_cancel_order_and_change_payment():
     cur.execute("SELECT account_id FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (o_id,))
     cb = cur.fetchone()
     assert cb["account_id"] == 2
+
+    # Đồng bộ order_payments
+    cur.execute("SELECT account_id, method FROM order_payments WHERE order_id = ?", (o_id,))
+    op = cur.fetchone()
+    assert op["account_id"] == 2
+    assert op["method"] in ('cash', 'transfer')
     conn.close()
+
+    # 1b. Test callback query 1-touch hiển thị lại inline_keyboard cho sel_cancel & sel_pay
+    cb_sel_cancel = bot.handle_callback_query({"data": "sel_cancel:HD-TEST-CANCEL", "from": {"id": admin_id}})
+    assert cb_sel_cancel.get("edit") is True
+    assert "inline_keyboard" in cb_sel_cancel
+    assert any("confirm_cancel:HD-TEST-CANCEL" in btn["callback_data"] for row in cb_sel_cancel["inline_keyboard"] for btn in row)
+
+    cb_sel_pay = bot.handle_callback_query({"data": "sel_pay:HD-TEST-CANCEL", "from": {"id": admin_id}})
+    assert cb_sel_pay.get("edit") is True
+    assert "inline_keyboard" in cb_sel_pay
+    assert any("paychange:HD-TEST-CANCEL:" in btn["callback_data"] for row in cb_sel_pay["inline_keyboard"] for btn in row)
 
     # 2. Thao tác /huyhoadon
     msg_cancel = {
@@ -181,10 +211,25 @@ def test_cancel_order_and_change_payment():
     prod = cur.fetchone()
     assert prod["stock"] == 12
 
-    # Kiểm tra đơn và cashbook đã xóa
+    # Kiểm tra ví Spa được hoàn (50k ban đầu + 20k hoàn = 70k)
+    cur.execute("SELECT spa_wallet_balance, debt FROM contacts WHERE id = ?", (cust_id,))
+    c_check = cur.fetchone()
+    assert c_check["spa_wallet_balance"] == 70000
+    assert c_check["debt"] == 0
+
+    # Kiểm tra log hoàn ví (order_id bị SET NULL do orders bị xóa)
+    cur.execute("SELECT amount, type, note FROM spa_wallet_transactions WHERE contact_id = ? ORDER BY id DESC LIMIT 1", (cust_id,))
+    wallet_log = cur.fetchone()
+    assert wallet_log["type"] == "refund"
+    assert wallet_log["amount"] == 20000
+    assert "HD-TEST-CANCEL" in wallet_log["note"]
+
+    # Kiểm tra đơn, cashbook, order_payments đã xóa sạch
     cur.execute("SELECT 1 FROM orders WHERE code = 'HD-TEST-CANCEL'")
     assert cur.fetchone() is None
     cur.execute("SELECT 1 FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (o_id,))
+    assert cur.fetchone() is None
+    cur.execute("SELECT 1 FROM order_payments WHERE order_id = ?", (o_id,))
     assert cur.fetchone() is None
 
     cur.execute("DELETE FROM order_items WHERE order_id = ?", (o_id,))

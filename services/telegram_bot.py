@@ -342,8 +342,24 @@ def execute_cancel_order(order_code: str) -> dict:
         if customer_id and debt_amount > 0:
             cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (debt_amount, customer_id))
 
+        # Hoàn trả số dư ví Spa nếu đơn có trừ ví
+        wallet_deduction = float(order["spa_wallet_deduction"] or 0.0) if "spa_wallet_deduction" in order.keys() else 0.0
+        if wallet_deduction > 0 and customer_id:
+            cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (customer_id,))
+            c_row = cur.fetchone()
+            bal_before = float(c_row["spa_wallet_balance"] or 0.0) if c_row else 0.0
+            bal_after = bal_before + wallet_deduction
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (bal_after, customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, order_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, ?, 'refund', ?, ?, ?, ?)
+            """, (customer_id, order_id, wallet_deduction, bal_before, bal_after, f"Hoàn tiền trừ ví do hủy đơn hàng {order_code} qua Telegram"))
+
         # Xóa phiếu thu sổ quỹ
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
+
+        # Xóa các dòng phương thức thanh toán
+        cur.execute("DELETE FROM order_payments WHERE order_id = ?", (order_id,))
 
         # Xóa chi tiết và đơn
         cur.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
@@ -390,6 +406,15 @@ def execute_change_payment(order_code: str, new_account_id: int) -> dict:
         SET account_id = ?
         WHERE ref_type = 'order' AND ref_id = ?
         """, (new_account_id, order_id))
+
+        # Đồng bộ bảng order_payments
+        acc_type = acc["account_type"] if "account_type" in acc.keys() else "cash"
+        method_str = "cash" if acc_type == "cash" else "transfer"
+        cur.execute("""
+        UPDATE order_payments 
+        SET account_id = ?, method = ?
+        WHERE order_id = ?
+        """, (new_account_id, method_str, order_id))
 
         conn.commit()
         conn.close()
@@ -828,6 +853,8 @@ def _polling_worker():
                                         "text": res.get("reply", ""),
                                         "parse_mode": "Markdown"
                                     }
+                                    if "inline_keyboard" in res:
+                                        edit_payload["reply_markup"] = {"inline_keyboard": res["inline_keyboard"]}
                                     send_telegram_api(token, "editMessageText", edit_payload)
                 elif resp.status_code in (401, 404):
                     logger.warning(f"Telegram Bot Token invalid: HTTP {resp.status_code}")
