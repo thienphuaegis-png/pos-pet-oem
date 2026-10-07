@@ -1529,6 +1529,29 @@ def init_db():
     except Exception as e:
         pass
 
+    # ── Telegram Bot Admins & Requests ──
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS telegram_admins (
+        chat_id INTEGER PRIMARY KEY,
+        username TEXT,
+        first_name TEXT,
+        role TEXT DEFAULT 'admin',
+        approved_by TEXT,
+        approved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_active INTEGER DEFAULT 1
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS telegram_admin_requests (
+        chat_id INTEGER PRIMARY KEY,
+        username TEXT,
+        first_name TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     conn.commit()
     conn.close()
 

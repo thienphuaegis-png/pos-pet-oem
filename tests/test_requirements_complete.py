@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNTIME_FILES = ["main.py", "server.py", "database.py", "schemas.py",
                  "dependencies.py", "activity_logger.py", "backup_service.py",
                  "logger_config.py"]
-RUNTIME_DIRS = ["routers"]
+RUNTIME_DIRS = ["routers", "services"]
 
 # import-name → tên trên PyPI (khi khác nhau)
 PYPI_NAME = {
@@ -43,7 +43,7 @@ def _runtime_imports():
 def _third_party(mods):
     stdlib = set(sys.stdlib_module_names)
     local = {os.path.splitext(f)[0] for f in os.listdir(ROOT) if f.endswith(".py")}
-    local |= {"routers", "scripts", "tests", "tools", "deploy"}
+    local |= {"routers", "scripts", "tests", "tools", "deploy", "services"}
     return {m for m in mods if m not in stdlib and m not in local}
 
 

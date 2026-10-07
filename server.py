@@ -127,6 +127,11 @@ init_db()
 if not os.environ.get("VERCEL"):
     from backup_service import start_backup_scheduler
     start_backup_scheduler()
+    try:
+        from services.telegram_bot import start_telegram_bot_service
+        start_telegram_bot_service()
+    except Exception as e:
+        logger.error(f"Khởi động Telegram Bot Service thất bại: {e}")
 
 # Mount static files
 def find_resource_path(relative_path: str) -> str:

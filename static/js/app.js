@@ -429,6 +429,7 @@
             }
             if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
             if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
+            if (subId === 'telegram') { if (typeof loadTelegramSettingsData === 'function') loadTelegramSettingsData(); }
             if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
         }
 
@@ -3845,6 +3846,139 @@
                 }
             }
         }
+
+        // ── Telegram Settings & Admin Management ──
+        async function loadTelegramSettingsData() {
+            try {
+                const res = await fetch('/api/settings/telegram');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const tokenInput = document.getElementById('input-telegram-token');
+                const enabledCheck = document.getElementById('check-telegram-enabled');
+                if (tokenInput) tokenInput.value = data.bot_token || '';
+                if (enabledCheck) enabledCheck.checked = !!data.is_enabled;
+
+                // Render requests
+                const reqCount = document.getElementById('badge-tg-requests-count');
+                const reqTbody = document.getElementById('tg-requests-tbody');
+                if (reqCount) reqCount.innerText = `${(data.requests || []).length} yêu cầu`;
+                if (reqTbody) {
+                    if (!data.requests || data.requests.length === 0) {
+                        reqTbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Không có yêu cầu nào đang chờ.</td></tr>';
+                    } else {
+                        reqTbody.innerHTML = data.requests.map(r => `
+                            <tr class="hover:bg-amber-50/50 transition">
+                                <td class="p-2 font-mono font-bold text-slate-700">${r.chat_id}</td>
+                                <td class="p-2">
+                                    <div class="font-bold text-slate-800">${escapeHtml(r.first_name || 'Không tên')}</div>
+                                    <div class="text-slate-400 text-3xs font-mono">@${escapeHtml(r.username || 'n/a')}</div>
+                                </td>
+                                <td class="p-2 text-slate-500">${r.created_at ? r.created_at.slice(0, 16) : '-'}</td>
+                                <td class="p-2 text-right space-x-1">
+                                    <button onclick="approveTelegramAdmin(${r.chat_id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition shadow-2xs">
+                                        ✓ Duyệt
+                                    </button>
+                                    <button onclick="rejectTelegramAdmin(${r.chat_id})" class="px-2 py-1 bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-600 rounded-lg transition">
+                                        ✕
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                // Render admins
+                const adminCount = document.getElementById('badge-tg-admins-count');
+                const adminTbody = document.getElementById('tg-admins-tbody');
+                if (adminCount) adminCount.innerText = `${(data.admins || []).length} admin`;
+                if (adminTbody) {
+                    if (!data.admins || data.admins.length === 0) {
+                        adminTbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400">Chưa có Admin nào được duyệt.</td></tr>';
+                    } else {
+                        adminTbody.innerHTML = data.admins.map(a => `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="p-2 font-mono font-bold text-slate-700">${a.chat_id}</td>
+                                <td class="p-2">
+                                    <div class="font-bold text-slate-800">${escapeHtml(a.first_name || 'Admin')}</div>
+                                    <div class="text-slate-400 text-3xs font-mono">@${escapeHtml(a.username || 'n/a')}</div>
+                                </td>
+                                <td class="p-2 text-slate-500">
+                                    <div>${escapeHtml(a.approved_by || 'Web POS')}</div>
+                                    <div class="text-3xs text-slate-400">${a.approved_at ? a.approved_at.slice(0, 10) : ''}</div>
+                                </td>
+                                <td class="p-2 text-right">
+                                    <button onclick="rejectTelegramAdmin(${a.chat_id})" class="px-2.5 py-1 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg font-semibold transition" title="Hủy quyền Admin">
+                                        🗑️ Thu Hồi
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi khi tải cấu hình Telegram:", e);
+            }
+        }
+
+        async function saveTelegramConfig() {
+            const tokenInput = document.getElementById('input-telegram-token');
+            const enabledCheck = document.getElementById('check-telegram-enabled');
+            const bot_token = (tokenInput ? tokenInput.value : '').trim();
+            const is_enabled = enabledCheck ? enabledCheck.checked : false;
+
+            try {
+                const res = await fetch('/api/settings/telegram/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ bot_token, is_enabled })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Lưu thất bại');
+                alert('🎉 ' + data.message);
+                loadTelegramSettingsData();
+            } catch (e) {
+                alert('❌ Lỗi: ' + e.message);
+            }
+        }
+
+        async function approveTelegramAdmin(chatId) {
+            try {
+                const res = await fetch('/api/settings/telegram/approve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ chat_id: chatId })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Duyệt thất bại');
+                alert('✅ ' + data.message);
+                loadTelegramSettingsData();
+            } catch (e) {
+                alert('❌ Lỗi: ' + e.message);
+            }
+        }
+
+        async function rejectTelegramAdmin(chatId) {
+            if (!confirm(`Anh có chắc chắn muốn hủy/xóa quyền Admin Telegram ID: ${chatId}?`)) return;
+            try {
+                const res = await fetch('/api/settings/telegram/reject', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ chat_id: chatId })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Thao tác thất bại');
+                alert('ℹ️ ' + data.message);
+                loadTelegramSettingsData();
+            } catch (e) {
+                alert('❌ Lỗi: ' + e.message);
+            }
+        }
+
+        window.loadTelegramSettingsData = loadTelegramSettingsData;
+        window.saveTelegramConfig = saveTelegramConfig;
+        window.approveTelegramAdmin = approveTelegramAdmin;
+        window.rejectTelegramAdmin = rejectTelegramAdmin;
 
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {

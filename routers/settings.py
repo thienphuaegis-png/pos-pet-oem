@@ -200,6 +200,7 @@ def update_print_bold_configs(req: PrintBoldConfigsUpdate):
 import os
 import shutil
 import datetime
+from typing import Optional
 from pydantic import BaseModel
 
 class ResetDataRequest(BaseModel):
@@ -323,6 +324,67 @@ def trigger_google_drive_backup():
     if not ok:
         raise HTTPException(status_code=400, detail=message)
     return {"status": "ok", "message": message}
+
+# ── Telegram Bot Management APIs ──
+class TelegramConfigReq(BaseModel):
+    bot_token: str
+    is_enabled: bool = True
+
+class TelegramApproveReq(BaseModel):
+    chat_id: int
+    approved_by: Optional[str] = "Web POS"
+
+class TelegramRejectReq(BaseModel):
+    chat_id: int
+
+@router.get("/telegram")
+def get_telegram_settings_data(user=Depends(require_role("owner"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = 'telegram_bot_token'")
+    token_row = cur.fetchone()
+    bot_token = token_row["value"] if token_row else ""
+
+    cur.execute("SELECT value FROM settings WHERE key = 'telegram_bot_enabled'")
+    enabled_row = cur.fetchone()
+    is_enabled = (enabled_row["value"] == "1") if enabled_row else False
+
+    cur.execute("SELECT * FROM telegram_admins WHERE is_active = 1 ORDER BY approved_at DESC")
+    admins = [dict(r) for r in cur.fetchall()]
+
+    cur.execute("SELECT * FROM telegram_admin_requests WHERE status = 'pending' ORDER BY created_at DESC")
+    requests = [dict(r) for r in cur.fetchall()]
+
+    conn.close()
+    return {
+        "bot_token": bot_token,
+        "is_enabled": is_enabled,
+        "admins": admins,
+        "requests": requests
+    }
+
+@router.post("/telegram/config")
+def update_telegram_config(req: TelegramConfigReq, user=Depends(require_role("owner"))):
+    from services.telegram_bot import set_telegram_setting, restart_telegram_bot_service
+    set_telegram_setting("telegram_bot_token", req.bot_token.strip())
+    set_telegram_setting("telegram_bot_enabled", "1" if req.is_enabled else "0")
+    restart_telegram_bot_service()
+    return {"status": "ok", "message": "Đã lưu cấu hình Telegram Bot"}
+
+@router.post("/telegram/approve")
+def approve_telegram_admin(req: TelegramApproveReq, user=Depends(require_role("owner"))):
+    from services.telegram_bot import approve_admin_request
+    ok = approve_admin_request(req.chat_id, approved_by=req.approved_by or user.get("username", "Web POS"))
+    if not ok:
+        raise HTTPException(status_code=400, detail="Không tìm thấy yêu cầu hoặc duyệt thất bại")
+    return {"status": "ok", "message": f"Đã duyệt Admin cho Chat ID {req.chat_id}"}
+
+@router.post("/telegram/reject")
+def reject_telegram_admin(req: TelegramRejectReq, user=Depends(require_role("owner"))):
+    from services.telegram_bot import reject_admin_request
+    ok = reject_admin_request(req.chat_id)
+    return {"status": "ok", "message": f"Đã xóa/từ chối quyền Admin của Chat ID {req.chat_id}"}
+
 
 
 
