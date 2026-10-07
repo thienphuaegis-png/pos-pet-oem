@@ -31,6 +31,41 @@
             width: 5.5rem !important; /* 88px - rộng rãi, không bị tràn nút đăng xuất */
         }
 
+        /* Đồng bộ CSS Grid bảng giỏ hàng POS */
+        @media (min-width: 768px) {
+            .cart-grid-header,
+            .cart-row-responsive {
+                display: grid !important;
+                grid-template-columns: 36px 36px 90px minmax(140px, 1fr) 54px 104px 160px 110px !important;
+                gap: 8px !important;
+            }
+        }
+        @media (max-width: 767px) {
+            .cart-row-responsive {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                padding: 8px 10px !important;
+                gap: 6px !important;
+            }
+            .cart-row-responsive .row-desktop-only {
+                display: none !important;
+            }
+            .cart-row-responsive .item-name-col {
+                flex: 1 1 50%;
+                min-width: 140px;
+            }
+            .cart-row-responsive .qty-col {
+                order: 3;
+            }
+            .cart-row-responsive .price-col {
+                display: none !important;
+            }
+            .cart-row-responsive .subtotal-col {
+                order: 4;
+                margin-left: auto;
+            }
+        }
+
         /* ==================== GLOBAL MOBILE RESPONSIVENESS ==================== */
         @media (max-width: 768px) {
             /* Tránh bị che khuất bởi thanh bottom nav */
@@ -973,7 +1008,7 @@
         <section class="flex-1 flex flex-col p-2.5 pr-1.5 overflow-hidden">
             
             <!-- Table Header -->
-            <div class="px-4 py-2 grid gap-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0" style="grid-template-columns: 36px 36px 80px 1fr 48px 96px 230px 110px;">
+            <div class="cart-grid-header px-4 py-2 grid gap-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0 select-none">
                 <div class="text-center">Xóa</div>
                 <div class="text-center">STT</div>
                 <div>Mã hàng</div>
@@ -9567,7 +9602,7 @@
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
-    <script src="/static/js/pos.js?v=20261001_03"></script>
+    <script src="/static/js/pos.js?v=20261007_02"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
     <div id="modal-cash-counter" onclick="if(event.target === this) closeCashCounterModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm">

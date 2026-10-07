@@ -1,4 +1,47 @@
 // pos.js - Logic dành riêng cho màn hình Bán Hàng chuyên dụng (POS)
+(function ensurePOSCartGridStyle() {
+    if (typeof document !== 'undefined' && !document.getElementById('pos-cart-grid-style')) {
+        const style = document.createElement('style');
+        style.id = 'pos-cart-grid-style';
+        style.textContent = `
+            @media (min-width: 768px) {
+                .cart-grid-header,
+                .cart-row-responsive {
+                    display: grid !important;
+                    grid-template-columns: 36px 36px 90px minmax(140px, 1fr) 54px 104px 160px 110px !important;
+                    gap: 8px !important;
+                }
+            }
+            @media (max-width: 767px) {
+                .cart-row-responsive {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                    padding: 8px 10px !important;
+                    gap: 6px !important;
+                }
+                .cart-row-responsive .row-desktop-only {
+                    display: none !important;
+                }
+                .cart-row-responsive .item-name-col {
+                    flex: 1 1 50%;
+                    min-width: 140px;
+                }
+                .cart-row-responsive .qty-col {
+                    order: 3;
+                }
+                .cart-row-responsive .price-col {
+                    display: none !important;
+                }
+                .cart-row-responsive .subtotal-col {
+                    order: 4;
+                    margin-left: auto;
+                }
+            }
+        `;
+        document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
+    }
+})();
+
 var posProducts = [];
 var posContacts = [];
 var posStaff = [];
