@@ -465,11 +465,25 @@ function addNewInvoiceTab() {
     renderActiveTabCart();
 }
 
-function closeInvoiceTab(e, tabId) {
+async function closeInvoiceTab(e, tabId) {
     e.stopPropagation();
     const tab = invoiceTabs.find(t => t.id === tabId);
     if (tab && tab.cart.length > 0) {
-        if (!confirm(`Hóa đơn "${tab.name}" đang có sản phẩm. Bạn có chắc muốn đóng?`)) return;
+        let confirmed = true;
+        if (typeof window.showConfirmModal === 'function') {
+            confirmed = await window.showConfirmModal({
+                title: `Đóng Hóa Đơn: ${tab.name}`,
+                message: `Hóa đơn "${tab.name}" đang có sản phẩm trong giỏ hàng. Bạn có chắc muốn đóng?`,
+                subMessage: `Dữ liệu sản phẩm đang chọn trong hóa đơn này sẽ bị hủy bỏ.`,
+                confirmText: 'Đóng Hóa Đơn',
+                cancelText: 'Quay lại',
+                type: 'warning',
+                icon: '⚠️'
+            });
+        } else {
+            confirmed = confirm(`Hóa đơn "${tab.name}" đang có sản phẩm. Bạn có chắc muốn đóng?`);
+        }
+        if (!confirmed) return;
     }
     invoiceTabs = invoiceTabs.filter(t => t.id !== tabId);
     if (invoiceTabs.length === 0) {

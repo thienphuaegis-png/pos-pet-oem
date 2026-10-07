@@ -3938,22 +3938,52 @@
 
         // --- XÓA / SỬA ĐƠN HÀNG ---
         async function deleteOrder(code) {
-            if (!confirm(`Bạn có chắc chắn muốn XÓA / HỦY hóa đơn [${code}]?\n- Hàng hóa & nguyên liệu BOM sẽ được hoàn trả lại kho.\n- Công nợ khách hàng (nếu có) sẽ được khấu trừ lại.\n- Bản ghi thu tiền tương ứng trong sổ quỹ sẽ bị xóa.`)) {
-                return;
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xác nhận HỦY / XÓA Hóa Đơn: ${code}`,
+                    message: `Bạn có chắc chắn muốn xóa hóa đơn này khỏi hệ thống không?`,
+                    subMessage: `
+                        • 📦 Tồn kho sản phẩm & nguyên liệu định lượng BOM sẽ được hoàn trả lại kho.<br>
+                        • 💳 Tiền trừ Ví Spa (nếu có) sẽ được hoàn trả lại số dư cho khách.<br>
+                        • 🏆 Điểm thưởng tích lũy của đơn hàng sẽ bị thu hồi (và tự động hạ hạng nếu dưới ngưỡng).<br>
+                        • 💵 Bản ghi thu tiền tương ứng trong sổ quỹ tiền mặt sẽ bị xóa bỏ.
+                    `,
+                    confirmText: '🔴 Xác nhận Hủy Đơn',
+                    cancelText: 'Bỏ qua',
+                    type: 'danger',
+                    icon: '🗑️'
+                });
+            } else {
+                confirmed = confirm(`Bạn có chắc chắn muốn XÓA / HỦY hóa đơn [${code}]?\n- Hàng hóa & nguyên liệu BOM sẽ được hoàn trả lại kho.\n- Tiền ví Spa (nếu có) sẽ được hoàn lại.\n- Điểm tích lũy sẽ được thu hồi.\n- Bản ghi sổ quỹ sẽ bị xóa.`);
             }
+
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/orders/${code}`, { method: 'DELETE' });
                 if (res.ok) {
-                    alert(`Đã xóa hóa đơn [${code}] thành công!`);
+                    if (window.showToast) {
+                        window.showToast(`✅ Đã hủy thành công hóa đơn [${code}]!`, 'success', 3500);
+                    } else {
+                        alert(`Đã xóa hóa đơn [${code}] thành công!`);
+                    }
                     await loadOrdersList();
                 } else {
                     const err = await res.json();
-                    alert("Lỗi khi xóa: " + (err.detail || "Không thể xóa đơn"));
+                    if (window.showToast) {
+                        window.showToast("❌ Lỗi khi xóa: " + (err.detail || "Không thể xóa đơn"), 'error');
+                    } else {
+                        alert("Lỗi khi xóa: " + (err.detail || "Không thể xóa đơn"));
+                    }
                 }
             } catch (e) {
                 console.error("deleteOrder error:", e);
-                alert("Lỗi kết nối khi xóa đơn hàng!");
+                if (window.showToast) {
+                    window.showToast("❌ Lỗi kết nối khi xóa đơn hàng!", 'error');
+                } else {
+                    alert("Lỗi kết nối khi xóa đơn hàng!");
+                }
             }
         }
 
