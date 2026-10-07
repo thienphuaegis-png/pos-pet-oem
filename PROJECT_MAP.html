@@ -642,7 +642,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-02)
-    const ROADMAP_VERSION = 'v3.9-2026-10-02-full-history-imported';
+    const ROADMAP_VERSION = 'v4.0-2026-10-07-reports-analytics-telegram-pos-sync';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-02)
       { id: 'import-full-sheets-invoices-and-customers', cat: 'PROD', title: 'Import Trọn Bộ 772 Khách Hàng, 77 Sản Phẩm & 129 Hóa Đơn Lịch Sử Google Sheets', done: true, note: 'Khớp 100% 77 mã sản phẩm, 772 khách hàng kèm mã KH/chành xe/công nợ cũ; nạp 129 hóa đơn bán lẻ và 683 dòng chi tiết món từ tháng 05/2026 đến 09/2026' },
@@ -727,7 +727,12 @@
       { id: 'ui-9', cat: 'UI', title: 'Server-side Injection Logo & Tên Ứng Dụng Màn Hình Đăng Nhập', done: true, note: 'Route GET / inject trực tiếp app_name và shop_logo vào HTML response, hiển thị 0ms tức thì không chớp giật FOUC' },
       { id: 'ui-10', cat: 'UI', title: 'Chuẩn Hóa 13 Tabs Sang Tailwind CSS & Vector Lucide SVG', done: true, note: 'Gỡ bỏ 100% Unicode emoji thô, đồng bộ phong cách thiết kế hiện đại, bảng biểu, thẻ KPI và form chuẩn Tailwind UI' },
       { id: 'guide-1', cat: 'UI', title: 'Tab Hướng Dẫn Nghiệp Vụ (Docs & Wiki) với 7 phân hệ & sơ đồ SVG', done: true, note: 'Bổ sung tab Hướng Dẫn trên Cài Đặt, 7 phân hệ nghiệp vụ, sơ đồ Flowchart vector SVG 100% offline, SOP 4 bước và mẹo quầy' },
-      { id: 'wallet-1', cat: 'Logic', title: 'Tách bạch Ví Spa khỏi tiền phòng Khách Sạn (POS & Hotel Checkout)', done: true, note: 'Ví Spa chỉ trừ cho dịch vụ Spa/Grooming, TUYỆT ĐỐI không cấn trừ tiền phòng lưu trú; backend + modal checkout + JS handlers đầy đủ' }
+      { id: 'wallet-1', cat: 'Logic', title: 'Tách bạch Ví Spa khỏi tiền phòng Khách Sạn (POS & Hotel Checkout)', done: true, note: 'Ví Spa chỉ trừ cho dịch vụ Spa/Grooming, TUYỆT ĐỐI không cấn trừ tiền phòng lưu trú; backend + modal checkout + JS handlers đầy đủ' },
+      { id: 'rep-analytics-1', cat: 'SYS', title: 'Hệ Thống Báo Cáo Kinh Doanh Đa Chiều & Dashboard Biểu Đồ Trực Quan', done: true, note: 'Tích hợp 5 sub-tabs (Tổng quan biểu đồ, Dòng tiền thanh toán, Hàng hóa vs Spa, Nhân viên, Top bán chạy), bộ lọc mốc thời gian và xuất Excel .xlsx' },
+      { id: 'order-filter-server', cat: 'UI', title: 'Thanh Bộ Lọc Hóa Đơn Nâng Cao Phía Server/CSDL', done: true, note: 'Lọc đa tiêu chí: thời gian, hình thức thanh toán, thu ngân, khách hàng, chứa sản phẩm, trạng thái nợ, không giới hạn 200 đơn' },
+      { id: 'telegram-cancel-refund', cat: 'Logic', title: 'Hoàn Thiện Telegram ChatOps & Hủy Đơn Hoàn Kho/Ví/Điểm', done: true, note: 'Sửa lỗi reply_markup editMessageText, tự động hoàn kho BOM, hoàn ví Spa, thu hồi điểm tích lũy và hạ hạng khi hủy đơn' },
+      { id: 'ui-custom-modal-sync', cat: 'UI', title: 'Đồng Bộ Hộp Thoại Xác Nhận Hủy Đơn Chuẩn Design System Mastercare', done: true, note: 'Gỡ bỏ hoàn toàn popup confirm/alert trình duyệt, thay thế bằng Custom Confirm Modal đỏ nổi bật kèm toast' },
+      { id: 'pos-cart-grid-align', cat: 'UI', title: 'Căn Chỉnh Lại Bảng Giỏ Hàng POS & Tách Ô Đơn Giá 2 Tầng', done: true, note: 'Khắc phục triệt để lỗi lệch cột giữa Header và Row, tách ô Đơn giá 2 tầng tránh chồng chéo lên nút [+] của cột SL' }
     ];
 
     let tasks = [];
