@@ -13,6 +13,48 @@ logger = logging.getLogger("telegram_bot")
 _polling_thread: Optional[threading.Thread] = None
 _stop_event = threading.Event()
 
+MAIN_REPLY_KEYBOARD = {
+    "keyboard": [
+        [{"text": "📊 Doanh Thu Hôm Nay"}, {"text": "📦 Hàng Hết / Cần Đặt"}],
+        [{"text": "🔍 Tra Giá Báo Khách"}, {"text": "📂 Danh Mục Sản Phẩm"}],
+        [{"text": "❌ Hủy Hóa Đơn"},       {"text": "💳 Đổi Thanh Toán"}]
+    ],
+    "resize_keyboard": True,
+    "is_persistent": True
+}
+
+USER_STATES = {}
+
+def set_user_state(chat_id: int, action: str):
+    USER_STATES[chat_id] = {"action": action, "timestamp": time.time()}
+
+def get_user_state(chat_id: int) -> str:
+    st = USER_STATES.get(chat_id)
+    if not st:
+        return ""
+    if time.time() - st.get("timestamp", 0) > 300:
+        USER_STATES.pop(chat_id, None)
+        return ""
+    return st.get("action", "")
+
+def clear_user_state(chat_id: int):
+    USER_STATES.pop(chat_id, None)
+
+def get_recent_orders(limit: int = 5) -> list:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+    SELECT o.id, o.code, o.final_amount, o.created_at, c.name as customer_name
+    FROM orders o
+    LEFT JOIN contacts c ON o.customer_id = c.id
+    ORDER BY o.id DESC
+    LIMIT ?
+    """, (limit,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
 def send_telegram_api(token: str, method: str, payload: dict) -> dict:
     url = f"https://api.telegram.org/bot{token}/{method}"
     try:
@@ -106,7 +148,8 @@ def approve_admin_request(chat_id: int, approved_by: str = "Web POS", username: 
     try:
         notify_user(
             chat_id,
-            "🎉 *Chúc mừng!* Yêu cầu quyền Admin POS của anh đã được phê duyệt thành công.\n\nGõ `/start` hoặc `/baocao` để bắt đầu điều khiển từ xa!"
+            "🎉 *Chúc mừng!* Yêu cầu quyền Admin POS của anh đã được phê duyệt thành công.\n\nBàn phím điều khiển nhanh đã được kích hoạt ngay bên dưới 👇",
+            reply_markup=MAIN_REPLY_KEYBOARD
         )
     except Exception:
         pass
@@ -365,6 +408,70 @@ def format_vnd(amount) -> str:
     except Exception:
         return f"{amount} đ"
 
+def format_cancel_prompt(order_code: str) -> dict:
+    order = get_order_details(order_code)
+    if not order:
+        return {"reply": f"❌ Không tìm thấy đơn hàng *{order_code}* trên POS."}
+
+    lines = [
+        f"⚠️ *XÁC NHẬN HỦY HÓA ĐƠN: {order_code}*",
+        f"• Khách hàng: {order.get('customer_name') or 'Khách lẻ'} ({order.get('customer_phone') or '-'})",
+        f"• Tổng tiền: *{format_vnd(order.get('final_amount', 0))}*",
+        f"• Thanh toán hiện tại: {order.get('current_payment', 'Tiền mặt')}",
+        "• Danh sách món:"
+    ]
+    for it in order.get("items", []):
+        lines.append(f"  - {it.get('product_name') or 'Món'}: SL {it.get('quantity')} ({format_vnd(it.get('price', 0))})")
+    lines.append("\n❓ *Anh có chắc chắn muốn hủy đơn này không? Kho và sổ quỹ sẽ tự động hoàn trả.*")
+
+    return {
+        "reply": "\n".join(lines),
+        "inline_keyboard": [
+            [
+                {"text": "🔴 Xác nhận HỦY ĐƠN", "callback_data": f"confirm_cancel:{order_code}"},
+                {"text": "❌ Bỏ qua", "callback_data": "dismiss"}
+            ]
+        ]
+    }
+
+def format_payment_change_prompt(order_code: str) -> dict:
+    order = get_order_details(order_code)
+    if not order:
+        return {"reply": f"❌ Không tìm thấy đơn hàng *{order_code}* trên POS."}
+
+    accounts = get_available_payment_accounts()
+    buttons = []
+    for acc in accounts:
+        icon = "💵" if acc["account_type"] == "cash" else "🏦"
+        buttons.append([{"text": f"{icon} {acc['name']}", "callback_data": f"paychange:{order_code}:{acc['id']}"}])
+    buttons.append([{"text": "❌ Hủy thao tác", "callback_data": "dismiss"}])
+
+    reply_text = (
+        f"💳 *SỬA HÌNH THỨC THANH TOÁN: {order_code}*\n"
+        f"• Khách hàng: {order.get('customer_name') or 'Khách lẻ'}\n"
+        f"• Tổng tiền: *{format_vnd(order.get('final_amount', 0))}*\n"
+        f"• Hình thức hiện tại: *{order.get('current_payment', 'Tiền mặt')}*\n\n"
+        f"👉 *Vui lòng chọn hình thức thanh toán mới bên dưới:*"
+    )
+    return {
+        "reply": reply_text,
+        "inline_keyboard": buttons
+    }
+
+def build_order_selection_keyboard(action_prefix: str, limit: int = 5) -> list:
+    recent = get_recent_orders(limit)
+    buttons = []
+    for o in recent:
+        cust = o.get("customer_name") or "Khách lẻ"
+        text = f"🧾 {o['code']} • {format_vnd(o['final_amount'])} ({cust})"
+        buttons.append([{"text": text, "callback_data": f"{action_prefix}:{o['code']}"}])
+    prompt_cb = "prompt_cancel" if action_prefix == "sel_cancel" else "prompt_pay"
+    buttons.append([
+        {"text": "⌨️ Nhập mã khác...", "callback_data": prompt_cb},
+        {"text": "❌ Bỏ qua", "callback_data": "dismiss"}
+    ])
+    return buttons
+
 def handle_message(message: dict) -> dict:
     """Xử lý incoming text message từ Telegram."""
     chat_id = message.get("chat", {}).get("id")
@@ -382,14 +489,16 @@ def handle_message(message: dict) -> dict:
             return {
                 "reply": (
                     "👋 Chào mừng Anh Quản Lý POS!\n\n"
-                    "⚡ *Bộ lệnh nhanh:*\n"
-                    "• `/baocao` - Xem doanh thu bán hàng\n"
-                    "• `/hanghet` - Danh sách hàng hết cần đặt NCC\n"
-                    "• `/gia <tên>` - Tra giá & tồn kho báo khách\n"
-                    "• `/danhmuc` - Xem các danh mục hàng hóa\n"
-                    "• `/huyhoadon <mã>` - Hủy đơn hoàn kho\n"
-                    "• `/suathanhtoan <mã>` - Đổi hình thức thanh toán\n"
-                )
+                    "Bàn phím điều khiển nhanh đã được kích hoạt bên dưới 👇\n\n"
+                    "⚡ *Các chức năng sẵn sàng:*\n"
+                    "• 📊 Doanh Thu Hôm Nay\n"
+                    "• 📦 Hàng Hết / Cần Đặt\n"
+                    "• 🔍 Tra Giá Báo Khách\n"
+                    "• 📂 Danh Mục Sản Phẩm\n"
+                    "• ❌ Hủy Hóa Đơn (Chọn 1-chạm)\n"
+                    "• 💳 Đổi Thanh Toán (Chọn 1-chạm)"
+                ),
+                "reply_keyboard": MAIN_REPLY_KEYBOARD
             }
         res = register_admin_request(chat_id, username, first_name)
         return {"reply": res["message"]}
@@ -400,46 +509,104 @@ def handle_message(message: dict) -> dict:
             "reply": "⛔ Anh chưa được cấp quyền Admin POS.\nVui lòng gửi lệnh `/dangky` rồi bấm duyệt trên Web POS để sử dụng."
         }
 
+    # Xử lý trạng thái chờ nhập dữ liệu (State machine)
+    curr_state = get_user_state(chat_id)
+    if curr_state and not text.startswith("/") and text not in [
+        "📊 Doanh Thu Hôm Nay", "📦 Hàng Hết / Cần Đặt", "🔍 Tra Giá Báo Khách",
+        "📂 Danh Mục Sản Phẩm", "❌ Hủy Hóa Đơn", "💳 Đổi Thanh Toán"
+    ]:
+        if curr_state == "waiting_price":
+            clear_user_state(chat_id)
+            products = query_product_price(text)
+            if not products:
+                return {"reply": f"🔍 Không tìm thấy sản phẩm nào khớp với: *{text}*", "reply_keyboard": MAIN_REPLY_KEYBOARD}
+            lines = [f"🔍 *KẾT QUẢ BÁO GIÁ CHO: '{text}'*"]
+            for idx, p in enumerate(products, 1):
+                lines.append(f"{idx}. *{p['name']}*")
+                lines.append(f"   • Mã: `{p['code'] or '-'}` | Nhóm: `{p['category'] or 'Khác'}`")
+                lines.append(f"   • Giá bán: *{format_vnd(p['sell_price'])}* | Còn: *{p['stock']}* {p['unit'] or 'cái'}")
+            return {"reply": "\n".join(lines), "reply_keyboard": MAIN_REPLY_KEYBOARD}
+
+        elif curr_state == "waiting_cancel":
+            clear_user_state(chat_id)
+            order_code = text.split()[0].upper()
+            return format_cancel_prompt(order_code)
+
+        elif curr_state == "waiting_pay":
+            clear_user_state(chat_id)
+            order_code = text.split()[0].upper()
+            return format_payment_change_prompt(order_code)
+
     # 2. Xem hàng hết
-    if text.startswith("/hanghet") or text.startswith("/canhang"):
+    if text == "📦 Hàng Hết / Cần Đặt" or text.startswith("/hanghet") or text.startswith("/canhang"):
         items = query_out_of_stock()
         if not items:
-            return {"reply": "✅ Tuyệt vời! Hiện tại không có hàng nào bị hết hoặc âm kho."}
+            return {"reply": "✅ Tuyệt vời! Hiện tại không có hàng nào bị hết hoặc âm kho.", "reply_keyboard": MAIN_REPLY_KEYBOARD}
         lines = [f"📦 *DANH SÁCH HÀNG HẾT CẦN ĐẶT ({len(items)} món):*"]
         for idx, it in enumerate(items, 1):
             lines.append(f"{idx}. *{it['name']}* ({it['code'] or 'N/A'})")
             lines.append(f"   • Tồn: `{it['stock']}` {it['unit'] or 'cái'} | Giá nhập: `{format_vnd(it['cost_price'])}`")
-        return {"reply": "\n".join(lines)}
+        return {"reply": "\n".join(lines), "reply_keyboard": MAIN_REPLY_KEYBOARD}
 
     # 3. Tra cứu giá báo khách
-    if text.startswith("/gia"):
-        parts = text.split(maxsplit=1)
-        if len(parts) < 2:
-            return {"reply": "💡 Cú pháp: `/gia <tên_hoặc_mã_hàng>` (ví dụ: `/gia royal canin`)"}
-        keyword = parts[1]
-        products = query_product_price(keyword)
-        if not products:
-            return {"reply": f"🔍 Không tìm thấy sản phẩm nào khớp với: *{keyword}*"}
-        lines = [f"🔍 *KẾT QUẢ BÁO GIÁ CHO: '{keyword}'*"]
-        for idx, p in enumerate(products, 1):
-            lines.append(f"{idx}. *{p['name']}*")
-            lines.append(f"   • Mã: `{p['code'] or '-'}` | Nhóm: `{p['category'] or 'Khác'}`")
-            lines.append(f"   • Giá bán: *{format_vnd(p['sell_price'])}* | Còn: *{p['stock']}* {p['unit'] or 'cái'}")
-        return {"reply": "\n".join(lines)}
+    if text == "🔍 Tra Giá Báo Khách" or text.startswith("/gia"):
+        if text.startswith("/gia"):
+            parts = text.split(maxsplit=1)
+            if len(parts) > 1:
+                keyword = parts[1]
+                products = query_product_price(keyword)
+                if not products:
+                    return {"reply": f"🔍 Không tìm thấy sản phẩm nào khớp với: *{keyword}*", "reply_keyboard": MAIN_REPLY_KEYBOARD}
+                lines = [f"🔍 *KẾT QUẢ BÁO GIÁ CHO: '{keyword}'*"]
+                for idx, p in enumerate(products, 1):
+                    lines.append(f"{idx}. *{p['name']}*")
+                    lines.append(f"   • Mã: `{p['code'] or '-'}` | Nhóm: `{p['category'] or 'Khác'}`")
+                    lines.append(f"   • Giá bán: *{format_vnd(p['sell_price'])}* | Còn: *{p['stock']}* {p['unit'] or 'cái'}")
+                return {"reply": "\n".join(lines), "reply_keyboard": MAIN_REPLY_KEYBOARD}
+
+        set_user_state(chat_id, "waiting_price")
+        cats = query_categories()
+        inline_btns = []
+        row = []
+        for c in cats[:6]:
+            row.append({"text": f"🏷️ {c}", "callback_data": f"cat:{c}"})
+            if len(row) == 2:
+                inline_btns.append(row)
+                row = []
+        if row:
+            inline_btns.append(row)
+        inline_btns.append([{"text": "❌ Hủy tìm kiếm", "callback_data": "dismiss"}])
+        return {
+            "reply": (
+                "🔍 *TRA CỨU GIÁ BÁO KHÁCH*\n\n"
+                "👉 Anh hãy **gõ tên sản phẩm** muốn tìm (ví dụ: `pate`, `cát`, `royal`)\n"
+                "Hoặc bấm chọn nhanh nhóm hàng bên dưới:"
+            ),
+            "inline_keyboard": inline_btns
+        }
 
     # 4. Danh mục
-    if text.startswith("/danhmuc"):
+    if text == "📂 Danh Mục Sản Phẩm" or text.startswith("/danhmuc"):
         cats = query_categories()
         if not cats:
-            return {"reply": "Chưa có danh mục nào trên POS."}
-        lines = ["📂 *DANH MỤC HÀNG HÓA:*"]
-        for idx, c in enumerate(cats, 1):
-            lines.append(f"{idx}. {c}")
-        lines.append("\n💡 Gõ `/gia <tên_nhóm>` để tra cứu sản phẩm trong nhóm.")
-        return {"reply": "\n".join(lines)}
+            return {"reply": "Chưa có danh mục nào trên POS.", "reply_keyboard": MAIN_REPLY_KEYBOARD}
+        inline_btns = []
+        row = []
+        for c in cats[:8]:
+            row.append({"text": f"📁 {c}", "callback_data": f"cat:{c}"})
+            if len(row) == 2:
+                inline_btns.append(row)
+                row = []
+        if row:
+            inline_btns.append(row)
+        inline_btns.append([{"text": "❌ Đóng", "callback_data": "dismiss"}])
+        return {
+            "reply": "📂 *DANH MỤC HÀNG HÓA:*\n\nAnh bấm vào nhóm hàng bên dưới để xem danh sách món và giá:",
+            "inline_keyboard": inline_btns
+        }
 
     # 5. Xem báo cáo
-    if text.startswith("/baocao"):
+    if text == "📊 Doanh Thu Hôm Nay" or text.startswith("/baocao"):
         parts = text.split()
         period = parts[1].lower() if len(parts) > 1 else "homnay"
         if period not in ["homnay", "homqua", "thangnay"]:
@@ -469,67 +636,42 @@ def handle_message(message: dict) -> dict:
         }
 
     # 6. Hủy hóa đơn
-    if text.startswith("/huyhoadon"):
-        parts = text.split()
-        if len(parts) < 2:
-            return {"reply": "💡 Cú pháp: `/huyhoadon <Mã_Đơn>` (ví dụ: `/huyhoadon HD10023`)"}
-        order_code = parts[1].upper()
-        order = get_order_details(order_code)
-        if not order:
-            return {"reply": f"❌ Không tìm thấy đơn hàng *{order_code}* trên POS."}
+    if text == "❌ Hủy Hóa Đơn" or text.startswith("/huyhoadon"):
+        if text.startswith("/huyhoadon"):
+            parts = text.split()
+            if len(parts) >= 2:
+                order_code = parts[1].upper()
+                return format_cancel_prompt(order_code)
 
-        lines = [
-            f"⚠️ *XÁC NHẬN HỦY HÓA ĐƠN: {order_code}*",
-            f"• Khách hàng: {order.get('customer_name') or 'Khách lẻ'} ({order.get('customer_phone') or '-'})",
-            f"• Tổng tiền: *{format_vnd(order.get('final_amount', 0))}*",
-            f"• Thanh toán hiện tại: {order.get('current_payment', 'Tiền mặt')}",
-            "• Danh sách món:"
-        ]
-        for it in order.get("items", []):
-            lines.append(f"  - {it.get('product_name') or 'Món'}: SL {it.get('quantity')} ({format_vnd(it.get('price', 0))})")
-        lines.append("\n❓ *Anh có chắc chắn muốn hủy đơn này không? Kho và sổ quỹ sẽ tự động hoàn trả.*")
+        recent = get_recent_orders(5)
+        if not recent:
+            return {"reply": "Chưa có đơn hàng nào trong hệ thống.", "reply_keyboard": MAIN_REPLY_KEYBOARD}
 
         return {
-            "reply": "\n".join(lines),
-            "inline_keyboard": [
-                [
-                    {"text": "🔴 Xác nhận HỦY ĐƠN", "callback_data": f"confirm_cancel:{order_code}"},
-                    {"text": "❌ Bỏ qua", "callback_data": "dismiss"}
-                ]
-            ]
+            "reply": "📋 *CHỌN ĐƠN HÀNG CẦN HỦY (5 ĐƠN GẦN NHẤT):*\n\nAnh chạm vào đơn bên dưới để xem chi tiết và xác nhận hoàn kho:",
+            "inline_keyboard": build_order_selection_keyboard("sel_cancel", 5)
         }
 
     # 7. Sửa hình thức thanh toán
-    if text.startswith("/suathanhtoan"):
-        parts = text.split()
-        if len(parts) < 2:
-            return {"reply": "💡 Cú pháp: `/suathanhtoan <Mã_Đơn>` (ví dụ: `/suathanhtoan HD10023`)"}
-        order_code = parts[1].upper()
-        order = get_order_details(order_code)
-        if not order:
-            return {"reply": f"❌ Không tìm thấy đơn hàng *{order_code}* trên POS."}
+    if text == "💳 Đổi Thanh Toán" or text.startswith("/suathanhtoan"):
+        if text.startswith("/suathanhtoan"):
+            parts = text.split()
+            if len(parts) >= 2:
+                order_code = parts[1].upper()
+                return format_payment_change_prompt(order_code)
 
-        accounts = get_available_payment_accounts()
-        buttons = []
-        for acc in accounts:
-            icon = "💵" if acc["account_type"] == "cash" else "🏦"
-            buttons.append([{"text": f"{icon} {acc['name']}", "callback_data": f"paychange:{order_code}:{acc['id']}"}])
-        buttons.append([{"text": "❌ Hủy thao tác", "callback_data": "dismiss"}])
+        recent = get_recent_orders(5)
+        if not recent:
+            return {"reply": "Chưa có đơn hàng nào trong hệ thống.", "reply_keyboard": MAIN_REPLY_KEYBOARD}
 
-        reply_text = (
-            f"💳 *SỬA HÌNH THỨC THANH TOÁN: {order_code}*\n"
-            f"• Khách hàng: {order.get('customer_name') or 'Khách lẻ'}\n"
-            f"• Tổng tiền: *{format_vnd(order.get('final_amount', 0))}*\n"
-            f"• Hình thức hiện tại: *{order.get('current_payment', 'Tiền mặt')}*\n\n"
-            f"👉 *Vui lòng chọn hình thức thanh toán mới bên dưới:*"
-        )
         return {
-            "reply": reply_text,
-            "inline_keyboard": buttons
+            "reply": "💳 *CHỌN ĐƠN HÀNG CẦN ĐỔI THANH TOÁN (5 ĐƠN GẦN NHẤT):*\n\nAnh chạm vào đơn bên dưới để chọn hình thức thanh toán mới:",
+            "inline_keyboard": build_order_selection_keyboard("sel_pay", 5)
         }
 
     return {
-        "reply": "❓ Lệnh không hợp lệ. Gõ `/start` để xem danh sách lệnh."
+        "reply": "❓ Lệnh không hợp lệ. Anh vui lòng chọn chức năng trên bàn phím bên dưới hoặc gõ `/start`.",
+        "reply_keyboard": MAIN_REPLY_KEYBOARD
     }
 
 def handle_callback_query(callback_query: dict) -> dict:
@@ -542,6 +684,7 @@ def handle_callback_query(callback_query: dict) -> dict:
         return {"reply": "⛔ Anh không có quyền Admin.", "alert": True}
 
     if data == "dismiss":
+        clear_user_state(chat_id)
         return {"reply": "Đã đóng thao tác.", "edit": True}
 
     if data.startswith("report:"):
@@ -561,11 +704,37 @@ def handle_callback_query(callback_query: dict) -> dict:
                 lines.append(f"• {p['method_name']}: {format_vnd(p['amount'])}")
         return {"reply": "\n".join(lines), "edit": True}
 
+    if data.startswith("sel_cancel:"):
+        order_code = data.split(":", 1)[1]
+        res = format_cancel_prompt(order_code)
+        res["edit"] = True
+        return res
+
+    if data == "prompt_cancel":
+        set_user_state(chat_id, "waiting_cancel")
+        return {
+            "reply": "⌨️ *NHẬP MÃ ĐƠN CẦN HỦY*\n\nAnh vui lòng gửi tin nhắn chứa mã đơn (ví dụ: `HD10023`):",
+            "edit": True
+        }
+
     if data.startswith("confirm_cancel:"):
         order_code = data.split(":", 1)[1]
         res = execute_cancel_order(order_code)
         icon = "✅" if res["success"] else "❌"
         return {"reply": f"{icon} {res['message']}", "edit": True}
+
+    if data.startswith("sel_pay:"):
+        order_code = data.split(":", 1)[1]
+        res = format_payment_change_prompt(order_code)
+        res["edit"] = True
+        return res
+
+    if data == "prompt_pay":
+        set_user_state(chat_id, "waiting_pay")
+        return {
+            "reply": "⌨️ *NHẬP MÃ ĐƠN CẦN ĐỔI THANH TOÁN*\n\nAnh vui lòng gửi tin nhắn chứa mã đơn (ví dụ: `HD10023`):",
+            "edit": True
+        }
 
     if data.startswith("paychange:"):
         parts = data.split(":")
@@ -574,6 +743,26 @@ def handle_callback_query(callback_query: dict) -> dict:
         res = execute_change_payment(order_code, acc_id)
         icon = "✅" if res["success"] else "❌"
         return {"reply": f"{icon} {res['message']}", "edit": True}
+
+    if data.startswith("cat:"):
+        cat_name = data.split(":", 1)[1]
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+        SELECT name, code, sell_price, stock, unit
+        FROM products
+        WHERE is_active = 1 AND category = ?
+        ORDER BY name ASC LIMIT 10
+        """, (cat_name,))
+        prods = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        if not prods:
+            return {"reply": f"Nhóm *{cat_name}* hiện chưa có sản phẩm nào.", "edit": True}
+        lines = [f"📂 *DANH MỤC: {cat_name.upper()}*"]
+        for idx, p in enumerate(prods, 1):
+            lines.append(f"{idx}. *{p['name']}* (`{p['code'] or '-'}`)")
+            lines.append(f"   • Giá: *{format_vnd(p['sell_price'])}* | Còn: *{p['stock']}* {p['unit'] or 'cái'}")
+        return {"reply": "\n".join(lines), "edit": True}
 
     return {"reply": "Thao tác hoàn tất.", "edit": True}
 
@@ -612,6 +801,10 @@ def _polling_worker():
                                     }
                                     if "inline_keyboard" in res:
                                         payload["reply_markup"] = {"inline_keyboard": res["inline_keyboard"]}
+                                    elif "reply_keyboard" in res:
+                                        payload["reply_markup"] = res["reply_keyboard"]
+                                    elif is_admin(chat_id):
+                                        payload["reply_markup"] = MAIN_REPLY_KEYBOARD
                                     send_telegram_api(token, "sendMessage", payload)
 
                             elif "callback_query" in u:

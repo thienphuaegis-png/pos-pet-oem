@@ -274,5 +274,97 @@ def test_telegram_service_start_stop():
     bot.stop_telegram_bot_service()
     assert bot._stop_event.is_set()
 
+def test_reply_keyboard_and_one_touch_flow():
+    admin_id = 999001
+    bot.approve_admin_request(admin_id)
+
+    # 1. Start message returns reply_keyboard
+    msg_start = {"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "/start"}
+    res_start = bot.handle_message(msg_start)
+    assert "reply_keyboard" in res_start
+    assert res_start["reply_keyboard"]["keyboard"][0][0]["text"] == "📊 Doanh Thu Hôm Nay"
+
+    # 2. Click button "📊 Doanh Thu Hôm Nay"
+    res_btn_rep = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "📊 Doanh Thu Hôm Nay"})
+    assert "BÁO CÁO DOANH THU" in res_btn_rep["reply"]
+
+    # 3. Click button "📦 Hàng Hết / Cần Đặt"
+    res_btn_oos = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "📦 Hàng Hết / Cần Đặt"})
+    assert "HÀNG HẾT" in res_btn_oos["reply"] or "Tuyệt vời" in res_btn_oos["reply"]
+
+    # 4. Click button "📂 Danh Mục Sản Phẩm"
+    res_btn_cat = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "📂 Danh Mục Sản Phẩm"})
+    assert "DANH MỤC HÀNG HÓA" in res_btn_cat["reply"]
+    assert "inline_keyboard" in res_btn_cat
+
+    # 5. Click button "🔍 Tra Giá Báo Khách" -> vào trạng thái waiting_price
+    res_btn_price = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "🔍 Tra Giá Báo Khách"})
+    assert "TRA CỨU GIÁ BÁO KHÁCH" in res_btn_price["reply"]
+    assert bot.get_user_state(admin_id) == "waiting_price"
+
+    # Gõ tên sản phẩm ngay sau đó (không cần gõ /gia)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+    INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, is_active)
+    VALUES ('TEST-TOUCH-01', 'Cát Đậu Nành Tofu', 'product', 30000, 65000, 20, 'túi', 1)
+    """)
+    conn.commit()
+    conn.close()
+
+    res_search_direct = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "Cát Đậu Nành Tofu"})
+    assert "65.000 đ" in res_search_direct["reply"] or "65,000" in res_search_direct["reply"]
+    assert bot.get_user_state(admin_id) == "" # Đã clear state
+
+    # 6. Tạo đơn hàng và kiểm tra nút "❌ Hủy Hóa Đơn" 1-chạm
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+    INSERT INTO orders (code, total_amount, final_amount, paid_amount, debt_amount)
+    VALUES ('HD-TOUCH-01', 65000, 65000, 65000, 0)
+    """)
+    o_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+
+    res_cancel_btn = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "❌ Hủy Hóa Đơn"})
+    assert "CHỌN ĐƠN HÀNG CẦN HỦY" in res_cancel_btn["reply"]
+    inline_buttons = res_cancel_btn["inline_keyboard"]
+    # Có nút chứa đơn vừa tạo
+    found_order_btn = any("HD-TOUCH-01" in row[0].get("callback_data", "") for row in inline_buttons if "callback_data" in row[0])
+    assert found_order_btn is True
+
+    # Chạm vào đơn vừa chọn (callback sel_cancel)
+    cb_sel_cancel = {"data": "sel_cancel:HD-TOUCH-01", "from": {"id": admin_id}}
+    res_prompt_cancel = bot.handle_callback_query(cb_sel_cancel)
+    assert "XÁC NHẬN HỦY HÓA ĐƠN: HD-TOUCH-01" in res_prompt_cancel["reply"]
+
+    # 7. Kiểm tra nút "💳 Đổi Thanh Toán" 1-chạm
+    res_pay_btn = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "💳 Đổi Thanh Toán"})
+    assert "CHỌN ĐƠN HÀNG CẦN ĐỔI THANH TOÁN" in res_pay_btn["reply"]
+    cb_sel_pay = {"data": "sel_pay:HD-TOUCH-01", "from": {"id": admin_id}}
+    res_prompt_pay = bot.handle_callback_query(cb_sel_pay)
+    assert "SỬA HÌNH THỨC THANH TOÁN: HD-TOUCH-01" in res_prompt_pay["reply"]
+
+    # 8. Test prompt_cancel -> nhập mã thủ công
+    cb_manual = {"data": "prompt_cancel", "from": {"id": admin_id}}
+    res_cb_manual = bot.handle_callback_query(cb_manual)
+    assert "NHẬP MÃ ĐƠN CẦN HỦY" in res_cb_manual["reply"]
+    assert bot.get_user_state(admin_id) == "waiting_cancel"
+
+    # User gõ mã HD-TOUCH-01
+    res_input_code = bot.handle_message({"chat": {"id": admin_id}, "from": {"username": "admin"}, "text": "HD-TOUCH-01"})
+    assert "XÁC NHẬN HỦY HÓA ĐƠN: HD-TOUCH-01" in res_input_code["reply"]
+    assert bot.get_user_state(admin_id) == ""
+
+    # Cleanup
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM orders WHERE code = 'HD-TOUCH-01'")
+    cur.execute("DELETE FROM products WHERE code = 'TEST-TOUCH-01'")
+    conn.commit()
+    conn.close()
+
+
 
 
