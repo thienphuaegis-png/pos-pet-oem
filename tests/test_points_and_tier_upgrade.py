@@ -176,3 +176,27 @@ def test_points_and_tier_upgrade():
     assert row_si["points"] == 0
     assert row_si["segment_id"] == seg_si_id
     db.close()
+
+    # --- TEST CASE 5: Hủy đơn hàng -> Tự động thu hồi điểm và hạ hạng (Gold -> Silver -> Base) ---
+    # Đơn 3 mang lại 50 điểm (đưa lên 105 điểm Hạng Vàng). Khi hủy đơn 3, điểm tụt xuống 55 -> Tự động hạ xuống Hạng Bạc
+    order_code_3 = data3["order_code"]
+    del_resp3 = client.delete(f"/api/orders/{order_code_3}")
+    assert del_resp3.status_code == 200, del_resp3.text
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT points, segment_id FROM contacts WHERE id = ?", (cust_retail_id,))
+    row_del3 = cur.fetchone()
+    assert row_del3["points"] == 55
+    assert row_del3["segment_id"] == seg_silver_id
+
+    # Tiếp tục hủy đơn 2 (35 điểm) -> điểm tụt xuống 20 -> Tự động hạ xuống Khách Chuẩn
+    order_code_2 = data2["order_code"]
+    del_resp2 = client.delete(f"/api/orders/{order_code_2}")
+    assert del_resp2.status_code == 200, del_resp2.text
+
+    cur.execute("SELECT points, segment_id FROM contacts WHERE id = ?", (cust_retail_id,))
+    row_del2 = cur.fetchone()
+    assert row_del2["points"] == 20
+    assert row_del2["segment_id"] == seg_base_id
+    db.close()

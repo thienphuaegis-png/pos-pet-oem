@@ -539,6 +539,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     points_earned = int(actual_paid // rate)
                     current_points = cust_points + points_earned
                     cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (current_points, req.customer_id))
+                    cur.execute("UPDATE orders SET points_earned = ? WHERE id = ?", (points_earned, order_id))
 
                     # Xét thăng hạng tự động
                     cur.execute("""
@@ -649,8 +650,31 @@ def delete_order(code: str, user=Depends(require_role("owner"))):
                 VALUES (?, ?, 'refund', ?, ?, ?, ?)
             """, (customer_id, order_id, wallet_deduction, bal_before, bal_after, f"Hoàn tiền trừ ví do hủy đơn hàng {code}"))
 
+        # Thu hồi điểm tích lũy & hạ hạng thành viên nếu đủ điều kiện
+        pts_earned = int(order["points_earned"] or 0) if "points_earned" in order.keys() else 0
+        if pts_earned > 0 and customer_id:
+            cur.execute("SELECT points, segment_id FROM contacts WHERE id = ?", (customer_id,))
+            c_pts_row = cur.fetchone()
+            if c_pts_row:
+                cur_pts = c_pts_row["points"] or 0
+                new_pts = max(0, cur_pts - pts_earned)
+                cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (new_pts, customer_id))
+
+                # Tự động hạ/cập nhật lại phân hạng tương ứng với số điểm mới
+                cur.execute("""
+                    SELECT id, name, min_points, priority
+                    FROM customer_segments
+                    WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
+                    ORDER BY min_points DESC, priority DESC, id DESC
+                    LIMIT 1
+                """, (new_pts,))
+                target_seg = cur.fetchone()
+                target_seg_id = target_seg["id"] if target_seg else None
+                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (target_seg_id, customer_id))
+
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
 
+        cur.execute("DELETE FROM order_payments WHERE order_id = ?", (order_id,))
         cur.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
         cur.execute("DELETE FROM orders WHERE id = ?", (order_id,))
 

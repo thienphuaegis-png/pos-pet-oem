@@ -3758,7 +3758,7 @@
                 const tbody = document.getElementById('view-order-items');
                 tbody.innerHTML = (ord.items || []).map((item, idx) => {
                     const sub = item.subtotal || ((item.quantity || 0) * (item.price || 0));
-                    const isSvc = item.product_type === 'service' || (item.product_name && (item.product_name.toLowerCase().includes('spa') || item.product_name.toLowerCase().includes('tắm') || item.product_name.toLowerCase().includes('cắt')));
+                    const isSvc = item.product_type === 'service' || (!item.product_type && item.product_name && /(dịch vụ|vé spa|gói tắm|tiền công)/i.test(item.product_name));
                     if (isSvc) {
                         svcTotal += sub;
                     } else {
@@ -3931,7 +3931,7 @@
             if (!tbody || !editingOrderData || !editingOrderData.items) return;
 
             tbody.innerHTML = editingOrderData.items.map((item, idx) => {
-                const isSvc = item.product_type === 'service' || (item.product_name && (item.product_name.toLowerCase().includes('spa') || item.product_name.toLowerCase().includes('tắm') || item.product_name.toLowerCase().includes('cắt')));
+                const isSvc = item.product_type === 'service' || (!item.product_type && item.product_name && /(dịch vụ|vé spa|gói tắm|tiền công)/i.test(item.product_name));
                 const typeBadge = isSvc 
                     ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
                     : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
@@ -4000,7 +4000,7 @@
 
             editingOrderData.items.forEach(it => {
                 const sub = (parseFloat(it.quantity) || 0) * (parseFloat(it.price) || 0);
-                const isSvc = it.product_type === 'service' || (it.product_name && (it.product_name.toLowerCase().includes('spa') || it.product_name.toLowerCase().includes('tắm') || it.product_name.toLowerCase().includes('cắt')));
+                const isSvc = it.product_type === 'service' || (!it.product_type && it.product_name && /(dịch vụ|vé spa|gói tắm|tiền công)/i.test(it.product_name));
                 if (isSvc) {
                     svcTotal += sub;
                 } else {

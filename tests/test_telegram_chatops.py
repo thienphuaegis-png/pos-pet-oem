@@ -143,13 +143,13 @@ def test_cancel_order_and_change_payment():
     VALUES (?, 'cash', 30000, 1)
     """, (o_id,))
 
-    # Tạo khách hàng có ví Spa và nợ để test hoàn tiền trọn gói
+    # Tạo khách hàng có ví Spa, nợ và điểm để test hoàn tiền và hoàn điểm trọn gói
     cur.execute("""
-    INSERT INTO contacts (type, name, phone, debt, spa_wallet_balance)
-    VALUES ('customer', 'Khách Test Hủy Đơn', '0988777666', 10000, 50000)
+    INSERT INTO contacts (type, name, phone, debt, spa_wallet_balance, points)
+    VALUES ('customer', 'Khách Test Hủy Đơn', '0988777666', 10000, 50000, 100)
     """)
     cust_id = cur.lastrowid
-    cur.execute("UPDATE orders SET customer_id = ?, debt_amount = 10000, spa_wallet_deduction = 20000 WHERE id = ?", (cust_id, o_id))
+    cur.execute("UPDATE orders SET customer_id = ?, debt_amount = 10000, spa_wallet_deduction = 20000, points_earned = 30 WHERE id = ?", (cust_id, o_id))
 
     cur.execute("""
     INSERT INTO cashbook (code, type, category, amount, ref_type, ref_id, note, account_id)
@@ -211,11 +211,12 @@ def test_cancel_order_and_change_payment():
     prod = cur.fetchone()
     assert prod["stock"] == 12
 
-    # Kiểm tra ví Spa được hoàn (50k ban đầu + 20k hoàn = 70k)
-    cur.execute("SELECT spa_wallet_balance, debt FROM contacts WHERE id = ?", (cust_id,))
+    # Kiểm tra ví Spa được hoàn (50k ban đầu + 20k hoàn = 70k), điểm bị trừ 30 (100 - 30 = 70)
+    cur.execute("SELECT spa_wallet_balance, debt, points FROM contacts WHERE id = ?", (cust_id,))
     c_check = cur.fetchone()
     assert c_check["spa_wallet_balance"] == 70000
     assert c_check["debt"] == 0
+    assert c_check["points"] == 70
 
     # Kiểm tra log hoàn ví (order_id bị SET NULL do orders bị xóa)
     cur.execute("SELECT amount, type, note FROM spa_wallet_transactions WHERE contact_id = ? ORDER BY id DESC LIMIT 1", (cust_id,))
