@@ -3350,7 +3350,13 @@
                 renderTableSkeleton('table-cashbook', 6, 8);
                 loadCashbook();
             } else if (tabId === 'reports') {
-                loadReports();
+                if (typeof initReportsAnalytics === 'function') {
+                    initReportsAnalytics();
+                } else if (typeof loadReportsAnalytics === 'function') {
+                    loadReportsAnalytics();
+                } else {
+                    loadReports();
+                }
             } else if (tabId === 'shifts') {
                 if (typeof loadShiftsHistory === 'function') loadShiftsHistory();
             } else if (tabId === 'purchases') {

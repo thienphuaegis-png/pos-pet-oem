@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi.responses import StreamingResponse
 from typing import Optional, List
 import datetime
+from datetime import datetime
 from database import get_db
 from schemas import CashbookCreate, PaymentAccountCreate, PaymentAccountUpdate
 from logger_config import get_module_logger
@@ -12,7 +14,7 @@ router = APIRouter(tags=["Cashbook & Reports"])
 
 def generate_cashbook_code(cur, prefix: str = "SQ") -> str:
     """Sinh mã phiếu Thu / Chi theo định dạng: {PREFIX}-{YYMMDD}-{STT:03d}"""
-    date_str = datetime.datetime.now().strftime("%y%m%d")
+    date_str = datetime.now().strftime("%y%m%d")
     pattern = f"{prefix}-{date_str}-%"
     cur.execute("SELECT COUNT(*) FROM cashbook WHERE code LIKE ?", (pattern,))
     count = cur.fetchone()[0]
@@ -274,3 +276,369 @@ def report_summary():
         "supplier_debt": supplier_debt,
         "commission_paid": total_comm
     }
+
+# ====================================================
+# BÁO CÁO KINH DOANH ĐA CHIỀU & VISUAL ANALYTICS API
+# ====================================================
+@router.get("/api/reports/analytics")
+def get_reports_analytics(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+):
+    """
+    Truy vấn báo cáo phân tích kinh doanh đa chiều:
+    - Summary KPI
+    - Timeline xu hướng doanh thu theo ngày
+    - Dòng tiền theo phương thức thanh toán
+    - Tách biệt Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
+    - Doanh số và hoa hồng theo nhân viên
+    - Top sản phẩm bán chạy nhất
+    """
+    now = datetime.now()
+    if not from_date:
+        from_date = now.strftime("%Y-%m-%d")
+    if not to_date:
+        to_date = now.strftime("%Y-%m-%d")
+
+    from_dt_str = f"{from_date} 00:00:00"
+    to_dt_str = f"{to_date} 23:59:59"
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 1. KPI Tổng quan
+    cur.execute("""
+    SELECT 
+        COUNT(id) as order_count,
+        COALESCE(SUM(final_amount), 0) as total_revenue,
+        COALESCE(SUM(paid_amount), 0) as total_paid,
+        COALESCE(SUM(debt_amount), 0) as total_debt,
+        COALESCE(SUM(commission_amount), 0) as total_commission
+    FROM orders
+    WHERE created_at >= ? AND created_at <= ?
+    """, (from_dt_str, to_dt_str))
+    stat_row = cur.fetchone()
+    order_count = stat_row["order_count"] or 0
+    total_rev = stat_row["total_revenue"] or 0
+    total_paid = stat_row["total_paid"] or 0
+    total_debt = stat_row["total_debt"] or 0
+    total_comm = stat_row["total_commission"] or 0
+    aov = round(total_rev / order_count) if order_count > 0 else 0
+
+    # 2. Timeline xu hướng doanh thu & số đơn (gom theo ngày)
+    cur.execute("""
+    SELECT 
+        strftime('%d/%m', created_at) as day_label,
+        strftime('%Y-%m-%d', created_at) as raw_date,
+        COUNT(id) as orders,
+        COALESCE(SUM(final_amount), 0) as revenue
+    FROM orders
+    WHERE created_at >= ? AND created_at <= ?
+    GROUP BY strftime('%Y-%m-%d', created_at)
+    ORDER BY raw_date ASC
+    """, (from_dt_str, to_dt_str))
+    timeline_rows = [
+        {"label": r["day_label"], "revenue": r["revenue"], "orders": r["orders"]}
+        for r in cur.fetchall()
+    ]
+    # Fallback nếu trong ngày chưa có đơn nào
+    if not timeline_rows:
+        timeline_rows = [{"label": datetime.strptime(from_date, "%Y-%m-%d").strftime("%d/%m"), "revenue": 0, "orders": 0}]
+
+    # 3. Phân loại theo hình thức thanh toán
+    # Kết hợp từ bảng order_payments và cashbook (có xét spa_wallet_deduction)
+    cur.execute("""
+    SELECT 
+        op.method,
+        COUNT(op.id) as count,
+        COALESCE(SUM(op.amount), 0) as amount
+    FROM order_payments op
+    JOIN orders o ON op.order_id = o.id
+    WHERE o.created_at >= ? AND o.created_at <= ?
+    GROUP BY op.method
+    """, (from_dt_str, to_dt_str))
+    payment_map = {r["method"]: {"count": r["count"], "amount": r["amount"]} for r in cur.fetchall()}
+
+    # Thêm dòng cấn trừ ví Spa nếu có
+    cur.execute("""
+    SELECT 
+        COUNT(id) as count,
+        COALESCE(SUM(spa_wallet_deduction), 0) as amount
+    FROM orders
+    WHERE created_at >= ? AND created_at <= ? AND spa_wallet_deduction > 0
+    """, (from_dt_str, to_dt_str))
+    wallet_row = cur.fetchone()
+    if wallet_row and wallet_row["amount"] > 0:
+        payment_map["wallet"] = {"count": wallet_row["count"], "amount": wallet_row["amount"]}
+
+    # Fallback nếu đơn cũ chỉ ghi cashbook hoặc đơn lẻ tiền mặt
+    if not payment_map and total_paid > 0:
+        payment_map["cash"] = {"count": order_count, "amount": total_paid}
+
+    total_pay_sum = sum(p["amount"] for p in payment_map.values()) or 1.0
+    method_names = {
+        "cash": "Tiền mặt",
+        "transfer": "Chuyển khoản (VietQR)",
+        "card": "Thẻ quẹt POS",
+        "wallet": "Cấn trừ Ví Spa",
+        "ewallet": "Ví điện tử"
+    }
+    payments_list = []
+    for m_code, val in payment_map.items():
+        m_name = method_names.get(m_code, m_code.upper())
+        pct = round((val["amount"] / total_pay_sum) * 100, 1)
+        payments_list.append({
+            "method": m_code,
+            "name": m_name,
+            "count": val["count"],
+            "amount": val["amount"],
+            "pct": pct
+        })
+    payments_list.sort(key=lambda x: x["amount"], reverse=True)
+
+    # 4. Bóc tách Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
+    # Dựa vào items của orders trong khoảng ngày
+    cur.execute("""
+    SELECT 
+        COALESCE(p.type, 'product') as item_type,
+        COUNT(oi.id) as line_count,
+        COALESCE(SUM(oi.quantity), 0) as total_qty,
+        COALESCE(SUM(oi.subtotal), 0) as total_subtotal
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    LEFT JOIN products p ON oi.product_id = p.id
+    WHERE o.created_at >= ? AND o.created_at <= ?
+    GROUP BY COALESCE(p.type, 'product')
+    """, (from_dt_str, to_dt_str))
+    g_vs_s_rows = cur.fetchall()
+    goods_rev = 0
+    goods_qty = 0
+    services_rev = 0
+    services_qty = 0
+    for r in g_vs_s_rows:
+        if r["item_type"] == "service":
+            services_rev += r["total_subtotal"]
+            services_qty += r["total_qty"]
+        else:
+            goods_rev += r["total_subtotal"]
+            goods_qty += r["total_qty"]
+
+    # Doanh thu phòng khách sạn (từ pet_service_tickets hoặc hotel_bookings nếu có)
+    hotel_rev = 0
+    hotel_count = 0
+    try:
+        cur.execute("""
+        SELECT COUNT(id) as cnt, COALESCE(SUM(total_price), 0) as total_hotel
+        FROM hotel_bookings
+        WHERE created_at >= ? AND created_at <= ?
+        """, (from_dt_str, to_dt_str))
+        h_row = cur.fetchone()
+        if h_row:
+            hotel_rev = h_row["total_hotel"] or 0
+            hotel_count = h_row["cnt"] or 0
+    except Exception:
+        pass
+
+    # 5. Báo cáo Nhân Viên (Doanh số & Hoa hồng)
+    cur.execute("""
+    SELECT 
+        COALESCE(s.id, 0) as staff_id,
+        COALESCE(s.name, 'Chưa gán / Thu ngân chung') as staff_name,
+        COUNT(o.id) as order_count,
+        COALESCE(SUM(o.final_amount), 0) as revenue,
+        COALESCE(SUM(o.paid_amount), 0) as paid_revenue,
+        COALESCE(SUM(o.commission_amount), 0) as commission
+    FROM orders o
+    LEFT JOIN staff s ON o.staff_id = s.id
+    WHERE o.created_at >= ? AND o.created_at <= ?
+    GROUP BY o.staff_id
+    ORDER BY revenue DESC
+    """, (from_dt_str, to_dt_str))
+    staff_rows = [dict(r) for r in cur.fetchall()]
+
+    # 6. Top Mặt Hàng & Dịch Vụ Bán Chạy Nhất (Top 20)
+    cur.execute("""
+    SELECT 
+        oi.product_id,
+        COALESCE(p.code, 'N/A') as code,
+        COALESCE(p.name, 'Sản phẩm đã xóa') as name,
+        COALESCE(p.type, 'product') as type,
+        COALESCE(p.unit, 'cái') as unit,
+        COALESCE(SUM(oi.quantity), 0) as qty_sold,
+        COALESCE(SUM(oi.subtotal), 0) as revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    LEFT JOIN products p ON oi.product_id = p.id
+    WHERE o.created_at >= ? AND o.created_at <= ?
+    GROUP BY oi.product_id
+    ORDER BY revenue DESC, qty_sold DESC
+    LIMIT 20
+    """, (from_dt_str, to_dt_str))
+    top_products = [dict(r) for r in cur.fetchall()]
+
+    conn.close()
+
+    return {
+        "range": {"from_date": from_date, "to_date": to_date},
+        "summary": {
+            "total_revenue": total_rev,
+            "total_paid": total_paid,
+            "total_debt": total_debt,
+            "order_count": order_count,
+            "total_commission": total_comm,
+            "aov": aov
+        },
+        "timeline": timeline_rows,
+        "payments": payments_list,
+        "goods_vs_services": {
+            "goods_revenue": goods_rev,
+            "goods_items_sold": goods_qty,
+            "services_revenue": services_rev,
+            "services_items_sold": services_qty,
+            "hotel_revenue": hotel_rev,
+            "hotel_bookings": hotel_count
+        },
+        "staff_performance": staff_rows,
+        "top_products": top_products
+    }
+
+@router.get("/api/reports/export-excel")
+def export_reports_excel(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None
+):
+    """Xuất file Excel báo cáo kinh doanh tổng hợp nhiều bảng định dạng chuẩn."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+
+    data = get_reports_analytics(from_date, to_date)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "BaoCaoKinhDoanh"
+
+    # Styling helpers
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    section_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    section_font = Font(name="Arial", size=11, bold=True, color="0F172A")
+    title_font = Font(name="Arial", size=16, bold=True, color="0284C7")
+    sub_font = Font(name="Arial", size=9, italic=True, color="64748B")
+    bold_font = Font(name="Arial", size=10, bold=True)
+    normal_font = Font(name="Arial", size=10)
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    # 1. Tiêu đề báo cáo
+    ws["A1"] = "BÁO CÁO PHÂN TÍCH TÌNH HÌNH KINH DOANH"
+    ws["A1"].font = title_font
+    ws["A2"] = f"Kỳ báo cáo: Từ {data['range']['from_date']} đến {data['range']['to_date']} (Xuất lúc: {datetime.now().strftime('%d/%m/%Y %H:%M')})"
+    ws["A2"].font = sub_font
+
+    # 2. Bảng Tóm tắt KPI
+    ws["A4"] = "I. TỔNG QUAN KINH DOANH"
+    ws["A4"].font = section_font
+    ws["A4"].fill = section_fill
+
+    kpi_headers = ["Chỉ số", "Giá trị"]
+    for col_idx, h in enumerate(kpi_headers, 1):
+        cell = ws.cell(row=5, column=col_idx, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    kpis = [
+        ("Tổng Doanh Thu (Doanh số gộp)", f"{int(data['summary']['total_revenue']):,} đ"),
+        ("Thực Thu Tại Quầy", f"{int(data['summary']['total_paid']):,} đ"),
+        ("Công Nợ Phát Sinh", f"{int(data['summary']['total_debt']):,} đ"),
+        ("Tổng Số Đơn Hàng", f"{data['summary']['order_count']} đơn"),
+        ("Giá Trị Đơn Trung Bình (AOV)", f"{int(data['summary']['aov']):,} đ"),
+        ("Tổng Hoa Hồng Nhân Viên", f"{int(data['summary']['total_commission']):,} đ")
+    ]
+    cur_row = 6
+    for name, val in kpis:
+        c1 = ws.cell(row=cur_row, column=1, value=name)
+        c2 = ws.cell(row=cur_row, column=2, value=val)
+        c1.font = normal_font; c1.border = thin_border
+        c2.font = bold_font; c2.border = thin_border; c2.alignment = Alignment(horizontal='right')
+        cur_row += 1
+
+    # 3. Kênh thanh toán
+    cur_row += 1
+    ws.cell(row=cur_row, column=1, value="II. DÒNG TIỀN THEO PHƯƠNG THỨC THANH TOÁN").font = section_font
+    ws.cell(row=cur_row, column=1).fill = section_fill
+    cur_row += 1
+
+    pay_headers = ["Phương thức", "Số giao dịch", "Số tiền (VNĐ)", "Tỷ trọng (%)"]
+    for c_idx, h in enumerate(pay_headers, 1):
+        cell = ws.cell(row=cur_row, column=c_idx, value=h)
+        cell.fill = header_fill; cell.font = header_font
+    cur_row += 1
+
+    for p in data["payments"]:
+        ws.cell(row=cur_row, column=1, value=p["name"]).border = thin_border
+        c2 = ws.cell(row=cur_row, column=2, value=p["count"]); c2.border = thin_border; c2.alignment = Alignment(horizontal='center')
+        c3 = ws.cell(row=cur_row, column=3, value=f"{int(p['amount']):,} đ"); c3.border = thin_border; c3.alignment = Alignment(horizontal='right')
+        c4 = ws.cell(row=cur_row, column=4, value=f"{p['pct']}%"); c4.border = thin_border; c4.alignment = Alignment(horizontal='right')
+        cur_row += 1
+
+    # 4. Doanh số nhân viên
+    cur_row += 1
+    ws.cell(row=cur_row, column=1, value="III. DOANH SỐ THEO NHÂN VIÊN").font = section_font
+    ws.cell(row=cur_row, column=1).fill = section_fill
+    cur_row += 1
+
+    staff_headers = ["Tên nhân viên", "Số đơn bán", "Tổng doanh số", "Thực thu", "Hoa hồng"]
+    for c_idx, h in enumerate(staff_headers, 1):
+        cell = ws.cell(row=cur_row, column=c_idx, value=h)
+        cell.fill = header_fill; cell.font = header_font
+    cur_row += 1
+
+    for s in data["staff_performance"]:
+        ws.cell(row=cur_row, column=1, value=s["staff_name"]).border = thin_border
+        c2 = ws.cell(row=cur_row, column=2, value=s["order_count"]); c2.border = thin_border; c2.alignment = Alignment(horizontal='center')
+        c3 = ws.cell(row=cur_row, column=3, value=f"{int(s['revenue']):,} đ"); c3.border = thin_border; c3.alignment = Alignment(horizontal='right')
+        c4 = ws.cell(row=cur_row, column=4, value=f"{int(s['paid_revenue']):,} đ"); c4.border = thin_border; c4.alignment = Alignment(horizontal='right')
+        c5 = ws.cell(row=cur_row, column=5, value=f"{int(s['commission']):,} đ"); c5.border = thin_border; c5.alignment = Alignment(horizontal='right')
+        cur_row += 1
+
+    # 5. Top sản phẩm bán chạy
+    cur_row += 1
+    ws.cell(row=cur_row, column=1, value="IV. TOP MẶT HÀNG BÁN CHẠY NHẤT").font = section_font
+    ws.cell(row=cur_row, column=1).fill = section_fill
+    cur_row += 1
+
+    top_headers = ["Mã hàng", "Tên hàng hóa / Dịch vụ", "Loại", "ĐVT", "Số lượng bán", "Doanh thu"]
+    for c_idx, h in enumerate(top_headers, 1):
+        cell = ws.cell(row=cur_row, column=c_idx, value=h)
+        cell.fill = header_fill; cell.font = header_font
+    cur_row += 1
+
+    for item in data["top_products"]:
+        ws.cell(row=cur_row, column=1, value=item["code"]).border = thin_border
+        ws.cell(row=cur_row, column=2, value=item["name"]).border = thin_border
+        type_lbl = "💆 Dịch vụ" if item["type"] == "service" else "📦 Hàng hóa"
+        ws.cell(row=cur_row, column=3, value=type_lbl).border = thin_border
+        ws.cell(row=cur_row, column=4, value=item["unit"]).border = thin_border
+        c5 = ws.cell(row=cur_row, column=5, value=item["qty_sold"]); c5.border = thin_border; c5.alignment = Alignment(horizontal='center')
+        c6 = ws.cell(row=cur_row, column=6, value=f"{int(item['revenue']):,} đ"); c6.border = thin_border; c6.alignment = Alignment(horizontal='right')
+        cur_row += 1
+
+    # Căn chỉnh bề rộng cột tự động
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 14)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"BaoCao_KinhDoanh_{data['range']['from_date']}_{data['range']['to_date']}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

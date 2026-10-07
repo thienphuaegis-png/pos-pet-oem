@@ -4970,51 +4970,258 @@
             </div>
 
             <!-- TAB: BAO CAO -->
-            <div id="tab-reports" class="hidden space-y-6">
-                <div class="flex items-center gap-2.5 bg-white p-4 rounded-xl shadow-xs border border-slate-200/80">
-                    <span class="w-9 h-9 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center shrink-0">
-                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-                    </span>
-                    <div>
-                        <h2 class="text-base font-bold text-slate-900">Báo Cáo Tình Hình Kinh Doanh</h2>
-                        <p class="text-xs text-slate-500">Tổng quan doanh thu, tồn quỹ và hiệu quả vận hành của cửa hàng</p>
+            <div id="tab-reports" class="hidden space-y-4">
+                <!-- 1. Header & Sticky Filter Bar -->
+                <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shrink-0 text-lg">
+                                📊
+                            </span>
+                            <div>
+                                <h2 class="text-base font-extrabold text-slate-900">Báo Cáo Phân Tích Kinh Doanh Đa Chiều</h2>
+                                <p class="text-xs text-slate-500">Doanh thu, dòng tiền, nhân viên, phân loại hàng hóa & dịch vụ</p>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="btn-rep-refresh" onclick="loadReportsAnalytics()" class="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold transition" title="Tải lại dữ liệu">
+                                🔄
+                            </button>
+                            <button type="button" onclick="exportReportsExcel()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                                <span>📥</span>
+                                <span>Xuất Excel Báo Cáo</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date Filter Bar -->
+                    <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-100 text-xs">
+                        <!-- Quick Pills -->
+                        <div class="flex items-center gap-1.5 overflow-x-auto">
+                            <button type="button" onclick="selectQuickDateFilter('today')" data-pill="today" class="rep-quick-pill px-3 py-1.5 rounded-lg bg-sky-600 text-white font-bold text-xs transition shadow-xs">Hôm nay</button>
+                            <button type="button" onclick="selectQuickDateFilter('yesterday')" data-pill="yesterday" class="rep-quick-pill px-3 py-1.5 rounded-lg bg-white text-slate-600 font-semibold border hover:bg-slate-50 text-xs transition">Hôm qua</button>
+                            <button type="button" onclick="selectQuickDateFilter('7days')" data-pill="7days" class="rep-quick-pill px-3 py-1.5 rounded-lg bg-white text-slate-600 font-semibold border hover:bg-slate-50 text-xs transition">7 ngày qua</button>
+                            <button type="button" onclick="selectQuickDateFilter('this_month')" data-pill="this_month" class="rep-quick-pill px-3 py-1.5 rounded-lg bg-white text-slate-600 font-semibold border hover:bg-slate-50 text-xs transition">Tháng này</button>
+                            <button type="button" onclick="selectQuickDateFilter('last_month')" data-pill="last_month" class="rep-quick-pill px-3 py-1.5 rounded-lg bg-white text-slate-600 font-semibold border hover:bg-slate-50 text-xs transition">Tháng trước</button>
+                        </div>
+
+                        <!-- Date Range Inputs -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-400 font-medium">Từ:</span>
+                            <input type="date" id="rep-filter-from" class="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:ring-1 focus:ring-sky-500 bg-slate-50">
+                            <span class="text-slate-400 font-medium">Đến:</span>
+                            <input type="date" id="rep-filter-to" class="border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:ring-1 focus:ring-sky-500 bg-slate-50">
+                            <button type="button" onclick="loadReportsAnalytics()" class="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-xs transition">
+                                🔍 Lọc
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 2. Top Summary KPI Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-blue-500 flex items-center justify-between">
+                    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200/80 border-l-4 border-l-sky-500 flex items-center justify-between">
                         <div>
-                            <div class="text-[10px] font-bold text-slate-400 uppercase">Tổng Doanh Thu</div>
-                            <div id="rep-revenue" class="text-xl font-black text-blue-600 mt-1">0 đ</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng Doanh Thu</div>
+                            <div id="rep-kpi-revenue" class="text-xl font-black font-mono text-sky-600 mt-1">0 đ</div>
                         </div>
-                        <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        </div>
+                        <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center text-lg">💰</div>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-emerald-500 flex items-center justify-between">
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200/80 border-l-4 border-l-emerald-500 flex items-center justify-between">
                         <div>
-                            <div class="text-[10px] font-bold text-slate-400 uppercase">Tồn Quỹ Thực Tế</div>
-                            <div id="rep-cash" class="text-xl font-black text-emerald-600 mt-1">0 đ</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thực Thu Tại Quầy</div>
+                            <div id="rep-kpi-paid" class="text-xl font-black font-mono text-emerald-600 mt-1">0 đ</div>
                         </div>
-                        <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
-                        </div>
+                        <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg">💵</div>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-amber-500 flex items-center justify-between">
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200/80 border-l-4 border-l-amber-500 flex items-center justify-between">
                         <div>
-                            <div class="text-[10px] font-bold text-slate-400 uppercase">Khách Nợ</div>
-                            <div id="rep-cust-debt" class="text-xl font-black text-amber-600 mt-1">0 đ</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Công Nợ Phát Sinh</div>
+                            <div id="rep-kpi-debt" class="text-xl font-black font-mono text-amber-600 mt-1">0 đ</div>
                         </div>
-                        <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
-                        </div>
+                        <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg">⚠️</div>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 border-l-4 border-l-purple-500 flex items-center justify-between">
+
+                    <div class="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200/80 border-l-4 border-l-purple-500 flex items-center justify-between">
                         <div>
-                            <div class="text-[10px] font-bold text-slate-400 uppercase">Hoa Hồng Đã Tính</div>
-                            <div id="rep-comm" class="text-xl font-black text-purple-600 mt-1">0 đ</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Số Đơn / Đơn Trung Bình</div>
+                            <div id="rep-kpi-aov" class="text-sm font-bold text-slate-800 mt-1">0 đơn · 0 đ/đơn</div>
                         </div>
-                        <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                        <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-lg">🧾</div>
+                    </div>
+                </div>
+
+                <!-- 3. Navigation Sub-Tabs -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
+                    <div class="flex items-center gap-1 px-3 border-b border-slate-200 bg-slate-50/60 overflow-x-auto text-xs">
+                        <button type="button" onclick="switchReportsSubTab('tab-sub-overview')" data-target="tab-sub-overview" class="rep-subtab-btn py-3 px-3.5 font-bold border-b-2 border-sky-600 text-sky-600 transition flex items-center gap-1.5 shrink-0">
+                            <span>📊</span>
+                            <span>Tổng Quan & Biểu Đồ</span>
+                        </button>
+                        <button type="button" onclick="switchReportsSubTab('tab-sub-payments')" data-target="tab-sub-payments" class="rep-subtab-btn py-3 px-3.5 font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-800 transition flex items-center gap-1.5 shrink-0">
+                            <span>💳</span>
+                            <span>Doanh Thu & Thanh Toán</span>
+                        </button>
+                        <button type="button" onclick="switchReportsSubTab('tab-sub-gvs')" data-target="tab-sub-gvs" class="rep-subtab-btn py-3 px-3.5 font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-800 transition flex items-center gap-1.5 shrink-0">
+                            <span>📦</span>
+                            <span>Hàng Hóa vs 💆 Dịch Vụ</span>
+                        </button>
+                        <button type="button" onclick="switchReportsSubTab('tab-sub-staff')" data-target="tab-sub-staff" class="rep-subtab-btn py-3 px-3.5 font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-800 transition flex items-center gap-1.5 shrink-0">
+                            <span>👤</span>
+                            <span>Báo Cáo Nhân Viên</span>
+                        </button>
+                        <button type="button" onclick="switchReportsSubTab('tab-sub-top-products')" data-target="tab-sub-top-products" class="rep-subtab-btn py-3 px-3.5 font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-800 transition flex items-center gap-1.5 shrink-0">
+                            <span>🏆</span>
+                            <span>Top Món Bán Chạy</span>
+                        </button>
+                    </div>
+
+                    <!-- SUB-TAB CONTENT PANES -->
+                    <div class="p-4 bg-white">
+                        <!-- TAB 1: TỔNG QUAN & BIỂU ĐỒ (DASHBOARD) -->
+                        <div id="tab-sub-overview" class="rep-subtab-pane space-y-4">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                <!-- Biểu đồ xu hướng Timeline -->
+                                <div class="lg:col-span-2 bg-slate-50/60 p-4 rounded-xl border border-slate-200/80">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="font-bold text-xs text-slate-700 flex items-center gap-1.5">
+                                            <span>📈</span>
+                                            <span>Xu Hướng Doanh Thu & Số Đơn Theo Thời Gian</span>
+                                        </div>
+                                    </div>
+                                    <div class="h-64 relative">
+                                        <canvas id="chart-rep-timeline"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Biểu đồ Cơ cấu nguồn thu Doughnut -->
+                                <div class="bg-slate-50/60 p-4 rounded-xl border border-slate-200/80">
+                                    <div class="font-bold text-xs text-slate-700 flex items-center gap-1.5 mb-3">
+                                        <span>🍩</span>
+                                        <span>Cơ Cấu Doanh Thu (Hàng Hóa / Spa / Hotel)</span>
+                                    </div>
+                                    <div class="h-64 relative flex items-center justify-center">
+                                        <canvas id="chart-rep-revenue-mix"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <!-- Biểu đồ Hình thức thanh toán ngang -->
+                                <div class="bg-slate-50/60 p-4 rounded-xl border border-slate-200/80">
+                                    <div class="font-bold text-xs text-slate-700 flex items-center gap-1.5 mb-3">
+                                        <span>💳</span>
+                                        <span>Dòng Tiền Theo Kênh Thanh Toán</span>
+                                    </div>
+                                    <div class="h-56 relative">
+                                        <canvas id="chart-rep-payments"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Biểu đồ Top 5 nhân viên -->
+                                <div class="bg-slate-50/60 p-4 rounded-xl border border-slate-200/80">
+                                    <div class="font-bold text-xs text-slate-700 flex items-center gap-1.5 mb-3">
+                                        <span>🏆</span>
+                                        <span>Top Nhân Viên Bán Hàng Cao Nhất</span>
+                                    </div>
+                                    <div class="h-56 relative">
+                                        <canvas id="chart-rep-staff"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: DOANH THU & THANH TOÁN -->
+                        <div id="tab-sub-payments" class="rep-subtab-pane hidden space-y-3">
+                            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100/80 text-slate-600 font-bold uppercase text-[11px]">
+                                        <tr>
+                                            <th class="p-3 text-center w-12">STT</th>
+                                            <th class="p-3">Phương Thức Thanh Toán</th>
+                                            <th class="p-3 text-center">Số Lượt Giao Dịch</th>
+                                            <th class="p-3 text-right">Tổng Tiền Thực Nhận</th>
+                                            <th class="p-3 text-right w-44">Tỷ Trọng (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-payments-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: HÀNG HÓA VS DỊCH VỤ -->
+                        <div id="tab-sub-gvs" class="rep-subtab-pane hidden space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="bg-blue-50/80 p-4 rounded-xl border border-blue-200">
+                                    <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
+                                        <span>📦</span>
+                                        <span>Hàng Hóa Bán Lẻ (Physical)</span>
+                                    </div>
+                                    <div id="rep-gvs-goods-rev" class="text-2xl font-black font-mono text-blue-800 mt-2">0 đ</div>
+                                    <div id="rep-gvs-goods-qty" class="text-xs text-blue-600 font-semibold mt-1">0 món xuất bán</div>
+                                </div>
+
+                                <div class="bg-purple-50/80 p-4 rounded-xl border border-purple-200">
+                                    <div class="flex items-center gap-2 text-purple-900 font-bold text-sm">
+                                        <span>💆</span>
+                                        <span>Dịch Vụ Spa & Grooming</span>
+                                    </div>
+                                    <div id="rep-gvs-svc-rev" class="text-2xl font-black font-mono text-purple-800 mt-2">0 đ</div>
+                                    <div id="rep-gvs-svc-qty" class="text-xs text-purple-600 font-semibold mt-1">0 lượt chăm sóc / spa</div>
+                                </div>
+
+                                <div class="bg-orange-50/80 p-4 rounded-xl border border-orange-200">
+                                    <div class="flex items-center gap-2 text-orange-900 font-bold text-sm">
+                                        <span>🏨</span>
+                                        <span>Khách Sạn Lưu Chuồng</span>
+                                    </div>
+                                    <div id="rep-gvs-hotel-rev" class="text-2xl font-black font-mono text-orange-800 mt-2">0 đ</div>
+                                    <div id="rep-gvs-hotel-qty" class="text-xs text-orange-600 font-semibold mt-1">0 lượt lưu trú</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 4: NHÂN VIÊN -->
+                        <div id="tab-sub-staff" class="rep-subtab-pane hidden space-y-3">
+                            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100/80 text-slate-600 font-bold uppercase text-[11px]">
+                                        <tr>
+                                            <th class="p-3 text-center w-12">STT</th>
+                                            <th class="p-3">Nhân Viên / Thu Ngân</th>
+                                            <th class="p-3 text-center">Số Đơn Bán</th>
+                                            <th class="p-3 text-right">Tổng Doanh Số</th>
+                                            <th class="p-3 text-right">Thực Thu</th>
+                                            <th class="p-3 text-right">Hoa Hồng (Commission)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-staff-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- TAB 5: TOP BÁN CHẠY -->
+                        <div id="tab-sub-top-products" class="rep-subtab-pane hidden space-y-3">
+                            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100/80 text-slate-600 font-bold uppercase text-[11px]">
+                                        <tr>
+                                            <th class="p-3 text-center w-14">Hạng</th>
+                                            <th class="p-3 w-28">Mã Hàng</th>
+                                            <th class="p-3">Tên Mặt Hàng / Dịch Vụ</th>
+                                            <th class="p-3 text-center w-28">Phân Loại</th>
+                                            <th class="p-3 text-center w-20">ĐVT</th>
+                                            <th class="p-3 text-center w-24">SL Bán</th>
+                                            <th class="p-3 text-right w-36">Doanh Thu</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-top-products-tbody"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -9594,7 +9801,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261006_01"></script>
+    <script src="/static/js/app.js?v=20261007_02"></script>
     <script src="/static/js/modules/contacts.js?v=20261002_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>
@@ -9602,6 +9809,8 @@
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
+    <script src="/static/js/chart.umd.min.js"></script>
+    <script src="/static/js/modules/reports_analytics.js?v=20261007_01"></script>
     <script src="/static/js/pos.js?v=20261007_03"></script>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
