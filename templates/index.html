@@ -11133,41 +11133,88 @@
                 <!-- Loại phiếu -->
                 <div>
                     <label class="font-bold text-slate-700 block mb-1">Loại Giao Dịch:</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" id="btn-cash-type-in" onclick="setCashModalType('in')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="btn-cash-type-in" onclick="setCashModalType('in')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700 cursor-pointer">
                             <span>🟢</span> <span>Thu Tiền (Vào)</span>
                         </button>
-                        <button type="button" id="btn-cash-type-out" onclick="setCashModalType('out')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600">
+                        <button type="button" id="btn-cash-type-out" onclick="setCashModalType('out')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer">
                             <span>🔴</span> <span>Chi Tiền (Ra)</span>
+                        </button>
+                        <button type="button" id="btn-cash-type-transfer" onclick="setCashModalType('transfer')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer">
+                            <span>🔄</span> <span>Chuyển Quỹ</span>
                         </button>
                     </div>
                     <input type="hidden" id="cash-type-val" value="in">
                 </div>
 
-                <!-- Tài khoản thanh toán & Nguồn quỹ -->
-                <div>
+                <!-- Tài khoản thanh toán & Nguồn quỹ (Thu / Chi) -->
+                <div id="cash-single-account-box">
                     <label class="font-bold text-slate-700 block mb-1">Tài Khoản / Két Tiền (*):</label>
                     <select id="cash-account-select" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
                     </select>
                 </div>
 
-                <!-- Mã phiếu & Ngày tạo -->
-                <div class="grid grid-cols-2 gap-3">
+                <!-- Khối chọn 2 tài khoản chuyển quỹ (Hiện khi chọn Chuyển Quỹ) -->
+                <div id="cash-transfer-accounts-box" class="hidden bg-indigo-50/70 p-3 rounded-xl border border-indigo-200/90 space-y-2.5">
                     <div>
+                        <label class="font-bold text-indigo-950 flex items-center gap-1 mb-1">
+                            <span>📤</span> <span>Từ Tài Khoản Trích Tiền (Nguồn) (*):</span>
+                        </label>
+                        <select id="cash-transfer-from-select" class="w-full border border-indigo-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-center">
+                        <button type="button" onclick="swapTransferAccounts()" class="px-3 py-1 bg-white hover:bg-indigo-100 border border-indigo-300 rounded-full font-bold text-indigo-700 text-xs shadow-2xs flex items-center gap-1 cursor-pointer transition" title="Đảo chiều nguồn - đích">
+                            <span>⇅</span> <span>Đảo Chiều Tài Khoản</span>
+                        </button>
+                    </div>
+
+                    <div>
+                        <label class="font-bold text-indigo-950 flex items-center gap-1 mb-1">
+                            <span>📥</span> <span>Đến Tài Khoản Nhận Tiền (Đích) (*):</span>
+                        </label>
+                        <select id="cash-transfer-to-select" class="w-full border border-indigo-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Mã phiếu & Số tiền -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div id="cash-code-container">
                         <div class="flex justify-between items-center mb-1">
                             <label class="font-bold text-slate-700">Mã Phiếu (*):</label>
                             <span class="text-[10px] text-gray-400">Cho phép sửa tay</span>
                         </div>
                         <input id="cash-code-input" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-indigo-700 uppercase bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500" placeholder="VD: PT-TT-260919-001">
                     </div>
-                    <div>
+                    <div id="cash-amount-container">
                         <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
-                        <input id="cash-amount-input" type="number" step="1000" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-right text-emerald-700 focus:outline-none focus:border-indigo-500" placeholder="0">
+                        <input id="cash-amount-input" type="text" inputmode="numeric" 
+                            class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-black text-right text-emerald-700 focus:outline-none focus:border-indigo-500" 
+                            placeholder="0 đ" oninput="handleCashAmountInput(this)">
+                        <input type="hidden" id="cash-amount-raw" value="0">
                     </div>
                 </div>
 
-                <!-- Hạng mục thu chi -->
-                <div>
+                <!-- Đọc số thành chữ & Nút cộng nhanh -->
+                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] text-slate-400">Bằng chữ:</span>
+                        <span id="cash-amount-words" class="text-xs font-bold text-indigo-700 italic text-right">Không đồng</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1 justify-end pt-1 border-t border-slate-200/60">
+                        <button type="button" onclick="quickAddCashAmount(100000)" class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-[10px] font-bold text-slate-700 transition cursor-pointer">+100k</button>
+                        <button type="button" onclick="quickAddCashAmount(500000)" class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-[10px] font-bold text-slate-700 transition cursor-pointer">+500k</button>
+                        <button type="button" onclick="quickAddCashAmount(1000000)" class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-[10px] font-bold text-indigo-700 transition cursor-pointer">+1tr</button>
+                        <button type="button" onclick="quickAddCashAmount(5000000)" class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-[10px] font-bold text-indigo-700 transition cursor-pointer">+5tr</button>
+                        <button type="button" onclick="quickAddCashAmount(10000000)" class="px-2 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-[10px] font-bold text-indigo-700 transition cursor-pointer">+10tr</button>
+                        <button type="button" onclick="resetCashAmount()" class="px-2 py-0.5 rounded bg-white hover:bg-rose-50 border border-rose-300 text-[10px] font-bold text-rose-600 transition cursor-pointer">Xóa số</button>
+                    </div>
+                </div>
+
+                <!-- Hạng mục thu chi (Ẩn khi chuyển quỹ) -->
+                <div id="cash-category-container">
                     <label class="font-bold text-slate-700 block mb-1">Hạng Mục Thu / Chi (*):</label>
                     <input id="cash-category-input" list="cash-categories-datalist" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500" placeholder="Chọn hoặc tự nhập hạng mục...">
                     <datalist id="cash-categories-datalist">
@@ -11187,8 +11234,8 @@
                     </datalist>
                 </div>
 
-                <!-- Đối tác liên quan (tùy chọn) -->
-                <div>
+                <!-- Đối tác liên quan (Ẩn khi chuyển quỹ) -->
+                <div id="cash-contact-container">
                     <label class="font-bold text-slate-700 block mb-1">Đối Tác Liên Quan (Tùy chọn):</label>
                     <select id="cash-contact-select" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-700 bg-white focus:outline-none focus:border-indigo-500">
                         <option value="">-- Không chọn đối tác --</option>
@@ -11352,7 +11399,8 @@
 
                 <div>
                     <label class="block text-slate-700 font-bold mb-1">Số tiền chi (VNĐ) *</label>
-                    <input type="number" id="edit-cash-amount" min="1" step="any" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-rose-600 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <input type="text" id="edit-cash-amount" inputmode="numeric" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right text-rose-600 focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="0 đ" oninput="handleEditCashAmountInput(this)">
+                    <div id="edit-cash-amount-words" class="text-[11px] font-semibold text-slate-500 italic mt-1 text-right">Không đồng</div>
                 </div>
 
                 <div>

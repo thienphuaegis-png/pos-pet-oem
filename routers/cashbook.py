@@ -4,7 +4,7 @@ from typing import Optional, List
 import datetime
 from datetime import datetime
 from database import get_db
-from schemas import CashbookCreate, CashbookUpdate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove
+from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove
 from logger_config import get_module_logger
 from dependencies import get_current_user, require_role, require_permission
 
@@ -335,6 +335,82 @@ def delete_cashbook_voucher(
 
     logger.info(f"User {user.get('username')} đã xóa phiếu chi {current.get('code')} (id={voucher_id})")
     return {"success": True, "message": f"Đã xóa thành công phiếu chi {current.get('code')}"}
+
+@router.post("/api/cashbook/transfer")
+def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_current_user)):
+    if req.from_account_id == req.to_account_id:
+        raise HTTPException(status_code=400, detail="Tài khoản nguồn và tài khoản đích không được trùng nhau")
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Số tiền chuyển phải lớn hơn 0")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Kiểm tra 2 tài khoản
+        cur.execute("SELECT id, name, code, owner_type FROM payment_accounts WHERE id = ? AND is_active = 1", (req.from_account_id,))
+        from_acc = cur.fetchone()
+        if not from_acc:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Tài khoản nguồn không tồn tại hoặc đã bị khóa")
+
+        cur.execute("SELECT id, name, code, owner_type FROM payment_accounts WHERE id = ? AND is_active = 1", (req.to_account_id,))
+        to_acc = cur.fetchone()
+        if not to_acc:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Tài khoản đích không tồn tại hoặc đã bị khóa")
+
+        # Sinh mã giao dịch chuyển tiền
+        date_str = datetime.now().strftime("%y%m%d")
+        pattern = f"PC-CK-{date_str}-%"
+        cur.execute("SELECT COUNT(*) FROM cashbook WHERE code LIKE ?", (pattern,))
+        count = cur.fetchone()[0]
+        stt = count + 1
+        while True:
+            transfer_code = f"CK-{date_str}-{stt:03d}"
+            pc_code = f"PC-{transfer_code}"
+            pt_code = f"PT-{transfer_code}"
+            cur.execute("SELECT 1 FROM cashbook WHERE code = ? OR code = ?", (pc_code, pt_code))
+            if not cur.fetchone():
+                break
+            stt += 1
+
+        user_note = req.note.strip() if req.note else ""
+        from_note = f"Chuyển sang [{to_acc['name']}]: {user_note}".rstrip(": ")
+        to_note = f"Nhận từ [{from_acc['name']}]: {user_note}".rstrip(": ")
+
+        # 1. Phiếu Chi (tại tài khoản nguồn)
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note)
+            VALUES (?, 'out', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?)
+        """, (pc_code, req.amount, req.from_account_id, from_note))
+        out_id = cur.lastrowid
+
+        # 2. Phiếu Thu (tại tài khoản đích)
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note)
+            VALUES (?, 'in', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?)
+        """, (pt_code, req.amount, req.to_account_id, to_note))
+        in_id = cur.lastrowid
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"User {user.get('name')} đã chuyển quỹ {req.amount:,.0f} đ từ {from_acc['name']} sang {to_acc['name']} (Mã: {transfer_code})")
+        return {
+            "success": True,
+            "transfer_code": transfer_code,
+            "out_voucher": {"id": out_id, "code": pc_code, "account_name": from_acc["name"]},
+            "in_voucher": {"id": in_id, "code": pt_code, "account_name": to_acc["name"]},
+            "amount": req.amount
+        }
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Lỗi chuyển quỹ nội bộ: {str(e)}")
 
 # --- Báo Cáo Tổng Hợp ---
 @router.get("/api/reports/summary")

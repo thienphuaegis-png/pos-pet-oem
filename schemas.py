@@ -238,6 +238,12 @@ class CashbookUpdate(BaseModel):
     contact_id: Optional[int] = None
     note: Optional[str] = None
 
+class CashbookTransferCreate(BaseModel):
+    from_account_id: int
+    to_account_id: int
+    amount: float
+    note: Optional[str] = ""
+
 class ExpenseRequestCreate(BaseModel):
     type: str = "reimbursement" # 'reimbursement' hoặc 'planned'
     employee_name: str
