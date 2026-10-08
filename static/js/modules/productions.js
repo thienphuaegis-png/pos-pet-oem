@@ -642,6 +642,18 @@
                 badgeType.className = isThu ? 'px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800';
             }
 
+            // Nút sửa, xóa phiếu chi cho quyền admin/owner
+            const btnEdit = document.getElementById('btn-drawer-edit-cashbook');
+            const btnDel = document.getElementById('btn-drawer-delete-cashbook');
+            const isAdmin = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
+            if (!isThu && isAdmin) {
+                if (btnEdit) btnEdit.classList.remove('hidden');
+                if (btnDel) btnDel.classList.remove('hidden');
+            } else {
+                if (btnEdit) btnEdit.classList.add('hidden');
+                if (btnDel) btnDel.classList.add('hidden');
+            }
+
             const ownerType = c.account_owner_type || c.fund_source || 'COMPANY';
             const isCty = ownerType === 'COMPANY';
             const accLabel = (c.account_name || (isCty ? 'Quỹ Cty' : 'Quỹ Cá Nhân')) + (c.account_code ? ` (${c.account_code})` : '');
@@ -1025,6 +1037,116 @@
         window.closeCashbookViewModal = function() {
             document.getElementById('modal-cashbook-view')?.classList.add('hidden');
             currentViewedCashbookItem = null;
+        };
+
+        window.openEditCashbookModal = async function() {
+            if (!currentViewedCashbookItem) return;
+            const c = currentViewedCashbookItem;
+            const modal = document.getElementById('modal-edit-cashbook');
+            if (!modal) return;
+
+            document.getElementById('edit-cash-code').innerText = c.code || '-';
+            document.getElementById('edit-cash-amount').value = c.amount || 0;
+            document.getElementById('edit-cash-category').value = c.category || '';
+            document.getElementById('edit-cash-note').value = c.note || '';
+
+            const accSelect = document.getElementById('edit-cash-account-select');
+            if (accSelect) {
+                accSelect.innerHTML = `<option value="">Đang tải...</option>`;
+                try {
+                    const res = await fetch('/api/payment-accounts');
+                    if (res.ok) {
+                        const accounts = await res.json();
+                        accSelect.innerHTML = accounts.map(a => {
+                            return `<option value="${a.id}" ${a.id === c.account_id ? 'selected' : ''}>${a.name} (${new Intl.NumberFormat('vi-VN').format(Math.round(a.current_balance || 0))} đ)</option>`;
+                        }).join('');
+                    }
+                } catch(e) {}
+            }
+
+            modal.classList.remove('hidden');
+        };
+
+        window.closeEditCashbookModal = function() {
+            const modal = document.getElementById('modal-edit-cashbook');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.submitEditCashbook = async function(e) {
+            if (e) e.preventDefault();
+            if (!currentViewedCashbookItem) return;
+            const id = currentViewedCashbookItem.id;
+            const amount = parseFloat(document.getElementById('edit-cash-amount').value || 0);
+            const category = document.getElementById('edit-cash-category').value.trim();
+            const account_id = parseInt(document.getElementById('edit-cash-account-select').value || 0);
+            const note = document.getElementById('edit-cash-note').value.trim();
+
+            if (!amount || amount <= 0) {
+                if (window.showToast) window.showToast('Số tiền chi phải lớn hơn 0', 'warning');
+                return;
+            }
+            if (!account_id) {
+                if (window.showToast) window.showToast('Vui lòng chọn tài khoản thanh toán', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/cashbook/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        category: category,
+                        account_id: account_id,
+                        note: note
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật phiếu chi');
+
+                if (window.showToast) window.showToast('Đã cập nhật phiếu chi thành công!', 'success');
+                window.closeEditCashbookModal();
+                window.closeCashbookDrawer?.();
+                if (typeof loadCashbook === 'function') loadCashbook();
+            } catch(err) {
+                if (window.showToast) window.showToast('Lỗi: ' + err.message, 'error');
+            }
+        };
+
+        window.confirmDeleteCashbookVoucher = async function() {
+            if (!currentViewedCashbookItem) return;
+            const c = currentViewedCashbookItem;
+            const code = c.code || 'phiếu chi';
+
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xóa Phiếu Chi ${code}`,
+                    message: `Bạn có chắc chắn muốn xóa vĩnh viễn phiếu chi <strong>${code}</strong> với số tiền <span class="text-rose-600 font-bold">${new Intl.NumberFormat('vi-VN').format(Math.round(c.amount || 0))} đ</span>?`,
+                    subMessage: 'Hành động này sẽ xóa dòng ghi nhận và hoàn trả số dư tài khoản. Không thể hoàn tác.',
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy Bỏ',
+                    type: 'danger'
+                });
+            } else {
+                confirmed = confirm(`Bạn có chắc chắn muốn xóa phiếu chi ${code}?`);
+            }
+
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/cashbook/${c.id}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Không thể xóa phiếu chi');
+
+                if (window.showToast) window.showToast(data.message || `Đã xóa phiếu chi ${code}`, 'success');
+                window.closeCashbookDrawer?.();
+                if (typeof loadCashbook === 'function') loadCashbook();
+            } catch(err) {
+                if (window.showToast) window.showToast('Lỗi: ' + err.message, 'error');
+            }
         };
 
         window.viewPetServiceDetailModal = async function(ticketIdOrCode) {
@@ -6074,14 +6196,22 @@
         }
 
         function renderAndPrint(ord) {
+            const isWholesale = !!(
+                ord.is_wholesale ||
+                (ord.customer_name && (ord.customer_name.toLowerCase().includes('đại lý') || ord.customer_name.toLowerCase().includes('dai ly') || ord.customer_name.toLowerCase().includes('sỉ') || ord.customer_name.toLowerCase().includes('si '))) ||
+                ord.customer_price_list_name ||
+                (ord.items && ord.items.some(it => it.price_list_name))
+            );
+
             let itemDiscountTotal = 0;
             (ord.items || []).forEach(it => {
-                if (it.original_price && it.original_price > it.price) {
+                if (!isWholesale && it.original_price && it.original_price > it.price) {
                     itemDiscountTotal += (it.original_price - it.price) * (it.quantity || 1);
                 }
             });
             const billDiscount = ord.discount || 0;
-            const totalSavings = itemDiscountTotal + billDiscount;
+            const totalSavings = isWholesale ? billDiscount : (itemDiscountTotal + billDiscount);
+            const finalDiscountToDisplay = isWholesale ? billDiscount : (totalSavings > 0 ? (billDiscount > 0 ? billDiscount : totalSavings) : (billDiscount || 0));
 
             const printData = {
                 ten_cua_hang: currentSettings.shop_name || "PET CARE SPA & CLINIC",
@@ -6095,7 +6225,7 @@
                 ten_khach: ord.customer_name || 'Khách lẻ',
                 sdt_khach: ord.customer_phone || '-',
                 tong_tien: formatMoney(ord.total_amount || 0),
-                giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
+                giam_gia: formatMoney(finalDiscountToDisplay),
                 tiet_kiem: formatMoney(totalSavings),
                 phai_tra: formatMoney(ord.final_amount || 0),
                 khach_tra: formatMoney(ord.paid_amount || 0),
@@ -6299,7 +6429,7 @@
                                 </thead>
                                 <tbody>
                                     ${ord.items.map(it => {
-                                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                        const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
                                         const itemDiff = hasItemDisc ? (it.original_price - it.price) : 0;
                                         const priceDisplay = hasItemDisc ? `
                                             <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
@@ -6339,7 +6469,7 @@
                                 </thead>
                                 <tbody>
                                     ${ord.items.map(it => {
-                                        const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                        const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
                                         const priceDisplay = hasItemDisc ? `
                                             <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
                                             <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">${formatMoney(it.original_price)}</div>
@@ -8288,6 +8418,10 @@
         window.printCurrentViewedPetTicket = printCurrentViewedPetTicket;
         window.printCurrentCashbookVoucher = printCurrentCashbookVoucher;
         window.printCashbookVoucherA4 = printCashbookVoucherA4;
+        window.openEditCashbookModal = openEditCashbookModal;
+        window.closeEditCashbookModal = closeEditCashbookModal;
+        window.submitEditCashbook = submitEditCashbook;
+        window.confirmDeleteCashbookVoucher = confirmDeleteCashbookVoucher;
         window.getDefaultPresets = getDefaultPresets;
         window.switchPreset = switchPreset;
         window.loadSettings = loadSettings;

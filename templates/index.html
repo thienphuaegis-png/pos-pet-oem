@@ -4392,6 +4392,23 @@
 
             <!-- TAB: SO QUY -->
             <div id="tab-cashbook" class="hidden space-y-4">
+                <!-- Thanh Sub-tab chuyển đổi giữa Sổ Quỹ Thực Tế & Dự Chi/Hoàn Ứng -->
+                <div class="flex items-center justify-between border-b border-slate-200 bg-white px-3 pt-2 rounded-xl shadow-2xs gap-2">
+                    <div class="flex items-center gap-1">
+                        <button id="btn-subtab-cashbook-actual" onclick="switchCashbookSubTab('actual')" class="px-4 py-2 text-xs font-bold text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50/50 rounded-t-lg transition flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+                            <span>Sổ Quỹ Thực Tế</span>
+                        </button>
+                        <button id="btn-subtab-cashbook-requests" onclick="switchCashbookSubTab('requests')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span>Dự Chi & Hoàn Ứng Nhân Viên</span>
+                            <span id="badge-expense-requests-count" class="hidden px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-rose-500 text-white leading-tight">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 1: SỔ QUỸ THỰC TẾ -->
+                <div id="cashbook-subtab-actual" class="space-y-4">
                 <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
                     <div class="flex items-center gap-2.5">
                         <span class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
@@ -4561,6 +4578,104 @@
                         </thead>
                         <tbody id="table-cashbook"></tbody>
                     </table>
+                </div>
+                </div> <!-- Đóng cashbook-subtab-actual -->
+
+                <!-- SUB-TAB 2: DỰ CHI & HOÀN ỨNG NHÂN VIÊN -->
+                <div id="cashbook-subtab-requests" class="hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Dự Chi & Hoàn Ứng Nhân Viên</h2>
+                                <p class="text-xs text-slate-500">Quản lý các khoản chi hộ chưa hoàn tiền và dự toán các khoản cần chi sắp tới</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="openCreateExpenseModal('reimbursement')" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                                <span>+</span>
+                                <span>Yêu Cầu NV Chi Hộ</span>
+                            </button>
+                            <button onclick="openCreateExpenseModal('planned')" class="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                                <span>+</span>
+                                <span>Lập Khoản Dự Chi</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3 Thẻ thống kê tổng quan -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="bg-white p-4 rounded-xl border border-purple-200/80 shadow-2xs">
+                            <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                                <span class="font-bold text-purple-700">CHỜ HOÀN ỨNG NHÂN VIÊN</span>
+                                <span class="text-base">👤</span>
+                            </div>
+                            <div id="stat-exp-reimbursement-pending" class="text-xl font-black text-purple-700">0 đ</div>
+                            <p class="text-[11px] text-slate-400 mt-1">Tiền nhân viên chi hộ cần trả lại</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-amber-200/80 shadow-2xs">
+                            <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                                <span class="font-bold text-amber-700">DỰ CHI CẦN THANH TOÁN</span>
+                                <span class="text-base">📋</span>
+                            </div>
+                            <div id="stat-exp-planned-pending" class="text-xl font-black text-amber-700">0 đ</div>
+                            <p class="text-[11px] text-slate-400 mt-1">Dự toán các khoản cần chi sắp tới</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-emerald-200/80 shadow-2xs">
+                            <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+                                <span class="font-bold text-emerald-700">ĐÃ HOÀN TIỀN / GIẢI NGÂN</span>
+                                <span class="text-base">✓</span>
+                            </div>
+                            <div id="stat-exp-completed-sum" class="text-xl font-black text-emerald-700">0 đ</div>
+                            <p class="text-[11px] text-slate-400 mt-1">Tổng tiền đã chi xuất quỹ thực tế</p>
+                        </div>
+                    </div>
+
+                    <!-- Bộ lọc & Tìm kiếm -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-2.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="filter-exp-type" onchange="loadExpenseRequests()" class="bg-slate-50 border border-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                                <option value="">Tất cả loại yêu cầu</option>
+                                <option value="reimbursement">NV Chi Hộ</option>
+                                <option value="planned">Dự Chi Quán</option>
+                            </select>
+                            <select id="filter-exp-status" onchange="loadExpenseRequests()" class="bg-slate-50 border border-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending" selected>Chờ duyệt</option>
+                                <option value="completed">Đã hoàn tiền</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
+                            <div class="relative">
+                                <input type="text" id="filter-exp-search" onkeydown="if(event.key==='Enter') loadExpenseRequests()" placeholder="Tìm theo mã, tên NV, ghi chú..." class="bg-slate-50 border border-slate-200 text-xs rounded-lg pl-7 pr-3 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400 w-56">
+                                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            </div>
+                        </div>
+                        <button onclick="loadExpenseRequests()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer">
+                            <span>🔄</span> <span>Làm mới</span>
+                        </button>
+                    </div>
+
+                    <!-- Bảng danh sách yêu cầu chi -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase">
+                                <tr>
+                                    <th class="p-2.5">Mã YC</th>
+                                    <th class="p-2.5">Loại</th>
+                                    <th class="p-2.5">Người đề xuất / NV</th>
+                                    <th class="p-2.5">Hạng mục</th>
+                                    <th class="p-2.5 text-right">Số tiền</th>
+                                    <th class="p-2.5 text-center">Ảnh Bill</th>
+                                    <th class="p-2.5">Ghi chú</th>
+                                    <th class="p-2.5 text-center">Trạng thái</th>
+                                    <th class="p-2.5 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-expense-requests"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -9906,9 +10021,179 @@
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
+    <script src="/static/js/modules/expense_requests.js?v=20261008_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261007_01"></script>
     <script src="/static/js/pos.js?v=20261007_04"></script>
+
+    <!-- MODAL: XEM ẢNH BILL CHỨNG TỪ -->
+    <div id="modal-view-expense-bill" onclick="if(event.target === this) closeExpenseBillModal()" class="hidden fixed inset-0 bg-black/80 items-center justify-center z-[75] p-3 backdrop-blur-sm flex">
+        <div class="bg-white rounded-xl shadow-2xl max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-2.5 bg-slate-900 text-white">
+                <span class="text-xs font-bold flex items-center gap-1.5">🧾 Ảnh Hóa Đơn / Bill Chuyển Khoản</span>
+                <button type="button" onclick="closeExpenseBillModal()" class="text-slate-400 hover:text-white text-lg font-bold leading-none">&times;</button>
+            </div>
+            <div class="p-3 overflow-auto flex items-center justify-center bg-slate-100 max-h-[80vh]">
+                <img id="img-view-expense-bill" src="" alt="Bill" class="max-w-full max-h-[75vh] object-contain rounded shadow" />
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TẠO YÊU CẦU CHI HỘ / DỰ CHI -->
+    <div id="modal-create-expense-request" onclick="if(event.target === this) closeCreateExpenseModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm flex">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col text-xs border border-slate-200 overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-purple-700 to-indigo-800 text-white">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">📝</span>
+                    <div>
+                        <h3 class="font-bold text-sm leading-tight text-white">Lập Yêu Cầu Chi / Hoàn Ứng</h3>
+                        <p class="text-[11px] text-purple-200 leading-tight">Dán ảnh bill để AI tự quét hoặc nhập thông tin bên dưới</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeCreateExpenseModal()" class="text-slate-300 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10 transition">&times;</button>
+            </div>
+
+            <form id="form-create-expense-request" onsubmit="submitCreateExpenseRequest(event)" class="p-4 overflow-y-auto space-y-3.5 flex-1">
+                <!-- Khu vực dán bill / Quét AI -->
+                <div class="bg-indigo-50/70 p-3 rounded-xl border border-indigo-200/90 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                            <span>📷</span> <span>Ảnh Bill Chuyển Khoản / Hóa Đơn</span>
+                        </span>
+                        <button type="button" id="btn-scan-exp-ai" onclick="scanExpenseBillWithAI()" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-2xs flex items-center gap-1 cursor-pointer transition">
+                            <span>⚡</span> <span>Quét AI</span>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label for="exp-form-file-input" class="cursor-pointer px-3 py-1.5 bg-white border border-indigo-300 hover:bg-indigo-50 text-indigo-700 font-semibold rounded-lg text-xs flex items-center gap-1.5 transition shadow-2xs">
+                            <span>📁</span> <span>Chọn ảnh từ máy</span>
+                        </label>
+                        <input type="file" id="exp-form-file-input" accept="image/*" class="hidden" onchange="handleExpenseBillFileSelect(event)">
+                        <span class="text-[11px] text-indigo-700/80">hoặc ấn <b>Ctrl + V</b> để dán ảnh bill</span>
+                    </div>
+
+                    <!-- Thumbnail xem trước ảnh đã chọn -->
+                    <div id="exp-form-img-preview-box" class="hidden flex items-center gap-2 bg-white p-2 rounded-lg border border-indigo-200">
+                        <img id="exp-form-img-preview" src="" alt="Preview" class="w-12 h-12 object-cover rounded border border-slate-200" />
+                        <div class="flex-1 text-[11px] text-slate-600">
+                            <span class="font-bold text-emerald-600 block">✓ Đã đính kèm ảnh bill</span>
+                            <span class="text-[10px] text-slate-400">Bấm 'Quét AI' để trích xuất số tiền & nội dung</span>
+                        </div>
+                        <button type="button" onclick="removeExpenseBillImage()" class="text-rose-500 hover:text-rose-700 text-xs font-bold p-1">Xóa</button>
+                    </div>
+                </div>
+
+                <!-- Loại yêu cầu -->
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Loại Yêu Cầu *</label>
+                    <select id="exp-form-type" onchange="toggleExpenseTypeFields(this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <option value="reimbursement">Nhân viên chi hộ (Chờ hoàn ứng)</option>
+                        <option value="planned">Dự chi quán (Khoản cần chi sắp tới)</option>
+                    </select>
+                </div>
+
+                <!-- Tên NV / Người đề xuất -->
+                <div>
+                    <label id="exp-form-emp-label" class="block text-slate-700 font-bold mb-1">Tên nhân viên chi hộ *</label>
+                    <input type="text" id="exp-form-emp" placeholder="Ví dụ: Nguyễn Văn A..." required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+
+                <!-- Số tiền & Hạng mục -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-700 font-bold mb-1">Số tiền (VNĐ) *</label>
+                        <input type="number" id="exp-form-amount" placeholder="Ví dụ: 150000" min="1" step="any" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-rose-600 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    </div>
+                    <div>
+                        <label class="block text-slate-700 font-bold mb-1">Hạng mục chi *</label>
+                        <input type="text" id="exp-form-category" list="exp-category-suggestions" placeholder="Chi phí vận hành..." required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <datalist id="exp-category-suggestions">
+                            <option value="Chi phí vận hành"></option>
+                            <option value="Chi tiền nhập hàng"></option>
+                            <option value="Chi tiếp khách / Ăn uống"></option>
+                            <option value="Chi tiền ship / Vận chuyển"></option>
+                            <option value="Sửa chữa / Mua sắm vật dụng"></option>
+                            <option value="Chi khác"></option>
+                        </datalist>
+                    </div>
+                </div>
+
+                <!-- TK Ngân hàng nhận hoàn tiền của NV -->
+                <div id="exp-form-bank-box">
+                    <label class="block text-slate-700 font-bold mb-1">STK / Ngân hàng nhận hoàn tiền (NV)</label>
+                    <input type="text" id="exp-form-bank" placeholder="Ví dụ: MBBank - 0987654321..." class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+
+                <!-- Hạn cần chi (đối với dự chi) -->
+                <div id="exp-form-due-box" class="hidden">
+                    <label class="block text-slate-700 font-bold mb-1">Hạn cần thanh toán</label>
+                    <input type="date" id="exp-form-due" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                </div>
+
+                <!-- Ghi chú / Diễn giải -->
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Ghi chú / Diễn giải</label>
+                    <textarea id="exp-form-note" rows="2" placeholder="Ghi chú thêm về nội dung chi..." class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" onclick="closeCreateExpenseModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 font-semibold text-xs transition cursor-pointer">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-xs transition cursor-pointer">Lưu Yêu Cầu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DUYỆT HOÀN TIỀN / CHI TRẢ -->
+    <div id="modal-approve-expense-request" onclick="if(event.target === this) closeApproveExpenseModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm flex">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs border border-slate-200 overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-700 text-white">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">✓</span>
+                    <div>
+                        <h3 class="font-bold text-sm leading-tight text-white">Duyệt & Xuất Quỹ Hoàn Tiền</h3>
+                        <p class="text-[11px] text-emerald-100 leading-tight">Tự động sinh Phiếu Chi (PC) vào Sổ Quỹ thực tế</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeApproveExpenseModal()" class="text-slate-200 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10 transition">&times;</button>
+            </div>
+
+            <div class="p-4 space-y-3.5">
+                <div class="bg-emerald-50/80 p-3 rounded-lg border border-emerald-200 space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Mã yêu cầu:</span>
+                        <span id="exp-appr-code" class="font-mono font-bold text-slate-800"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Người nhận hoàn tiền:</span>
+                        <span id="exp-appr-emp" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1 border-t border-emerald-200/60">
+                        <span class="text-slate-700 font-bold">Số tiền hoàn:</span>
+                        <span id="exp-appr-amount" class="text-base font-black text-rose-600"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Tài khoản / Quỹ trích tiền xuất *</label>
+                    <select id="exp-appr-account-select" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400"></select>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Ghi chú phiếu chi thực tế</label>
+                    <input type="text" id="exp-appr-note" placeholder="Hoàn ứng chi hộ..." class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" onclick="closeApproveExpenseModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 font-semibold text-xs transition cursor-pointer">Hủy</button>
+                    <button type="button" onclick="submitApproveExpenseRequest()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                        <span>✓</span> <span>Xác Nhận & Xuất Quỹ</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: BẢNG ĐẾM TIỀN MẶT THEO MỆNH GIÁ -->
     <div id="modal-cash-counter" onclick="if(event.target === this) closeCashCounterModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[70] p-3 backdrop-blur-sm">
@@ -10953,10 +11238,67 @@
                 <button type="button" onclick="printCashbookVoucherA4()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition" title="In mẫu chứng từ A4/A5 kế toán">
                     <span>📄</span> <span>In A4/A5 Kế Toán</span>
                 </button>
+                <!-- NÚT SỬA & XÓA PHIẾU CHI CHO ADMIN -->
+                <button type="button" id="btn-drawer-edit-cashbook" onclick="openEditCashbookModal()" class="hidden px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer" title="Sửa thông tin phiếu chi (Admin)">
+                    <span>✏️</span> <span>Sửa</span>
+                </button>
+                <button type="button" id="btn-drawer-delete-cashbook" onclick="confirmDeleteCashbookVoucher()" class="hidden px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer" title="Xóa phiếu chi (Admin)">
+                    <span>🗑️</span> <span>Xóa</span>
+                </button>
             </div>
             <button type="button" onclick="closeCashbookDrawer()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs transition">
                 Đóng
             </button>
+        </div>
+    </div>
+
+    <!-- MODAL: SỬA PHIẾU CHI (DÀNH CHO ADMIN) -->
+    <div id="modal-edit-cashbook" onclick="if(event.target === this) closeEditCashbookModal()" class="hidden fixed inset-0 bg-black/70 items-center justify-center z-[80] p-3 backdrop-blur-sm flex">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs border border-slate-200 overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-amber-600 to-orange-700 text-white">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">✏️</span>
+                    <div>
+                        <h3 class="font-bold text-sm leading-tight text-white">Chỉnh Sửa Phiếu Chi</h3>
+                        <p class="text-[11px] text-amber-100 leading-tight">Quyền Quản trị viên (Admin/Owner)</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEditCashbookModal()" class="text-amber-200 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10 transition">&times;</button>
+            </div>
+
+            <form id="form-edit-cashbook" onsubmit="submitEditCashbook(event)" class="p-4 space-y-3.5">
+                <div class="bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/80 flex justify-between items-center">
+                    <span class="text-slate-600">Mã phiếu chi:</span>
+                    <span id="edit-cash-code" class="font-mono font-bold text-slate-800"></span>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Số tiền chi (VNĐ) *</label>
+                    <input type="number" id="edit-cash-amount" min="1" step="any" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-rose-600 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Hạng mục chi *</label>
+                    <input type="text" id="edit-cash-category" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Tài khoản / Quỹ trích tiền xuất *</label>
+                    <select id="edit-cash-account-select" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"></select>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Ghi chú / Diễn giải</label>
+                    <textarea id="edit-cash-note" rows="2" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                    <button type="button" onclick="closeEditCashbookModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-100 font-semibold text-xs transition cursor-pointer">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                        <span>💾</span> <span>Lưu Thay Đổi</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

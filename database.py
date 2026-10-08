@@ -787,6 +787,26 @@ def init_db():
     if 'account_id' not in cb_columns:
         cur.execute("ALTER TABLE cashbook ADD COLUMN account_id INTEGER REFERENCES payment_accounts(id)")
 
+    # 8b. Expense Requests - Quan ly khoan can chi & hoan ung nhan vien
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS expense_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        type TEXT NOT NULL DEFAULT 'reimbursement', -- reimbursement (NV chi ho) | planned (Du chi)
+        employee_name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        note TEXT,
+        bill_image TEXT,
+        bank_account_info TEXT,
+        status TEXT NOT NULL DEFAULT 'pending', -- pending | completed | cancelled
+        cashbook_id INTEGER REFERENCES cashbook(id),
+        due_date DATE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        resolved_at DATETIME,
+        created_by TEXT
+    )''')
+
     # 9. Cau hinh & Mau in tuy chinh
     cur.execute('''
     CREATE TABLE IF NOT EXISTS settings (

@@ -231,6 +231,27 @@ class CashbookCreate(BaseModel):
     description: Optional[str] = ""
     fund_source: Optional[str] = "COMPANY"
 
+class CashbookUpdate(BaseModel):
+    category: Optional[str] = None
+    amount: Optional[float] = None
+    account_id: Optional[int] = None
+    contact_id: Optional[int] = None
+    note: Optional[str] = None
+
+class ExpenseRequestCreate(BaseModel):
+    type: str = "reimbursement" # 'reimbursement' hoặc 'planned'
+    employee_name: str
+    amount: float
+    category: str
+    note: Optional[str] = ""
+    bill_image: Optional[str] = None
+    bank_account_info: Optional[str] = None
+    due_date: Optional[str] = None
+
+class ExpenseRequestApprove(BaseModel):
+    account_id: int
+    note: Optional[str] = None
+
 # --- Settings & Templates ---
 class CompanySettingsUpdate(BaseModel):
     app_name: Optional[str] = "⚡ POS Offline"

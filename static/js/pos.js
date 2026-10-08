@@ -1922,6 +1922,12 @@ function printDraftOrder() {
     const pad = (n) => String(n).padStart(2, '0');
     const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
 
+    const isWholesale = !!(
+        (tab.customer && (tab.customer.name.toLowerCase().includes('đại lý') || tab.customer.name.toLowerCase().includes('dai ly') || tab.customer.name.toLowerCase().includes('sỉ') || tab.customer.name.toLowerCase().includes('si '))) ||
+        tab.customer?.price_list_name ||
+        (tab.cart && tab.cart.some(i => i.price_list_name))
+    );
+
     const draftOrder = {
         code: "DRAFT-" + Math.floor(100000 + Math.random() * 900000),
         created_at: timeStr,
@@ -1934,12 +1940,15 @@ function printDraftOrder() {
         final_amount: finalAmount,
         paid_amount: paidAmount,
         debt_amount: Math.max(0, finalAmount - paidAmount),
+        customer_price_list_name: tab.customer?.price_list_name || null,
+        is_wholesale: isWholesale,
         items: tab.cart.map(i => ({
             product_code: i.code,
             product_name: i.name,
             unit: i.unit,
             price: i.price,
             original_price: i.original_price || i.price,
+            price_list_name: i.price_list_name || null,
             quantity: i.quantity
         }))
     };
@@ -1969,14 +1978,24 @@ function renderAndPrint(ord, isDraft = false) {
         paperSize = curPresetKey;
     }
 
+    const isWholesale = !!(
+        ord.is_wholesale ||
+        (ord.customer_name && (ord.customer_name.toLowerCase().includes('đại lý') || ord.customer_name.toLowerCase().includes('dai ly') || ord.customer_name.toLowerCase().includes('sỉ') || ord.customer_name.toLowerCase().includes('si '))) ||
+        ord.customer_price_list_name ||
+        (ord.items && ord.items.some(it => it.price_list_name))
+    );
+
     let itemDiscountTotal = 0;
     (ord.items || []).forEach(it => {
-        if (it.original_price && it.original_price > it.price) {
+        if (!isWholesale && it.original_price && it.original_price > it.price) {
             itemDiscountTotal += (it.original_price - it.price) * (it.quantity || 1);
         }
     });
     const billDiscount = ord.discount || 0;
-    const totalSavings = itemDiscountTotal + billDiscount;
+    const totalSavings = isWholesale ? billDiscount : (itemDiscountTotal + billDiscount);
+
+    // Đối với đại lý / bán buôn (PA1): giam_gia chỉ là chiết khấu đơn phát sinh thêm
+    const finalDiscountToDisplay = isWholesale ? billDiscount : (totalSavings > 0 ? (billDiscount > 0 ? billDiscount : totalSavings) : (billDiscount || 0));
 
     const printData = {
         ten_cua_hang: posSettings.shop_name || "TÊN CỬA HÀNG",
@@ -1989,7 +2008,7 @@ function renderAndPrint(ord, isDraft = false) {
         ten_khach: ord.customer_name || 'Khách lẻ',
         sdt_khach: ord.customer_phone || '-',
         tong_tien: formatMoney(ord.total_amount),
-        giam_gia: formatMoney(totalSavings > 0 ? totalSavings : (ord.discount || 0)),
+        giam_gia: formatMoney(finalDiscountToDisplay),
         tiet_kiem: formatMoney(totalSavings),
         tru_vi: formatMoney(ord.spa_wallet_deduction || 0),
         raw_tru_vi: ord.spa_wallet_deduction || 0,
@@ -2009,7 +2028,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     // Sao chép canvasElements để không mutate config gốc và xử lý tự ẩn dòng giảm giá K80 khi không có giảm giá
     let effectiveElements = canvasElements.map(e => ({ ...e }));
-    const hasAnyDiscount = (totalSavings > 0);
+    const hasAnyDiscount = isWholesale ? (billDiscount > 0) : (totalSavings > 0);
     const hasBillDiscount = hasAnyDiscount;
     const discElem = effectiveElements.find(e => e.text && (e.text.includes('{{giam_gia}}') || e.text.includes('{{tiet_kiem}}') || (e.label && e.label.toLowerCase().includes('giảm giá'))));
     if (!hasAnyDiscount && discElem && isThermal) {
@@ -2225,7 +2244,7 @@ function renderAndPrint(ord, isDraft = false) {
                     </thead>
                     <tbody>
                         ${ord.items.map((it, idx) => {
-                            const hasItemDisc = it.original_price && (it.original_price > it.price);
+                            const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
                             const discText = hasItemDisc ? `${Math.round((1 - it.price / it.original_price) * 100)}%` : '0%';
                             return `
                         <tr style="border-bottom: 1px solid #ccc; text-align: center;">
@@ -2302,7 +2321,7 @@ function renderAndPrint(ord, isDraft = false) {
                         </thead>
                         <tbody>
                             ${ord.items.map(it => {
-                                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
                                 const itemDiff = hasItemDisc ? (it.original_price - it.price) : 0;
                                 const priceDisplay = hasItemDisc ? `
                                     <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
@@ -2342,7 +2361,7 @@ function renderAndPrint(ord, isDraft = false) {
                         </thead>
                         <tbody>
                             ${ord.items.map(it => {
-                                const hasItemDisc = it.original_price && (it.original_price > it.price);
+                                const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
                                 const priceDisplay = hasItemDisc ? `
                                     <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
                                     <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">${formatMoney(it.original_price)}</div>

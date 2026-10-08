@@ -4,7 +4,7 @@ from typing import Optional, List
 import datetime
 from datetime import datetime
 from database import get_db
-from schemas import CashbookCreate, PaymentAccountCreate, PaymentAccountUpdate
+from schemas import CashbookCreate, CashbookUpdate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove
 from logger_config import get_module_logger
 from dependencies import get_current_user, require_role, require_permission
 
@@ -247,6 +247,94 @@ def create_cashbook(req: CashbookCreate, user=Depends(require_permission("cashbo
         conn.rollback()
         conn.close()
         raise HTTPException(status_code=400, detail=f"Lỗi tạo phiếu thu chi: {str(e)}")
+
+@router.put("/api/cashbook/{voucher_id}")
+def update_cashbook_voucher(
+    voucher_id: int,
+    req: CashbookUpdate,
+    user=Depends(require_role("owner", "admin"))
+):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM cashbook WHERE id = ?", (voucher_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu thu chi")
+
+    current = dict(row)
+    if current.get("type") not in ("out", "CHI"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Chỉ được phép sửa phiếu chi. Phiếu thu không được chỉnh sửa tại đây.")
+
+    updates = []
+    params = []
+
+    if req.amount is not None:
+        if req.amount <= 0:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Số tiền chi phải lớn hơn 0")
+        updates.append("amount = ?")
+        params.append(req.amount)
+
+    if req.category is not None:
+        updates.append("category = ?")
+        params.append(req.category.strip())
+
+    if req.account_id is not None:
+        cur.execute("SELECT id FROM payment_accounts WHERE id = ? AND is_active = 1", (req.account_id,))
+        if not cur.fetchone():
+            conn.close()
+            raise HTTPException(status_code=400, detail="Tài khoản thanh toán không tồn tại hoặc đã bị khóa")
+        updates.append("account_id = ?")
+        params.append(req.account_id)
+
+    if req.contact_id is not None:
+        updates.append("contact_id = ?")
+        params.append(req.contact_id)
+
+    if req.note is not None:
+        updates.append("note = ?")
+        params.append(req.note.strip())
+
+    if not updates:
+        conn.close()
+        return current
+
+    params.append(voucher_id)
+    cur.execute(f"UPDATE cashbook SET {', '.join(updates)} WHERE id = ?", params)
+    conn.commit()
+
+    cur.execute("SELECT * FROM cashbook WHERE id = ?", (voucher_id,))
+    updated = dict(cur.fetchone())
+    conn.close()
+    return updated
+
+@router.delete("/api/cashbook/{voucher_id}")
+def delete_cashbook_voucher(
+    voucher_id: int,
+    user=Depends(require_role("owner", "admin"))
+):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM cashbook WHERE id = ?", (voucher_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu thu chi")
+
+    current = dict(row)
+    if current.get("type") not in ("out", "CHI"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Chỉ được phép xóa phiếu chi. Phiếu thu không thể xóa tại đây.")
+
+    cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
+    cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
+    conn.commit()
+    conn.close()
+
+    logger.info(f"User {user.get('username')} đã xóa phiếu chi {current.get('code')} (id={voucher_id})")
+    return {"success": True, "message": f"Đã xóa thành công phiếu chi {current.get('code')}"}
 
 # --- Báo Cáo Tổng Hợp ---
 @router.get("/api/reports/summary")
@@ -642,3 +730,197 @@ def export_reports_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+# --- Phân Hệ: Dự Chi & Hoàn Ứng Nhân Viên (Expense Requests) ---
+
+def generate_expense_request_code(cur, prefix: str = "YC") -> str:
+    """Sinh mã yêu cầu chi theo định dạng: YC-{YYMMDD}-{STT:03d}"""
+    date_str = datetime.now().strftime("%y%m%d")
+    pattern = f"{prefix}-{date_str}-%"
+    cur.execute("SELECT COUNT(*) FROM expense_requests WHERE code LIKE ?", (pattern,))
+    count = cur.fetchone()[0]
+
+    stt = count + 1
+    while True:
+        candidate = f"{prefix}-{date_str}-{stt:03d}"
+        cur.execute("SELECT 1 FROM expense_requests WHERE code = ?", (candidate,))
+        if not cur.fetchone():
+            return candidate
+        stt += 1
+
+@router.get("/api/expense-requests")
+def list_expense_requests(
+    status: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    q: Optional[str] = Query(None)
+):
+    conn = get_db()
+    cur = conn.cursor()
+
+    conditions = []
+    params = []
+
+    if status:
+        conditions.append("er.status = ?")
+        params.append(status)
+    if type:
+        conditions.append("er.type = ?")
+        params.append(type)
+    if q:
+        kw = f"%{q.strip()}%"
+        conditions.append("(er.code LIKE ? OR er.employee_name LIKE ? OR er.category LIKE ? OR er.note LIKE ?)")
+        params.extend([kw, kw, kw, kw])
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    query = f"""
+        SELECT 
+            er.*,
+            cb.code as cashbook_code,
+            pa.name as payment_account_name
+        FROM expense_requests er
+        LEFT JOIN cashbook cb ON er.cashbook_id = cb.id
+        LEFT JOIN payment_accounts pa ON cb.account_id = pa.id
+        {where_clause}
+        ORDER BY er.id DESC
+    """
+    cur.execute(query, params)
+    items = [dict(r) for r in cur.fetchall()]
+
+    # Thống kê tổng hợp
+    cur.execute("""
+        SELECT
+            SUM(CASE WHEN status = 'pending' AND type = 'reimbursement' THEN amount ELSE 0 END) as total_reimbursement_pending,
+            SUM(CASE WHEN status = 'pending' AND type = 'planned' THEN amount ELSE 0 END) as total_planned_pending,
+            SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as total_completed,
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
+        FROM expense_requests
+    """)
+    stats_row = cur.fetchone()
+    stats = {
+        "total_reimbursement_pending": stats_row["total_reimbursement_pending"] or 0.0,
+        "total_planned_pending": stats_row["total_planned_pending"] or 0.0,
+        "total_completed": stats_row["total_completed"] or 0.0,
+        "pending_count": stats_row["pending_count"] or 0
+    }
+
+    conn.close()
+    return {"items": items, "stats": stats}
+
+@router.post("/api/expense-requests")
+def create_expense_request(req: ExpenseRequestCreate):
+    if not req.employee_name or not req.employee_name.strip():
+        raise HTTPException(status_code=400, detail="Vui lòng nhập tên người đề xuất / nhân viên chi")
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Số tiền yêu cầu phải lớn hơn 0")
+
+    conn = get_db()
+    cur = conn.cursor()
+    code = generate_expense_request_code(cur)
+
+    cur.execute("""
+        INSERT INTO expense_requests (
+            code, type, employee_name, amount, category, note, bill_image, bank_account_info, due_date, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    """, (
+        code, req.type, req.employee_name.strip(), req.amount,
+        req.category or "Chi khác", req.note or "", req.bill_image,
+        req.bank_account_info, req.due_date
+    ))
+    req_id = cur.lastrowid
+    conn.commit()
+
+    cur.execute("SELECT * FROM expense_requests WHERE id = ?", (req_id,))
+    row = dict(cur.fetchone())
+    conn.close()
+    return row
+
+@router.post("/api/expense-requests/{req_id}/approve")
+def approve_expense_request(req_id: int, payload: ExpenseRequestApprove):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM expense_requests WHERE id = ?", (req_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu chi")
+
+    req = dict(row)
+    if req["status"] != "pending":
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Yêu cầu này không ở trạng thái chờ duyệt (hiện tại: {req['status']})")
+
+    # Kiểm tra tài khoản thanh toán hợp lệ
+    cur.execute("SELECT id, name FROM payment_accounts WHERE id = ? AND is_active = 1", (payload.account_id,))
+    acc = cur.fetchone()
+    if not acc:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Tài khoản thanh toán không tồn tại hoặc đã bị khóa")
+
+    # 1. Tự động sinh phiếu chi bên cashbook
+    prefix = "PC-HO" if req["type"] == "reimbursement" else "PC-DC"
+    cb_code = generate_cashbook_code(cur, prefix)
+    
+    if req["type"] == "reimbursement":
+        cb_note = f"Hoàn ứng cho {req['employee_name']}: {payload.note or req['note'] or req['category']}".strip()
+    else:
+        cb_note = f"Dự chi giải ngân: {payload.note or req['note'] or req['category']}".strip()
+
+    cur.execute("""
+        INSERT INTO cashbook (
+            code, type, category, amount, account_id, ref_type, ref_id, note
+        ) VALUES (?, 'out', ?, ?, ?, 'expense_request', ?, ?)
+    """, (
+        cb_code, req["category"], req["amount"], payload.account_id, req_id, cb_note
+    ))
+    cb_id = cur.lastrowid
+
+    # 2. Cập nhật trạng thái expense_requests
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("""
+        UPDATE expense_requests
+        SET status = 'completed', cashbook_id = ?, resolved_at = ?
+        WHERE id = ?
+    """, (cb_id, now_str, req_id))
+    conn.commit()
+
+    cur.execute("""
+        SELECT er.*, cb.code as cashbook_code
+        FROM expense_requests er
+        LEFT JOIN cashbook cb ON er.cashbook_id = cb.id
+        WHERE er.id = ?
+    """, (req_id,))
+    updated = dict(cur.fetchone())
+    conn.close()
+    return updated
+
+@router.post("/api/expense-requests/{req_id}/cancel")
+def cancel_expense_request(req_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM expense_requests WHERE id = ?", (req_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu chi")
+
+    req = dict(row)
+    if req["status"] != "pending":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Chỉ có thể hủy yêu cầu đang ở trạng thái chờ duyệt")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("""
+        UPDATE expense_requests
+        SET status = 'cancelled', resolved_at = ?
+        WHERE id = ?
+    """, (now_str, req_id))
+    conn.commit()
+
+    cur.execute("SELECT * FROM expense_requests WHERE id = ?", (req_id,))
+    updated = dict(cur.fetchone())
+    conn.close()
+    return updated
+
