@@ -9992,10 +9992,20 @@
     <div id="print-modal" onclick="if(event.target === this) closePrintModal()" class="fixed inset-0 bg-black/75 hidden items-center justify-center z-[80] p-4 backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 flex flex-col items-center max-h-[90vh] border border-slate-200">
             <div class="no-print flex justify-between items-center w-full mb-3 border-b pb-2">
-                <h3 id="print-modal-title" class="font-bold text-lg text-slate-800 flex items-center gap-2">
-                    <span>🧾</span>
-                    <span>Xem Trước & In Hóa Đơn</span>
-                </h3>
+                <div class="flex items-center gap-3">
+                    <h3 id="print-modal-title" class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <span>🧾</span>
+                        <span>Xem Trước & In Hóa Đơn</span>
+                    </h3>
+                    <div class="print-mode-selector inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 gap-1 text-xs">
+                        <button type="button" id="btn-print-modal-k80" onclick="switchModalPrintSize('K80')" class="px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer">
+                            <span>🧾</span> <span>K80 (Khách Lẻ)</span>
+                        </button>
+                        <button type="button" id="btn-print-modal-a4" onclick="switchModalPrintSize('A4')" class="px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer">
+                            <span>📄</span> <span>A4 (Đại Lý)</span>
+                        </button>
+                    </div>
+                </div>
                 <button type="button" onclick="closePrintModal()" class="text-gray-400 hover:text-gray-600 font-bold text-2xl leading-none px-2 py-0.5 rounded hover:bg-slate-100 transition">&times;</button>
             </div>
             <div id="print-area" class="border border-slate-200 p-4 rounded-lg bg-slate-100 max-h-[65vh] overflow-y-auto w-full mb-4 flex flex-col items-center"></div>

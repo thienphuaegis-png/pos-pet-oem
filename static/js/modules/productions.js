@@ -4575,6 +4575,13 @@
                     is_bold_all: true,
                     elements: getInitialElementsForSize("K80")
                 },
+                "k80_default": {
+                    name: "Mẫu Cuộn Nhiệt K80 (Bán Lẻ)",
+                    category: "pos",
+                    paper_size: "K80",
+                    is_bold_all: true,
+                    elements: getInitialElementsForSize("K80")
+                },
                 "k58_standard": {
                     name: "Mẫu Cuộn Nhiệt K58 (Bán Lẻ)",
                     category: "pos",
@@ -6196,7 +6203,8 @@
         }
 
         function renderAndPrint(ord) {
-            const isWholesale = !!(
+            window.currentLoadedPrintOrder = ord;
+            const isWholesale = typeof isWholesaleOrder === 'function' ? isWholesaleOrder(ord) : !!(
                 ord.is_wholesale ||
                 (ord.customer_name && (ord.customer_name.toLowerCase().includes('đại lý') || ord.customer_name.toLowerCase().includes('dai ly') || ord.customer_name.toLowerCase().includes('sỉ') || ord.customer_name.toLowerCase().includes('si '))) ||
                 ord.customer_price_list_name ||
@@ -6605,8 +6613,52 @@
             const res = await fetch(`/api/orders/${orderCode}`);
             if (!res.ok) return;
             const ord = await res.json();
+            window.currentLoadedPrintOrder = ord;
+
+            const isWholesale = typeof isWholesaleOrder === 'function' ? isWholesaleOrder(ord) : !!(
+                ord.is_wholesale ||
+                (ord.customer_name && (ord.customer_name.toLowerCase().includes('đại lý') || ord.customer_name.toLowerCase().includes('dai ly') || ord.customer_name.toLowerCase().includes('sỉ') || ord.customer_name.toLowerCase().includes('si '))) ||
+                ord.customer_price_list_name ||
+                (ord.items && ord.items.some(it => it.price_list_name))
+            );
+            const defaultSize = isWholesale ? 'A4' : 'K80';
+            const presetKey = isWholesale ? 'a4_b2b' : (multiTemplates?.presets?.['k80_default'] ? 'k80_default' : 'k80_standard');
+
+            if (multiTemplates && multiTemplates.presets && multiTemplates.presets[presetKey]) {
+                multiTemplates.active_preset = presetKey;
+                paperSize = multiTemplates.presets[presetKey].paper_size || (isWholesale ? "A4-portrait" : "K80");
+                canvasElements = multiTemplates.presets[presetKey].elements;
+            }
+            if (window.posPrintConfig && window.posPrintConfig.presets) {
+                window.posPrintConfig.active_preset = presetKey;
+            }
+            if (typeof updateModalPrintSizeButtons === 'function') {
+                updateModalPrintSizeButtons(defaultSize);
+            }
             renderAndPrint(ord);
         }
+
+        function switchModalPrintSize(size) {
+            const isK80 = size === 'K80';
+            const targetPreset = isK80 ? (multiTemplates?.presets?.['k80_default'] ? 'k80_default' : 'k80_standard') : 'a4_b2b';
+            if (multiTemplates && multiTemplates.presets && multiTemplates.presets[targetPreset]) {
+                multiTemplates.active_preset = targetPreset;
+                paperSize = multiTemplates.presets[targetPreset].paper_size || (isK80 ? "K80" : "A4-portrait");
+                canvasElements = multiTemplates.presets[targetPreset].elements;
+            }
+            if (window.posPrintConfig) {
+                window.posPrintConfig.active_preset = targetPreset;
+            }
+            const selTemplate = document.getElementById('pos-template-select');
+            if (selTemplate) selTemplate.value = targetPreset;
+            if (typeof updateModalPrintSizeButtons === 'function') {
+                updateModalPrintSizeButtons(size);
+            }
+            if (window.currentLoadedPrintOrder) {
+                renderAndPrint(window.currentLoadedPrintOrder);
+            }
+        }
+        window.switchModalPrintSize = switchModalPrintSize;
 
 
 
