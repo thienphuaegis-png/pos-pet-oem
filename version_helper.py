@@ -121,7 +121,7 @@ def check_remote_update_available():
     }
 
 def get_app_version_info():
-    """Trả về thông tin phiên bản động kèm changelog"""
+    """Trả về thông tin phiên bản động kèm changelog tự động từ Git + version.json"""
     info = {
         "version": "v3.5.0",
         "short_version": "v3.5",
@@ -148,6 +148,58 @@ def get_app_version_info():
         info["commit_hash"] = git_commit
     if git_date:
         info["build_date"] = git_date
+
+    # TỰ ĐỘNG ĐỌC NHẬT KÝ TỪ LỊCH SỬ GIT LOG ĐỂ KHÔNG BỊ BỎ SÓT CẬP NHẬT GẦN ĐÂY
+    try:
+        root_dir = Path(__file__).parent.resolve()
+        log_out = subprocess.check_output(
+            ["git", "log", "-n", "8", "--format=%h|%cd|%s", "--date=format:%Y.%m.%d %H:%M"],
+            stderr=subprocess.DEVNULL,
+            cwd=str(root_dir)
+        ).decode().strip()
+
+        if log_out:
+            recent_items = []
+            prefix_map = {
+                "feat(ux)": "✨ Trải Nghiệm:",
+                "fix(spa)": "💆 Spa:",
+                "fix(ui)": "🎨 Giao Diện:",
+                "feat(system)": "🚀 Hệ Thống:",
+                "feat(version)": "🏷️ Phiên Bản:",
+                "feat(oem)": "🏭 Gia Công OEM:",
+                "feat(bom)": "📦 Định Lượng BOM:",
+                "fix(purchases)": "📥 Nhập Hàng:",
+                "feat(topup)": "💳 Nạp Ví Spa:",
+                "feat(inventory)": "⚖️ Kiểm Kê Kho:"
+            }
+
+            for line in log_out.splitlines():
+                parts = line.split("|", 2)
+                if len(parts) == 3:
+                    c_hash, c_date, c_msg = parts[0].strip(), parts[1].strip(), parts[2].strip()
+                    # Dịch nhẹ prefix sang tiếng Việt dễ đọc
+                    formatted_msg = c_msg
+                    for k, v in prefix_map.items():
+                        if c_msg.lower().startswith(k):
+                            formatted_msg = f"{v} {c_msg[len(k):].strip()}"
+                            break
+                    recent_items.append(f"[{c_hash}] {formatted_msg} ({c_date})")
+
+            # Đặt nhóm commit gần nhất lên đầu changelog
+            if recent_items:
+                git_log_group = {
+                    "tag": info.get("version", "v3.5.0"),
+                    "date": info.get("build_date", datetime.date.today().strftime("%Y.%m.%d")),
+                    "title": "⚡ Các thay đổi vừa cập nhật từ Git (Tự động đồng bộ):",
+                    "is_new": True,
+                    "items": recent_items
+                }
+                # Giữ lại các changelog mẫu cũ bên dưới
+                existing_changelogs = [c for c in info.get("changelog", []) if not c.get("is_git_live")]
+                git_log_group["is_git_live"] = True
+                info["changelog"] = [git_log_group] + existing_changelogs
+    except Exception as e:
+        pass
 
     # Tính short_version (ví dụ v3.5 từ v3.5.0)
     ver = info.get("version", "v3.5.0")

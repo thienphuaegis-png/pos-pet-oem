@@ -8,16 +8,19 @@
     {
       "tag": "v3.5.0",
       "date": "2026.10.09",
-      "title": "Bản phát hành chính thức hôm nay",
+      "title": "Bản phát hành chính thức ngày 09/10/2026",
       "is_new": true,
       "items": [
+        "⌨️ Trải Nghiệm & Phím Tắt: Chặn cuộn chuột (Wheel Guard) đổi số lượng; định dạng tiền tệ real-time có dấu chấm phân cách; để trống mặc định các ô giá/phụ thu; đóng modal bằng phím ESC; thêm bảng trợ giúp phím tắt POS (F1-F10).",
+        "💆 Spa Auto-Pricing: Tự động tính tiền tức thì 0ms khi gõ kg hoặc chọn gói dịch vụ; so khớp thông minh không phân biệt chữ hoa/thường; tự động xử lý khi cân nặng vượt trần bảng giá.",
+        "🎨 Modal Xác Nhận Đồng Bộ: Thay thế toàn bộ popup xám cũ của trình duyệt bằng modal xác nhận chuẩn POS (backdrop blur, icon phân loại màu, nút Xác Nhận & Hoàn Tác).",
+        "🚀 Cập Nhật 1 Chạm: Thêm nút cập nhật máy chủ trực tiếp từ modal phiên bản (tương thích cả máy local và server cloud sau này).",
         "💳 Nạp Ví Spa: Tùy chọn tài khoản ngân hàng hoặc két tiền; tự động tích điểm loyalty; xem, sửa và xóa phiếu nạp hoàn tác đồng bộ 100%.",
         "🖨️ Thiết Kế Mẫu In: Bố cục 3 cột chuẩn KiotViet; Auto-Flow xếp dòng dọc chống đè chữ; kéo thả đổi thứ tự; lọc mẫu in theo loại chứng từ.",
         "⚖️ Kiểm Kê Kho Linh Hoạt: Hỗ trợ kiểm đếm từng phần theo danh mục hoặc sản phẩm chọn lọc; checkbox chọn món; chỉ cân bằng các món đã kiểm.",
         "🏷️ Định Lượng Nguyên Liệu BOM: Tự động gắn huy hiệu 'Đã có BOM' / 'Chưa có BOM'; bộ 3 tab lọc nhanh sản phẩm thiếu định lượng.",
         "🏭 Đặt Hàng Gia Công OEM: Mở khóa sửa và xóa đơn OEM ở mọi trạng thái; tự động hoàn tác kho thành phẩm, vật tư xưởng và sổ quỹ.",
-        "📥 Đơn Nhập Hàng NCC: Ô số lượng và thực trả NCC để trống linh hoạt theo thực tế.",
-        "✨ Phiên Bản Tự Động: Tự động nhận diện phiên bản, ngày cập nhật, commit hash từ Git và tự động làm mới bộ nhớ đệm trình duyệt (Cache-Busting)."
+        "📥 Đơn Nhập Hàng NCC: Ô số lượng và thực trả NCC để trống linh hoạt theo thực tế."
       ]
     },
     {
