@@ -1204,9 +1204,14 @@ def create_stock_audit(req: AuditCreate, user=Depends(require_permission("invent
         audit_id = cur.lastrowid
         
         for it in req.items:
-            diff = it.actual_qty - it.system_qty
-            if it.item_type == 'product':
-                cur.execute("SELECT name, unit FROM products WHERE id = ?", (it.product_id,))
+            actual = it.actual_qty if it.actual_qty is not None else (it.actual_quantity if it.actual_quantity is not None else 0.0)
+            sys_qty = it.system_qty if it.system_qty is not None else 0.0
+            diff = actual - sys_qty
+            p_id = it.product_id or (it.item_id if it.item_type == 'product' else None)
+            ing_id = it.ingredient_id or (it.item_id if it.item_type == 'ingredient' else None)
+
+            if it.item_type == 'product' and p_id:
+                cur.execute("SELECT name, unit FROM products WHERE id = ?", (p_id,))
                 p_row = cur.fetchone()
                 item_name = p_row["name"] if p_row else "Sản phẩm"
                 unit = p_row["unit"] if p_row else "cái"
@@ -1217,28 +1222,28 @@ def create_stock_audit(req: AuditCreate, user=Depends(require_permission("invent
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
                     quantity = ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.warehouse_id, it.product_id, it.actual_qty, it.actual_qty))
+                ''', (req.warehouse_id, p_id, actual, actual))
                 
                 # Cập nhật tổng stock trong products
                 cur.execute('''
                 UPDATE products SET stock = (
                     SELECT COALESCE(SUM(quantity), 0) FROM product_inventory WHERE product_id = ?
                 ) WHERE id = ?
-                ''', (it.product_id, it.product_id))
+                ''', (p_id, p_id))
                 
                 # Ghi log
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('product', ?, ?, 'ADJUST', ?, ?, ?)
-                ''', (it.product_id, req.warehouse_id, diff, it.actual_qty, f"Kiểm kê {code}: {it.note or 'Cân bằng kho'}"))
+                ''', (p_id, req.warehouse_id, diff, actual, f"Kiểm kê {code}: {it.note or 'Cân bằng kho'}"))
                 
                 cur.execute('''
                 INSERT INTO stock_audit_items (audit_id, item_type, product_id, item_name, unit, system_qty, actual_qty, diff_qty)
                 VALUES (?, 'product', ?, ?, ?, ?, ?, ?)
-                ''', (audit_id, it.product_id, item_name, unit, it.system_qty, it.actual_qty, diff))
+                ''', (audit_id, p_id, item_name, unit, sys_qty, actual, diff))
                 
-            elif it.item_type == 'ingredient':
-                cur.execute("SELECT name, unit, type FROM ingredients WHERE id = ?", (it.ingredient_id,))
+            elif it.item_type == 'ingredient' and ing_id:
+                cur.execute("SELECT name, unit, type FROM ingredients WHERE id = ?", (ing_id,))
                 ing_row = cur.fetchone()
                 if not ing_row or ing_row["type"] == 'SERVICE':
                     continue
@@ -1251,18 +1256,18 @@ def create_stock_audit(req: AuditCreate, user=Depends(require_permission("invent
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
                     quantity = ?, updated_at = CURRENT_TIMESTAMP
-                ''', (req.warehouse_id, it.ingredient_id, it.actual_qty, it.actual_qty))
+                ''', (req.warehouse_id, ing_id, actual, actual))
                 
                 # Ghi log
                 cur.execute('''
                 INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
                 VALUES ('ingredient', ?, ?, 'ADJUST', ?, ?, ?)
-                ''', (it.ingredient_id, req.warehouse_id, diff, it.actual_qty, f"Kiểm kê {code}: {it.note or 'Cân bằng kho'}"))
+                ''', (ing_id, req.warehouse_id, diff, actual, f"Kiểm kê {code}: {it.note or 'Cân bằng kho'}"))
                 
                 cur.execute('''
                 INSERT INTO stock_audit_items (audit_id, item_type, ingredient_id, item_name, unit, system_qty, actual_qty, diff_qty)
                 VALUES (?, 'ingredient', ?, ?, ?, ?, ?, ?)
-                ''', (audit_id, it.ingredient_id, item_name, unit, it.system_qty, it.actual_qty, diff))
+                ''', (audit_id, ing_id, item_name, unit, sys_qty, actual, diff))
                 
         conn.commit()
     except Exception as e:
@@ -1270,7 +1275,7 @@ def create_stock_audit(req: AuditCreate, user=Depends(require_permission("invent
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
-    return {"status": "ok", "code": code}
+    return {"status": "ok", "code": code, "audit_code": code, "audit_id": audit_id}
 
 @router.get("/api/inventory/audits")
 def list_stock_audits():

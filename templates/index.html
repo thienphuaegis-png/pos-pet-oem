@@ -2287,11 +2287,20 @@
                                         class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 font-bold text-xs">✕</button>
                             </div>
 
-                            <div class="flex items-center gap-2">
-                                <button type="button" onclick="quickSyncAuditToSystem()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-2.5 py-1.5 rounded transition flex items-center gap-1" title="Điền nhanh tồn thực tế bằng số tồn sổ sách cho tất cả mặt hàng đang xem">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" onclick="selectAllAuditItems(true)" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-300 font-bold px-2 py-1.5 rounded transition flex items-center gap-1" title="Chọn tất cả các món trong bảng">
+                                    ✓ Chọn tất cả
+                                </button>
+                                <button type="button" onclick="selectAllAuditItems(false)" class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 font-bold px-2 py-1.5 rounded transition flex items-center gap-1" title="Bỏ chọn tất cả">
+                                    ✕ Bỏ chọn hết
+                                </button>
+                                <button type="button" onclick="selectOnlyDiffAuditItems()" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold px-2 py-1.5 rounded transition flex items-center gap-1" title="Chỉ chọn những mặt hàng có số đếm thực tế khác sổ sách">
+                                    🎯 Chỉ chọn món lệch
+                                </button>
+                                <button type="button" onclick="quickSyncAuditToSystem()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-bold px-2.5 py-1.5 rounded transition flex items-center gap-1" title="Điền nhanh tồn thực tế bằng số tồn sổ sách cho các mặt hàng đang chọn">
                                     ⚡ Gán thực tế = Sổ sách
                                 </button>
-                                <button type="button" onclick="quickClearAuditActual()" class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 font-bold px-2.5 py-1.5 rounded transition flex items-center gap-1" title="Xóa trắng để đếm lại từ đầu">
+                                <button type="button" onclick="quickClearAuditActual()" class="text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-300 font-bold px-2 py-1.5 rounded transition flex items-center gap-1" title="Xóa trắng để đếm lại từ đầu">
                                     🔄 Xóa về 0
                                 </button>
                             </div>
@@ -2302,33 +2311,37 @@
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-gray-50 sticky top-0 border-b">
                                     <tr>
-                                        <th class="p-2 w-12 text-center">STT</th>
-                                        <th class="p-2 w-28">Mã</th>
+                                        <th class="p-2 w-10 text-center">
+                                            <input type="checkbox" id="chk-audit-select-all" onchange="toggleSelectAllAuditItems(this.checked)" checked class="rounded text-sky-600 cursor-pointer w-3.5 h-3.5" title="Chọn / Bỏ chọn tất cả">
+                                        </th>
+                                        <th class="p-2 w-10 text-center">STT</th>
+                                        <th class="p-2 w-24">Mã</th>
                                         <th class="p-2">Tên mặt hàng / Nguyên liệu</th>
-                                        <th class="p-2 w-36">Nhóm danh mục</th>
-                                        <th class="p-2 w-16 text-center">ĐVT</th>
+                                        <th class="p-2 w-28">Nhóm danh mục</th>
+                                        <th class="p-2 w-14 text-center">ĐVT</th>
                                         <th class="p-2 text-right w-24">Tồn sổ sách</th>
-                                        <th class="p-2 text-right w-32">Tồn thực tế (*)</th>
+                                        <th class="p-2 text-right w-28">Tồn thực tế (*)</th>
                                         <th class="p-2 text-right w-24">Chênh lệch</th>
                                         <th class="p-2">Ghi chú lý do lệch</th>
+                                        <th class="p-2 w-12 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-audit-items">
-                                    <tr><td colspan="9" class="p-4 text-center text-gray-400">Vui lòng chọn kho để nạp danh sách hàng</td></tr>
+                                    <tr><td colspan="11" class="p-4 text-center text-gray-400">Vui lòng chọn kho để nạp danh sách hàng</td></tr>
                                 </tbody>
                             </table>
                         </div>
 
                         <!-- FOOTER TỔNG KẾT & CÂN BẰNG KHO -->
                         <div class="flex flex-wrap justify-between items-center pt-2 border-t text-xs gap-3">
-                            <div class="flex items-center gap-4 text-gray-600">
-                                <div>Tổng số mặt hàng: <span id="audit-sum-count" class="font-bold text-slate-800">0</span></div>
+                            <div class="flex items-center gap-3 text-gray-600 flex-wrap">
+                                <div>Đã chọn kiểm: <span id="audit-sum-selected" class="font-bold text-sky-700">0</span> / <span id="audit-sum-count" class="font-bold text-slate-800">0</span> món</div>
                                 <div>Khớp: <span id="audit-sum-match" class="font-bold text-emerald-600">0</span></div>
                                 <div>Lệch: <span id="audit-sum-diff-items" class="font-bold text-rose-600">0 món</span></div>
                                 <div>Tổng SL lệch: <span id="audit-sum-diff" class="font-bold text-slate-800">0</span></div>
                             </div>
-                            <button onclick="submitStockAudit()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg shadow-md flex items-center gap-1.5 transition text-xs">
-                                ⚡ Cân Bằng Kho & Hoàn Tất Phiếu
+                            <button onclick="submitStockAudit()" id="btn-submit-stock-audit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg shadow-md flex items-center gap-1.5 transition text-xs">
+                                ⚡ Cân Bằng Kho (<span id="audit-btn-count">0</span> món đã chọn)
                             </button>
                         </div>
                     </div>

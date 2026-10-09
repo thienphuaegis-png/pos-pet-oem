@@ -142,7 +142,12 @@ class AuditItemIn(BaseModel):
     item_type: str # product hoac ingredient
     product_id: Optional[int] = None
     ingredient_id: Optional[int] = None
-    actual_quantity: float
+    item_id: Optional[int] = None
+    system_qty: Optional[float] = 0.0
+    actual_qty: Optional[float] = None
+    actual_quantity: Optional[float] = None
+    diff_qty: Optional[float] = 0.0
+    note: Optional[str] = ""
 
 class AuditCreate(BaseModel):
     warehouse_id: int

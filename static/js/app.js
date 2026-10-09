@@ -1026,7 +1026,8 @@
                         category: catName,
                         actual_qty: item.quantity,
                         diff_qty: 0,
-                        note: ''
+                        note: '',
+                        is_selected: true
                     };
                 });
 
@@ -1225,33 +1226,49 @@
             tbody.innerHTML = filtered.map((item, idx) => {
                 const diffColor = item.diff_qty > 0 ? 'text-emerald-600 font-bold' : (item.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
                 const diffPrefix = item.diff_qty > 0 ? '+' : '';
-                const isDiff = item.diff_qty !== 0;
+                const isSelected = item.is_selected !== false;
+                const rowClass = !isSelected ? 'border-b text-xs bg-slate-50/70 opacity-60' : (item.diff_qty !== 0 ? 'border-b text-xs bg-rose-50/40 hover:bg-rose-50/60' : 'border-b text-xs hover:bg-gray-50');
 
                 return `
-                    <tr id="audit-row-${item.id}-${item.item_type}" class="border-b hover:bg-gray-50 text-xs ${isDiff ? 'bg-rose-50/40' : ''}">
-                        <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
+                    <tr id="audit-row-${item.id}-${item.item_type}" class="${rowClass}">
+                        <td class="p-2 text-center">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                                   onchange="toggleAuditItemSelect(${item.id}, '${item.item_type}', this.checked)"
+                                   class="rounded text-sky-600 cursor-pointer w-3.5 h-3.5" title="Chọn kiểm mặt hàng này">
+                        </td>
+                        <td class="p-2 text-gray-400 text-center font-mono">${idx + 1}</td>
                         <td class="p-2 font-mono font-bold text-slate-700">${item.code || '-'}</td>
-                        <td class="p-2 font-bold text-slate-800">${item.name}</td>
                         <td class="p-2">
-                            <span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                            <div class="font-bold text-slate-800">${item.name}</div>
+                            <div class="text-[10px] text-gray-400">${item.item_type === 'product' ? '📦 Hàng hóa' : '🧪 Nguyên liệu'}</div>
+                        </td>
+                        <td class="p-2">
+                            <span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold px-1.5 py-0.5 rounded truncate max-w-[120px]">
                                 ${item.category}
                             </span>
                         </td>
                         <td class="p-2 text-center text-gray-500">${item.unit || 'cái'}</td>
-                        <td class="p-2 text-right font-medium text-slate-700">${item.quantity.toLocaleString('vi-VN')}</td>
+                        <td class="p-2 text-right font-medium text-slate-700 font-mono">${Number(item.quantity || 0).toLocaleString('vi-VN')}</td>
                         <td class="p-2 text-right">
                             <input type="number" step="any" value="${item.actual_qty}" 
                                    onkeydown="handleAuditKeyDown(event, ${idx})"
                                    oninput="updateAuditItemActual(${item.id}, '${item.item_type}', this.value)" 
-                                   class="audit-actual-input border p-1 text-right font-bold w-24 rounded bg-amber-50 border-amber-300 focus:bg-white focus:border-sky-500 outline-none">
+                                   class="audit-actual-input border p-1 text-right font-bold font-mono w-24 rounded bg-amber-50 border-amber-300 focus:bg-white focus:border-sky-500 outline-none">
                         </td>
-                        <td class="p-2 text-right ${diffColor}" id="audit-diff-${item.id}-${item.item_type}">
-                            ${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}
+                        <td class="p-2 text-right ${diffColor} font-mono" id="audit-diff-${item.id}-${item.item_type}">
+                            ${diffPrefix}${Number(item.diff_qty || 0).toLocaleString('vi-VN')}
                         </td>
                         <td class="p-2">
                             <input type="text" placeholder="Lý do lệch..." value="${item.note || ''}" 
                                    oninput="updateAuditItemNote(${item.id}, '${item.item_type}', this.value)" 
                                    class="border p-1 w-full rounded text-[11px] outline-none focus:border-sky-500">
+                        </td>
+                        <td class="p-2 text-center">
+                            <button type="button" onclick="removeAuditItemFromList(${item.id}, '${item.item_type}')" 
+                                    class="text-slate-400 hover:text-rose-600 font-bold text-xs p-1 rounded hover:bg-rose-50 transition" 
+                                    title="Loại bỏ món này khỏi đợt kiểm kê">
+                                ✕
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -1272,6 +1289,48 @@
             }
         }
 
+        // Checkbox chọn món kiểm kê
+        function toggleAuditItemSelect(id, itemType, checked) {
+            const item = currentAuditItems.find(x => x.id === id && x.item_type === itemType);
+            if (item) item.is_selected = checked;
+            const rawIt = rawAuditWarehouseItems.find(x => x.id === id && x.item_type === itemType);
+            if (rawIt) rawIt.is_selected = checked;
+
+            const rowEl = document.getElementById(`audit-row-${id}-${itemType}`);
+            if (rowEl) {
+                if (!checked) {
+                    rowEl.className = 'border-b text-xs bg-slate-50/70 opacity-60';
+                } else {
+                    const isDiff = item && item.diff_qty !== 0;
+                    rowEl.className = isDiff ? 'border-b text-xs bg-rose-50/40 hover:bg-rose-50/60' : 'border-b text-xs hover:bg-gray-50';
+                }
+            }
+            updateAuditStats();
+        }
+
+        function toggleSelectAllAuditItems(checked) {
+            currentAuditItems.forEach(it => it.is_selected = checked);
+            rawAuditWarehouseItems.forEach(it => it.is_selected = checked);
+            renderAuditTable();
+        }
+
+        function selectAllAuditItems(select) {
+            toggleSelectAllAuditItems(select);
+        }
+
+        function selectOnlyDiffAuditItems() {
+            currentAuditItems.forEach(it => {
+                it.is_selected = (it.diff_qty !== 0);
+            });
+            renderAuditTable();
+        }
+
+        function removeAuditItemFromList(id, itemType) {
+            currentAuditItems = currentAuditItems.filter(x => !(x.id === id && x.item_type === itemType));
+            rawAuditWarehouseItems = rawAuditWarehouseItems.filter(x => !(x.id === id && x.item_type === itemType));
+            renderAuditTable();
+        }
+
         // Cập nhật DOM cụ thể tại dòng (chống giật, không mất focus)
         function updateAuditItemActual(id, itemType, val) {
             const actual = parseFloat(val) || 0;
@@ -1280,27 +1339,31 @@
 
             item.actual_qty = actual;
             item.diff_qty = actual - item.quantity;
+            item.is_selected = true; // Tự động đánh dấu chọn kiểm khi người dùng nhập số thực tế
 
             // Đồng bộ sang raw list
             const rawIt = rawAuditWarehouseItems.find(x => x.id === id && x.item_type === itemType);
             if (rawIt) {
                 rawIt.actual_qty = actual;
                 rawIt.diff_qty = item.diff_qty;
+                rawIt.is_selected = true;
             }
 
             const diffEl = document.getElementById(`audit-diff-${id}-${itemType}`);
             const rowEl = document.getElementById(`audit-row-${id}-${itemType}`);
+            const chkBox = rowEl?.querySelector('input[type="checkbox"]');
+            if (chkBox) chkBox.checked = true;
 
             if (diffEl) {
                 const diffColor = item.diff_qty > 0 ? 'text-emerald-600 font-bold' : (item.diff_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-500');
                 const diffPrefix = item.diff_qty > 0 ? '+' : '';
                 diffEl.textContent = `${diffPrefix}${item.diff_qty.toLocaleString('vi-VN')}`;
-                diffEl.className = `p-2 text-right ${diffColor}`;
+                diffEl.className = `p-2 text-right ${diffColor} font-mono`;
             }
 
             if (rowEl) {
-                if (item.diff_qty !== 0) rowEl.classList.add('bg-rose-50/40');
-                else rowEl.classList.remove('bg-rose-50/40');
+                if (item.diff_qty !== 0) rowEl.className = 'border-b text-xs bg-rose-50/40 hover:bg-rose-50/60';
+                else rowEl.className = 'border-b text-xs hover:bg-gray-50';
             }
 
             updateAuditStats();
@@ -1315,24 +1378,34 @@
 
         function quickSyncAuditToSystem() {
             currentAuditItems.forEach(it => {
-                it.actual_qty = it.quantity;
-                it.diff_qty = 0;
+                if (it.is_selected !== false) {
+                    it.actual_qty = it.quantity;
+                    it.diff_qty = 0;
+                }
             });
             renderAuditTable();
         }
 
         function quickClearAuditActual() {
             currentAuditItems.forEach(it => {
-                it.actual_qty = 0;
-                it.diff_qty = -it.quantity;
+                if (it.is_selected !== false) {
+                    it.actual_qty = 0;
+                    it.diff_qty = -it.quantity;
+                }
             });
             renderAuditTable();
         }
 
         function updateAuditStats() {
-            const diffItems = currentAuditItems.filter(it => it.diff_qty !== 0);
-            const totalDiffQty = currentAuditItems.reduce((sum, it) => sum + it.diff_qty, 0);
-            const matchedCount = currentAuditItems.length - diffItems.length;
+            const selectedItems = currentAuditItems.filter(it => it.is_selected !== false);
+            const diffItems = selectedItems.filter(it => it.diff_qty !== 0);
+            const totalDiffQty = selectedItems.reduce((sum, it) => sum + (it.diff_qty || 0), 0);
+            const matchedCount = selectedItems.length - diffItems.length;
+
+            const sumSelectedEl = document.getElementById('audit-sum-selected');
+            if (sumSelectedEl) sumSelectedEl.innerText = selectedItems.length.toLocaleString('vi-VN');
+            const btnCountEl = document.getElementById('audit-btn-count');
+            if (btnCountEl) btnCountEl.innerText = selectedItems.length.toLocaleString('vi-VN');
 
             document.getElementById('audit-sum-count').innerText = currentAuditItems.length.toLocaleString('vi-VN');
             document.getElementById('audit-sum-match').innerText = matchedCount.toLocaleString('vi-VN');
@@ -1342,6 +1415,11 @@
             if (sumDiffEl) {
                 sumDiffEl.innerText = (totalDiffQty > 0 ? '+' : '') + totalDiffQty.toLocaleString('vi-VN');
                 sumDiffEl.className = totalDiffQty > 0 ? 'font-bold text-emerald-600' : (totalDiffQty < 0 ? 'font-bold text-rose-600' : 'font-bold text-slate-800');
+            }
+
+            const chkAll = document.getElementById('chk-audit-select-all');
+            if (chkAll) {
+                chkAll.checked = currentAuditItems.length > 0 && selectedItems.length === currentAuditItems.length;
             }
         }
 
@@ -1362,23 +1440,26 @@
                 return;
             }
 
-            if (!currentAuditItems || currentAuditItems.length === 0) {
-                alert("Không có mặt hàng nào trong phạm vi kiểm kê!");
+            const selectedAuditItems = currentAuditItems.filter(it => it.is_selected !== false);
+            if (!selectedAuditItems || selectedAuditItems.length === 0) {
+                alert("Vui lòng chọn ít nhất 1 mặt hàng để kiểm kê và cân bằng kho!");
                 return;
             }
 
-            const scopeDesc = selectedAuditCategories.length === 0 ? "toàn bộ kho" : `${selectedAuditCategories.length} nhóm đã chọn`;
+            const scopeDesc = selectedAuditItems.length === currentAuditItems.length ? "toàn bộ danh mục đang xem" : `${selectedAuditItems.length} mặt hàng đã chọn`;
             const note = document.getElementById('audit-note').value.trim();
-            const itemsPayload = currentAuditItems.map(it => ({
+            const itemsPayload = selectedAuditItems.map(it => ({
                 item_type: it.item_type,
                 item_id: it.id,
+                product_id: it.item_type === 'product' ? it.id : null,
+                ingredient_id: it.item_type === 'ingredient' ? it.id : null,
                 system_qty: it.quantity,
                 actual_qty: it.actual_qty,
                 diff_qty: it.diff_qty,
                 note: it.note || ''
             }));
 
-            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng (${scopeDesc})?\nTồn kho hệ thống sẽ được cập nhật theo số thực tế.`)) return;
+            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng đã chọn (${scopeDesc})?\nCác mặt hàng không chọn sẽ được GIỮ NGUYÊN tồn kho hiện tại.`)) return;
 
             try {
                 const res = await fetch('/api/inventory/audit', {
