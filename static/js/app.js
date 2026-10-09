@@ -4152,30 +4152,32 @@
             const btn = document.getElementById('btn-trigger-apply-update');
             if (!banner || !msg) return;
 
+            // Luôn cho phép nút Cập Nhật Ngay hiển thị để chủ shop có thể chủ động bấm sync bất cứ lúc nào
+            if (btn) btn.classList.remove('hidden');
+
             try {
-                const res = await fetch('/api/system/check-update');
+                const headers = {};
+                if (typeof Auth !== 'undefined' && Auth.getToken()) {
+                    headers['Authorization'] = `Bearer ${Auth.getToken()}`;
+                }
+                const res = await fetch('/api/system/check-update', { headers: headers });
                 if (!res.ok) throw new Error('Không thể kiểm tra update');
                 const data = await res.json();
-
-                const isOwner = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
 
                 if (data.update_available) {
                     banner.className = 'bg-emerald-50 border-b border-emerald-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
                     icon.innerText = '🚀';
                     msg.innerHTML = `<strong class="text-emerald-800">Đã có bản cập nhật mới trên GitHub (commit ${data.remote_commit})!</strong>`;
-                    if (btn && isOwner) {
-                        btn.classList.remove('hidden');
-                        btn.innerText = '⚡ Cập Nhật Ngay';
-                    }
+                    if (btn) btn.innerText = '⚡ Cập Nhật Ngay';
                 } else {
                     banner.className = 'bg-slate-50 border-b border-slate-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
                     icon.innerText = '✓';
-                    msg.innerHTML = `<span class="text-slate-600 font-medium">Hệ thống đang hoạt động với mã nguồn mới nhất.</span>`;
-                    if (btn) btn.classList.add('hidden');
+                    msg.innerHTML = `<span class="text-slate-600 font-medium">Phiên bản hiện tại: <strong class="font-mono text-slate-800">${data.local_commit || 'mới nhất'}</strong></span>`;
+                    if (btn) btn.innerText = '🔄 Đồng Bộ Lại';
                 }
             } catch(e) {
-                if (msg) msg.innerText = 'Chưa thể kết nối tới remote Git (Offline mode).';
-                if (btn) btn.classList.add('hidden');
+                if (msg) msg.innerText = 'Máy chủ đang ở chế độ Offline / Sẵn sàng đồng bộ.';
+                if (btn) btn.innerText = '⚡ Cập Nhật Ngay';
             }
         }
 
@@ -4207,14 +4209,17 @@
 
             if (!confirmed) return;
 
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = '⏳ Đang tiến hành...';
-            }
+            btn.disabled = true;
+            btn.innerText = '⏳ Đang tiến hành...';
             if (msg) msg.innerHTML = '<span class="text-amber-800 font-bold animate-pulse">Máy chủ đang sao lưu và cập nhật mã nguồn... Vui lòng không tắt máy!</span>';
 
             try {
-                const res = await fetch('/api/system/apply-update', { method: 'POST' });
+                // Đảm bảo gắn Bearer token từ Auth
+                const headers = { 'Content-Type': 'application/json' };
+                if (typeof Auth !== 'undefined' && Auth.getToken()) {
+                    headers['Authorization'] = `Bearer ${Auth.getToken()}`;
+                }
+                const res = await fetch('/api/system/apply-update', { method: 'POST', headers: headers });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Cập nhật thất bại');
 

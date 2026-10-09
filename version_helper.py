@@ -34,36 +34,81 @@ def get_git_metadata():
         return None, None
 
 def check_remote_update_available():
-    """Kiểm tra xem remote repository (github/main) có bản commit mới hơn local không."""
+    """Kiểm tra xem remote repository (github/origin) có bản commit mới hơn local không."""
     try:
+        root_dir = Path(__file__).parent.resolve()
         local_head = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
             stderr=subprocess.DEVNULL,
-            cwd=str(Path(__file__).parent)
+            cwd=str(root_dir)
         ).decode().strip()
 
-        # Thử lấy remote hash từ github hoặc origin
-        remote_out = subprocess.check_output(
-            ["git", "ls-remote", "github", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path(__file__).parent)
-        ).decode().strip()
+        # Thiết lập SSH key nếu có để git không bị hỏi xác thực
+        env = os.environ.copy()
+        id_key = root_dir / "deploy" / "id_pos_shop"
+        if id_key.exists():
+            env["GIT_SSH_COMMAND"] = f'ssh -i "{str(id_key).replace(chr(92), "/")}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new'
 
-        if not remote_out:
-            remote_out = subprocess.check_output(
-                ["git", "ls-remote", "origin", "HEAD"],
+        remote_head = None
+
+        # 1. Thử remote 'github'
+        try:
+            out = subprocess.check_output(
+                ["git", "ls-remote", "github", "HEAD"],
                 stderr=subprocess.DEVNULL,
-                cwd=str(Path(__file__).parent)
+                cwd=str(root_dir),
+                env=env,
+                timeout=5
             ).decode().strip()
+            if out:
+                remote_head = out.split()[0]
+        except Exception:
+            pass
 
-        if remote_out:
-            remote_head = remote_out.split()[0]
+        # 2. Thử remote 'origin'
+        if not remote_head:
+            try:
+                out = subprocess.check_output(
+                    ["git", "ls-remote", "origin", "HEAD"],
+                    stderr=subprocess.DEVNULL,
+                    cwd=str(root_dir),
+                    env=env,
+                    timeout=5
+                ).decode().strip()
+                if out:
+                    remote_head = out.split()[0]
+            except Exception:
+                pass
+
+        # 3. Thử direct URL repo
+        if not remote_head:
+            try:
+                out = subprocess.check_output(
+                    ["git", "ls-remote", "https://github.com/thienphuaegis-png/pos-pet-oem.git", "HEAD"],
+                    stderr=subprocess.DEVNULL,
+                    cwd=str(root_dir),
+                    env=env,
+                    timeout=5
+                ).decode().strip()
+                if out:
+                    remote_head = out.split()[0]
+            except Exception:
+                pass
+
+        if remote_head:
             if remote_head != local_head:
                 return {
                     "update_available": True,
                     "local_commit": local_head[:7],
                     "remote_commit": remote_head[:7],
                     "message": f"Có bản cập nhật mới trên GitHub (commit {remote_head[:7]})!"
+                }
+            else:
+                return {
+                    "update_available": False,
+                    "local_commit": local_head[:7],
+                    "remote_commit": remote_head[:7],
+                    "message": "Bạn đang dùng phiên bản mới nhất."
                 }
     except Exception as e:
         pass
@@ -72,7 +117,7 @@ def check_remote_update_available():
         "update_available": False,
         "local_commit": "latest",
         "remote_commit": "latest",
-        "message": "Bạn đang dùng phiên bản mới nhất."
+        "message": "Hệ thống đang hoạt động với phiên bản hiện tại."
     }
 
 def get_app_version_info():
