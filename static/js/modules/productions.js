@@ -5421,27 +5421,56 @@
             const targetIdx = idx + direction;
 
             if (targetIdx < 0) {
-                alert('Khối này đã ở vị trí trên cùng!');
+                if (typeof showToast === 'function') showToast('Khối này đã ở vị trí trên cùng!', 'warning');
                 return;
             }
             if (targetIdx >= canvasElements.length) {
-                alert('Khối này đã ở vị trí dưới cùng!');
+                if (typeof showToast === 'function') showToast('Khối này đã ở vị trí dưới cùng!', 'warning');
                 return;
             }
 
-            const currentZone = canvasElements[idx].zone || 'header';
-            const targetZone = canvasElements[targetIdx].zone || 'header';
+            const temp = canvasElements[idx];
+            canvasElements[idx] = canvasElements[targetIdx];
+            canvasElements[targetIdx] = temp;
+            renderCanvas();
+            renderPropsPanel();
+            if (typeof showToast === 'function') {
+                showToast(`Đã di chuyển [${temp.label || temp.id}] ${direction < 0 ? 'lên trên' : 'xuống dưới'}`, 'info');
+            }
+        }
 
-            // Neu phan tu chua duoc gan zone thi tu dong suy luan
-            if (currentZone === targetZone) {
-                const temp = canvasElements[idx];
-                canvasElements[idx] = canvasElements[targetIdx];
-                canvasElements[targetIdx] = temp;
+        let draggedElementId = null;
+
+        function onAutoFlowDragStart(e, id) {
+            draggedElementId = id;
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', id);
+            }
+        }
+
+        function onAutoFlowDragOver(e) {
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        }
+
+        function onAutoFlowDrop(e, targetId) {
+            e.preventDefault();
+            if (!draggedElementId || draggedElementId === targetId) return;
+
+            const fromIdx = canvasElements.findIndex(el => el.id === draggedElementId);
+            const toIdx = canvasElements.findIndex(el => el.id === targetId);
+
+            if (fromIdx !== -1 && toIdx !== -1) {
+                const movedItem = canvasElements.splice(fromIdx, 1)[0];
+                canvasElements.splice(toIdx, 0, movedItem);
                 renderCanvas();
                 renderPropsPanel();
-            } else {
-                alert(`Khối này thuộc [${currentZone.toUpperCase()}], không thể di chuyển sang [${targetZone.toUpperCase()}]!`);
+                if (typeof showToast === 'function') {
+                    showToast(`Đã chuyển [${movedItem.label || movedItem.id}] sang vị trí mới!`, 'info');
+                }
             }
+            draggedElementId = null;
         }
 
         let canvasZoom = 1.0;
@@ -5650,6 +5679,12 @@
             const canvas = document.getElementById('paper-canvas');
             if (!canvas) return;
             const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+            canvas.style.display = 'flex';
+            canvas.style.flexDirection = 'column';
+            canvas.style.padding = isThermal ? '16px 12px' : '28px 24px';
+            canvas.style.boxSizing = 'border-box';
+            canvas.style.overflow = 'visible';
+
             const maxThermalW = paperSize.includes('K80') ? 270 : 195;
             const mockData = {
                 ten_cua_hang: currentSettings.shop_name || "PET CARE SPA & CLINIC",
@@ -5686,27 +5721,10 @@
                 lech_thieu: "0"
             };
 
-            // Grid background
-            let html = `<div class="canvas-grid" style="background-size: ${GRID_SIZE}px ${GRID_SIZE}px;"></div>`;
+            // Auto-flow layout: Khong dung toa do tuyet doi de tranh chong de chu
+            let html = `<div id="snap-guides"></div>`;
 
-            // Snap guide container
-            html += `<div id="snap-guides"></div>`;
-
-            // Zone demarcation lines
-            const zones = ['header', 'body', 'footer'];
-            const zoneLabels = { header: '📌 ĐẦU TRANG', body: '📋 BẢNG HÀNG HÓA', footer: '💰 CHÂN TRANG' };
-            const zoneColors = { header: '#0ea5e9', body: '#8b5cf6', footer: '#10b981' };
-
-            zones.forEach(z => {
-                const zElems = canvasElements.filter(e => (e.zone || 'header') === z);
-                if (zElems.length === 0) return;
-                const minY = Math.min(...zElems.map(e => e.y));
-                html += `<div style="position: absolute; left: 0; right: 0; top: ${minY - 4}px; border-top: 1px dashed ${zoneColors[z]}; z-index: 2; pointer-events: none;">
-                    <span style="position: absolute; right: 8px; top: -9px; background: white; color: ${zoneColors[z]}; font-size: 9px; font-weight: bold; padding: 1px 6px; border-radius: 4px; border: 1px solid ${zoneColors[z]}60; white-space: nowrap;">${zoneLabels[z]}</span>
-                </div>`;
-            });
-
-            // Render elements with absolute positioning
+            // Render elements with auto-flow vertical stack
             canvasElements.forEach((e, index) => {
                 const isSel = e.id === selectedElementId ? 'selected' : '';
                 let content = '';
@@ -5935,14 +5953,24 @@
 
                 const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
 
-                const renderedX = isThermal ? Math.min(e.x || 0, 15) : (e.x || 0);
-                const renderedW = e.w ? (isThermal ? Math.min(e.w, maxThermalW) + 'px' : e.w + 'px') : (isThermal ? maxThermalW + 'px' : 'auto');
-
                 html += `
-                    <div id="${e.id}" class="canvas-element ${isSel}"
-                         style="left: ${renderedX}px; top: ${e.y || 0}px; width: ${renderedW}; max-width: 100%; box-sizing: border-box; word-break: break-word;"
-                         onmousedown="startDrag(event, '${e.id}')"
+                    <div id="${e.id}" class="canvas-element auto-flow-item ${isSel}"
+                         draggable="true"
+                         ondragstart="onAutoFlowDragStart(event, '${e.id}')"
+                         ondragover="onAutoFlowDragOver(event)"
+                         ondrop="onAutoFlowDrop(event, '${e.id}')"
+                         style="position: relative; width: 100%; margin-bottom: 7px; box-sizing: border-box; word-break: break-word; cursor: pointer;"
                          onclick="selectElement('${e.id}')">
+                        <div class="element-action-bar flex items-center justify-between pb-0.5 opacity-40 hover:opacity-100 transition text-[9px] text-slate-400 select-none">
+                            <span class="font-bold flex items-center gap-1">
+                                <span class="cursor-grab text-slate-500 font-mono text-xs">⠿</span>
+                                <span>${e.label || ''}</span>
+                            </span>
+                            <span class="space-x-1">
+                                <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', -1)" title="Di chuyển lên trên" class="hover:text-sky-600 font-bold px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200">▲ Lên</button>
+                                <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', 1)" title="Di chuyển xuống dưới" class="hover:text-sky-600 font-bold px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200">▼ Xuống</button>
+                            </span>
+                        </div>
                         ${content}
                         ${resizeHandleHTML}
                     </div>
@@ -8816,6 +8844,10 @@
         window.changePrintPaperView = changePrintPaperView;
         window.togglePrintPreviewBlock = togglePrintPreviewBlock;
         window.togglePrintPreviewField = togglePrintPreviewField;
+        window.moveElementOrder = moveElementOrder;
+        window.onAutoFlowDragStart = onAutoFlowDragStart;
+        window.onAutoFlowDragOver = onAutoFlowDragOver;
+        window.onAutoFlowDrop = onAutoFlowDrop;
 
         window.openCreateCashModal = openCreateCashModal;
         window.setCashModalType = setCashModalType;
