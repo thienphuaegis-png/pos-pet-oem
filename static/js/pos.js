@@ -335,7 +335,18 @@ function setupShortcuts() {
     document.addEventListener('keydown', (e) => {
         const tabPos = document.getElementById('tab-pos');
         if (!tabPos || tabPos.classList.contains('hidden')) return; // Khóa phím tắt khi không ở tab POS
-        if (e.key === 'F3') {
+        if (e.key === 'F1') {
+            e.preventDefault();
+            addNewInvoiceTab();
+        } else if (e.key === 'F2') {
+            e.preventDefault();
+            // Đổi tab hóa đơn kế tiếp
+            if (Array.isArray(invoiceTabs) && invoiceTabs.length > 1) {
+                const curIdx = invoiceTabs.findIndex(t => t.id === activeTabId);
+                const nextIdx = (curIdx + 1) % invoiceTabs.length;
+                switchInvoiceTab(invoiceTabs[nextIdx].id);
+            }
+        } else if (e.key === 'F3') {
             e.preventDefault();
             document.getElementById('pos-search-input')?.focus();
             document.getElementById('pos-search-input')?.select();
@@ -343,12 +354,22 @@ function setupShortcuts() {
             e.preventDefault();
             document.getElementById('pos-customer-search')?.focus();
             document.getElementById('pos-customer-search')?.select();
-        } else if (e.key === 'F9') {
+        } else if (e.key === 'F8') {
+            e.preventDefault();
+            // Toggle hoặc chọn phương thức thanh toán
+            const activeMethodBtn = document.querySelector('.pos-pay-method-btn:not(.bg-white)');
+            const allMethodBtns = document.querySelectorAll('.pos-pay-method-btn');
+            if (allMethodBtns.length > 0) {
+                let nextIdx = 0;
+                if (activeMethodBtn) {
+                    const idx = Array.from(allMethodBtns).indexOf(activeMethodBtn);
+                    nextIdx = (idx + 1) % allMethodBtns.length;
+                }
+                allMethodBtns[nextIdx].click();
+            }
+        } else if (e.key === 'F9' || (e.ctrlKey && e.key === 'Enter')) {
             e.preventDefault();
             submitPOSOrder();
-        } else if (e.key === 'F1') {
-            e.preventDefault();
-            addNewInvoiceTab();
         }
     });
 

@@ -2766,9 +2766,9 @@
             document.getElementById('modal-prod-name').value = '';
             document.getElementById('modal-prod-type').value = 'product';
             document.getElementById('modal-prod-unit').value = 'cái';
-            document.getElementById('modal-prod-cost').value = '0';
-            document.getElementById('modal-prod-price').value = '0';
-            document.getElementById('modal-prod-stock').value = '0';
+            document.getElementById('modal-prod-cost').value = '';
+            document.getElementById('modal-prod-price').value = '';
+            document.getElementById('modal-prod-stock').value = '';
             document.getElementById('modal-prod-stock-group').classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
             await loadProdUnits(null);
@@ -2794,8 +2794,8 @@
                 document.getElementById('modal-prod-name').value = p.name || '';
                 document.getElementById('modal-prod-type').value = p.type || p.sub_type || 'product';
                 document.getElementById('modal-prod-unit').value = p.unit || 'cái';
-                document.getElementById('modal-prod-cost').value = p.cost_price || 0;
-                document.getElementById('modal-prod-price').value = p.sell_price || 0;
+                document.getElementById('modal-prod-cost').value = p.cost_price ? formatMoneyNumber(p.cost_price) : '';
+                document.getElementById('modal-prod-price').value = p.sell_price ? formatMoneyNumber(p.sell_price) : '';
                 document.getElementById('modal-prod-stock-group').classList.add('hidden');
                 
                 // Hiện nút chuyển sang nguyên liệu khi đang sửa
@@ -3003,8 +3003,8 @@
             const category = (document.getElementById('modal-prod-category')?.value || '').trim() || 'Khác';
             const unit = document.getElementById('modal-prod-unit').value.trim() || 'cái';
             // Không có quyền xem giá vốn -> gửi null để backend giữ nguyên giá vốn cũ
-            const cost_price = canViewCost ? (parseFloat(document.getElementById('modal-prod-cost').value) || 0) : null;
-            const sell_price = parseFloat(document.getElementById('modal-prod-price').value) || 0;
+            const cost_price = canViewCost ? (parseMoneyInput(document.getElementById('modal-prod-cost').value)) : null;
+            const sell_price = parseMoneyInput(document.getElementById('modal-prod-price').value);
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
             const supplier_ids = [...selectedProdSupplierIds];
 
@@ -3290,6 +3290,32 @@
         function formatMoney(num) {
             return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
         }
+
+        function formatMoneyNumber(val) {
+            if (!val && val !== 0) return '';
+            const n = Math.round(Number(val) || 0);
+            return n > 0 ? n.toLocaleString('vi-VN') : '';
+        }
+        window.formatMoneyNumber = formatMoneyNumber;
+
+        function parseMoneyInput(val) {
+            if (!val && val !== 0) return 0;
+            const clean = String(val).replace(/[^\d]/g, '');
+            return Number(clean) || 0;
+        }
+        window.parseMoneyInput = parseMoneyInput;
+
+        function formatCurrencyInputRealtime(el) {
+            if (!el) return;
+            const pos = el.selectionStart;
+            const oldLen = el.value.length;
+            const raw = parseMoneyInput(el.value);
+            el.value = raw > 0 ? raw.toLocaleString('vi-VN') : '';
+            const newLen = el.value.length;
+            const newPos = Math.max(0, pos + (newLen - oldLen));
+            try { el.setSelectionRange(newPos, newPos); } catch(_) {}
+        }
+        window.formatCurrencyInputRealtime = formatCurrencyInputRealtime;
 
         function formatMaskedPhone(phone) {
             if (!phone) return '<span class="text-slate-400 italic">Chưa có</span>';
@@ -4301,6 +4327,122 @@
 
         window.closeAppVersionModal = closeAppVersionModal;
         window.triggerServerUpdate = triggerServerUpdate;
+
+        // ============================================================
+        // 1. WHEEL GUARD: CHẶN CUỘN CHUỘT LÀM THAY ĐỔI SỐ LƯỢNG / TIỀN
+        // ============================================================
+        document.addEventListener('wheel', function(e) {
+            const active = document.activeElement;
+            if (active && (
+                active.type === 'number' || 
+                active.classList.contains('currency-auto-format') ||
+                active.classList.contains('audit-actual-input') ||
+                active.classList.contains('oem-prod-qty') ||
+                active.classList.contains('oem-prod-price') ||
+                active.hasAttribute('step')
+            )) {
+                active.blur(); // Thoát focus ngay lập tức để không bị đổi giá trị khi lăn chuột
+            }
+        }, { passive: true });
+
+        // ============================================================
+        // 2. CURRENCY INPUT REALTIME EVENT DELEGATION
+        // ============================================================
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('currency-auto-format')) {
+                formatCurrencyInputRealtime(e.target);
+            }
+        });
+
+        // ============================================================
+        // 3. UNIVERSAL MODAL ESCAPE HANDLER & SHORTCUTS
+        // ============================================================
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // A. Nếu có Confirm modal / Custom Alert đang mở
+                const confirmBackdrop = document.getElementById('custom-confirm-modal-backdrop');
+                if (confirmBackdrop) {
+                    const cancelBtn = confirmBackdrop.querySelector('#btn-custom-confirm-cancel');
+                    if (cancelBtn) { cancelBtn.click(); return; }
+                }
+                const globalConfirm = document.getElementById('global-confirm-modal');
+                if (globalConfirm) {
+                    const cancelBtn = globalConfirm.querySelector('#btn-modal-cancel');
+                    if (cancelBtn) { cancelBtn.click(); return; }
+                }
+
+                // B. Đóng các dropdown tìm kiếm đang nổi
+                const dropPopups = [
+                    'purchase-search-results', 'supplier-search-results',
+                    'svc-customer-dropdown', 'bom-prod-dropdown-list',
+                    'oem-factory-dropdown-menu', 'popup-audit-categories'
+                ];
+                for (const id of dropPopups) {
+                    const el = document.getElementById(id);
+                    if (el && !el.classList.contains('hidden')) {
+                        el.classList.add('hidden');
+                        return;
+                    }
+                }
+
+                // C. Đóng các modal lớn đang hiển thị theo thứ tự ưu tiên
+                const activeModals = [
+                    'modal-pos-shortcuts-help',
+                    'modal-app-version',
+                    'modal-edit-topup-tx',
+                    'modal-detail-oem',
+                    'modal-create-oem',
+                    'modal-manage-oem-factories',
+                    'modal-receive-oem',
+                    'modal-product',
+                    'modal-write-off',
+                    'modal-inventory-check',
+                    'modal-audit-history',
+                    'modal-audit-detail',
+                    'modal-create-service-ticket',
+                    'modal-quick-add-pet',
+                    'modal-pay-debt',
+                    'modal-create-cashbook',
+                    'modal-cash-counter',
+                    'modal-import-bom',
+                    'modal-clone-bom',
+                    'modal-quick-assign-supplier',
+                    'modal-pos-wallet-history'
+                ];
+
+                for (const mid of activeModals) {
+                    const m = document.getElementById(mid);
+                    if (m && !m.classList.contains('hidden')) {
+                        // Thử tìm nút đóng (✕ hoặc class cancel)
+                        const closeBtn = m.querySelector('button[onclick*="close"], button[onclick*="Close"]');
+                        if (closeBtn) {
+                            closeBtn.click();
+                        } else {
+                            m.classList.add('hidden');
+                        }
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            } else if (e.key === 'F10') {
+                e.preventDefault();
+                if (typeof openCashCounterModal === 'function') openCashCounterModal();
+            } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+                e.preventDefault();
+                openPOSShortcutsHelpModal();
+            }
+        });
+
+        function openPOSShortcutsHelpModal() {
+            const m = document.getElementById('modal-pos-shortcuts-help');
+            if (m) m.classList.remove('hidden');
+        }
+        function closePOSShortcutsHelpModal() {
+            const m = document.getElementById('modal-pos-shortcuts-help');
+            if (m) m.classList.add('hidden');
+        }
+        window.openPOSShortcutsHelpModal = openPOSShortcutsHelpModal;
+        window.closePOSShortcutsHelpModal = closePOSShortcutsHelpModal;
 
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {

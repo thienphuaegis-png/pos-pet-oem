@@ -1044,6 +1044,12 @@
                 </select>
             </div>
 
+            <!-- Nút Trợ Giúp Phím Tắt POS -->
+            <button type="button" onclick="openPOSShortcutsHelpModal()" title="Xem danh sách phím tắt thu ngân (Phím ?)" class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition">
+                <span>⌨️</span>
+                <span class="hidden sm:inline">Phím tắt</span>
+            </button>
+
             <!-- Staff Selector (Hidden - user name displayed on sidebar) -->
             <select id="pos-staff-select" class="hidden"></select>
 
@@ -6732,11 +6738,11 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div class="col-cost">
                             <label class="block font-bold mb-1">Giá vốn (đ):</label>
-                            <input id="modal-prod-cost" type="number" class="border p-2 rounded w-full" value="0">
+                            <input id="modal-prod-cost" type="text" inputmode="numeric" class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-slate-800 text-right" placeholder="0" value="">
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Giá bán niêm yết (đ):</label>
-                            <input id="modal-prod-price" type="number" class="border p-2 rounded w-full" value="0">
+                            <input id="modal-prod-price" type="text" inputmode="numeric" class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-emerald-700 text-right" placeholder="0" value="">
                         </div>
                     </div>
                     <!-- ĐƠN VỊ QUY ĐỔI: 1 Thùng = 16 Chai, mỗi mặt hàng một hệ số riêng -->
@@ -11150,6 +11156,78 @@
 
             <div class="flex justify-end pt-3 border-t">
                 <button type="button" onclick="closePosWalletHistory()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: BẢNG TRỢ GIÚP PHÍM TẮT THU NGÂN POS -->
+    <div id="modal-pos-shortcuts-help" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 text-xs animate-in fade-in zoom-in-95 duration-150">
+            <div class="p-4 bg-gradient-to-r from-slate-900 to-sky-950 text-white flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">⌨️</span>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Danh Sách Phím Tắt Hệ Thống</h3>
+                        <p class="text-[11px] text-slate-300">Thao tác bán hàng siêu tốc không cần dùng chuột</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closePOSShortcutsHelpModal()" class="text-white/60 hover:text-white text-xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+                <div>
+                    <h4 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5 text-sky-700">
+                        <span>🛒</span> <span>Bán Hàng Tại Quầy (POS)</span>
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Thêm Hóa Đơn Mới:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800 shadow-2xs">F1</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Đổi Hóa Đơn Kế Tiếp:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800 shadow-2xs">F2</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Tìm Hàng / Barcode:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-sky-700 shadow-2xs">F3</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Tìm Khách Hàng:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-sky-700 shadow-2xs">F4</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Đổi PT Thanh Toán:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-purple-700 shadow-2xs">F8</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-emerald-50 border-emerald-200 flex items-center justify-between">
+                            <span class="text-emerald-900 font-bold">Thanh Toán & In:</span>
+                            <kbd class="px-2 py-1 bg-emerald-600 text-white rounded font-mono font-black shadow-xs">F9</kbd>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-extrabold text-slate-800 text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5 text-purple-700">
+                        <span>⚙️</span> <span>Cửa Sổ & Tiện Ích Toàn Cục</span>
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="p-2.5 rounded-xl border bg-rose-50 border-rose-200 flex items-center justify-between">
+                            <span class="text-rose-900 font-bold">Đóng Cửa Sổ / Modal:</span>
+                            <kbd class="px-2 py-1 bg-rose-600 text-white rounded font-mono font-black shadow-xs">ESC</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between">
+                            <span class="text-slate-600 font-medium">Kiểm Đếm Tiền Két:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800 shadow-2xs">F10</kbd>
+                        </div>
+                        <div class="p-2.5 rounded-xl border bg-slate-50 flex items-center justify-between col-span-2">
+                            <span class="text-slate-600 font-medium">Mở Bảng Trợ Giúp Phím Tắt Này:</span>
+                            <kbd class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800 shadow-2xs">?</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-50 border-t flex justify-end">
+                <button type="button" onclick="closePOSShortcutsHelpModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold">Đã hiểu</button>
             </div>
         </div>
     </div>
