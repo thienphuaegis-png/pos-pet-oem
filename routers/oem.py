@@ -372,8 +372,6 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
         o = cur.fetchone()
         if not o:
             raise HTTPException(status_code=404, detail="Không tìm thấy đơn gia công")
-        if o["status"] not in ("DRAFT", "DEPOSITED"):
-            raise HTTPException(status_code=400, detail="Chỉ có thể sửa đơn khi chưa nhận hàng!")
 
         total_raw = sum(it.ordered_qty * it.unit_price for it in req.items)
 
@@ -396,7 +394,7 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
                 total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
-                fund_source = ?
+                fund_source = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
@@ -404,15 +402,17 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", order_id
         ))
 
+        is_received = o["status"] in ("RECEIVED", "COMPLETED")
         cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
         for it in req.items:
             net_cost = it.unit_price * discount_factor * vat_factor
+            rec_qty = it.ordered_qty if is_received else 0
             cur.execute("""
                 INSERT INTO oem_order_items (
                     order_id, product_id, ordered_qty, received_qty,
                     unit_price, final_unit_cost, full_cost_per_unit
-                ) VALUES (?, ?, ?, 0, ?, ?, 0)
-            """, (order_id, it.product_id, it.ordered_qty, it.unit_price, net_cost))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (order_id, it.product_id, it.ordered_qty, rec_qty, it.unit_price, net_cost, net_cost))
 
         conn.commit()
         return {"success": True, "id": order_id, "total_final": total_final}
@@ -434,31 +434,79 @@ def delete_oem_order(order_id: int, user=Depends(require_permission("oem.manage"
         o = cur.fetchone()
         if not o:
             raise HTTPException(status_code=404, detail="Không tìm thấy đơn gia công")
-        if o["status"] not in ("DRAFT", "DEPOSITED"):
-            raise HTTPException(status_code=400, detail="Chỉ có thể hủy đơn khi chưa nhận hàng!")
 
-        if o["deposit_amount"] and o["deposit_amount"] > 0:
-            cb_code = generate_cashbook_code(cur, "PT-OEM")
-            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (o["fund_source"],))
-            row_acc = cur.fetchone()
-            acc_id = row_acc[0] if row_acc else None
-            cur.execute("""
-                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
-                VALUES (?, 'in', 'OEM_DEPOSIT_REFUND', ?, ?, 'oem_order', ?, ?, ?, ?)
-            """, (
-                cb_code, o["deposit_amount"], o["partner_id"], order_id,
-                f"Hoàn cọc do hủy đơn gia công OEM {o['code']}", o["fund_source"], acc_id
-            ))
+        order = dict(o)
+        status = order.get("status")
 
+        # 1. Nếu đơn đã nhận hàng: hoàn tác tồn kho thành phẩm + nguyên liệu xưởng
+        if status in ("RECEIVED", "COMPLETED"):
+            cur.execute("SELECT * FROM oem_order_items WHERE order_id = ?", (order_id,))
+            items = [dict(r) for r in cur.fetchall()]
+            for it in items:
+                prod_id = it["product_id"]
+                rec_qty = float(it.get("received_qty") or it.get("ordered_qty") or 0.0)
+                if rec_qty > 0:
+                    # Trừ tồn kho thành phẩm tại kho đích
+                    if order.get("dest_warehouse_id"):
+                        cur.execute("""
+                            UPDATE product_inventory 
+                            SET quantity = MAX(0, quantity - ?), updated_at = CURRENT_TIMESTAMP
+                            WHERE product_id = ? AND warehouse_id = ?
+                        """, (rec_qty, prod_id, order["dest_warehouse_id"]))
+                    cur.execute("""
+                        UPDATE products
+                        SET stock = MAX(0, stock - ?)
+                        WHERE id = ?
+                    """, (rec_qty, prod_id))
+                    cur.execute("""
+                        INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+                        VALUES ('product', ?, ?, 'ADJUST', ?, 
+                                (SELECT COALESCE(quantity, 0) FROM product_inventory WHERE product_id = ? AND warehouse_id = ?), 
+                                ?)
+                    """, (prod_id, order.get("dest_warehouse_id") or 1, -rec_qty, prod_id, order.get("dest_warehouse_id") or 1, f"Hủy đơn OEM {order['code']}: Thu hồi thành phẩm"))
+
+                    # Hoàn trả nguyên liệu BOM vào kho xưởng
+                    if order.get("oem_warehouse_id"):
+                        cur.execute("""
+                            SELECT pb.ingredient_id, pb.quantity as bom_qty, i.type as ingredient_type
+                            FROM product_bom pb
+                            JOIN ingredients i ON pb.ingredient_id = i.id
+                            WHERE pb.product_id = ?
+                        """, (prod_id,))
+                        for bom_row in cur.fetchall():
+                            if bom_row["ingredient_type"] == "IS_PHYSICAL":
+                                refund_qty = float(bom_row["bom_qty"] or 0) * rec_qty
+                                if refund_qty > 0:
+                                    cur.execute("""
+                                        UPDATE inventory
+                                        SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                                        WHERE ingredient_id = ? AND warehouse_id = ?
+                                    """, (refund_qty, bom_row["ingredient_id"], order["oem_warehouse_id"]))
+                                    cur.execute("""
+                                        INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
+                                        VALUES ('ingredient', ?, ?, 'ADJUST', ?, 
+                                                (SELECT COALESCE(quantity, 0) FROM inventory WHERE ingredient_id = ? AND warehouse_id = ?), 
+                                                ?)
+                                    """, (bom_row["ingredient_id"], order["oem_warehouse_id"], refund_qty, bom_row["ingredient_id"], order["oem_warehouse_id"], f"Hủy đơn OEM {order['code']}: Hoàn trả NVL xưởng"))
+
+            # Giảm nợ NCC nếu từng ghi nhận công nợ
+            remaining_debt = float(order.get("remaining_payment") or 0.0)
+            if order.get("payment_status") != "PAID" and remaining_debt > 0 and order.get("partner_id"):
+                cur.execute("UPDATE contacts SET debt = MAX(0, debt - ?) WHERE id = ?", (remaining_debt, order["partner_id"]))
+
+        # 2. Xóa toàn bộ phiếu chi cashbook liên quan đến đơn OEM này
+        cur.execute("DELETE FROM cashbook WHERE ref_type = 'oem_order' AND ref_id = ?", (order_id,))
+
+        # 3. Xóa chi tiết đơn và đơn hàng
         cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
         cur.execute("DELETE FROM oem_orders WHERE id = ?", (order_id,))
         conn.commit()
-        return {"success": True, "message": "Đã hủy đơn gia công"}
+        return {"success": True, "message": f"Đã xóa đơn gia công OEM {order['code']} và hoàn tác tồn kho, sổ quỹ thành công"}
     except HTTPException:
         raise
     except Exception as e:
         conn.rollback()
-        logger.error(f"Lỗi hủy đơn OEM: {e}")
+        logger.error(f"Lỗi xóa đơn OEM: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

@@ -7339,9 +7339,9 @@
                             <button onclick="printOEMInspectionSheet(${o.id})" class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded font-bold" title="In phiếu kiểm nhận hàng cầm tay cho thủ kho">🖨️ In Phiếu Kiểm</button>
                             ${canReceive ? `
                                 <button onclick="openModalReceiveOEM(${o.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded font-bold shadow" title="Nhận hàng thực tế từ xưởng & trừ kho tem chai">📥 Nhận hàng</button>
-                                <button onclick="openModalEditOEM(${o.id})" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded font-bold" title="Sửa đơn đặt gia công">✏️ Sửa</button>
-                                <button onclick="deleteOEMOrder(${o.id}, '${o.code}')" class="text-xs bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 px-2 py-1 rounded font-bold" title="Hủy đơn, hoàn cọc nếu có">✕ Hủy</button>
                             ` : ''}
+                            <button onclick="openModalEditOEM(${o.id})" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded font-bold" title="Sửa đơn đặt gia công">✏️ Sửa</button>
+                            <button onclick="deleteOEMOrder(${o.id}, '${o.code}', '${o.status}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 px-2 py-1 rounded font-bold" title="Xóa đơn gia công & hoàn tác">🗑️ Xóa</button>
                         </td>
                     </tr>
                 `;
@@ -8303,20 +8303,51 @@
         }
         window.openModalEditOEM = openModalEditOEM;
 
-        async function deleteOEMOrder(orderId, orderCode) {
-            if (!confirm(`Hủy đơn OEM ${orderCode}?\nNếu đã cọc tiền, hệ thống sẽ tự động hoàn cọc vào Sổ Quỹ. Đơn sẽ bị XÓA HẲN, không thể khôi phục.`)) return;
+        async function deleteOEMOrder(orderId, orderCode, status) {
+            let confirmMsg = `⚠️ CẢNH BÁO XÓA ĐƠN GIA CÔNG OEM ${orderCode}:\n\n`;
+            if (status === 'RECEIVED' || status === 'COMPLETED') {
+                confirmMsg += `Đơn này ĐÃ NHẬN HÀNG. Hệ thống sẽ tự động:\n` +
+                              `1. Trừ lại số lượng thành phẩm đã nhập vào Kho Đích.\n` +
+                              `2. Hoàn trả lại số lượng tem nhãn, chai lọ, vật tư BOM vào Kho Xưởng.\n` +
+                              `3. Hủy/Xóa các phiếu chi thanh toán trong Sổ Quỹ Cashbook.\n` +
+                              `4. Giảm nợ NCC tương ứng.\n\n` +
+                              `Bạn có chắc chắn muốn xóa không?`;
+            } else if (status === 'DEPOSITED') {
+                confirmMsg += `Đơn này ĐÃ CỌC TIỀN. Hệ thống sẽ tự động xóa phiếu chi cọc trong Sổ Quỹ Cashbook và xóa đơn hàng.\n\nBạn có chắc chắn muốn xóa không?`;
+            } else {
+                confirmMsg += `Xóa vĩnh viễn đơn hàng này? Thao tác không thể khôi phục.`;
+            }
+
+            if (!confirm(confirmMsg)) return;
             try {
                 const res = await fetch(`/api/oem/orders/${orderId}`, { method: 'DELETE' });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    throw new Error(err.detail || 'Lỗi hủy đơn OEM');
+                    throw new Error(err.detail || 'Lỗi xóa đơn OEM');
                 }
-                alert(`✅ Đã hủy đơn OEM ${orderCode}.`);
+                const data = await res.json().catch(() => ({}));
+                if (typeof showToast === 'function') {
+                    showToast(data.message || `Đã xóa đơn OEM ${orderCode} thành công.`, 'success');
+                } else {
+                    alert(`✅ ${data.message || `Đã xóa đơn OEM ${orderCode} thành công.`}`);
+                }
+                closeModalDetailOEM();
                 loadOEMData();
+                if (typeof loadCashbook === 'function') loadCashbook();
             } catch (e) {
                 alert(`❌ Lỗi: ${e.message}`);
             }
         }
+        window.deleteOEMOrder = deleteOEMOrder;
+
+        function deleteOEMOrderFromDetail() {
+            if (!currentViewedOEMOrderId) return;
+            const ord = allOEMOrders.find(o => o.id === currentViewedOEMOrderId);
+            const code = ord ? ord.code : `#${currentViewedOEMOrderId}`;
+            const status = ord ? ord.status : '';
+            deleteOEMOrder(currentViewedOEMOrderId, code, status);
+        }
+        window.deleteOEMOrderFromDetail = deleteOEMOrderFromDetail;
 
         // --- QUẢN LÝ GÁN KHO CHO NHÀ MÁY (MODAL) ---
         async function openModalManageOEMFactories() {

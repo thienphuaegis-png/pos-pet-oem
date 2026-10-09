@@ -364,6 +364,20 @@ def delete_cashbook_voucher(
                 detail="Chỉ được phép xóa phiếu chi hoặc phiếu thu nạp ví Spa. Phiếu thu không thể xóa tại đây."
             )
     elif cb_type in ("out", "chi"):
+        if ref_type == "oem_order":
+            ref_id = current.get("ref_id")
+            if ref_id:
+                amt = float(current.get("amount") or 0.0)
+                cur.execute("SELECT * FROM oem_orders WHERE id = ?", (ref_id,))
+                oem_row = cur.fetchone()
+                if oem_row:
+                    cur.execute("""
+                        UPDATE oem_orders
+                        SET deposit_amount = MAX(0, deposit_amount - ?),
+                            remaining_payment = remaining_payment + ?,
+                            payment_status = 'PARTIAL'
+                        WHERE id = ?
+                    """, (amt, amt, ref_id))
         cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
     else:
         conn.close()
