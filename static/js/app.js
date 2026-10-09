@@ -4128,8 +4128,135 @@
             document.getElementById('modal-app-version')?.classList.add('hidden');
         }
 
-        window.openAppVersionModal = openAppVersionModal;
+        async function checkServerUpdateStatus() {
+            const banner = document.getElementById('modal-v-update-banner');
+            const icon = document.getElementById('modal-v-update-icon');
+            const msg = document.getElementById('modal-v-update-msg');
+            const btn = document.getElementById('btn-trigger-apply-update');
+            if (!banner || !msg) return;
+
+            try {
+                const res = await fetch('/api/system/check-update');
+                if (!res.ok) throw new Error('Không thể kiểm tra update');
+                const data = await res.json();
+
+                const isOwner = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
+
+                if (data.update_available) {
+                    banner.className = 'bg-emerald-50 border-b border-emerald-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
+                    icon.innerText = '🚀';
+                    msg.innerHTML = `<strong class="text-emerald-800">Đã có bản cập nhật mới trên GitHub (commit ${data.remote_commit})!</strong>`;
+                    if (btn && isOwner) {
+                        btn.classList.remove('hidden');
+                        btn.innerText = '⚡ Cập Nhật Ngay';
+                    }
+                } else {
+                    banner.className = 'bg-slate-50 border-b border-slate-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
+                    icon.innerText = '✓';
+                    msg.innerHTML = `<span class="text-slate-600 font-medium">Hệ thống đang hoạt động với mã nguồn mới nhất.</span>`;
+                    if (btn) btn.classList.add('hidden');
+                }
+            } catch(e) {
+                if (msg) msg.innerText = 'Chưa thể kết nối tới remote Git (Offline mode).';
+                if (btn) btn.classList.add('hidden');
+            }
+        }
+
+        async function triggerServerUpdate() {
+            const btn = document.getElementById('btn-trigger-apply-update');
+            const msg = document.getElementById('modal-v-update-msg');
+            const confirmed = confirm("⚠️ XÁC NHẬN CẬP NHẬT MÁY CHỦ:\n\nHệ thống sẽ:\n1. Tự động sao lưu dữ liệu POS hiện tại.\n2. Đồng bộ mã nguồn mới nhất từ GitHub.\n3. Nâng cấp database & khởi động lại dịch vụ POS.\n\nBạn có muốn tiếp tục không?");
+            if (!confirmed) return;
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '⏳ Đang tiến hành...';
+            }
+            if (msg) msg.innerHTML = '<span class="text-amber-800 font-bold animate-pulse">Máy chủ đang sao lưu và cập nhật mã nguồn... Vui lòng không tắt máy!</span>';
+
+            try {
+                const res = await fetch('/api/system/apply-update', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Cập nhật thất bại');
+
+                alert(`🚀 ${data.message}\nTrang web sẽ tự động kết nối lại sau 6 giây.`);
+                
+                // Đếm ngược và tự động reload trang web
+                let seconds = 6;
+                const interval = setInterval(() => {
+                    seconds--;
+                    if (msg) msg.innerHTML = `<span class="text-emerald-700 font-bold">Khởi động lại thành công! Tự động tải lại trang sau ${seconds}s...</span>`;
+                    if (seconds <= 0) {
+                        clearInterval(interval);
+                        window.location.reload();
+                    }
+                }, 1000);
+            } catch(err) {
+                alert('Lỗi cập nhật: ' + err.message);
+                if (btn) btn.disabled = false;
+                checkServerUpdateStatus();
+            }
+        }
+
+        window.openAppVersionModal = async function() {
+            const modal = document.getElementById('modal-app-version');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const body = document.getElementById('modal-v-changelog-body');
+            const dateEl = document.getElementById('modal-v-date');
+            const badgeEl = document.getElementById('modal-v-badge');
+
+            // Kiểm tra trạng thái update
+            checkServerUpdateStatus();
+
+            try {
+                const res = await fetch('/api/version');
+                if (!res.ok) throw new Error('Không tải được thông tin phiên bản');
+                const v = await res.json();
+
+                if (badgeEl) badgeEl.innerText = v.version || 'v3.5.0';
+                if (dateEl) dateEl.innerText = `Phát hành: ${v.build_date} • Commit: ${v.commit_hash || 'latest'}`;
+
+                // Cập nhật text ở footer sidebar nếu có
+                const tagEl = document.getElementById('sidebar-version-tag');
+                if (tagEl) tagEl.innerText = `${v.version} • ${v.build_date}`;
+                const collEl = document.getElementById('sidebar-version-collapsed');
+                if (collEl) {
+                    collEl.innerText = v.short_version;
+                    collEl.title = v.version;
+                }
+
+                if (body && Array.isArray(v.changelog)) {
+                    body.innerHTML = v.changelog.map(log => `
+                        <div class="pt-3 first:pt-0 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-black text-sm font-mono text-indigo-900">${log.tag}</span>
+                                    ${log.is_new ? '<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">Bản Hiện Tại</span>' : ''}
+                                </div>
+                                <span class="text-slate-400 font-mono text-[11px]">${log.date}</span>
+                            </div>
+                            <div class="text-[11px] font-semibold text-slate-700">${log.title}</div>
+                            <ul class="space-y-1.5 pl-1">
+                                ${(log.items || []).map(it => `
+                                    <li class="flex items-start gap-1.5 text-slate-600 text-xs">
+                                        <span class="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+                                        <span class="leading-relaxed">${it}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("load version error:", err);
+                if (body) body.innerHTML = '<div class="p-4 text-center text-rose-500">Lỗi khi tải thông tin nhật ký phiên bản</div>';
+            }
+        };
+
         window.closeAppVersionModal = closeAppVersionModal;
+        window.triggerServerUpdate = triggerServerUpdate;
 
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {

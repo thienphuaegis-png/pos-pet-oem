@@ -11174,6 +11174,17 @@
                 <button type="button" onclick="closeAppVersionModal()" class="text-white/60 hover:text-white text-xl font-bold p-1 rounded-lg hover:bg-white/10 transition leading-none">&times;</button>
             </div>
 
+            <!-- Banner Trạng Thái Cập Nhật (Kiểm tra từ GitHub) -->
+            <div id="modal-v-update-banner" class="bg-amber-50 border-b border-amber-200/80 p-3 px-4 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-amber-900">
+                    <span id="modal-v-update-icon" class="text-base">🔄</span>
+                    <span id="modal-v-update-msg" class="font-medium text-xs">Đang kiểm tra bản cập nhật từ máy chủ...</span>
+                </div>
+                <button type="button" id="btn-trigger-apply-update" onclick="triggerServerUpdate()" class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                    <span>⚡ Cập Nhật Ngay</span>
+                </button>
+            </div>
+
             <!-- Body: Changelog list -->
             <div class="p-5 overflow-y-auto space-y-4 flex-1 divide-y divide-slate-100" id="modal-v-changelog-body">
                 <div class="text-center text-slate-400 py-6">Đang tải thông tin nhật ký cập nhật...</div>

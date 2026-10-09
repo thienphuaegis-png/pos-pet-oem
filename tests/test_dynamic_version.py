@@ -6,6 +6,16 @@ from version_helper import get_app_version_info
 
 client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def override_auth():
+    from dependencies import get_current_user, require_role
+    mock_user = {"id": 1, "username": "admin", "role": "owner"}
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[require_role("owner", "admin")] = lambda: mock_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(require_role("owner", "admin"), None)
+
 def test_version_helper_metadata():
     """Kiểm tra helper phiên bản động trả về đúng cấu trúc"""
     info = get_app_version_info()
@@ -27,6 +37,15 @@ def test_api_version_endpoint():
     assert "commit_hash" in data
     assert "changelog" in data
     assert data["changelog"][0]["tag"] == data["version"]
+
+
+def test_api_system_update_endpoints():
+    """Kiểm tra endpoint check-update và apply-update"""
+    res = client.get("/api/system/check-update")
+    assert res.status_code == 200
+    data = res.json()
+    assert "update_available" in data
+    assert "local_commit" in data
 
 
 def test_api_ping_reflects_version():

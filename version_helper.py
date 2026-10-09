@@ -33,6 +33,48 @@ def get_git_metadata():
     except Exception:
         return None, None
 
+def check_remote_update_available():
+    """Kiểm tra xem remote repository (github/main) có bản commit mới hơn local không."""
+    try:
+        local_head = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            cwd=str(Path(__file__).parent)
+        ).decode().strip()
+
+        # Thử lấy remote hash từ github hoặc origin
+        remote_out = subprocess.check_output(
+            ["git", "ls-remote", "github", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            cwd=str(Path(__file__).parent)
+        ).decode().strip()
+
+        if not remote_out:
+            remote_out = subprocess.check_output(
+                ["git", "ls-remote", "origin", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                cwd=str(Path(__file__).parent)
+            ).decode().strip()
+
+        if remote_out:
+            remote_head = remote_out.split()[0]
+            if remote_head != local_head:
+                return {
+                    "update_available": True,
+                    "local_commit": local_head[:7],
+                    "remote_commit": remote_head[:7],
+                    "message": f"Có bản cập nhật mới trên GitHub (commit {remote_head[:7]})!"
+                }
+    except Exception as e:
+        pass
+
+    return {
+        "update_available": False,
+        "local_commit": "latest",
+        "remote_commit": "latest",
+        "message": "Bạn đang dùng phiên bản mới nhất."
+    }
+
 def get_app_version_info():
     """Trả về thông tin phiên bản động kèm changelog"""
     info = {

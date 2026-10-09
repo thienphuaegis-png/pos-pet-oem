@@ -2,9 +2,10 @@ import os
 import sys
 import secrets
 import logging
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from dependencies import get_current_user, require_role
 
 # Bảo mật: tự sinh POS_JWT_SECRET vào .env nếu chưa có, load trước khi import router nào dùng SECRET
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -205,7 +206,7 @@ def get_pos_template_path():
 def get_pos_mobile_template_path():
     return find_resource_path(os.path.join("templates", "pos_mobile.html"))
 
-from version_helper import get_app_version_info
+from version_helper import get_app_version_info, check_remote_update_available
 
 APP_VERSION = get_app_version_info()["version"]  # đồng bộ động từ version.json & git
 
@@ -213,6 +214,78 @@ APP_VERSION = get_app_version_info()["version"]  # đồng bộ động từ ver
 def api_get_version():
     """Trả về chi tiết phiên bản động, ngày build, commit hash và nhật ký cập nhật (Changelog)."""
     return get_app_version_info()
+
+@app.get("/api/system/check-update")
+def check_system_update(user=Depends(get_current_user)):
+    """Kiểm tra xem hệ thống có bản cập nhật mới trên GitHub không."""
+    return check_remote_update_available()
+
+@app.post("/api/system/apply-update")
+def apply_system_update(user=Depends(require_role("owner", "admin"))):
+    """Máy chủ tự động thực thi cập nhật: Backup DB -> Git Pull -> Migration -> Restart."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    
+    root_dir = Path(__file__).parent.resolve()
+    cap_nhat_bat = root_dir / "CAP_NHAT.bat"
+
+    # 1. Nếu có CAP_NHAT.bat trên Windows, kích hoạt file bat chạy độc lập và trả về ngay
+    if cap_nhat_bat.exists() and sys.platform.startswith("win"):
+        try:
+            # Chạy cmd /c start độc lập để không bị block tiến trình hiện tại
+            cmd = f'start "" /min "{str(cap_nhat_bat)}"'
+            subprocess.Popen(cmd, shell=True, cwd=str(root_dir))
+            return {
+                "success": True,
+                "mode": "windows_batch",
+                "message": "Đang tiến hành sao lưu, cập nhật từ GitHub và khởi động lại POS... Vui lòng đợi trong giây lát!"
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Không thể khởi chạy script cập nhật: {e}")
+
+    # 2. Ngược lại (Linux/Docker/Server Cloud), chạy trực tiếp git pull & migration
+    try:
+        # Bước A: Backup database
+        db_path = root_dir / "data" / "pos.db"
+        if db_path.exists():
+            backup_dir = root_dir / "data" / "backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            import shutil
+            shutil.copy2(str(db_path), str(backup_dir / f"pos_auto_backup_{stamp}.db"))
+
+        # Bước B: Git pull
+        pull_res = subprocess.run(
+            ["git", "pull", "origin", "main"],
+            capture_output=True,
+            text=True,
+            cwd=str(root_dir),
+            timeout=60
+        )
+        if pull_res.returncode != 0:
+            # Thử git pull github main nếu origin không có
+            pull_res = subprocess.run(
+                ["git", "pull", "github", "main"],
+                capture_output=True,
+                text=True,
+                cwd=str(root_dir),
+                timeout=60
+            )
+
+        # Bước C: Chạy migration nếu có
+        db_script = root_dir / "database.py"
+        if db_script.exists():
+            subprocess.run([sys.executable, str(db_script)], capture_output=True, cwd=str(root_dir), timeout=30)
+
+        return {
+            "success": True,
+            "mode": "server_git",
+            "message": "Đã cập nhật mã nguồn và nâng cấp database thành công!",
+            "output": pull_res.stdout
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi thực thi cập nhật máy chủ: {e}")
 
 @app.get("/api/ping", include_in_schema=False)
 def ping():
