@@ -164,24 +164,35 @@ def calculate_effective_spa_price(service_name: str, weight: float, customer_id:
     try:
         cur = db.cursor()
 
-        # 1. Base price từ pet_service_pricing
+        # 1. Base price từ pet_service_pricing (Khớp tên không phân biệt hoa thường và dải cân thông minh)
         cur.execute("""
             SELECT id, service_name, category, min_weight, max_weight, price
             FROM pet_service_pricing
-            WHERE service_name = ?
+            WHERE service_name = ? COLLATE NOCASE
               AND min_weight <= ?
-              AND (max_weight > ? OR max_weight IS NULL OR max_weight = 0)
+              AND (max_weight >= ? OR max_weight IS NULL OR max_weight = 0)
             ORDER BY min_weight DESC
             LIMIT 1
         """, (service_name, weight, weight))
         sp_row = cur.fetchone()
 
-        # Fallback: nếu max_weight = 0 hoặc dải cân rộng hơn
+        # Fallback 1: Nếu cân nặng vượt quá khung tối đa của gói này (ví dụ bé 12kg mà mức cao nhất là 10kg)
         if not sp_row:
             cur.execute("""
                 SELECT id, service_name, category, min_weight, max_weight, price
                 FROM pet_service_pricing
-                WHERE service_name = ?
+                WHERE service_name = ? COLLATE NOCASE
+                ORDER BY max_weight DESC, min_weight DESC
+                LIMIT 1
+            """, (service_name,))
+            sp_row = cur.fetchone()
+
+        # Fallback 2: Nếu chưa tìm được, tìm mức gần nhất
+        if not sp_row:
+            cur.execute("""
+                SELECT id, service_name, category, min_weight, max_weight, price
+                FROM pet_service_pricing
+                WHERE service_name = ? COLLATE NOCASE
                 ORDER BY ABS(min_weight - ?) ASC
                 LIMIT 1
             """, (service_name, weight))

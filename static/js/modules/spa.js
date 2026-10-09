@@ -4077,6 +4077,36 @@
         }
 
         var _lastSvcCalculation = null;
+        var _svcCalcDebounceTimer = null;
+
+        function findSpaPricingClientSide(serviceName, weight) {
+            if (!Array.isArray(allPetPricingData) || !serviceName) return 0;
+            const sNameNorm = serviceName.trim().toLowerCase();
+            const w = parseFloat(weight) || 0;
+
+            // 1. Lọc tất cả các mức giá của dịch vụ này (không phân biệt hoa/thường)
+            const matches = allPetPricingData.filter(item => 
+                (item.service_name || '').trim().toLowerCase() === sNameNorm
+            );
+            if (matches.length === 0) return 0;
+
+            // 2. Tìm dải cân nặng phù hợp: min_weight <= w AND (w <= max_weight OR max_weight = 0)
+            const exact = matches.find(item => {
+                const minW = parseFloat(item.min_weight) || 0;
+                const maxW = parseFloat(item.max_weight) || 0;
+                if (maxW === 0 || maxW === 999) return w >= minW;
+                return w >= minW && w <= maxW;
+            });
+            if (exact) return parseFloat(exact.price) || 0;
+
+            // 3. Nếu cân nặng vượt trần khung cao nhất: lấy khung có max_weight hoặc min_weight lớn nhất
+            const sortedByWeightDesc = [...matches].sort((a, b) => {
+                const maxA = parseFloat(a.max_weight) || parseFloat(a.min_weight) || 0;
+                const maxB = parseFloat(b.max_weight) || parseFloat(b.min_weight) || 0;
+                return maxB - maxA;
+            });
+            return parseFloat(sortedByWeightDesc[0].price) || 0;
+        }
 
         async function autoCalculateServicePrice() {
             const weight = parseWeightFloat(document.getElementById('svc-pet-weight')?.value);
@@ -4084,11 +4114,58 @@
             const dyePkg = document.getElementById('svc-dye-package')?.value || '';
             const custId = parseInt(document.getElementById('svc-customer-id')?.value) || null;
 
-            let totalBase = 0;
-            _lastSvcCalculation = null;
+            // Đảm bảo có bảng giá client-side
+            if (!Array.isArray(allPetPricingData) || allPetPricingData.length === 0) {
+                try {
+                    const r = await fetch('/api/pet-services/pricing');
+                    if (r.ok) allPetPricingData = await r.json();
+                } catch(e){}
+            }
 
-            // Tìm giá gói chính (Best Offer qua API nếu có thể)
+            // === TẦNG 1: TÍNH TỨC THÌ CLIENT-SIDE (0ms Latency) ===
+            let instantBase = 0;
             if (primaryPkg) {
+                instantBase += findSpaPricingClientSide(primaryPkg, weight);
+            }
+            if (dyePkg) {
+                instantBase += findSpaPricingClientSide(dyePkg, weight);
+            }
+
+            // Phụ thu Cột 2
+            let extraTeeth = document.getElementById('svc-cb-teeth')?.checked ? getSvcSurchargePrice('teeth') : 0;
+            let extraArt = document.getElementById('svc-cb-art')?.checked ? getSvcSurchargePrice('art') : 0;
+            let extraSurch = document.getElementById('svc-cb-surch')?.checked ? getSvcSurchargePrice('surch') : 0;
+            let extraShip = document.getElementById('svc-cb-ship')?.checked ? getSvcSurchargePrice('ship') : 0;
+            let extraTip = document.getElementById('svc-cb-tip')?.checked ? parseMoneyInput(document.getElementById('svc-tip-amount')?.value) : 0;
+            let extraOther = document.getElementById('svc-cb-other')?.checked ? parseMoneyInput(document.getElementById('svc-other-surch-amount')?.value) : 0;
+            const totalSurcharges = extraTeeth + extraArt + extraSurch + extraShip + extraTip + extraOther;
+
+            // Tiền hàng hóa bán kèm
+            let totalRetail = 0;
+            if (Array.isArray(currentSvcRetailProducts)) {
+                totalRetail = currentSvcRetailProducts.reduce((acc, it) => acc + ((it.price || 0) * (it.quantity || 1)), 0);
+            }
+
+            const instantGrandTotal = instantBase + totalSurcharges + totalRetail;
+
+            // Cập nhật DOM ngay lập tức (Người dùng gõ là số tiền nhảy tức thì 0ms)
+            const baseDisp = document.getElementById('svc-base-price-display');
+            if (baseDisp) baseDisp.textContent = formatMoneyString(instantBase) + ' đ';
+            const surchDisp = document.getElementById('svc-surcharges-total-display');
+            if (surchDisp) surchDisp.textContent = formatMoneyString(totalSurcharges) + ' đ';
+            const retailDisp = document.getElementById('svc-retail-price-display');
+            if (retailDisp) retailDisp.textContent = formatMoneyString(totalRetail) + ' đ';
+            const totalDisp = document.getElementById('svc-total-price-display');
+            if (totalDisp) totalDisp.textContent = formatMoneyString(instantGrandTotal) + ' đ';
+            const totalEl = document.getElementById('svc-total-price');
+            if (totalEl) totalEl.value = instantGrandTotal;
+            syncSvcWalletPaymentSuggestion(instantGrandTotal);
+
+            // === TẦNG 2: ASYNC BEST OFFER & ĐỒNG BỘ CHIẾT KHẤU THẺ VIP KHÁCH HÀNG ===
+            if (!primaryPkg) return;
+
+            clearTimeout(_svcCalcDebounceTimer);
+            _svcCalcDebounceTimer = setTimeout(async () => {
                 try {
                     const res = await fetch('/api/pricing/calculate-spa', {
                         method: 'POST',
@@ -4101,97 +4178,28 @@
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        totalBase += (data.final_price || 0);
+                        let finalBase = (data.final_price || 0);
+                        if (dyePkg) {
+                            finalBase += findSpaPricingClientSide(dyePkg, weight);
+                        }
+                        const finalGrand = finalBase + totalSurcharges + totalRetail;
+
+                        if (baseDisp) baseDisp.textContent = formatMoneyString(finalBase) + ' đ';
+                        if (totalDisp) totalDisp.textContent = formatMoneyString(finalGrand) + ' đ';
+                        if (totalEl) totalEl.value = finalGrand;
+                        syncSvcWalletPaymentSuggestion(finalGrand);
+
                         _lastSvcCalculation = {
                             primaryPkg: primaryPkg,
                             base_price: data.base_price || 0,
                             final_price: data.final_price || 0,
                             discount_applied: data.discount_applied || 0
                         };
-                    } else {
-                        // Fallback client-side
-                        if (Array.isArray(allPetPricingData)) {
-                            const match = allPetPricingData.find(item => 
-                                item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
-                                (item.min_weight === 0 ? weight >= item.min_weight : weight > item.min_weight) &&
-                                weight <= item.max_weight
-                            ) || allPetPricingData.find(item => 
-                                item.service_name.trim().toLowerCase() === primaryPkg.trim().toLowerCase() &&
-                                weight >= item.min_weight && weight <= item.max_weight
-                            );
-                            if (match) {
-                                totalBase += (match.price || 0);
-                                _lastSvcCalculation = {
-                                    primaryPkg: primaryPkg,
-                                    base_price: match.price || 0,
-                                    final_price: match.price || 0,
-                                    discount_applied: 0
-                                };
-                            }
-                        }
                     }
-                } catch (e) {
-                    console.error('Lỗi tính giá Spa Best Offer:', e);
+                } catch(e) {
+                    console.error('Lỗi sync Best Offer:', e);
                 }
-            }
-
-            // Tìm giá gói nhuộm theo cân nặng
-            if (dyePkg && Array.isArray(allPetPricingData)) {
-                const matchDye = allPetPricingData.find(item => 
-                    item.service_name.trim().toLowerCase() === dyePkg.trim().toLowerCase()
-                );
-                if (matchDye) {
-                    totalBase += (matchDye.price || 0);
-                }
-            }
-
-            // Tính tổng các khoản phụ thu từ Cột 2 (Checkbox có giá cấu hình)
-            let extraTeeth = 0;
-            if (document.getElementById('svc-cb-teeth')?.checked) {
-                extraTeeth = getSvcSurchargePrice('teeth');
-            }
-            let extraArt = 0;
-            if (document.getElementById('svc-cb-art')?.checked) {
-                extraArt = getSvcSurchargePrice('art');
-            }
-            let extraSurch = 0;
-            if (document.getElementById('svc-cb-surch')?.checked) {
-                extraSurch = getSvcSurchargePrice('surch');
-            }
-            let extraShip = 0;
-            if (document.getElementById('svc-cb-ship')?.checked) {
-                extraShip = getSvcSurchargePrice('ship');
-            }
-            let extraTip = 0;
-            if (document.getElementById('svc-cb-tip')?.checked) {
-                extraTip = parseMoneyInput(document.getElementById('svc-tip-amount')?.value);
-            }
-            let extraOther = 0;
-            if (document.getElementById('svc-cb-other')?.checked) {
-                extraOther = parseMoneyInput(document.getElementById('svc-other-surch-amount')?.value);
-            }
-            const totalSurcharges = extraTeeth + extraArt + extraSurch + extraShip + extraTip + extraOther;
-
-            // Tính tiền hàng hóa POS bán kèm
-            let totalRetail = 0;
-            if (Array.isArray(currentSvcRetailProducts)) {
-                totalRetail = currentSvcRetailProducts.reduce((acc, it) => acc + ((it.price || 0) * (it.quantity || 1)), 0);
-            }
-
-            const grandTotal = totalBase + totalSurcharges + totalRetail;
-
-            const baseDisp = document.getElementById('svc-base-price-display');
-            if (baseDisp) baseDisp.textContent = formatMoneyString(totalBase) + ' đ';
-            const surchDisp = document.getElementById('svc-surcharges-total-display');
-            if (surchDisp) surchDisp.textContent = formatMoneyString(totalSurcharges) + ' đ';
-            const retailDisp = document.getElementById('svc-retail-price-display');
-            if (retailDisp) retailDisp.textContent = formatMoneyString(totalRetail) + ' đ';
-            const totalDisp = document.getElementById('svc-total-price-display');
-            if (totalDisp) totalDisp.textContent = formatMoneyString(grandTotal) + ' đ';
-
-            const totalEl = document.getElementById('svc-total-price');
-            if (totalEl) totalEl.value = grandTotal;
-            syncSvcWalletPaymentSuggestion(grandTotal);
+            }, 250);
         }
 
         function onSvcPaymentTimingChanged(val) {
