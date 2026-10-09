@@ -5008,13 +5008,14 @@
 
         function syncSplitBoldToggle(presetKey) {
             const toggle = document.getElementById('chk-split-bold-toggle');
-            if (!toggle) return;
+            const thermalToggle = document.getElementById('chk-thermal-bold');
             const boldKey = mapPresetKeyToBoldKey(presetKey);
             const cfg = window.printBoldConfigs || {};
             const isBold = (cfg[boldKey] !== undefined)
                 ? !!cfg[boldKey]
                 : (multiTemplates.presets && multiTemplates.presets[presetKey] ? !!multiTemplates.presets[presetKey].is_bold_all : false);
-            toggle.checked = isBold;
+            if (toggle) toggle.checked = isBold;
+            if (thermalToggle) thermalToggle.checked = isBold;
             applyCanvasBoldEffect(isBold);
         }
 
@@ -5025,6 +5026,10 @@
             }
             const legacyBoldChk = document.getElementById('chk-preset-bold-all');
             if (legacyBoldChk) legacyBoldChk.checked = !!isChecked;
+            const thermalToggle = document.getElementById('chk-thermal-bold');
+            if (thermalToggle) thermalToggle.checked = !!isChecked;
+            const splitToggle = document.getElementById('chk-split-bold-toggle');
+            if (splitToggle) splitToggle.checked = !!isChecked;
 
             const boldKey = mapPresetKeyToBoldKey(curKey);
             if (!window.printBoldConfigs) window.printBoldConfigs = {};
@@ -5505,6 +5510,61 @@
             updateCanvasBadge();
             if (newSize.includes('landscape')) setCanvasZoom('fit');
             else setCanvasZoom(1.0);
+        }
+
+        function selectPrintDocType(docType, btnEl) {
+            document.querySelectorAll('.print-tree-btn').forEach(btn => {
+                btn.classList.remove('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+                btn.classList.add('font-medium', 'text-slate-600');
+            });
+            if (btnEl) {
+                btnEl.classList.remove('font-medium', 'text-slate-600');
+                btnEl.classList.add('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+            }
+
+            const docMap = {
+                'pos_retail': 'k80_standard',
+                'pos_b2b': 'a4_b2b',
+                'pos_draft': 'draft_k80',
+                'spa_intake': 'spa_intake',
+                'pos_topup': 'topup_k80',
+                'spa_invoice': 'spa_invoice',
+                'cashbook_thu': 'cashbook_thu',
+                'cashbook_chi': 'cashbook_chi',
+                'shift_zreport': 'shift_zreport',
+                'stock_audit': 'stock_audit'
+            };
+
+            const targetPreset = docMap[docType] || 'k80_standard';
+            if (multiTemplates && multiTemplates.presets && multiTemplates.presets[targetPreset]) {
+                switchPreset(targetPreset);
+            } else {
+                if (docType === 'pos_b2b') changePrintPaperView('A4-portrait');
+                else changePrintPaperView('K80');
+            }
+        }
+
+        function zoomPrintSheet(val) {
+            setCanvasZoom(val);
+            const lbl = document.getElementById('lbl-print-zoom');
+            const txt = document.getElementById('canvas-zoom-text');
+            if (lbl && txt) lbl.innerText = txt.innerText;
+        }
+
+        function changePrintPaperView(size) {
+            changePaperSize(size);
+            const selectEl = document.getElementById('print-paper-select');
+            if (selectEl && selectEl.value !== size) selectEl.value = size;
+        }
+
+        function togglePrintPreviewBlock(blockId, isShow) {
+            const el = document.getElementById(blockId);
+            if (el) el.style.display = isShow ? '' : 'none';
+        }
+
+        function togglePrintPreviewField(fieldId, isShow) {
+            const el = document.getElementById(fieldId);
+            if (el) el.style.display = isShow ? '' : 'none';
         }
 
         function getInitialElementsForSize(size) {
@@ -8751,6 +8811,11 @@
         window.updateSidebarCheckboxes = updateSidebarCheckboxes;
         window.updateCanvasBadge = updateCanvasBadge;
         window.addCustomTextItem = addCustomTextItem;
+        window.selectPrintDocType = selectPrintDocType;
+        window.zoomPrintSheet = zoomPrintSheet;
+        window.changePrintPaperView = changePrintPaperView;
+        window.togglePrintPreviewBlock = togglePrintPreviewBlock;
+        window.togglePrintPreviewField = togglePrintPreviewField;
 
         window.openCreateCashModal = openCreateCashModal;
         window.setCashModalType = setCashModalType;

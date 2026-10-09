@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  body { background: #f8fafc; color: #1e293b; font-size: 13px; line-height: 1.4; overflow: hidden; height: 100vh; }
+  .container { display: flex; height: 100vh; }
+
+  /* 1. CỘT DANH MỤC CHỨNG TỪ (220px) */
+  .sidebar-tree {
+    width: 220px;
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 14px 16px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fafafa;
+  }
+  .tree-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .tree-group-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 10px 8px 4px;
+    letter-spacing: 0.5px;
+  }
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #334155;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .tree-item:hover { background: #f1f5f9; color: #0284c7; }
+  .tree-item.active { background: #e0f2fe; color: #0369a1; font-weight: 700; }
+  .tree-icon { font-size: 14px; }
+
+  /* 2. CỘT CẤU HÌNH BẬT TẮT KHỐI (350px - GỌN GÀNG) */
+  .config-panel {
+    width: 350px;
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-shadow: 1px 0 3px rgba(0,0,0,0.02);
+  }
+  .config-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fafafa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .config-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+  .section-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .section-header {
+    background: #f8fafc;
+    padding: 9px 12px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #1e293b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .field-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #334155;
+    cursor: pointer;
+  }
+  .field-check input[type="checkbox"] {
+    accent-color: #0284c7;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+
+  /* 3. KHU VỰC XEM TRƯỚC BẢN IN CỰC ĐẠI (FULL STAGE) */
+  .preview-stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #cbd5e1;
+  }
+  .top-action-bar {
+    height: 52px;
+    background: #ffffff;
+    border-bottom: 1px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .template-tabs { display: flex; align-items: center; gap: 6px; }
+  .tpl-tab {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tpl-tab.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+  }
+  .btn-new-tpl {
+    padding: 6px 12px;
+    background: #ffffff;
+    border: 1px dashed #0284c7;
+    color: #0284c7;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .preview-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn-zoom {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-action {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: #0284c7; color: #fff; }
+  .btn-primary:hover { background: #0369a1; }
+  .btn-outline { background: #fff; border-color: #cbd5e1; color: #334155; }
+  .btn-outline:hover { background: #f1f5f9; }
+
+  /* BẢN IN TO RÕ RÀNG TRONG VÙNG CUỘN */
+  .preview-viewport {
+    flex: 1;
+    overflow: auto;
+    padding: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  /* KHUNG HÓA ĐƠN K80 TỶ LỆ TO RÕ (400px) */
+  .receipt-sheet {
+    width: 400px;
+    background: #ffffff;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1);
+    padding: 26px 22px;
+    font-size: 13px;
+    color: #000;
+    line-height: 1.45;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+  .receipt-sheet.a4-mode {
+    width: 720px;
+    padding: 40px 36px;
+    font-size: 13.5px;
+  }
+  .rc-center { text-align: center; }
+  .rc-bold { font-weight: 700; }
+  .rc-title { font-size: 17px; font-weight: 900; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .rc-line { border-bottom: 1px dashed #666; margin: 10px 0; }
+  .rc-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+  .rc-table th { border-bottom: 1.5px solid #000; padding: 6px 0; font-size: 12.5px; text-align: left; }
+  .rc-table td { padding: 6px 0; font-size: 12.5px; vertical-align: top; }
+  .rc-flex { display: flex; justify-content: space-between; margin: 3px 0; }
+  .rc-qr-box {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px dashed #777;
+    text-align: center;
+    border-radius: 6px;
+    background: #fafafa;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- CỘT 1: CÂY DANH MỤC CHỨNG TỪ (220px) -->
+  <div class="sidebar-tree">
+    <div class="sidebar-header">
+      <span>🖨️</span>
+      <span>Danh Mục Mẫu In</span>
+    </div>
+    <div class="tree-list">
+      <div class="tree-group-title">Đơn Hàng</div>
+      <div class="tree-item active" onclick="selectTreeItem(this, 'Hóa Đơn')">
+        <span class="tree-icon">🧾</span>
+        <span>Hóa Đơn Bán Hàng</span>
+      </div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Trả Hàng')">
+        <span class="tree-icon">↩️</span>
+        <span>Trả Hàng & Hoàn Tiền</span>
+      </div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Giao Hàng')">
+        <span class="tree-icon">🚚</span>
+        <span>Phiếu Giao Hàng</span>
+      </div>
+
+      <div class="tree-group-title">Dịch Vụ Spa & Hotel</div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Phiếu Spa')">
+        <span class="tree-icon">💆</span>
+        <span>Phiếu Tiếp Nhận Spa</span>
+      </div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Phiếu Nạp Ví')">
+        <span class="tree-icon">⚡</span>
+        <span>Phiếu Thu Nạp Ví Spa</span>
+      </div>
+
+      <div class="tree-group-title">Sổ Quỹ</div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Phiếu Thu')">
+        <span class="tree-icon">📥</span>
+        <span>Phiếu Thu Tiền</span>
+      </div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Phiếu Chi')">
+        <span class="tree-icon">📤</span>
+        <span>Phiếu Chi Tiền</span>
+      </div>
+
+      <div class="tree-group-title">Hàng Hóa & Kho</div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Nhập Hàng')">
+        <span class="tree-icon">📦</span>
+        <span>Phiếu Nhập Hàng NCC</span>
+      </div>
+      <div class="tree-item" onclick="selectTreeItem(this, 'Chuyển Kho')">
+        <span class="tree-icon">🔁</span>
+        <span>Phiếu Chuyển Kho OEM</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CỘT 2: CẤU HÌNH BẬT TẮT KHỐI (350px - GỌN GÀNG) -->
+  <div class="config-panel">
+    <div class="config-header">
+      <div>
+        <div style="font-weight: 700; color: #0f172a;" id="config-title">⚙️ Tùy Biến Hóa Đơn</div>
+        <div style="font-size: 11px; color: #64748b;">Chế độ 1: Bật/tắt khối trực quan</div>
+      </div>
+      <button class="btn-action btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="resetDefaults()">Đặt lại</button>
+    </div>
+
+    <div class="config-scroll">
+      <!-- In đậm chống mờ nhiệt -->
+      <div style="margin-bottom: 12px; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 700; font-size: 12px; color: #92400e;">⚡ In Đậm Chống Mờ Nhiệt</div>
+          <div style="font-size: 11px; color: #b45309;">Font 900 cho đầu in nhiệt</div>
+        </div>
+        <input type="checkbox" id="chk-bold" checked onchange="toggleBoldThermal(this.checked)" style="accent-color: #d97706; width: 18px; height: 18px; cursor: pointer;">
+      </div>
+
+      <!-- Khối Cửa Hàng -->
+      <div class="section-box">
+        <div class="section-header">
+          <span>🏪 1. Thông Tin Cửa Hàng</span>
+          <input type="checkbox" checked onchange="toggleBlock('block-store', this.checked)">
+        </div>
+        <div class="section-body">
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-store-name', this.checked)"> Tên cửa hàng (PET NHA TRANG)</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-store-addr', this.checked)"> Địa chỉ (148 Nguyễn Trãi)</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-store-phone', this.checked)"> Hotline (0899.355.558)</label>
+        </div>
+      </div>
+
+      <!-- Khối Khách Hàng -->
+      <div class="section-box">
+        <div class="section-header">
+          <span>📑 2. Khách Hàng & Thu Ngân</span>
+          <input type="checkbox" checked onchange="toggleBlock('block-cust', this.checked)">
+        </div>
+        <div class="section-body">
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-cust-name', this.checked)"> Tên khách hàng & SĐT</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-cashier', this.checked)"> Tên nhân viên thu ngân</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-points', this.checked)"> Điểm tích lũy hiện tại</label>
+        </div>
+      </div>
+
+      <!-- Khối Bảng Hàng Hóa -->
+      <div class="section-box">
+        <div class="section-header">
+          <span>🛒 3. Bảng Mặt Hàng / Dịch Vụ</span>
+          <input type="checkbox" checked>
+        </div>
+        <div class="section-body">
+          <label class="field-check"><input type="checkbox" checked onchange="toggleCol(1, this.checked)"> Đơn vị tính (ĐVT)</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-discount-row', this.checked)"> Dòng chiết khấu / giảm giá</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-debt-row', this.checked)"> Ghi nhận nợ cũ / tiền thừa</label>
+        </div>
+      </div>
+
+      <!-- Khối VietQR & Chân Trang -->
+      <div class="section-box">
+        <div class="section-header">
+          <span>🏦 4. Mã Chuyển Khoản VietQR</span>
+          <input type="checkbox" checked onchange="toggleBlock('block-qr', this.checked)">
+        </div>
+        <div class="section-body">
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-qr-img', this.checked)"> Tự động sinh mã VietQR theo số tiền</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-qr-bank', this.checked)"> Thông tin số tài khoản & chủ TK</label>
+          <label class="field-check"><input type="checkbox" checked onchange="toggleField('rc-footer-notes', this.checked)"> Lời cảm ơn & hẹn gặp lại</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CỘT 3: VÙNG XEM TRƯỚC RỘNG RÃI TO RÕ (PHẦN CÒN LẠI CỦA MÀN HÌNH) -->
+  <div class="preview-stage">
+    <!-- TOP ACTIONS -->
+    <div class="top-action-bar">
+      <div class="template-tabs" id="template-tabs-container">
+        <div class="tpl-tab active" onclick="switchTplTab(this, 'k80')">
+          <span>🧾 Hóa đơn K80 (Mặc định)</span>
+        </div>
+        <div class="tpl-tab" onclick="switchTplTab(this, 'a4')">
+          <span>📄 Hóa đơn A4 Bán Sỉ</span>
+        </div>
+        <button class="btn-new-tpl" onclick="createNewTemplate()">+ Tạo mẫu in mới</button>
+      </div>
+
+      <div class="preview-controls">
+        <div style="display: flex; align-items: center; gap: 6px; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid #cbd5e1;">
+          <span style="font-size: 11.5px; font-weight: 700; color: #475569;">Khổ giấy:</span>
+          <select id="paper-select" onchange="changePaperView(this.value)" style="border: none; outline: none; font-size: 11.5px; font-weight: 700; color: #0284c7; background: transparent; cursor: pointer;">
+            <option value="k80">Khổ Nhiệt K80 (80mm)</option>
+            <option value="k58">Khổ Nhiệt K58 (58mm)</option>
+            <option value="a4">Khổ A4 Chuẩn (Bán sỉ)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="btn-zoom" onclick="zoomSheet(-0.1)">-</button>
+          <span id="zoom-label" style="font-size: 11px; font-weight: 700; min-width: 38px; text-align: center;">100%</span>
+          <button class="btn-zoom" onclick="zoomSheet(0.1)">+</button>
+        </div>
+
+        <button class="btn-action btn-outline" onclick="testPrint()">🖨️ In Thử</button>
+        <button class="btn-action btn-primary" onclick="saveTemplate()">💾 Lưu Mẫu In</button>
+      </div>
+    </div>
+
+    <!-- VIEWPORT XEM TRƯỚC HÓA ĐƠN KÍCH THƯỚC LỚN -->
+    <div class="preview-viewport">
+      <div class="receipt-sheet" id="receipt-preview">
+        <!-- Khối cửa hàng -->
+        <div id="block-store" class="rc-center">
+          <div id="rc-store-name" class="rc-bold" style="font-size: 16px;">PET NHA TRANG</div>
+          <div id="rc-store-addr" style="font-size: 11px; color: #333; margin-top: 2px;">148 Nguyễn Trãi, P. Phước Tân, TP. Nha Trang</div>
+          <div id="rc-store-phone" style="font-size: 11px; color: #333;">Hotline: 0899.355.558 - 0929.861.468</div>
+        </div>
+
+        <div class="rc-center">
+          <div class="rc-title" id="rc-doc-title">HÓA ĐƠN BÁN HÀNG</div>
+          <div style="font-size: 11px; color: #444;">Số HD: <strong>DH000020</strong> | Ngày: 25/12/2026 14:30</div>
+        </div>
+
+        <div class="rc-line"></div>
+
+        <!-- Khối khách hàng -->
+        <div id="block-cust" style="font-size: 12px; line-height: 1.5;">
+          <div id="rc-cust-name">Khách hàng: <strong>Anh Hòa Q.1</strong> (0987.654.321)</div>
+          <div id="rc-cashier">Thu ngân: <strong>Nguyễn Hạnh Phúc</strong></div>
+          <div id="rc-points" style="color: #0369a1;">Điểm tích lũy: <strong>+146 điểm</strong> (Tổng: 1.250 điểm)</div>
+        </div>
+
+        <div class="rc-line"></div>
+
+        <!-- Bảng hàng hóa -->
+        <table class="rc-table" id="rc-table">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Tên mặt hàng</th>
+              <th class="col-dvt" style="text-align: center; width: 15%;">ĐVT</th>
+              <th style="text-align: center; width: 10%;">SL</th>
+              <th style="text-align: right; width: 25%;">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="rc-bold">Combo Váy nữ Alcado</div>
+                <div style="font-size: 10.5px; color: #555;">82.000 đ/cái</div>
+              </td>
+              <td class="col-dvt" style="text-align: center;">Cái</td>
+              <td style="text-align: center; font-weight: bold;">1</td>
+              <td style="text-align: right; font-weight: bold;">82.000</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="rc-bold">Pate Mèo Royal Canin</div>
+                <div style="font-size: 10.5px; color: #555;">35.000 đ/gói</div>
+              </td>
+              <td class="col-dvt" style="text-align: center;">Gói</td>
+              <td style="text-align: center; font-weight: bold;">2</td>
+              <td style="text-align: right; font-weight: bold;">70.000</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="rc-line"></div>
+
+        <!-- Khối thanh toán -->
+        <div class="rc-flex"><span>Tổng tiền hàng:</span> <span class="rc-bold">152.000 đ</span></div>
+        <div class="rc-flex" id="rc-discount-row"><span>Chiết khấu khuyến mại:</span> <span style="color: #b91c1c;">-6.000 đ</span></div>
+        <div class="rc-flex" style="font-size: 14px; margin: 6px 0; border-top: 1px dashed #aaa; padding-top: 6px;">
+          <span class="rc-bold">TỔNG THANH TOÁN:</span>
+          <span class="rc-bold" style="color: #0369a1; font-size: 15px;">146.000 đ</span>
+        </div>
+        <div class="rc-flex"><span>Khách đưa:</span> <span>150.000 đ</span></div>
+        <div class="rc-flex" id="rc-debt-row"><span>Tiền thừa trả khách:</span> <span class="rc-bold">4.000 đ</span></div>
+
+        <!-- Khối VietQR -->
+        <div id="block-qr" class="rc-qr-box">
+          <div style="font-weight: 700; font-size: 11px; margin-bottom: 6px; text-transform: uppercase;">Quét VietQR Thanh Toán Nhanh</div>
+          <div id="rc-qr-img" style="width: 130px; height: 130px; background: #e2e8f0; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px;">
+            [MÃ VIETQR TỰ ĐỘNG]
+          </div>
+          <div id="rc-qr-bank" style="font-size: 11px; margin-top: 6px; color: #334155; font-weight: 600;">
+            MB Bank: 0929861468 - Bùi Thiên Phú
+          </div>
+        </div>
+
+        <!-- Lời cảm ơn -->
+        <div id="rc-footer-notes" class="rc-center" style="margin-top: 14px; font-size: 11px; color: #444; line-height: 1.5;">
+          <div>🐾 Cảm ơn quý khách và các bé cưng!</div>
+          <div>Hẹn gặp lại quý khách lần sau!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentZoom = 1.0;
+
+  function selectTreeItem(el, name) {
+    document.querySelectorAll('.tree-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('config-title').innerText = '⚙️ Tùy Biến ' + name;
+    document.getElementById('rc-doc-title').innerText = name.toUpperCase();
+  }
+
+  function switchTplTab(el, type) {
+    document.querySelectorAll('.tpl-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    const select = document.getElementById('paper-select');
+    select.value = type;
+    changePaperView(type);
+  }
+
+  function changePaperView(val) {
+    const sheet = document.getElementById('receipt-preview');
+    if (val === 'a4') {
+      sheet.classList.add('a4-mode');
+      sheet.style.width = '720px';
+    } else if (val === 'k58') {
+      sheet.classList.remove('a4-mode');
+      sheet.style.width = '300px';
+    } else {
+      sheet.classList.remove('a4-mode');
+      sheet.style.width = '400px';
+    }
+  }
+
+  function zoomSheet(delta) {
+    currentZoom = Math.min(1.5, Math.max(0.7, currentZoom + delta));
+    const sheet = document.getElementById('receipt-preview');
+    sheet.style.transform = `scale(${currentZoom})`;
+    sheet.style.transformOrigin = 'top center';
+    document.getElementById('zoom-label').innerText = Math.round(currentZoom * 100) + '%';
+  }
+
+  function toggleBlock(id, show) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? 'block' : 'none';
+  }
+
+  function toggleField(id, show) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? 'block' : 'none';
+  }
+
+  function toggleCol(idx, show) {
+    document.querySelectorAll('.col-dvt').forEach(el => {
+      el.style.display = show ? '' : 'none';
+    });
+  }
+
+  function toggleBoldThermal(isBold) {
+    const sheet = document.getElementById('receipt-preview');
+    if (isBold) {
+      sheet.style.fontWeight = '900';
+      sheet.style.webkitTextStroke = '0.2px #000';
+    } else {
+      sheet.style.fontWeight = 'normal';
+      sheet.style.webkitTextStroke = '0px';
+    }
+  }
+
+  function resetDefaults() {
+    document.querySelectorAll('.config-panel input[type="checkbox"]').forEach(c => c.checked = true);
+    document.querySelectorAll('#receipt-preview *').forEach(el => el.style.display = '');
+    alert("Đã đặt lại cấu hình mặc định!");
+  }
+
+  function createNewTemplate() {
+    const name = prompt("Nhập tên mẫu in mới:", "Hóa đơn K80 Chi Nhánh 2");
+    if (!name) return;
+    const container = document.getElementById('template-tabs-container');
+    const btn = document.createElement('div');
+    btn.className = 'tpl-tab active';
+    btn.innerHTML = `<span>🧾 ${name}</span>`;
+    document.querySelectorAll('.tpl-tab').forEach(t => t.classList.remove('active'));
+    container.insertBefore(btn, container.lastElementChild);
+  }
+
+  function testPrint() {
+    alert("🖨️ Đang gửi bản in thử nghiệm tới máy in hóa đơn...");
+  }
+
+  function saveTemplate() {
+    alert("💾 Đã lưu cấu hình mẫu in thành công!");
+  }
+</script>
+
+</body>
+</html>
