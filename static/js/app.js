@@ -954,7 +954,23 @@
 
         async function deleteWarehouse(id, encodedName) {
             const name = decodeURIComponent(encodedName);
-            if (!confirm(`Bạn có chắc chắn muốn xóa kho "${name}"?`)) return;
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: 'Xác Nhận Xóa Kho Hàng',
+                    message: `Bạn có chắc chắn muốn xóa kho "${name}" không?`,
+                    subMessage: 'Chỉ có thể xóa kho nếu kho không còn tồn đọng hàng hóa hoặc nguyên liệu.',
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy bỏ',
+                    type: 'danger',
+                    icon: '🗑️'
+                });
+            } else if (typeof window.customConfirm === 'function') {
+                confirmed = await window.customConfirm(`Bạn có chắc chắn muốn xóa kho "${name}"?`, 'Xác Nhận Xóa Kho Hàng', { type: 'danger', okText: 'Xóa Kho' });
+            } else {
+                confirmed = confirm(`Bạn có chắc chắn muốn xóa kho "${name}"?`);
+            }
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/warehouses/${id}`, { method: 'DELETE' });
@@ -964,7 +980,8 @@
                     return;
                 }
                 loadWarehousesList();
-                alert("Đã xóa kho hàng thành công!");
+                if (typeof showToast === 'function') showToast(`Đã xóa kho "${name}" thành công!`, 'success');
+                else alert("Đã xóa kho hàng thành công!");
             } catch (e) {
                 console.error("deleteWarehouse error:", e);
                 alert("Lỗi kết nối khi xóa kho");
@@ -4165,7 +4182,29 @@
         async function triggerServerUpdate() {
             const btn = document.getElementById('btn-trigger-apply-update');
             const msg = document.getElementById('modal-v-update-msg');
-            const confirmed = confirm("⚠️ XÁC NHẬN CẬP NHẬT MÁY CHỦ:\n\nHệ thống sẽ:\n1. Tự động sao lưu dữ liệu POS hiện tại.\n2. Đồng bộ mã nguồn mới nhất từ GitHub.\n3. Nâng cấp database & khởi động lại dịch vụ POS.\n\nBạn có muốn tiếp tục không?");
+
+            let confirmed = false;
+            const updateDetails = `1. Tự động sao lưu an toàn toàn bộ dữ liệu POS hiện tại.
+2. Đồng bộ mã nguồn mới nhất từ GitHub.
+3. Chạy nâng cấp cơ sở dữ liệu (migration).
+4. Khởi động lại dịch vụ máy chủ và tự động kết nối lại.`;
+
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: 'Xác Nhận Cập Nhật Máy Chủ POS',
+                    message: 'Bạn có chắc chắn muốn tiến hành cập nhật hệ thống ngay bây giờ?',
+                    subMessage: updateDetails,
+                    confirmText: '⚡ Bắt Đầu Cập Nhật',
+                    cancelText: 'Để sau',
+                    type: 'primary',
+                    icon: '🚀'
+                });
+            } else if (typeof window.customConfirm === 'function') {
+                confirmed = await window.customConfirm(updateDetails, 'Xác Nhận Cập Nhật Máy Chủ POS', { type: 'primary', okText: 'Cập Nhật Ngay' });
+            } else {
+                confirmed = confirm("⚠️ XÁC NHẬN CẬP NHẬT MÁY CHỦ:\n\n" + updateDetails);
+            }
+
             if (!confirmed) return;
 
             if (btn) {

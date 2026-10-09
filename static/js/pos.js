@@ -3395,7 +3395,28 @@ async function submitEditTopupTx(e) {
 }
 
 async function confirmDeleteTopupTx(txId, custId, cashbookId) {
-    const confirmed = confirm("⚠️ CẢNH BÁO HOÀN TÁC ĐỒNG BỘ:\n\nXóa phiếu thu nạp ví này sẽ tự động:\n1. Khấu trừ lại số dư ví Spa của khách hàng.\n2. Trừ lại số điểm thưởng tích lũy đã cộng.\n3. Hủy phiếu thu tương ứng trong Sổ Quỹ Cashbook.\n\nBạn có chắc chắn muốn xóa không?");
+    let confirmed = false;
+    const msg = `Xóa phiếu thu nạp ví này sẽ tự động:
+1. Khấu trừ lại số dư ví Spa của khách hàng.
+2. Trừ lại số điểm thưởng tích lũy đã cộng.
+3. Hủy phiếu thu tương ứng trong Sổ Quỹ Cashbook.`;
+
+    if (typeof window.showConfirmModal === 'function') {
+        confirmed = await window.showConfirmModal({
+            title: 'CẢNH BÁO HOÀN TÁC ĐỒNG BỘ',
+            message: 'Bạn có chắc chắn muốn xóa phiếu nạp ví này không?',
+            subMessage: msg,
+            confirmText: 'Xác Nhận Xóa & Hoàn Tác',
+            cancelText: 'Hủy bỏ',
+            type: 'danger',
+            icon: '⚠️'
+        });
+    } else if (typeof window.customConfirm === 'function') {
+        confirmed = await window.customConfirm(msg + '\n\nBạn có chắc chắn muốn xóa không?', 'CẢNH BÁO HOÀN TÁC ĐỒNG BỘ', { type: 'danger', okText: 'Xác Nhận Xóa' });
+    } else {
+        confirmed = confirm("⚠️ CẢNH BÁO HOÀN TÁC ĐỒNG BỘ:\n\n" + msg + "\n\nBạn có chắc chắn muốn xóa không?");
+    }
+
     if (!confirmed) return;
 
     try {

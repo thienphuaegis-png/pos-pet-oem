@@ -8304,21 +8304,39 @@
         window.openModalEditOEM = openModalEditOEM;
 
         async function deleteOEMOrder(orderId, orderCode, status) {
-            let confirmMsg = `⚠️ CẢNH BÁO XÓA ĐƠN GIA CÔNG OEM ${orderCode}:\n\n`;
+            let msg = `Bạn có chắc chắn muốn xóa đơn gia công OEM ${orderCode}?`;
+            let subMsg = '';
+
             if (status === 'RECEIVED' || status === 'COMPLETED') {
-                confirmMsg += `Đơn này ĐÃ NHẬN HÀNG. Hệ thống sẽ tự động:\n` +
-                              `1. Trừ lại số lượng thành phẩm đã nhập vào Kho Đích.\n` +
-                              `2. Hoàn trả lại số lượng tem nhãn, chai lọ, vật tư BOM vào Kho Xưởng.\n` +
-                              `3. Hủy/Xóa các phiếu chi thanh toán trong Sổ Quỹ Cashbook.\n` +
-                              `4. Giảm nợ NCC tương ứng.\n\n` +
-                              `Bạn có chắc chắn muốn xóa không?`;
+                subMsg = `⚠️ Đơn này ĐÃ NHẬN HÀNG. Hệ thống sẽ tự động:\n` +
+                         `1. Trừ lại số lượng thành phẩm đã nhập vào Kho Đích.\n` +
+                         `2. Hoàn trả lại số lượng tem nhãn, chai lọ, vật tư BOM vào Kho Xưởng.\n` +
+                         `3. Hủy/Xóa các phiếu chi thanh toán trong Sổ Quỹ Cashbook.\n` +
+                         `4. Giảm nợ NCC tương ứng.`;
             } else if (status === 'DEPOSITED') {
-                confirmMsg += `Đơn này ĐÃ CỌC TIỀN. Hệ thống sẽ tự động xóa phiếu chi cọc trong Sổ Quỹ Cashbook và xóa đơn hàng.\n\nBạn có chắc chắn muốn xóa không?`;
+                subMsg = `⚠️ Đơn này ĐÃ CỌC TIỀN. Hệ thống sẽ tự động xóa phiếu chi cọc trong Sổ Quỹ Cashbook và xóa đơn hàng.`;
             } else {
-                confirmMsg += `Xóa vĩnh viễn đơn hàng này? Thao tác không thể khôi phục.`;
+                subMsg = `Thao tác xóa sẽ loại bỏ hoàn toàn đơn hàng khỏi hệ thống và không thể khôi phục.`;
             }
 
-            if (!confirm(confirmMsg)) return;
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Cảnh Báo Xóa Đơn OEM ${orderCode}`,
+                    message: msg,
+                    subMessage: subMsg,
+                    confirmText: 'Xác Nhận Xóa & Hoàn Tác',
+                    cancelText: 'Hủy bỏ',
+                    type: 'danger',
+                    icon: '🗑️'
+                });
+            } else if (typeof window.customConfirm === 'function') {
+                confirmed = await window.customConfirm(subMsg ? `${msg}\n\n${subMsg}` : msg, `Xóa đơn OEM ${orderCode}`, { type: 'danger', okText: 'Xác Nhận Xóa' });
+            } else {
+                confirmed = confirm(subMsg ? `${msg}\n\n${subMsg}` : msg);
+            }
+
+            if (!confirmed) return;
             try {
                 const res = await fetch(`/api/oem/orders/${orderId}`, { method: 'DELETE' });
                 if (!res.ok) {

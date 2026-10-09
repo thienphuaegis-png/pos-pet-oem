@@ -373,7 +373,28 @@
         }
 
         async function deleteContact(id) {
-            if (!confirm('Bạn có chắc chắn muốn xóa đối tác này?')) return;
+            const c = (allContacts || []).find(item => item.id === id);
+            const name = c ? c.name : 'đối tác này';
+            const role = c ? (c.type === 'customer' ? 'khách hàng' : 'nhà cung cấp') : 'đối tác';
+
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xác Nhận Xóa ${c ? (c.type === 'customer' ? 'Khách Hàng' : 'Nhà Cung Cấp') : 'Đối Tác'}`,
+                    message: `Bạn có chắc chắn muốn xóa ${role} "${name}" không?`,
+                    subMessage: 'Dữ liệu đối tác sẽ bị xóa vĩnh viễn khỏi danh bạ nếu không còn công nợ hoặc giao dịch liên quan.',
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy bỏ',
+                    type: 'danger',
+                    icon: '🗑️'
+                });
+            } else if (typeof window.customConfirm === 'function') {
+                confirmed = await window.customConfirm(`Bạn có chắc chắn muốn xóa ${role} "${name}"?`, `Xóa ${role}`, { type: 'danger', okText: 'Xóa' });
+            } else {
+                confirmed = confirm(`Bạn có chắc chắn muốn xóa đối tác "${name}"?`);
+            }
+
+            if (!confirmed) return;
             try {
                 const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
                 if (!res.ok) {
@@ -381,9 +402,10 @@
                     alert(err.detail || 'Không thể xóa');
                     return;
                 }
+                if (typeof showToast === 'function') showToast(`Đã xóa ${name} thành công`, 'success');
                 await loadContacts();
             } catch (e) {
-                alert("Lỗi kết nối");
+                alert("Lỗi kết nối máy chủ");
             }
         }
 
