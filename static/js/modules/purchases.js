@@ -228,7 +228,7 @@
                 if (ing) {
                     const existing = purchaseCart.find(x => x.item_type === 'ingredient' && x.ingredient_id === targetId);
                     if (existing) {
-                        existing.quantity += 1;
+                        existing.quantity = (parseFloat(existing.quantity) || 0) + 1;
                     } else {
                         purchaseCart.push({
                             item_type: 'ingredient',
@@ -239,7 +239,7 @@
                             base_unit: ing.unit || 'đv',
                             unit_ratio: 1,
                             units: ing.units || [],
-                            quantity: 1,
+                            quantity: '',
                             cost_price: ing.latest_cost || 0
                         });
                     }
@@ -249,7 +249,7 @@
                 if (prod) {
                     const existing = purchaseCart.find(x => x.item_type === 'product' && x.product_id === targetId);
                     if (existing) {
-                        existing.quantity += 1;
+                        existing.quantity = (parseFloat(existing.quantity) || 0) + 1;
                     } else {
                         purchaseCart.push({
                             item_type: 'product',
@@ -260,7 +260,7 @@
                             base_unit: prod.unit || 'cái',
                             unit_ratio: 1,
                             units: prod.units || [],
-                            quantity: 1,
+                            quantity: '',
                             cost_price: prod.cost_price || 0
                         });
                     }
@@ -291,9 +291,12 @@
         }
 
         function updatePurchaseItemField(idx, field, val) {
-            const num = parseFloat(val) || 0;
-            if (field === 'quantity') purchaseCart[idx].quantity = num;
-            if (field === 'cost_price') purchaseCart[idx].cost_price = num;
+            if (field === 'quantity') {
+                purchaseCart[idx].quantity = (val === '' ? '' : (parseFloat(val) || 0));
+            }
+            if (field === 'cost_price') {
+                purchaseCart[idx].cost_price = (val === '' ? '' : (parseFloat(val) || 0));
+            }
             renderPurchaseItems(field === 'quantity' && (purchaseCart[idx].unit_ratio || 1) != 1);
         }
 
@@ -326,7 +329,10 @@
 
             if (rebuildDOM) {
                 tbody.innerHTML = purchaseCart.map((item, idx) => {
-                    const subtotal = item.quantity * item.cost_price;
+                    const qtyVal = (item.quantity !== '' && item.quantity !== null && item.quantity !== undefined) ? item.quantity : '';
+                    const qNum = parseFloat(qtyVal) || 0;
+                    const cNum = parseFloat(item.cost_price) || 0;
+                    const subtotal = qNum * cNum;
                     const isIng = item.item_type === 'ingredient';
                     const badge = isIng 
                         ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>' 
@@ -342,24 +348,24 @@
                            </select>`
                         : (item.unit || '');
                     const convHint = (item.unit_ratio && item.unit_ratio != 1)
-                        ? `<div class="text-[10px] text-indigo-600 font-semibold mt-0.5">= ${(item.quantity * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+                        ? `<div class="text-[10px] text-indigo-600 font-semibold mt-0.5">= ${(qNum * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
                         : '';
 
                     return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
-                        <td class="p-2 text-center text-gray-400">${idx + 1}</td>
+                        <td class="p-2 text-center text-gray-400 font-mono">${idx + 1}</td>
                         <td class="p-2 font-medium text-slate-800">${item.name}</td>
                         <td class="p-2 text-center">${badge}</td>
                         <td class="p-2 text-center text-gray-500">${unitCell}</td>
                         <td class="p-2 text-right">
-                            <input type="number" step="any" min="0.001" value="${item.quantity}" 
-                                class="border p-1 rounded w-20 text-right font-bold text-sky-700" 
+                            <input type="number" step="any" min="0.001" value="${qtyVal}" placeholder="0"
+                                class="border p-1 rounded w-20 text-right font-bold text-sky-700 outline-none focus:border-sky-500" 
                                 oninput="updatePurchaseItemField(${idx}, 'quantity', this.value)">
                             ${convHint}
                         </td>
                         <td class="p-2 text-right">
                             <input type="number" step="any" min="0" value="${item.cost_price}" 
-                                class="border p-1 rounded w-28 text-right font-bold text-rose-600" 
+                                class="border p-1 rounded w-28 text-right font-bold text-rose-600 outline-none focus:border-rose-400" 
                                 oninput="updatePurchaseItemField(${idx}, 'cost_price', this.value)">
                         </td>
                         <td class="p-2 text-right font-bold text-slate-800 font-mono" id="p-subtotal-${idx}">
@@ -374,7 +380,9 @@
             } else {
                 purchaseCart.forEach((item, idx) => {
                     const el = document.getElementById(`p-subtotal-${idx}`);
-                    if (el) el.textContent = formatMoney(item.quantity * item.cost_price);
+                    const qNum = parseFloat(item.quantity) || 0;
+                    const cNum = parseFloat(item.cost_price) || 0;
+                    if (el) el.textContent = formatMoney(qNum * cNum);
                 });
             }
 
@@ -382,7 +390,11 @@
         }
 
         function calculatePurchaseTotals() {
-            const subtotal = purchaseCart.reduce((sum, item) => sum + (item.quantity * item.cost_price), 0);
+            const subtotal = purchaseCart.reduce((sum, item) => {
+                const qNum = parseFloat(item.quantity) || 0;
+                const cNum = parseFloat(item.cost_price) || 0;
+                return sum + (qNum * cNum);
+            }, 0);
             const discount = parseFloat(document.getElementById('purchase-discount').value) || 0;
             const shipping = parseFloat(document.getElementById('purchase-shipping').value) || 0;
             const otherFee = parseFloat(document.getElementById('purchase-other-fee').value) || 0;
@@ -397,11 +409,8 @@
             document.getElementById('p-calc-total').textContent = formatMoney(total);
 
             const paidInput = document.getElementById('purchase-paid');
-            if (document.activeElement !== paidInput && (parseFloat(paidInput.value) === 0 || parseFloat(paidInput.value) > total)) {
-                paidInput.value = total;
-            }
-
-            const paid = parseFloat(paidInput.value) || 0;
+            const paidVal = paidInput ? paidInput.value : '';
+            const paid = paidVal === '' ? 0 : (parseFloat(paidVal) || 0);
             const debt = Math.max(0, total - paid);
             document.getElementById('p-calc-debt').textContent = formatMoney(debt);
         }
@@ -529,7 +538,7 @@
             document.getElementById('purchase-shipping').value = 0;
             document.getElementById('purchase-other-fee').value = 0;
             document.getElementById('purchase-vat-rate').value = 0;
-            document.getElementById('purchase-paid').value = 0;
+            document.getElementById('purchase-paid').value = '';
             document.getElementById('purchase-note').value = '';
             if (typeof setPurchaseFundSource === 'function') setPurchaseFundSource('PERSONAL');
             const expInput = document.getElementById('purchase-expected-date');
@@ -539,6 +548,14 @@
 
         async function submitPurchase(targetStatus = 'pending') {
             if (purchaseCart.length === 0) return alert('Vui lòng chọn ít nhất 1 mặt hàng vào phiếu nhập!');
+            
+            for (const it of purchaseCart) {
+                const q = parseFloat(it.quantity);
+                if (!q || q <= 0) {
+                    return alert(`Vui lòng nhập số lượng cho mặt hàng "${it.name}"!`);
+                }
+            }
+
             const suppIdVal = document.getElementById('purchase-supplier').value;
             if (!suppIdVal) return alert('Vui lòng chọn Nhà Cung Cấp!');
 
@@ -573,8 +590,8 @@
                     item_name: i.name,
                     unit: i.unit,
                     unit_ratio: i.unit_ratio || 1,
-                    quantity: i.quantity,
-                    cost_price: i.cost_price
+                    quantity: parseFloat(i.quantity) || 0,
+                    cost_price: parseFloat(i.cost_price) || 0
                 }))
             };
 
