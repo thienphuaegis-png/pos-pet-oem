@@ -2642,9 +2642,45 @@
             input?.focus();
         }
 
+        let currentBOMStatusFilter = 'ALL'; // 'ALL' | 'HAS_BOM' | 'NO_BOM'
+
+        function setBOMStatusFilter(status) {
+            currentBOMStatusFilter = status;
+
+            const btnAll = document.getElementById('btn-bom-filter-all');
+            const btnHas = document.getElementById('btn-bom-filter-has');
+            const btnNone = document.getElementById('btn-bom-filter-none');
+
+            const activeClass = 'px-2 py-0.5 rounded-md bg-white shadow-2xs font-bold transition';
+            const inactiveClass = 'px-2 py-0.5 rounded-md hover:bg-slate-200/60 font-semibold transition';
+
+            if (btnAll) btnAll.className = (status === 'ALL' ? `${activeClass} text-slate-800` : `${inactiveClass} text-slate-600`);
+            if (btnHas) btnHas.className = (status === 'HAS_BOM' ? `${activeClass} text-emerald-700` : `${inactiveClass} text-emerald-700`);
+            if (btnNone) btnNone.className = (status === 'NO_BOM' ? `${activeClass} text-amber-700` : `${inactiveClass} text-amber-700`);
+
+            filterBOMProductDropdown();
+        }
+        window.setBOMStatusFilter = setBOMStatusFilter;
+
+        function updateBOMFilterCounts() {
+            if (!Array.isArray(allBOMProductsList)) return;
+            const total = allBOMProductsList.length;
+            const hasCount = allBOMProductsList.filter(p => (p.bom_count || 0) > 0).length;
+            const noneCount = total - hasCount;
+
+            const elAll = document.getElementById('bom-filter-count-all');
+            if (elAll) elAll.textContent = total;
+            const elHas = document.getElementById('bom-filter-count-has');
+            if (elHas) elHas.textContent = hasCount;
+            const elNone = document.getElementById('bom-filter-count-none');
+            if (elNone) elNone.textContent = noneCount;
+        }
+        window.updateBOMFilterCounts = updateBOMFilterCounts;
+
         async function loadCostProductOptions() {
             const res = await fetch('/api/products');
             allBOMProductsList = await res.json();
+            updateBOMFilterCounts();
             renderBOMSelectedChips();
         }
 
@@ -2672,28 +2708,45 @@
             const search = (document.getElementById('bom-prod-search-input')?.value || '').toLowerCase().trim();
             if (!dd) return;
 
+            updateBOMFilterCounts();
+
             const filtered = allBOMProductsList.filter(p => {
+                // Lọc theo trạng thái BOM
+                const hasBOM = (p.bom_count || 0) > 0;
+                if (currentBOMStatusFilter === 'HAS_BOM' && !hasBOM) return false;
+                if (currentBOMStatusFilter === 'NO_BOM' && hasBOM) return false;
+
+                // Lọc theo từ khóa tìm kiếm
+                if (!search) return true;
                 const text = `${p.code || ''} ${p.name || ''}`.toLowerCase();
                 return text.includes(search);
             });
 
             if (filtered.length === 0) {
-                dd.innerHTML = '<div class="p-3 text-center text-gray-400">Không tìm thấy sản phẩm nào</div>';
+                dd.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy sản phẩm nào trong nhóm này</div>';
                 return;
             }
 
             dd.innerHTML = filtered.map(p => {
                 const isChecked = selectedBOMProductIds.includes(p.id);
+                const hasBOM = (p.bom_count || 0) > 0;
+                const badgeBOM = hasBOM
+                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">⚡ Đã có BOM (${p.bom_count} tp)</span>`
+                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0">⚪ Chưa có BOM</span>`;
+
                 return `
-                    <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer" onclick="toggleSelectBOMProduct(${p.id})">
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} class="rounded pointer-events-none text-sky-600">
-                            <div>
-                                <span class="font-bold text-slate-800">${p.name}</span>
-                                <span class="font-mono text-slate-500 ml-1">(${p.code || '-'})</span>
+                    <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer transition select-none ${hasBOM ? 'bg-emerald-50/20' : ''}" onclick="toggleSelectBOMProduct(${p.id})">
+                        <div class="flex items-center gap-2 min-w-0 pr-2">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} class="rounded pointer-events-none text-sky-600 shrink-0">
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-800 truncate">${p.name}</div>
+                                <div class="font-mono text-slate-500 text-[11px]">${p.code || '-'}</div>
                             </div>
                         </div>
-                        <span class="font-semibold text-sky-600">${formatMoney(p.sell_price)}</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${badgeBOM}
+                            <span class="font-bold text-sky-700 font-mono text-xs">${formatMoney(p.sell_price)}</span>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -2765,6 +2818,13 @@
             try {
                 const res = await fetch(`/api/products/${productId}/bom`);
                 currentBOMData = await res.json();
+
+                // Đồng bộ bom_count trong allBOMProductsList
+                const prodInList = allBOMProductsList.find(p => p.id === productId);
+                if (prodInList && currentBOMData) {
+                    prodInList.bom_count = (currentBOMData.bom_items || []).length;
+                    updateBOMFilterCounts();
+                }
                 
                 document.getElementById('cost-summary-card').classList.remove('hidden');
                 document.getElementById('cost-sum-sell').textContent = formatMoney(currentBOMData.sell_price);

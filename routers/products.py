@@ -39,7 +39,8 @@ def list_products(category: Optional[str] = None, user=Depends(get_optional_user
     cur = conn.cursor()
     query = '''
     SELECT p.*,
-           GROUP_CONCAT(DISTINCT c.name) as supplier_names
+           GROUP_CONCAT(DISTINCT c.name) as supplier_names,
+           (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
     FROM products p
     LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
     LEFT JOIN contacts c ON si.supplier_id = c.id

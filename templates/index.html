@@ -2128,10 +2128,24 @@
 
                         <!-- Multi-select / Combobox chọn sản phẩm -->
                         <div class="space-y-2">
-                            <label class="block text-xs font-bold text-gray-700">Chọn sản phẩm (có thể chọn nhiều):</label>
+                            <div class="flex flex-wrap justify-between items-center gap-1">
+                                <label class="block text-xs font-bold text-gray-700">Chọn sản phẩm (có thể chọn nhiều):</label>
+                                <!-- Filter Pills theo trạng thái BOM -->
+                                <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-100 text-[11px] font-semibold" id="bom-status-filter-pills">
+                                    <button type="button" onclick="setBOMStatusFilter('ALL')" id="btn-bom-filter-all" class="px-2 py-0.5 rounded-md bg-white text-slate-800 shadow-2xs font-bold transition">
+                                        Tất cả (<span id="bom-filter-count-all">0</span>)
+                                    </button>
+                                    <button type="button" onclick="setBOMStatusFilter('HAS_BOM')" id="btn-bom-filter-has" class="px-2 py-0.5 rounded-md text-emerald-700 hover:text-emerald-900 transition flex items-center gap-1">
+                                        <span>⚡ Đã có BOM</span> (<span id="bom-filter-count-has">0</span>)
+                                    </button>
+                                    <button type="button" onclick="setBOMStatusFilter('NO_BOM')" id="btn-bom-filter-none" class="px-2 py-0.5 rounded-md text-amber-700 hover:text-amber-900 transition flex items-center gap-1">
+                                        <span>⚪ Chưa có BOM</span> (<span id="bom-filter-count-none">0</span>)
+                                    </button>
+                                </div>
+                            </div>
                             <div class="relative" id="bom-prod-combobox-wrapper">
                                 <input type="text" id="bom-prod-search-input" oninput="filterBOMProductDropdown()" onfocus="showBOMProductDropdown()" placeholder="🔍 Tìm kiếm mã hoặc tên sản phẩm..." class="border p-2 rounded w-full text-xs font-medium focus:ring-1 focus:ring-sky-500">
-                                <div id="bom-prod-dropdown-list" class="absolute left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto bg-white border rounded shadow-lg z-20 hidden divide-y text-xs"></div>
+                                <div id="bom-prod-dropdown-list" class="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto bg-white border rounded-lg shadow-xl z-20 hidden divide-y text-xs"></div>
                             </div>
                             <!-- Chips sản phẩm đã chọn -->
                             <div id="bom-selected-products-chips" class="flex flex-wrap gap-1.5 min-h-[28px] p-1.5 border rounded bg-slate-50">
