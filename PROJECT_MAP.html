@@ -641,10 +641,20 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-02)
-    const ROADMAP_VERSION = 'v4.0-2026-10-07-reports-analytics-telegram-pos-sync';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-09)
+    const ROADMAP_VERSION = 'v5.0-2026-10-09-wheel-guard-spa-pricing-oem-topup-hotkeys';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-02)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-09)
+      { id: 'pos-ux-wheel-guard-and-hotkeys', cat: 'UI', title: 'Wheel Guard Chặn Lăn Chuột Nhảy Số, Tự Động Định Dạng Tiền Tệ, Đóng Modal Bằng ESC & Bảng Phím Tắt F1-F10', done: true, note: 'Chặn hoàn toàn cuộn chuột làm thay đổi số lượng; định dạng real-time phân tách hàng nghìn 1.500.000; để trống các ô giá vốn/phụ thu; phím ESC đóng mọi popup; tích hợp bộ phím tắt quầy thu ngân F1-F10 kèm modal hướng dẫn' },
+      { id: 'spa-auto-pricing-instant-0ms', cat: 'PROD', title: 'Tính Giá Spa Tự Động 0ms, So Khớp Không Phân Biệt Hoa Thường & Dải Cân Vượt Trần Thông Minh', done: true, note: 'Tính giá tức thì 0ms ở client từ allPetPricingData, backend dùng COLLATE NOCASE; tự động áp mức giá trần cao nhất khi cân nặng thú cưng vượt mức max_weight' },
+      { id: 'unified-ui-confirm-modal', cat: 'UI', title: 'Chuẩn Hóa Hộp Thoại Xác Nhận: Thay Thế Toàn Bộ Confirm Trình Duyệt Bằng Modal POS Đẳng Cấp', done: true, note: 'Loại bỏ hoàn toàn window.confirm() dính domain ngrok; áp dụng showConfirmModal dạng async Promise với backdrop blur, icon phân loại màu, nút Xác Nhận & Hoàn Tác' },
+      { id: 'dynamic-version-and-changelog-modal', cat: 'SYS', title: 'Hệ Thống Phiên Bản Động, Auto Cache-Busting, Modal Changelog & Cập Nhật Máy Chủ 1-Chạm', done: true, note: 'Tự động lấy commit hash và ngày build từ Git; tự động làm mới cache bằng querystring .js?v=hash_date; hiển thị modal changelog chi tiết ở chân sidebar và nút cập nhật máy chủ 1-chạm' },
+      { id: 'oem-order-edit-delete-and-rollback', cat: 'PROD', title: 'Mở Khóa Sửa & Xóa Đơn Đặt Gia Công OEM Đã Nhận Hàng (Hoàn Tác Kho Thành Phẩm & Vật Tư Xưởng)', done: true, note: 'Cho phép chỉnh sửa và xóa đơn OEM trạng thái RECEIVED; tự động trừ kho thành phẩm, hoàn lại nguyên liệu kho xưởng và xóa phiếu chi sổ quỹ đồng bộ 100%' },
+      { id: 'bom-status-badges-and-filters', cat: 'PROD', title: 'Huy Hiệu Trạng Thái BOM ⚡ và Bộ 3 Tab Lọc Nhanh Trong Quản Lý Định Lượng Công Thức', done: true, note: 'API trả về bom_count cho từng sản phẩm; giao diện gắn badge nổi bật Đã có BOM (X tp); 3 tab lọc nhanh: Tất cả, Đã có BOM, Chưa có BOM' },
+      { id: 'purchases-empty-inputs-blank', cat: 'PO', title: 'Đơn Nhập Hàng NCC: Để Trống Ô Số Lượng & Thực Trả NCC Thay Vì Điền Sẵn 1 Và 0', done: true, note: 'Để trống value="" và dùng placeholder="0"; validate chặn lưu phiếu rác khi số lượng <= 0' },
+      { id: 'flexible-inventory-stock-audit', cat: 'INV', title: 'Kiểm Kê Kho Từng Phần Linh Hoạt: Chọn Lọc Từng Dòng Bằng Checkbox & Cân Bằng Kho Riêng Biệt', done: true, note: 'Hỗ trợ kiểm kê theo nhóm hàng hoặc sản phẩm tùy chọn; checkbox chọn dòng, nút Chỉ xem dòng lệch và cân bằng kho an toàn chỉ áp dụng cho hàng đã chọn' },
+      { id: 'topup-transactions-management-full', cat: 'CASH', title: 'Quản Lý, Xem, Sửa, Xóa Phiếu Nạp Ví Spa Hoàn Tác 100% (Ví, Điểm Thưởng & Sổ Quỹ)', done: true, note: 'Sub-tab Hóa Đơn Nạp Ví Spa và modal Lịch sử ví; hỗ trợ chọn tài khoản ngân hàng hoặc két tiền mặt; hoàn tác đồng bộ số dư ví, điểm loyalty và sổ quỹ' },
+      // 0. CẬP NHẬT TRƯỚC ĐÓ (2026-10-02 & 2026-10-07)
       { id: 'import-full-sheets-invoices-and-customers', cat: 'PROD', title: 'Import Trọn Bộ 772 Khách Hàng, 77 Sản Phẩm & 129 Hóa Đơn Lịch Sử Google Sheets', done: true, note: 'Khớp 100% 77 mã sản phẩm, 772 khách hàng kèm mã KH/chành xe/công nợ cũ; nạp 129 hóa đơn bán lẻ và 683 dòng chi tiết món từ tháng 05/2026 đến 09/2026' },
       { id: 'contacts-import-code-and-notes', cat: 'PROD', title: 'Nâng Cấp Import Khách Hàng: Giữ Nguyên Mã Cũ (ID KH...), Ghi Chú Giao Hàng & Auto-Map Nhóm Đại Lý', done: true, note: 'Bổ sung cột code và note vào bảng contacts; nâng cấp bộ đọc Import Excel tự động nhận diện cột ID, Notes, map nhóm Đại lý/Khách lẻ và chuẩn hóa sạch SĐT thiếu số 0' },
       // --- 0.0 CẬP NHẬT MỚI NHẤT (2026-10-02) ---
