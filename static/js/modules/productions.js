@@ -4795,11 +4795,64 @@
             ];
         }
 
+        function getDraftElementsK80() {
+            return [
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU TẠM TÍNH", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 15, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "(Chưa có giá trị thanh toán)\nSố: {{ma_hoa_don}} - {{ngay_gio}}", label: "Mã & Giờ", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Khách: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 10, y: 80, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", catalog_key: "table", zone: "body", type: "table", label: "Bảng Mặt Hàng", x: 10, y: 105, w: 270, fsz: 10 },
+                { id: "e6", catalog_key: "total", zone: "footer", type: "text", text: "TỔNG TẠM TÍNH: {{phai_tra}}", label: "Tổng Tạm Tính", x: 10, y: 180, w: 270, fsz: 13, bold: true, align: "right" },
+                { id: "e7", catalog_key: "footer_msg", zone: "footer", type: "text", text: "Vui lòng đối chiếu món trước khi thanh toán chính thức!", label: "Lời Nhắc", x: 10, y: 210, w: 270, fsz: 9.5, italic: true, align: "center" }
+            ];
+        }
+
+        function getTopupElementsK80() {
+            return [
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "🐾 {{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU THU NẠP VÍ SPA", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Mã: {{ma_phieu}} | Ngày: {{ngay_gio}}", label: "Mã Giao Dịch", x: 10, y: 52, w: 270, fsz: 10, align: "center" },
+                { id: "e4", catalog_key: "customer", zone: "header", type: "text", text: "Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: 10, y: 74, w: 270, fsz: 11, bold: true, align: "left" },
+                { id: "e5", catalog_key: "cashbook_amount", zone: "body", type: "text", text: "TIỀN THỰC NỘP: {{so_tien}}", label: "Tiền Nộp", x: 10, y: 100, w: 270, fsz: 13, bold: true, align: "center" },
+                { id: "e6", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "Gói nạp: {{dien_giai}}\nCộng vào ví Spa: +700.000 đ\nSố dư ví mới: 2.200.000 đ\nĐiểm thưởng tích lũy: +500 điểm", label: "Biến Động Số Dư & Điểm", x: 10, y: 130, w: 270, fsz: 10.5, align: "left" },
+                { id: "e7", catalog_key: "qr", zone: "footer", type: "qr", label: "VietQR Xác Nhận", x: 75, y: 200, w: 120, h: 120 },
+                { id: "e8", catalog_key: "footer_msg", zone: "footer", type: "text", text: "Số dư ví chỉ áp dụng cho các gói dịch vụ Spa!", label: "Lời Nhắc", x: 10, y: 330, w: 270, fsz: 9.5, italic: true, align: "center" }
+            ];
+        }
+
+        function getShiftZReportElementsK80() {
+            return [
+                { id: "e1", catalog_key: "shop_name", zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", x: 10, y: 10, w: 270, fsz: 14, bold: true, align: "center" },
+                { id: "e2", catalog_key: "title", zone: "header", type: "text", text: "BÁO CÁO KẾT THÚC CA (Z)", label: "Tiêu Đề", x: 10, y: 32, w: 270, fsz: 13, bold: true, align: "center" },
+                { id: "e3", catalog_key: "order_code", zone: "header", type: "text", text: "Ca số: 01 | Thu ngân: {{thu_ngan}} | Ngày: {{ngay_gio}}", label: "Thông Tin Ca", x: 10, y: 54, w: 270, fsz: 10, align: "center" },
+                { id: "e4", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Tiền mặt đầu ca: 1.000.000 đ\n- Doanh thu tiền mặt: 4.500.000 đ\n- Doanh thu chuyển khoản: 3.200.000 đ\n- Thu nạp ví Spa: 1.000.000 đ\n- Chi trong ca: 200.000 đ\n- TỔNG TIỀN MẶT KÉT BÀN GIAO: 6.300.000 đ", label: "Chi Tiết Doanh Thu Ca", x: 10, y: 80, w: 270, fsz: 11, bold: false, align: "left" },
+                { id: "e5", catalog_key: "signatures_cashbook", zone: "footer", type: "signatures_cashbook", label: "Chữ Ký Thu Ngân - Quản Lý", x: 10, y: 190, w: 270, h: 80 }
+            ];
+        }
+
+        function inferDocTypeFromKey(key, preset) {
+            if (preset && preset.doc_type) return preset.doc_type;
+            const k = (key || '').toLowerCase();
+            const name = (preset && preset.name ? preset.name : '').toLowerCase();
+
+            if (k.includes('draft') || name.includes('tạm tính')) return 'pos_draft';
+            if (k.includes('topup') || name.includes('nạp ví')) return 'pos_topup';
+            if (k.includes('spa_intake') || name.includes('tiếp nhận')) return 'spa_intake';
+            if (k.includes('spa_invoice') || (k.includes('spa') && (k.includes('bill') || k.includes('invoice') || name.includes('thanh toán')))) return 'spa_invoice';
+            if (k.includes('shift') || k.includes('zreport') || name.includes('đóng ca') || name.includes('báo cáo ca')) return 'shift_zreport';
+            if (k.includes('audit') || k.includes('kiem_ke') || name.includes('kiểm kê')) return 'stock_audit';
+            if (k.includes('thu') || name.includes('phiếu thu')) return 'cashbook_thu';
+            if (k.includes('chi') || name.includes('phiếu chi')) return 'cashbook_chi';
+            if (k.includes('b2b') || k.includes('a4') || k.includes('a5') || name.includes('đại lý') || name.includes('b2b') || name.includes('sỉ')) return 'pos_b2b';
+            return 'pos_retail';
+        }
+
         function getDefaultPresets() {
             return {
                 "a4_b2b": {
                     name: "Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)",
                     category: "pos",
+                    doc_type: "pos_b2b",
                     paper_size: "A4-landscape",
                     is_bold_all: false,
                     elements: getB2BA4Template("A4-landscape")
@@ -4807,6 +4860,7 @@
                 "a4_standard": {
                     name: "Mẫu A4 Tiêu Chuẩn (Bán Lẻ)",
                     category: "pos",
+                    doc_type: "pos_b2b",
                     paper_size: "A4-portrait",
                     is_bold_all: false,
                     elements: getInitialElementsForSize("A4-portrait")
@@ -4814,6 +4868,7 @@
                 "a5_standard": {
                     name: "Mẫu A5 Tiêu Chuẩn",
                     category: "pos",
+                    doc_type: "pos_b2b",
                     paper_size: "A5-portrait",
                     is_bold_all: false,
                     elements: getInitialElementsForSize("A5-portrait")
@@ -4821,6 +4876,7 @@
                 "k80_standard": {
                     name: "Mẫu Cuộn Nhiệt K80 (Bán Lẻ)",
                     category: "pos",
+                    doc_type: "pos_retail",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getInitialElementsForSize("K80")
@@ -4828,6 +4884,7 @@
                 "k80_default": {
                     name: "Mẫu Cuộn Nhiệt K80 (Bán Lẻ)",
                     category: "pos",
+                    doc_type: "pos_retail",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getInitialElementsForSize("K80")
@@ -4835,20 +4892,39 @@
                 "k58_standard": {
                     name: "Mẫu Cuộn Nhiệt K58 (Bán Lẻ)",
                     category: "pos",
+                    doc_type: "pos_retail",
                     paper_size: "K58",
                     is_bold_all: true,
                     elements: getInitialElementsForSize("K58")
                 },
+                "draft_k80": {
+                    name: "Mẫu Phiếu Tạm Tính (Cuộn K80)",
+                    category: "pos",
+                    doc_type: "pos_draft",
+                    paper_size: "K80",
+                    is_bold_all: true,
+                    elements: getDraftElementsK80()
+                },
                 "spa_intake_k80": {
                     name: "Mẫu Phiếu Tiếp Nhận Thú Cưng Spa (K80)",
                     category: "spa",
+                    doc_type: "spa_intake",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getSpaIntakeElementsK80()
                 },
+                "pos_topup_k80": {
+                    name: "Mẫu Phiếu Thu Nạp Ví Spa (K80)",
+                    category: "spa",
+                    doc_type: "pos_topup",
+                    paper_size: "K80",
+                    is_bold_all: true,
+                    elements: getTopupElementsK80()
+                },
                 "spa_invoice_k80": {
                     name: "Mẫu Phiếu Thanh Toán Dịch Vụ Spa (K80)",
                     category: "spa",
+                    doc_type: "spa_invoice",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getSpaInvoiceElementsK80()
@@ -4856,6 +4932,7 @@
                 "cashbook_thu_k80": {
                     name: "Mẫu Phiếu Thu Tiền (Cuộn K80)",
                     category: "cashbook",
+                    doc_type: "cashbook_thu",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getCashbookThuElementsK80()
@@ -4863,6 +4940,7 @@
                 "cashbook_thu_a4": {
                     name: "Mẫu Phiếu Thu Tiền (Chuẩn A5/A4 Kế Toán)",
                     category: "cashbook",
+                    doc_type: "cashbook_thu",
                     paper_size: "A5-landscape",
                     is_bold_all: false,
                     elements: getCashbookThuElementsA4()
@@ -4870,6 +4948,7 @@
                 "cashbook_chi_k80": {
                     name: "Mẫu Phiếu Chi Tiền (Cuộn K80)",
                     category: "cashbook",
+                    doc_type: "cashbook_chi",
                     paper_size: "K80",
                     is_bold_all: true,
                     elements: getCashbookChiElementsK80()
@@ -4877,13 +4956,23 @@
                 "cashbook_chi_a4": {
                     name: "Mẫu Phiếu Chi Tiền (Chuẩn A5/A4 Kế Toán)",
                     category: "cashbook",
+                    doc_type: "cashbook_chi",
                     paper_size: "A5-landscape",
                     is_bold_all: false,
                     elements: getCashbookChiElementsA4()
                 },
+                "shift_zreport_k80": {
+                    name: "Mẫu Báo Cáo Đóng Ca Z (K80)",
+                    category: "cashbook",
+                    doc_type: "shift_zreport",
+                    paper_size: "K80",
+                    is_bold_all: true,
+                    elements: getShiftZReportElementsK80()
+                },
                 "stock_audit_a4": {
                     name: "Mẫu Phiếu Kiểm Kê Hàng Hóa (A4 Dọc)",
                     category: "inventory",
+                    doc_type: "stock_audit",
                     paper_size: "A4-portrait",
                     is_bold_all: false,
                     elements: getStockAuditElementsA4()
@@ -4891,50 +4980,59 @@
             };
         }
 
-        function renderPresetSelect() {
+        function renderPresetSelect(filterDocType) {
             const sel = document.getElementById('canvas-preset-select');
             if (!sel) return;
             if (!multiTemplates.presets) {
                 multiTemplates.presets = getDefaultPresets();
             }
-            const curPreset = multiTemplates.active_preset || "a4_b2b";
-            
-            const categoryLabels = {
-                'pos': '🛒 Bán Hàng POS',
-                'spa': '🐾 Dịch Vụ Spa',
-                'cashbook': '💰 Sổ Quỹ Thu / Chi',
-                'inventory': '📦 Kho & Kiểm Kê',
-                'other': '📄 Mẫu Khác'
-            };
 
-            const groups = {
-                'pos': [],
-                'spa': [],
-                'cashbook': [],
-                'inventory': [],
-                'other': []
-            };
+            const activeDoc = filterDocType || multiTemplates.active_doc_type || 'pos_retail';
+            multiTemplates.active_doc_type = activeDoc;
 
+            const items = [];
             for (let key in multiTemplates.presets) {
                 const p = multiTemplates.presets[key];
-                const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
-                if (!groups[cat]) groups[cat] = [];
-                groups[cat].push({ key, preset: p });
+                if (!p.doc_type) {
+                    p.doc_type = inferDocTypeFromKey(key, p);
+                }
+                if (p.doc_type === activeDoc) {
+                    items.push({ key, preset: p });
+                }
+            }
+
+            let curPreset = multiTemplates.active_preset;
+            const hasCur = items.some(i => i.key === curPreset);
+            if (!hasCur && items.length > 0) {
+                curPreset = items[0].key;
+                multiTemplates.active_preset = curPreset;
             }
 
             let html = '';
-            for (let catKey of ['pos', 'spa', 'cashbook', 'inventory', 'other']) {
-                const items = groups[catKey];
-                if (items && items.length > 0) {
-                    html += `<optgroup label="${categoryLabels[catKey] || catKey}">`;
-                    for (let item of items) {
-                        const isSel = item.key === curPreset ? 'selected' : '';
-                        const sizeTag = item.preset.paper_size || '';
-                        const boldTag = item.preset.is_bold_all ? ' [Đậm]' : '';
-                        html += `<option value="${item.key}" ${isSel}>${item.preset.name} (${sizeTag})${boldTag}</option>`;
-                    }
-                    html += `</optgroup>`;
+            if (items.length > 0) {
+                const docLabels = {
+                    'pos_retail': '🧾 Hóa Đơn Bán Lẻ',
+                    'pos_b2b': '📄 Hóa Đơn Sỉ / A4',
+                    'pos_draft': '📝 Phiếu Tạm Tính',
+                    'spa_intake': '💆 Tiếp Nhận Spa',
+                    'pos_topup': '⚡ Thu Nạp Ví Spa',
+                    'spa_invoice': '📋 Hóa Đơn Spa',
+                    'cashbook_thu': '📥 Phiếu Thu Tiền',
+                    'cashbook_chi': '📤 Phiếu Chi Tiền',
+                    'shift_zreport': '📊 Báo Cáo Đóng Ca (Z)',
+                    'stock_audit': '📦 Kiểm Kê Kho'
+                };
+                const groupLabel = docLabels[activeDoc] || 'Mẫu In Nghiệp Vụ';
+                html += `<optgroup label="${groupLabel}">`;
+                for (let item of items) {
+                    const isSel = item.key === curPreset ? 'selected' : '';
+                    const sizeTag = item.preset.paper_size || '';
+                    const boldTag = item.preset.is_bold_all ? ' [Đậm]' : '';
+                    html += `<option value="${item.key}" ${isSel}>${item.preset.name} (${sizeTag})${boldTag}</option>`;
                 }
+                html += `</optgroup>`;
+            } else {
+                html = `<option value="">(Chưa có mẫu cho chứng từ này - Bấm "Lưu Mẫu Mới")</option>`;
             }
             sel.innerHTML = html;
         }
@@ -4953,6 +5051,23 @@
             }
             multiTemplates.active_preset = presetKey;
             const preset = multiTemplates.presets[presetKey];
+            if (!preset.doc_type) preset.doc_type = inferDocTypeFromKey(presetKey, preset);
+
+            // Sync doc_type and left tree selection if changed
+            if (preset.doc_type && multiTemplates.active_doc_type !== preset.doc_type) {
+                multiTemplates.active_doc_type = preset.doc_type;
+                document.querySelectorAll('.print-tree-btn').forEach(btn => {
+                    btn.classList.remove('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+                    btn.classList.add('font-medium', 'text-slate-600');
+                });
+                const matchBtn = document.querySelector(`.print-tree-btn[onclick*="'${preset.doc_type}'"]`);
+                if (matchBtn) {
+                    matchBtn.classList.remove('font-medium', 'text-slate-600');
+                    matchBtn.classList.add('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+                }
+                renderPresetSelect(preset.doc_type);
+            }
+
             paperSize = preset.paper_size || "A4-portrait";
             window.paperSize = paperSize;
             const sizeSel = document.getElementById('canvas-paper-size');
@@ -5109,22 +5224,25 @@
         }
 
         async function saveNewPreset() {
-            const name = prompt("Nhập tên cho mẫu in mới:", "Hóa Đơn A4 Đại Lý (Mẫu Mới)");
+            const name = prompt("Nhập tên cho mẫu in mới:", "Hóa Đơn Mới");
             if (!name || !name.trim()) return;
 
             if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
-            const curPreset = multiTemplates.presets[multiTemplates.active_preset || "a4_b2b"] || {};
+            const curPreset = multiTemplates.presets[multiTemplates.active_preset || "k80_standard"] || {};
+            const docType = multiTemplates.active_doc_type || curPreset.doc_type || inferDocTypeFromKey(multiTemplates.active_preset, curPreset);
             const boldChk = document.getElementById('chk-preset-bold-all');
             const newKey = "preset_" + Date.now();
             multiTemplates.presets[newKey] = {
                 name: name.trim(),
                 category: curPreset.category || "pos",
+                doc_type: docType,
                 paper_size: paperSize,
                 is_bold_all: boldChk ? boldChk.checked : (paperSize === 'K80' || paperSize === 'K58'),
                 elements: JSON.parse(JSON.stringify(canvasElements))
             };
             multiTemplates.active_preset = newKey;
             multiTemplates.active_size = paperSize;
+            multiTemplates.active_doc_type = docType;
             multiTemplates.templates[paperSize] = JSON.parse(JSON.stringify(canvasElements));
 
             const payload = {
@@ -5136,7 +5254,7 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                renderPresetSelect();
+                renderPresetSelect(docType);
                 alert(`Đã tạo và lưu thành mẫu mới: "${name.trim()}"!`);
             } else {
                 alert('Lỗi khi lưu mẫu mới!');
@@ -5144,8 +5262,13 @@
         }
 
         async function deleteCurrentPreset() {
-            const curKey = multiTemplates.active_preset || "a4_b2b";
-            const builtIn = ["a4_b2b", "a4_standard", "a5_standard", "k80_standard", "k58_standard"];
+            const curKey = multiTemplates.active_preset || "k80_standard";
+            const builtIn = [
+                "a4_b2b", "a4_standard", "a5_standard", "k80_standard", "k80_default", "k58_standard",
+                "draft_k80", "spa_intake_k80", "pos_topup_k80", "spa_invoice_k80",
+                "cashbook_thu_k80", "cashbook_thu_a4", "cashbook_chi_k80", "cashbook_chi_a4",
+                "shift_zreport_k80", "stock_audit_a4"
+            ];
             if (builtIn.includes(curKey)) {
                 alert("Đây là mẫu in hệ thống mặc định, không thể xóa!");
                 return;
@@ -5153,8 +5276,8 @@
             const name = multiTemplates.presets[curKey] ? multiTemplates.presets[curKey].name : curKey;
             if (!confirm(`Bạn có chắc muốn xóa mẫu "${name}"?`)) return;
 
+            const docType = multiTemplates.active_doc_type || 'pos_retail';
             delete multiTemplates.presets[curKey];
-            multiTemplates.active_preset = "a4_b2b";
             const payload = {
                 print_blocks_config: JSON.stringify(multiTemplates)
             };
@@ -5163,13 +5286,14 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            renderPresetSelect();
-            switchPreset("a4_b2b");
+            renderPresetSelect(docType);
+            const nextKey = multiTemplates.active_preset;
+            if (nextKey) switchPreset(nextKey);
             alert(`Đã xóa mẫu "${name}" thành công!`);
         }
 
         async function renameCurrentPreset() {
-            const curKey = multiTemplates.active_preset || "a4_b2b";
+            const curKey = multiTemplates.active_preset || "k80_standard";
             if (!multiTemplates.presets || !multiTemplates.presets[curKey]) {
                 alert("Không tìm thấy mẫu in đang chọn!");
                 return;
@@ -5188,7 +5312,7 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                renderPresetSelect();
+                renderPresetSelect(multiTemplates.active_doc_type || p.doc_type);
                 alert(`Đã đổi tên mẫu thành: "${p.name}"!`);
             } else {
                 alert('Lỗi khi đổi tên mẫu!');
@@ -5549,26 +5673,56 @@
             if (btnEl) {
                 btnEl.classList.remove('font-medium', 'text-slate-600');
                 btnEl.classList.add('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+            } else {
+                const matchBtn = document.querySelector(`.print-tree-btn[onclick*="'${docType}'"]`);
+                if (matchBtn) {
+                    matchBtn.classList.remove('font-medium', 'text-slate-600');
+                    matchBtn.classList.add('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
+                }
             }
+
+            multiTemplates.active_doc_type = docType;
 
             const docMap = {
                 'pos_retail': 'k80_standard',
                 'pos_b2b': 'a4_b2b',
                 'pos_draft': 'draft_k80',
-                'spa_intake': 'spa_intake',
-                'pos_topup': 'topup_k80',
-                'spa_invoice': 'spa_invoice',
-                'cashbook_thu': 'cashbook_thu',
-                'cashbook_chi': 'cashbook_chi',
-                'shift_zreport': 'shift_zreport',
-                'stock_audit': 'stock_audit'
+                'spa_intake': 'spa_intake_k80',
+                'pos_topup': 'pos_topup_k80',
+                'spa_invoice': 'spa_invoice_k80',
+                'cashbook_thu': 'cashbook_thu_k80',
+                'cashbook_chi': 'cashbook_chi_k80',
+                'shift_zreport': 'shift_zreport_k80',
+                'stock_audit': 'stock_audit_a4'
             };
 
-            const targetPreset = docMap[docType] || 'k80_standard';
+            // First check if current active_preset belongs to this docType
+            const curP = multiTemplates.presets ? multiTemplates.presets[multiTemplates.active_preset] : null;
+            let targetPreset = null;
+            if (curP && (curP.doc_type === docType || inferDocTypeFromKey(multiTemplates.active_preset, curP) === docType)) {
+                targetPreset = multiTemplates.active_preset;
+            } else {
+                // Find first preset belonging to docType
+                for (let k in multiTemplates.presets) {
+                    const p = multiTemplates.presets[k];
+                    const dt = p.doc_type || inferDocTypeFromKey(k, p);
+                    if (dt === docType) {
+                        targetPreset = k;
+                        break;
+                    }
+                }
+                if (!targetPreset) {
+                    targetPreset = docMap[docType] || 'k80_standard';
+                }
+            }
+
+            multiTemplates.active_preset = targetPreset;
+            renderPresetSelect(docType);
+
             if (multiTemplates && multiTemplates.presets && multiTemplates.presets[targetPreset]) {
                 switchPreset(targetPreset);
             } else {
-                if (docType === 'pos_b2b') changePrintPaperView('A4-portrait');
+                if (docType === 'pos_b2b' || docType === 'stock_audit') changePrintPaperView('A4-portrait');
                 else changePrintPaperView('K80');
             }
         }
@@ -6384,13 +6538,17 @@
                 canvasElements = getB2BA4Template();
             }
 
-            renderPresetSelect();
-            const curPreset = multiTemplates.active_preset || "a4_b2b";
-            if (multiTemplates.presets && multiTemplates.presets[curPreset]) {
-                switchPreset(curPreset);
-            } else {
-                switchPreset("a4_b2b");
+            if (!multiTemplates.presets) multiTemplates.presets = getDefaultPresets();
+            const curPreset = multiTemplates.active_preset || "k80_standard";
+            if (!multiTemplates.presets[curPreset]) {
+                multiTemplates.active_preset = "k80_standard";
             }
+            const activePresetObj = multiTemplates.presets[multiTemplates.active_preset];
+            const activeDoc = (activePresetObj && activePresetObj.doc_type) 
+                ? activePresetObj.doc_type 
+                : inferDocTypeFromKey(multiTemplates.active_preset, activePresetObj);
+            multiTemplates.active_doc_type = activeDoc;
+            selectPrintDocType(activeDoc);
         }
 
         function renderPrintBoldConfigsUI() {
@@ -8840,6 +8998,8 @@
         window.updateCanvasBadge = updateCanvasBadge;
         window.addCustomTextItem = addCustomTextItem;
         window.selectPrintDocType = selectPrintDocType;
+        window.inferDocTypeFromKey = inferDocTypeFromKey;
+        window.renderPresetSelect = renderPresetSelect;
         window.zoomPrintSheet = zoomPrintSheet;
         window.changePrintPaperView = changePrintPaperView;
         window.togglePrintPreviewBlock = togglePrintPreviewBlock;

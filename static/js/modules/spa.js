@@ -2080,9 +2080,11 @@
             const btnRetail = document.getElementById('btn-subtab-order-retail');
             const btnSpa = document.getElementById('btn-subtab-order-spa');
             const btnHotel = document.getElementById('btn-subtab-order-hotel');
+            const btnTopup = document.getElementById('btn-subtab-order-topup');
             const viewRetail = document.getElementById('orders-subview-retail');
             const viewSpa = document.getElementById('orders-subview-spa');
             const viewHotel = document.getElementById('orders-subview-hotel');
+            const viewTopup = document.getElementById('orders-subview-topup');
 
             const activeRetailClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
             const inactiveRetailClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
@@ -2090,14 +2092,18 @@
             const inactiveSpaClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
             const activeHotelClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-indigo-600 text-indigo-700 flex items-center gap-1.5 transition';
             const inactiveHotelClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
+            const activeTopupClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-amber-600 text-amber-700 flex items-center gap-1.5 transition';
+            const inactiveTopupClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
 
             if (btnRetail) btnRetail.className = (sub === 'retail' ? activeRetailClass : inactiveRetailClass);
             if (btnSpa) btnSpa.className = (sub === 'spa' ? activeSpaClass : inactiveSpaClass);
             if (btnHotel) btnHotel.className = (sub === 'hotel' ? activeHotelClass : inactiveHotelClass);
+            if (btnTopup) btnTopup.className = (sub === 'topup' ? activeTopupClass : inactiveTopupClass);
 
             if (viewRetail) viewRetail.classList.toggle('hidden', sub !== 'retail');
             if (viewSpa) viewSpa.classList.toggle('hidden', sub !== 'spa');
             if (viewHotel) viewHotel.classList.toggle('hidden', sub !== 'hotel');
+            if (viewTopup) viewTopup.classList.toggle('hidden', sub !== 'topup');
 
             if (sub === 'retail') {
                 if (typeof loadOrdersList === 'function') loadOrdersList();
@@ -2107,6 +2113,8 @@
                 if (window.hotelManager && typeof window.hotelManager.loadHistory === 'function') {
                     window.hotelManager.loadHistory();
                 }
+            } else if (sub === 'topup') {
+                if (typeof loadTopupOrdersList === 'function') loadTopupOrdersList();
             }
         }
         window.switchOrderSubTab = switchOrderSubTab;

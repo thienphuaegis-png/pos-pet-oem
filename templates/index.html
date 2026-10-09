@@ -1291,6 +1291,10 @@
                         <svg class="w-3.5 h-3.5 shrink-0 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
                         <span>Lịch Sử Lưu Trú Hotel</span>
                     </button>
+                    <button id="btn-subtab-order-topup" onclick="switchOrderSubTab('topup')" class="px-3.5 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition">
+                        <span class="text-amber-500">⚡</span>
+                        <span>Phiếu Thu Nạp Ví Spa</span>
+                    </button>
                 </div>
 
                 <!-- SUBVIEW 1: HÓA ĐƠN BÁN LẺ -->
@@ -1570,6 +1574,51 @@
                                 <tbody id="hotel-history-table-body" class="divide-y divide-slate-100">
                                     <tr>
                                         <td colspan="9" class="p-6 text-center text-gray-400 italic">Đang tải lịch sử lưu trú...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBVIEW 4: PHIẾU THU NẠP VÍ SPA -->
+                <div id="orders-subview-topup" class="hidden space-y-4">
+                    <div class="flex flex-wrap items-center justify-between bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span class="text-amber-500">⚡</span>
+                                <span>Danh Sách Phiếu Thu Nạp Ví Spa</span>
+                            </h2>
+                            <span id="topup-orders-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">0 phiếu</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="search-topup-orders" placeholder="Tìm mã phiếu, khách, SĐT..." class="tui-input text-xs w-64" oninput="loadTopupOrdersList()">
+                            <button onclick="loadTopupOrdersList()" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                                <span>Tải lại</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden bg-white rounded-lg border shadow-sm">
+                        <div class="overflow-x-auto p-1">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-50/70 text-slate-600 font-bold uppercase text-[11px] border-b">
+                                    <tr>
+                                        <th class="p-3">Mã Phiếu Thu</th>
+                                        <th class="p-3">Thời Gian</th>
+                                        <th class="p-3">Khách Hàng</th>
+                                        <th class="p-3">Gói Nạp</th>
+                                        <th class="p-3 text-right">Tiền Nộp</th>
+                                        <th class="p-3 text-right">Vào Ví</th>
+                                        <th class="p-3 text-center">Tích Điểm</th>
+                                        <th class="p-3">Tài Khoản / Két</th>
+                                        <th class="p-3 text-center">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topup-orders-table-body" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="9" class="p-6 text-center text-gray-400 italic">Đang tải danh sách phiếu nạp ví...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -11064,6 +11113,46 @@
             <div class="flex justify-end pt-3 border-t">
                 <button type="button" onclick="closePosWalletHistory()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow">Đóng</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHỈNH SỬA PHIẾU NẠP VÍ SPA -->
+    <div id="modal-edit-topup-tx" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 text-xs">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">✏️</span>
+                    <h3 class="font-bold text-base text-slate-800">Chỉnh Sửa Phiếu Nạp Ví Spa</h3>
+                </div>
+                <button type="button" onclick="closeEditTopupTxModal()" class="text-gray-400 hover:text-gray-600 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <form id="form-edit-topup-tx" onsubmit="submitEditTopupTx(event)" class="space-y-3">
+                <input type="hidden" id="edit-topup-tx-id">
+                <input type="hidden" id="edit-topup-cust-id">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Khách hàng:</span>
+                        <span id="edit-topup-cust-name" class="font-bold text-slate-800">--</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Số tiền nạp gói:</span>
+                        <span id="edit-topup-amount-disp" class="font-bold text-emerald-600">0 đ</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tài khoản thanh toán / Két nhận tiền:</label>
+                    <select id="edit-topup-account-select" class="w-full border border-slate-300 rounded p-2 text-xs font-semibold bg-white text-slate-700">
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ghi chú nạp ví:</label>
+                    <textarea id="edit-topup-note" rows="2" class="w-full border border-slate-300 rounded p-2 text-xs bg-white text-slate-800 focus:outline-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeEditTopupTxModal()" class="px-3.5 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                    <button type="submit" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow">Lưu Thay Đổi</button>
+                </div>
+            </form>
         </div>
     </div>
 

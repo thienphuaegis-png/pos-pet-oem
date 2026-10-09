@@ -27,6 +27,11 @@ class TopupRechargeIn(BaseModel):
     account_id: Optional[int] = None
     shift_id: Optional[int] = None
 
+class TopupTransactionUpdate(BaseModel):
+    payment_method: Optional[str] = None
+    account_id: Optional[int] = None
+    note: Optional[str] = None
+
 # --- Packages CRUD ---
 @router.get("/packages")
 def list_topup_packages(all: bool = Query(False)):
@@ -274,3 +279,133 @@ def get_spa_wallet_history(contact_id: int):
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+# --- Transactions Management (Orders Sub-tab & Wallet History) ---
+@router.get("/transactions")
+def list_topup_transactions(
+    search: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    user=Depends(get_current_user)
+):
+    conn = get_db()
+    cur = conn.cursor()
+    query = """
+        SELECT 
+            t.id, t.contact_id, t.package_id, t.type, t.amount, t.balance_before, t.balance_after,
+            t.points_earned, t.note, t.created_at,
+            c.name as contact_name, c.phone as contact_phone,
+            p.name as package_name, p.pay_amount, p.receive_amount,
+            cb.code as cashbook_code, cb.account_id, cb.amount as pay_amount_actual,
+            pa.name as account_name, pa.account_type,
+            s.name as cashier_name
+        FROM spa_wallet_transactions t
+        JOIN contacts c ON t.contact_id = c.id
+        LEFT JOIN topup_packages p ON t.package_id = p.id
+        LEFT JOIN cashbook cb ON (cb.ref_type = 'topup' AND cb.ref_id = t.id)
+        LEFT JOIN payment_accounts pa ON cb.account_id = pa.id
+        LEFT JOIN shifts sh ON cb.shift_id = sh.id
+        LEFT JOIN staff s ON sh.cashier_id = s.id
+        WHERE t.type = 'topup'
+    """
+    params = []
+    if search:
+        s_pat = f"%{search.strip()}%"
+        query += " AND (c.name LIKE ? OR c.phone LIKE ? OR cb.code LIKE ? OR p.name LIKE ?)"
+        params.extend([s_pat, s_pat, s_pat, s_pat])
+    if from_date:
+        query += " AND date(t.created_at) >= date(?)"
+        params.append(from_date)
+    if to_date:
+        query += " AND date(t.created_at) <= date(?)"
+        params.append(to_date)
+    
+    query += " ORDER BY t.created_at DESC, t.id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    cur.execute(query, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@router.put("/transactions/{id}")
+def update_topup_transaction(
+    id: int,
+    req: TopupTransactionUpdate,
+    user=Depends(require_role("owner", "admin"))
+):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (id,))
+    tx = cur.fetchone()
+    if not tx:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch nạp ví")
+
+    # Update spa_wallet_transactions note
+    if req.note is not None:
+        cur.execute("UPDATE spa_wallet_transactions SET note = ? WHERE id = ?", (req.note.strip(), id))
+
+    # Sync with cashbook
+    cur.execute("SELECT id FROM cashbook WHERE ref_type = 'topup' AND ref_id = ?", (id,))
+    cb = cur.fetchone()
+    if cb:
+        cb_updates = []
+        cb_params = []
+        if req.account_id is not None:
+            cur.execute("SELECT id FROM payment_accounts WHERE id = ? AND is_active = 1", (req.account_id,))
+            if cur.fetchone():
+                cb_updates.append("account_id = ?")
+                cb_params.append(req.account_id)
+        if req.note is not None:
+            cb_updates.append("note = ?")
+            cb_params.append(req.note.strip())
+        if cb_updates:
+            cb_params.append(cb["id"])
+            cur.execute(f"UPDATE cashbook SET {', '.join(cb_updates)} WHERE id = ?", cb_params)
+
+    conn.commit()
+    cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (id,))
+    updated = dict(cur.fetchone())
+    conn.close()
+    return updated
+
+@router.delete("/transactions/{id}")
+def delete_topup_transaction(
+    id: int,
+    user=Depends(require_role("owner", "admin"))
+):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (id,))
+    tx = cur.fetchone()
+    if not tx:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch nạp ví")
+
+    tx_data = dict(tx)
+    cid = tx_data.get("contact_id")
+    receive_amt = float(tx_data.get("amount") or 0.0)
+    pts = int(tx_data.get("points_earned") or 0)
+
+    # 1. Rollback customer balance and points
+    if cid:
+        cur.execute("""
+            UPDATE contacts
+            SET spa_wallet_balance = MAX(0, spa_wallet_balance - ?),
+                points = MAX(0, points - ?)
+            WHERE id = ?
+        """, (receive_amt, pts, cid))
+
+    # 2. Delete cashbook voucher if exists
+    cur.execute("DELETE FROM cashbook WHERE ref_type = 'topup' AND ref_id = ?", (id,))
+
+    # 3. Delete spa_wallet_transactions
+    cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": f"Đã xóa giao dịch nạp ví #{id} và hoàn tác số dư ví, điểm thưởng thành công"}
+

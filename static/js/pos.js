@@ -3271,12 +3271,27 @@ async function showPosWalletHistory() {
 
             let actionHtml = '-';
             if (isTopup) {
+                const isAdmin = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
                 actionHtml = `
-                    <button type="button" onclick="printHistoricalTopupReceipt(${cust.id}, ${r.id})" 
-                            class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
-                            title="In lại phiếu thu nạp ví K80">
-                        🖨️ In
-                    </button>
+                    <div class="inline-flex items-center gap-1 justify-center">
+                        <button type="button" onclick="printHistoricalTopupReceipt(${cust.id}, ${r.id})" 
+                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
+                                title="In lại phiếu thu nạp ví K80">
+                            🖨️ In
+                        </button>
+                        ${isAdmin ? `
+                            <button type="button" onclick="openEditTopupTxModal(${r.id}, ${cust.id})"
+                                    class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 shadow-2xs transition"
+                                    title="Chỉnh sửa phiếu nạp ví">
+                                ✏️ Sửa
+                            </button>
+                            <button type="button" onclick="confirmDeleteTopupTx(${r.id}, ${cust.id})"
+                                    class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-2xs transition"
+                                    title="Xóa phiếu nạp ví và hoàn tác số dư">
+                                🗑️ Xóa
+                            </button>
+                        ` : ''}
+                    </div>
                 `;
             }
 
@@ -3293,13 +3308,211 @@ async function showPosWalletHistory() {
         }).join('');
     } catch (e) {
         console.error("Load pos wallet history error:", e);
-        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">Lỗi khi tải lịch sử giao dịch ví</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-rose-500">Lỗi khi tải lịch sử giao dịch ví</td></tr>';
     }
 }
 
 function closePosWalletHistory() {
     const modal = document.getElementById('modal-pos-wallet-history');
     if (modal) modal.classList.add('hidden');
+}
+
+// ==========================================
+// THAO TÁC SỬA / XÓA PHIẾU THU NẠP VÍ SPA
+// ==========================================
+var _allTopupOrdersData = [];
+
+async function openEditTopupTxModal(txId, custId) {
+    const modal = document.getElementById('modal-edit-topup-tx');
+    if (!modal) return;
+
+    document.getElementById('edit-topup-tx-id').value = txId;
+    document.getElementById('edit-topup-cust-id').value = custId || '';
+
+    // Load transaction info
+    try {
+        const res = await fetch(`/api/topup/history/${custId}`);
+        const rows = res.ok ? await res.json() : [];
+        const tx = rows.find(item => item.id == txId);
+        if (tx) {
+            document.getElementById('edit-topup-cust-name').innerText = document.getElementById('pos-wallet-hist-cust-name')?.innerText || 'Khách hàng';
+            document.getElementById('edit-topup-amount-disp').innerText = `${Number(tx.amount || 0).toLocaleString('vi-VN')} đ`;
+            document.getElementById('edit-topup-note').value = tx.note || '';
+        }
+    } catch(e) {}
+
+    // Populate accounts dropdown
+    const accSelect = document.getElementById('edit-topup-account-select');
+    if (accSelect) {
+        const accounts = window.posPaymentAccounts || [];
+        accSelect.innerHTML = accounts.map(a => {
+            const isBank = a.account_type === 'bank';
+            const typeBadge = isBank ? '[NH]' : (a.account_type === 'ewallet' ? '[Ví]' : '[Két]');
+            const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
+            return `<option value="${a.id}">${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
+        }).join('');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeEditTopupTxModal() {
+    const modal = document.getElementById('modal-edit-topup-tx');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function submitEditTopupTx(e) {
+    if (e) e.preventDefault();
+    const txId = document.getElementById('edit-topup-tx-id').value;
+    const custId = document.getElementById('edit-topup-cust-id').value;
+    const accountId = parseInt(document.getElementById('edit-topup-account-select').value || 0);
+    const note = document.getElementById('edit-topup-note').value.trim();
+
+    try {
+        const res = await fetch(`/api/topup/transactions/${txId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                account_id: accountId || null,
+                note: note
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật phiếu nạp ví');
+
+        if (typeof showToast === 'function') {
+            showToast('Đã cập nhật thông tin phiếu nạp ví thành công!', 'success');
+        } else {
+            alert('Đã cập nhật thông tin phiếu nạp ví thành công!');
+        }
+        closeEditTopupTxModal();
+        if (custId) showPosWalletHistory();
+        if (typeof loadTopupOrdersList === 'function') loadTopupOrdersList();
+        if (typeof loadCashbook === 'function') loadCashbook();
+    } catch(err) {
+        alert('Lỗi: ' + err.message);
+    }
+}
+
+async function confirmDeleteTopupTx(txId, custId) {
+    const confirmed = confirm("⚠️ CẢNH BÁO HOÀN TÁC ĐỒNG BỘ:\n\nXóa phiếu thu nạp ví này sẽ tự động:\n1. Khấu trừ lại số dư ví Spa của khách hàng.\n2. Trừ lại số điểm thưởng tích lũy đã cộng.\n3. Hủy phiếu thu tương ứng trong Sổ Quỹ Cashbook.\n\nBạn có chắc chắn muốn xóa không?");
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/api/topup/transactions/${txId}`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Không thể xóa phiếu nạp ví');
+
+        if (typeof showToast === 'function') {
+            showToast(data.message || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!', 'success');
+        } else {
+            alert(data.message || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!');
+        }
+
+        // Cập nhật lại số dư khách hàng nếu đang chọn trên POS
+        const tab = (typeof getActiveTab === 'function') ? getActiveTab() : null;
+        if (tab && tab.customer && tab.customer.id == custId) {
+            try {
+                const cRes = await fetch(`/api/contacts/${custId}`);
+                if (cRes.ok) {
+                    const cData = await cRes.json();
+                    tab.customer.spa_wallet_balance = cData.spa_wallet_balance || 0;
+                    tab.customer.points = cData.points || 0;
+                    if (typeof updateCustomerUI === 'function') updateCustomerUI(tab.customer);
+                }
+            } catch(e) {}
+        }
+
+        if (custId) showPosWalletHistory();
+        if (typeof loadTopupOrdersList === 'function') loadTopupOrdersList();
+        if (typeof loadCashbook === 'function') loadCashbook();
+    } catch(err) {
+        alert('Lỗi xóa phiếu: ' + err.message);
+    }
+}
+
+// ==========================================
+// SUB-TAB HÓA ĐƠN NẠP VÍ SPA
+// ==========================================
+async function loadTopupOrdersList() {
+    const searchVal = document.getElementById('search-topup-orders')?.value.trim() || '';
+    const tbody = document.getElementById('topup-orders-table-body');
+    const badge = document.getElementById('topup-orders-count-badge');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Đang tải phiếu nạp ví...</td></tr>';
+
+    try {
+        const url = `/api/topup/transactions?limit=100${searchVal ? `&search=${encodeURIComponent(searchVal)}` : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Không thể tải danh sách phiếu nạp ví');
+        const rows = await res.json();
+        _allTopupOrdersData = rows || [];
+        if (badge) badge.innerText = `${_allTopupOrdersData.length} phiếu`;
+        renderTopupOrdersTable(_allTopupOrdersData);
+    } catch(err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-rose-500">Lỗi: ${err.message}</td></tr>`;
+    }
+}
+
+function renderTopupOrdersTable(rows) {
+    const tbody = document.getElementById('topup-orders-table-body');
+    if (!tbody) return;
+
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 italic">Không tìm thấy phiếu thu nạp ví nào</td></tr>';
+        return;
+    }
+
+    const isAdmin = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
+
+    tbody.innerHTML = rows.map(r => {
+        const cbCode = r.cashbook_code || `PT-VI#${r.id}`;
+        const payAmt = Number(r.pay_amount || r.pay_amount_actual || 0);
+        const recAmt = Number(r.amount || r.receive_amount || 0);
+        const pts = Number(r.points_earned || 0);
+
+        return `
+            <tr class="hover:bg-amber-50/40 border-b border-slate-100 text-xs transition">
+                <td class="p-3 font-mono font-bold text-amber-700">${cbCode}</td>
+                <td class="p-3 text-slate-500 font-mono">${r.created_at || ''}</td>
+                <td class="p-3">
+                    <div class="font-bold text-slate-800">${r.contact_name || 'Khách lẻ'}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">${r.contact_phone || ''}</div>
+                </td>
+                <td class="p-3 font-semibold text-slate-700">${r.package_name || r.note || 'Nạp ví Spa'}</td>
+                <td class="p-3 text-right font-mono font-bold text-slate-800">${payAmt.toLocaleString('vi-VN')} đ</td>
+                <td class="p-3 text-right font-mono font-bold text-emerald-600">+${recAmt.toLocaleString('vi-VN')} đ</td>
+                <td class="p-3 text-center">
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${pts > 0 ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
+                        +${pts} đ
+                    </span>
+                </td>
+                <td class="p-3 text-slate-600 truncate max-w-[150px]">${r.account_name || 'Két tiền mặt'}</td>
+                <td class="p-3 text-center">
+                    <div class="inline-flex items-center gap-1 justify-center">
+                        <button type="button" onclick="printHistoricalTopupReceipt(${r.contact_id}, ${r.id})" 
+                                class="px-2 py-1 rounded text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
+                                title="In lại phiếu thu K80">
+                            🖨️ In
+                        </button>
+                        ${isAdmin ? `
+                            <button type="button" onclick="openEditTopupTxModal(${r.id}, ${r.contact_id})"
+                                    class="px-2 py-1 rounded text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 shadow-2xs transition"
+                                    title="Chỉnh sửa phiếu nạp ví">
+                                ✏️ Sửa
+                            </button>
+                            <button type="button" onclick="confirmDeleteTopupTx(${r.id}, ${r.contact_id})"
+                                    class="px-2 py-1 rounded text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-2xs transition"
+                                    title="Xóa phiếu nạp ví và hoàn tác số dư">
+                                🗑️ Xóa
+                            </button>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 window.showPosWalletHistory = showPosWalletHistory;
@@ -3313,6 +3526,13 @@ window.onPosTopupPayMethodChange = onPosTopupPayMethodChange;
 window.onSelectTopupPackageRadio = onSelectTopupPackageRadio;
 window.submitTopupSpaRecharge = submitTopupSpaRecharge;
 window.toggleUseSpaWallet = toggleUseSpaWallet;
+
+window.openEditTopupTxModal = openEditTopupTxModal;
+window.closeEditTopupTxModal = closeEditTopupTxModal;
+window.submitEditTopupTx = submitEditTopupTx;
+window.confirmDeleteTopupTx = confirmDeleteTopupTx;
+window.loadTopupOrdersList = loadTopupOrdersList;
+window.renderTopupOrdersTable = renderTopupOrdersTable;
 
 // ====================================================
 // MOBILE RESPONSIVE ADAPTER & CATALOG LOGIC
