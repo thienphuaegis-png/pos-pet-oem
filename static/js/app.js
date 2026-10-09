@@ -4067,6 +4067,70 @@
         window.approveTelegramAdmin = approveTelegramAdmin;
         window.rejectTelegramAdmin = rejectTelegramAdmin;
 
+        // ==========================================
+        // THÔNG TIN PHIÊN BẢN & NHẬT KÝ CẬP NHẬT (CHANGELOG)
+        // ==========================================
+        async function openAppVersionModal() {
+            const modal = document.getElementById('modal-app-version');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const body = document.getElementById('modal-v-changelog-body');
+            const dateEl = document.getElementById('modal-v-date');
+            const badgeEl = document.getElementById('modal-v-badge');
+
+            try {
+                const res = await fetch('/api/version');
+                if (!res.ok) throw new Error('Không tải được thông tin phiên bản');
+                const v = await res.json();
+
+                if (badgeEl) badgeEl.innerText = v.version || 'v3.5.0';
+                if (dateEl) dateEl.innerText = `Phát hành: ${v.build_date} • Commit: ${v.commit_hash || 'latest'}`;
+
+                // Cập nhật text ở footer sidebar nếu có
+                const tagEl = document.getElementById('sidebar-version-tag');
+                if (tagEl) tagEl.innerText = `${v.version} • ${v.build_date}`;
+                const collEl = document.getElementById('sidebar-version-collapsed');
+                if (collEl) {
+                    collEl.innerText = v.short_version;
+                    collEl.title = v.version;
+                }
+
+                if (body && Array.isArray(v.changelog)) {
+                    body.innerHTML = v.changelog.map(log => `
+                        <div class="pt-3 first:pt-0 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-black text-sm font-mono text-indigo-900">${log.tag}</span>
+                                    ${log.is_new ? '<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">Bản Hiện Tại</span>' : ''}
+                                </div>
+                                <span class="text-slate-400 font-mono text-[11px]">${log.date}</span>
+                            </div>
+                            <div class="text-[11px] font-semibold text-slate-700">${log.title}</div>
+                            <ul class="space-y-1.5 pl-1">
+                                ${(log.items || []).map(it => `
+                                    <li class="flex items-start gap-1.5 text-slate-600 text-xs">
+                                        <span class="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+                                        <span class="leading-relaxed">${it}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("load version error:", err);
+                if (body) body.innerHTML = '<div class="p-4 text-center text-rose-500">Lỗi khi tải thông tin nhật ký phiên bản</div>';
+            }
+        }
+
+        function closeAppVersionModal() {
+            document.getElementById('modal-app-version')?.classList.add('hidden');
+        }
+
+        window.openAppVersionModal = openAppVersionModal;
+        window.closeAppVersionModal = closeAppVersionModal;
+
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {
             setTimeout(init, 50);

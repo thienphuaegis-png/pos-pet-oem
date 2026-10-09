@@ -205,7 +205,14 @@ def get_pos_template_path():
 def get_pos_mobile_template_path():
     return find_resource_path(os.path.join("templates", "pos_mobile.html"))
 
-APP_VERSION = "3.0"  # đồng bộ với PROJECT_STATE.md
+from version_helper import get_app_version_info
+
+APP_VERSION = get_app_version_info()["version"]  # đồng bộ động từ version.json & git
+
+@app.get("/api/version")
+def api_get_version():
+    """Trả về chi tiết phiên bản động, ngày build, commit hash và nhật ký cập nhật (Changelog)."""
+    return get_app_version_info()
 
 @app.get("/api/ping", include_in_schema=False)
 def ping():
@@ -257,6 +264,17 @@ def index():
                 html,
                 count=1
             )
+
+        # Inject thông tin phiên bản động & Tự động làm mới cache (Cache-Busting)
+        v_info = get_app_version_info()
+        ver_text = f"{v_info['version']} • {v_info['build_date']}"
+        short_ver = v_info['short_version']
+        cache_id = f"{v_info['commit_hash']}_{v_info['build_date'].replace('.', '')}"
+
+        html = re.sub(r'id="sidebar-version-tag"[^>]*>([^<]*)<', f'id="sidebar-version-tag">{ver_text}<', html)
+        html = re.sub(r'id="sidebar-version-collapsed"[^>]*>([^<]*)<', f'id="sidebar-version-collapsed" title="{v_info["version"]}">{short_ver}<', html)
+        html = re.sub(r'(\.js\?v=)[0-9a-zA-Z_]+', rf'\g<1>{cache_id}', html)
+
         return html
     return "<h1>UI template not found</h1>"
 
