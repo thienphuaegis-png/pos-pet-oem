@@ -2771,6 +2771,10 @@ async function openTopupSpaModal() {
     document.getElementById('pos-topup-current-balance').innerText = `${Number(cust.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
     document.getElementById('pos-topup-note').value = '';
 
+    const payMethodSelect = document.getElementById('pos-topup-pay-method');
+    if (payMethodSelect) payMethodSelect.value = 'cash';
+    onPosTopupPayMethodChange('cash');
+
     _posSelectedTopupPkgId = null;
     const pkgListEl = document.getElementById('pos-topup-packages-list');
     pkgListEl.innerHTML = '<div class="text-center text-slate-400 py-3">Đang tải gói nạp...</div>';
@@ -2821,6 +2825,30 @@ function onSelectTopupPackageRadio(pkgId) {
             el.classList.add('border-slate-200');
         }
     });
+}
+
+function onPosTopupPayMethodChange(method) {
+    const val = method || document.getElementById('pos-topup-pay-method')?.value || 'cash';
+    const box = document.getElementById('pos-topup-bank-account-box');
+    const accSelect = document.getElementById('pos-topup-account-id');
+    if (!box || !accSelect) return;
+
+    if (val === 'transfer' || val === 'card') {
+        box.classList.remove('hidden');
+        const accounts = window.posPaymentAccounts || [];
+        accSelect.innerHTML = accounts.map(a => {
+            const isBank = a.account_type === 'bank';
+            const typeBadge = isBank ? '[NH]' : (a.account_type === 'ewallet' ? '[Ví]' : '[Két]');
+            const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
+            return `<option value="${a.id}" ${isBank ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
+        }).join('');
+        if (!accSelect.value && accSelect.options.length > 0) {
+            accSelect.selectedIndex = 0;
+        }
+    } else {
+        box.classList.add('hidden');
+        accSelect.innerHTML = '';
+    }
 }
 
 var _lastTopupReceiptData = null;
@@ -3074,6 +3102,13 @@ async function submitTopupSpaRecharge() {
 
     const payMethod = document.getElementById('pos-topup-pay-method')?.value || 'cash';
     const note = document.getElementById('pos-topup-note')?.value.trim() || '';
+    let accountId = null;
+    if (payMethod === 'transfer' || payMethod === 'card') {
+        const accEl = document.getElementById('pos-topup-account-id');
+        if (accEl && accEl.value) {
+            accountId = parseInt(accEl.value);
+        }
+    }
 
     const btn = document.getElementById('btn-confirm-recharge');
     if (btn) {
@@ -3086,6 +3121,7 @@ async function submitTopupSpaRecharge() {
             contact_id: cust.id,
             package_id: _posSelectedTopupPkgId,
             payment_method: payMethod,
+            account_id: accountId,
             note: note,
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null
         };
@@ -3263,6 +3299,7 @@ window.printLastTopupReceipt = printLastTopupReceipt;
 
 window.openTopupSpaModal = openTopupSpaModal;
 window.closeTopupSpaModal = closeTopupSpaModal;
+window.onPosTopupPayMethodChange = onPosTopupPayMethodChange;
 window.onSelectTopupPackageRadio = onSelectTopupPackageRadio;
 window.submitTopupSpaRecharge = submitTopupSpaRecharge;
 window.toggleUseSpaWallet = toggleUseSpaWallet;

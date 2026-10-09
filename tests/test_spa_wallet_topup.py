@@ -10,13 +10,12 @@ from dependencies import get_current_user
 
 init_db()
 
-# Bypass auth
-app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
-
+# Bypass auth in fixture instead of module level
 client = TestClient(app)
 
 @pytest.fixture(scope="module", autouse=True)
 def cleanup():
+    app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
     def do_clean():
         db = get_db()
         try:
@@ -49,6 +48,7 @@ def cleanup():
 
     do_clean()
     yield
+    app.dependency_overrides.pop(get_current_user, None)
     do_clean()
 
 def test_topup_packages_crud():
@@ -249,3 +249,72 @@ def test_recharge_and_ordering():
     assert types.count("spend") == 2
     assert types.count("topup") == 1
     db.close()
+
+
+def test_recharge_spa_wallet_with_bank_transfer_account():
+    db = get_db()
+    cur = db.cursor()
+    # 1. Create test contact & package
+    cur.execute("INSERT INTO contacts (name, phone, type, spa_wallet_balance) VALUES ('Khách Test CK', 'TEST_TOPUP_BANK_001', 'customer', 0)")
+    cust_id = cur.lastrowid
+
+    cur.execute("INSERT INTO topup_packages (name, pay_amount, receive_amount, is_active) VALUES ('TEST_PKG_BANK_1M', 1000000, 1500000, 1)")
+    pkg_id = cur.lastrowid
+
+    # Get a bank account
+    cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'bank' AND is_active = 1 LIMIT 1")
+    bank_row = cur.fetchone()
+    assert bank_row is not None, "Cần có ít nhất 1 tài khoản ngân hàng active"
+    bank_acc_id = bank_row["id"]
+
+    # Get default cash account
+    cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+    default_cash_row = cur.fetchone()
+    default_cash_acc_id = default_cash_row["id"] if default_cash_row else None
+
+    db.commit()
+    db.close()
+
+    # Case A: Recharge with explicit bank account_id and payment_method='transfer'
+    payload_a = {
+        "contact_id": cust_id,
+        "package_id": pkg_id,
+        "payment_method": "transfer",
+        "account_id": bank_acc_id,
+        "note": "Khách chuyển khoản nạp ví"
+    }
+    res_a = client.post("/api/topup/recharge", json=payload_a)
+    assert res_a.status_code == 200, res_a.text
+    data_a = res_a.json()
+    assert data_a["balance_after"] == 1500000
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT * FROM cashbook WHERE ref_type = 'topup' AND ref_id = ?", (data_a["transaction_id"],))
+    cb_a = cur.fetchone()
+    assert cb_a is not None
+    assert cb_a["account_id"] == bank_acc_id
+    assert cb_a["account_id"] != default_cash_acc_id
+    assert "chuyển khoản" in cb_a["note"].lower() or "transfer" in cb_a["note"].lower()
+
+    # Case B: Recharge with payment_method='transfer' but without account_id (fallback to bank account)
+    payload_b = {
+        "contact_id": cust_id,
+        "package_id": pkg_id,
+        "payment_method": "transfer",
+        "note": "Khách CK không chỉ định tài khoản"
+    }
+    res_b = client.post("/api/topup/recharge", json=payload_b)
+    assert res_b.status_code == 200, res_b.text
+    data_b = res_b.json()
+    assert data_b["balance_after"] == 3000000
+
+    cur.execute("SELECT * FROM cashbook WHERE ref_type = 'topup' AND ref_id = ?", (data_b["transaction_id"],))
+    cb_b = cur.fetchone()
+    assert cb_b is not None
+    # Must be a bank account, not default cash account
+    assert cb_b["account_id"] == bank_acc_id
+    assert cb_b["account_id"] != default_cash_acc_id
+
+    db.close()
+

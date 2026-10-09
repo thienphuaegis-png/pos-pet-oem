@@ -156,19 +156,37 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
         # Record cash transaction / revenue into cashbook
         if pay_amt > 0:
             cb_code = generate_cashbook_code(cur, "PT-VI")
+            method_labels = {
+                "cash": "Tiền mặt",
+                "transfer": "Chuyển khoản",
+                "bank": "Chuyển khoản",
+                "card": "Quẹt thẻ",
+                "wallet": "Ví điện tử"
+            }
+            method_label = method_labels.get(req.payment_method, req.payment_method or "Tiền mặt")
+
             acc_id = req.account_id
+            if acc_id:
+                cur.execute("SELECT id FROM payment_accounts WHERE id = ? AND is_active = 1", (acc_id,))
+                if not cur.fetchone():
+                    acc_id = None
+
             if not acc_id:
-                if req.payment_method == "bank":
+                if req.payment_method in ("bank", "transfer", "card", "wallet"):
                     cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'bank' AND is_active = 1 LIMIT 1")
+                    row_acc = cur.fetchone()
+                    if not row_acc:
+                        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+                        row_acc = cur.fetchone()
                 else:
                     cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                row_acc = cur.fetchone()
+                    row_acc = cur.fetchone()
                 acc_id = row_acc[0] if row_acc else None
 
             cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                 VALUES (?, 'in', 'Thu tien nap vi Spa', ?, ?, 'topup', ?, ?, ?, ?)
-            """, (cb_code, pay_amt, req.contact_id, tx_id, f"Thu tiền nạp ví: {pkg['name']} ({req.payment_method})", acc_id, shift_id))
+            """, (cb_code, pay_amt, req.contact_id, tx_id, f"Thu tiền nạp ví: {pkg['name']} ({method_label})", acc_id, shift_id))
 
         conn.commit()
     except HTTPException:
