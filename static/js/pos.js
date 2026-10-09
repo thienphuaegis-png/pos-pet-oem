@@ -3394,21 +3394,53 @@ async function submitEditTopupTx(e) {
     }
 }
 
-async function confirmDeleteTopupTx(txId, custId) {
+async function confirmDeleteTopupTx(txId, custId, cashbookId) {
     const confirmed = confirm("⚠️ CẢNH BÁO HOÀN TÁC ĐỒNG BỘ:\n\nXóa phiếu thu nạp ví này sẽ tự động:\n1. Khấu trừ lại số dư ví Spa của khách hàng.\n2. Trừ lại số điểm thưởng tích lũy đã cộng.\n3. Hủy phiếu thu tương ứng trong Sổ Quỹ Cashbook.\n\nBạn có chắc chắn muốn xóa không?");
     if (!confirmed) return;
 
     try {
-        const res = await fetch(`/api/topup/transactions/${txId}`, {
-            method: 'DELETE'
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Không thể xóa phiếu nạp ví');
+        let ok = false;
+        let msg = '';
+        let errDetail = '';
+
+        // 1. Thử xóa qua API topup/transactions/{id}
+        if (txId) {
+            try {
+                const res = await fetch(`/api/topup/transactions/${txId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    const data = await res.json();
+                    ok = true;
+                    msg = data.message;
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    errDetail = err.detail || '';
+                }
+            } catch(e) {}
+        }
+
+        // 2. Fallback: Nếu API topup/transactions chưa có hoặc lỗi, thử qua /api/cashbook/{id}
+        if (!ok && cashbookId) {
+            try {
+                const cbRes = await fetch(`/api/cashbook/${cashbookId}`, { method: 'DELETE' });
+                if (cbRes.ok) {
+                    const data = await cbRes.json();
+                    ok = true;
+                    msg = data.message || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!';
+                } else {
+                    const err = await cbRes.json().catch(() => ({}));
+                    errDetail = err.detail || errDetail;
+                }
+            } catch(e) {}
+        }
+
+        if (!ok) {
+            throw new Error(errDetail || 'Không thể xóa phiếu nạp ví. Vui lòng chạy CAP_NHAT.bat trên máy chủ tiệm.');
+        }
 
         if (typeof showToast === 'function') {
-            showToast(data.message || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!', 'success');
+            showToast(msg || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!', 'success');
         } else {
-            alert(data.message || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!');
+            alert(msg || 'Đã xóa phiếu nạp ví và hoàn tác số dư thành công!');
         }
 
         // Cập nhật lại số dư khách hàng nếu đang chọn trên POS
@@ -3443,11 +3475,73 @@ async function loadTopupOrdersList() {
     if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Đang tải phiếu nạp ví...</td></tr>';
 
     try {
-        const url = `/api/topup/transactions?limit=100${searchVal ? `&search=${encodeURIComponent(searchVal)}` : ''}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Không thể tải danh sách phiếu nạp ví');
-        const rows = await res.json();
-        _allTopupOrdersData = rows || [];
+        let rows = [];
+
+        // 1. Thử lấy từ /api/topup/transactions
+        try {
+            const url = `/api/topup/transactions?limit=100${searchVal ? `&search=${encodeURIComponent(searchVal)}` : ''}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) rows = data;
+            }
+        } catch(e) {}
+
+        // 2. Map bổ sung từ /api/cashbook (nhận diện các phiếu PT-VI, topup)
+        try {
+            const cbRes = await fetch('/api/cashbook?limit=150');
+            if (cbRes.ok) {
+                const cbList = await cbRes.json();
+                const topupVouchers = (cbList || []).filter(c => 
+                    (c.ref_type === 'topup' || (c.code && c.code.startsWith('PT-VI')) || (c.category && c.category.toLowerCase().includes('nap vi')))
+                );
+                topupVouchers.forEach(c => {
+                    const exists = rows.some(r => r.cashbook_code === c.code || (r.id && r.id === c.ref_id));
+                    if (!exists) {
+                        let receiveAmt = c.amount;
+                        if (c.note) {
+                            const m = c.note.match(/->\s*([0-9.,]+)\s*k/i);
+                            if (m) receiveAmt = parseFloat(m[1].replace(',', '.')) * 1000;
+                            const mTr = c.note.match(/->\s*([0-9.,]+)\s*tr/i);
+                            if (mTr) receiveAmt = parseFloat(mTr[1].replace(',', '.')) * 1000000;
+                        }
+                        rows.push({
+                            id: c.ref_id || c.id,
+                            cashbook_id: c.id,
+                            cashbook_code: c.code,
+                            contact_id: c.contact_id,
+                            contact_name: c.contact_name,
+                            contact_phone: c.contact_phone,
+                            package_name: c.category,
+                            pay_amount: c.amount,
+                            pay_amount_actual: c.amount,
+                            amount: receiveAmt,
+                            points_earned: Math.floor(c.amount / 1000),
+                            account_name: c.account_name,
+                            created_at: c.created_at,
+                            note: c.note
+                        });
+                    }
+                });
+            }
+        } catch(e) {}
+
+        // Lọc tìm kiếm nếu có
+        if (searchVal) {
+            const s = searchVal.toLowerCase();
+            rows = rows.filter(r => 
+                (r.cashbook_code && r.cashbook_code.toLowerCase().includes(s)) ||
+                (r.contact_name && r.contact_name.toLowerCase().includes(s)) ||
+                (r.contact_phone && r.contact_phone.includes(s)) ||
+                (r.package_name && r.package_name.toLowerCase().includes(s)) ||
+                (r.note && r.note.toLowerCase().includes(s))
+            );
+        }
+
+        // Sắp xếp mới nhất lên đầu
+        rows.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+        _allTopupOrdersData = rows;
         if (badge) badge.innerText = `${_allTopupOrdersData.length} phiếu`;
         renderTopupOrdersTable(_allTopupOrdersData);
     } catch(err) {
@@ -3502,7 +3596,7 @@ function renderTopupOrdersTable(rows) {
                                     title="Chỉnh sửa phiếu nạp ví">
                                 ✏️ Sửa
                             </button>
-                            <button type="button" onclick="confirmDeleteTopupTx(${r.id}, ${r.contact_id})"
+                            <button type="button" onclick="confirmDeleteTopupTx(${r.id}, ${r.contact_id}, ${r.cashbook_id || ''})"
                                     class="px-2 py-1 rounded text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-2xs transition"
                                     title="Xóa phiếu nạp ví và hoàn tác số dư">
                                 🗑️ Xóa
