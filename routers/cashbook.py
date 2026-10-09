@@ -263,9 +263,19 @@ def update_cashbook_voucher(
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu thu chi")
 
     current = dict(row)
-    if current.get("type") not in ("out", "CHI"):
+    cb_type = (current.get("type") or "").lower()
+    ref_type = (current.get("ref_type") or "").lower()
+
+    if cb_type in ("in", "thu"):
+        if ref_type != "topup":
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail="Chỉ được phép sửa phiếu chi hoặc phiếu thu nạp ví Spa. Phiếu thu không được chỉnh sửa tại đây."
+            )
+    elif cb_type not in ("out", "chi"):
         conn.close()
-        raise HTTPException(status_code=400, detail="Chỉ được phép sửa phiếu chi. Phiếu thu không được chỉnh sửa tại đây.")
+        raise HTTPException(status_code=400, detail="Loại phiếu không hợp lệ.")
 
     updates = []
     params = []
@@ -273,7 +283,7 @@ def update_cashbook_voucher(
     if req.amount is not None:
         if req.amount <= 0:
             conn.close()
-            raise HTTPException(status_code=400, detail="Số tiền chi phải lớn hơn 0")
+            raise HTTPException(status_code=400, detail="Số tiền phải lớn hơn 0")
         updates.append("amount = ?")
         params.append(req.amount)
 
@@ -324,17 +334,48 @@ def delete_cashbook_voucher(
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu thu chi")
 
     current = dict(row)
-    if current.get("type") not in ("out", "CHI"):
-        conn.close()
-        raise HTTPException(status_code=400, detail="Chỉ được phép xóa phiếu chi. Phiếu thu không thể xóa tại đây.")
+    cb_type = (current.get("type") or "").lower()
+    ref_type = (current.get("ref_type") or "").lower()
 
-    cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
+    if cb_type in ("in", "thu"):
+        if ref_type == "topup":
+            # Hoàn tác số dư ví Spa & điểm tích lũy của khách hàng
+            ref_id = current.get("ref_id")
+            if ref_id:
+                cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
+                tx_row = cur.fetchone()
+                if tx_row:
+                    tx = dict(tx_row)
+                    cid = tx.get("contact_id")
+                    receive_amt = float(tx.get("amount") or 0.0)
+                    pts = int(tx.get("points_earned") or 0)
+                    if cid:
+                        cur.execute("""
+                            UPDATE contacts
+                            SET spa_wallet_balance = MAX(0, spa_wallet_balance - ?),
+                                points = MAX(0, points - ?)
+                            WHERE id = ?
+                        """, (receive_amt, pts, cid))
+                    cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
+        else:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail="Chỉ được phép xóa phiếu chi hoặc phiếu thu nạp ví Spa. Phiếu thu không thể xóa tại đây."
+            )
+    elif cb_type in ("out", "chi"):
+        cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
+    else:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Loại phiếu không hợp lệ.")
+
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
     conn.commit()
     conn.close()
 
-    logger.info(f"User {user.get('username')} đã xóa phiếu chi {current.get('code')} (id={voucher_id})")
-    return {"success": True, "message": f"Đã xóa thành công phiếu chi {current.get('code')}"}
+    v_title = "phiếu thu" if cb_type in ("in", "thu") else "phiếu chi"
+    logger.info(f"User {user.get('username')} đã xóa {v_title} {current.get('code')} (id={voucher_id})")
+    return {"success": True, "message": f"Đã xóa thành công {v_title} {current.get('code')}"}
 
 @router.post("/api/cashbook/transfer")
 def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_current_user)):

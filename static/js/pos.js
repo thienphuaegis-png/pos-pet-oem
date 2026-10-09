@@ -3140,13 +3140,21 @@ async function submitTopupSpaRecharge() {
 
         // Cập nhật số dư trong cust và allContacts
         cust.spa_wallet_balance = data.balance_after;
+        if (data.current_points !== undefined) cust.points = data.current_points;
+
         if (typeof allContacts !== 'undefined') {
             const cAll = allContacts.find(c => c.id === cust.id);
-            if (cAll) cAll.spa_wallet_balance = data.balance_after;
+            if (cAll) {
+                cAll.spa_wallet_balance = data.balance_after;
+                if (data.current_points !== undefined) cAll.points = data.current_points;
+            }
         }
         if (typeof posContacts !== 'undefined') {
             const pAll = posContacts.find(c => c.id === cust.id);
-            if (pAll) pAll.spa_wallet_balance = data.balance_after;
+            if (pAll) {
+                pAll.spa_wallet_balance = data.balance_after;
+                if (data.current_points !== undefined) pAll.points = data.current_points;
+            }
         }
 
         // Cập nhật giao diện modal tiếp nhận dịch vụ Spa
@@ -3187,6 +3195,7 @@ async function submitTopupSpaRecharge() {
             pay_amount: payAmt,
             receive_amount: receiveAmt,
             balance_after: balAfter,
+            points_earned: data.points_earned || 0,
             note: note
         };
 
@@ -3200,9 +3209,10 @@ async function submitTopupSpaRecharge() {
         closeTopupSpaModal();
 
         // Hiển thị thông báo chính xác số tiền nạp và số tiền nhận
-        const msg = `✅ Nạp thành công [${pkgName}]!\n💰 Tiền nộp: ${payAmt.toLocaleString('vi-VN')} đ\n💆 Cộng vào ví: +${receiveAmt.toLocaleString('vi-VN')} đ\n💳 Số dư mới: ${balAfter.toLocaleString('vi-VN')} đ`;
+        const ptsMsg = (data.points_earned && data.points_earned > 0) ? `, Tích +${data.points_earned} điểm` : '';
+        const msg = `✅ Nạp thành công [${pkgName}]!\n💰 Tiền nộp: ${payAmt.toLocaleString('vi-VN')} đ\n💆 Cộng vào ví: +${receiveAmt.toLocaleString('vi-VN')} đ\n💳 Số dư mới: ${balAfter.toLocaleString('vi-VN')} đ${ptsMsg ? '\n⭐ ' + ptsMsg : ''}`;
         if (typeof showToast === 'function') {
-            showToast(`Nạp thành công [${pkgName}]: Nộp ${payAmt.toLocaleString('vi-VN')}đ, Cộng ví +${receiveAmt.toLocaleString('vi-VN')}đ`, 'success');
+            showToast(`Nạp thành công [${pkgName}]: Nộp ${payAmt.toLocaleString('vi-VN')}đ, Cộng ví +${receiveAmt.toLocaleString('vi-VN')}đ${ptsMsg}`, 'success');
         } else {
             alert(msg);
         }

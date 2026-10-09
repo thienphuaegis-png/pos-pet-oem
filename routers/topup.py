@@ -120,7 +120,12 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (req.contact_id,))
+        cur.execute("""
+            SELECT c.id, c.name, c.points, c.spa_wallet_balance, c.segment_id, cs.allow_points
+            FROM contacts c
+            LEFT JOIN customer_segments cs ON c.segment_id = cs.id
+            WHERE c.id = ?
+        """, (req.contact_id,))
         contact = cur.fetchone()
         if not contact:
             raise HTTPException(status_code=404, detail="Không tìm thấy khách hàng")
@@ -138,11 +143,48 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
         # Update contact balance
         cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (balance_after, req.contact_id))
 
+        # Loyalty points calculation on pay_amt
+        cust_points = contact["points"] or 0
+        allow_pts = contact["allow_points"]
+        can_earn_points = (allow_pts is None or allow_pts == 1)
+
+        points_earned = 0
+        current_points = cust_points
+        tier_upgraded = None
+
+        if can_earn_points and pay_amt > 0:
+            cur.execute("SELECT value FROM settings WHERE key = 'points_exchange_rate'")
+            sett_row = cur.fetchone()
+            try:
+                rate = float(sett_row["value"]) if sett_row and sett_row["value"] else 1000.0
+            except (ValueError, TypeError):
+                rate = 1000.0
+            if rate <= 0:
+                rate = 1000.0
+
+            points_earned = int(pay_amt // rate)
+            current_points = cust_points + points_earned
+            cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (current_points, req.contact_id))
+
+            # Xét thăng hạng tự động
+            cur.execute("""
+                SELECT id, name, min_points, priority
+                FROM customer_segments
+                WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
+                ORDER BY min_points DESC, priority DESC, id DESC
+                LIMIT 1
+            """, (current_points,))
+            highest_seg = cur.fetchone()
+
+            if highest_seg and highest_seg["id"] != contact["segment_id"]:
+                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (highest_seg["id"], req.contact_id))
+                tier_upgraded = highest_seg["name"]
+
         note = req.note or f"Nạp ví Spa gói {pkg['name']}"
         cur.execute("""
-            INSERT INTO spa_wallet_transactions (contact_id, package_id, type, amount, balance_before, balance_after, note)
-            VALUES (?, ?, 'topup', ?, ?, ?, ?)
-        """, (req.contact_id, req.package_id, receive_amt, balance_before, balance_after, note))
+            INSERT INTO spa_wallet_transactions (contact_id, package_id, type, amount, balance_before, balance_after, points_earned, note)
+            VALUES (?, ?, 'topup', ?, ?, ?, ?, ?)
+        """, (req.contact_id, req.package_id, receive_amt, balance_before, balance_after, points_earned, note))
         tx_id = cur.lastrowid
 
         # Determine shift_id if not provided
@@ -207,6 +249,9 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
         "pay_amount": pay_amt,
         "receive_amount": receive_amt,
         "amount": receive_amt,
+        "points_earned": points_earned,
+        "current_points": current_points,
+        "tier_upgraded": tier_upgraded,
         "payment_method": req.payment_method,
         "balance_before": balance_before,
         "balance_after": balance_after,

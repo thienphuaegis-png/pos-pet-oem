@@ -642,11 +642,12 @@
                 badgeType.className = isThu ? 'px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800';
             }
 
-            // Nút sửa, xóa phiếu chi cho quyền admin/owner
+            // Nút sửa, xóa phiếu cho quyền admin/owner
             const btnEdit = document.getElementById('btn-drawer-edit-cashbook');
             const btnDel = document.getElementById('btn-drawer-delete-cashbook');
             const isAdmin = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
-            if (!isThu && isAdmin) {
+            const canModify = isAdmin && (!isThu || c.ref_type === 'topup');
+            if (canModify) {
                 if (btnEdit) btnEdit.classList.remove('hidden');
                 if (btnDel) btnDel.classList.remove('hidden');
             } else {
@@ -1060,6 +1061,10 @@
             const modal = document.getElementById('modal-edit-cashbook');
             if (!modal) return;
 
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const titleEl = modal.querySelector('h3');
+            if (titleEl) titleEl.innerText = isThu ? 'Chỉnh Sửa Phiếu Thu' : 'Chỉnh Sửa Phiếu Chi';
+
             document.getElementById('edit-cash-code').innerText = c.code || '-';
             const editAmtEl = document.getElementById('edit-cash-amount');
             if (editAmtEl) {
@@ -1095,7 +1100,11 @@
         window.submitEditCashbook = async function(e) {
             if (e) e.preventDefault();
             if (!currentViewedCashbookItem) return;
-            const id = currentViewedCashbookItem.id;
+            const c = currentViewedCashbookItem;
+            const id = c.id;
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const vLabel = isThu ? 'phiếu thu' : 'phiếu chi';
+
             const cleanDigits = (document.getElementById('edit-cash-amount').value || '').replace(/\D/g, '');
             const amount = parseFloat(cleanDigits || 0);
             const category = document.getElementById('edit-cash-category').value.trim();
@@ -1103,7 +1112,7 @@
             const note = document.getElementById('edit-cash-note').value.trim();
 
             if (!amount || amount <= 0) {
-                if (window.showToast) window.showToast('Số tiền chi phải lớn hơn 0', 'warning');
+                if (window.showToast) window.showToast('Số tiền phải lớn hơn 0', 'warning');
                 return;
             }
             if (!account_id) {
@@ -1123,9 +1132,9 @@
                     })
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Không thể cập nhật phiếu chi');
+                if (!res.ok) throw new Error(data.detail || `Không thể cập nhật ${vLabel}`);
 
-                if (window.showToast) window.showToast('Đã cập nhật phiếu chi thành công!', 'success');
+                if (window.showToast) window.showToast(`Đã cập nhật ${vLabel} thành công!`, 'success');
                 window.closeEditCashbookModal();
                 window.closeCashbookDrawer?.();
                 if (typeof loadCashbook === 'function') loadCashbook();
@@ -1137,20 +1146,27 @@
         window.confirmDeleteCashbookVoucher = async function() {
             if (!currentViewedCashbookItem) return;
             const c = currentViewedCashbookItem;
-            const code = c.code || 'phiếu chi';
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const vLabel = isThu ? 'phiếu thu' : 'phiếu chi';
+            const code = c.code || vLabel;
+
+            let subMsg = 'Hành động này sẽ xóa dòng ghi nhận và cập nhật lại số dư tài khoản. Không thể hoàn tác.';
+            if (isThu && c.ref_type === 'topup') {
+                subMsg = 'Xóa phiếu thu nạp ví sẽ tự động khấu trừ lại số dư ví Spa và điểm tích lũy của khách hàng tương ứng. Không thể hoàn tác.';
+            }
 
             let confirmed = false;
             if (typeof window.showConfirmModal === 'function') {
                 confirmed = await window.showConfirmModal({
-                    title: `Xóa Phiếu Chi ${code}`,
-                    message: `Bạn có chắc chắn muốn xóa vĩnh viễn phiếu chi <strong>${code}</strong> với số tiền <span class="text-rose-600 font-bold">${new Intl.NumberFormat('vi-VN').format(Math.round(c.amount || 0))} đ</span>?`,
-                    subMessage: 'Hành động này sẽ xóa dòng ghi nhận và hoàn trả số dư tài khoản. Không thể hoàn tác.',
+                    title: `Xóa ${isThu ? 'Phiếu Thu' : 'Phiếu Chi'} ${code}`,
+                    message: `Bạn có chắc chắn muốn xóa vĩnh viễn ${vLabel} <strong>${code}</strong> với số tiền <span class="${isThu ? 'text-emerald-600' : 'text-rose-600'} font-bold">${new Intl.NumberFormat('vi-VN').format(Math.round(c.amount || 0))} đ</span>?`,
+                    subMessage: subMsg,
                     confirmText: 'Xác Nhận Xóa',
                     cancelText: 'Hủy Bỏ',
                     type: 'danger'
                 });
             } else {
-                confirmed = confirm(`Bạn có chắc chắn muốn xóa phiếu chi ${code}?`);
+                confirmed = confirm(`Bạn có chắc chắn muốn xóa ${vLabel} ${code}?\n${subMsg}`);
             }
 
             if (!confirmed) return;
@@ -1160,9 +1176,9 @@
                     method: 'DELETE'
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Không thể xóa phiếu chi');
+                if (!res.ok) throw new Error(data.detail || `Không thể xóa ${vLabel}`);
 
-                if (window.showToast) window.showToast(data.message || `Đã xóa phiếu chi ${code}`, 'success');
+                if (window.showToast) window.showToast(data.message || `Đã xóa ${vLabel} ${code}`, 'success');
                 window.closeCashbookDrawer?.();
                 if (typeof loadCashbook === 'function') loadCashbook();
             } catch(err) {

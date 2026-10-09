@@ -1294,12 +1294,19 @@ def init_db():
         amount REAL NOT NULL,
         balance_before REAL NOT NULL,
         balance_after REAL NOT NULL,
+        points_earned INTEGER DEFAULT 0,
         note TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
         FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL,
         FOREIGN KEY(package_id) REFERENCES topup_packages(id) ON DELETE SET NULL
     )''')
+
+    # Migration: thêm column points_earned vào spa_wallet_transactions nếu chưa có
+    cur.execute("PRAGMA table_info(spa_wallet_transactions)")
+    tx_cols = [c[1] for c in cur.fetchall()]
+    if "points_earned" not in tx_cols:
+        cur.execute("ALTER TABLE spa_wallet_transactions ADD COLUMN points_earned INTEGER DEFAULT 0")
 
     # 16. Khuyến mãi & Chi tiết giảm giá theo sản phẩm
     cur.execute('''
