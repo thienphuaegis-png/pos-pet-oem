@@ -418,6 +418,7 @@ class OEMOrderReceive(BaseModel):
 class PromotionCreate(BaseModel):
     code: Optional[str] = None
     name: str = Field(min_length=1)
+    type: Optional[str] = "discount" # 'discount' or 'buy_x_get_y'
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     is_active: Optional[int] = 1
@@ -425,6 +426,7 @@ class PromotionCreate(BaseModel):
 class PromotionUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
+    type: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     is_active: Optional[int] = None
@@ -434,8 +436,12 @@ class PromotionItemCreate(BaseModel):
     target_type: Optional[str] = "product" # 'product', 'spa_service', 'spa_category'
     service_name: Optional[str] = None
     spa_category: Optional[str] = None
-    discount_type: str = Field(pattern="^(pct|fixed)$")
-    discount_val: float = Field(ge=0)
+    discount_type: str = Field(default="fixed", pattern="^(pct|fixed)$")
+    discount_val: float = Field(default=0, ge=0)
+    buy_qty: Optional[float] = 1
+    gift_product_id: Optional[int] = None
+    gift_qty: Optional[float] = 1
+    is_multiply: Optional[int] = 1
 
 class PromotionSpaItemCreate(BaseModel):
     target_type: str = Field(pattern="^(spa_service|spa_category)$")

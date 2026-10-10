@@ -10807,6 +10807,13 @@
                     <label class="font-bold text-slate-700">Tên chương trình (*):</label>
                     <input id="promo-name" class="border p-2 rounded w-full text-xs font-bold text-slate-800" placeholder="VD: Khuyến Mãi Mùa Hè 2026">
                 </div>
+                <div>
+                    <label class="font-bold text-slate-700">Loại hình khuyến mãi:</label>
+                    <select id="promo-type" class="border p-2 rounded w-full text-xs font-bold bg-white text-sky-800">
+                        <option value="discount">🏷️ Giảm giá (% hoặc Tiền mặt)</option>
+                        <option value="buy_x_get_y">🎁 Mua X Tặng Y (Buy X Get Y)</option>
+                    </select>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="font-bold text-slate-700">Ngày bắt đầu:</label>
@@ -10851,9 +10858,48 @@
                 <button id="promo-target-tab-prod" onclick="switchPromoTargetTab('product')" class="pb-2 border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition">
                     <span>📦 Hàng Hóa Bán Lẻ</span>
                 </button>
+                <button id="promo-target-tab-buy-get" onclick="switchPromoTargetTab('buy_get')" class="pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
+                    <span>🎁 Mua X Tặng Y (Quà Tặng)</span>
+                </button>
                 <button id="promo-target-tab-spa" onclick="switchPromoTargetTab('spa')" class="pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition">
                     <span>💆 Dịch Vụ Spa Thú Cưng</span>
                 </button>
+            </div>
+
+            <!-- Khu vực Mua X Tặng Y -->
+            <div id="promo-target-box-buy-get" class="hidden bg-emerald-50 p-3.5 rounded-lg border border-emerald-200 text-xs space-y-3">
+                <div class="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <span>🎁</span> Thiết Lập Quy Tắc Mua X Tặng Y (Buy X Get Y)
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-white p-3 rounded border border-emerald-200 space-y-2">
+                        <label class="font-bold text-slate-700 block">1. Sản phẩm khách cần mua:</label>
+                        <select id="promo-buy-prod-select" class="border p-1.5 rounded w-full text-xs font-medium"></select>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-600">Số lượng mua tối thiểu (X):</span>
+                            <input id="promo-buy-qty" type="number" min="1" value="10" class="border p-1.5 rounded w-20 text-xs font-bold font-mono text-center">
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded border border-emerald-200 space-y-2">
+                        <label class="font-bold text-slate-700 block">2. Quà tặng đính kèm:</label>
+                        <select id="promo-gift-prod-select" class="border p-1.5 rounded w-full text-xs font-medium">
+                            <option value="">-- Tặng cùng loại (chính sản phẩm mua) --</option>
+                        </select>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-600">Số lượng quà tặng (Y):</span>
+                            <input id="promo-gift-qty" type="number" min="1" value="1" class="border p-1.5 rounded w-20 text-xs font-bold font-mono text-center">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer font-bold text-emerald-900">
+                        <input id="promo-buy-multiply" type="checkbox" checked class="rounded text-emerald-600 w-4 h-4 cursor-pointer">
+                        <span>Nhân lũy tiến theo số lượng mua (Mua 20 tặng 2, 30 tặng 3...)</span>
+                    </label>
+                    <button onclick="addBuyXGetYPromotionItem()" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-sm transition">
+                        + Thêm Quy Tắc Mua X Tặng Y
+                    </button>
+                </div>
             </div>
 
             <!-- Khu vực thêm sản phẩm Hàng Hóa -->
@@ -12308,6 +12354,7 @@
             document.getElementById('promo-edit-id').value = p.id;
             document.getElementById('promo-code').value = p.code || '';
             document.getElementById('promo-name').value = p.name || '';
+            document.getElementById('promo-type').value = p.type || 'discount';
             document.getElementById('promo-start-date').value = p.start_date || '';
             document.getElementById('promo-end-date').value = p.end_date || '';
             document.getElementById('promo-active').checked = (p.is_active === 1 || p.is_active === true);
@@ -12321,6 +12368,7 @@
         const id = document.getElementById('promo-edit-id')?.value;
         const code = document.getElementById('promo-code')?.value.trim();
         const name = document.getElementById('promo-name')?.value.trim();
+        const type = document.getElementById('promo-type')?.value || 'discount';
         const start_date = document.getElementById('promo-start-date')?.value || null;
         const end_date = document.getElementById('promo-end-date')?.value || null;
         const is_active = document.getElementById('promo-active')?.checked ? 1 : 0;
@@ -12330,7 +12378,7 @@
             return;
         }
 
-        const body = { name, start_date, end_date, is_active };
+        const body = { name, type, start_date, end_date, is_active };
         if (code) body.code = code;
 
         const url = id ? `/api/promotions/${id}` : '/api/promotions';
@@ -12401,12 +12449,16 @@
                 _promoProductsCache = await pRes.json();
             }
             const selProd = document.getElementById('promo-item-prod-select');
-            if (selProd) {
-                selProd.innerHTML = '<option value="">-- Chọn sản phẩm --</option>' +
-                    _promoProductsCache.filter(p => p.type === 'product' || !p.type).map(p =>
-                        `<option value="${p.id}">[${p.code || 'SP'}] ${p.name} - Giá: ${(p.sell_price || 0).toLocaleString('vi-VN')} đ</option>`
-                    ).join('');
-            }
+            const selBuyProd = document.getElementById('promo-buy-prod-select');
+            const selGiftProd = document.getElementById('promo-gift-prod-select');
+
+            const prodOptions = _promoProductsCache.filter(p => p.type === 'product' || !p.type).map(p =>
+                `<option value="${p.id}">[${p.code || 'SP'}] ${p.name} - Giá: ${(p.sell_price || 0).toLocaleString('vi-VN')} đ</option>`
+            ).join('');
+
+            if (selProd) selProd.innerHTML = '<option value="">-- Chọn sản phẩm --</option>' + prodOptions;
+            if (selBuyProd) selBuyProd.innerHTML = '<option value="">-- Chọn sản phẩm mua --</option>' + prodOptions;
+            if (selGiftProd) selGiftProd.innerHTML = '<option value="">-- Tặng cùng loại (chính sản phẩm mua) --</option>' + prodOptions;
 
             if (!_promoCategoriesCache || _promoCategoriesCache.length === 0) {
                 const cRes = await fetch('/api/products/categories');
@@ -12477,7 +12529,11 @@
                 const val = Number(it.discount_val || 0);
                 let discountText = '';
                 let finalPrice = basePrice;
-                if (it.discount_type === 'pct') {
+                const isBuyGet = (promo.type === 'buy_x_get_y' || it.buy_qty > 1 || it.gift_product_id);
+                if (isBuyGet) {
+                    const giftName = it.gift_product_name || `Chính món mua (x${it.gift_qty || 1})`;
+                    discountText = `<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Mua ${it.buy_qty || 1} Tặng ${it.gift_qty || 1}: ${giftName}</span>`;
+                } else if (it.discount_type === 'pct') {
                     discountText = `<span class="bg-rose-100 text-rose-700 font-bold px-1.5 py-0.5 rounded text-[11px]">Giảm ${val}%</span>`;
                     finalPrice = Math.max(0, basePrice * (1 - val / 100));
                 } else {
@@ -12487,7 +12543,7 @@
 
                 const isSpa = (it.target_type === 'spa_service' || it.target_type === 'spa_category');
                 const displayName = it.display_name || it.product_name || (isSpa ? (it.service_name || it.spa_category) : 'Sản phẩm');
-                const tagBadge = isSpa ? '<span class="bg-purple-100 text-purple-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">SPA</span>' : '<span class="bg-sky-100 text-sky-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">HÀNG HÓA</span>';
+                const tagBadge = isBuyGet ? '<span class="bg-emerald-100 text-emerald-800 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">MUA X TẶNG Y</span>' : (isSpa ? '<span class="bg-purple-100 text-purple-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">SPA</span>' : '<span class="bg-sky-100 text-sky-700 text-[10px] font-black px-1.5 py-0.2 rounded mr-1">HÀNG HÓA</span>');
                 const priceDisplay = isSpa ? '<span class="text-gray-400 italic">Theo cân</span>' : `${basePrice.toLocaleString('vi-VN')} đ`;
                 const finalDisplay = isSpa ? (it.discount_type === 'pct' ? `<span class="text-purple-700 font-bold font-mono">- ${val}%</span>` : `<span class="text-purple-700 font-bold font-mono">- ${val.toLocaleString('vi-VN')} đ</span>`) : `${Math.round(finalPrice).toLocaleString('vi-VN')} đ`;
 
@@ -12600,24 +12656,72 @@
     // Chuyển tab trong modal khuyến mãi
     function switchPromoTargetTab(tab) {
         const tabProd = document.getElementById('promo-target-tab-prod');
+        const tabBuyGet = document.getElementById('promo-target-tab-buy-get');
         const tabSpa = document.getElementById('promo-target-tab-spa');
         const boxProd = document.getElementById('promo-target-box-product');
+        const boxBuyGet = document.getElementById('promo-target-box-buy-get');
         const boxSpa = document.getElementById('promo-target-box-spa');
 
-        if (tab === 'spa') {
-            boxProd?.classList.add('hidden');
+        boxProd?.classList.add('hidden');
+        boxBuyGet?.classList.add('hidden');
+        boxSpa?.classList.add('hidden');
+
+        [tabProd, tabBuyGet, tabSpa].forEach(t => {
+            t?.classList.remove('border-sky-600', 'text-sky-700', 'border-emerald-600', 'text-emerald-700', 'border-purple-600', 'text-purple-700');
+            t?.classList.add('border-transparent', 'text-slate-500');
+        });
+
+        if (tab === 'buy_get') {
+            boxBuyGet?.classList.remove('hidden');
+            tabBuyGet?.classList.add('border-emerald-600', 'text-emerald-700');
+            tabBuyGet?.classList.remove('border-transparent', 'text-slate-500');
+        } else if (tab === 'spa') {
             boxSpa?.classList.remove('hidden');
             tabSpa?.classList.add('border-purple-600', 'text-purple-700');
             tabSpa?.classList.remove('border-transparent', 'text-slate-500');
-            tabProd?.classList.remove('border-sky-600', 'text-sky-700');
-            tabProd?.classList.add('border-transparent', 'text-slate-500');
         } else {
-            boxSpa?.classList.add('hidden');
             boxProd?.classList.remove('hidden');
             tabProd?.classList.add('border-sky-600', 'text-sky-700');
             tabProd?.classList.remove('border-transparent', 'text-slate-500');
-            tabSpa?.classList.remove('border-purple-600', 'text-purple-700');
-            tabSpa?.classList.add('border-transparent', 'text-slate-500');
+        }
+    }
+
+    async function addBuyXGetYPromotionItem() {
+        const promoId = document.getElementById('promo-items-promo-id')?.value;
+        const buyProdId = parseInt(document.getElementById('promo-buy-prod-select')?.value);
+        const buyQty = parseFloat(document.getElementById('promo-buy-qty')?.value) || 1;
+        const giftProdVal = document.getElementById('promo-gift-prod-select')?.value;
+        const giftProdId = giftProdVal ? parseInt(giftProdVal) : null;
+        const giftQty = parseFloat(document.getElementById('promo-gift-qty')?.value) || 1;
+        const isMultiply = document.getElementById('promo-buy-multiply')?.checked ? 1 : 0;
+
+        if (!promoId || !buyProdId) {
+            alert('Vui lòng chọn sản phẩm cần mua');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/promotions/${promoId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_id: buyProdId,
+                    discount_type: 'fixed',
+                    discount_val: 0,
+                    buy_qty: buyQty,
+                    gift_product_id: giftProdId,
+                    gift_qty: giftQty,
+                    is_multiply: isMultiply
+                })
+            });
+            if (res.ok) {
+                loadPromotionItems(promoId);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Lỗi khi thêm quy tắc Mua X Tặng Y');
+            }
+        } catch (e) {
+            alert('Lỗi kết nối máy chủ');
         }
     }
 

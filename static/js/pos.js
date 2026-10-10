@@ -276,6 +276,14 @@ async function initPOS() {
             }
         }).catch(err => console.error(err));
 
+        // Tải các quy tắc khuyến mãi đang chạy (bao gồm Mua X Tặng Y)
+        fetch('/api/promotions/active-rules?_t=' + Date.now()).then(r => r.json()).then(rules => {
+            window.posActivePromoRules = rules || [];
+            if (typeof syncBuyXGetYPromotionsInCart === 'function') {
+                syncBuyXGetYPromotionsInCart();
+            }
+        }).catch(err => console.error(err));
+
         const curTab = getActiveTab();
         if (curTab && curTab.customer && curTab.customer.price_list_id) {
             await getPriceListMap(curTab.customer.price_list_id, true);
@@ -644,11 +652,59 @@ async function addProductToActiveCart(productId) {
     renderActiveTabCart();
 }
 
+function syncBuyXGetYPromotionsInCart(tab = null) {
+    if (!tab) tab = getActiveTab();
+    if (!tab || !tab.cart || !window.posActivePromoRules) return;
+
+    const buyGetRules = window.posActivePromoRules.filter(r => r.promo_type === 'buy_x_get_y' || r.buy_qty > 1 || r.gift_product_id);
+    if (buyGetRules.length === 0) return;
+
+    // 1. Dọn dẹp các món quà tặng cũ trước khi tính lại
+    tab.cart = tab.cart.filter(item => !item.is_gift);
+
+    // 2. Quét số lượng từng sản phẩm thường
+    buyGetRules.forEach(rule => {
+        const buyProdId = rule.product_id;
+        const buyQtyReq = rule.buy_qty || 1;
+        const giftQtyPerMatch = rule.gift_qty || 1;
+        const isMultiply = rule.is_multiply !== 0;
+
+        const cartBuyItem = tab.cart.find(i => i.product_id === buyProdId && !i.is_gift);
+        if (cartBuyItem && cartBuyItem.quantity >= buyQtyReq) {
+            const matches = isMultiply ? Math.floor(cartBuyItem.quantity / buyQtyReq) : 1;
+            const totalGiftQty = matches * giftQtyPerMatch;
+
+            if (totalGiftQty > 0) {
+                // Tặng cùng loại hoặc khác loại
+                const targetGiftProdId = rule.gift_product_id || buyProdId;
+                const giftProdData = (posProducts || []).find(p => p.id === targetGiftProdId) || cartBuyItem;
+
+                tab.cart.push({
+                    product_id: targetGiftProdId,
+                    code: giftProdData.code || cartBuyItem.code,
+                    name: `🎁 [QUÀ TẶNG] ${giftProdData.name}`,
+                    unit: giftProdData.unit || 'cái',
+                    price: 0,
+                    original_price: giftProdData.sell_price || 0,
+                    quantity: totalGiftQty,
+                    is_gift: true,
+                    gift_promo_name: rule.promo_name || 'Khuyến mãi Mua X Tặng Y',
+                    discount_val: 0,
+                    discount_type: 'vnd'
+                });
+            }
+        }
+    });
+}
+
 // ----------------------------------------------------
 // HIỂN THỊ DANH SÁCH SẢN PHẨM TRONG GIỎ (MỖI MÓN 1 DÒNG)
 // ----------------------------------------------------
 function renderActiveTabCart() {
     const tab = getActiveTab();
+    if (typeof syncBuyXGetYPromotionsInCart === 'function') {
+        syncBuyXGetYPromotionsInCart(tab);
+    }
     const container = document.getElementById('cart-items-container');
     if (!container) return;
     scheduleDraftSave();

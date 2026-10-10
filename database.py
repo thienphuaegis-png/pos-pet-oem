@@ -1314,6 +1314,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
         name TEXT NOT NULL,
+        type TEXT DEFAULT 'discount', -- 'discount' hoac 'buy_x_get_y'
         start_date DATE,
         end_date DATE,
         is_active INTEGER DEFAULT 1,
@@ -1330,16 +1331,26 @@ def init_db():
         spa_category TEXT,
         discount_type TEXT NOT NULL CHECK(discount_type IN ('pct', 'fixed')),
         discount_val REAL NOT NULL,
+        buy_qty REAL DEFAULT 1,
+        gift_product_id INTEGER,
+        gift_qty REAL DEFAULT 1,
+        is_multiply INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(promotion_id) REFERENCES promotions(id) ON DELETE CASCADE,
-        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY(gift_product_id) REFERENCES products(id) ON DELETE SET NULL
     )''')
 
-    # Migration for promotion_items new columns & allow product_id NULL
+    # Migration for promotions & promotion_items new columns
     for _col in [
+        "ALTER TABLE promotions ADD COLUMN type TEXT DEFAULT 'discount'",
         "ALTER TABLE promotion_items ADD COLUMN target_type TEXT NOT NULL DEFAULT 'product'",
         "ALTER TABLE promotion_items ADD COLUMN service_name TEXT",
         "ALTER TABLE promotion_items ADD COLUMN spa_category TEXT",
+        "ALTER TABLE promotion_items ADD COLUMN buy_qty REAL DEFAULT 1",
+        "ALTER TABLE promotion_items ADD COLUMN gift_product_id INTEGER",
+        "ALTER TABLE promotion_items ADD COLUMN gift_qty REAL DEFAULT 1",
+        "ALTER TABLE promotion_items ADD COLUMN is_multiply INTEGER DEFAULT 1",
     ]:
         try:
             cur.execute(_col)

@@ -349,6 +349,37 @@ def calculate_pricing(req: PricingCalculateRequest):
 
 # ==================== CRUD PROMOTIONS ====================
 
+@router.get("/api/promotions/active-rules")
+def get_active_promotion_rules():
+    """
+    Trả về toàn bộ các quy tắc khuyến mãi đang có hiệu lực (cả discount và buy_x_get_y)
+    để POS frontend nạp vào bộ nhớ tính toán tự động.
+    """
+    db = get_db()
+    cur = db.cursor()
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    cur.execute("""
+        SELECT p.id as promo_id, p.code as promo_code, p.name as promo_name, p.type as promo_type,
+               pi.id as item_id, pi.product_id, pi.target_type, pi.service_name, pi.spa_category,
+               pi.discount_type, pi.discount_val,
+               pi.buy_qty, pi.gift_product_id, pi.gift_qty, pi.is_multiply,
+               p_buy.name as buy_product_name, p_buy.code as buy_product_code, p_buy.sell_price as buy_price,
+               p_gift.name as gift_product_name, p_gift.code as gift_product_code, p_gift.sell_price as gift_price
+        FROM promotions p
+        JOIN promotion_items pi ON p.id = pi.promotion_id
+        LEFT JOIN products p_buy ON pi.product_id = p_buy.id
+        LEFT JOIN products p_gift ON pi.gift_product_id = p_gift.id
+        WHERE p.is_active = 1
+          AND (p.start_date IS NULL OR p.start_date <= ?)
+          AND (p.end_date IS NULL OR p.end_date >= ?)
+        ORDER BY p.id DESC
+    """, (today_str, today_str))
+
+    rules = [dict(r) for r in cur.fetchall()]
+    db.close()
+    return rules
+
 @router.get("/api/promotions")
 def list_promotions():
     db = get_db()
@@ -377,9 +408,13 @@ def get_promotion(promo_id: int):
         SELECT pi.*, 
                p.name as product_name, 
                p.code as product_code, 
-               p.sell_price as base_price
+               p.sell_price as base_price,
+               gp.name as gift_product_name,
+               gp.code as gift_product_code,
+               gp.sell_price as gift_base_price
         FROM promotion_items pi
         LEFT JOIN products p ON pi.product_id = p.id
+        LEFT JOIN products gp ON pi.gift_product_id = gp.id
         WHERE pi.promotion_id = ?
         ORDER BY pi.id ASC
     """, (promo_id,))
@@ -406,9 +441,9 @@ def create_promotion(req: PromotionCreate, user=Depends(require_permission("pric
         code = f"KM-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     try:
         cur.execute("""
-            INSERT INTO promotions (code, name, start_date, end_date, is_active)
-            VALUES (?, ?, ?, ?, ?)
-        """, (code, req.name, req.start_date, req.end_date, 1 if req.is_active is None else req.is_active))
+            INSERT INTO promotions (code, name, type, start_date, end_date, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (code, req.name, req.type or 'discount', req.start_date, req.end_date, 1 if req.is_active is None else req.is_active))
         promo_id = cur.lastrowid
         db.commit()
     except Exception as e:
@@ -432,6 +467,8 @@ def update_promotion(promo_id: int, req: PromotionUpdate, user=Depends(require_p
         fields.append("code = ?"); vals.append(req.code)
     if req.name is not None:
         fields.append("name = ?"); vals.append(req.name)
+    if req.type is not None:
+        fields.append("type = ?"); vals.append(req.type)
     if req.start_date is not None:
         fields.append("start_date = ?"); vals.append(req.start_date)
     if req.end_date is not None:
@@ -545,9 +582,9 @@ def add_promotion_item(promo_id: int, req: PromotionItemCreate, user=Depends(req
 
     try:
         cur.execute("""
-            INSERT INTO promotion_items (promotion_id, product_id, discount_type, discount_val)
-            VALUES (?, ?, ?, ?)
-        """, (promo_id, req.product_id, req.discount_type, req.discount_val))
+            INSERT INTO promotion_items (promotion_id, product_id, discount_type, discount_val, buy_qty, gift_product_id, gift_qty, is_multiply)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (promo_id, req.product_id, req.discount_type or 'fixed', req.discount_val or 0, req.buy_qty or 1, req.gift_product_id, req.gift_qty or 1, 1 if req.is_multiply is None else req.is_multiply))
         item_id = cur.lastrowid
         db.commit()
     except Exception as e:
