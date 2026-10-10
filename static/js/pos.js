@@ -1906,25 +1906,116 @@ function updateModalPrintSizeButtons(size) {
     if (size === 'K80') {
         btnK80.className = 'px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-sky-600 text-white shadow-xs';
         btnA4.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
-    } else {
+    } else if (size === 'A4') {
         btnA4.className = 'px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-purple-600 text-white shadow-xs';
         btnK80.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+    } else {
+        btnK80.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+        btnA4.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
     }
+}
+
+function populateModalPrintPresets(activePresetKey) {
+    const sel = document.getElementById('modal-print-preset-select');
+    if (!sel) return;
+
+    const shortLabel = {
+        'A4-portrait': 'A4 dọc',
+        'A4-landscape': 'A4 ngang',
+        'A5-portrait': 'A5',
+        'A5-landscape': 'A5 ngang',
+        'K80': 'K80',
+        'K58': 'K58'
+    };
+
+    const presets = posPrintConfig.presets || {};
+    let html = '';
+    const cur = activePresetKey || posPrintConfig.active_preset;
+
+    for (let key in presets) {
+        const p = presets[key];
+        const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
+        if (cat !== 'pos') continue;
+
+        const isSel = key === cur ? 'selected' : '';
+        const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
+        const boldTag = p.is_bold_all ? ' [Đậm]' : '';
+        const label = p.name ? (sizeTag ? `${p.name} [${sizeTag}]${boldTag}` : `${p.name}${boldTag}`) : `${sizeTag}${boldTag}`;
+        html += `<option value="${key}" ${isSel}>${label}</option>`;
+    }
+
+    sel.innerHTML = html;
+    if (cur) sel.value = cur;
+}
+
+function changeModalPrintPreset(presetKey) {
+    if (!posPrintConfig.presets || !posPrintConfig.presets[presetKey]) return;
+
+    posPrintConfig.active_preset = presetKey;
+    if (window.posPrintConfig) {
+        window.posPrintConfig.active_preset = presetKey;
+    }
+
+    const p = posPrintConfig.presets[presetKey];
+    const size = p.paper_size || '';
+    let btnSize = '';
+    if (size === 'K80') btnSize = 'K80';
+    else if (size.startsWith('A4')) btnSize = 'A4';
+
+    updateModalPrintSizeButtons(btnSize);
+
+    const selModal = document.getElementById('modal-print-preset-select');
+    if (selModal) selModal.value = presetKey;
+
+    const selPOS = document.getElementById('pos-template-select');
+    if (selPOS) selPOS.value = presetKey;
+
+    if (window.currentLoadedPrintOrder) {
+        renderAndPrint(window.currentLoadedPrintOrder, !!window.currentPrintIsDraft);
+    }
+}
+
+function findBestPresetForSize(targetSize, isWholesale = false) {
+    if (!posPrintConfig || !posPrintConfig.presets) return isWholesale ? 'a4_b2b' : 'k80_standard';
+    const presets = posPrintConfig.presets;
+    const curKey = posPrintConfig.active_preset;
+
+    // 1. Nếu active_preset hiện tại hợp lệ và khớp với loại đơn/khổ giấy: giữ nguyên 100%!
+    if (curKey && presets[curKey]) {
+        const p = presets[curKey];
+        const isCurA4 = p.paper_size && p.paper_size.startsWith('A4');
+        const isCurThermal = p.paper_size === 'K80' || p.paper_size === 'K58';
+        if (targetSize === 'K80' && isCurThermal && !isWholesale) return curKey;
+        if (targetSize === 'A4' && isCurA4 && isWholesale) return curKey;
+        if (targetSize === 'K80' && isCurThermal) return curKey;
+        if (targetSize === 'A4' && isCurA4) return curKey;
+    }
+
+    const keys = Object.keys(presets);
+    if (targetSize === 'K80') {
+        const customK80 = keys.find(k => k.startsWith('preset_') && (presets[k].paper_size === 'K80' || presets[k].doc_type === 'pos_retail'));
+        if (customK80) return customK80;
+        if (presets['k80_standard']) return 'k80_standard';
+        if (presets['k80_default']) return 'k80_default';
+        const anyK80 = keys.find(k => presets[k].paper_size === 'K80' || presets[k].paper_size === 'K58');
+        if (anyK80) return anyK80;
+    } else {
+        const customA4 = keys.find(k => k.startsWith('preset_') && ((presets[k].paper_size && presets[k].paper_size.startsWith('A4')) || presets[k].doc_type === 'pos_wholesale' || presets[k].doc_type === 'b2b'));
+        if (customA4) return customA4;
+        if (presets['a4_b2b']) return 'a4_b2b';
+        if (presets['a4_standard']) return 'a4_standard';
+        const anyA4 = keys.find(k => presets[k].paper_size && presets[k].paper_size.startsWith('A4'));
+        if (anyA4) return anyA4;
+    }
+
+    return targetSize === 'K80' ? (presets['k80_standard'] ? 'k80_standard' : 'k80_default') : 'a4_b2b';
 }
 
 function switchModalPrintSize(size) {
     const isK80 = size === 'K80';
-    let targetPreset = isK80 ? 'k80_default' : 'a4_b2b';
-    if (posPrintConfig && posPrintConfig.presets && !posPrintConfig.presets[targetPreset]) {
-        if (isK80 && posPrintConfig.presets['k80_standard']) {
-            targetPreset = 'k80_standard';
-        } else {
-            const found = Object.keys(posPrintConfig.presets || {}).find(k => {
-                const p = posPrintConfig.presets[k];
-                return isK80 ? (p.paper_size === 'K80') : (p.paper_size && p.paper_size.startsWith('A4'));
-            });
-            if (found) targetPreset = found;
-        }
+    let targetPreset = findBestPresetForSize(size, !isK80);
+    if (!targetPreset || !posPrintConfig.presets[targetPreset]) {
+        targetPreset = isK80 ? (posPrintConfig.presets['k80_standard'] ? 'k80_standard' : 'k80_default') : 'a4_b2b';
     }
     posPrintConfig.active_preset = targetPreset;
     if (window.posPrintConfig) {
@@ -1933,6 +2024,11 @@ function switchModalPrintSize(size) {
     const selTemplate = document.getElementById('pos-template-select');
     if (selTemplate) {
         selTemplate.value = targetPreset;
+    }
+
+    const selModal = document.getElementById('modal-print-preset-select');
+    if (selModal) {
+        selModal.value = targetPreset;
     }
 
     updateModalPrintSizeButtons(size);
@@ -1975,13 +2071,14 @@ async function showPrintModal(orderCode) {
         window.currentLoadedPrintOrder = ord;
         const isWholesale = isWholesaleOrder(ord);
         const defaultSize = isWholesale ? 'A4' : 'K80';
-        let defaultPreset = isWholesale ? 'a4_b2b' : 'k80_default';
-        if (posPrintConfig && posPrintConfig.presets && !posPrintConfig.presets[defaultPreset]) {
-            if (!isWholesale && posPrintConfig.presets['k80_standard']) defaultPreset = 'k80_standard';
+        let defaultPreset = findBestPresetForSize(defaultSize, isWholesale);
+        if (!defaultPreset || !posPrintConfig.presets[defaultPreset]) {
+            defaultPreset = isWholesale ? 'a4_b2b' : (posPrintConfig.presets['k80_standard'] ? 'k80_standard' : 'k80_default');
         }
         posPrintConfig.active_preset = defaultPreset;
         if (selTemplate) selTemplate.value = defaultPreset;
         updateModalPrintSizeButtons(defaultSize);
+        populateModalPrintPresets(defaultPreset);
         renderAndPrint(ord, false);
     } catch (e) {
         console.error("Lỗi showPrintModal:", e);
@@ -2052,13 +2149,14 @@ function printDraftOrder() {
 
     window.currentLoadedPrintOrder = draftOrder;
     const defaultSize = isWholesale ? 'A4' : 'K80';
-    let defaultPreset = isWholesale ? 'a4_b2b' : 'k80_default';
-    if (posPrintConfig && posPrintConfig.presets && !posPrintConfig.presets[defaultPreset]) {
-        if (!isWholesale && posPrintConfig.presets['k80_standard']) defaultPreset = 'k80_standard';
+    let defaultPreset = findBestPresetForSize(defaultSize, isWholesale);
+    if (!defaultPreset || !posPrintConfig.presets[defaultPreset]) {
+        defaultPreset = isWholesale ? 'a4_b2b' : (posPrintConfig.presets['k80_standard'] ? 'k80_standard' : 'k80_default');
     }
     posPrintConfig.active_preset = defaultPreset;
     if (selTemplate) selTemplate.value = defaultPreset;
     updateModalPrintSizeButtons(defaultSize);
+    populateModalPrintPresets(defaultPreset);
 
     renderAndPrint(draftOrder, true);
 }
@@ -2078,6 +2176,15 @@ function renderAndPrint(ord, isDraft = false) {
         }
     }
     const curPreset = posPrintConfig.presets ? posPrintConfig.presets[curPresetKey] : null;
+
+    const selModal = document.getElementById('modal-print-preset-select');
+    if (selModal) {
+        if (!selModal.options || selModal.options.length === 0) {
+            populateModalPrintPresets(curPresetKey);
+        } else if (curPresetKey) {
+            selModal.value = curPresetKey;
+        }
+    }
 
     let canvasElements = [];
     let paperSize = "A4-portrait";
@@ -2129,10 +2236,19 @@ function renderAndPrint(ord, isDraft = false) {
     const dim = posPaperDimensions[paperSize] || posPaperDimensions["A4-portrait"];
     const isLandscape = paperSize.includes("landscape");
     const isThermal = paperSize === 'K80' || paperSize === 'K58';
-    const canvasW = isThermal ? (paperSize === 'K80' ? 290 : 210) : (isLandscape ? 1123 : 794);
+    const isA5 = paperSize.includes("A5");
+
+    let canvasW = 794;
+    if (isThermal) {
+        canvasW = paperSize === 'K80' ? 290 : 210;
+    } else if (isA5) {
+        canvasW = isLandscape ? 794 : 559;
+    } else {
+        canvasW = isLandscape ? 1123 : 794;
+    }
 
     currentPrintPaperSize = paperSize;
-    currentPrintPageRule = dim.printSize || (isLandscape ? 'A4 landscape' : (isThermal ? 'auto' : 'A4 portrait'));
+    currentPrintPageRule = dim.printSize || (isThermal ? 'auto' : (isA5 ? (isLandscape ? 'A5 landscape' : 'A5 portrait') : (isLandscape ? 'A4 landscape' : 'A4 portrait')));
 
     // Sao chép canvasElements để không mutate config gốc và xử lý tự ẩn dòng giảm giá K80 khi không có giảm giá
     let effectiveElements = canvasElements.map(e => ({ ...e }));
@@ -2268,7 +2384,14 @@ function renderAndPrint(ord, isDraft = false) {
         }
     });
 
-    const canvasH = isThermal ? Math.max(320, maxContentBottom + 25) : (isLandscape ? 794 : 1123);
+    let canvasH = 1123;
+    if (isThermal) {
+        canvasH = Math.max(320, maxContentBottom + 25);
+    } else if (isA5) {
+        canvasH = isLandscape ? 559 : 794;
+    } else {
+        canvasH = isLandscape ? 794 : 1123;
+    }
 
     const watermarkHtml = isDraft ? `
         <div class="draft-watermark-banner" style="width: ${dim.width}; max-width: 100%; margin: 0 auto 12px auto; background-color: #fef3c7; color: #92400e; border: 1.5px dashed #f59e0b; padding: 8px 14px; font-size: 13px; font-weight: bold; text-align: center; border-radius: 8px; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; gap: 6px;">
@@ -2611,13 +2734,16 @@ function printInvoiceDirectly() {
     }
 
     const isThermal = currentPrintPaperSize === 'K80' || currentPrintPaperSize === 'K58';
+    const isA5 = currentPrintPaperSize.includes('A5');
     const isLandscape = currentPrintPaperSize.includes('landscape') || currentPrintPageRule.includes('landscape');
 
-    let pageRule = 'A4 landscape';
+    let pageRule = 'A4 portrait';
     if (isThermal) {
         pageRule = 'auto';
-    } else if (!isLandscape) {
-        pageRule = currentPrintPaperSize.includes('A5') ? 'A5 portrait' : 'A4 portrait';
+    } else if (isA5) {
+        pageRule = isLandscape ? 'A5 landscape' : 'A5 portrait';
+    } else {
+        pageRule = isLandscape ? 'A4 landscape' : 'A4 portrait';
     }
 
     const iframe = document.createElement('iframe');
@@ -2625,8 +2751,16 @@ function printInvoiceDirectly() {
     iframe.style.position = 'fixed';
     iframe.style.top = '-9999px';
     iframe.style.left = '-9999px';
-    iframe.style.width = isThermal ? '350px' : (isLandscape ? '1150px' : '850px');
-    iframe.style.height = isThermal ? '1000px' : (isLandscape ? '800px' : '1150px');
+    if (isThermal) {
+        iframe.style.width = '350px';
+        iframe.style.height = '1000px';
+    } else if (isA5) {
+        iframe.style.width = isLandscape ? '850px' : '600px';
+        iframe.style.height = isLandscape ? '600px' : '850px';
+    } else {
+        iframe.style.width = isLandscape ? '1150px' : '850px';
+        iframe.style.height = isLandscape ? '800px' : '1150px';
+    }
     iframe.style.border = 'none';
     iframe.style.zIndex = '-9999';
     document.body.appendChild(iframe);
@@ -2651,19 +2785,25 @@ function printInvoiceDirectly() {
     }
 
     let isBoldAll = false;
-    let boldCfg = null;
-    try {
-        boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
-    } catch(e) {}
+    const curPreset = (posPrintConfig && posPrintConfig.presets && posPrintConfig.presets[posPrintConfig.active_preset]) ? posPrintConfig.presets[posPrintConfig.active_preset] : null;
 
-    if (boldCfg) {
-        if (window.currentPrintIsDraft) {
-            isBoldAll = (boldCfg.pos_draft !== undefined) ? !!boldCfg.pos_draft : true;
-        } else {
-            isBoldAll = isThermal ? (boldCfg.pos_retail !== undefined ? !!boldCfg.pos_retail : true) : (boldCfg.pos_b2b !== undefined ? !!boldCfg.pos_b2b : false);
-        }
+    if (curPreset && curPreset.is_bold_all !== undefined) {
+        isBoldAll = !!curPreset.is_bold_all;
     } else {
-        isBoldAll = !!window.currentPrintIsBoldAll;
+        let boldCfg = null;
+        try {
+            boldCfg = window.printBoldConfigs || (window.companySettings && window.companySettings.print_bold_configs ? (typeof window.companySettings.print_bold_configs === 'string' ? JSON.parse(window.companySettings.print_bold_configs) : window.companySettings.print_bold_configs) : null);
+        } catch(e) {}
+
+        if (boldCfg) {
+            if (window.currentPrintIsDraft) {
+                isBoldAll = (boldCfg.pos_draft !== undefined) ? !!boldCfg.pos_draft : true;
+            } else {
+                isBoldAll = isThermal ? (boldCfg.pos_retail !== undefined ? !!boldCfg.pos_retail : true) : (boldCfg.pos_b2b !== undefined ? !!boldCfg.pos_b2b : false);
+            }
+        } else {
+            isBoldAll = !!window.currentPrintIsBoldAll;
+        }
     }
 
     const boldStyles = isBoldAll ? `
@@ -3758,6 +3898,8 @@ window.printInvoiceDirectly = printInvoiceDirectly;
 window.switchModalPrintSize = switchModalPrintSize;
 window.isWholesaleOrder = isWholesaleOrder;
 window.updateModalPrintSizeButtons = updateModalPrintSizeButtons;
+window.populateModalPrintPresets = populateModalPrintPresets;
+window.changeModalPrintPreset = changeModalPrintPreset;
 
 // Khởi chạy an toàn cùng SPA
 window.initPOSModule = initPOS;

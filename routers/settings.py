@@ -180,8 +180,26 @@ def update_company_settings(req: CompanySettingsUpdate):
 
 @router.post("/template")
 def update_template_settings(req: TemplateSettingsUpdate):
+    import json
     conn = get_db()
     cur = conn.cursor()
+    try:
+        incoming_data = json.loads(req.print_blocks_config)
+        cur.execute("SELECT value FROM settings WHERE key = 'print_blocks_config'")
+        row = cur.fetchone()
+        if row and row[0]:
+            existing_data = json.loads(row[0])
+            if isinstance(existing_data, dict) and isinstance(incoming_data, dict):
+                existing_presets = existing_data.get("presets", {})
+                incoming_presets = incoming_data.get("presets", {})
+                if isinstance(existing_presets, dict) and isinstance(incoming_presets, dict):
+                    # Giữ lại các preset khác của các máy khác, ghi đè những preset máy này đang lưu
+                    merged_presets = {**existing_presets, **incoming_presets}
+                    incoming_data["presets"] = merged_presets
+                    req.print_blocks_config = json.dumps(incoming_data, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"Merge print presets warning: {e}")
+
     cur.execute("INSERT INTO settings (key, value) VALUES ('print_blocks_config', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (req.print_blocks_config, req.print_blocks_config))
     conn.commit()
     conn.close()

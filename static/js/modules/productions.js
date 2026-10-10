@@ -5169,6 +5169,17 @@
 
         function mapPresetKeyToBoldKey(presetKey) {
             if (!presetKey) return 'pos_retail';
+            const curP = (multiTemplates && multiTemplates.presets && multiTemplates.presets[presetKey]) ? multiTemplates.presets[presetKey] : null;
+            if (curP) {
+                if (curP.doc_type === 'spa_intake' || curP.category === 'spa_intake') return 'spa_intake';
+                if (curP.doc_type === 'spa_invoice' || curP.category === 'spa') return 'spa_invoice';
+                if (curP.doc_type === 'cashbook_thu') return 'cashbook_thu';
+                if (curP.doc_type === 'cashbook_chi') return 'cashbook_chi';
+                if (curP.doc_type === 'shift_zreport') return 'shift_zreport';
+                if (curP.doc_type === 'stock_audit' || curP.category === 'inventory') return 'stock_audit';
+                if (curP.doc_type === 'pos_wholesale' || curP.doc_type === 'b2b' || (curP.paper_size && (curP.paper_size.startsWith('A4') || curP.paper_size.startsWith('A5')))) return 'pos_b2b';
+                if (curP.doc_type === 'pos_retail' || curP.paper_size === 'K80' || curP.paper_size === 'K58') return 'pos_retail';
+            }
             if (presetKey.includes('draft')) return 'pos_draft';
             if (presetKey.includes('topup')) return 'pos_topup';
             if (presetKey.includes('spa_intake')) return 'spa_intake';
@@ -7191,6 +7202,9 @@
             if (typeof updateModalPrintSizeButtons === 'function') {
                 updateModalPrintSizeButtons(defaultSize);
             }
+            if (typeof populateModalPrintPresets === 'function') {
+                populateModalPrintPresets(presetKey);
+            }
             renderAndPrint(ord);
         }
 
@@ -7207,6 +7221,8 @@
             }
             const selTemplate = document.getElementById('pos-template-select');
             if (selTemplate) selTemplate.value = targetPreset;
+            const selModal = document.getElementById('modal-print-preset-select');
+            if (selModal) selModal.value = targetPreset;
             if (typeof updateModalPrintSizeButtons === 'function') {
                 updateModalPrintSizeButtons(size);
             }

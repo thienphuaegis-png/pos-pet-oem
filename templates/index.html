@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>POS KiotViet Offline</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2222%22 font-size=%2222%22>⚡</text></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/tailwind.js"></script>
     <style>
         html { font-size: 17px; } /* Tăng cỡ chữ toàn hệ thống lên 1 đơn vị (base 16px -> 17px, Tailwind rem-based nên scale toàn bộ) */
         /* Ẩn mũi tên lên/xuống mặc định của trình duyệt trên mọi ô input số */
@@ -10108,6 +10108,7 @@
                             <span>📄</span> <span>A4 (Đại Lý)</span>
                         </button>
                     </div>
+                    <select id="modal-print-preset-select" onchange="changeModalPrintPreset(this.value)" class="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 shadow-xs focus:ring-1 focus:ring-sky-500 focus:outline-none max-w-[210px] truncate cursor-pointer" title="Chọn mẫu in chi tiết"></select>
                 </div>
                 <button type="button" onclick="closePrintModal()" class="text-gray-400 hover:text-gray-600 font-bold text-2xl leading-none px-2 py-0.5 rounded hover:bg-slate-100 transition">&times;</button>
             </div>

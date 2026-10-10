@@ -14,7 +14,7 @@
             window.location.replace('/pos/m');
         }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/js/tailwind.js"></script>
     <style>
         /* Custom scrollbars */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -536,6 +536,7 @@
                             <span>📄</span> <span>A4 (Đại Lý)</span>
                         </button>
                     </div>
+                    <select id="modal-print-preset-select" onchange="changeModalPrintPreset(this.value)" class="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 shadow-xs focus:ring-1 focus:ring-sky-500 focus:outline-none max-w-[210px] truncate cursor-pointer" title="Chọn mẫu in chi tiết"></select>
                 </div>
                 <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
             </div>
@@ -546,7 +547,7 @@
 
             <div class="flex justify-end gap-3 w-full border-t pt-3">
                 <button onclick="closePrintModal()" class="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100">Đóng</button>
-                <button onclick="window.print()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5">
+                <button onclick="printInvoiceDirectly()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5">
                     <span>🖨️</span>
                     <span>In Hóa Đơn</span>
                 </button>
