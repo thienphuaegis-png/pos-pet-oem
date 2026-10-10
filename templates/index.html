@@ -7661,6 +7661,20 @@
                                     <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
                                 </label>
                             </div>
+                            <!-- Bật / Ẩn mẫu in khỏi quầy bán hàng -->
+                            <div class="flex items-center justify-between p-2 bg-purple-50/70 rounded-lg border border-purple-200">
+                                <div>
+                                    <div class="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                                        <span>👁️</span> <span>Hiển Thị Ở Quầy POS</span>
+                                    </div>
+                                    <div class="text-[10px] text-purple-700 mt-0.5">Bật để xuất hiện trên thanh POS & Popup in</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="chk-preset-active" onchange="onPresetActiveToggleChange(this.checked)" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                </label>
+                            </div>
+
                             <input type="checkbox" id="chk-split-bold-toggle" class="hidden">
                             <input type="checkbox" id="chk-preset-bold-all" class="hidden">
 
@@ -10095,17 +10109,17 @@
     <div id="print-modal" onclick="if(event.target === this) closePrintModal()" class="fixed inset-0 bg-black/75 hidden items-center justify-center z-[80] p-4 backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 flex flex-col items-center max-h-[90vh] border border-slate-200">
             <div class="no-print flex justify-between items-center w-full mb-3 border-b pb-2">
-                <div class="flex items-center gap-3">
-                    <h3 id="print-modal-title" class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h3 id="print-modal-title" class="font-bold text-lg text-slate-800 flex items-center gap-1.5 mr-1">
                         <span>🧾</span>
-                        <span>Xem Trước & In Hóa Đơn</span>
+                        <span>Xem Trước & In</span>
                     </h3>
-                    <div class="print-mode-selector inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 gap-1 text-xs">
-                        <button type="button" id="btn-print-modal-k80" onclick="switchModalPrintSize('K80')" class="px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer">
-                            <span>🧾</span> <span>K80 (Khách Lẻ)</span>
+                    <div id="print-modal-paper-tabs" class="print-mode-selector inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 gap-1 text-xs">
+                        <button type="button" id="btn-print-modal-k80" onclick="switchModalPrintSize('K80')" class="px-2 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer">
+                            <span>🧾</span> <span>K80</span>
                         </button>
-                        <button type="button" id="btn-print-modal-a4" onclick="switchModalPrintSize('A4')" class="px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer">
-                            <span>📄</span> <span>A4 (Đại Lý)</span>
+                        <button type="button" id="btn-print-modal-a4" onclick="switchModalPrintSize('A4')" class="px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer">
+                            <span>📄</span> <span>A4</span>
                         </button>
                     </div>
                     <select id="modal-print-preset-select" onchange="changeModalPrintPreset(this.value)" class="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 shadow-xs focus:ring-1 focus:ring-sky-500 focus:outline-none max-w-[210px] truncate cursor-pointer" title="Chọn mẫu in chi tiết"></select>

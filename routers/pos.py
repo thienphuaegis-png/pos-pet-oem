@@ -351,9 +351,27 @@ def get_order_detail(code: str):
     cur.execute("SELECT method, amount, account_id FROM order_payments WHERE order_id = ?", (order["id"],))
     payments = [dict(r) for r in cur.fetchall()]
 
+    # Lay thong tin tai khoan ngan hang thuc te cua don hang (neu co payment bank/transfer)
+    bank_account_info = None
+    account_ids = [p["account_id"] for p in payments if p.get("account_id")]
+
+    if account_ids:
+        # Uu tien tai khoan bank truoc
+        cur.execute("""
+            SELECT id, code, name, account_type, bank_name, account_number, account_holder
+            FROM payment_accounts
+            WHERE id IN ({})
+            ORDER BY CASE WHEN account_type = 'bank' THEN 0 ELSE 1 END
+            LIMIT 1
+        """.format(",".join("?" * len(account_ids))), account_ids)
+        acc_row = cur.fetchone()
+        if acc_row:
+            bank_account_info = dict(acc_row)
+
     result = dict(order)
     result["items"] = items
     result["payments"] = payments
+    result["bank_account"] = bank_account_info
     conn.close()
     return result
 

@@ -523,17 +523,17 @@
     <div id="print-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 flex flex-col items-center max-h-[95vh] overflow-hidden">
             <div id="print-modal-header" class="w-full flex justify-between items-center border-b pb-3 mb-4">
-                <div class="flex items-center gap-3">
-                    <h3 id="print-modal-title" class="font-bold text-base text-slate-800 flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h3 id="print-modal-title" class="font-bold text-base text-slate-800 flex items-center gap-1.5 mr-1">
                         <span>🧾</span>
-                        <span>Hóa Đơn Bán Hàng</span>
+                        <span>Hóa Đơn</span>
                     </h3>
-                    <div class="print-mode-selector inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 gap-1 text-xs">
-                        <button type="button" id="btn-print-modal-k80" onclick="switchModalPrintSize('K80')" class="px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer">
-                            <span>🧾</span> <span>K80 (Khách Lẻ)</span>
+                    <div id="print-modal-paper-tabs" class="print-mode-selector inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 gap-1 text-xs">
+                        <button type="button" id="btn-print-modal-k80" onclick="switchModalPrintSize('K80')" class="px-2 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer">
+                            <span>🧾</span> <span>K80</span>
                         </button>
-                        <button type="button" id="btn-print-modal-a4" onclick="switchModalPrintSize('A4')" class="px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer">
-                            <span>📄</span> <span>A4 (Đại Lý)</span>
+                        <button type="button" id="btn-print-modal-a4" onclick="switchModalPrintSize('A4')" class="px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer">
+                            <span>📄</span> <span>A4</span>
                         </button>
                     </div>
                     <select id="modal-print-preset-select" onchange="changeModalPrintPreset(this.value)" class="text-xs font-semibold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 shadow-xs focus:ring-1 focus:ring-sky-500 focus:outline-none max-w-[210px] truncate cursor-pointer" title="Chọn mẫu in chi tiết"></select>

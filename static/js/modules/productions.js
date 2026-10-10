@@ -5203,7 +5203,41 @@
             if (toggle) toggle.checked = isBold;
             if (thermalToggle) thermalToggle.checked = isBold;
             applyCanvasBoldEffect(isBold);
+
+            // Đồng bộ switch ẩn / hiện mẫu
+            const activeToggle = document.getElementById('chk-preset-active');
+            if (activeToggle && multiTemplates.presets && multiTemplates.presets[presetKey]) {
+                activeToggle.checked = multiTemplates.presets[presetKey].is_active !== false;
+            }
         }
+
+        async function onPresetActiveToggleChange(isChecked) {
+            const curKey = multiTemplates.active_preset || "a4_b2b";
+            if (!multiTemplates.presets || !multiTemplates.presets[curKey]) return;
+            multiTemplates.presets[curKey].is_active = !!isChecked;
+
+            try {
+                await fetch('/api/settings/template', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        print_blocks_config: JSON.stringify(multiTemplates)
+                    })
+                });
+                if (typeof showToast === 'function') {
+                    showToast(isChecked ? 'Đã bật hiển thị mẫu này ở quầy POS!' : 'Đã ẩn mẫu này khỏi quầy POS (vẫn lưu cấu hình)!', 'success');
+                }
+                if (window.posPrintConfig && window.posPrintConfig.presets && window.posPrintConfig.presets[curKey]) {
+                    window.posPrintConfig.presets[curKey].is_active = !!isChecked;
+                }
+                if (typeof initPrintTemplatesFromSettings === 'function') {
+                    initPrintTemplatesFromSettings();
+                }
+            } catch (e) {
+                console.error("Lỗi cập nhật trạng thái hiển thị preset:", e);
+            }
+        }
+        window.onPresetActiveToggleChange = onPresetActiveToggleChange;
 
         async function onSplitBoldToggleChange(isChecked) {
             const curKey = multiTemplates.active_preset || "a4_b2b";
@@ -5955,8 +5989,10 @@
                 let content = '';
 
                 if (e.type === 'logo') {
+                    const logoH = e.h || 65;
+                    const logoW = e.w || 140;
                     content = currentSettings.shop_logo
-                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: 100%; height: auto; pointer-events: none; margin: 0 auto;">`
+                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: ${logoW}px; max-height: ${logoH}px; width: auto; height: auto; object-fit: contain; pointer-events: none; margin: 0 auto;">`
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(240000, 'HD2609130001');
@@ -6256,6 +6292,14 @@
                             <button onclick="alignElement('full')" title="Kéo dãn đầy chiều ngang" class="py-1 px-1.5 border rounded text-xs bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 font-bold">⇱ Rộng</button>
                         </div>
                     </div>
+                    ${elem.type === 'logo' ? `
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block font-semibold text-xs">Chiều cao tối đa Logo (px):</label>
+                            <span class="text-[10px] text-purple-600 font-bold">${elem.h || 65}px</span>
+                        </div>
+                        <input type="range" min="30" max="150" step="5" class="w-full accent-purple-600 cursor-pointer" value="${elem.h || 65}" oninput="updateProp('h', parseInt(this.value) || 65)">
+                    </div>` : ''}
                     ${elem.type === 'text' ? `
                     <div>
                         <label class="block font-semibold mb-1 text-xs">Nội dung text / biến:</label>

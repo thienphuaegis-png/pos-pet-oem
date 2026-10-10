@@ -1790,15 +1790,17 @@ var posPrintConfig = {
     presets: {}
 };
 
-function getQRCodeHTML(amount, code) {
+function getQRCodeHTML(amount, code, bankAccOverride = null) {
     const mode = posSettings.shop_qr_mode || 'vietqr';
     if (mode === 'static' && posSettings.shop_qr_image) {
         return `<img src="${posSettings.shop_qr_image}" style="max-width: 140px; margin: 0 auto; display: block;" alt="QR Thanh Toán">`;
     }
-    if (posSettings.shop_bank_account) {
-        const bank = posSettings.shop_bank_code || 'MB';
-        const acc = posSettings.shop_bank_account;
-        const name = encodeURIComponent(posSettings.shop_bank_owner || '');
+    const bank = (bankAccOverride && bankAccOverride.bank_name) ? bankAccOverride.bank_name : (posSettings.shop_bank_code || 'MB');
+    const acc = (bankAccOverride && bankAccOverride.account_number) ? bankAccOverride.account_number : posSettings.shop_bank_account;
+    const owner = (bankAccOverride && bankAccOverride.account_holder) ? bankAccOverride.account_holder : (posSettings.shop_bank_owner || '');
+
+    if (acc) {
+        const name = encodeURIComponent(owner);
         const desc = encodeURIComponent(code || 'THANH TOAN');
         const amt = Math.round(amount || 0);
         const qrUrl = `https://img.vietqr.io/image/${bank}-${acc}-compact2.png?amount=${amt}&addInfo=${desc}&accountName=${name}`;
@@ -1847,6 +1849,7 @@ function initPrintTemplatesFromSettings() {
         const p = posPrintConfig.presets[key];
         const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
         if (cat !== 'pos') continue;
+        if (p.is_active === false) continue;
 
         const isSel = key === cur ? 'selected' : '';
         const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
@@ -1858,7 +1861,7 @@ function initPrintTemplatesFromSettings() {
         const firstPosKey = Object.keys(posPrintConfig.presets).find(k => {
             const p = posPrintConfig.presets[k];
             const cat = p.category || (k.includes('spa') ? 'spa' : (k.includes('cashbook') ? 'cashbook' : (k.includes('audit') ? 'inventory' : 'pos')));
-            return cat === 'pos';
+            return cat === 'pos' && p.is_active !== false;
         });
         if (firstPosKey) {
             posPrintConfig.active_preset = firstPosKey;
@@ -1867,6 +1870,7 @@ function initPrintTemplatesFromSettings() {
                 const p = posPrintConfig.presets[key];
                 const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
                 if (cat !== 'pos') continue;
+                if (p.is_active === false) continue;
                 const isSel = key === firstPosKey ? 'selected' : '';
                 const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
                 const boldTag = p.is_bold_all ? ' [Đậm]' : '';
@@ -1898,21 +1902,96 @@ function isWholesaleOrder(ord) {
     );
 }
 
+var currentModalPaperFilter = 'ALL';
+
+function renderModalPaperFilterTabs(activePaper = 'ALL') {
+    currentModalPaperFilter = activePaper;
+    const tabContainer = document.getElementById('print-modal-paper-tabs');
+    if (!tabContainer) return;
+
+    const presets = posPrintConfig.presets || {};
+    const paperSet = new Set();
+    for (let k in presets) {
+        const p = presets[k];
+        const cat = p.category || (k.includes('spa') ? 'spa' : (k.includes('cashbook') ? 'cashbook' : (k.includes('audit') ? 'inventory' : 'pos')));
+        if (cat !== 'pos') continue;
+        if (p.is_active === false) continue;
+        const ps = p.paper_size || 'K80';
+        if (ps === 'K80' || ps === 'K58') paperSet.add('K80');
+        else if (ps.startsWith('A4')) paperSet.add('A4');
+        else if (ps.startsWith('A5')) paperSet.add('A5');
+    }
+
+    const availablePapers = Array.from(paperSet);
+    const tabs = [{ key: 'ALL', label: 'Tất cả' }];
+    if (availablePapers.includes('K80')) tabs.push({ key: 'K80', label: '🧾 K80' });
+    if (availablePapers.includes('A4')) tabs.push({ key: 'A4', label: '📄 A4' });
+    if (availablePapers.includes('A5')) tabs.push({ key: 'A5', label: '📑 A5' });
+
+    let html = '';
+    tabs.forEach(t => {
+        const isSel = t.key === currentModalPaperFilter;
+        const cls = isSel
+            ? 'px-2 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-sky-600 text-white shadow-2xs'
+            : 'px-2 py-1 rounded-md font-medium transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+        html += `<button type="button" id="btn-print-modal-${t.key.toLowerCase()}" onclick="selectModalPaperFilter('${t.key}')" class="${cls}"><span>${t.label}</span></button>`;
+    });
+
+    tabContainer.innerHTML = html;
+}
+
+function selectModalPaperFilter(paperKey) {
+    currentModalPaperFilter = paperKey;
+    renderModalPaperFilterTabs(paperKey);
+
+    const presets = posPrintConfig.presets || {};
+    let targetPreset = null;
+
+    // Tìm preset đầu tiên thỏa filter
+    for (let k in presets) {
+        const p = presets[k];
+        const cat = p.category || (k.includes('spa') ? 'spa' : (k.includes('cashbook') ? 'cashbook' : (k.includes('audit') ? 'inventory' : 'pos')));
+        if (cat !== 'pos' || p.is_active === false) continue;
+        const ps = p.paper_size || 'K80';
+        const match = (paperKey === 'ALL') ||
+                      (paperKey === 'K80' && (ps === 'K80' || ps === 'K58')) ||
+                      (paperKey === 'A4' && ps.startsWith('A4')) ||
+                      (paperKey === 'A5' && ps.startsWith('A5'));
+        if (match) {
+            targetPreset = k;
+            break;
+        }
+    }
+
+    if (targetPreset) {
+        changeModalPrintPreset(targetPreset);
+    } else {
+        populateModalPrintPresets();
+    }
+}
+
 function updateModalPrintSizeButtons(size) {
     const btnK80 = document.getElementById('btn-print-modal-k80');
     const btnA4 = document.getElementById('btn-print-modal-a4');
-    if (!btnK80 || !btnA4) return;
-
-    if (size === 'K80') {
-        btnK80.className = 'px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-sky-600 text-white shadow-xs';
-        btnA4.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
-    } else if (size === 'A4') {
-        btnA4.className = 'px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-purple-600 text-white shadow-xs';
-        btnK80.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
-    } else {
-        btnK80.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
-        btnA4.className = 'px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+    if (btnK80 && btnA4) {
+        if (size === 'K80') {
+            btnK80.className = 'px-2 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-sky-600 text-white shadow-xs';
+            btnA4.className = 'px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+        } else if (size === 'A4') {
+            btnA4.className = 'px-2 py-1 rounded-md font-bold transition flex items-center gap-1 cursor-pointer bg-purple-600 text-white shadow-xs';
+            btnK80.className = 'px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+        } else {
+            btnK80.className = 'px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+            btnA4.className = 'px-2 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer text-slate-600 hover:text-slate-900';
+        }
     }
+
+    let paperKey = 'ALL';
+    if (size === 'K80' || size === 'K58') paperKey = 'K80';
+    else if (size.startsWith('A4')) paperKey = 'A4';
+    else if (size.startsWith('A5')) paperKey = 'A5';
+
+    renderModalPaperFilterTabs(paperKey);
 }
 
 function populateModalPrintPresets(activePresetKey) {
@@ -1936,6 +2015,13 @@ function populateModalPrintPresets(activePresetKey) {
         const p = presets[key];
         const cat = p.category || (key.includes('spa') ? 'spa' : (key.includes('cashbook') ? 'cashbook' : (key.includes('audit') ? 'inventory' : 'pos')));
         if (cat !== 'pos') continue;
+        if (p.is_active === false) continue;
+
+        // Lọc theo currentModalPaperFilter nếu có
+        const ps = p.paper_size || 'K80';
+        if (currentModalPaperFilter === 'K80' && !(ps === 'K80' || ps === 'K58')) continue;
+        if (currentModalPaperFilter === 'A4' && !ps.startsWith('A4')) continue;
+        if (currentModalPaperFilter === 'A5' && !ps.startsWith('A5')) continue;
 
         const isSel = key === cur ? 'selected' : '';
         const sizeTag = shortLabel[p.paper_size] || p.paper_size || '';
@@ -1958,11 +2044,14 @@ function changeModalPrintPreset(presetKey) {
 
     const p = posPrintConfig.presets[presetKey];
     const size = p.paper_size || '';
-    let btnSize = '';
-    if (size === 'K80') btnSize = 'K80';
+    let btnSize = 'ALL';
+    if (size === 'K80' || size === 'K58') btnSize = 'K80';
     else if (size.startsWith('A4')) btnSize = 'A4';
+    else if (size.startsWith('A5')) btnSize = 'A5';
 
-    updateModalPrintSizeButtons(btnSize);
+    currentModalPaperFilter = btnSize;
+    renderModalPaperFilterTabs(btnSize);
+    populateModalPrintPresets(presetKey);
 
     const selModal = document.getElementById('modal-print-preset-select');
     if (selModal) selModal.value = presetKey;
@@ -2454,9 +2543,11 @@ function renderAndPrint(ord, isDraft = false) {
     effectiveElements.forEach(e => {
         let content = '';
         if (e.type === 'logo') {
-            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: 100%; max-width: 100%;">`;
+            const logoMaxH = e.h || 65;
+            const logoMaxW = e.w || 140;
+            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;">`;
         } else if (e.type === 'qr') {
-            content = getQRCodeHTML(ord.final_amount, ord.code);
+            content = getQRCodeHTML(ord.final_amount, ord.code, ord.bank_account);
         } else if (e.type === 'table_b2b') {
             content = `
                 <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000;">
@@ -2495,18 +2586,23 @@ function renderAndPrint(ord, isDraft = false) {
                 </table>
             `;
         } else if (e.type === 'b2b_footer_boxes') {
+            const bAcc = ord.bank_account || {};
+            const bankName = bAcc.bank_name || posSettings.shop_bank_code || 'MB Bank';
+            const bankNum = bAcc.account_number || posSettings.shop_bank_account || '123456789';
+            const bankOwner = bAcc.account_holder || posSettings.shop_bank_owner || posSettings.shop_name || 'CHỦ TÀI KHOẢN';
+
             content = `
                 <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px;">
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                         <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
-                        <div>Ngân hàng: <b>${posSettings.shop_bank_code || 'MB Bank'}</b></div>
-                        <div>Số TK: <b>${posSettings.shop_bank_account || '123456789'}</b></div>
-                        <div>Chủ TK: <b>${posSettings.shop_bank_owner || posSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
+                        <div>Ngân hàng: <b>${bankName}</b></div>
+                        <div>Số TK: <b>${bankNum}</b></div>
+                        <div>Chủ TK: <b>${bankOwner}</b></div>
                         <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
                     </div>
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                         <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
-                        ${getQRCodeHTML(ord.final_amount, ord.code)}
+                        ${getQRCodeHTML(ord.final_amount, ord.code, ord.bank_account)}
                     </div>
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                         <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
