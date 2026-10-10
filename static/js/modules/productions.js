@@ -4696,7 +4696,8 @@
         };
 
         const defaultElementCatalog = {
-            logo: { zone: "header", type: "logo", label: "Logo Cửa Hàng", w: 120, h: 55, align: "center" },
+            logo: { zone: "header", type: "logo", label: "Logo Cửa Hàng", w: 140, h: 65, align: "center" },
+            header_store_info: { zone: "header", type: "header_store_info", label: "Thông Tin Shop (Cùng Hàng Logo)", w: 580, fsz: 11, align: "left" },
             shop_name: { zone: "header", type: "text", text: "{{ten_cua_hang}}", label: "Tên Cửa Hàng", fsz: 16, bold: true, align: "left", w: 580 },
             shop_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi}}", label: "Địa Chỉ", fsz: 10, bold: false, align: "left", w: 580 },
             shop_phone: { zone: "header", type: "text", text: "Hotline: {{so_dien_thoai}}", label: "SĐT Shop", fsz: 10, bold: false, align: "left", w: 250 },
@@ -5770,7 +5771,17 @@
             else setCanvasZoom(1.0);
         }
 
+        function onPrintDocTypeSelectChange(docType) {
+            selectPrintDocType(docType);
+        }
+        window.onPrintDocTypeSelectChange = onPrintDocTypeSelectChange;
+
         function selectPrintDocType(docType, btnEl) {
+            const selectEl = document.getElementById('print-doc-type-select');
+            if (selectEl && selectEl.value !== docType) {
+                selectEl.value = docType;
+            }
+
             document.querySelectorAll('.print-tree-btn').forEach(btn => {
                 btn.classList.remove('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
                 btn.classList.add('font-medium', 'text-slate-600');
@@ -5991,38 +6002,52 @@
                 if (e.type === 'logo') {
                     const logoH = e.h || 65;
                     const logoW = e.w || 140;
+                    const alignCls = e.align === 'left' ? 'mr-auto' : e.align === 'right' ? 'ml-auto' : 'mx-auto';
                     content = currentSettings.shop_logo
-                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: ${logoW}px; max-height: ${logoH}px; width: auto; height: auto; object-fit: contain; pointer-events: none; margin: 0 auto;">`
+                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: ${logoW}px; max-height: ${logoH}px; width: auto; height: auto; object-fit: contain; pointer-events: none;" class="${alignCls}">`
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
+                } else if (e.type === 'header_store_info') {
+                    content = `
+                        <div style="font-size: ${e.fsz || 11}px; text-align: ${e.align || 'left'}; line-height: 1.35; pointer-events: none;">
+                            <div style="font-size: ${(e.fsz || 11) + 4}px; font-weight: bold; text-transform: uppercase;">${mockData.ten_cua_hang}</div>
+                            <div>Địa chỉ: ${mockData.dia_chi}</div>
+                            <div>Hotline: ${mockData.so_dien_thoai}</div>
+                        </div>
+                    `;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(240000, 'HD2609130001');
                 } else if (e.type === 'table_b2b') {
+                    const showCode = !e.hide_code;
+                    const showUnit = !e.hide_unit;
+                    const showDisc = !e.hide_discount;
+                    const showNote = !e.hide_note;
+
                     content = `
                         <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000; pointer-events: none;">
                             <thead>
                                 <tr style="background-color: #f1f5f9; border-bottom: 1px solid #000; font-weight: bold; text-align: center;">
                                     <th style="border: 1px solid #000; padding: 4px 2px; width: 28px;">TT</th>
-                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>
+                                    ${showCode ? '<th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>' : ''}
                                     <th style="border: 1px solid #000; padding: 4px 4px; text-align: left;">Tên sản phẩm</th>
-                                    <th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>
+                                    ${showUnit ? '<th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>' : ''}
                                     <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 75px;">Đơn giá</th>
-                                    <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>
+                                    ${showDisc ? '<th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>' : ''}
                                     <th style="border: 1px solid #000; padding: 4px 2px; width: 38px;">SL</th>
                                     <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 85px;">Thành tiền</th>
-                                    <th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>
+                                    ${showNote ? '<th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr style="border-bottom: 1px solid #ccc; text-align: center;">
                                     <td style="border: 1px solid #ccc; padding: 4px 2px;">1</td>
-                                    <td style="border: 1px solid #ccc; padding: 4px 4px;">SP001</td>
+                                    ${showCode ? '<td style="border: 1px solid #ccc; padding: 4px 4px;">SP001</td>' : ''}
                                     <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">Áo Thun Basic (Demo)</td>
-                                    <td style="border: 1px solid #ccc; padding: 4px 2px;">Cái</td>
+                                    ${showUnit ? '<td style="border: 1px solid #ccc; padding: 4px 2px;">Cái</td>' : ''}
                                     <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">120.000</td>
-                                    <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>
+                                    ${showDisc ? '<td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">0%</td>' : ''}
                                     <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">2</td>
                                     <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">240.000</td>
-                                    <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">Size L</td>
+                                    ${showNote ? '<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">Size L</td>' : ''}
                                 </tr>
                             </tbody>
                         </table>
@@ -6214,24 +6239,35 @@
 
                 const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
 
+                // Chỉ hiển thị thanh công cụ điều khiển khi khối được chọn (Clean Canvas)
+                const actionBarHTML = isSel ? `
+                    <div class="element-action-bar flex items-center justify-between pb-1 mb-1 text-[10px] text-sky-800 bg-sky-50 p-1 rounded border border-sky-200 select-none shadow-2xs">
+                        <span class="font-bold flex items-center gap-1.5 text-sky-900">
+                            <span class="cursor-grab text-sky-600 font-mono text-xs">⠿</span>
+                            <span>${e.label || ''}</span>
+                        </span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="event.stopPropagation(); alignElement('left')" title="Căn Trái" class="px-1.5 py-0.5 bg-white hover:bg-sky-100 rounded border border-sky-300 font-bold text-slate-700">Trái</button>
+                            <button type="button" onclick="event.stopPropagation(); alignElement('center')" title="Căn Giữa" class="px-1.5 py-0.5 bg-white hover:bg-sky-100 rounded border border-sky-300 font-bold text-slate-700">Giữa</button>
+                            <button type="button" onclick="event.stopPropagation(); alignElement('right')" title="Căn Phải" class="px-1.5 py-0.5 bg-white hover:bg-sky-100 rounded border border-sky-300 font-bold text-slate-700">Phải</button>
+                            <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', -1)" title="Di chuyển lên trên" class="px-1.5 py-0.5 bg-white hover:bg-amber-100 rounded border border-amber-300 font-bold text-amber-800">▲ Lên</button>
+                            <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', 1)" title="Di chuyển xuống dưới" class="px-1.5 py-0.5 bg-white hover:bg-amber-100 rounded border border-amber-300 font-bold text-amber-800">▼ Xuống</button>
+                            <button type="button" onclick="event.stopPropagation(); removeElement('${e.id}')" title="Xóa khối" class="px-1.5 py-0.5 bg-white hover:bg-rose-100 rounded border border-rose-300 font-bold text-rose-700">✕</button>
+                        </div>
+                    </div>
+                ` : '';
+
+                const selBorderStyle = isSel ? 'border: 1.5px dashed #0284c7; padding: 3px; border-radius: 4px; background: rgba(2, 132, 199, 0.02);' : 'border: 1px solid transparent; padding: 1px;';
+
                 html += `
                     <div id="${e.id}" class="canvas-element auto-flow-item ${isSel}"
                          draggable="true"
                          ondragstart="onAutoFlowDragStart(event, '${e.id}')"
                          ondragover="onAutoFlowDragOver(event)"
                          ondrop="onAutoFlowDrop(event, '${e.id}')"
-                         style="position: relative; width: 100%; margin-bottom: 7px; box-sizing: border-box; word-break: break-word; cursor: pointer;"
+                         style="position: relative; width: 100%; margin-bottom: 6px; box-sizing: border-box; word-break: break-word; cursor: pointer; ${selBorderStyle}"
                          onclick="selectElement('${e.id}')">
-                        <div class="element-action-bar flex items-center justify-between pb-0.5 opacity-40 hover:opacity-100 transition text-[9px] text-slate-400 select-none">
-                            <span class="font-bold flex items-center gap-1">
-                                <span class="cursor-grab text-slate-500 font-mono text-xs">⠿</span>
-                                <span>${e.label || ''}</span>
-                            </span>
-                            <span class="space-x-1">
-                                <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', -1)" title="Di chuyển lên trên" class="hover:text-sky-600 font-bold px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200">▲ Lên</button>
-                                <button type="button" onclick="event.stopPropagation(); moveElementOrder('${e.id}', 1)" title="Di chuyển xuống dưới" class="hover:text-sky-600 font-bold px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200">▼ Xuống</button>
-                            </span>
-                        </div>
+                        ${actionBarHTML}
                         ${content}
                         ${resizeHandleHTML}
                     </div>
@@ -6330,6 +6366,28 @@
                             <button onclick="updateProp('align', 'left')" class="border p-1 rounded ${elem.align === 'left' ? 'bg-sky-600 text-white' : 'bg-white'}">Trái</button>
                             <button onclick="updateProp('align', 'center')" class="border p-1 rounded ${elem.align === 'center' ? 'bg-sky-600 text-white' : 'bg-white'}">Giữa</button>
                             <button onclick="updateProp('align', 'right')" class="border p-1 rounded ${elem.align === 'right' ? 'bg-sky-600 text-white' : 'bg-white'}">Phải</button>
+                        </div>
+                    </div>` : ''}
+                    ${elem.type === 'table_b2b' || elem.type === 'table' ? `
+                    <div class="p-2 bg-slate-50 border border-slate-200 rounded text-xs space-y-1.5">
+                        <label class="block font-bold text-slate-800">Cấu hình cột bảng:</label>
+                        <div class="grid grid-cols-2 gap-1 text-[11px]">
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" ${elem.hide_code ? '' : 'checked'} onchange="updateProp('hide_code', !this.checked)">
+                                <span>Mã hàng / SKU</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" ${elem.hide_unit ? '' : 'checked'} onchange="updateProp('hide_unit', !this.checked)">
+                                <span>Đơn vị tính</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" ${elem.hide_discount ? '' : 'checked'} onchange="updateProp('hide_discount', !this.checked)">
+                                <span>Chiết khấu %</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer">
+                                <input type="checkbox" ${elem.hide_note ? '' : 'checked'} onchange="updateProp('hide_note', !this.checked)">
+                                <span>Ghi chú</span>
+                            </label>
                         </div>
                     </div>` : ''}
                     <div class="pt-3 border-t">

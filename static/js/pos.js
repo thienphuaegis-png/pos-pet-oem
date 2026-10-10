@@ -2545,23 +2545,37 @@ function renderAndPrint(ord, isDraft = false) {
         if (e.type === 'logo') {
             const logoMaxH = e.h || 65;
             const logoMaxW = e.w || 140;
-            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto;">`;
+            const alignStyle = e.align === 'left' ? 'margin-right: auto; margin-left: 0;' : e.align === 'right' ? 'margin-left: auto; margin-right: 0;' : 'margin: 0 auto;';
+            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: auto; height: auto; object-fit: contain; display: block; ${alignStyle}">`;
+        } else if (e.type === 'header_store_info') {
+            content = `
+                <div style="font-size: ${e.fsz || 11}px; text-align: ${e.align || 'left'}; line-height: 1.35;">
+                    <div style="font-size: ${(e.fsz || 11) + 4}px; font-weight: bold; text-transform: uppercase;">${printData.ten_cua_hang}</div>
+                    <div>Địa chỉ: ${printData.dia_chi}</div>
+                    <div>Hotline: ${printData.so_dien_thoai}</div>
+                </div>
+            `;
         } else if (e.type === 'qr') {
             content = getQRCodeHTML(ord.final_amount, ord.code, ord.bank_account);
         } else if (e.type === 'table_b2b') {
+            const showCode = !e.hide_code;
+            const showUnit = !e.hide_unit;
+            const showDisc = !e.hide_discount;
+            const showNote = !e.hide_note;
+
             content = `
                 <table style="width: 100%; border-collapse: collapse; font-size: ${e.fsz || 10}px; border: 1px solid #000;">
                     <thead>
                         <tr style="background-color: #f1f5f9; border-bottom: 1px solid #000; font-weight: bold; text-align: center;">
                             <th style="border: 1px solid #000; padding: 4px 2px; width: 28px;">TT</th>
-                            <th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>
+                            ${showCode ? '<th style="border: 1px solid #000; padding: 4px 4px; width: 68px;">Mã hàng</th>' : ''}
                             <th style="border: 1px solid #000; padding: 4px 4px; text-align: left;">Tên sản phẩm</th>
-                            <th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>
+                            ${showUnit ? '<th style="border: 1px solid #000; padding: 4px 2px; width: 45px;">ĐVT</th>' : ''}
                             <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 75px;">Đơn giá</th>
-                            <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>
+                            ${showDisc ? '<th style="border: 1px solid #000; padding: 4px 2px; text-align: right; width: 45px;">CK</th>' : ''}
                             <th style="border: 1px solid #000; padding: 4px 2px; width: 38px;">SL</th>
                             <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; width: 85px;">Thành tiền</th>
-                            <th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>
+                            ${showNote ? '<th style="border: 1px solid #000; padding: 4px 4px; width: 75px;">Ghi chú</th>' : ''}
                         </tr>
                     </thead>
                     <tbody>
@@ -2571,14 +2585,14 @@ function renderAndPrint(ord, isDraft = false) {
                             return `
                         <tr style="border-bottom: 1px solid #ccc; text-align: center;">
                             <td style="border: 1px solid #ccc; padding: 4px 2px;">${idx + 1}</td>
-                            <td style="border: 1px solid #ccc; padding: 4px 4px;">${it.product_code || ''}</td>
+                            ${showCode ? `<td style="border: 1px solid #ccc; padding: 4px 4px;">${it.product_code || ''}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">${it.product_name}</td>
-                            <td style="border: 1px solid #ccc; padding: 4px 2px;">${it.unit || 'Cái'}</td>
+                            ${showUnit ? `<td style="border: 1px solid #ccc; padding: 4px 2px;">${it.unit || 'Cái'}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">${formatMoney(it.price)}</td>
-                            <td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">${discText}</td>
+                            ${showDisc ? `<td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">${discText}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
-                            <td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>
+                            ${showNote ? `<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>` : ''}
                         </tr>
                             `;
                         }).join('')}

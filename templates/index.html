@@ -7586,68 +7586,41 @@
                 <div id="settings-sub-templates" class="space-y-4">
                     <div id="print-settings-split-layout" class="flex flex-col lg:flex-row items-stretch gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-xs min-h-[720px]">
                         
-                        <!-- CỘT 1: CÂY DANH MỤC CHỨNG TỪ (220px) -->
-                        <div id="print-tpl-tree" class="w-full lg:w-[220px] bg-slate-50/70 border border-slate-200 rounded-lg p-2.5 flex flex-col shrink-0 text-xs">
-                            <div class="font-bold text-slate-800 uppercase text-[11px] pb-2 mb-2 border-b border-slate-200 flex items-center gap-1.5">
-                                <span>🖨️</span>
-                                <span>Danh Mục Chứng Từ</span>
-                            </div>
-                            <div class="space-y-3 overflow-y-auto flex-1 pr-1">
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1 px-1.5">Đơn Hàng</div>
-                                    <div class="space-y-0.5">
-                                        <button type="button" onclick="selectPrintDocType('pos_retail', this)" class="print-tree-btn active w-full text-left px-2 py-1.5 rounded font-bold text-sky-700 bg-sky-100/70 flex items-center gap-1.5 transition">
-                                            <span>🧾</span> <span>Hóa Đơn Bán Lẻ</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('pos_b2b', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📄</span> <span>Hóa Đơn Sỉ / A4</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('pos_draft', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📝</span> <span>Phiếu Tạm Tính</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1 px-1.5">Dịch Vụ Spa</div>
-                                    <div class="space-y-0.5">
-                                        <button type="button" onclick="selectPrintDocType('spa_intake', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>💆</span> <span>Tiếp Nhận Spa</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('pos_topup', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>⚡</span> <span>Thu Nạp Ví Spa</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('spa_invoice', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📋</span> <span>Hóa Đơn Spa</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1 px-1.5">Sổ Quỹ</div>
-                                    <div class="space-y-0.5">
-                                        <button type="button" onclick="selectPrintDocType('cashbook_thu', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📥</span> <span>Phiếu Thu Tiền</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('cashbook_chi', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📤</span> <span>Phiếu Chi Tiền</span>
-                                        </button>
-                                        <button type="button" onclick="selectPrintDocType('shift_zreport', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📊</span> <span>Báo Cáo Đóng Ca (Z)</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-1 px-1.5">Kho & Kiểm Kê</div>
-                                    <div class="space-y-0.5">
-                                        <button type="button" onclick="selectPrintDocType('stock_audit', this)" class="print-tree-btn w-full text-left px-2 py-1.5 rounded font-medium text-slate-600 hover:bg-slate-100 flex items-center gap-1.5 transition">
-                                            <span>📦</span> <span>Kiểm Kê Kho</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- CỘT 1: CÂY DANH MỤC CHỨNG TỪ (Ẩn để chuyển thành dropdown trên top bar cột 2) -->
+                        <div id="print-tpl-tree" class="hidden">
+                            <button type="button" onclick="selectPrintDocType('pos_retail', this)" class="print-tree-btn"></button>
                         </div>
 
-                        <!-- CỘT 2: PANEL CẤU HÌNH BẬT TẮT KHỐI TRỰC QUAN (340px) -->
-                        <div id="print-tpl-config-panel" class="w-full lg:w-[340px] bg-white border border-slate-200 rounded-lg p-3 flex flex-col shrink-0 text-xs space-y-3">
+                        <!-- CỘT 2: PANEL CẤU HÌNH BẬT TẮT KHỐI TRỰC QUAN (360px) -->
+                        <div id="print-tpl-config-panel" class="w-full lg:w-[360px] bg-white border border-slate-200 rounded-lg p-3 flex flex-col shrink-0 text-xs space-y-3">
+                            <!-- Dropdown Nhóm Danh Mục Chứng Từ Tinh Gọn -->
+                            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                                <label class="font-bold text-slate-700 text-xs flex items-center gap-1.5 mb-1.5">
+                                    <span>🖨️</span>
+                                    <span>Loại Chứng Từ / Nghiệp Vụ:</span>
+                                </label>
+                                <select id="print-doc-type-select" onchange="onPrintDocTypeSelectChange(this.value)" class="w-full border border-sky-400 p-2 rounded-lg bg-white font-bold text-sky-800 text-xs shadow-2xs focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                    <optgroup label="── ĐƠN HÀNG ──">
+                                        <option value="pos_retail" selected>🧾 Hóa Đơn Bán Lẻ (K80/K58)</option>
+                                        <option value="pos_b2b">📄 Hóa Đơn Sỉ / A4 Đại Lý</option>
+                                        <option value="pos_draft">📝 Phiếu Tạm Tính</option>
+                                    </optgroup>
+                                    <optgroup label="── DỊCH VỤ SPA ──">
+                                        <option value="spa_intake">💆 Phiếu Tiếp Nhận Spa (K80)</option>
+                                        <option value="pos_topup">⚡ Biên Lai Nạp Ví Spa</option>
+                                        <option value="spa_invoice">📋 Hóa Đơn Dịch Vụ Spa</option>
+                                    </optgroup>
+                                    <optgroup label="── SỔ QUỸ ──">
+                                        <option value="cashbook_thu">📥 Phiếu Thu Tiền (K80 / A5)</option>
+                                        <option value="cashbook_chi">📤 Phiếu Chi Tiền (K80 / A5)</option>
+                                        <option value="shift_zreport">📊 Báo Cáo Đóng Ca (Z-Report)</option>
+                                    </optgroup>
+                                    <optgroup label="── KHO & KIỂM KÊ ──">
+                                        <option value="stock_audit">📦 Phiếu Kiểm Kê Kho Hàng</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
                             <!-- In đậm chống mờ nhiệt -->
                             <div class="p-2.5 bg-gradient-to-r from-amber-50 to-orange-50/60 rounded-lg border border-amber-200 flex items-center justify-between shadow-2xs">
                                 <div>
