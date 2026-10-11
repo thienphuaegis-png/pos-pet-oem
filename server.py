@@ -296,7 +296,7 @@ def ping():
     không có dữ liệu kinh doanh (test_ping_endpoint.py canh điều này).
     """
     import socket
-    return {"app": "pos-offline-petcare", "version": APP_VERSION,
+    return {"app": "pos-offline-petcare", "version": get_app_version_info()["version"],
             "hostname": socket.gethostname()}
 
 @app.get("/favicon.ico", include_in_schema=False)

@@ -33,6 +33,34 @@ def get_git_metadata():
     except Exception:
         return None, None
 
+def get_git_commits_ahead(base_commit: str = None) -> int:
+    """Đếm số commit từ base_commit đến HEAD để tự động đếm phiên bản không bị sót."""
+    if not base_commit or base_commit == "latest":
+        return 0
+    try:
+        root_dir = str(Path(__file__).parent)
+        out = subprocess.check_output(
+            ["git", "rev-list", "--count", f"{base_commit}..HEAD"],
+            stderr=subprocess.DEVNULL,
+            cwd=root_dir
+        ).decode().strip()
+        return int(out) if out.isdigit() else 0
+    except Exception:
+        return 0
+
+def get_git_total_commits() -> int:
+    """Lấy tổng số commit trong repository (build number)."""
+    try:
+        root_dir = str(Path(__file__).parent)
+        out = subprocess.check_output(
+            ["git", "rev-list", "--count", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            cwd=root_dir
+        ).decode().strip()
+        return int(out) if out.isdigit() else 0
+    except Exception:
+        return 0
+
 def check_remote_update_available():
     """Kiểm tra xem remote repository (github/origin) có bản commit mới hơn local không."""
     try:
@@ -134,11 +162,13 @@ def get_app_version_info():
 
     # Đọc từ version.json nếu có
     v_path = find_version_file()
+    base_commit = None
     if v_path and v_path.exists():
         try:
             with open(v_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 info.update(data)
+                base_commit = data.get("commit_hash")
         except Exception:
             pass
 
@@ -148,6 +178,23 @@ def get_app_version_info():
         info["commit_hash"] = git_commit
     if git_date:
         info["build_date"] = git_date
+
+    # Tự động đếm số commit (build number) và đếm bù phiên bản nếu có commits mới
+    total_commits = get_git_total_commits()
+    if total_commits:
+        info["build_number"] = total_commits
+
+    ahead = get_git_commits_ahead(base_commit)
+    info["commits_ahead"] = ahead
+    if ahead > 0:
+        ver = info.get("version", "v3.6.0")
+        v_prefix = "v" if ver.startswith("v") else ""
+        clean_ver = ver.lstrip("v")
+        v_parts = clean_ver.split(".")
+        if len(v_parts) == 3 and v_parts[0].isdigit() and v_parts[1].isdigit() and v_parts[2].isdigit():
+            info["version"] = f"{v_prefix}{v_parts[0]}.{v_parts[1]}.{int(v_parts[2]) + ahead}"
+        elif len(v_parts) >= 2 and v_parts[0].isdigit() and v_parts[1].isdigit():
+            info["version"] = f"{v_prefix}{v_parts[0]}.{v_parts[1]}.{ahead}"
 
     # TỰ ĐỘNG ĐỌC NHẬT KÝ TỪ LỊCH SỬ GIT LOG ĐỂ KHÔNG BỊ BỎ SÓT CẬP NHẬT GẦN ĐÂY
     try:

@@ -23,9 +23,16 @@
   - Khách trả Tiền Mặt: Ẩn mã VietQR ảo và số TK '0', hiển thị badge `💵 ĐÃ THANH TOÁN TIỀN MẶT`.
   - Khách Chuyển Khoản: Nạp đúng tài khoản thu ngân đang chọn tại `#pos-bank-account-select`, hiển thị đầy đủ ngân hàng, số TK thật và mã VietQR chuẩn.
 
+- **Tự Động Đếm & Bump Phiên Bản Động (`version_helper.py`, `version.json`, `scripts/bump_version.py`, `server.py`):**
+  - Khắc phục triệt để lỗi quên/sót bump phiên bản: `version_helper.py` tự động đếm commit ahead từ Git để cộng dồn vào patch version khi code tính năng mới mà chưa chạy bump thủ công.
+  - Bổ sung `scripts/bump_version.py` hỗ trợ SemVer chuẩn (`--auto`, `--patch`, `--minor`, `--major`, `--tag`) tự động quét conventional commits và cập nhật changelog.
+  - Bump phiên bản mốc lên `v3.6.0` đồng bộ toàn bộ tính năng lớn đã hoàn thiện.
+
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
+- `tests/test_version_bump_and_ahead_counting.py`: **PASS 3/3**
+- `tests/test_dynamic_version.py`: **PASS 5/5**
 - `tests/test_order_return_exchange.py`: **PASS 9/9**
 - `tests/test_pos_split_gift_item.py`: **PASS 2/2**
 - `tests/test_pos_print_template_and_bank_sync.py`: **PASS 3/3**

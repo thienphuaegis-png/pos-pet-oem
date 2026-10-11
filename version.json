@@ -1,15 +1,38 @@
 {
-  "version": "v3.5.0",
-  "build_date": "2026.10.09",
-  "commit_hash": "3353271",
+  "version": "v3.6.0",
+  "build_date": "2026.10.11",
+  "commit_hash": "e703488",
   "branch": "main",
   "release_title": "Bản Cập Nhật Lớn: Đồng Bộ Ví Spa, Mẫu In KiotViet, Kiểm Kê Linh Hoạt & Quản Lý Đơn OEM",
   "changelog": [
     {
+      "tag": "v3.6.0",
+      "date": "2026.10.11",
+      "title": "Bản phát hành v3.6.0 (2026.10.11)",
+      "is_new": true,
+      "items": [
+        "docs(roadmap): update project map v5.1 and project state checkpoint",
+        "fix(pos-print): preserve selected print template and sync bank account by payment method",
+        "feat(pos): add split cart item to manual gift and merge back support",
+        "feat(pos): add order returns & exchanges, fix POS cart rendering and panel null checks",
+        "feat(promotions): add buy-x-get-y promo rules, auto-cart gift injection, and schema migrations",
+        "feat(print-designer): 2-column layout with doc-type dropdown, clean canvas preview, 2-column header support, and configurable table columns",
+        "feat(print): add preset visibility toggle, dynamic paper tabs filter, bank account sync, and logo size controls",
+        "fix(print): comprehensive overhaul for print presets, bold mapping, A5 size, multi-client merge, and offline tailwind",
+        "docs(checkpoint): update PROJECT_STATE.md and PROJECT_MAP.html checkpoint for 2026-10-09",
+        "feat(version): auto-inject live git commits into changelog so latest updates are never missed",
+        "feat(ux): add wheel guard, realtime currency formatting, blank default inputs, global ESC closer, and hotkeys system",
+        "fix(spa): implement instant 0ms auto-pricing calculation and case-insensitive smart weight ranges",
+        "fix(system): enhance git remote check with ssh keys and always expose manual sync button",
+        "fix(ui): replace browser native confirm dialogs with unified POS confirmation modal",
+        "feat(system): add 1-click server auto-updater from version modal compatible with local and cloud deployments"
+      ]
+    },
+    {
       "tag": "v3.5.0",
       "date": "2026.10.09",
       "title": "Bản phát hành chính thức ngày 09/10/2026",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "⌨️ Trải Nghiệm & Phím Tắt: Chặn cuộn chuột (Wheel Guard) đổi số lượng; định dạng tiền tệ real-time có dấu chấm phân cách; để trống mặc định các ô giá/phụ thu; đóng modal bằng phím ESC; thêm bảng trợ giúp phím tắt POS (F1-F10).",
         "💆 Spa Auto-Pricing: Tự động tính tiền tức thì 0ms khi gõ kg hoặc chọn gói dịch vụ; so khớp thông minh không phân biệt chữ hoa/thường; tự động xử lý khi cân nặng vượt trần bảng giá.",

@@ -641,10 +641,11 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-09)
-    const ROADMAP_VERSION = 'v5.1-2026-10-11-return-exchange-gift-split-print-sync';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-11)
+    const ROADMAP_VERSION = 'v5.2-2026-10-11-auto-version-bump-and-ahead-counting';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-11)
+      { id: 'pos-auto-version-bump-and-ahead-counting', cat: 'SYS', title: 'Tự Động Đếm Phiên Bản & Script Bump SemVer Chuẩn Chống Sót Đếm Version Ứng Dụng', done: true, note: 'Tự động tính commit ahead từ Git để cộng dồn vào patch version khi code tính năng mới; script scripts/bump_version.py tự động phân tích commit history (--auto/--patch/--minor/--major) và cập nhật version.json + changelog, bump mốc v3.6.0' },
       { id: 'pos-order-return-and-exchange', cat: 'Logic', title: 'Đổi Hàng & Trả Hàng (Return & Exchange) Theo Đơn Gốc, Chứng Từ RET-... & Hạch Toán Dòng Tiền', done: true, note: 'Tạo phiếu RET-..., tự tính SL khả dụng & đơn giá net đã trừ KM, nhập kho món trả (tùy chọn), trừ kho món đổi, tính bù trừ thu thêm / chi hoàn trong 1 transaction an toàn, tích hợp modal 2 cột' },
       { id: 'pos-split-cart-item-to-gift', cat: 'UI', title: 'Tách Dòng Sản Phẩm Làm Quà Tặng (0 đ) Trực Tiếp Trên Giỏ Hàng & Hoàn Tác Gộp Lại', done: true, note: 'Nút 🎁 Tách tặng khi SL >= 2, sinh dòng quà tặng giá 0 đ, badge Quà Tặng, nút 🔄 Gộp lại, chống quét trùng barcode và bảo vệ không bị xóa bởi KM Mua X Tặng Y' },
       { id: 'pos-print-template-and-bank-sync', cat: 'BILL', title: 'Ưu Tiên Mẫu In Đã Chọn Header POS & Chuẩn Hóa Thông Tin Chuyển Khoản / VietQR Theo Phương Thức Thanh Toán', done: true, note: 'Giữ nguyên 100% mẫu in đã chọn từ dropdown góc trên bên phải; đơn tiền mặt ẩn VietQR hiển thị badge Đã Thu Tiền Mặt; đơn chuyển khoản hiển thị đúng số tài khoản/ngân hàng thật' },
