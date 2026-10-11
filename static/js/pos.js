@@ -1873,16 +1873,9 @@ async function submitPOSOrder() {
         }
         orderCode = data.order_code;
 
-        // Thông báo tích điểm & thăng hạng
-        let loyaltyMsg = "";
-        if (data.points_earned && data.points_earned > 0) {
-            loyaltyMsg += `\n🎉 Tích lũy thành công: +${data.points_earned} điểm (Tổng: ${data.current_points || 0})`;
-        }
+        // Thông báo thăng hạng nếu có (bỏ thông báo tích lũy điểm khi thanh toán theo yêu cầu)
         if (data.tier_upgraded) {
-            loyaltyMsg += `\n🏆 CHÚC MỪNG KHÁCH ĐƯỢC THĂNG HẠNG: [${data.tier_upgraded}]!`;
-        }
-        if (loyaltyMsg) {
-            alert(loyaltyMsg.trim());
+            alert(`🏆 CHÚC MỪNG KHÁCH ĐƯỢC THĂNG HẠNG: [${data.tier_upgraded}]!`);
         }
 
         // Cập nhật lại số dư ví / điểm trong danh sách khách hàng posContacts
