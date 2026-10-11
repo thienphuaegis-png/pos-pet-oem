@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo So Sánh: Tách Dòng Sản Phẩm Làm Quà Tặng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 md:p-6 min-h-screen">
+
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-700">UX Prototype • POS Offline</span>
+                <h1 class="text-xl font-black text-slate-900 mt-1">So Sánh 3 Phương Án: Tách Dòng Làm Quà Tặng (0 đ)</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Bấm trực tiếp vào các nút trên màn hình để trải nghiệm luồng thao tác thực tế.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchVariant('a')" id="tab-btn-a" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-sky-600 text-white shadow-xs">PA A: Nút Tách Nhanh 🎁</button>
+                <button onclick="switchVariant('b')" id="tab-btn-b" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">PA B: Tích Hợp Popup Sửa Giá</button>
+                <button onclick="switchVariant('c')" id="tab-btn-c" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">PA C: Nút Thao Tác Phụ (•••)</button>
+            </div>
+        </div>
+
+        <!-- ==================== VARIANT A: NÚT TÁCH NHANH TRÊN DÒNG ==================== -->
+        <div id="variant-a" class="space-y-4">
+            <div class="bg-sky-50 border border-sky-200 p-4 rounded-xl text-xs space-y-1">
+                <div class="font-bold text-sky-900 flex items-center gap-1.5 text-sm">
+                    <span>✨</span> Phương Án A: Nút Tách Quà Tặng Trực Tiếp Trên Dòng (Khuyến Nghị)
+                </div>
+                <p class="text-sky-800">
+                    Thu ngân nhìn thấy ngay nút <b>🎁 Tặng</b> kế bên ô số lượng khi món có <b>SL &ge; 2</b> (hoặc nút bấm tách bất cứ lúc nào). Bấm vào là tách ngay 1 cái thành dòng riêng giá 0 đ, có nút <b>🔄 Gộp lại</b> nếu muốn hoàn tác.
+                </p>
+                <div class="text-[11px] text-sky-700 pt-1">
+                    <b>Ưu điểm:</b> Cực kỳ trực quan, 1 click là xong, không phải mở modal popup rườm rà.
+                </div>
+            </div>
+
+            <!-- Khung giỏ hàng mô phỏng PA A -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="bg-slate-100 px-4 py-2.5 grid grid-cols-12 gap-2 text-[11px] font-bold text-slate-600 uppercase border-b">
+                    <div class="col-span-1 text-center">Xóa</div>
+                    <div class="col-span-1 text-center">STT</div>
+                    <div class="col-span-4">Tên hàng hóa</div>
+                    <div class="col-span-2 text-center">SL & Thao Tác Tách</div>
+                    <div class="col-span-2 text-right">Đơn giá</div>
+                    <div class="col-span-2 text-right">Thành tiền</div>
+                </div>
+
+                <div class="divide-y divide-slate-100 text-xs" id="cart-rows-a">
+                    <!-- Dòng 1: Đang có 3 cái -->
+                    <div id="row-a-main" class="px-4 py-3 grid grid-cols-12 gap-2 items-center hover:bg-slate-50 transition">
+                        <div class="col-span-1 text-center text-slate-400">🗑️</div>
+                        <div class="col-span-1 text-center font-bold text-slate-400">1</div>
+                        <div class="col-span-4 font-bold text-slate-800">
+                            <div>Sữa tắm chó mèo Joyce & Dolls 500ml</div>
+                            <span class="text-[10px] text-slate-400 font-mono">SP-001 • Chai</span>
+                        </div>
+                        <div class="col-span-2 flex items-center justify-center gap-2">
+                            <span id="qty-a-main" class="font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">3</span>
+                            <button onclick="splitGiftItemA()" id="btn-split-a" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition shadow-2xs" title="Tách 1 cái làm quà tặng 0đ">
+                                <span>🎁</span> Tách Tặng
+                            </button>
+                        </div>
+                        <div class="col-span-2 text-right font-mono font-bold text-slate-700">150.000 đ</div>
+                        <div class="col-span-2 text-right font-mono font-black text-sky-700 text-sm" id="subtotal-a-main">450.000 đ</div>
+                    </div>
+
+                    <!-- Dòng quà tặng sinh ra (ẩn ban đầu) -->
+                    <div id="row-a-gift" class="hidden px-4 py-3 grid grid-cols-12 gap-2 items-center bg-emerald-50/60 border-l-4 border-emerald-500 transition animate-fadeIn">
+                        <div class="col-span-1 text-center text-slate-400">🗑️</div>
+                        <div class="col-span-1 text-center font-bold text-emerald-600">2</div>
+                        <div class="col-span-4 font-bold text-emerald-900 flex items-center gap-1.5">
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-200 text-emerald-800">🎁 QUÀ TẶNG</span>
+                            <span>Sữa tắm chó mèo Joyce & Dolls 500ml</span>
+                        </div>
+                        <div class="col-span-2 flex items-center justify-center gap-2">
+                            <span class="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg font-mono">1</span>
+                            <button onclick="mergeGiftItemA()" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 rounded-lg text-[10px] font-bold transition shadow-2xs" title="Gộp lại vào dòng gốc">
+                                🔄 Gộp lại
+                            </button>
+                        </div>
+                        <div class="col-span-2 text-right font-mono font-bold text-emerald-600">
+                            <span class="line-through text-slate-400 text-[10px] block font-normal">150.000 đ</span>
+                            <span>0 đ (Miễn phí)</span>
+                        </div>
+                        <div class="col-span-2 text-right font-mono font-black text-emerald-700 text-sm">0 đ</div>
+                    </div>
+                </div>
+
+                <!-- Footer tóm tắt A -->
+                <div class="bg-slate-50 p-4 border-t flex justify-between items-center text-xs">
+                    <span class="text-slate-500 font-medium">Tổng tiền phải thanh toán:</span>
+                    <span id="total-pay-a" class="font-black text-xl text-sky-600 font-mono">450.000 đ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VARIANT B: TÍCH HỢP TRONG POPUP SỬA GIÁ ==================== -->
+        <div id="variant-b" class="hidden space-y-4">
+            <div class="bg-purple-50 border border-purple-200 p-4 rounded-xl text-xs space-y-1">
+                <div class="font-bold text-purple-900 flex items-center gap-1.5 text-sm">
+                    <span>🏷️</span> Phương Án B: Tách Quà Tặng Trong Popup Sửa Giá / Chiết Khấu
+                </div>
+                <p class="text-purple-800">
+                    Thu ngân bấm vào cột <b>Đơn giá</b> như bình thường. Trong modal, có nút chọn <b>🎁 Đổi thành Quà Tặng (0 đ)</b> hoặc chọn tách số lượng quà tặng nếu món đang có từ 2 sản phẩm trở lên.
+                </p>
+                <div class="text-[11px] text-purple-700 pt-1">
+                    <b>Ưu điểm:</b> Giao diện bảng giỏ hàng cực sạch sẽ, không tốn thêm diện tích cột.
+                </div>
+            </div>
+
+            <!-- Demo Popup giả lập B -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-md mx-auto space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <div class="font-bold text-slate-800 text-sm">Chỉnh Sửa Giá & Chiết Khấu</div>
+                    <span class="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-bold">SL hiện tại: 3</span>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <span class="text-slate-500 block mb-1">Tên sản phẩm:</span>
+                        <div class="font-bold text-slate-800">Hạt cho mèo Royal Canin Fit32 2kg</div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <label class="font-bold text-slate-700 block">Tùy chọn quà tặng:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="chk-split-b" onchange="toggleSplitInputB()" class="w-4 h-4 text-purple-600 rounded cursor-pointer">
+                            <label for="chk-split-b" class="cursor-pointer font-medium text-slate-700">Tách một phần làm Quà Tặng (0 đ)</label>
+                        </div>
+
+                        <div id="split-box-b" class="hidden pl-6 pt-1 flex items-center gap-2">
+                            <span class="text-slate-600">Số lượng tách tặng:</span>
+                            <input type="number" id="split-qty-b" value="1" min="1" max="2" class="w-16 border rounded p-1 text-center font-bold text-purple-700">
+                            <span class="text-slate-400 text-[11px]">(còn 2 món tính tiền)</span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t">
+                        <button onclick="alert('Đã áp dụng tách quà tặng thành công!')" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-xs transition">
+                            Xác Nhận Sửa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VARIANT C: MENU THAO TÁC PHỤ ==================== -->
+        <div id="variant-c" class="hidden space-y-4">
+            <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs space-y-1">
+                <div class="font-bold text-amber-900 flex items-center gap-1.5 text-sm">
+                    <span>⚡</span> Phương Án C: Dropdown Thao Tác Phụ (•••)
+                </div>
+                <p class="text-amber-800">
+                    Bổ sung nút menu ba chấm `•••` ở mỗi dòng. Khi bấm sẽ thả dropdown gồm: <i>🎁 Tách làm quà tặng 0đ</i>, <i>🏷️ Đổi giá sỉ nhanh</i>, <i>📋 Nhân bản dòng</i>.
+                </p>
+                <div class="text-[11px] text-amber-700 pt-1">
+                    <b>Ưu điểm:</b> Dễ mở rộng thêm nhiều thao tác nâng cao trong tương lai mà không làm rối bảng.
+                </div>
+            </div>
+
+            <!-- Demo Bảng C -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-xs space-y-2">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800">Cát vệ sinh Cature Đậu Nành 6L (SL: 3)</div>
+                        <div class="text-slate-400 font-mono text-[11px]">Đơn giá: 120.000 đ • Thành tiền: 360.000 đ</div>
+                    </div>
+                    <div class="relative">
+                        <button onclick="toggleMenuC()" class="p-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold text-slate-700">•••</button>
+                        <div id="menu-dropdown-c" class="hidden absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1 text-xs">
+                            <button onclick="alert('Đã tách 1 món làm quà tặng 0đ'); toggleMenuC();" class="w-full text-left px-3 py-2 hover:bg-amber-50 text-amber-800 font-bold flex items-center gap-2">
+                                <span>🎁</span> Tách 1 món làm quà tặng
+                            </button>
+                            <button onclick="toggleMenuC()" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700">
+                                <span>🏷️</span> Áp dụng giá sỉ riêng
+                            </button>
+                            <button onclick="toggleMenuC()" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700">
+                                <span>📋</span> Nhân bản dòng này
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function switchVariant(v) {
+            ['a', 'b', 'c'].forEach(item => {
+                document.getElementById('variant-' + item).classList.add('hidden');
+                const btn = document.getElementById('tab-btn-' + item);
+                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200";
+            });
+            document.getElementById('variant-' + v).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + v);
+            activeBtn.className = "px-3.5 py-2 rounded-xl text-xs font-bold transition bg-sky-600 text-white shadow-xs";
+        }
+
+        // Logic Demo Variant A
+        let isSplitA = false;
+        function splitGiftItemA() {
+            if (isSplitA) return;
+            isSplitA = true;
+            document.getElementById('qty-a-main').innerText = '2';
+            document.getElementById('subtotal-a-main').innerText = '300.000 đ';
+            document.getElementById('btn-split-a').classList.add('hidden');
+            document.getElementById('row-a-gift').classList.remove('hidden');
+            document.getElementById('total-pay-a').innerText = '300.000 đ';
+        }
+
+        function mergeGiftItemA() {
+            if (!isSplitA) return;
+            isSplitA = false;
+            document.getElementById('qty-a-main').innerText = '3';
+            document.getElementById('subtotal-a-main').innerText = '450.000 đ';
+            document.getElementById('btn-split-a').classList.remove('hidden');
+            document.getElementById('row-a-gift').classList.add('hidden');
+            document.getElementById('total-pay-a').innerText = '450.000 đ';
+        }
+
+        // Logic Demo Variant B
+        function toggleSplitInputB() {
+            const chk = document.getElementById('chk-use-points');
+            const isChecked = document.getElementById('chk-split-b').checked;
+            document.getElementById('split-box-b').classList.toggle('hidden', !isChecked);
+        }
+
+        // Logic Demo Variant C
+        function toggleMenuC() {
+            document.getElementById('menu-dropdown-c').classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>

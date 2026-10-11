@@ -615,7 +615,7 @@ async function addProductToActiveCart(productId) {
     if (!p) return;
 
     const tab = getActiveTab();
-    const exist = tab.cart.find(item => item.product_id === productId);
+    const exist = tab.cart.find(item => item.product_id === productId && !item.is_gift);
 
     if (exist) {
         exist.quantity += 1;
@@ -663,8 +663,8 @@ function syncBuyXGetYPromotionsInCart(tab = null) {
     const buyGetRules = window.posActivePromoRules.filter(r => r.promo_type === 'buy_x_get_y' || r.buy_qty > 1 || r.gift_product_id);
     if (buyGetRules.length === 0) return;
 
-    // 1. Dọn dẹp các món quà tặng cũ trước khi tính lại
-    tab.cart = tab.cart.filter(item => !item.is_gift);
+    // 1. Dọn dẹp các món quà tặng cũ trước khi tính lại (giữ lại quà tặng thủ công)
+    tab.cart = tab.cart.filter(item => !item.is_gift || item.is_manual_gift);
 
     // 2. Quét số lượng từng sản phẩm thường
     buyGetRules.forEach(rule => {
@@ -752,6 +752,9 @@ function renderActiveTabCart() {
                 : `-${formatMoney(itemDiscountVal)}`;
 
             const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
+            const manualGiftBadge = item.is_manual_gift 
+                ? '<span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mr-1">🎁 QUÀ TẶNG</span>' 
+                : '';
 
             const baseUnit = item.base_unit || item.unit || 'cái';
             const extraUnits = Array.isArray(item.units) ? item.units : [];
@@ -787,7 +790,7 @@ function renderActiveTabCart() {
 
                     <!-- Tên hàng hóa -->
                     <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
-                        ${comboBadge}${item.name}
+                        ${comboBadge}${manualGiftBadge}${item.name}
                     </div>
 
                     <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
@@ -804,6 +807,14 @@ function renderActiveTabCart() {
                                    class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-1 md:py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
                             <button onclick="changeItemQty(${idx}, 1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">+</button>
                         </div>
+                        ${(!item.is_gift && itemQty >= 2) ? `
+                        <div class="mt-1 flex justify-center">
+                            <button onclick="splitCartItemToGift(${idx}, 1)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 shadow-2xs transition inline-flex items-center gap-0.5" title="Tách 1 cái làm quà tặng 0đ"><span>🎁</span> Tách tặng</button>
+                        </div>` : ''}
+                        ${item.is_manual_gift ? `
+                        <div class="mt-1 flex justify-center">
+                            <button onclick="mergeManualGiftItem(${idx})" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-2xs transition" title="Gộp lại vào dòng bán thường">🔄 Gộp lại</button>
+                        </div>` : ''}
                         ${convHint}
                     </div>
 
@@ -898,6 +909,70 @@ function removeCartItem(idx) {
     renderInvoiceTabs();
     renderActiveTabCart();
 }
+
+function splitCartItemToGift(idx, qty = 1) {
+    const tab = getActiveTab();
+    if (!tab || !Array.isArray(tab.cart)) return;
+    const item = tab.cart[idx];
+    if (!item || item.is_gift || (item.quantity || 0) < 2) return;
+
+    const splitQty = Math.min(Math.max(1, parseInt(qty) || 1), item.quantity - 1);
+    item.quantity -= splitQty;
+
+    const existGift = tab.cart.find(i => i.product_id === item.product_id && i.is_manual_gift);
+    if (existGift) {
+        existGift.quantity += splitQty;
+    } else {
+        tab.cart.push({
+            product_id: item.product_id,
+            code: item.code,
+            name: item.name,
+            price: 0,
+            original_price: item.original_price || item.base_price || item.price || 0,
+            quantity: splitQty,
+            is_gift: true,
+            is_manual_gift: true,
+            gift_promo_name: 'Quà tặng thu ngân',
+            unit: item.unit || item.base_unit || 'cái',
+            base_unit: item.base_unit || item.unit || 'cái',
+            base_price: item.base_price || 0,
+            unit_ratio: item.unit_ratio || 1,
+            units: Array.isArray(item.units) ? item.units : [],
+            discount_val: 0,
+            discount_type: 'vnd'
+        });
+    }
+
+    renderInvoiceTabs();
+    renderActiveTabCart();
+}
+
+function mergeManualGiftItem(idx) {
+    const tab = getActiveTab();
+    if (!tab || !Array.isArray(tab.cart)) return;
+    const item = tab.cart[idx];
+    if (!item || !item.is_manual_gift) return;
+
+    const mainItem = tab.cart.find(i => i.product_id === item.product_id && !i.is_gift);
+    if (mainItem) {
+        mainItem.quantity += item.quantity;
+        tab.cart.splice(idx, 1);
+    } else {
+        item.is_gift = false;
+        item.is_manual_gift = false;
+        item.price = item.original_price || item.base_price || 0;
+        if (item.name && item.name.startsWith('🎁 [QUÀ TẶNG] ')) {
+            item.name = item.name.replace(/^🎁\s*\[QUÀ TẶNG\]\s*/, '');
+        }
+        delete item.gift_promo_name;
+    }
+
+    renderInvoiceTabs();
+    renderActiveTabCart();
+}
+
+window.splitCartItemToGift = splitCartItemToGift;
+window.mergeManualGiftItem = mergeManualGiftItem;
 
 // ----------------------------------------------------
 // POPUP CHỈNH ĐƠN GIÁ & CHIẾT KHẤU TỪNG MẶT HÀNG
@@ -4097,6 +4172,8 @@ window.isWholesaleOrder = isWholesaleOrder;
 window.updateModalPrintSizeButtons = updateModalPrintSizeButtons;
 window.populateModalPrintPresets = populateModalPrintPresets;
 window.changeModalPrintPreset = changeModalPrintPreset;
+window.splitCartItemToGift = splitCartItemToGift;
+window.mergeManualGiftItem = mergeManualGiftItem;
 
 // Khởi chạy an toàn cùng SPA
 window.initPOSModule = initPOS;
