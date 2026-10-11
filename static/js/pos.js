@@ -1553,25 +1553,43 @@ function updatePosPaymentAccountsUI() {
     const select = document.getElementById('pos-bank-account-select');
     if (!select || !window.posPaymentAccounts) return;
     const tab = getActiveTab();
+    // Tiền mặt: không đụng account_id (tránh gán TK bank làm backend hiểu là chuyển khoản)
+    if (!['transfer', 'card', 'wallet'].includes(tab.payment_method)) return;
     
-    // Ưu tiên tài khoản ngân hàng / ví
-    const accounts = window.posPaymentAccounts;
+    // Chỉ liệt kê tài khoản ngân hàng / ví (không có két tiền mặt)
+    const accounts = window.posPaymentAccounts.filter(a => a.account_type === 'bank' || a.account_type === 'ewallet');
+    if (!accounts.some(a => a.id === tab.account_id)) {
+        const firstBank = accounts.find(a => a.account_type === 'bank') || accounts[0];
+        tab.account_id = firstBank ? firstBank.id : null;
+    }
     select.innerHTML = accounts.map(a => {
         const isBank = a.account_type === 'bank';
-        const typeBadge = isBank ? '[NH]' : (a.account_type === 'ewallet' ? '[Ví]' : '[Két]');
+        const typeBadge = isBank ? '[NH]' : '[Ví]';
         const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
-        const isSel = tab.account_id ? tab.account_id === a.id : (isBank || a.is_default);
-        return `<option value="${a.id}" ${isSel ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
-    }).join('');
-
-    if (select.value) {
-        tab.account_id = parseInt(select.value);
-    }
+        const isSel = tab.account_id === a.id;
+        const detail = a.account_number ? `${a.bank_name || ''} ${a.account_number}`.trim() : '⚠ chưa có số TK';
+        return `<option value="${a.id}" ${isSel ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${detail}</option>`;
+    }).join('') || '<option value="">-- Chưa có tài khoản ngân hàng --</option>';
 }
 
 function onPosBankAccountChange(accId) {
     const tab = getActiveTab();
-    tab.account_id = parseInt(accId);
+    tab.account_id = parseInt(accId) || null;
+}
+
+// Trả về thông báo lỗi nếu 1 trong các TK nhận thiếu ngân hàng/số TK, ngược lại null.
+function getBankAccountError(accIds) {
+    const accounts = window.posPaymentAccounts || [];
+    for (const id of accIds) {
+        const acc = accounts.find(a => a.id === id);
+        if (!acc) return "Vui lòng chọn tài khoản ngân hàng nhận tiền!";
+        if (acc.account_type !== 'bank') continue; // ví điện tử: không bắt buộc VietQR
+        const validBank = typeof isVietQRBankCode === 'function' ? isVietQRBankCode(acc.bank_name) : !!acc.bank_name;
+        if (!validBank || !acc.account_number) {
+            return `Tài khoản "${acc.name}" chưa chọn Ngân hàng hoặc chưa có Số tài khoản.\nVào Sổ quỹ > Tài khoản thanh toán để cập nhật trước khi thu chuyển khoản.`;
+        }
+    }
+    return null;
 }
 
 function toggleUsePoints() {
@@ -1828,6 +1846,16 @@ async function submitPOSOrder() {
             alert("Tổng các hình thức thanh toán (" + formatMoney(paidAmount) + ") chưa đủ số tiền cần trả (" + formatMoney(finalAmount) + ")!");
             return;
         }
+    }
+
+    // Chuyển khoản/thẻ/ví: TK nhận phải có ngân hàng + số TK hợp lệ để in VietQR
+    const accIdsToCheck = tab.split_payment
+        ? splitPayments.filter(p => p.method === 'transfer' || p.method === 'card').map(p => p.account_id)
+        : (['transfer', 'card', 'wallet'].includes(tab.payment_method) && paidAmount > 0 ? [tab.account_id] : []);
+    const accErr = getBankAccountError(accIdsToCheck);
+    if (accErr) {
+        alert(accErr);
+        return;
     }
 
     const staffSelect = document.getElementById('pos-staff-select');
@@ -2299,8 +2327,8 @@ function resolveOrderBankAccount(ord, isDraft = false) {
                 return {
                     id: acc.id,
                     name: acc.name,
-                    bank_name: acc.bank_name || acc.name,
-                    account_number: acc.account_number || acc.code || '',
+                    bank_name: acc.bank_name || '',
+                    account_number: acc.account_number || '',
                     account_holder: acc.account_holder || ''
                 };
             }
@@ -2317,14 +2345,14 @@ function resolveOrderBankAccount(ord, isDraft = false) {
                 bAcc = accounts.find(a => a.id === tab.account_id);
             }
             if (!bAcc) {
-                bAcc = accounts.find(a => a.account_type === 'bank') || accounts.find(a => a.account_type === 'ewallet') || accounts[0] || null;
+                bAcc = accounts.find(a => a.account_type === 'bank') || accounts.find(a => a.account_type === 'ewallet') || null;
             }
             if (bAcc) {
                 return {
                     id: bAcc.id,
                     name: bAcc.name,
-                    bank_name: bAcc.bank_name || bAcc.name,
-                    account_number: bAcc.account_number || bAcc.code || '',
+                    bank_name: bAcc.bank_name || '',
+                    account_number: bAcc.account_number || '',
                     account_holder: bAcc.account_holder || ''
                 };
             }

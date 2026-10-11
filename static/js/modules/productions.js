@@ -2268,7 +2268,7 @@
                     document.getElementById('acc-code-input').value = acc.code || '';
                     document.getElementById('acc-name-input').value = acc.name || '';
                     document.getElementById('acc-type-select').value = acc.account_type || 'cash';
-                    document.getElementById('acc-bank-name').value = acc.bank_name || '';
+                    fillBankSelect(document.getElementById('acc-bank-name'), acc.bank_name);
                     document.getElementById('acc-bank-number').value = acc.account_number || '';
                     document.getElementById('acc-bank-holder').value = acc.account_holder || '';
                     document.getElementById('acc-initial-balance').value = acc.initial_balance || 0;
@@ -2284,7 +2284,7 @@
                 document.getElementById('acc-code-input').value = 'TK-' + Math.floor(100 + Math.random() * 900);
                 document.getElementById('acc-name-input').value = '';
                 document.getElementById('acc-type-select').value = 'bank';
-                document.getElementById('acc-bank-name').value = '';
+                fillBankSelect(document.getElementById('acc-bank-name'), '');
                 document.getElementById('acc-bank-number').value = '';
                 document.getElementById('acc-bank-holder').value = '';
                 document.getElementById('acc-initial-balance').value = '0';
@@ -2329,6 +2329,10 @@
 
             if (!code || !name) {
                 alert('Vui lòng nhập đầy đủ Mã và Tên tài khoản!');
+                return;
+            }
+            if (accountType === 'bank' && (!bankName || !accountNumber)) {
+                alert('Tài khoản ngân hàng cần chọn Ngân hàng và nhập Số tài khoản để tạo mã VietQR!');
                 return;
             }
 
@@ -2389,7 +2393,7 @@
             document.getElementById('comp-address').value = currentSettings.shop_address || '';
             document.getElementById('comp-phone').value = currentSettings.shop_phone || '';
             document.getElementById('comp-footer').value = currentSettings.shop_footer || '';
-            document.getElementById('comp-bank-code').value = currentSettings.shop_bank_code || 'MB';
+            fillBankSelect(document.getElementById('comp-bank-code'), currentSettings.shop_bank_code || 'MB');
             document.getElementById('comp-bank-account').value = currentSettings.shop_bank_account || '';
             document.getElementById('comp-bank-owner').value = currentSettings.shop_bank_owner || '';
             document.getElementById('comp-qr-mode').value = currentSettings.shop_qr_mode || 'vietqr';

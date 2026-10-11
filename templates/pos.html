@@ -370,6 +370,12 @@
                         </div>
                     </div>
 
+                    <!-- Chọn Tài Khoản Ngân Hàng / Thụ Hưởng (khi chuyển khoản hoặc thẻ) -->
+                    <div id="pos-bank-account-box" class="hidden pt-1">
+                        <div class="text-[11px] font-bold text-sky-700 mb-1">🏦 Tài khoản nhận tiền (*):</div>
+                        <select id="pos-bank-account-select" onchange="onPosBankAccountChange(this.value)" class="w-full border border-sky-300 bg-sky-50/50 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"></select>
+                    </div>
+
                     <!-- Nút tiền gợi ý nhanh (Quick cash buttons) -->
                     <div class="pt-1">
                         <div class="text-[11px] font-bold text-slate-400 mb-1">Gợi ý tiền mặt:</div>
@@ -556,6 +562,7 @@
     </div>
 
     <!-- Dedicated POS Logic -->
-    <script src="/static/js/pos.js?v=20261007_03"></script>
+    <script src="/static/js/banks.js?v=20261011_01"></script>
+    <script src="/static/js/pos.js?v=20261011_01"></script>
 </body>
 </html>
