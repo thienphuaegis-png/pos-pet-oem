@@ -1,48 +1,53 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-10 — Sửa Lỗi In Ấn Toàn Diện: Bộ Chọn Mẫu Đa Dạng, Ưu Tiên Mẫu Tùy Chỉnh, In Đậm Chuẩn, Khổ A5 Không Nhảy Trang, Chống Ghi Đè Đa Máy & Tailwind Offline 100%
-**Server:** `http://127.0.0.1:8998` / `http://127.0.0.1:8999` — FastAPI + SQLite (`data/pos.db` & `C:/POS`)
+**Checkpoint:** 2026-10-11 — Đổi/Trả Hàng Toàn Diện, Tách Quà Tặng 0 đ Trực Tiếp Trên Giỏ, Giữ Mẫu In Header & Đồng Bộ Tài Khoản VietQR Theo Phương Thức Thanh Toán
+**Server:** `http://127.0.0.1:8000` / `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db` & `C:/POS`)
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2` & Sync to `C:/POS`
+**Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
 **Archive Log:** `docs/archive/STATE_2026_09.md`
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-10)
-- **Bộ Chọn Mẫu In Đa Dạng & Ưu Tiên Mẫu Tùy Chỉnh (`static/js/pos.js`, `templates/index.html`, `templates/pos.html`):**
-  - Thêm dropdown `#modal-print-preset-select` ngay cạnh 2 nút K80/A4 trên popup in, nạp động mọi preset.
-  - Xóa bỏ việc ép cứng mẫu mặc định: hàm `findBestPresetForSize` ưu tiên giữ nguyên mẫu anh đang chọn trong Cài Đặt (ví dụ: "K80 mới", 2 mẫu "A4 Đại Lý (Mẫu Mới)").
-- **Chuẩn Hóa In Đậm & Khổ Giấy A5 (`static/js/pos.js`, `static/js/modules/productions.js`):**
-  - Sửa `mapPresetKeyToBoldKey`: kiểm tra trực tiếp `paper_size` và `doc_type` thay vì match string, tránh mẫu A4 tự tạo bị gán nhầm sang K80 lẻ.
-  - Hàm `printInvoiceDirectly` ưu tiên cờ `is_bold_all` của từng template; sửa kích thước canvas & CSS `@page` khổ A5 triệt tiêu trang trắng thừa.
-- **Chống Ghi Đè Cài Đặt Đa Máy & Chuẩn Hóa Popup `/pos` (`routers/settings.py`, `templates/pos.html`):**
-  - API `/api/settings/template` tự động merge dictionary presets giữa các máy, tránh ghi đè làm mất mẫu máy khác.
-  - Trang `/pos` chuyển nút in sang `printInvoiceDirectly` qua iframe cô lập chuẩn POS.
-- **Offline Tailwind CSS 100% (`static/js/tailwind.js`, `templates/*.html`):**
-  - Tải lưu trữ `tailwind.js` cục bộ (407 KB), loại bỏ hoàn toàn phụ thuộc `cdn.tailwindcss.com`, bảo đảm giao diện không vỡ khi mất mạng.
-- **Bộ Kiểm Thử:** `tests/test_dynamic_print_modal_preset_selector.py` pass 5/5, toàn bộ 22/22 print test pass.
+## 1. Phiên Hiện Tại ✅ (2026-10-11)
+- **Đổi Hàng & Trả Hàng (Return & Exchange) Chuẩn Bán Lẻ (`database.py`, `routers/pos.py`, `templates/index.html`, `static/js/modules/productions.js`):**
+  - Tạo bảng `order_returns` và `order_return_items`, bảo toàn hóa đơn gốc (`orders`), sinh mã chứng từ `RET-YYYYMMDD-xxxx`.
+  - API tính SL khả dụng (`quantity_available`) và đơn giá net đã phân bổ giảm giá.
+  - Xử lý đổi/trả trong 1 transaction an toàn: hoàn kho (tùy chọn), trừ kho món đổi mới, hạch toán thu/chi Sổ Quỹ hoặc cấn trừ công nợ/ví.
+  - Giao diện modal 2 cột `#modal-order-return-exchange` trực quan, tự động tính bù trừ thu thêm hoặc hoàn trả.
+- **Tách Dòng Sản Phẩm Làm Quà Tặng (0 đ) Tại Quầy (`static/js/pos.js`):**
+  - Thêm nút `🎁 Tách tặng` khi SL $\ge 2$, sinh dòng quà tặng giá 0 đ với cờ `is_manual_gift: true` và badge `🎁 QUÀ TẶNG`.
+  - Thêm nút `🔄 Gộp lại` để thu ngân hoàn tác đưa số lượng về dòng bán thường.
+  - Chống quét trùng barcode gộp nhầm và bảo vệ không bị xóa bởi chương trình khuyến mãi tự động Mua X Tặng Y.
+- **Sửa Lỗi In POS: Ưu Tiên Mẫu In Header & Đồng Bộ Tài Khoản Chuyển Khoản (`static/js/pos.js`, `routers/pos.py`):**
+  - Giữ nguyên 100% mẫu in đã chọn trên dropdown `#pos-template-select` góc trên bên phải khi mở popup in (cả in tạm tính và thanh toán).
+  - Khách trả Tiền Mặt: Ẩn mã VietQR ảo và số TK '0', hiển thị badge `💵 ĐÃ THANH TOÁN TIỀN MẶT`.
+  - Khách Chuyển Khoản: Nạp đúng tài khoản thu ngân đang chọn tại `#pos-bank-account-select`, hiển thị đầy đủ ngân hàng, số TK thật và mã VietQR chuẩn.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- `tests/test_dynamic_print_modal_preset_selector.py`: **PASS 5/5**
-- Toàn bộ 22/22 print test cases pass 100%.
+- `tests/test_order_return_exchange.py`: **PASS 9/9**
+- `tests/test_pos_split_gift_item.py`: **PASS 2/2**
+- `tests/test_pos_print_template_and_bank_sync.py`: **PASS 3/3**
+- Playwright Browser Tests: Giỏ hàng hiển thị mượt mà 0 lỗi console, modal in khớp mẫu và tài khoản ngân hàng.
 
 ---
 
 ## 3. Files Thay Đổi Chính
 | Module / File | Trách nhiệm |
 |---|---|
-| `static/js/pos.js` | Dropdown chọn mẫu, `findBestPresetForSize`, kiểm tra `is_bold_all`, sửa canvas/iframe khổ A5 |
-| `static/js/modules/productions.js` | Sửa `mapPresetKeyToBoldKey` nhận diện `paper_size`/`doc_type`, đồng bộ toggle in đậm |
-| `routers/settings.py` | Merge presets tránh xung đột ghi đè giữa nhiều máy trạm |
-| `templates/index.html` & `pos.html` | Thêm `#modal-print-preset-select`, dùng `printInvoiceDirectly`, nạp Tailwind offline |
-| `static/js/tailwind.js` | Thư viện Tailwind CSS chạy nội bộ không cần internet |
-| `tests/test_dynamic_print_modal_preset_selector.py` | 5 unit test tự động xác thực toàn bộ logic |
+| `database.py` | Schema `order_returns` và `order_return_items` |
+| `routers/pos.py` | API endpoints đổi/trả hàng, kiểm tra `bank_account` theo phương thức thanh toán |
+| `schemas.py` | Pydantic schemas cho đổi/trả hàng |
+| `static/js/pos.js` | Tách dòng quà tặng, gộp lại, ưu tiên mẫu in header, chuẩn hóa VietQR theo cash/transfer |
+| `static/js/modules/productions.js` | Modal đổi/trả 2 cột, chặn lỗi null innerHTML `renderPropsPanel` |
+| `templates/index.html` | Modal `#modal-order-return-exchange` và nút gọi đổi/trả |
+| `PROJECT_MAP.html` | Cập nhật Roadmap v5.1 lưu vết đầy đủ tính năng |
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] `ecomm-sync`: Nghiên cứu kịch bản kéo đơn sàn TMĐT (Shopee/TikTok Shop) tự động trừ tồn kho.
-- [ ] `bill-5`: Kiểm tra và chuẩn hóa in ấn K80/A4 trên máy in vật lý tại quầy thực tế.
-- [ ] `cloud-2`: Tích hợp đồng bộ dữ liệu thời gian thực giữa quầy offline và Supabase Cloud.
+- [ ] Test thực tế in hóa đơn K80 & A4 trên máy in tại quầy.
+- [ ] Kiểm tra báo cáo tổng hợp dòng tiền sau các giao dịch đổi/trả hàng.
+- [ ] Tích hợp đồng bộ dữ liệu thời gian thực giữa quầy offline và Supabase Cloud.
 

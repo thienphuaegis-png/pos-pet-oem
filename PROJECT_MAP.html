@@ -642,9 +642,15 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-09)
-    const ROADMAP_VERSION = 'v5.0-2026-10-09-wheel-guard-spa-pricing-oem-topup-hotkeys';
+    const ROADMAP_VERSION = 'v5.1-2026-10-11-return-exchange-gift-split-print-sync';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-09)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-11)
+      { id: 'pos-order-return-and-exchange', cat: 'Logic', title: 'Đổi Hàng & Trả Hàng (Return & Exchange) Theo Đơn Gốc, Chứng Từ RET-... & Hạch Toán Dòng Tiền', done: true, note: 'Tạo phiếu RET-..., tự tính SL khả dụng & đơn giá net đã trừ KM, nhập kho món trả (tùy chọn), trừ kho món đổi, tính bù trừ thu thêm / chi hoàn trong 1 transaction an toàn, tích hợp modal 2 cột' },
+      { id: 'pos-split-cart-item-to-gift', cat: 'UI', title: 'Tách Dòng Sản Phẩm Làm Quà Tặng (0 đ) Trực Tiếp Trên Giỏ Hàng & Hoàn Tác Gộp Lại', done: true, note: 'Nút 🎁 Tách tặng khi SL >= 2, sinh dòng quà tặng giá 0 đ, badge Quà Tặng, nút 🔄 Gộp lại, chống quét trùng barcode và bảo vệ không bị xóa bởi KM Mua X Tặng Y' },
+      { id: 'pos-print-template-and-bank-sync', cat: 'BILL', title: 'Ưu Tiên Mẫu In Đã Chọn Header POS & Chuẩn Hóa Thông Tin Chuyển Khoản / VietQR Theo Phương Thức Thanh Toán', done: true, note: 'Giữ nguyên 100% mẫu in đã chọn từ dropdown góc trên bên phải; đơn tiền mặt ẩn VietQR hiển thị badge Đã Thu Tiền Mặt; đơn chuyển khoản hiển thị đúng số tài khoản/ngân hàng thật' },
+      { id: 'pos-promotions-buy-x-get-y', cat: 'Logic', title: 'Khuyến Mãi Mua X Tặng Y (Buy X Get Y) & Tự Động Thêm Quà Tặng Vào Giỏ Hàng', done: true, note: 'Tùy chọn quà tặng cùng loại hoặc khác loại, nhân lũy tiến theo số lượng mua, tự động tính toán và chèn dòng quà tặng giá 0 đ vào giỏ POS' },
+
+      // CẬP NHẬT (2026-10-09)
       { id: 'pos-ux-wheel-guard-and-hotkeys', cat: 'UI', title: 'Wheel Guard Chặn Lăn Chuột Nhảy Số, Tự Động Định Dạng Tiền Tệ, Đóng Modal Bằng ESC & Bảng Phím Tắt F1-F10', done: true, note: 'Chặn hoàn toàn cuộn chuột làm thay đổi số lượng; định dạng real-time phân tách hàng nghìn 1.500.000; để trống các ô giá vốn/phụ thu; phím ESC đóng mọi popup; tích hợp bộ phím tắt quầy thu ngân F1-F10 kèm modal hướng dẫn' },
       { id: 'spa-auto-pricing-instant-0ms', cat: 'PROD', title: 'Tính Giá Spa Tự Động 0ms, So Khớp Không Phân Biệt Hoa Thường & Dải Cân Vượt Trần Thông Minh', done: true, note: 'Tính giá tức thì 0ms ở client từ allPetPricingData, backend dùng COLLATE NOCASE; tự động áp mức giá trần cao nhất khi cân nặng thú cưng vượt mức max_weight' },
       { id: 'unified-ui-confirm-modal', cat: 'UI', title: 'Chuẩn Hóa Hộp Thoại Xác Nhận: Thay Thế Toàn Bộ Confirm Trình Duyệt Bằng Modal POS Đẳng Cấp', done: true, note: 'Loại bỏ hoàn toàn window.confirm() dính domain ngrok; áp dụng showConfirmModal dạng async Promise với backdrop blur, icon phân loại màu, nút Xác Nhận & Hoàn Tác' },
