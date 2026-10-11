@@ -23,6 +23,7 @@ class OrderCreate(BaseModel):
     note: Optional[str] = ""
     warehouse_id: Optional[int] = 1 # Kho xuất nguyên liệu
     account_id: Optional[int] = None
+    payment_method: Optional[str] = "cash"
     shift_id: Optional[int] = None
     items: List[OrderItemIn]
     payments: Optional[List[PaymentSplitIn]] = None

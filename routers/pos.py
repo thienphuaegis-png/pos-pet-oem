@@ -356,20 +356,57 @@ def get_order_detail(code: str):
     is_cash_payment = False
 
     non_cash_methods = ('transfer', 'card', 'wallet')
-    non_cash_payments = [p for p in payments if p.get("method") in non_cash_methods and p.get("account_id")]
+    non_cash_payments = [p for p in payments if p.get("method") in non_cash_methods]
 
     if non_cash_payments:
-        acc_ids = [p["account_id"] for p in non_cash_payments]
-        cur.execute("""
-            SELECT id, code, name, account_type, bank_name, account_number, account_holder
-            FROM payment_accounts
-            WHERE id IN ({})
-            ORDER BY CASE WHEN account_type = 'bank' THEN 0 ELSE 1 END
-            LIMIT 1
-        """.format(",".join("?" * len(acc_ids))), acc_ids)
-        acc_row = cur.fetchone()
-        if acc_row:
-            bank_account_info = dict(acc_row)
+        acc_ids = [p["account_id"] for p in non_cash_payments if p.get("account_id")]
+        if acc_ids:
+            cur.execute("""
+                SELECT id, code, name, account_type, bank_name, account_number, account_holder
+                FROM payment_accounts
+                WHERE id IN ({})
+                ORDER BY CASE WHEN account_type = 'bank' THEN 0 ELSE 1 END
+                LIMIT 1
+            """.format(",".join("?" * len(acc_ids))), acc_ids)
+            acc_row = cur.fetchone()
+            if acc_row:
+                bank_account_info = dict(acc_row)
+        if not bank_account_info:
+            cur.execute("""
+                SELECT id, code, name, account_type, bank_name, account_number, account_holder
+                FROM payment_accounts
+                WHERE account_type = 'bank' AND is_active = 1
+                ORDER BY is_default DESC, id ASC
+                LIMIT 1
+            """)
+            acc_row = cur.fetchone()
+            if acc_row:
+                bank_account_info = dict(acc_row)
+
+        # Neu bank_account_info thieu chi tiet ngan hang (bank_name/account_number), fallback ve settings
+        if bank_account_info and (not bank_account_info.get("bank_name") or not bank_account_info.get("account_number")):
+            cur.execute("SELECT key, value FROM settings WHERE key IN ('shop_bank_code', 'shop_bank_account', 'shop_bank_owner')")
+            sett_map = {r["key"]: r["value"] for r in cur.fetchall()}
+            if not bank_account_info.get("bank_name") and sett_map.get("shop_bank_code"):
+                bank_account_info["bank_name"] = sett_map["shop_bank_code"]
+            if not bank_account_info.get("account_number") and sett_map.get("shop_bank_account"):
+                bank_account_info["account_number"] = sett_map["shop_bank_account"]
+            if not bank_account_info.get("account_holder") and sett_map.get("shop_bank_owner"):
+                bank_account_info["account_holder"] = sett_map["shop_bank_owner"]
+        elif not bank_account_info:
+            cur.execute("SELECT key, value FROM settings WHERE key IN ('shop_bank_code', 'shop_bank_account', 'shop_bank_owner')")
+            sett_map = {r["key"]: r["value"] for r in cur.fetchall()}
+            if sett_map.get("shop_bank_account"):
+                bank_account_info = {
+                    "id": None,
+                    "code": "SETTINGS",
+                    "name": sett_map.get("shop_bank_owner") or "Ngân hàng",
+                    "account_type": "bank",
+                    "bank_name": sett_map.get("shop_bank_code") or "MB",
+                    "account_number": sett_map.get("shop_bank_account") or "",
+                    "account_holder": sett_map.get("shop_bank_owner") or ""
+                }
+        is_cash_payment = False
     elif payments and all(p.get("method") == 'cash' for p in payments):
         bank_account_info = None
         is_cash_payment = True
@@ -1124,18 +1161,34 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, shift_id))
             else:
                 acc_id = getattr(req, "account_id", None)
+                pay_method = getattr(req, "payment_method", None) or "cash"
                 if not acc_id:
-                    cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                    row_acc = cur.fetchone()
-                    acc_id = row_acc[0] if row_acc else None
+                    if pay_method in ("transfer", "card", "wallet"):
+                        cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'bank' AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+                        row_acc = cur.fetchone()
+                        acc_id = row_acc[0] if row_acc else None
+                    else:
+                        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+                        row_acc = cur.fetchone()
+                        acc_id = row_acc[0] if row_acc else None
+                else:
+                    cur.execute("SELECT account_type FROM payment_accounts WHERE id = ?", (acc_id,))
+                    row_chk = cur.fetchone()
+                    if row_chk:
+                        acc_type = row_chk[0]
+                        if acc_type == 'bank' and pay_method == 'cash':
+                            pay_method = 'transfer'
+                        elif acc_type == 'ewallet' and pay_method == 'cash':
+                            pay_method = 'wallet'
+
                 cur.execute("""
                 INSERT INTO order_payments (order_id, method, amount, account_id)
-                VALUES (?, 'cash', ?, ?)
-                """, (order_id, actual_paid, acc_id))
+                VALUES (?, ?, ?, ?)
+                """, (order_id, pay_method, actual_paid, acc_id))
                 cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                 VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code}", acc_id, shift_id))
+                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code} ({pay_method})", acc_id, shift_id))
 
         # Tích điểm và thăng hạng tự động (Loyalty / Points / Auto-upgrade)
         points_earned = 0

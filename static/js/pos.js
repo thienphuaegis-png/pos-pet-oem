@@ -1847,6 +1847,7 @@ async function submitPOSOrder() {
             discount: totalDiscount,
             shipping_fee: parseFloat(tab.shipping_fee) || 0,
             paid_amount: paidAmount,
+            payment_method: tab.payment_method || 'cash',
             account_id: tab.account_id || null,
             shift_id: (typeof currentShift !== 'undefined' && currentShift) ? currentShift.id : null,
             note: tab.note || "",
@@ -2331,6 +2332,16 @@ function resolveOrderBankAccount(ord, isDraft = false) {
             return null;
         }
     }
+
+    if (posSettings && posSettings.shop_bank_account && (!ord || !ord.is_cash_payment)) {
+        return {
+            id: null,
+            name: posSettings.shop_bank_owner || 'Ngân hàng',
+            bank_name: posSettings.shop_bank_code || 'MB',
+            account_number: posSettings.shop_bank_account,
+            account_holder: posSettings.shop_bank_owner || ''
+        };
+    }
     return null;
 }
 
@@ -2486,6 +2497,13 @@ function renderAndPrint(ord, isDraft = false) {
     if (!printArea) return;
     window.currentLoadedPrintOrder = ord;
     window.currentPrintIsDraft = !!isDraft;
+
+    if (!ord.bank_account && !ord.is_cash_payment) {
+        const resolved = resolveOrderBankAccount(ord, isDraft);
+        if (resolved) {
+            ord.bank_account = resolved;
+        }
+    }
 
     // Luôn lấy preset đang chọn từ posPrintConfig hoặc selector
     const selTemplate = document.getElementById('pos-template-select');
