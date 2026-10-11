@@ -2289,6 +2289,58 @@ function switchModalPrintSize(size) {
     }
 }
 
+function resolveOrderBankAccount(ord, isDraft = false) {
+    const accounts = window.posPaymentAccounts || [];
+    if (ord && ord.bank_account) {
+        return ord.bank_account;
+    }
+    if (ord && ord.is_cash_payment) {
+        return null;
+    }
+    if (ord && Array.isArray(ord.payments) && ord.payments.length > 0) {
+        const nonCash = ord.payments.find(p => ['transfer', 'card', 'wallet'].includes(p.method));
+        if (nonCash && nonCash.account_id) {
+            const acc = accounts.find(a => a.id === nonCash.account_id);
+            if (acc) {
+                return {
+                    id: acc.id,
+                    name: acc.name,
+                    bank_name: acc.bank_name || acc.name,
+                    account_number: acc.account_number || acc.code || '',
+                    account_holder: acc.account_holder || ''
+                };
+            }
+        }
+        const allCash = ord.payments.every(p => p.method === 'cash');
+        if (allCash) return null;
+    }
+
+    const tab = typeof getActiveTab === 'function' ? getActiveTab() : null;
+    if (isDraft && tab) {
+        if (['transfer', 'card', 'wallet'].includes(tab.payment_method)) {
+            let bAcc = null;
+            if (tab.account_id) {
+                bAcc = accounts.find(a => a.id === tab.account_id);
+            }
+            if (!bAcc) {
+                bAcc = accounts.find(a => a.account_type === 'bank') || accounts.find(a => a.account_type === 'ewallet') || accounts[0] || null;
+            }
+            if (bAcc) {
+                return {
+                    id: bAcc.id,
+                    name: bAcc.name,
+                    bank_name: bAcc.bank_name || bAcc.name,
+                    account_number: bAcc.account_number || bAcc.code || '',
+                    account_holder: bAcc.account_holder || ''
+                };
+            }
+        } else if (tab.payment_method === 'cash') {
+            return null;
+        }
+    }
+    return null;
+}
+
 async function showPrintModal(orderCode) {
     const selTemplate = document.getElementById('pos-template-select');
     if (selTemplate && selTemplate.value) {
@@ -2320,16 +2372,23 @@ async function showPrintModal(orderCode) {
         }
         const ord = await res.json();
         window.currentLoadedPrintOrder = ord;
-        const isWholesale = isWholesaleOrder(ord);
-        const defaultSize = isWholesale ? 'A4' : 'K80';
-        let defaultPreset = findBestPresetForSize(defaultSize, isWholesale);
-        if (!defaultPreset || !posPrintConfig.presets[defaultPreset]) {
-            defaultPreset = isWholesale ? 'a4_b2b' : (posPrintConfig.presets['k80_standard'] ? 'k80_standard' : 'k80_default');
+
+        let chosenPreset = (selTemplate && selTemplate.value && posPrintConfig.presets && posPrintConfig.presets[selTemplate.value]) ? selTemplate.value : null;
+        if (!chosenPreset) {
+            const savedKey = localStorage.getItem('pos_print_template');
+            if (savedKey && posPrintConfig.presets && posPrintConfig.presets[savedKey]) chosenPreset = savedKey;
         }
-        posPrintConfig.active_preset = defaultPreset;
-        if (selTemplate) selTemplate.value = defaultPreset;
-        updateModalPrintSizeButtons(defaultSize);
-        populateModalPrintPresets(defaultPreset);
+        if (!chosenPreset) {
+            const isWholesale = isWholesaleOrder(ord);
+            const defaultSize = isWholesale ? 'A4' : 'K80';
+            chosenPreset = findBestPresetForSize(defaultSize, isWholesale);
+        }
+        posPrintConfig.active_preset = chosenPreset;
+        if (selTemplate) selTemplate.value = chosenPreset;
+        const p = posPrintConfig.presets ? posPrintConfig.presets[chosenPreset] : null;
+        const curSize = (p && p.paper_size) ? (p.paper_size.startsWith('A4') ? 'A4' : (p.paper_size.startsWith('A5') ? 'A5' : 'K80')) : 'ALL';
+        updateModalPrintSizeButtons(curSize);
+        populateModalPrintPresets(chosenPreset);
         renderAndPrint(ord, false);
     } catch (e) {
         console.error("Lỗi showPrintModal:", e);
@@ -2398,16 +2457,33 @@ function printDraftOrder() {
         }))
     };
 
-    window.currentLoadedPrintOrder = draftOrder;
-    const defaultSize = isWholesale ? 'A4' : 'K80';
-    let defaultPreset = findBestPresetForSize(defaultSize, isWholesale);
-    if (!defaultPreset || !posPrintConfig.presets[defaultPreset]) {
-        defaultPreset = isWholesale ? 'a4_b2b' : (posPrintConfig.presets['k80_standard'] ? 'k80_standard' : 'k80_default');
+    // Đồng bộ tài khoản ngân hàng / tiền mặt cho đơn tạm tính
+    const resolvedBankAcc = resolveOrderBankAccount(draftOrder, true);
+    if (resolvedBankAcc) {
+        draftOrder.bank_account = resolvedBankAcc;
+        draftOrder.is_cash_payment = false;
+    } else if (tab.payment_method === 'cash') {
+        draftOrder.is_cash_payment = true;
+        draftOrder.bank_account = null;
     }
-    posPrintConfig.active_preset = defaultPreset;
-    if (selTemplate) selTemplate.value = defaultPreset;
-    updateModalPrintSizeButtons(defaultSize);
-    populateModalPrintPresets(defaultPreset);
+
+    window.currentLoadedPrintOrder = draftOrder;
+
+    let chosenPreset = (selTemplate && selTemplate.value && posPrintConfig.presets && posPrintConfig.presets[selTemplate.value]) ? selTemplate.value : null;
+    if (!chosenPreset) {
+        const savedKey = localStorage.getItem('pos_print_template');
+        if (savedKey && posPrintConfig.presets && posPrintConfig.presets[savedKey]) chosenPreset = savedKey;
+    }
+    if (!chosenPreset) {
+        const defaultSize = isWholesale ? 'A4' : 'K80';
+        chosenPreset = findBestPresetForSize(defaultSize, isWholesale);
+    }
+    posPrintConfig.active_preset = chosenPreset;
+    if (selTemplate) selTemplate.value = chosenPreset;
+    const p = posPrintConfig.presets ? posPrintConfig.presets[chosenPreset] : null;
+    const curSize = (p && p.paper_size) ? (p.paper_size.startsWith('A4') ? 'A4' : (p.paper_size.startsWith('A5') ? 'A5' : 'K80')) : 'ALL';
+    updateModalPrintSizeButtons(curSize);
+    populateModalPrintPresets(chosenPreset);
 
     renderAndPrint(draftOrder, true);
 }
@@ -2762,23 +2838,47 @@ function renderAndPrint(ord, isDraft = false) {
                 </table>
             `;
         } else if (e.type === 'b2b_footer_boxes') {
+            const isCashOnly = !!(ord.is_cash_payment || (ord.payments && ord.payments.length > 0 && ord.payments.every(p => p.method === 'cash')) || (!ord.bank_account && ord.payment_method === 'cash'));
             const bAcc = ord.bank_account || {};
-            const bankName = bAcc.bank_name || posSettings.shop_bank_code || 'MB Bank';
-            const bankNum = bAcc.account_number || posSettings.shop_bank_account || '123456789';
-            const bankOwner = bAcc.account_holder || posSettings.shop_bank_owner || posSettings.shop_name || 'CHỦ TÀI KHOẢN';
+            const bankName = bAcc.bank_name || 'MB Bank';
+            const bankNum = bAcc.account_number || '';
+            const bankOwner = bAcc.account_holder || '';
+
+            let paymentInfoHtml = '';
+            let qrBoxHtml = '';
+
+            if (isCashOnly) {
+                paymentInfoHtml = `
+                    <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                    <div>Hình thức: <b>Tiền mặt tại quầy</b></div>
+                    <div>Trạng thái: <b>Đã thanh toán đủ</b></div>
+                    <div style="color: #555; font-size: 9px; margin-top: 3px;">Mã HĐ: <i>${printData.ma_hoa_don}</i></div>
+                `;
+                qrBoxHtml = `
+                    <div style="font-weight: bold; font-size: 10px; color: #15803d; margin-top: 15px;">💵 ĐÃ THANH TOÁN TIỀN MẶT</div>
+                    <div style="font-size: 9px; color: #666; margin-top: 4px;">Hóa đơn đã thu tiền trực tiếp</div>
+                `;
+            } else {
+                paymentInfoHtml = `
+                    <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                    <div>Ngân hàng: <b>${bankName}</b></div>
+                    <div>Số TK: <b>${bankNum}</b></div>
+                    <div>Chủ TK: <b>${bankOwner}</b></div>
+                    <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
+                `;
+                qrBoxHtml = `
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                    ${getQRCodeHTML(ord.final_amount, ord.code, ord.bank_account)}
+                `;
+            }
 
             content = `
                 <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px;">
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
-                        <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
-                        <div>Ngân hàng: <b>${bankName}</b></div>
-                        <div>Số TK: <b>${bankNum}</b></div>
-                        <div>Chủ TK: <b>${bankOwner}</b></div>
-                        <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
+                        ${paymentInfoHtml}
                     </div>
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
-                        ${getQRCodeHTML(ord.final_amount, ord.code, ord.bank_account)}
+                        ${qrBoxHtml}
                     </div>
                     <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                         <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
@@ -4174,6 +4274,7 @@ window.populateModalPrintPresets = populateModalPrintPresets;
 window.changeModalPrintPreset = changeModalPrintPreset;
 window.splitCartItemToGift = splitCartItemToGift;
 window.mergeManualGiftItem = mergeManualGiftItem;
+window.resolveOrderBankAccount = resolveOrderBankAccount;
 
 // Khởi chạy an toàn cùng SPA
 window.initPOSModule = initPOS;

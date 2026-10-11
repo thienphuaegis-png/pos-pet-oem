@@ -351,27 +351,53 @@ def get_order_detail(code: str):
     cur.execute("SELECT method, amount, account_id FROM order_payments WHERE order_id = ?", (order["id"],))
     payments = [dict(r) for r in cur.fetchall()]
 
-    # Lay thong tin tai khoan ngan hang thuc te cua don hang (neu co payment bank/transfer)
+    # Lay thong tin tai khoan ngan hang thuc te cua don hang
     bank_account_info = None
-    account_ids = [p["account_id"] for p in payments if p.get("account_id")]
+    is_cash_payment = False
 
-    if account_ids:
-        # Uu tien tai khoan bank truoc
+    non_cash_methods = ('transfer', 'card', 'wallet')
+    non_cash_payments = [p for p in payments if p.get("method") in non_cash_methods and p.get("account_id")]
+
+    if non_cash_payments:
+        acc_ids = [p["account_id"] for p in non_cash_payments]
         cur.execute("""
             SELECT id, code, name, account_type, bank_name, account_number, account_holder
             FROM payment_accounts
             WHERE id IN ({})
             ORDER BY CASE WHEN account_type = 'bank' THEN 0 ELSE 1 END
             LIMIT 1
-        """.format(",".join("?" * len(account_ids))), account_ids)
+        """.format(",".join("?" * len(acc_ids))), acc_ids)
         acc_row = cur.fetchone()
         if acc_row:
             bank_account_info = dict(acc_row)
+    elif payments and all(p.get("method") == 'cash' for p in payments):
+        bank_account_info = None
+        is_cash_payment = True
+    else:
+        order_dict = dict(order)
+        order_acc_id = order_dict.get("account_id")
+        if order_acc_id:
+            cur.execute("""
+                SELECT id, code, name, account_type, bank_name, account_number, account_holder
+                FROM payment_accounts
+                WHERE id = ?
+            """, (order_acc_id,))
+            acc_row = cur.fetchone()
+            if acc_row:
+                acc_data = dict(acc_row)
+                if acc_data.get("account_type") == "cash":
+                    is_cash_payment = True
+                    bank_account_info = None
+                else:
+                    bank_account_info = acc_data
+        elif order_dict.get("payment_method") == "cash":
+            is_cash_payment = True
 
     result = dict(order)
     result["items"] = items
     result["payments"] = payments
     result["bank_account"] = bank_account_info
+    result["is_cash_payment"] = is_cash_payment
     conn.close()
     return result
 
