@@ -1,6 +1,6 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-11 — Đổi/Trả Hàng Toàn Diện, Tách Quà Tặng 0 đ Trực Tiếp Trên Giỏ, Giữ Mẫu In Header & Đồng Bộ Tài Khoản VietQR Theo Phương Thức Thanh Toán
+**Checkpoint:** 2026-10-11 — Chuẩn Hóa VietQR Dropdown Ngân Hàng, Sửa Lỗi Thanh Toán Bank Ra Tiền Mặt, Căn Lề Trái/Giữa/Phải Thiết Kế Mẫu In & Cố Định Mã Tạm Tính
 **Server:** `http://127.0.0.1:8000` / `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db` & `C:/POS`)
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2` & Sync to `C:/POS`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
@@ -9,52 +9,57 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-11)
-- **Đổi Hàng & Trả Hàng (Return & Exchange) Chuẩn Bán Lẻ (`database.py`, `routers/pos.py`, `templates/index.html`, `static/js/modules/productions.js`):**
+- **Chuẩn Hóa Ngân Hàng & Chặn Thanh Toán Thiếu Thông Tin (`static/js/banks.js`, `static/js/modules/productions.js`, `templates/index.html`):**
+  - Tạo `static/js/banks.js` định nghĩa danh sách 26 ngân hàng chuẩn NAPAS/VietQR (mã BIN, tên ngắn, tên đầy đủ).
+  - Thay ô nhập tự do thành combobox/dropdown chọn ngân hàng tại Modal Tài Khoản Thanh Toán & Cài Đặt VietQR.
+  - Chặn submit thanh toán Chuyển khoản nếu tài khoản nhận chưa có mã ngân hàng hợp lệ hoặc thiếu số tài khoản.
+- **Sửa Lỗi Backend Ghi Cứng 'cash' Khi Thanh Toán 1 Hình Thức & Rebuild Exe (`routers/pos.py`, `schemas.py`, `POS_Mastercare.exe`):**
+  - Lưu đúng `payment_method` (`transfer`, `card`, `wallet`, `cash`) vào `order_payments` và `cashbook` thay vì ép cứng `cash`.
+  - Rebuild lại `POS_Mastercare.exe` sạch (31MB) để máy chủ chạy bản đóng gói nhận được thay đổi backend Python.
+- **Hiển Thị Tên Ngân Hàng Đầy Đủ Trên Hóa Đơn (`static/js/banks.js`, `static/js/pos.js`, `static/js/modules/productions.js`):**
+  - Hiển thị format: `Ngân hàng TMCP Tiên Phong (TPBank)` thay vì chỉ hiện mã tắt `TPB`.
+- **Đồng Bộ Căn Lề Mẫu In & Cố Định Mã Tạm Tính (`static/js/modules/productions.js`, `static/js/pos.js`):**
+  - Khắc phục lỗi căn lề Trái/Giữa/Phải trên Designer không ăn ra bản in thật: Tự động cập nhật toạ độ `x` của khối theo lề trang in và điều chỉnh `align` đồng bộ.
+  - Logo được gắn `width: 100%; object-fit: contain` hỗ trợ căn giữa/trái/phải mượt mà.
+  - Hoán đổi toạ độ `y` khi sắp xếp thứ tự khối (▲/▼ và Drag-Drop) để bản in thật tuân thủ đúng thứ tự trực quan.
+  - Cố định mã `draft_code` trên từng tab giỏ hàng để tránh lệch mã khi in lại hóa đơn tạm tính nhiều lần.
+- **Đổi Hàng & Trả Hàng (Return & Exchange) Chuẩn Bán Lẻ (`database.py`, `routers/pos.py`, `templates/index.html`):**
   - Tạo bảng `order_returns` và `order_return_items`, bảo toàn hóa đơn gốc (`orders`), sinh mã chứng từ `RET-YYYYMMDD-xxxx`.
-  - API tính SL khả dụng (`quantity_available`) và đơn giá net đã phân bổ giảm giá.
-  - Xử lý đổi/trả trong 1 transaction an toàn: hoàn kho (tùy chọn), trừ kho món đổi mới, hạch toán thu/chi Sổ Quỹ hoặc cấn trừ công nợ/ví.
-  - Giao diện modal 2 cột `#modal-order-return-exchange` trực quan, tự động tính bù trừ thu thêm hoặc hoàn trả.
+  - Modal 2 cột trực quan, tính toán cấn trừ công nợ, hoàn kho, hạch toán Sổ Quỹ.
 - **Tách Dòng Sản Phẩm Làm Quà Tặng (0 đ) Tại Quầy (`static/js/pos.js`):**
-  - Thêm nút `🎁 Tách tặng` khi SL $\ge 2$, sinh dòng quà tặng giá 0 đ với cờ `is_manual_gift: true` và badge `🎁 QUÀ TẶNG`.
-  - Thêm nút `🔄 Gộp lại` để thu ngân hoàn tác đưa số lượng về dòng bán thường.
-  - Chống quét trùng barcode gộp nhầm và bảo vệ không bị xóa bởi chương trình khuyến mãi tự động Mua X Tặng Y.
-- **Sửa Lỗi In POS: Ưu Tiên Mẫu In Header & Đồng Bộ Tài Khoản Chuyển Khoản (`static/js/pos.js`, `routers/pos.py`):**
-  - Giữ nguyên 100% mẫu in đã chọn trên dropdown `#pos-template-select` góc trên bên phải khi mở popup in (cả in tạm tính và thanh toán).
-  - Khách trả Tiền Mặt: Ẩn mã VietQR ảo và số TK '0', hiển thị badge `💵 ĐÃ THANH TOÁN TIỀN MẶT`.
-  - Khách Chuyển Khoản: Nạp đúng tài khoản thu ngân đang chọn tại `#pos-bank-account-select`, hiển thị đầy đủ ngân hàng, số TK thật và mã VietQR chuẩn.
-
-- **Tự Động Đếm & Bump Phiên Bản Động (`version_helper.py`, `version.json`, `scripts/bump_version.py`, `server.py`):**
-  - Khắc phục triệt để lỗi quên/sót bump phiên bản: `version_helper.py` tự động đếm commit ahead từ Git để cộng dồn vào patch version khi code tính năng mới mà chưa chạy bump thủ công.
-  - Bổ sung `scripts/bump_version.py` hỗ trợ SemVer chuẩn (`--auto`, `--patch`, `--minor`, `--major`, `--tag`) tự động quét conventional commits và cập nhật changelog.
-  - Bump phiên bản mốc lên `v3.6.0` đồng bộ toàn bộ tính năng lớn đã hoàn thiện.
+  - Nút `🎁 Tách tặng` khi SL >= 2, sinh dòng quà tặng giá 0 đ (`is_manual_gift: true`).
+- **Tự Động Đếm & Bump Phiên Bản Động:**
+  - Bump phiên bản lên `v3.6.1`.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- `tests/test_version_bump_and_ahead_counting.py`: **PASS 3/3**
-- `tests/test_dynamic_version.py`: **PASS 5/5**
+- `tests/test_pos_bank_select_and_transfer.py`: **PASS 2/2**
+- `tests/test_pos_print_template_and_bank_sync.py`: **PASS 3/3**
+- `tests/test_print_autoflow_and_reorder.py`: **PASS 1/1**
+- `tests/test_print_designer_2col_and_clean_canvas.py`: **PASS 2/2**
+- `tests/test_html_integrity.py`: **PASS 5/5**
 - `tests/test_order_return_exchange.py`: **PASS 9/9**
 - `tests/test_pos_split_gift_item.py`: **PASS 2/2**
-- `tests/test_pos_print_template_and_bank_sync.py`: **PASS 3/3**
-- Playwright Browser Tests: Giỏ hàng hiển thị mượt mà 0 lỗi console, modal in khớp mẫu và tài khoản ngân hàng.
+- Node sandbox runner kiểm tra logic render và map mã VietQR chính xác 100%.
 
 ---
 
 ## 3. Files Thay Đổi Chính
 | Module / File | Trách nhiệm |
 |---|---|
-| `database.py` | Schema `order_returns` và `order_return_items` |
-| `routers/pos.py` | API endpoints đổi/trả hàng, kiểm tra `bank_account` theo phương thức thanh toán |
-| `schemas.py` | Pydantic schemas cho đổi/trả hàng |
-| `static/js/pos.js` | Tách dòng quà tặng, gộp lại, ưu tiên mẫu in header, chuẩn hóa VietQR theo cash/transfer |
-| `static/js/modules/productions.js` | Modal đổi/trả 2 cột, chặn lỗi null innerHTML `renderPropsPanel` |
-| `templates/index.html` | Modal `#modal-order-return-exchange` và nút gọi đổi/trả |
-| `PROJECT_MAP.html` | Cập nhật Roadmap v5.1 lưu vết đầy đủ tính năng |
+| `static/js/banks.js` | Danh mục 26 ngân hàng VietQR NAPAS & helper display name |
+| `static/js/modules/productions.js` | Đồng bộ toạ độ x/y căn lề Designer, combobox ngân hàng tài khoản |
+| `static/js/pos.js` | Cố định `draft_code`, chặn thanh toán thiếu STK, tên ngân hàng đầy đủ |
+| `templates/index.html` | Combobox chọn ngân hàng trong modal tài khoản thanh toán |
+| `templates/pos.html` | Thêm thẻ chọn ngân hàng thụ hưởng đồng bộ với index.html |
+| `POS_Mastercare.exe` | Rebuild exe mới (31MB) chứa backend fix payment_method |
+| `version.json` | Cập nhật version `v3.6.1` |
+| `PROJECT_STATE.md` | Checkpoint phiên làm việc |
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] Test thực tế in hóa đơn K80 & A4 trên máy in tại quầy.
+- [ ] Chạy `CAP_NHAT.bat` trên máy chủ và xác nhận in thử đơn chuyển khoản.
 - [ ] Kiểm tra báo cáo tổng hợp dòng tiền sau các giao dịch đổi/trả hàng.
 - [ ] Tích hợp đồng bộ dữ liệu thời gian thực giữa quầy offline và Supabase Cloud.
-

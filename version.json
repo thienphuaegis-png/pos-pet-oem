@@ -1,15 +1,29 @@
 {
-  "version": "v3.6.0",
+  "version": "v3.6.1",
   "build_date": "2026.10.11",
-  "commit_hash": "e703488",
+  "commit_hash": "a797403",
   "branch": "main",
   "release_title": "Bản Cập Nhật Lớn: Đồng Bộ Ví Spa, Mẫu In KiotViet, Kiểm Kê Linh Hoạt & Quản Lý Đơn OEM",
   "changelog": [
     {
+      "tag": "v3.6.1",
+      "date": "2026.10.11",
+      "title": "Bản phát hành v3.6.1 (2026.10.11)",
+      "is_new": true,
+      "items": [
+        "fix(print-designer): sync alignment coordinates with real print and preserve draft code",
+        "feat(pos-print): show full bank name on invoices (e.g. Ngân hàng TMCP Tiên Phong (TPBank))",
+        "fix(pos): bank picker for VietQR, transfer account excludes cash, block incomplete bank accounts; rebuild exe",
+        "fix(pos): sync payment method and fallback bank account info",
+        "fix(pos): remove points accumulation popup on checkout",
+        "feat(version): add automatic semver bump script and live commit counting"
+      ]
+    },
+    {
       "tag": "v3.6.0",
       "date": "2026.10.11",
       "title": "Bản phát hành v3.6.0 (2026.10.11)",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "docs(roadmap): update project map v5.1 and project state checkpoint",
         "fix(pos-print): preserve selected print template and sync bank account by payment method",
