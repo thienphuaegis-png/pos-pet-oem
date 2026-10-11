@@ -2879,7 +2879,7 @@ function renderAndPrint(ord, isDraft = false) {
         } else if (e.type === 'b2b_footer_boxes') {
             const isCashOnly = !!(ord.is_cash_payment || (ord.payments && ord.payments.length > 0 && ord.payments.every(p => p.method === 'cash')) || (!ord.bank_account && ord.payment_method === 'cash'));
             const bAcc = ord.bank_account || {};
-            const bankName = bAcc.bank_name || 'MB Bank';
+            const bankName = typeof getBankDisplayName === 'function' ? getBankDisplayName(bAcc.bank_name || 'MB') : (bAcc.bank_name || 'MB Bank');
             const bankNum = bAcc.account_number || '';
             const bankOwner = bAcc.account_holder || '';
 

@@ -2218,7 +2218,7 @@
                         const isCty = a.owner_type === 'COMPANY';
                         const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
                         const bankInfo = isBank 
-                            ? `<span class="font-bold text-slate-800">${a.bank_name || '-'}</span> - STK: <span class="font-mono font-bold">${a.account_number || '-'}</span> (${a.account_holder || '-'})`
+                            ? `<span class="font-bold text-slate-800">${a.bank_name ? getBankDisplayName(a.bank_name) : '-'}</span> - STK: <span class="font-mono font-bold">${a.account_number || '-'}</span> (${a.account_holder || '-'})`
                             : `<span class="text-gray-400 italic">Tiền mặt / không có STK</span>`;
 
                         return `
@@ -6518,7 +6518,7 @@
                         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px; pointer-events: none;">
                             <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                                 <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
-                                <div>Ngân hàng: <b>${currentSettings.shop_bank_code || 'MB Bank'}</b></div>
+                                <div>Ngân hàng: <b>${getBankDisplayName(currentSettings.shop_bank_code || 'MB')}</b></div>
                                 <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
                                 <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
                                 <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${mockData.ma_hoa_don}</i></div>
@@ -7489,7 +7489,7 @@
                         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px;">
                             <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                                 <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
-                                <div>Ngân hàng: <b>${currentSettings.shop_bank_code || 'MB Bank'}</b></div>
+                                <div>Ngân hàng: <b>${getBankDisplayName(currentSettings.shop_bank_code || 'MB')}</b></div>
                                 <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
                                 <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
                                 <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>

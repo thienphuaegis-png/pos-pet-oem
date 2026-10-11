@@ -57,6 +57,8 @@ out.fill_bad = els['acc-bank-name'].value;
 sandbox.fillBankSelect(els['acc-bank-name'], 'VCB');
 out.fill_ok = els['acc-bank-name'].value;
 out.bank_count = sandbox.VIETQR_BANKS.length;
+out.display_tpb = sandbox.getBankDisplayName('TPB');
+out.display_unknown = sandbox.getBankDisplayName('XYZ');
 out.bank_dupes = sandbox.VIETQR_BANKS.length - new Set(sandbox.VIETQR_BANKS.map(b => b.code)).size;
 console.log(JSON.stringify(out));
 """
@@ -76,6 +78,8 @@ def test_pos_bank_select_js():
     assert out["fill_bad"] == ""
     assert out["fill_ok"] == "VCB"
     assert out["bank_count"] >= 20 and out["bank_dupes"] == 0
+    assert out["display_tpb"] == "Ngân hàng TMCP Tiên Phong (TPBank)"
+    assert out["display_unknown"] == "XYZ"
 
 
 def test_create_order_single_transfer_saves_method():
