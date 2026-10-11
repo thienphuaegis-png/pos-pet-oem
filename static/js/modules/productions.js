@@ -4124,6 +4124,9 @@
                             <button onclick="viewOrderDetailModal('${ord.code}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold mr-1" title="Xem chi tiết">
                                 👁️ Xem
                             </button>
+                            <button onclick="openModalOrderReturn('${ord.code}')" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-xs font-bold mr-1" title="Đổi / Trả hàng">
+                                🔄 Đổi/Trả
+                            </button>
                             <button onclick="openModalEditOrder('${ord.code}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-xs font-bold mr-1" title="Sửa hóa đơn">
                                 ✏️ Sửa
                             </button>
@@ -4279,9 +4282,11 @@
                 if (readOnly) {
                     document.getElementById('btn-edit-order-from-view')?.classList.add('hidden');
                     document.getElementById('btn-delete-order-from-view')?.classList.add('hidden');
+                    document.getElementById('btn-return-order-from-view')?.classList.add('hidden');
                 } else {
                     document.getElementById('btn-edit-order-from-view')?.classList.remove('hidden');
                     document.getElementById('btn-delete-order-from-view')?.classList.remove('hidden');
+                    document.getElementById('btn-return-order-from-view')?.classList.remove('hidden');
                 }
 
                 document.getElementById('view-order-code').textContent = ord.code;
@@ -4353,6 +4358,7 @@
             currentViewedOrderCode = null;
             document.getElementById('btn-edit-order-from-view')?.classList.remove('hidden');
             document.getElementById('btn-delete-order-from-view')?.classList.remove('hidden');
+            document.getElementById('btn-return-order-from-view')?.classList.remove('hidden');
             if (window.orderViewOpenedFromHistory) {
                 window.orderViewOpenedFromHistory = false;
                 document.getElementById('modal-purchase-history')?.classList.remove('hidden');
@@ -4367,6 +4373,430 @@
                 showPrintModal(code);
             }
         }
+
+        // --- ĐỔI / TRẢ HÀNG (ORDER RETURN & EXCHANGE) ---
+        let currentReturnOrder = null;
+        let currentReturnItems = [];
+        let currentExchangeItems = [];
+        let returnProductsCache = null;
+
+        async function openModalOrderReturn(orderCode) {
+            if (!orderCode) return;
+            try {
+                const res = await fetch(`/api/pos/orders/${orderCode}/returnable-items`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    const msg = err.detail || 'Không thể lấy thông tin trả hàng cho đơn này!';
+                    if (window.showToast) window.showToast(msg, 'warning');
+                    else alert(msg);
+                    return;
+                }
+                const data = await res.json();
+                currentReturnOrder = data;
+                currentReturnItems = (data.items || []).map(it => ({
+                    id: it.id,
+                    product_id: it.product_id,
+                    product_name: it.product_name,
+                    product_code: it.product_code || '',
+                    unit: it.unit || '',
+                    unit_price_net: it.unit_price_net || 0,
+                    quantity_bought: it.quantity || 0,
+                    quantity_returned: it.quantity_returned || 0,
+                    quantity_available: it.quantity_available || 0,
+                    return_qty: 0,
+                    return_to_stock: 1,
+                    reason: ''
+                }));
+                currentExchangeItems = [];
+
+                const codeEl = document.getElementById('return-modal-order-code');
+                if (codeEl) codeEl.textContent = data.order_code;
+                const custEl = document.getElementById('return-modal-cust-name');
+                if (custEl) custEl.textContent = data.customer_name ? `Khách: ${data.customer_name}` : 'Khách lẻ';
+
+                const noteEl = document.getElementById('return-modal-note');
+                if (noteEl) noteEl.value = '';
+                const searchInput = document.getElementById('return-search-prod');
+                if (searchInput) searchInput.value = '';
+                const searchDropdown = document.getElementById('return-search-dropdown');
+                if (searchDropdown) searchDropdown.classList.add('hidden');
+
+                renderReturnItems();
+                renderExchangeItems();
+                updateReturnSummary();
+
+                document.getElementById('modal-order-return-exchange')?.classList.remove('hidden');
+            } catch (e) {
+                console.error('openModalOrderReturn error:', e);
+                if (window.showToast) window.showToast('Lỗi tải dữ liệu đổi trả!', 'error');
+                else alert('Lỗi tải dữ liệu đổi trả!');
+            }
+        }
+
+        function openModalOrderReturnFromView() {
+            const code = document.getElementById('view-order-code')?.textContent?.trim();
+            if (!code) return;
+            closeModalOrderView();
+            openModalOrderReturn(code);
+        }
+
+        function closeModalOrderReturn() {
+            document.getElementById('modal-order-return-exchange')?.classList.add('hidden');
+            currentReturnOrder = null;
+            currentReturnItems = [];
+            currentExchangeItems = [];
+        }
+
+        function renderReturnItems() {
+            const tbody = document.getElementById('return-items-tbody');
+            if (!tbody) return;
+            if (!currentReturnItems || currentReturnItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Không có món nào trong đơn hàng</td></tr>';
+                return;
+            }
+            tbody.innerHTML = currentReturnItems.map((item, idx) => {
+                const canReturn = item.quantity_available > 0;
+                const netFmt = (typeof formatMoney === 'function') ? formatMoney(item.unit_price_net) : item.unit_price_net.toLocaleString('vi-VN') + ' đ';
+                return `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100 ${canReturn ? '' : 'opacity-50 bg-slate-50'}">
+                        <td class="p-2">
+                            <div class="font-bold text-slate-800">${item.product_name}</div>
+                            <div class="text-[10px] text-gray-500">${item.product_code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
+                            <input type="text" placeholder="Lý do trả (nếu có)..." value="${item.reason || ''}"
+                                   onchange="onReturnItemReasonChange(${idx}, this.value)"
+                                   class="w-full text-[11px] text-slate-600 mt-1 border border-dashed border-slate-200 rounded px-1.5 py-0.5 bg-transparent focus:bg-white focus:border-indigo-400 focus:outline-none"
+                                   ${canReturn ? '' : 'disabled'}>
+                        </td>
+                        <td class="p-2 text-right font-mono text-slate-700 whitespace-nowrap">
+                            ${netFmt}
+                        </td>
+                        <td class="p-2 text-center font-mono">
+                            <span class="font-bold ${item.quantity_available > 0 ? 'text-emerald-700' : 'text-gray-400'}">${item.quantity_available}</span>
+                            <span class="text-[10px] text-gray-400 block">(Mua ${item.quantity_bought}${item.quantity_returned > 0 ? `, đã trả ${item.quantity_returned}` : ''})</span>
+                        </td>
+                        <td class="p-2 text-center">
+                            <input type="number" min="0" max="${item.quantity_available}" step="any"
+                                   value="${item.return_qty}"
+                                   oninput="onReturnItemQtyChange(${idx}, this.value)"
+                                   class="w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-indigo-500 ${item.return_qty > 0 ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white'}"
+                                   ${canReturn ? '' : 'disabled'}>
+                        </td>
+                        <td class="p-2 text-center">
+                            <input type="checkbox" ${item.return_to_stock ? 'checked' : ''}
+                                   onchange="onReturnItemStockToggle(${idx}, this.checked)"
+                                   title="Nhập lại tồn kho"
+                                   class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                                   ${canReturn ? '' : 'disabled'}>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function onReturnItemQtyChange(idx, val) {
+            if (!currentReturnItems[idx]) return;
+            let qty = parseFloat(val) || 0;
+            if (qty < 0) qty = 0;
+            if (qty > currentReturnItems[idx].quantity_available) {
+                qty = currentReturnItems[idx].quantity_available;
+                if (window.showToast) window.showToast(`Số lượng trả không thể vượt quá khả dụng (${qty})`, 'warning');
+            }
+            currentReturnItems[idx].return_qty = qty;
+            renderReturnItems();
+            updateReturnSummary();
+        }
+
+        function onReturnItemStockToggle(idx, checked) {
+            if (!currentReturnItems[idx]) return;
+            currentReturnItems[idx].return_to_stock = checked ? 1 : 0;
+        }
+
+        function onReturnItemReasonChange(idx, reason) {
+            if (!currentReturnItems[idx]) return;
+            currentReturnItems[idx].reason = (reason || '').trim();
+        }
+
+        async function loadReturnProductsCache() {
+            if (returnProductsCache && returnProductsCache.length > 0) return returnProductsCache;
+            try {
+                const res = await fetch('/api/products');
+                if (res.ok) {
+                    returnProductsCache = await res.json();
+                    return returnProductsCache;
+                }
+            } catch (e) {
+                console.error('loadReturnProductsCache error:', e);
+            }
+            return [];
+        }
+
+        async function handleReturnSearchInput(query) {
+            const dd = document.getElementById('return-search-dropdown');
+            const clearBtn = document.getElementById('return-search-clear');
+            if (!query || !query.trim()) {
+                if (dd) dd.classList.add('hidden');
+                if (clearBtn) clearBtn.classList.add('hidden');
+                return;
+            }
+            if (clearBtn) clearBtn.classList.remove('hidden');
+
+            const products = await loadReturnProductsCache();
+            const q = query.trim().toLowerCase();
+            const matches = products.filter(p => {
+                const name = (p.name || '').toLowerCase();
+                const code = (p.code || '').toLowerCase();
+                return name.includes(q) || code.includes(q);
+            }).slice(0, 15);
+
+            if (!dd) return;
+            if (matches.length === 0) {
+                dd.innerHTML = '<div class="p-3 text-center text-gray-400 text-xs">Không tìm thấy sản phẩm phù hợp</div>';
+                dd.classList.remove('hidden');
+                return;
+            }
+
+            dd.innerHTML = matches.map(p => {
+                const priceFmt = (typeof formatMoney === 'function') ? formatMoney(p.sell_price) : (p.sell_price || 0).toLocaleString('vi-VN') + ' đ';
+                return `
+                    <div class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0"
+                         onclick="addExchangeItem(${p.id})">
+                        <div>
+                            <span class="font-bold text-slate-800">${p.name}</span>
+                            <span class="text-[10px] text-gray-500 ml-1.5 font-mono">(${p.code || ''})</span>
+                            <span class="text-[10px] text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>
+                        </div>
+                        <div class="font-mono font-bold text-indigo-600 text-right">${priceFmt}</div>
+                    </div>
+                `;
+            }).join('');
+            dd.classList.remove('hidden');
+        }
+
+        function clearReturnSearch() {
+            const input = document.getElementById('return-search-prod');
+            if (input) input.value = '';
+            const dd = document.getElementById('return-search-dropdown');
+            if (dd) dd.classList.add('hidden');
+            const clearBtn = document.getElementById('return-search-clear');
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
+
+        async function addExchangeItem(productId) {
+            const products = await loadReturnProductsCache();
+            const prod = products.find(p => p.id === productId);
+            if (!prod) return;
+
+            const existing = currentExchangeItems.find(it => it.product_id === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                currentExchangeItems.push({
+                    product_id: prod.id,
+                    name: prod.name,
+                    code: prod.code || '',
+                    unit: prod.unit || '',
+                    price: prod.sell_price || 0,
+                    quantity: 1
+                });
+            }
+
+            clearReturnSearch();
+            renderExchangeItems();
+            updateReturnSummary();
+        }
+
+        function onExchangeItemQtyChange(idx, val) {
+            if (!currentExchangeItems[idx]) return;
+            let qty = parseFloat(val) || 0;
+            if (qty <= 0) {
+                removeExchangeItem(idx);
+                return;
+            }
+            currentExchangeItems[idx].quantity = qty;
+            renderExchangeItems();
+            updateReturnSummary();
+        }
+
+        function removeExchangeItem(idx) {
+            currentExchangeItems.splice(idx, 1);
+            renderExchangeItems();
+            updateReturnSummary();
+        }
+
+        function renderExchangeItems() {
+            const tbody = document.getElementById('exchange-items-tbody');
+            if (!tbody) return;
+            if (!currentExchangeItems || currentExchangeItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Chưa chọn món đổi mới nào</td></tr>';
+                return;
+            }
+            tbody.innerHTML = currentExchangeItems.map((item, idx) => {
+                const subtotal = item.quantity * item.price;
+                const priceFmt = (typeof formatMoney === 'function') ? formatMoney(item.price) : (item.price || 0).toLocaleString('vi-VN') + ' đ';
+                const subFmt = (typeof formatMoney === 'function') ? formatMoney(subtotal) : subtotal.toLocaleString('vi-VN') + ' đ';
+                return `
+                    <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                        <td class="p-2">
+                            <div class="font-bold text-slate-800">${item.name}</div>
+                            <div class="text-[10px] text-gray-500">${item.code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
+                        </td>
+                        <td class="p-2 text-right font-mono text-slate-700 whitespace-nowrap">
+                            ${priceFmt}
+                        </td>
+                        <td class="p-2 text-center">
+                            <input type="number" min="0.1" step="any" value="${item.quantity}"
+                                   oninput="onExchangeItemQtyChange(${idx}, this.value)"
+                                   class="w-14 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-indigo-500 bg-white">
+                        </td>
+                        <td class="p-2 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
+                            ${subFmt}
+                        </td>
+                        <td class="p-2 text-center">
+                            <button type="button" onclick="removeExchangeItem(${idx})" class="text-rose-500 hover:text-rose-700 font-bold text-sm px-1 leading-none" title="Xóa món này">&times;</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateReturnSummary() {
+            const returnTotal = currentReturnItems.reduce((acc, it) => acc + ((it.return_qty || 0) * (it.unit_price_net || 0)), 0);
+            const exchangeTotal = currentExchangeItems.reduce((acc, it) => acc + ((it.quantity || 0) * (it.price || 0)), 0);
+            const diff = exchangeTotal - returnTotal;
+
+            const elRefund = document.getElementById('return-modal-refund-total');
+            if (elRefund) elRefund.textContent = (typeof formatMoney === 'function') ? formatMoney(returnTotal) : returnTotal.toLocaleString('vi-VN') + ' đ';
+
+            const elExchange = document.getElementById('return-modal-exchange-total');
+            if (elExchange) elExchange.textContent = (typeof formatMoney === 'function') ? formatMoney(exchangeTotal) : exchangeTotal.toLocaleString('vi-VN') + ' đ';
+
+            const elDiff = document.getElementById('return-modal-diff-amount');
+            const elLabel = document.getElementById('return-modal-diff-label');
+            const elDesc = document.getElementById('return-modal-diff-desc');
+            const elIcon = document.getElementById('return-modal-diff-icon');
+            const box = document.getElementById('return-modal-diff-box');
+
+            if (diff > 0) {
+                if (elLabel) elLabel.textContent = 'Khách cần thanh toán thêm:';
+                if (elDesc) elDesc.textContent = 'Khoản thu thêm sẽ được hạch toán vào sổ quỹ';
+                if (elIcon) elIcon.textContent = '📥';
+                if (elDiff) {
+                    elDiff.textContent = '+' + ((typeof formatMoney === 'function') ? formatMoney(diff) : diff.toLocaleString('vi-VN') + ' đ');
+                    elDiff.className = 'font-mono text-base font-black text-emerald-700';
+                }
+                if (box) {
+                    box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-emerald-300 bg-emerald-50/70';
+                }
+            } else if (diff < 0) {
+                const absDiff = Math.abs(diff);
+                if (elLabel) elLabel.textContent = 'Cửa hàng cần hoàn lại cho khách:';
+                if (elDesc) elDesc.textContent = 'Khoản hoàn trả sẽ được hạch toán phiếu chi hoặc giảm nợ / hoàn ví';
+                if (elIcon) elIcon.textContent = '📤';
+                if (elDiff) {
+                    elDiff.textContent = '-' + ((typeof formatMoney === 'function') ? formatMoney(absDiff) : absDiff.toLocaleString('vi-VN') + ' đ');
+                    elDiff.className = 'font-mono text-base font-black text-rose-600';
+                }
+                if (box) {
+                    box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-rose-300 bg-rose-50/70';
+                }
+            } else {
+                if (elLabel) elLabel.textContent = 'Chênh lệch bù trừ:';
+                if (elDesc) elDesc.textContent = 'Đổi ngang giá';
+                if (elIcon) elIcon.textContent = '⚖️';
+                if (elDiff) {
+                    elDiff.textContent = '0 đ';
+                    elDiff.className = 'font-mono text-base font-black text-slate-800';
+                }
+                if (box) {
+                    box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-white';
+                }
+            }
+        }
+
+        async function submitOrderReturn() {
+            if (!currentReturnOrder) return;
+            const selectedReturns = currentReturnItems.filter(it => (it.return_qty || 0) > 0);
+            if (selectedReturns.length === 0) {
+                if (window.showToast) window.showToast('Vui lòng nhập số lượng trả cho ít nhất 1 sản phẩm!', 'warning');
+                else alert('Vui lòng nhập số lượng trả cho ít nhất 1 sản phẩm!');
+                return;
+            }
+
+            const payload = {
+                original_order_id: currentReturnOrder.order_id,
+                return_items: selectedReturns.map(it => ({
+                    product_id: it.product_id,
+                    original_item_id: it.id,
+                    quantity: it.return_qty,
+                    return_price: it.unit_price_net,
+                    return_to_stock: it.return_to_stock ? 1 : 0,
+                    reason: it.reason || ''
+                })),
+                exchange_items: currentExchangeItems.map(it => ({
+                    product_id: it.product_id,
+                    quantity: it.quantity,
+                    price: it.price
+                })),
+                refund_method: document.getElementById('return-modal-payment-method')?.value || 'cash',
+                note: document.getElementById('return-modal-note')?.value?.trim() || ''
+            };
+
+            const btnSubmit = document.getElementById('btn-submit-order-return');
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span>⏳</span> Đang xử lý...';
+            }
+
+            try {
+                const res = await fetch('/api/pos/returns', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Lỗi khi tạo phiếu đổi trả!');
+                }
+
+                const data = await res.json();
+                if (window.showToast) {
+                    window.showToast(`✅ Đã lập phiếu đổi/trả [${data.code}] thành công!`, 'success', 3500);
+                } else {
+                    alert(`Đã lập phiếu đổi/trả [${data.code}] thành công!`);
+                }
+
+                closeModalOrderReturn();
+
+                if (typeof loadOrdersList === 'function') {
+                    await loadOrdersList();
+                } else if (typeof loadOrders === 'function') {
+                    await loadOrders();
+                }
+            } catch (err) {
+                console.error('submitOrderReturn error:', err);
+                if (window.showToast) window.showToast(`❌ ${err.message}`, 'error');
+                else alert(`Lỗi: ${err.message}`);
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '<span>✅</span> Xác Nhận Đổi / Trả';
+                }
+            }
+        }
+
+        window.openModalOrderReturn = openModalOrderReturn;
+        window.openModalOrderReturnFromView = openModalOrderReturnFromView;
+        window.closeModalOrderReturn = closeModalOrderReturn;
+        window.onReturnItemQtyChange = onReturnItemQtyChange;
+        window.onReturnItemStockToggle = onReturnItemStockToggle;
+        window.onReturnItemReasonChange = onReturnItemReasonChange;
+        window.handleReturnSearchInput = handleReturnSearchInput;
+        window.clearReturnSearch = clearReturnSearch;
+        window.addExchangeItem = addExchangeItem;
+        window.onExchangeItemQtyChange = onExchangeItemQtyChange;
+        window.removeExchangeItem = removeExchangeItem;
+        window.submitOrderReturn = submitOrderReturn;
 
         // --- XÓA / SỬA ĐƠN HÀNG ---
         async function deleteOrder(code) {
@@ -6280,6 +6710,7 @@
 
         function renderPropsPanel() {
             const panel = document.getElementById('element-props-panel');
+            if (!panel) return;
             const elem = canvasElements.find(e => e.id === selectedElementId);
             if (!elem) {
                 panel.innerHTML = '<div class="text-gray-400 italic">Click vào một khối trên trang giấy để chỉnh sửa...</div>';
@@ -9183,6 +9614,9 @@
         window.printOEMInspectionFromDetail = printOEMInspectionFromDetail;
 
         window.viewOrderDetailModal = viewOrderDetailModal;
+        window.openModalOrderReturn = openModalOrderReturn;
+        window.openModalOrderReturnFromView = openModalOrderReturnFromView;
+        window.closeModalOrderReturn = closeModalOrderReturn;
         window.openCashbookLinkedDoc = openCashbookLinkedDoc;
         window.openCashbookDrawer = openCashbookDrawer;
         window.closeCashbookDrawer = closeCashbookDrawer;

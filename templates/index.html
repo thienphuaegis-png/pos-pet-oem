@@ -6433,6 +6433,9 @@
                             <button onclick="printCurrentViewedOrder()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1">
                                 🖨️ In Lại
                             </button>
+                            <button id="btn-return-order-from-view" onclick="openModalOrderReturnFromView()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold flex items-center gap-1" title="Đổi hoặc trả hàng từ hóa đơn này">
+                                🔄 Đổi / Trả Hàng
+                            </button>
                             <button id="btn-edit-order-from-view" onclick="openModalEditOrderFromView()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold flex items-center gap-1">
                                 ✏️ Sửa Hóa Đơn
                             </button>
@@ -6441,6 +6444,148 @@
                             </button>
                         </div>
                         <button onclick="closeModalOrderView()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: ĐỔI / TRẢ HÀNG (ORDER RETURN & EXCHANGE) -->
+            <div id="modal-order-return-exchange" class="fixed inset-0 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-2xl shadow-2xl w-[960px] max-w-full max-h-[92vh] flex flex-col border border-slate-200">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center px-5 py-3.5 border-b border-slate-200 bg-slate-50 rounded-t-2xl">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🔄</span>
+                            <h3 class="font-bold text-base text-slate-800">
+                                Đổi / Trả Hàng - Đơn hàng <span id="return-modal-order-code" class="text-indigo-600 font-mono"></span>
+                            </h3>
+                            <span id="return-modal-cust-name" class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-medium"></span>
+                        </div>
+                        <button type="button" onclick="closeModalOrderReturn()" class="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none p-1">&times;</button>
+                    </div>
+
+                    <!-- Body: 2 Cột -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-y-auto p-4 text-xs">
+                        <!-- Cột Trái: Hàng trả lại từ đơn gốc -->
+                        <div class="flex flex-col border border-slate-200 rounded-xl bg-slate-50/50 p-3">
+                            <div class="flex justify-between items-center mb-2 pb-1 border-b border-slate-200">
+                                <span class="font-bold text-slate-800 flex items-center gap-1">
+                                    <span>📦</span> Hàng trả lại từ đơn gốc
+                                </span>
+                                <span class="text-[11px] text-gray-500 italic">Nhập số lượng & chọn hoàn kho</span>
+                            </div>
+
+                            <div class="flex-1 overflow-x-auto overflow-y-auto max-h-[360px] border border-slate-200 rounded bg-white">
+                                <table class="w-full border-collapse text-left">
+                                    <thead class="bg-slate-100 sticky top-0 border-b border-slate-200 text-[11px] text-slate-600 uppercase">
+                                        <tr>
+                                            <th class="p-2">Sản phẩm</th>
+                                            <th class="p-2 text-right">Giá Net</th>
+                                            <th class="p-2 text-center">Khả dụng</th>
+                                            <th class="p-2 text-center w-20">SL Trả</th>
+                                            <th class="p-2 text-center">Kho?</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="return-items-tbody" class="divide-y divide-slate-100">
+                                        <!-- Rendered via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-2.5 pt-2 border-t border-slate-200 flex justify-between items-center bg-rose-50/70 p-2 rounded-lg border border-rose-100">
+                                <span class="font-semibold text-rose-800">Tổng tiền hoàn trả:</span>
+                                <span id="return-modal-refund-total" class="font-bold font-mono text-rose-600 text-sm">0 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Cột Phải: Hàng đổi mới -->
+                        <div class="flex flex-col border border-slate-200 rounded-xl bg-slate-50/50 p-3">
+                            <div class="flex justify-between items-center mb-2 pb-1 border-b border-slate-200">
+                                <span class="font-bold text-slate-800 flex items-center gap-1">
+                                    <span>🛍️</span> Hàng đổi mới (nếu có)
+                                </span>
+                                <span class="text-[11px] text-gray-500 italic">Tìm sản phẩm để đổi</span>
+                            </div>
+
+                            <!-- Tìm kiếm sản phẩm -->
+                            <div class="relative mb-2">
+                                <div class="relative">
+                                    <input type="text" id="return-search-prod" placeholder="🔍 Tìm tên SP, mã vạch để thêm đổi..." 
+                                           class="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                           oninput="handleReturnSearchInput(this.value)" autocomplete="off">
+                                    <button type="button" onclick="clearReturnSearch()" class="absolute right-2.5 top-1.5 text-gray-400 hover:text-gray-600 text-xs hidden" id="return-search-clear">&times;</button>
+                                </div>
+                                <div id="return-search-dropdown" class="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto hidden">
+                                    <!-- Search results list -->
+                                </div>
+                            </div>
+
+                            <!-- Danh sách hàng đổi đã chọn -->
+                            <div class="flex-1 overflow-x-auto overflow-y-auto max-h-[320px] border border-slate-200 rounded bg-white">
+                                <table class="w-full border-collapse text-left">
+                                    <thead class="bg-slate-100 sticky top-0 border-b border-slate-200 text-[11px] text-slate-600 uppercase">
+                                        <tr>
+                                            <th class="p-2">Sản phẩm đổi</th>
+                                            <th class="p-2 text-right">Đơn giá</th>
+                                            <th class="p-2 text-center w-16">SL</th>
+                                            <th class="p-2 text-right">Thành tiền</th>
+                                            <th class="p-2 text-center w-8"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="exchange-items-tbody" class="divide-y divide-slate-100">
+                                        <!-- Rendered via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-2.5 pt-2 border-t border-slate-200 flex justify-between items-center bg-emerald-50/70 p-2 rounded-lg border border-emerald-100">
+                                <span class="font-semibold text-emerald-800">Tổng tiền hàng đổi:</span>
+                                <span id="return-modal-exchange-total" class="font-bold font-mono text-emerald-600 text-sm">0 đ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer: Bù trừ & Thanh toán -->
+                    <div class="px-5 py-3 border-t border-slate-200 bg-slate-50/80 rounded-b-2xl space-y-3">
+                        <!-- Dòng chênh lệch bù trừ -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border bg-white" id="return-modal-diff-box">
+                            <div class="flex items-center gap-2">
+                                <span id="return-modal-diff-icon" class="text-base">⚖️</span>
+                                <div>
+                                    <span id="return-modal-diff-label" class="font-bold text-xs text-slate-800">Chênh lệch bù trừ:</span>
+                                    <p id="return-modal-diff-desc" class="text-[11px] text-gray-500">Đổi ngang giá</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span id="return-modal-diff-amount" class="font-mono text-base font-black text-slate-800">0 đ</span>
+                            </div>
+                        </div>
+
+                        <!-- Điều khiển thanh toán & ghi chú -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center text-xs">
+                            <div class="flex items-center gap-2">
+                                <label for="return-modal-payment-method" class="font-semibold text-slate-700 whitespace-nowrap">Hình thức:</label>
+                                <select id="return-modal-payment-method" class="flex-1 py-1.5 px-2.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    <option value="cash">💵 Tiền mặt</option>
+                                    <option value="transfer">🏦 Chuyển khoản</option>
+                                    <option value="debt">📒 Trừ nợ / Ghi nợ</option>
+                                    <option value="wallet">💳 Ví Spa</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2 flex items-center gap-2">
+                                <label for="return-modal-note" class="font-semibold text-slate-700 whitespace-nowrap">Ghi chú:</label>
+                                <input type="text" id="return-modal-note" placeholder="Lý do đổi / trả, hiện trạng..." class="flex-1 py-1.5 px-2.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Buttons action -->
+                        <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                            <button type="button" onclick="closeModalOrderReturn()" class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium text-xs">
+                                Hủy bỏ
+                            </button>
+                            <button type="button" id="btn-submit-order-return" onclick="submitOrderReturn()" class="px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                                <span>✅</span> Xác Nhận Đổi / Trả
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -608,6 +608,45 @@ def init_db():
         FOREIGN KEY(product_id) REFERENCES products(id)
     )''')
 
+    # Doi tra hang
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS order_returns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        original_order_id INTEGER NOT NULL,
+        exchange_order_id INTEGER,
+        customer_id INTEGER,
+        staff_id INTEGER,
+        shift_id INTEGER,
+        return_total REAL NOT NULL DEFAULT 0,
+        exchange_total REAL NOT NULL DEFAULT 0,
+        diff_amount REAL NOT NULL DEFAULT 0,
+        refund_method TEXT,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(original_order_id) REFERENCES orders(id),
+        FOREIGN KEY(exchange_order_id) REFERENCES orders(id),
+        FOREIGN KEY(customer_id) REFERENCES contacts(id),
+        FOREIGN KEY(staff_id) REFERENCES staff(id),
+        FOREIGN KEY(shift_id) REFERENCES shifts(id)
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS order_return_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        return_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        original_item_id INTEGER,
+        quantity REAL NOT NULL,
+        return_price REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        return_to_stock INTEGER DEFAULT 1,
+        reason TEXT,
+        FOREIGN KEY(return_id) REFERENCES order_returns(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id),
+        FOREIGN KEY(original_item_id) REFERENCES order_items(id)
+    )''')
+
     # 6. Nhap hang
     cur.execute('''
     CREATE TABLE IF NOT EXISTS purchases (

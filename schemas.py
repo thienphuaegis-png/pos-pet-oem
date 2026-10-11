@@ -39,6 +39,31 @@ class OrderUpdate(BaseModel):
     warehouse_id: Optional[int] = 1
     items: Optional[List[OrderItemIn]] = None
 
+class ReturnItemSchema(BaseModel):
+    product_id: int
+    original_item_id: Optional[int] = None
+    quantity: float
+    return_price: float
+    return_to_stock: Optional[int] = 1
+    reason: Optional[str] = ""
+
+class ExchangeItemSchema(BaseModel):
+    product_id: int
+    quantity: float
+    price: float
+    unit: Optional[str] = None
+    unit_ratio: Optional[float] = 1
+
+class CreateReturnRequest(BaseModel):
+    original_order_id: int
+    return_items: List[ReturnItemSchema]
+    exchange_items: Optional[List[ExchangeItemSchema]] = []
+    refund_method: Optional[str] = "cash"
+    account_id: Optional[int] = None
+    note: Optional[str] = ""
+    staff_id: Optional[int] = None
+    shift_id: Optional[int] = None
+
 # --- Products & Catalog ---
 class ProductCreate(BaseModel):
     code: str

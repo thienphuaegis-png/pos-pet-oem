@@ -637,7 +637,7 @@ async function addProductToActiveCart(productId) {
             base_unit: p.unit || 'cái',
             base_price: p.sell_price || 0,
             unit_ratio: 1,
-            units: p.units || []
+            units: Array.isArray(p.units) ? p.units : []
         });
     }
 
@@ -646,7 +646,11 @@ async function addProductToActiveCart(productId) {
     if (searchInput) searchInput.value = '';
     document.getElementById('pos-search-dropdown')?.classList.add('hidden');
 
-    await recalculateBestOfferForCart(tab);
+    try {
+        await recalculateBestOfferForCart(tab);
+    } catch (e) {
+        console.warn("recalculateBestOfferForCart error:", e);
+    }
 
     renderInvoiceTabs();
     renderActiveTabCart();
@@ -690,7 +694,11 @@ function syncBuyXGetYPromotionsInCart(tab = null) {
                     is_gift: true,
                     gift_promo_name: rule.promo_name || 'Khuyến mãi Mua X Tặng Y',
                     discount_val: 0,
-                    discount_type: 'vnd'
+                    discount_type: 'vnd',
+                    base_unit: giftProdData.unit || 'cái',
+                    base_price: giftProdData.sell_price || 0,
+                    unit_ratio: 1,
+                    units: Array.isArray(giftProdData.units) ? giftProdData.units : []
                 });
             }
         }
@@ -701,129 +709,139 @@ function syncBuyXGetYPromotionsInCart(tab = null) {
 // HIỂN THỊ DANH SÁCH SẢN PHẨM TRONG GIỎ (MỖI MÓN 1 DÒNG)
 // ----------------------------------------------------
 function renderActiveTabCart() {
-    const tab = getActiveTab();
-    if (typeof syncBuyXGetYPromotionsInCart === 'function') {
-        syncBuyXGetYPromotionsInCart(tab);
-    }
-    const container = document.getElementById('cart-items-container');
-    if (!container) return;
-    scheduleDraftSave();
+    try {
+        const tab = getActiveTab();
+        if (!tab) return;
+        if (typeof syncBuyXGetYPromotionsInCart === 'function') {
+            try { syncBuyXGetYPromotionsInCart(tab); } catch (e) { console.warn("syncBuyXGetY error:", e); }
+        }
+        const container = document.getElementById('cart-items-container');
+        if (!container) return;
+        scheduleDraftSave();
 
-    // Cập nhật ô ghi chú
-    const noteInput = document.getElementById('pos-order-note');
-    if (noteInput) noteInput.value = tab.note || '';
+        // Cập nhật ô ghi chú
+        const noteInput = document.getElementById('pos-order-note');
+        if (noteInput) noteInput.value = tab.note || '';
 
-    // Cập nhật thông tin khách hàng
-    updateCustomerUI(tab.customer);
+        // Cập nhật thông tin khách hàng
+        try { updateCustomerUI(tab.customer); } catch (e) { console.warn("updateCustomerUI error:", e); }
 
-    if (!tab.cart || tab.cart.length === 0) {
-        container.innerHTML = `
-            <div class="h-full flex flex-col items-center justify-center p-8 text-slate-300">
-                <div class="w-16 h-16 mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
-                    <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-                </div>
-                <div class="font-bold text-sm text-slate-600">Đơn hàng chưa có sản phẩm nào</div>
-                <div class="text-xs text-slate-400 mt-1">Gõ tìm kiếm (F3) hoặc quét mã vạch để thêm sản phẩm vào đơn</div>
-            </div>
-        `;
-        updateFinancialSummary();
-        return;
-    }
-
-    container.innerHTML = tab.cart.map((item, idx) => {
-        const itemSubtotal = item.quantity * item.price;
-        const hasDiscount = item.discount_val > 0;
-        const discountText = item.discount_type === 'pct' 
-            ? `-${item.discount_val}%` 
-            : `-${formatMoney(item.discount_val)}`;
-
-        const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
-
-        const baseUnit = item.base_unit || item.unit || 'cái';
-        const extraUnits = item.units || [];
-        const unitCell = extraUnits.length
-            ? `<select onchange="changeItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                   <option value="1" ${(item.unit_ratio || 1) == 1 ? 'selected' : ''}>${baseUnit}</option>
-                   ${extraUnits.map(u => `<option value="${u.ratio}" ${(item.unit_ratio || 1) == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
-               </select>`
-            : baseUnit;
-
-        // Hiện quy đổi ra đơn vị cơ bản khi đang bán theo thùng/lốc
-        const convHint = (item.unit_ratio && item.unit_ratio != 1)
-            ? `<div class="text-[10px] text-indigo-600 font-semibold">= ${(item.quantity * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
-            : '';
-
-        return `
-            <div class="cart-row-responsive px-3 md:px-4 py-2 md:py-2.5 grid gap-1.5 md:gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="--row-idx: ${idx};">
-                <!-- Nút xóa -->
-                <div class="text-center">
-                    <button onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer" title="Xóa khỏi đơn">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                    </button>
-                </div>
-
-                <!-- STT -->
-                <div class="text-center font-bold text-slate-400 row-desktop-only">${idx + 1}</div>
-
-                <!-- Mã hàng -->
-                <div class="font-mono font-bold text-slate-600 text-[11px] truncate row-desktop-only" title="${item.code || '-'}">
-                    ${item.code || '-'}
-                </div>
-
-                <!-- Tên hàng hóa -->
-                <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
-                    ${comboBadge}${item.name}
-                </div>
-
-                <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
-                <div class="text-center text-slate-500 text-[11px] row-desktop-only">
-                    ${unitCell}
-                </div>
-
-                <!-- Số lượng (Bộ nút + -) -->
-                <div class="qty-col">
-                    <div class="flex items-center justify-center gap-1">
-                        <button onclick="changeItemQty(${idx}, -1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">-</button>
-                        <input type="number" min="1" value="${item.quantity}" 
-                               onchange="updateItemQtyDirect(${idx}, this.value)"
-                               class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-1 md:py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
-                        <button onclick="changeItemQty(${idx}, 1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">+</button>
+        if (!tab.cart || tab.cart.length === 0) {
+            container.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center p-8 text-slate-300">
+                    <div class="w-16 h-16 mb-3 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
                     </div>
-                    ${convHint}
+                    <div class="font-bold text-sm text-slate-600">Đơn hàng chưa có sản phẩm nào</div>
+                    <div class="text-xs text-slate-400 mt-1">Gõ tìm kiếm (F3) hoặc quét mã vạch để thêm sản phẩm vào đơn</div>
                 </div>
+            `;
+            updateFinancialSummary();
+            return;
+        }
 
-                <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
-                <div class="text-right cursor-pointer price-col flex flex-col items-end justify-center select-none" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
-                    <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
-                    <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
-                        <span class="font-bold text-slate-800 text-xs">${formatMoney(item.price)}</span>
-                        ${item.price !== item.original_price ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
-                        <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
+        container.innerHTML = tab.cart.map((item, idx) => {
+            const itemPrice = typeof item.price === 'number' ? item.price : (parseFloat(item.price) || 0);
+            const itemOriginalPrice = typeof item.original_price === 'number' ? item.original_price : (parseFloat(item.original_price) || itemPrice);
+            const itemQty = typeof item.quantity === 'number' ? item.quantity : (parseFloat(item.quantity) || 1);
+            const itemSubtotal = itemQty * itemPrice;
+            const itemDiscountVal = typeof item.discount_val === 'number' ? item.discount_val : (parseFloat(item.discount_val) || 0);
+            const hasDiscount = itemDiscountVal > 0;
+            const discountText = item.discount_type === 'pct' 
+                ? `-${itemDiscountVal}%` 
+                : `-${formatMoney(itemDiscountVal)}`;
+
+            const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
+
+            const baseUnit = item.base_unit || item.unit || 'cái';
+            const extraUnits = Array.isArray(item.units) ? item.units : [];
+            const unitRatio = typeof item.unit_ratio === 'number' ? item.unit_ratio : (parseFloat(item.unit_ratio) || 1);
+            const unitCell = extraUnits.length
+                ? `<select onchange="changeItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                       <option value="1" ${unitRatio == 1 ? 'selected' : ''}>${baseUnit}</option>
+                       ${extraUnits.map(u => `<option value="${u.ratio}" ${unitRatio == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
+                   </select>`
+                : baseUnit;
+
+            // Hiện quy đổi ra đơn vị cơ bản khi đang bán theo thùng/lốc
+            const convHint = (unitRatio && unitRatio != 1)
+                ? `<div class="text-[10px] text-indigo-600 font-semibold">= ${(itemQty * unitRatio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+                : '';
+
+            return `
+                <div class="cart-row-responsive px-3 md:px-4 py-2 md:py-2.5 grid gap-1.5 md:gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="--row-idx: ${idx};">
+                    <!-- Nút xóa -->
+                    <div class="text-center">
+                        <button onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer" title="Xóa khỏi đơn">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        </button>
                     </div>
-                    <!-- Dòng 2: Giá niêm yết cũ & mức giảm đỏ (thẳng hàng bên dưới, không lấn sang trái) -->
-                    ${(item.price !== item.original_price || hasDiscount) ? `
-                        <div class="flex items-center justify-end gap-1 text-[10px] leading-tight mt-0.5 whitespace-nowrap">
-                            ${item.price !== item.original_price ? `<span class="text-slate-400 line-through font-normal text-[10px]">${formatMoney(item.original_price)}</span>` : ''}
-                            ${hasDiscount ? `<span class="text-rose-500 font-bold">${discountText}</span>` : ''}
+
+                    <!-- STT -->
+                    <div class="text-center font-bold text-slate-400 row-desktop-only">${idx + 1}</div>
+
+                    <!-- Mã hàng -->
+                    <div class="font-mono font-bold text-slate-600 text-[11px] truncate row-desktop-only" title="${item.code || '-'}">
+                        ${item.code || '-'}
+                    </div>
+
+                    <!-- Tên hàng hóa -->
+                    <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
+                        ${comboBadge}${item.name}
+                    </div>
+
+                    <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
+                    <div class="text-center text-slate-500 text-[11px] row-desktop-only">
+                        ${unitCell}
+                    </div>
+
+                    <!-- Số lượng (Bộ nút + -) -->
+                    <div class="qty-col">
+                        <div class="flex items-center justify-center gap-1">
+                            <button onclick="changeItemQty(${idx}, -1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">-</button>
+                            <input type="number" min="1" value="${itemQty}" 
+                                   onchange="updateItemQtyDirect(${idx}, this.value)"
+                                   class="w-10 text-center font-bold text-slate-800 border border-slate-200 rounded py-1 md:py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            <button onclick="changeItemQty(${idx}, 1)" class="w-7 h-7 md:w-5 md:h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm md:text-xs active:bg-slate-200">+</button>
                         </div>
-                    ` : ''}
-                </div>
+                        ${convHint}
+                    </div>
 
-                <!-- Thành tiền -->
-                <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap subtotal-col">
-                    ${formatMoney(itemSubtotal)}
-                </div>
-            </div>
-        `;
-    }).join('');
+                    <!-- Đơn giá & Giảm giá (Click vào để mở popup sửa) -->
+                    <div class="text-right cursor-pointer price-col flex flex-col items-end justify-center select-none" onclick="openItemPriceModal(${idx})" title="Bấm để sửa đơn giá & chiết khấu">
+                        <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
+                        <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
+                            <span class="font-bold text-slate-800 text-xs">${formatMoney(itemPrice)}</span>
+                            ${itemPrice !== itemOriginalPrice ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
+                            <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
+                        </div>
+                        <!-- Dòng 2: Giá niêm yết cũ & mức giảm đỏ (thẳng hàng bên dưới, không lấn sang trái) -->
+                        ${(itemPrice !== itemOriginalPrice || hasDiscount) ? `
+                            <div class="flex items-center justify-end gap-1 text-[10px] leading-tight mt-0.5 whitespace-nowrap">
+                                ${itemPrice !== itemOriginalPrice ? `<span class="text-slate-400 line-through font-normal text-[10px]">${formatMoney(itemOriginalPrice)}</span>` : ''}
+                                ${hasDiscount ? `<span class="text-rose-500 font-bold">${discountText}</span>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
 
-    const mobileCartBadge = document.getElementById('mobile-cart-badge');
-    if (mobileCartBadge) {
-        const totalQty = tab.cart ? tab.cart.reduce((s, i) => s + i.quantity, 0) : 0;
-        mobileCartBadge.innerText = `${totalQty} món`;
+                    <!-- Thành tiền -->
+                    <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap subtotal-col">
+                        ${formatMoney(itemSubtotal)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const mobileCartBadge = document.getElementById('mobile-cart-badge');
+        if (mobileCartBadge) {
+            const totalQty = tab.cart ? tab.cart.reduce((s, i) => s + (Number(i.quantity) || 0), 0) : 0;
+            mobileCartBadge.innerText = `${totalQty} món`;
+        }
+
+        updateFinancialSummary();
+    } catch (err) {
+        console.error("renderActiveTabCart error:", err);
     }
-
-    updateFinancialSummary();
 }
 
 function changeItemQty(idx, delta) {
@@ -1168,73 +1186,86 @@ function viewPurchaseHistoryDetail(type, code, id) {
 // TÍNH TOÁN BẢNG TÀI CHÍNH & QUICK CASH
 // ----------------------------------------------------
 function updateFinancialSummary() {
-    const tab = getActiveTab();
+    try {
+        const tab = getActiveTab();
+        if (!tab) return;
+        if (!Array.isArray(tab.cart)) tab.cart = [];
 
-    const totalQty = tab.cart.reduce((s, i) => s + i.quantity, 0);
-    const itemTypes = tab.cart.length;
-    const subtotal = tab.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+        const totalQty = tab.cart.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+        const itemTypes = tab.cart.length;
+        const subtotal = tab.cart.reduce((s, i) => s + ((Number(i.price) || 0) * (Number(i.quantity) || 0)), 0);
 
-    // Cập nhật số lượng hiển thị footer
-    document.getElementById('lbl-item-types').innerText = itemTypes;
-    document.getElementById('lbl-total-quantity').innerText = totalQty;
-    document.getElementById('pos-subtotal-display').innerText = formatMoney(subtotal);
+        // Cập nhật số lượng hiển thị footer
+        const elItemTypes = document.getElementById('lbl-item-types');
+        if (elItemTypes) elItemTypes.innerText = itemTypes;
+        const elTotalQty = document.getElementById('lbl-total-quantity');
+        if (elTotalQty) elTotalQty.innerText = totalQty;
+        const elSubtotal = document.getElementById('pos-subtotal-display');
+        if (elSubtotal) elSubtotal.innerText = formatMoney(subtotal);
 
-    // Tính giảm giá hóa đơn
-    let billDiscAmount = 0;
-    if (tab.bill_discount_type === 'pct') {
-        billDiscAmount = Math.round(subtotal * (tab.bill_discount / 100));
-    } else {
-        billDiscAmount = tab.bill_discount;
+        // Tính giảm giá hóa đơn
+        let billDiscAmount = 0;
+        const billDisc = Number(tab.bill_discount) || 0;
+        if (tab.bill_discount_type === 'pct') {
+            billDiscAmount = Math.round(subtotal * (billDisc / 100));
+        } else {
+            billDiscAmount = billDisc;
+        }
+        billDiscAmount = Math.min(subtotal, billDiscAmount);
+        const elBillDisc = document.getElementById('pos-bill-discount-display');
+        if (elBillDisc) elBillDisc.innerText = formatMoney(billDiscAmount);
+
+        // Tính giảm giá coupon
+        let couponAmount = Number(tab.coupon_discount) || 0;
+
+        // Tính điểm tích lũy (nếu bật toggle dùng điểm)
+        let pointsAmount = 0;
+        const chkPoints = document.getElementById('chk-use-points');
+        if (tab.use_points && tab.customer && tab.customer.points > 0) {
+            // Giả sử 1 điểm = 1.000 đ
+            const pointVal = (Number(tab.customer.points) || 0) * 1000;
+            pointsAmount = Math.min(pointVal, Math.max(0, subtotal - billDiscAmount - couponAmount));
+            if (chkPoints) chkPoints.checked = true;
+        } else {
+            if (chkPoints) chkPoints.checked = false;
+        }
+        const elPointsDisc = document.getElementById('pos-points-discount-display');
+        if (elPointsDisc) elPointsDisc.innerText = formatMoney(pointsAmount);
+
+        // Tính khấu trừ Ví Spa (cho các dịch vụ type === 'service')
+        let spaWalletDeduct = 0;
+        const spaWalletRow = document.getElementById('pos-spa-wallet-row');
+        const chkSpaWallet = document.getElementById('pos-use-spa-wallet');
+        const spaWalletHint = document.getElementById('pos-spa-wallet-hint');
+        const spaWalletDisplay = document.getElementById('pos-spa-wallet-deduct-display');
+
+        // Khách cần trả
+        const shippingFee = parseFloat(tab.shipping_fee) || 0;
+        const shipInput = document.getElementById('pos-shipping-fee-input');
+        if (shipInput && document.activeElement !== shipInput) {
+            shipInput.value = shippingFee > 0 ? shippingFee : '';
+        }
+
+        const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee);
+        const elFinalAmount = document.getElementById('pos-final-amount-display');
+        if (elFinalAmount) elFinalAmount.innerText = formatMoney(finalAmount);
+
+        const mobileTotalPay = document.getElementById('mobile-total-pay-display');
+        if (mobileTotalPay) {
+            mobileTotalPay.innerText = formatMoney(finalAmount);
+        }
+
+        // Khách thanh toán (auto-fill nếu chưa gõ tay)
+        const paidInput = document.getElementById('pos-paid-input');
+        if (paidInput && (tab.paid_amount === null || tab.paid_amount === undefined)) {
+            paidInput.value = Math.round(finalAmount).toLocaleString('vi-VN');
+        }
+
+        calculateChangeOrDebt(finalAmount);
+        renderQuickCashButtons(finalAmount);
+    } catch (err) {
+        console.error("updateFinancialSummary error:", err);
     }
-    billDiscAmount = Math.min(subtotal, billDiscAmount);
-    document.getElementById('pos-bill-discount-display').innerText = formatMoney(billDiscAmount);
-
-    // Tính giảm giá coupon
-    let couponAmount = tab.coupon_discount || 0;
-
-    // Tính điểm tích lũy (nếu bật toggle dùng điểm)
-    let pointsAmount = 0;
-    const chkPoints = document.getElementById('chk-use-points');
-    if (tab.use_points && tab.customer && tab.customer.points > 0) {
-        // Giả sử 1 điểm = 1.000 đ
-        const pointVal = (tab.customer.points || 0) * 1000;
-        pointsAmount = Math.min(pointVal, Math.max(0, subtotal - billDiscAmount - couponAmount));
-        if (chkPoints) chkPoints.checked = true;
-    } else {
-        if (chkPoints) chkPoints.checked = false;
-    }
-    document.getElementById('pos-points-discount-display').innerText = formatMoney(pointsAmount);
-
-    // Tính khấu trừ Ví Spa (cho các dịch vụ type === 'service')
-    let spaWalletDeduct = 0;
-    const spaWalletRow = document.getElementById('pos-spa-wallet-row');
-    const chkSpaWallet = document.getElementById('pos-use-spa-wallet');
-    const spaWalletHint = document.getElementById('pos-spa-wallet-hint');
-    const spaWalletDisplay = document.getElementById('pos-spa-wallet-deduct-display');
-
-    // Khách cần trả
-    const shippingFee = parseFloat(tab.shipping_fee) || 0;
-    const shipInput = document.getElementById('pos-shipping-fee-input');
-    if (shipInput && document.activeElement !== shipInput) {
-        shipInput.value = shippingFee > 0 ? shippingFee : '';
-    }
-
-    const finalAmount = Math.max(0, subtotal - billDiscAmount - couponAmount - pointsAmount + shippingFee);
-    document.getElementById('pos-final-amount-display').innerText = formatMoney(finalAmount);
-
-    const mobileTotalPay = document.getElementById('mobile-total-pay-display');
-    if (mobileTotalPay) {
-        mobileTotalPay.innerText = formatMoney(finalAmount);
-    }
-
-    // Khách thanh toán (auto-fill nếu chưa gõ tay)
-    const paidInput = document.getElementById('pos-paid-input');
-    if (tab.paid_amount === null || tab.paid_amount === undefined) {
-        paidInput.value = Math.round(finalAmount).toLocaleString('vi-VN');
-    }
-
-    calculateChangeOrDebt(finalAmount);
-    renderQuickCashButtons(finalAmount);
 }
 
 function handlePaidInput(rawVal) {

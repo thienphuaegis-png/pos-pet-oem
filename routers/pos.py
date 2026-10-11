@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 import datetime
 import time
 from database import get_db
-from schemas import OrderCreate, OrderUpdate
+from schemas import OrderCreate, OrderUpdate, ReturnItemSchema, ExchangeItemSchema, CreateReturnRequest
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
 from dependencies import get_current_user, get_optional_user, require_role, require_permission
@@ -374,6 +374,501 @@ def get_order_detail(code: str):
     result["bank_account"] = bank_account_info
     conn.close()
     return result
+
+
+@router.get("/api/pos/orders/{code}/returnable-items")
+def get_order_returnable_items(code: str):
+    """
+    Lấy danh sách các mặt hàng có thể trả từ đơn hàng gốc kèm số lượng khả dụng
+    và đơn giá net đã phân bổ chiết khấu.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    param_id = int(code) if code.isdigit() else -1
+    cur.execute("""
+        SELECT o.*, c.name as customer_name
+        FROM orders o
+        LEFT JOIN contacts c ON o.customer_id = c.id
+        WHERE o.code = ? OR o.id = ?
+    """, (code, param_id))
+    order = cur.fetchone()
+    if not order:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
+
+    cur.execute("""
+        SELECT oi.*, p.name as product_name, p.code as product_code,
+               COALESCE((
+                   SELECT SUM(ori.quantity)
+                   FROM order_return_items ori
+                   WHERE ori.original_item_id = oi.id
+               ), 0.0) as quantity_returned
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+    """, (order["id"],))
+    raw_items = cur.fetchall()
+    conn.close()
+
+    total_amount = float(order["total_amount"]) if order["total_amount"] is not None else 0.0
+    final_amount = float(order["final_amount"]) if order["final_amount"] is not None else 0.0
+
+    items = []
+    for it in raw_items:
+        it_dict = dict(it)
+        qty = float(it_dict["quantity"])
+        qty_returned = float(it_dict["quantity_returned"])
+        qty_avail = max(0.0, qty - qty_returned)
+
+        if total_amount > 0 and qty > 0:
+            unit_price_net = (float(it_dict["subtotal"]) / total_amount * final_amount) / qty
+        else:
+            unit_price_net = float(it_dict["price"])
+
+        items.append({
+            "id": it_dict["id"],
+            "product_id": it_dict["product_id"],
+            "product_name": it_dict["product_name"],
+            "product_code": it_dict.get("product_code", ""),
+            "price": float(it_dict["price"]),
+            "quantity": qty,
+            "quantity_bought": qty,
+            "quantity_returned": qty_returned,
+            "quantity_available": qty_avail,
+            "subtotal": float(it_dict["subtotal"]),
+            "unit_price_net": round(unit_price_net, 2)
+        })
+
+    return {
+        "order_id": order["id"],
+        "order_code": order["code"],
+        "code": order["code"],
+        "customer_id": order["customer_id"],
+        "customer_name": order["customer_name"],
+        "total_amount": total_amount,
+        "discount": float(order["discount"]) if order["discount"] is not None else 0.0,
+        "final_amount": final_amount,
+        "items": items
+    }
+
+
+def generate_return_code(cur) -> str:
+    """Sinh mã phiếu trả/đổi hàng định dạng: RET-{YYYYMMDD}-{seq:04d}"""
+    today_str = datetime.datetime.now().strftime("%Y%m%d")
+    pattern = f"RET-{today_str}-%"
+    cur.execute("SELECT COUNT(*) FROM order_returns WHERE code LIKE ?", (pattern,))
+    count = cur.fetchone()[0]
+    seq = count + 1
+    while True:
+        code = f"RET-{today_str}-{seq:04d}"
+        cur.execute("SELECT 1 FROM order_returns WHERE code = ?", (code,))
+        if not cur.fetchone():
+            return code
+        seq += 1
+
+
+@router.post("/api/pos/returns")
+def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user)):
+    """
+    Xử lý tạo phiếu đổi / trả hàng theo đơn hàng gốc.
+    - Cập nhật tồn kho hàng hoàn (nếu return_to_stock=1)
+    - Tạo đơn hàng mới cho món đổi (nếu có exchange_items) và trừ tồn kho món mới
+    - Ghi nhận phiếu thu / chi tương ứng trong sổ quỹ cashbook
+    """
+    if user:
+        if user.get("role") not in ("owner", "admin"):
+            from dependencies import check_permission
+            if not check_permission(user["id"], user.get("role", ""), "pos.sell"):
+                raise HTTPException(status_code=403, detail="Không có quyền truy cập")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. Kiểm tra đơn hàng gốc
+        cur.execute("SELECT * FROM orders WHERE id = ?", (req.original_order_id,))
+        orig_order = cur.fetchone()
+        if not orig_order:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng gốc")
+        if orig_order["status"] != "completed":
+            raise HTTPException(status_code=400, detail="Chỉ có thể đổi trả đơn hàng đã hoàn thành")
+
+        if not req.return_items:
+            raise HTTPException(status_code=400, detail="Danh sách hàng trả không được để trống")
+
+        # 2. Lấy thông tin các item trong đơn gốc và số lượng đã trả trước đó
+        cur.execute("""
+            SELECT oi.*,
+                   COALESCE((
+                       SELECT SUM(ori.quantity)
+                       FROM order_return_items ori
+                       WHERE ori.original_item_id = oi.id
+                   ), 0.0) as quantity_returned
+            FROM order_items oi
+            WHERE oi.order_id = ?
+        """, (req.original_order_id,))
+        orig_items = [dict(r) for r in cur.fetchall()]
+
+        # 3. Validate từng món trả
+        running_returned = {}
+        validated_return_items = []
+        for r_item in req.return_items:
+            if r_item.quantity <= 0:
+                raise HTTPException(status_code=400, detail="Số lượng trả phải lớn hơn 0")
+
+            cur.execute("SELECT id, name, type, stock FROM products WHERE id = ?", (r_item.product_id,))
+            p_row = cur.fetchone()
+            if not p_row:
+                raise HTTPException(status_code=404, detail=f"Sản phẩm trả ID {r_item.product_id} không tồn tại")
+
+            # Khớp với order_item đơn gốc
+            matching_oi = None
+            if r_item.original_item_id:
+                for oi in orig_items:
+                    if oi["id"] == r_item.original_item_id:
+                        matching_oi = oi
+                        break
+                if not matching_oi:
+                    raise HTTPException(status_code=400, detail=f"Món hàng (ID: {r_item.original_item_id}) không thuộc đơn hàng gốc")
+            else:
+                for oi in orig_items:
+                    if oi["product_id"] == r_item.product_id:
+                        matching_oi = oi
+                        break
+                if not matching_oi:
+                    raise HTTPException(status_code=400, detail=f"Sản phẩm (ID: {r_item.product_id}) không thuộc đơn hàng gốc")
+
+            actual_oi_id = matching_oi["id"]
+            qty_bought = float(matching_oi["quantity"])
+            qty_returned = float(matching_oi["quantity_returned"])
+            qty_avail = max(0.0, qty_bought - qty_returned)
+
+            prev_batch_qty = running_returned.get(actual_oi_id, 0.0)
+            if (r_item.quantity + prev_batch_qty) > qty_avail:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Số lượng trả ({r_item.quantity + prev_batch_qty}) vượt quá số lượng khả dụng ({qty_avail}) của sản phẩm {p_row['name']}"
+                )
+            running_returned[actual_oi_id] = prev_batch_qty + r_item.quantity
+
+            validated_return_items.append({
+                "product_id": r_item.product_id,
+                "original_item_id": actual_oi_id,
+                "quantity": float(r_item.quantity),
+                "return_price": float(r_item.return_price),
+                "return_to_stock": 1 if r_item.return_to_stock is None else int(r_item.return_to_stock),
+                "reason": r_item.reason or "",
+                "type": p_row["type"]
+            })
+
+        # 4. Validate món đổi (nếu có)
+        validated_exchange_items = []
+        if req.exchange_items:
+            for e_item in req.exchange_items:
+                if e_item.quantity <= 0:
+                    raise HTTPException(status_code=400, detail="Số lượng đổi phải lớn hơn 0")
+                cur.execute("SELECT id, name, unit, type, stock FROM products WHERE id = ?", (e_item.product_id,))
+                ep_row = cur.fetchone()
+                if not ep_row:
+                    raise HTTPException(status_code=404, detail=f"Sản phẩm đổi ID {e_item.product_id} không tồn tại")
+                validated_exchange_items.append({
+                    "product_id": e_item.product_id,
+                    "quantity": float(e_item.quantity),
+                    "price": float(e_item.price),
+                    "unit": e_item.unit or ep_row["unit"],
+                    "unit_ratio": float(e_item.unit_ratio or 1),
+                    "type": ep_row["type"]
+                })
+
+        # 5. Tính toán tổng tiền
+        return_total = round(sum(it["quantity"] * it["return_price"] for it in validated_return_items), 2)
+        exchange_total = round(sum(it["quantity"] * it["price"] for it in validated_exchange_items), 2)
+        diff_amount = round(exchange_total - return_total, 2)
+
+        # 6. Nhân viên & Ca làm việc
+        staff_id = req.staff_id or orig_order["staff_id"]
+        if not staff_id and user and "id" in user:
+            staff_id = user["id"]
+
+        shift_id = req.shift_id or orig_order["shift_id"]
+        if not shift_id and user and "id" in user:
+            cur.execute("SELECT id FROM shifts WHERE cashier_id = ? AND status = 'open' LIMIT 1", (user["id"],))
+            s_row = cur.fetchone()
+            if s_row:
+                shift_id = s_row["id"]
+
+        # 7. Sinh mã phiếu trả
+        return_code = generate_return_code(cur)
+
+        # 8. Tạo đơn hàng đổi mới nếu có exchange_items
+        exchange_order_id = None
+        if validated_exchange_items:
+            base_code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+            exc_order_code = base_code
+            seq = 1
+            while True:
+                cur.execute("SELECT 1 FROM orders WHERE code = ?", (exc_order_code,))
+                if not cur.fetchone():
+                    break
+                exc_order_code = f"{base_code}_{seq}"
+                seq += 1
+
+            cur.execute("""
+                INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, shift_id, status)
+                VALUES (?, ?, ?, ?, 0, 0, ?, ?, 0, ?, ?, 'completed')
+            """, (
+                exc_order_code,
+                orig_order["customer_id"],
+                staff_id,
+                exchange_total,
+                exchange_total,
+                exchange_total,
+                f"Đơn đổi hàng từ phiếu {return_code}",
+                shift_id
+            ))
+            exchange_order_id = cur.lastrowid
+
+            for e_item in validated_exchange_items:
+                subtotal = round(e_item["quantity"] * e_item["price"], 2)
+                ratio = e_item["unit_ratio"] if e_item["unit_ratio"] > 0 else 1.0
+                base_qty = round(e_item["quantity"] * ratio, 4)
+
+                cur.execute("""
+                    INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (exchange_order_id, e_item["product_id"], e_item["quantity"], e_item["price"], subtotal, e_item["unit"], ratio))
+
+                # Trừ kho sản phẩm đổi (nếu không phải service)
+                if e_item["type"] != "service":
+                    cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (base_qty, e_item["product_id"]))
+
+        # 9. Ghi nhận phiếu trả vào bảng order_returns
+        cur.execute("""
+            INSERT INTO order_returns (code, original_order_id, exchange_order_id, customer_id, staff_id, shift_id, return_total, exchange_total, diff_amount, refund_method, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            return_code,
+            req.original_order_id,
+            exchange_order_id,
+            orig_order["customer_id"],
+            staff_id,
+            shift_id,
+            return_total,
+            exchange_total,
+            diff_amount,
+            req.refund_method,
+            req.note or ""
+        ))
+        return_id = cur.lastrowid
+
+        # 10. Ghi nhận từng món trả vào bảng order_return_items và hoàn kho
+        for r_item in validated_return_items:
+            subtotal = round(r_item["quantity"] * r_item["return_price"], 2)
+            cur.execute("""
+                INSERT INTO order_return_items (return_id, product_id, original_item_id, quantity, return_price, subtotal, return_to_stock, reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                return_id,
+                r_item["product_id"],
+                r_item["original_item_id"],
+                r_item["quantity"],
+                r_item["return_price"],
+                subtotal,
+                r_item["return_to_stock"],
+                r_item["reason"]
+            ))
+
+            if r_item["return_to_stock"] == 1 and r_item["type"] != "service":
+                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (r_item["quantity"], r_item["product_id"]))
+
+        # 11. Hạch toán sổ quỹ cashbook theo diff_amount
+        if diff_amount > 0:
+            if req.refund_method in ("cash", "transfer", None):
+                cb_code = generate_cashbook_code(cur, "PT-BH")
+                cur.execute("""
+                    INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                    VALUES (?, 'in', 'Thu đổi hàng', ?, ?, 'order_return', ?, ?, ?, ?)
+                """, (
+                    cb_code,
+                    diff_amount,
+                    orig_order["customer_id"],
+                    return_id,
+                    f"Thu tiền đổi hàng phiếu {return_code}",
+                    req.account_id,
+                    shift_id
+                ))
+        elif diff_amount < 0:
+            refund_amount = abs(diff_amount)
+            if req.refund_method in ("cash", "transfer", None):
+                cb_code = generate_cashbook_code(cur, "PC-TH")
+                cur.execute("""
+                    INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                    VALUES (?, 'out', 'Chi trả hàng', ?, ?, 'order_return', ?, ?, ?, ?)
+                """, (
+                    cb_code,
+                    refund_amount,
+                    orig_order["customer_id"],
+                    return_id,
+                    f"Chi hoàn tiền trả hàng phiếu {return_code}",
+                    req.account_id,
+                    shift_id
+                ))
+            elif req.refund_method == "debt":
+                if orig_order["customer_id"]:
+                    cur.execute("UPDATE contacts SET debt = debt - ? WHERE id = ?", (refund_amount, orig_order["customer_id"]))
+            elif req.refund_method == "wallet":
+                if orig_order["customer_id"]:
+                    cur.execute("UPDATE contacts SET spa_wallet_balance = spa_wallet_balance + ? WHERE id = ?", (refund_amount, orig_order["customer_id"]))
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "return_id": return_id,
+            "code": return_code,
+            "exchange_order_id": exchange_order_id,
+            "return_total": return_total,
+            "exchange_total": exchange_total,
+            "diff_amount": diff_amount
+        }
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/pos/returns")
+def list_order_returns(
+    search: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """Danh sách phiếu trả/đổi hàng hỗ trợ tìm kiếm, lọc theo ngày, phân trang."""
+    conn = get_db()
+    cur = conn.cursor()
+
+    where_clauses = ["1=1"]
+    params = []
+
+    if search:
+        s_term = f"%{search.strip()}%"
+        where_clauses.append("(ret.code LIKE ? OR orig.code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)")
+        params.extend([s_term, s_term, s_term, s_term])
+
+    if from_date:
+        where_clauses.append("ret.created_at >= ?")
+        params.append(f"{from_date.strip()} 00:00:00")
+
+    if to_date:
+        where_clauses.append("ret.created_at <= ?")
+        params.append(f"{to_date.strip()} 23:59:59")
+
+    where_sql = " AND ".join(where_clauses)
+
+    count_sql = f"""
+    SELECT COUNT(*)
+    FROM order_returns ret
+    LEFT JOIN orders orig ON ret.original_order_id = orig.id
+    LEFT JOIN contacts c ON ret.customer_id = c.id
+    WHERE {where_sql}
+    """
+    cur.execute(count_sql, params)
+    total = cur.fetchone()[0]
+
+    sql = f"""
+    SELECT 
+        ret.*,
+        orig.code as original_order_code,
+        exc.code as exchange_order_code,
+        c.name as customer_name,
+        c.phone as customer_phone,
+        s.name as staff_name,
+        (SELECT COUNT(*) FROM order_return_items WHERE return_id = ret.id) as return_items_count
+    FROM order_returns ret
+    LEFT JOIN orders orig ON ret.original_order_id = orig.id
+    LEFT JOIN orders exc ON ret.exchange_order_id = exc.id
+    LEFT JOIN contacts c ON ret.customer_id = c.id
+    LEFT JOIN staff s ON ret.staff_id = s.id
+    WHERE {where_sql}
+    ORDER BY ret.id DESC
+    LIMIT ? OFFSET ?
+    """
+    list_params = list(params) + [limit, offset]
+    cur.execute(sql, list_params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    return {
+        "total": total,
+        "returns": rows,
+        "items": rows
+    }
+
+
+@router.get("/api/pos/returns/{code}")
+def get_order_return_detail(code: str):
+    """Chi tiết 1 phiếu trả/đổi hàng kèm danh sách món trả và món đổi."""
+    conn = get_db()
+    cur = conn.cursor()
+    param_id = int(code) if code.isdigit() else -1
+
+    cur.execute("""
+    SELECT 
+        ret.*,
+        orig.code as original_order_code,
+        orig.final_amount as original_order_total,
+        orig.created_at as original_order_created_at,
+        exc.code as exchange_order_code,
+        c.name as customer_name,
+        c.phone as customer_phone,
+        c.address as customer_address,
+        s.name as staff_name
+    FROM order_returns ret
+    LEFT JOIN orders orig ON ret.original_order_id = orig.id
+    LEFT JOIN orders exc ON ret.exchange_order_id = exc.id
+    LEFT JOIN contacts c ON ret.customer_id = c.id
+    LEFT JOIN staff s ON ret.staff_id = s.id
+    WHERE ret.code = ? OR ret.id = ?
+    """, (code, param_id))
+    ret_row = cur.fetchone()
+    if not ret_row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu trả hàng")
+
+    ret_data = dict(ret_row)
+
+    # Return items
+    cur.execute("""
+    SELECT ori.*, p.name as product_name, p.code as product_code, p.unit, p.type as product_type
+    FROM order_return_items ori
+    LEFT JOIN products p ON ori.product_id = p.id
+    WHERE ori.return_id = ?
+    ORDER BY ori.id ASC
+    """, (ret_data["id"],))
+    ret_data["return_items"] = [dict(r) for r in cur.fetchall()]
+
+    # Exchange items (nếu có exchange_order_id)
+    if ret_data.get("exchange_order_id"):
+        cur.execute("""
+        SELECT oi.*, p.name as product_name, p.code as product_code, COALESCE(NULLIF(oi.unit, ''), p.unit) as unit, p.type as product_type
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+        ORDER BY oi.id ASC
+        """, (ret_data["exchange_order_id"],))
+        ret_data["exchange_items"] = [dict(r) for r in cur.fetchall()]
+    else:
+        ret_data["exchange_items"] = []
+
+    conn.close()
+    return ret_data
+
 
 
 # --- APIs ---
