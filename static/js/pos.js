@@ -1929,6 +1929,7 @@ async function submitPOSOrder() {
 
         // Đặt lại đơn hàng hiện tại
         tab.cart = [];
+        tab.draft_code = null;
         tab.customer = null;
         tab.note = "";
         tab.bill_discount = 0;
@@ -2464,8 +2465,12 @@ function printDraftOrder() {
         (tab.cart && tab.cart.some(i => i.price_list_name))
     );
 
+    if (!tab.draft_code) {
+        tab.draft_code = "DRAFT-" + Math.floor(100000 + Math.random() * 900000);
+    }
+
     const draftOrder = {
-        code: "DRAFT-" + Math.floor(100000 + Math.random() * 900000),
+        code: tab.draft_code,
         created_at: timeStr,
         customer_name: tab.customer ? tab.customer.name : "Khách lẻ",
         customer_phone: tab.customer ? (tab.customer.phone || "-") : "-",
@@ -2823,7 +2828,7 @@ function renderAndPrint(ord, isDraft = false) {
             const logoMaxH = e.h || 65;
             const logoMaxW = e.w || 140;
             const alignStyle = e.align === 'left' ? 'margin-right: auto; margin-left: 0;' : e.align === 'right' ? 'margin-left: auto; margin-right: 0;' : 'margin: 0 auto;';
-            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: auto; height: auto; object-fit: contain; display: block; ${alignStyle}">`;
+            if (posSettings.shop_logo) content = `<img src="${posSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: 100%; height: auto; object-fit: contain; display: block; ${alignStyle}">`;
         } else if (e.type === 'header_store_info') {
             content = `
                 <div style="font-size: ${e.fsz || 11}px; text-align: ${e.align || 'left'}; line-height: 1.35;">

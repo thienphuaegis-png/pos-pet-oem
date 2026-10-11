@@ -6093,13 +6093,22 @@
                 return;
             }
 
-            const temp = canvasElements[idx];
-            canvasElements[idx] = canvasElements[targetIdx];
-            canvasElements[targetIdx] = temp;
+            const current = canvasElements[idx];
+            const target = canvasElements[targetIdx];
+
+            // Trao đổi thứ tự mảng và hoán đổi toạ độ Y để phản ánh đúng ra bản in thật
+            if (current.y !== undefined && target.y !== undefined) {
+                const tempY = current.y;
+                current.y = target.y;
+                target.y = tempY;
+            }
+
+            canvasElements[idx] = target;
+            canvasElements[targetIdx] = current;
             renderCanvas();
             renderPropsPanel();
             if (typeof showToast === 'function') {
-                showToast(`Đã di chuyển [${temp.label || temp.id}] ${direction < 0 ? 'lên trên' : 'xuống dưới'}`, 'info');
+                showToast(`Đã đổi vị trí [${current.label || current.id}] ${direction < 0 ? 'lên trên' : 'xuống dưới'}`, 'info');
             }
         }
 
@@ -6128,6 +6137,9 @@
             if (fromIdx !== -1 && toIdx !== -1) {
                 const movedItem = canvasElements.splice(fromIdx, 1)[0];
                 canvasElements.splice(toIdx, 0, movedItem);
+
+                // Dồn và gán lại Y theo thứ tự mảng mới
+                recomputeElementPositions();
                 renderCanvas();
                 renderPropsPanel();
                 if (typeof showToast === 'function') {
@@ -6436,9 +6448,9 @@
                 if (e.type === 'logo') {
                     const logoH = e.h || 65;
                     const logoW = e.w || 140;
-                    const alignCls = e.align === 'left' ? 'mr-auto' : e.align === 'right' ? 'ml-auto' : 'mx-auto';
+                    const alignStyle = e.align === 'left' ? 'margin-right: auto; margin-left: 0;' : e.align === 'right' ? 'margin-left: auto; margin-right: 0;' : 'margin: 0 auto;';
                     content = currentSettings.shop_logo
-                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: ${logoW}px; max-height: ${logoH}px; width: auto; height: auto; object-fit: contain; pointer-events: none;" class="${alignCls}">`
+                        ? `<img src="${currentSettings.shop_logo}" style="display: block; max-width: ${logoW}px; max-height: ${logoH}px; width: 100%; height: auto; object-fit: contain; pointer-events: none; ${alignStyle}">`
                         : `<div style="border: 1px dashed #999; padding: 10px; font-size: 11px; text-align: center;">[Logo Cửa Hàng]</div>`;
                 } else if (e.type === 'header_store_info') {
                     content = `
@@ -6836,6 +6848,15 @@
             const elem = canvasElements.find(e => e.id === selectedElementId);
             if (elem) {
                 elem[prop] = val;
+                if (prop === 'align' && (elem.type === 'logo' || elem.align !== undefined)) {
+                    const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+                    const cW = isThermal ? (paperSize.includes('K80') ? 290 : 210) : (paperSize.includes('landscape') ? (paperSize.includes('A5') ? 794 : 1123) : (paperSize.includes('A5') ? 559 : 794));
+                    const elW = elem.w || (isThermal ? 270 : 250);
+                    const margin = isThermal ? 10 : 30;
+                    if (val === 'left') elem.x = margin;
+                    else if (val === 'center') elem.x = Math.max(margin, Math.round((cW - elW) / 2));
+                    else if (val === 'right') elem.x = Math.max(margin, cW - elW - margin);
+                }
                 renderCanvas();
                 renderPropsPanel();
             }
@@ -7028,19 +7049,23 @@
             if (!selectedElementId) return;
             const el = canvasElements.find(e => e.id === selectedElementId);
             if (!el) return;
-            const canvas = document.getElementById('paper-canvas');
-            const cW = canvas.offsetWidth;
-            const elW = el.w || 200;
+            const isThermal = paperSize.includes('K80') || paperSize.includes('K58');
+            const cW = isThermal ? (paperSize.includes('K80') ? 290 : 210) : (paperSize.includes('landscape') ? (paperSize.includes('A5') ? 794 : 1123) : (paperSize.includes('A5') ? 559 : 794));
+            const elW = el.w || (isThermal ? 270 : 250);
+            const margin = isThermal ? 10 : 30;
 
             if (mode === 'left') {
-                el.x = 0;
+                el.x = margin;
+                if (el.align !== undefined) el.align = 'left';
             } else if (mode === 'center') {
-                el.x = Math.round((cW - elW) / 2);
+                el.x = Math.max(margin, Math.round((cW - elW) / 2));
+                if (el.align !== undefined) el.align = 'center';
             } else if (mode === 'right') {
-                el.x = Math.max(0, cW - elW);
+                el.x = Math.max(margin, cW - elW - margin);
+                if (el.align !== undefined) el.align = 'right';
             } else if (mode === 'full') {
-                el.x = 0;
-                el.w = cW;
+                el.x = margin;
+                el.w = Math.max(100, cW - (margin * 2));
             }
             renderCanvas();
             renderPropsPanel();
@@ -7448,7 +7473,20 @@
             canvasElements.forEach(e => {
                 let content = '';
                 if (e.type === 'logo') {
-                    if (currentSettings.shop_logo) content = `<img src="${currentSettings.shop_logo}" style="max-height: 100%; max-width: 100%;">`;
+                    if (currentSettings.shop_logo) {
+                        const logoMaxH = e.h || 65;
+                        const logoMaxW = e.w || 140;
+                        const alignStyle = e.align === 'left' ? 'margin-right: auto; margin-left: 0;' : e.align === 'right' ? 'margin-left: auto; margin-right: 0;' : 'margin: 0 auto;';
+                        content = `<img src="${currentSettings.shop_logo}" style="max-height: ${logoMaxH}px; max-width: ${logoMaxW}px; width: 100%; height: auto; object-fit: contain; display: block; ${alignStyle}">`;
+                    }
+                } else if (e.type === 'header_store_info') {
+                    content = `
+                        <div style="font-size: ${e.fsz || 11}px; text-align: ${e.align || 'left'}; line-height: 1.35;">
+                            <div style="font-size: ${(e.fsz || 11) + 4}px; font-weight: bold; text-transform: uppercase;">${currentSettings.shop_name || "TÊN CỬA HÀNG"}</div>
+                            <div>Địa chỉ: ${currentSettings.shop_address || "Địa chỉ shop"}</div>
+                            <div>Hotline: ${currentSettings.shop_phone || "0900000000"}</div>
+                        </div>
+                    `;
                 } else if (e.type === 'qr') {
                     content = getQRCodeHTML(ord.final_amount, ord.code);
                 } else if (e.type === 'table_b2b') {
