@@ -606,3 +606,8 @@ class MarketplaceAIChatRequest(BaseModel):
 class ShopeeTestConnectionRequest(BaseModel):
     cookies: str
 
+class MarketplaceOrderJsonImportRequest(BaseModel):
+    platform: str = "shopee"
+    account_id: Optional[int] = None
+    raw_json: str
+

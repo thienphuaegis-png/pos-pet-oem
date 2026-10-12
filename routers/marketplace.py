@@ -8,7 +8,8 @@ from database import get_db
 from schemas import (
     MarketplaceAccountCreate, MarketplaceAccountUpdate,
     MarketplaceOrderSyncRequest, MarketplaceSkuMapCreate,
-    MarketplaceAIChatRequest, ShopeeTestConnectionRequest
+    MarketplaceAIChatRequest, ShopeeTestConnectionRequest,
+    MarketplaceOrderJsonImportRequest
 )
 from logger_config import get_module_logger
 from dependencies import get_optional_user
@@ -236,12 +237,16 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
     synced_items = 0
     last_error = ""
 
-    # Duyệt qua các tab trạng thái Shopee (100: to_ship, 200: shipping, 300: completed)
-    tabs_to_fetch = [req.order_tab] if req.order_tab else [100, 200, 300]
+    # Duyệt qua các tab trạng thái Shopee (100: to_ship, 200: shipping, 300: completed, 400: cancelled)
+    tabs_to_fetch = [req.order_tab] if req.order_tab else [100, 200, 300, 400]
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Cookie": cookie_header,
         "Referer": "https://banhang.shopee.vn/portal/sale/order",
+        "Origin": "https://banhang.shopee.vn",
+        "X-Shopee-Language": "vi",
+        "X-Region": "vn",
+        "X-Requested-With": "XMLHttpRequest",
         "Content-Type": "application/json",
         "Accept": "application/json, text/plain, */*"
     }
@@ -284,20 +289,26 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
                 card_list = res_cards.json().get("data", {}).get("card_list", [])
 
                 for entry in card_list:
-                    c = entry.get("order_card") or entry.get("package_level_order_card")
-                    if not c:
+                    c = entry.get("order_card") or entry.get("package_level_order_card") or entry
+                    if not isinstance(c, dict):
                         continue
                     header = c.get("card_header", {})
-                    order_sn = header.get("order_sn") or str(c.get("order_id", ""))
+                    order_sn = header.get("order_sn") or str(c.get("order_id", "")) or str(entry.get("order_sn", ""))
                     if not order_sn:
                         continue
 
                     order_status = header.get("status_desc") or str(tab_code)
-                    buyer_username = header.get("buyer_user_name", "")
-                    order_timestamp = header.get("create_time") or datetime.datetime.now().timestamp()
-                    order_date = datetime.datetime.fromtimestamp(order_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                    buyer_username = header.get("buyer_user_name", "") or str(c.get("buyer_user_name", ""))
+                    order_timestamp = header.get("create_time") or c.get("create_time") or datetime.datetime.now().timestamp()
+                    try:
+                        ts_val = float(order_timestamp)
+                        if ts_val > 1e11:
+                            ts_val = ts_val / 1000
+                        order_date = datetime.datetime.fromtimestamp(ts_val).strftime("%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        order_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    total_price = float(c.get("total_price", 0.0) or 0.0)
+                    total_price = float(c.get("total_price", 0.0) or header.get("total_price", 0.0) or c.get("final_total", 0.0) or 0.0)
 
                     # Lưu hoặc cập nhật đơn
                     cur.execute("""
@@ -321,14 +332,16 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
                         for pkg in c["package_list"]:
                             if pkg.get("item_info_group") and pkg["item_info_group"].get("item_info_list"):
                                 groups.extend(pkg["item_info_group"]["item_info_list"])
+                    elif c.get("item_list"):
+                        groups = c.get("item_list")
 
                     cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_db_id,))
                     for it in groups:
-                        p_name = it.get("name") or "Sản phẩm Shopee"
-                        raw_desc = it.get("description") or ""
-                        p_var = re.sub(r"^Variation:\s*", "", raw_desc, flags=re.I).strip()
-                        qty = float(it.get("amount") or 1.0)
-                        u_price = float(it.get("item_price", 0.0) or 0.0)
+                        p_name = it.get("name") or it.get("item_name") or "Sản phẩm Shopee"
+                        raw_desc = it.get("description") or it.get("model_name") or ""
+                        p_var = re.sub(r"^Variation:\s*", "", str(raw_desc), flags=re.I).strip()
+                        qty = float(it.get("amount") or it.get("quantity") or 1.0)
+                        u_price = float(it.get("item_price", 0.0) or it.get("price", 0.0) or 0.0)
                         sub_amt = qty * u_price
                         p_sku = p_var or str(it.get("item_id", ""))
 
@@ -355,12 +368,24 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
                 logger.error(f"Lỗi sync Shopee tab {tab_code}: {e}")
                 last_error = str(e)
 
-    if synced_orders == 0 and last_error:
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail=f"Shopee từ chối yêu cầu ({last_error}). Vui lòng cập nhật Cookie/cURL mới nhất từ Kênh Người Bán!"
-        )
+    if synced_orders == 0:
+        if last_error:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=f"Shopee phản hồi lỗi: {last_error}. Vui lòng thử copy lại cURL từ Network!"
+            )
+        else:
+            now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute("UPDATE marketplace_accounts SET last_sync_at = ? WHERE id = ?", (now_vn, req.account_id))
+            conn.commit()
+            conn.close()
+            return {
+                "status": "ok",
+                "synced_orders": 0,
+                "synced_items": 0,
+                "message": "Đã quét các tab Shopee (Chờ giao, Đang giao, Đã giao) nhưng hiện không tìm thấy đơn hàng nào. Hãy kiểm tra trạng thái đơn trên Shopee hoặc dùng tính năng Dán JSON Đơn Hàng!"
+            }
 
     now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("UPDATE marketplace_accounts SET last_sync_at = ? WHERE id = ?", (now_vn, req.account_id))
@@ -372,6 +397,122 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
         "synced_orders": synced_orders,
         "synced_items": synced_items,
         "message": f"Đã đồng bộ thành công {synced_orders} đơn hàng Shopee ({synced_items} mặt hàng)!"
+    }
+
+@router.post("/orders/import-json")
+def import_orders_json(req: MarketplaceOrderJsonImportRequest, user=Depends(get_optional_user)):
+    try:
+        raw_text = req.raw_json.strip()
+        data = json.loads(raw_text)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Dữ liệu JSON không hợp lệ: {str(e)}")
+
+    card_list = []
+    if isinstance(data, list):
+        card_list = data
+    elif isinstance(data, dict):
+        if "data" in data and isinstance(data["data"], dict) and "card_list" in data["data"]:
+            card_list = data["data"]["card_list"]
+        elif "card_list" in data:
+            card_list = data["card_list"]
+        elif "order_card" in data or "card_header" in data:
+            card_list = [data]
+        elif "data" in data and isinstance(data["data"], list):
+            card_list = data["data"]
+
+    if not card_list:
+        raise HTTPException(status_code=400, detail="Không tìm thấy danh sách đơn hàng trong JSON. Vui lòng kiểm tra lại cấu trúc dữ liệu!")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT platform_sku, platform_item_name, platform_variation, product_id FROM marketplace_sku_mappings WHERE platform = ?", (req.platform.lower(),))
+    mappings = [dict(r) for r in cur.fetchall()]
+
+    synced_orders = 0
+    synced_items = 0
+
+    for entry in card_list:
+        c = entry.get("order_card") or entry.get("package_level_order_card") or entry
+        if not isinstance(c, dict):
+            continue
+        header = c.get("card_header") or {}
+        order_sn = header.get("order_sn") or str(c.get("order_id", "")) or str(entry.get("order_sn", ""))
+        if not order_sn:
+            continue
+
+        order_status = header.get("status_desc") or str(c.get("order_status", "Đang xử lý"))
+        buyer_username = header.get("buyer_user_name", "") or str(c.get("buyer_user_name", ""))
+        order_timestamp = header.get("create_time") or c.get("create_time") or datetime.datetime.now().timestamp()
+        try:
+            ts_val = float(order_timestamp)
+            if ts_val > 1e11:
+                ts_val = ts_val / 1000
+            order_date = datetime.datetime.fromtimestamp(ts_val).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            order_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        total_price = float(c.get("total_price", 0.0) or header.get("total_price", 0.0) or c.get("final_total", 0.0) or 0.0)
+
+        cur.execute("""
+            INSERT INTO marketplace_orders (platform, account_id, order_sn, order_status, order_date, total_amount, buyer_username, raw_payload)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(platform, order_sn) DO UPDATE SET
+                order_status = excluded.order_status,
+                total_amount = excluded.total_amount,
+                updated_at = CURRENT_TIMESTAMP
+        """, (req.platform.lower(), req.account_id, order_sn, order_status, order_date, total_price, buyer_username, json.dumps(c, ensure_ascii=False)))
+
+        cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (req.platform.lower(), order_sn))
+        order_db_id = cur.fetchone()[0]
+        synced_orders += 1
+
+        groups = []
+        if c.get("item_info_group") and c["item_info_group"].get("item_info_list"):
+            groups = c["item_info_group"]["item_info_list"]
+        elif c.get("package_list"):
+            for pkg in c["package_list"]:
+                if pkg.get("item_info_group") and pkg["item_info_group"].get("item_info_list"):
+                    groups.extend(pkg["item_info_group"]["item_info_list"])
+        elif c.get("item_list"):
+            groups = c.get("item_list")
+
+        cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_db_id,))
+        for it in groups:
+            p_name = it.get("name") or it.get("item_name") or "Sản phẩm Shopee"
+            raw_desc = it.get("description") or it.get("model_name") or ""
+            p_var = re.sub(r"^Variation:\s*", "", str(raw_desc), flags=re.I).strip()
+            qty = float(it.get("amount") or it.get("quantity") or 1.0)
+            u_price = float(it.get("item_price", 0.0) or it.get("price", 0.0) or 0.0)
+            sub_amt = qty * u_price
+            p_sku = p_var or str(it.get("item_id", ""))
+
+            mapped_pid = None
+            for m in mappings:
+                if m["platform_item_name"].lower() == p_name.lower():
+                    if not m["platform_variation"] or m["platform_variation"].lower() == p_var.lower():
+                        mapped_pid = m["product_id"]
+                        break
+                elif m["platform_sku"] and m["platform_sku"].lower() == p_sku.lower():
+                    mapped_pid = m["product_id"]
+                    break
+
+            cur.execute("""
+                INSERT INTO marketplace_order_items (
+                    order_id, platform_item_id, platform_product_name, platform_variation,
+                    platform_sku, quantity, unit_price, subtotal, mapped_product_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (order_db_id, str(it.get("item_id", "")), p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
+            synced_items += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "ok",
+        "synced_orders": synced_orders,
+        "synced_items": synced_items,
+        "message": f"Đã nhập thành công {synced_orders} đơn hàng ({synced_items} mặt hàng) vào hệ thống!"
     }
 
 @router.post("/tiktok/sync")

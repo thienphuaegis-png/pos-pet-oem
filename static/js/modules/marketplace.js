@@ -18,10 +18,10 @@
     function initMarketplaceTab(subTab = 'shopee') {
         const today = new Date().toISOString().split('T')[0];
         const dateShopee = document.getElementById('mkt-shopee-filter-date');
-        if (dateShopee && !dateShopee.value) dateShopee.value = today;
+        if (dateShopee) dateShopee.value = ''; // Mặc định để trống để xem tất cả đơn vừa đồng bộ
 
         const dateTikTok = document.getElementById('mkt-tiktok-filter-date');
-        if (dateTikTok && !dateTikTok.value) dateTikTok.value = today;
+        if (dateTikTok) dateTikTok.value = '';
 
         const dateAnalytics = document.getElementById('mkt-analytics-date');
         if (dateAnalytics && !dateAnalytics.value) dateAnalytics.value = today;
@@ -32,6 +32,13 @@
         });
     }
     window.initMarketplaceTab = initMarketplaceTab;
+
+    function clearShopeeDateFilter() {
+        const dateShopee = document.getElementById('mkt-shopee-filter-date');
+        if (dateShopee) dateShopee.value = '';
+        loadShopeeOrders();
+    }
+    window.clearShopeeDateFilter = clearShopeeDateFilter;
 
     function switchMktSubTab(subTab) {
         state.activeSubTab = subTab;
@@ -319,6 +326,10 @@
             if (window.showToast) window.showToast(data.message, 'success');
             else alert(data.message);
 
+            // Xóa bộ lọc ngày để hiển thị toàn bộ các đơn vừa tải về
+            const dateShopee = document.getElementById('mkt-shopee-filter-date');
+            if (dateShopee) dateShopee.value = '';
+
             await loadShopeeOrders();
         } catch (e) {
             alert('Lỗi: ' + e.message);
@@ -330,6 +341,57 @@
         }
     }
     window.syncShopeeOrdersNow = syncShopeeOrdersNow;
+
+    function openImportJsonModal(platform = 'shopee') {
+        const modal = document.getElementById('modal-mkt-import-json');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        document.getElementById('import-json-platform').value = platform;
+        const textarea = document.getElementById('import-json-data');
+        if (textarea) {
+            textarea.value = '';
+            setTimeout(() => textarea.focus(), 100);
+        }
+    }
+    window.openImportJsonModal = openImportJsonModal;
+
+    function closeImportJsonModal() {
+        document.getElementById('modal-mkt-import-json')?.classList.add('hidden');
+    }
+    window.closeImportJsonModal = closeImportJsonModal;
+
+    async function submitImportJson() {
+        const platform = document.getElementById('import-json-platform').value;
+        const raw_json = document.getElementById('import-json-data').value.trim();
+        const account_id = platform === 'shopee' ? state.selectedShopeeAccId : state.selectedTikTokAccId;
+
+        if (!raw_json) {
+            alert('Vui lòng dán chuỗi JSON dữ liệu đơn hàng!');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/marketplace/orders/import-json', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ platform, account_id, raw_json })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi nhập JSON');
+
+            if (window.showToast) window.showToast(data.message, 'success');
+            else alert(data.message);
+
+            closeImportJsonModal();
+            const dateShopee = document.getElementById('mkt-shopee-filter-date');
+            if (dateShopee) dateShopee.value = '';
+            if (platform === 'shopee') await loadShopeeOrders();
+            else await loadTikTokOrders();
+        } catch (e) {
+            alert('Lỗi: ' + e.message);
+        }
+    }
+    window.submitImportJson = submitImportJson;
 
     async function loadShopeeOrders() {
         const date = document.getElementById('mkt-shopee-filter-date')?.value || '';
