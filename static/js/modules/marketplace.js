@@ -458,6 +458,164 @@
     }
     window.syncShopeeOrdersNow = syncShopeeOrdersNow;
 
+    let selectedExcelFile = null;
+
+    function openImportExcelModal(platform = 'shopee') {
+        const modal = document.getElementById('modal-mkt-import-excel');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+
+        document.getElementById('import-excel-platform').value = platform;
+        const radio = document.querySelector(`input[name="import-excel-plat-choice"][value="${platform}"]`);
+        if (radio) radio.checked = true;
+
+        clearSelectedExcelFile();
+        setupExcelDropzone();
+    }
+    window.openImportExcelModal = openImportExcelModal;
+
+    function closeImportExcelModal() {
+        document.getElementById('modal-mkt-import-excel')?.classList.add('hidden');
+    }
+    window.closeImportExcelModal = closeImportExcelModal;
+
+    function setupExcelDropzone() {
+        const dropzone = document.getElementById('mkt-excel-dropzone');
+        if (!dropzone || dropzone.dataset.hasDropHandler) return;
+        dropzone.dataset.hasDropHandler = 'true';
+
+        ['dragenter', 'dragover'].forEach(name => {
+            dropzone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('border-emerald-600', 'bg-emerald-100/50');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(name => {
+            dropzone.addEventListener(name, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('border-emerald-600', 'bg-emerald-100/50');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                handleExcelFile(files[0]);
+            }
+        });
+    }
+
+    function onExcelFileSelected(e) {
+        const files = e.target?.files;
+        if (files && files.length > 0) {
+            handleExcelFile(files[0]);
+        }
+    }
+    window.onExcelFileSelected = onExcelFileSelected;
+
+    function handleExcelFile(file) {
+        if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+            alert('Vui lòng chọn file Excel có định dạng .xlsx hoặc .xls!');
+            return;
+        }
+
+        selectedExcelFile = file;
+        const infoDiv = document.getElementById('mkt-selected-file-info');
+        const nameEl = document.getElementById('mkt-selected-file-name');
+        const sizeEl = document.getElementById('mkt-selected-file-size');
+        const dropzone = document.getElementById('mkt-excel-dropzone');
+
+        if (infoDiv) infoDiv.classList.remove('hidden');
+        if (dropzone) dropzone.classList.add('hidden');
+        if (nameEl) nameEl.textContent = file.name;
+        if (sizeEl) sizeEl.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+
+        const statusDiv = document.getElementById('mkt-excel-import-status');
+        if (statusDiv) statusDiv.classList.add('hidden');
+    }
+
+    function clearSelectedExcelFile() {
+        selectedExcelFile = null;
+        const fileInput = document.getElementById('mkt-excel-file-input');
+        if (fileInput) fileInput.value = '';
+
+        const infoDiv = document.getElementById('mkt-selected-file-info');
+        const dropzone = document.getElementById('mkt-excel-dropzone');
+        const statusDiv = document.getElementById('mkt-excel-import-status');
+
+        if (infoDiv) infoDiv.classList.add('hidden');
+        if (dropzone) dropzone.classList.remove('hidden');
+        if (statusDiv) statusDiv.classList.add('hidden');
+    }
+    window.clearSelectedExcelFile = clearSelectedExcelFile;
+
+    async function submitImportExcel() {
+        if (!selectedExcelFile) {
+            alert('Vui lòng kéo thả hoặc chọn file Excel trước khi bắt đầu nhập!');
+            return;
+        }
+
+        const platform = document.getElementById('import-excel-platform')?.value || 'shopee';
+        const account_id = platform === 'shopee' ? state.selectedShopeeAccId : state.selectedTikTokAccId;
+        const btn = document.getElementById('btn-submit-import-excel');
+        const statusDiv = document.getElementById('mkt-excel-import-status');
+
+        const formData = new FormData();
+        formData.append('file', selectedExcelFile);
+        formData.append('platform', platform);
+        if (account_id) formData.append('account_id', account_id);
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Đang xử lý file Excel...</span>';
+        }
+        if (statusDiv) {
+            statusDiv.classList.remove('hidden');
+            statusDiv.className = 'p-2.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200';
+            statusDiv.innerHTML = '⏳ Đang đọc dữ liệu từng dòng đơn hàng...';
+        }
+
+        try {
+            const res = await fetch('/api/marketplace/orders/import-excel', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi đọc file Excel');
+
+            if (statusDiv) {
+                statusDiv.className = 'p-2.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200';
+                statusDiv.innerHTML = `✅ ${escapeHtml(data.message)}`;
+            }
+
+            if (window.showToast) window.showToast(data.message, 'success');
+            else alert(data.message);
+
+            setTimeout(() => {
+                closeImportExcelModal();
+                const dateShopee = document.getElementById('mkt-shopee-filter-date');
+                if (dateShopee) dateShopee.value = '';
+                if (platform === 'shopee') loadShopeeOrders();
+                else loadTikTokOrders();
+            }, 1200);
+        } catch (e) {
+            if (statusDiv) {
+                statusDiv.className = 'p-2.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200';
+                statusDiv.innerHTML = `❌ Lỗi: ${escapeHtml(e.message)}`;
+            }
+            alert('Lỗi nhập Excel: ' + e.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 Bắt Đầu Nhập Đơn</span>';
+            }
+        }
+    }
+    window.submitImportExcel = submitImportExcel;
+
     function openImportJsonModal(platform = 'shopee') {
         const modal = document.getElementById('modal-mkt-import-json');
         if (!modal) return;

@@ -110,5 +110,23 @@ def test_marketplace_full_flow():
         assert "reply" in res_ai.json()
         assert len(res_ai.json()["reply"]) > 10
 
+        # 8. Test Import Excel đơn hàng
+        import openpyxl, io
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["Mã đơn hàng", "Ngày đặt hàng", "Trạng thái", "Tên sản phẩm", "Phân loại", "Số lượng", "Đơn giá", "Tổng số tiền", "Người mua"])
+        ws.append(["EXCEL-001", "2026-10-12 10:00:00", "Đã giao", "Sữa Tắm Chó Mèo 500ml", "Chai 500ml", 3, 150000, 450000, "nguyen_van_a"])
+        excel_bio = io.BytesIO()
+        wb.save(excel_bio)
+        excel_bio.seek(0)
+
+        res_excel = client.post(
+            "/api/marketplace/orders/import-excel",
+            files={"file": ("test_orders.xlsx", excel_bio, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"platform": "shopee"}
+        )
+        assert res_excel.status_code == 200, res_excel.text
+        assert res_excel.json()["synced_orders"] >= 1
+
     finally:
         app.dependency_overrides.update(saved_overrides)

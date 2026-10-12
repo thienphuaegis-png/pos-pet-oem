@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
 import datetime
 import json
@@ -591,6 +591,217 @@ async def sync_tiktok_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
         "synced_orders": 0,
         "synced_items": 0,
         "message": "Đã kết nối phiên TikTok Shop thành công! Sẵn sàng đồng bộ dữ liệu."
+    }
+
+@router.post("/orders/import-excel")
+async def import_orders_excel(
+    file: UploadFile = File(...),
+    platform: str = Form("shopee"),
+    account_id: Optional[int] = Form(None),
+    user=Depends(get_optional_user)
+):
+    import io
+    import openpyxl
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="File tải lên bị rỗng")
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+        sheet = wb.active
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không thể đọc file Excel (.xlsx): {str(e)}")
+
+    rows = list(sheet.iter_rows(values_only=True))
+    if len(rows) < 2:
+        raise HTTPException(status_code=400, detail="File Excel không có dữ liệu đơn hàng (ít hơn 2 dòng)")
+
+    # Tìm dòng tiêu đề
+    header_row_idx = 0
+    headers = []
+    for idx, r in enumerate(rows[:5]):
+        str_cells = [str(c).strip().lower() for c in r if c is not None]
+        if any("đơn hàng" in c or "order" in c for c in str_cells):
+            header_row_idx = idx
+            headers = [str(c).strip() if c is not None else "" for c in r]
+            break
+
+    if not headers:
+        headers = [str(c).strip() if c is not None else "" for c in rows[0]]
+
+    # Map cột tự động
+    col_map = {}
+    for idx, h in enumerate(headers):
+        h_lower = h.lower()
+        if "mã đơn hàng đầy đủ" in h_lower:
+            col_map["order_sn"] = idx
+        elif "mã đơn hàng" in h_lower and "order_sn" not in col_map:
+            col_map["order_sn"] = idx
+        elif h_lower in ("order id", "order_id", "mã đơn", "order number", "mã vận đơn"):
+            col_map.setdefault("order_sn", idx)
+        elif h_lower in ("tên sản phẩm", "product name"):
+            col_map["product_name"] = idx
+        elif "sản phẩm" in h_lower and "chi tiết" not in h_lower and "mã" not in h_lower and "product_name" not in col_map:
+            col_map.setdefault("product_name", idx)
+        elif h_lower in ("tên phân loại hàng", "phân loại", "mẫu mã", "variation", "thuộc tính từng sản phẩm"):
+            col_map.setdefault("variation", idx)
+        elif h_lower in ("số lượng", "quantity", "sl"):
+            col_map.setdefault("quantity", idx)
+        elif h_lower in ("tổng số tiền", "tổng giá trị đơn hàng", "trị giá đơn hàng", "tổng tiền đơn hàng", "tổng giá bán", "total amount", "order amount"):
+            col_map.setdefault("total_amount", idx)
+        elif h_lower in ("đơn giá", "giá sp", "đơn giá sau giảm giá", "unit price", "price"):
+            col_map.setdefault("unit_price", idx)
+        elif h_lower in ("trạng thái", "trạng thái đơn hàng", "order status", "trạng thái vc"):
+            col_map.setdefault("status", idx)
+        elif h_lower in ("ngày đặt hàng", "thời điểm tạo đơn", "ngày tạo đơn", "created time", "order date"):
+            col_map.setdefault("order_date", idx)
+        elif h_lower in ("người mua", "khách hàng", "người nhận", "buyer username", "username"):
+            col_map.setdefault("buyer", idx)
+
+    if "order_sn" not in col_map or "product_name" not in col_map:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không nhận diện được cột Mã Đơn Hàng hoặc Tên Sản Phẩm trong file Excel. Các cột tìm thấy: {', '.join(headers[:10])}"
+        )
+
+    # Đọc dữ liệu gom nhóm theo đơn hàng
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT platform_sku, platform_item_name, platform_variation, product_id FROM marketplace_sku_mappings WHERE platform = ?", (platform.lower(),))
+    mappings = [dict(r) for r in cur.fetchall()]
+
+    orders_dict = {}
+    for r in rows[header_row_idx + 1:]:
+        if not any(r):
+            continue
+        raw_sn = r[col_map["order_sn"]] if col_map["order_sn"] < len(r) else None
+        if not raw_sn:
+            continue
+        order_sn = str(raw_sn).strip()
+        if not order_sn or order_sn == "None":
+            continue
+
+        raw_prod = r[col_map["product_name"]] if col_map["product_name"] < len(r) else ""
+        prod_name = str(raw_prod or "").strip()
+        if not prod_name or prod_name == "None":
+            continue
+
+        raw_var = r[col_map["variation"]] if "variation" in col_map and col_map["variation"] < len(r) else ""
+        variation = str(raw_var or "").strip() if raw_var != "None" else ""
+
+        raw_qty = r[col_map["quantity"]] if "quantity" in col_map and col_map["quantity"] < len(r) else 1
+        try:
+            qty = float(raw_qty or 1.0)
+        except Exception:
+            qty = 1.0
+
+        raw_price = r[col_map["unit_price"]] if "unit_price" in col_map and col_map["unit_price"] < len(r) else 0
+        try:
+            unit_price = float(raw_price or 0.0)
+        except Exception:
+            unit_price = 0.0
+
+        raw_total = r[col_map["total_amount"]] if "total_amount" in col_map and col_map["total_amount"] < len(r) else 0
+        try:
+            total_amount = float(raw_total or (qty * unit_price))
+        except Exception:
+            total_amount = qty * unit_price
+
+        raw_status = r[col_map["status"]] if "status" in col_map and col_map["status"] < len(r) else "Đã hoàn thành"
+        order_status = str(raw_status or "Đã hoàn thành").strip()
+
+        raw_buyer = r[col_map["buyer"]] if "buyer" in col_map and col_map["buyer"] < len(r) else ""
+        buyer = str(raw_buyer or "").strip() if raw_buyer != "None" else ""
+
+        raw_date = r[col_map["order_date"]] if "order_date" in col_map and col_map["order_date"] < len(r) else None
+        order_date_str = ""
+        if isinstance(raw_date, datetime.datetime):
+            order_date_str = raw_date.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(raw_date, datetime.date):
+            order_date_str = f"{raw_date.strftime('%Y-%m-%d')} 00:00:00"
+        elif raw_date:
+            s_date = str(raw_date).strip()
+            m_vn = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", s_date)
+            if m_vn:
+                d, m, y = m_vn.groups()
+                order_date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)} 00:00:00"
+            else:
+                order_date_str = s_date
+        if not order_date_str:
+            order_date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if order_sn not in orders_dict:
+            orders_dict[order_sn] = {
+                "order_sn": order_sn,
+                "status": order_status,
+                "order_date": order_date_str,
+                "total_amount": total_amount,
+                "buyer": buyer,
+                "items": []
+            }
+        else:
+            if total_amount > orders_dict[order_sn]["total_amount"]:
+                orders_dict[order_sn]["total_amount"] = total_amount
+
+        orders_dict[order_sn]["items"].append({
+            "product_name": prod_name,
+            "variation": variation,
+            "quantity": qty,
+            "unit_price": unit_price,
+            "subtotal": qty * unit_price
+        })
+
+    synced_orders = 0
+    synced_items = 0
+
+    for sn, o in orders_dict.items():
+        cur.execute("""
+            INSERT INTO marketplace_orders (platform, account_id, order_sn, order_status, order_date, total_amount, buyer_username)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(platform, order_sn) DO UPDATE SET
+                order_status = excluded.order_status,
+                total_amount = excluded.total_amount,
+                updated_at = CURRENT_TIMESTAMP
+        """, (platform.lower(), account_id, sn, o["status"], o["order_date"], o["total_amount"], o["buyer"]))
+
+        cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (platform.lower(), sn))
+        order_db_id = cur.fetchone()[0]
+        synced_orders += 1
+
+        cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_db_id,))
+        for it in o["items"]:
+            p_name = it["product_name"]
+            p_var = it["variation"]
+            qty = it["quantity"]
+            u_price = it["unit_price"]
+            sub_amt = it["subtotal"]
+
+            # Ánh xạ sản phẩm
+            mapped_pid = None
+            for m in mappings:
+                if m["platform_item_name"].lower() == p_name.lower():
+                    if not m["platform_variation"] or m["platform_variation"].lower() == p_var.lower():
+                        mapped_pid = m["product_id"]
+                        break
+
+            cur.execute("""
+                INSERT INTO marketplace_order_items (
+                    order_id, platform_product_name, platform_variation,
+                    quantity, unit_price, subtotal, mapped_product_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (order_db_id, p_name, p_var, qty, u_price, sub_amt, mapped_pid))
+            synced_items += 1
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "ok",
+        "synced_orders": synced_orders,
+        "synced_items": synced_items,
+        "message": f"Đã nhập thành công {synced_orders} đơn hàng ({synced_items} mặt hàng) từ file Excel!"
     }
 
 # ─────────────────────────────────────────────────────────────────
