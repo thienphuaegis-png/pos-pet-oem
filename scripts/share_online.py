@@ -15,7 +15,7 @@ import subprocess
 import urllib.request
 import webbrowser
 
-PORT = 8999
+PORT = int(os.environ.get("POS_PORT", "8998"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLOUDFLARED_EXE = os.path.join(BASE_DIR, "cloudflared.exe")
 
