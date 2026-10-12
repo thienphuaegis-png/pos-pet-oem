@@ -11625,22 +11625,16 @@
 
                 <!-- Hạng mục thu chi (Ẩn khi chuyển quỹ) -->
                 <div id="cash-category-container">
-                    <label class="font-bold text-slate-700 block mb-1">Hạng Mục Thu / Chi (*):</label>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-bold text-slate-700">Hạng Mục Thu / Chi (*):</label>
+                        <div class="space-x-1.5 text-[11px]">
+                            <button type="button" onclick="openQuickAddCashCategoryModal()" class="text-emerald-600 hover:text-emerald-700 font-bold underline cursor-pointer">+ Thêm nhanh</button>
+                            <span class="text-slate-300">|</span>
+                            <button type="button" onclick="openCashCategoryManagerModal()" class="text-sky-600 hover:text-sky-700 font-medium underline cursor-pointer">⚙️ Quản lý</button>
+                        </div>
+                    </div>
                     <input id="cash-category-input" list="cash-categories-datalist" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500" placeholder="Chọn hoặc tự nhập hạng mục...">
                     <datalist id="cash-categories-datalist">
-                        <option value="Thu tiền bán hàng">
-                        <option value="Thu hồi công nợ khách hàng">
-                        <option value="Thu tiền góp vốn / đầu tư">
-                        <option value="Thu hoàn ứng / tạm ứng">
-                        <option value="Thu khác">
-                        <option value="Chi tiền nhập hàng">
-                        <option value="Chi trả nợ nhà cung cấp">
-                        <option value="Chi phí thuê mặt bằng">
-                        <option value="Chi phí điện nước & internet">
-                        <option value="Chi lương & hoa hồng nhân viên">
-                        <option value="Chi mua sắm vật dụng / CCDC">
-                        <option value="Chi tiếp khách / ăn uống">
-                        <option value="Chi khác">
                     </datalist>
                 </div>
 
@@ -11830,8 +11824,11 @@
                 </div>
 
                 <div>
-                    <label class="block text-slate-700 font-bold mb-1">Hạng mục *</label>
-                    <input type="text" id="edit-cash-category" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-slate-700 font-bold">Hạng mục *</label>
+                        <button type="button" onclick="openQuickAddCashCategoryModal()" class="text-amber-700 hover:text-amber-800 font-bold text-[11px] underline cursor-pointer">+ Thêm nhanh</button>
+                    </div>
+                    <input type="text" id="edit-cash-category" list="cash-categories-datalist" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
                 </div>
 
                 <div>
@@ -13327,6 +13324,97 @@
                     <button type="button" onclick="saveAIConfig()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: THÊM NHANH HẠNG MỤC THU CHI -->
+<div id="modal-quick-add-cash-category" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <span>🏷️</span> Thêm Hạng Mục Thu / Chi Mới
+            </h3>
+            <button type="button" onclick="closeQuickAddCashCategoryModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition">&times;</button>
+        </div>
+        <div class="p-5 space-y-3.5 text-xs">
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Tên hạng mục mới <span class="text-rose-500">*</span></label>
+                <input id="quick-cash-category-name" type="text" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="VD: Chi mua văn phòng phẩm..." onkeydown="if(event.key === 'Enter') saveQuickCashCategory()">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-1">Áp dụng cho:</label>
+                <div class="grid grid-cols-3 gap-1.5 p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-[11px] font-bold">
+                    <label class="flex items-center justify-center gap-1 p-1.5 rounded cursor-pointer hover:bg-white transition">
+                        <input type="radio" name="quick-cash-cat-type" value="out" checked class="text-rose-600"> Chi tiền
+                    </label>
+                    <label class="flex items-center justify-center gap-1 p-1.5 rounded cursor-pointer hover:bg-white transition">
+                        <input type="radio" name="quick-cash-cat-type" value="in" class="text-emerald-600"> Thu tiền
+                    </label>
+                    <label class="flex items-center justify-center gap-1 p-1.5 rounded cursor-pointer hover:bg-white transition">
+                        <input type="radio" name="quick-cash-cat-type" value="both" class="text-indigo-600"> Cả hai
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeQuickAddCashCategoryModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">Hủy</button>
+                <button type="button" onclick="saveQuickCashCategory()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm transition cursor-pointer">Lưu Hạng Mục</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: QUẢN LÝ HẠNG MỤC THU CHI -->
+<div id="modal-cash-category-manager" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 flex flex-col text-xs max-h-[90vh]">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <span>⚙️</span> Quản Lý Danh Mục Hạng Mục Thu / Chi
+            </h3>
+            <button type="button" onclick="closeCashCategoryManagerModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition font-bold text-lg leading-none cursor-pointer">&times;</button>
+        </div>
+        <div class="p-5 space-y-4 flex-1 overflow-y-auto">
+            <!-- Thêm hạng mục mới -->
+            <div class="p-3 bg-slate-50 border rounded-xl space-y-2">
+                <div class="font-bold text-slate-700 text-[11px] uppercase tracking-wider">➕ Thêm Hạng Mục Mới:</div>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                    <div class="sm:col-span-6">
+                        <input id="mgr-cash-cat-name" type="text" placeholder="Tên hạng mục mới..." class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none" onkeydown="if(event.key === 'Enter') saveCashCategoryFromManager()">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <select id="mgr-cash-cat-type" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-semibold bg-white text-slate-700 focus:outline-none">
+                            <option value="out">🔴 Chi tiền (Ra)</option>
+                            <option value="in">🟢 Thu tiền (Vào)</option>
+                            <option value="both">🔄 Thu & Chi (Cả 2)</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="button" onclick="saveCashCategoryFromManager()" class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition flex items-center justify-center gap-1 cursor-pointer">
+                            <span>Lưu</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sách hạng mục container -->
+            <div class="overflow-x-auto max-h-[360px] border rounded-lg bg-white">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-50 sticky top-0 border-b">
+                        <tr class="text-slate-600 font-bold uppercase text-[10px]">
+                            <th class="p-2.5">Tên Hạng Mục</th>
+                            <th class="p-2.5 text-center w-24">Áp dụng</th>
+                            <th class="p-2.5 text-center w-20">Số phiếu</th>
+                            <th class="p-2.5 text-center w-24">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cash-category-mgr-list" class="divide-y divide-slate-100">
+                        <tr><td colspan="4" class="p-4 text-center text-slate-400">Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <button type="button" onclick="closeCashCategoryManagerModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer">Đóng</button>
         </div>
     </div>
 </div>

@@ -364,6 +364,45 @@ def init_db():
         for r in cur.fetchall():
             cur.execute("INSERT OR IGNORE INTO pet_service_categories (name) VALUES (?)", (r[0],))
 
+    # 3.0. Danh mục hạng mục Thu / Chi Sổ Quỹ (cashbook_categories)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS cashbook_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        type TEXT DEFAULT 'both' CHECK(type IN ('in', 'out', 'both')),
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute("SELECT COUNT(*) FROM cashbook_categories")
+    if cur.fetchone()[0] == 0:
+        seed_cash_cats = [
+            # Thu
+            ('Thu tiền bán hàng', 'in', 1),
+            ('Thu hồi công nợ khách hàng', 'in', 2),
+            ('Thu tiền góp vốn / đầu tư', 'in', 3),
+            ('Thu hoàn ứng / tạm ứng', 'in', 4),
+            ('Thu khác', 'in', 5),
+            # Chi
+            ('Chi tiền nhập hàng', 'out', 6),
+            ('Chi trả nợ nhà cung cấp', 'out', 7),
+            ('Chi phí thuê mặt bằng', 'out', 8),
+            ('Chi phí điện nước & internet', 'out', 9),
+            ('Chi lương & hoa hồng nhân viên', 'out', 10),
+            ('Chi mua sắm vật dụng / CCDC', 'out', 11),
+            ('Chi tiếp khách / ăn uống', 'out', 12),
+            ('Chi khác', 'out', 13),
+        ]
+        for name, c_type, order in seed_cash_cats:
+            cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type, sort_order) VALUES (?, ?, ?)", (name, c_type, order))
+
+    # Tự động nạp các category đã từng dùng trong cashbook vào cashbook_categories nếu chưa có
+    cur.execute("SELECT DISTINCT category, type FROM cashbook WHERE category IS NOT NULL AND category != ''")
+    for r in cur.fetchall():
+        c_name = r[0].strip()
+        c_t = 'in' if (r[1] or '').lower() in ('in', 'thu') else 'out'
+        cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES (?, ?)", (c_name, c_t))
+
     # 3.1. Module Cost: Nguyen lieu & Dich vu thanh phan (ingredients)
     cur.execute('''
     CREATE TABLE IF NOT EXISTS ingredients (

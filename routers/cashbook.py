@@ -4,7 +4,7 @@ from typing import Optional, List
 import datetime
 from datetime import datetime
 from database import get_db
-from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove
+from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove, CashbookCategoryCreate, CashbookCategoryUpdate
 from logger_config import get_module_logger
 from dependencies import get_current_user, get_optional_user, require_role, require_permission
 
@@ -489,6 +489,97 @@ def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_curren
         conn.rollback()
         conn.close()
         raise HTTPException(status_code=400, detail=f"Lỗi chuyển quỹ nội bộ: {str(e)}")
+
+# --- Danh mục Hạng mục Thu Chi (Cashbook Categories) ---
+@router.get("/api/cashbook/categories")
+def list_cashbook_categories(type: Optional[str] = Query(None, description="in, out, both, all")):
+    conn = get_db()
+    cur = conn.cursor()
+    query = """
+        SELECT cc.id, cc.name, cc.type, cc.sort_order, cc.created_at,
+               COUNT(c.id) as voucher_count
+        FROM cashbook_categories cc
+        LEFT JOIN cashbook c ON c.category = cc.name
+    """
+    params = []
+    if type and type not in ("all", "both"):
+        query += " WHERE cc.type IN (?, 'both')"
+        params.append(type)
+    query += " GROUP BY cc.id, cc.name ORDER BY cc.sort_order ASC, cc.id ASC"
+    cur.execute(query, tuple(params))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@router.post("/api/cashbook/categories")
+def create_cashbook_category(payload: CashbookCategoryCreate, user=Depends(require_permission("cashbook.manage"))):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Tên hạng mục không được để trống")
+    c_type = payload.type if payload.type in ("in", "out", "both") else "both"
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM cashbook_categories WHERE LOWER(name) = LOWER(?)", (name,))
+    if cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Hạng mục '{name}' đã tồn tại")
+
+    cur.execute("INSERT INTO cashbook_categories (name, type, sort_order) VALUES (?, ?, ?)",
+                (name, c_type, payload.sort_order or 0))
+    new_id = cur.lastrowid
+    conn.commit()
+    cur.execute("SELECT id, name, type, sort_order, created_at FROM cashbook_categories WHERE id = ?", (new_id,))
+    row = dict(cur.fetchone())
+    conn.close()
+    return row
+
+@router.put("/api/cashbook/categories/{cat_id}")
+def update_cashbook_category(cat_id: int, payload: CashbookCategoryUpdate, user=Depends(require_permission("cashbook.manage"))):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Tên hạng mục không được để trống")
+    c_type = payload.type if payload.type in ("in", "out", "both") else "both"
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM cashbook_categories WHERE id = ?", (cat_id,))
+    existing = cur.fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy hạng mục")
+    old_name = existing["name"]
+
+    cur.execute("SELECT id FROM cashbook_categories WHERE LOWER(name) = LOWER(?) AND id != ?", (name, cat_id))
+    if cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Hạng mục '{name}' đã tồn tại")
+
+    cur.execute("UPDATE cashbook_categories SET name = ?, type = ?, sort_order = ? WHERE id = ?",
+                (name, c_type, payload.sort_order or 0, cat_id))
+    # Cập nhật tên mới trong các phiếu cashbook cũ
+    if old_name != name:
+        cur.execute("UPDATE cashbook SET category = ? WHERE category = ?", (name, old_name))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã cập nhật hạng mục '{name}'"}
+
+@router.delete("/api/cashbook/categories/{cat_id}")
+def delete_cashbook_category(cat_id: int, user=Depends(require_permission("cashbook.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, type FROM cashbook_categories WHERE id = ?", (cat_id,))
+    cat = cur.fetchone()
+    if not cat:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy hạng mục")
+
+    fallback = "Thu khác" if cat["type"] == "in" else "Chi khác"
+    cur.execute("UPDATE cashbook SET category = ? WHERE category = ?", (fallback, cat["name"]))
+    cur.execute("DELETE FROM cashbook_categories WHERE id = ?", (cat_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã xóa hạng mục '{cat['name']}'"}
 
 # --- Báo Cáo Tổng Hợp ---
 @router.get("/api/reports/summary")

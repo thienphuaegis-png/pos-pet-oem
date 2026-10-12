@@ -278,6 +278,16 @@ class CashbookTransferCreate(BaseModel):
     note: Optional[str] = ""
     created_at: Optional[str] = None
 
+class CashbookCategoryCreate(BaseModel):
+    name: str
+    type: Optional[str] = "both" # 'in', 'out', 'both'
+    sort_order: Optional[int] = 0
+
+class CashbookCategoryUpdate(BaseModel):
+    name: str
+    type: Optional[str] = "both"
+    sort_order: Optional[int] = 0
+
 class ExpenseRequestCreate(BaseModel):
     type: str = "reimbursement" # 'reimbursement' hoặc 'planned'
     employee_name: str

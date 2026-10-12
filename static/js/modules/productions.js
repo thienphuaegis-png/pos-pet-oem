@@ -2222,6 +2222,7 @@
 
             // Gợi ý mã tiếp theo nếu không phải transfer
             if (type !== 'transfer') {
+                await loadCashbookCategories(type);
                 const prefix = type === 'in' ? 'PT-TT' : 'PC-CP';
                 try {
                     const res = await fetch(`/api/cashbook/next-code?prefix=${prefix}&_t=${Date.now()}`);
@@ -2233,6 +2234,267 @@
                 }
             }
         }
+
+        // ── Quản lý Danh mục Hạng mục Thu Chi ──
+        async function loadCashbookCategories(type = 'both') {
+            try {
+                const url = type && type !== 'both' ? `/api/cashbook/categories?type=${type}` : '/api/cashbook/categories';
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const categories = await res.json();
+                window.allCashCategories = categories || [];
+
+                const datalist = document.getElementById('cash-categories-datalist');
+                if (datalist) {
+                    datalist.innerHTML = categories.map(c => `<option value="${c.name}">`).join('');
+                }
+            } catch (e) {
+                console.error("loadCashbookCategories error:", e);
+            }
+        }
+        window.loadCashbookCategories = loadCashbookCategories;
+
+        function openQuickAddCashCategoryModal() {
+            const modal = document.getElementById('modal-quick-add-cash-category');
+            if (modal) modal.classList.remove('hidden');
+            const inp = document.getElementById('quick-cash-category-name');
+            if (inp) {
+                inp.value = '';
+                setTimeout(() => inp.focus(), 100);
+            }
+            // Mặc định chọn radio theo loại phiếu đang mở
+            const currentType = document.getElementById('cash-type-val')?.value || 'out';
+            const radio = document.querySelector(`input[name="quick-cash-cat-type"][value="${currentType}"]`);
+            if (radio) radio.checked = true;
+        }
+        window.openQuickAddCashCategoryModal = openQuickAddCashCategoryModal;
+
+        function closeQuickAddCashCategoryModal() {
+            document.getElementById('modal-quick-add-cash-category')?.classList.add('hidden');
+        }
+        window.closeQuickAddCashCategoryModal = closeQuickAddCashCategoryModal;
+
+        async function saveQuickCashCategory() {
+            const inp = document.getElementById('quick-cash-category-name');
+            const name = (inp?.value || '').trim();
+            if (!name) {
+                if (window.showToast) window.showToast('Vui lòng nhập tên hạng mục mới!', 'warning');
+                else alert('Vui lòng nhập tên hạng mục mới!');
+                inp?.focus();
+                return;
+            }
+
+            const radio = document.querySelector('input[name="quick-cash-cat-type"]:checked');
+            const cType = radio ? radio.value : 'both';
+
+            try {
+                const res = await fetch('/api/cashbook/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, type: cType })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Không thể tạo hạng mục');
+                }
+
+                closeQuickAddCashCategoryModal();
+                if (window.showToast) window.showToast(`Đã thêm hạng mục: [${data.name}]`, 'success');
+
+                // Tự động điền vào ô hạng mục của form đang mở
+                const currentCatInput = document.getElementById('cash-category-input');
+                if (currentCatInput) currentCatInput.value = data.name;
+                const editCatInput = document.getElementById('edit-cash-category');
+                if (editCatInput) editCatInput.value = data.name;
+
+                const currentType = document.getElementById('cash-type-val')?.value || 'both';
+                await loadCashbookCategories(currentType);
+            } catch (e) {
+                if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+                else alert('Lỗi: ' + e.message);
+            }
+        }
+        window.saveQuickCashCategory = saveQuickCashCategory;
+
+        function openCashCategoryManagerModal() {
+            const modal = document.getElementById('modal-cash-category-manager');
+            if (modal) modal.classList.remove('hidden');
+            const inp = document.getElementById('mgr-cash-cat-name');
+            if (inp) {
+                inp.value = '';
+                setTimeout(() => inp.focus(), 100);
+            }
+            renderCashCategoryManagerList();
+        }
+        window.openCashCategoryManagerModal = openCashCategoryManagerModal;
+
+        function closeCashCategoryManagerModal() {
+            document.getElementById('modal-cash-category-manager')?.classList.add('hidden');
+            const currentType = document.getElementById('cash-type-val')?.value || 'both';
+            loadCashbookCategories(currentType);
+        }
+        window.closeCashCategoryManagerModal = closeCashCategoryManagerModal;
+
+        async function renderCashCategoryManagerList() {
+            const tbody = document.getElementById('cash-category-mgr-list');
+            if (!tbody) return;
+            try {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">Đang tải danh sách...</td></tr>';
+                const res = await fetch('/api/cashbook/categories?type=all');
+                if (!res.ok) throw new Error('Không thể tải danh sách');
+                const categories = await res.json();
+
+                if (!categories || categories.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có hạng mục nào</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = categories.map(c => {
+                    const safeName = (c.name || '').replace(/'/g, "\\'");
+                    let typeBadge = '';
+                    if (c.type === 'in') {
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">🟢 Thu</span>';
+                    } else if (c.type === 'out') {
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">🔴 Chi</span>';
+                    } else {
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">🔄 Cả 2</span>';
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2.5 font-bold text-slate-800" id="cash-cat-name-cell-${c.id}">
+                                ${c.name}
+                            </td>
+                            <td class="p-2.5 text-center">
+                                ${typeBadge}
+                            </td>
+                            <td class="p-2.5 text-center">
+                                <span class="px-2 py-0.5 rounded-full font-mono font-bold text-xs bg-slate-100 text-slate-700">
+                                    ${c.voucher_count || 0}
+                                </span>
+                            </td>
+                            <td class="p-2.5 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <button type="button" onclick="editCashCategoryInline(${c.id}, '${safeName}', '${c.type}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-xs font-semibold transition" title="Sửa tên">Sửa</button>
+                                    <button type="button" onclick="deleteCashCategory(${c.id}, '${safeName}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-semibold transition" title="Xóa hạng mục">Xóa</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("renderCashCategoryManagerList error:", e);
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
+            }
+        }
+        window.renderCashCategoryManagerList = renderCashCategoryManagerList;
+
+        async function saveCashCategoryFromManager() {
+            const inp = document.getElementById('mgr-cash-cat-name');
+            const name = (inp?.value || '').trim();
+            const type = document.getElementById('mgr-cash-cat-type')?.value || 'out';
+
+            if (!name) {
+                if (window.showToast) window.showToast('Vui lòng nhập tên hạng mục!', 'warning');
+                else alert('Vui lòng nhập tên hạng mục!');
+                inp?.focus();
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/cashbook/categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, type: type })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Lỗi thêm hạng mục');
+
+                inp.value = '';
+                if (window.showToast) window.showToast(`Đã thêm hạng mục: [${data.name}]`, 'success');
+                await renderCashCategoryManagerList();
+            } catch (e) {
+                if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+                else alert('Lỗi: ' + e.message);
+            }
+        }
+        window.saveCashCategoryFromManager = saveCashCategoryFromManager;
+
+        function editCashCategoryInline(id, currentName, currentType) {
+            const cell = document.getElementById(`cash-cat-name-cell-${id}`);
+            if (!cell) return;
+            const safeCurrent = (currentName || '').replace(/"/g, '&quot;');
+            cell.innerHTML = `
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="inline-cash-cat-${id}" value="${safeCurrent}" class="border border-indigo-400 rounded px-2 py-1 text-xs font-bold text-slate-800 flex-1 focus:ring-1 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter') saveCashCategoryInline(${id}, '${currentType}'); if(event.key==='Escape') renderCashCategoryManagerList();">
+                    <button type="button" onclick="saveCashCategoryInline(${id}, '${currentType}')" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700">✓</button>
+                    <button type="button" onclick="renderCashCategoryManagerList()" class="px-2 py-1 bg-slate-200 text-slate-600 rounded text-xs hover:bg-slate-300">✕</button>
+                </div>
+            `;
+            setTimeout(() => {
+                const inp = document.getElementById(`inline-cash-cat-${id}`);
+                if (inp) { inp.focus(); inp.select(); }
+            }, 50);
+        }
+        window.editCashCategoryInline = editCashCategoryInline;
+
+        async function saveCashCategoryInline(id, type) {
+            const inp = document.getElementById(`inline-cash-cat-${id}`);
+            const newName = (inp?.value || '').trim();
+            if (!newName) {
+                if (window.showToast) window.showToast('Tên hạng mục không được để trống!', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/cashbook/categories/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName, type: type })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Lỗi cập nhật');
+
+                if (window.showToast) window.showToast(data.message || 'Cập nhật thành công', 'success');
+                await renderCashCategoryManagerList();
+            } catch (e) {
+                if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+                else alert('Lỗi: ' + e.message);
+            }
+        }
+        window.saveCashCategoryInline = saveCashCategoryInline;
+
+        async function deleteCashCategory(id, name) {
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xóa Hạng Mục [${name}]`,
+                    message: `Bạn có chắc chắn muốn xóa hạng mục <strong>"${name}"</strong>?`,
+                    subMessage: `Các phiếu thu chi cũ đang mang hạng mục này sẽ được tự động chuyển về hạng mục mặc định <strong>"Thu khác" / "Chi khác"</strong>.`,
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy Bỏ',
+                    type: 'danger'
+                });
+            } else {
+                confirmed = confirm(`Bạn có chắc muốn xóa hạng mục "${name}"? Các phiếu cũ sẽ chuyển về Thu khác/Chi khác.`);
+            }
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/cashbook/categories/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Lỗi xóa hạng mục');
+
+                if (window.showToast) window.showToast(data.message || 'Đã xóa hạng mục', 'success');
+                await renderCashCategoryManagerList();
+            } catch (e) {
+                if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+                else alert('Lỗi: ' + e.message);
+            }
+        }
+        window.deleteCashCategory = deleteCashCategory;
 
         function closeCreateCashModal() {
             document.getElementById('modal-create-cashbook')?.classList.add('hidden');
