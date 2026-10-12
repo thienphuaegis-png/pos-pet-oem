@@ -17,11 +17,53 @@ logger = get_module_logger("marketplace")
 
 router = APIRouter(prefix="/api/marketplace", tags=["Marketplace TMĐT"])
 
-def extract_spc_cds(cookie_str: str) -> str:
+def parse_shopee_session(input_str: str) -> tuple[str, str]:
+    if not input_str:
+        return "", ""
+
+    raw = input_str.strip()
+    spc_cds = ""
+    cookie_str = ""
+
+    # 1. Nếu người dùng dán JSON: {"spc_cds": "...", "cookie": "..."}
+    if raw.startswith("{") and raw.endswith("}"):
+        try:
+            d = json.loads(raw)
+            spc_cds = d.get("spc_cds") or d.get("SPC_CDS") or ""
+            cookie_str = d.get("cookie") or d.get("cookies") or ""
+        except:
+            pass
+
+    # 2. Tìm SPC_CDS từ query param (?SPC_CDS=... hoặc &SPC_CDS=...)
+    if not spc_cds:
+        m_url = re.search(r"SPC_CDS=([a-zA-Z0-9_\-]+)", raw)
+        if m_url:
+            spc_cds = m_url.group(1)
+
+    # 3. Tìm Cookie từ cURL (-b '...' hoặc -H 'cookie: ...' hoặc -H 'Cookie: ...')
     if not cookie_str:
-        return ""
-    m = re.search(r"SPC_CDS=([^;]+)", cookie_str)
-    return m.group(1) if m else cookie_str.strip()
+        m_curl_cookie = re.search(r"(?:-H\s+['\"]cookie:\s*|--cookie\s+['\"]|-b\s+['\"])([^'\"]+)", raw, flags=re.I)
+        if m_curl_cookie:
+            cookie_str = m_curl_cookie.group(1).strip()
+        elif "SPC_" in raw or ";" in raw:
+            # Người dùng dán trực tiếp chuỗi Cookie
+            cookie_str = raw
+
+    # 4. Nếu chưa có spc_cds nhưng cookie_str có SPC_CDS=
+    if not spc_cds and cookie_str:
+        m_c = re.search(r"SPC_CDS=([a-zA-Z0-9_\-]+)", cookie_str)
+        if m_c:
+            spc_cds = m_c.group(1)
+
+    # 5. Nếu input ngắn và chỉ gồm ký tự token (UUID / hex / token)
+    if not spc_cds and len(raw) < 100 and re.match(r"^[a-zA-Z0-9_\-]+$", raw):
+        spc_cds = raw
+
+    return spc_cds, cookie_str
+
+def extract_spc_cds(cookie_str: str) -> str:
+    spc_cds, _ = parse_shopee_session(cookie_str)
+    return spc_cds
 
 # ─────────────────────────────────────────────────────────────────
 # 1. QUẢN LÝ TÀI KHOẢN SÀN & COOKIES
@@ -118,10 +160,16 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Shopee")
 
     cookies = acc["cookies"] or ""
-    spc_cds = extract_spc_cds(cookies)
+    spc_cds, cookie_header = parse_shopee_session(cookies)
+    if not cookie_header and cookies:
+        cookie_header = cookies
+
     if not spc_cds:
         conn.close()
-        raise HTTPException(status_code=400, detail="Tài khoản chưa có Cookie hoặc Token SPC_CDS hợp lệ. Vui lòng cập nhật Cookie!")
+        raise HTTPException(
+            status_code=400,
+            detail="Chưa tìm thấy mã token SPC_CDS của Shopee. Vui lòng dán chuỗi cURL (hoặc token SPC_CDS) vào ô cấu hình!"
+        )
 
     # Lấy luật ánh xạ hiện tại để tự động map
     cur.execute("SELECT platform_sku, platform_item_name, platform_variation, product_id FROM marketplace_sku_mappings WHERE platform = 'shopee'")
@@ -129,14 +177,16 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
 
     synced_orders = 0
     synced_items = 0
+    last_error = ""
 
     # Duyệt qua các tab trạng thái Shopee (100: to_ship, 200: shipping, 300: completed)
     tabs_to_fetch = [req.order_tab] if req.order_tab else [100, 200, 300]
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Cookie": cookies,
+        "Cookie": cookie_header,
         "Referer": "https://banhang.shopee.vn/portal/sale/order",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*"
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -152,8 +202,13 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
                 }
                 res_idx = await client.post(url_index, headers=headers, json=payload_index)
                 if res_idx.status_code != 200:
+                    last_error = f"Shopee HTTP {res_idx.status_code}: {res_idx.text[:150]}"
                     continue
                 data_idx = res_idx.json()
+                if data_idx.get("code") != 0 and data_idx.get("code") is not None:
+                    last_error = data_idx.get("user_message") or data_idx.get("message") or f"Lỗi Shopee code {data_idx.get('code')}"
+                    continue
+
                 index_list = data_idx.get("data", {}).get("index_list", [])
                 if not index_list:
                     continue
@@ -167,6 +222,7 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
                 }
                 res_cards = await client.post(url_cards, headers=headers, json=payload_cards)
                 if res_cards.status_code != 200:
+                    last_error = f"Shopee Cards HTTP {res_cards.status_code}: {res_cards.text[:150]}"
                     continue
                 card_list = res_cards.json().get("data", {}).get("card_list", [])
 
@@ -240,6 +296,14 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
 
             except Exception as e:
                 logger.error(f"Lỗi sync Shopee tab {tab_code}: {e}")
+                last_error = str(e)
+
+    if synced_orders == 0 and last_error:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Shopee từ chối yêu cầu ({last_error}). Vui lòng cập nhật Cookie/cURL mới nhất từ Kênh Người Bán!"
+        )
 
     now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("UPDATE marketplace_accounts SET last_sync_at = ? WHERE id = ?", (now_vn, req.account_id))
