@@ -65,26 +65,26 @@ def test_edit_and_delete_cashbook_expense():
         assert edited["category"] == "Chi phí vận hành"
         assert edited["account_id"] == 2
 
-        # 4. Kiểm tra chặn sửa phiếu thu
+        # 4. Kiểm tra cho phép sửa phiếu thu (theo Phương án A)
         res_edit_thu = client.put(f"/api/cashbook/{thu_id}", headers=headers, json={"amount": 900000})
-        assert res_edit_thu.status_code == 400
-        assert "Chỉ được phép sửa phiếu chi" in res_edit_thu.text
+        assert res_edit_thu.status_code == 200
+        assert res_edit_thu.json()["amount"] == 900000
 
-        # 5. Kiểm tra chặn xóa phiếu thu
+        # 5. Kiểm tra cho phép xóa phiếu thu
         res_del_thu = client.delete(f"/api/cashbook/{thu_id}", headers=headers)
-        assert res_del_thu.status_code == 400
-        assert "Chỉ được phép xóa phiếu chi" in res_del_thu.text
+        assert res_del_thu.status_code == 200
+        assert res_del_thu.json()["success"] is True
 
         # 6. Xóa phiếu chi thành công
         res_del = client.delete(f"/api/cashbook/{voucher_id}", headers=headers)
         assert res_del.status_code == 200, res_del.text
         assert res_del.json()["success"] is True
 
-        # 7. Kiểm tra vai trò cashier bị chặn 403 Forbidden
+        # 7. Kiểm tra vai trò nhân viên không có quyền cashbook.manage bị chặn 403 Forbidden
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("INSERT OR REPLACE INTO staff (id, name, role, is_active, token_version) VALUES (8888, 'Cashier Test', 'cashier', 1, 0)")
-        pc_cashier_code = f"PC-TEST-CASHIER-{ts}"
+        cur.execute("INSERT OR REPLACE INTO staff (id, name, role, is_active, token_version) VALUES (8888, 'Staff Regular', 'staff', 1, 0)")
+        pc_cashier_code = f"PC-TEST-STAFF-{ts}"
         cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, account_id, note)
             VALUES (?, 'out', 'Chi tiền', 100000, 1, 'Test')

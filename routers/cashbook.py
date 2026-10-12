@@ -254,7 +254,7 @@ def create_cashbook(req: CashbookCreate, user=Depends(require_permission("cashbo
 def update_cashbook_voucher(
     voucher_id: int,
     req: CashbookUpdate,
-    user=Depends(require_role("owner", "admin"))
+    user=Depends(require_permission("cashbook.manage"))
 ):
     conn = get_db()
     cur = conn.cursor()
@@ -320,7 +320,7 @@ def update_cashbook_voucher(
 @router.delete("/api/cashbook/{voucher_id}")
 def delete_cashbook_voucher(
     voucher_id: int,
-    user=Depends(require_role("owner", "admin"))
+    user=Depends(require_permission("cashbook.manage"))
 ):
     conn = get_db()
     cur = conn.cursor()
