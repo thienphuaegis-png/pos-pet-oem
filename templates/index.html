@@ -13466,9 +13466,13 @@
                 </div>
 
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">Chuỗi Cookie / Token phiên (SPC_CDS) <span class="text-rose-500">*</span></label>
-                    <textarea id="mkt-acc-cookies" rows="4" placeholder="Dán toàn bộ chuỗi Cookie từ trình duyệt Chrome (F12 -> Network -> Header Cookie hoặc SPC_CDS=...)" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
-                    <p class="text-[10px] text-slate-500 mt-1">💡 Mẹo: Trên Chrome đã đăng nhập Shopee/TikTok Seller, bấm F12 &rarr; Network/Application copy toàn bộ chuỗi Cookie hoặc SPC_CDS token.</p>
+                    <label class="block font-bold text-slate-700 mb-1">Chuỗi Cookie / cURL / Token phiên (SPC_CDS) <span class="text-rose-500">*</span></label>
+                    <textarea id="mkt-acc-cookies" rows="4" placeholder="Dán toàn bộ chuỗi Cookie hoặc lệnh cURL (Copy as cURL) từ tab Network..." class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+                    <div class="flex items-center justify-between mt-1.5">
+                        <p class="text-[10px] text-slate-500">💡 Có thể dán trực tiếp dòng <strong>Copy as cURL (bash)</strong> từ tab Network F12.</p>
+                        <button type="button" onclick="testMktConnection()" id="btn-test-mkt-conn" class="px-2.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded font-bold text-[11px] transition cursor-pointer">🔍 Thử Kết Nối</button>
+                    </div>
+                    <div id="mkt-test-conn-result" class="hidden mt-2 p-2 rounded-lg text-[11px]"></div>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t">

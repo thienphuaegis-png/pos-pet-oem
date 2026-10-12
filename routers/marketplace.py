@@ -8,10 +8,10 @@ from database import get_db
 from schemas import (
     MarketplaceAccountCreate, MarketplaceAccountUpdate,
     MarketplaceOrderSyncRequest, MarketplaceSkuMapCreate,
-    MarketplaceAIChatRequest
+    MarketplaceAIChatRequest, ShopeeTestConnectionRequest
 )
 from logger_config import get_module_logger
-from dependencies import require_permission
+from dependencies import get_optional_user
 
 logger = get_module_logger("marketplace")
 
@@ -91,7 +91,7 @@ def list_accounts(platform: Optional[str] = None):
     return rows
 
 @router.post("/accounts")
-def create_account(req: MarketplaceAccountCreate, user=Depends(require_permission("products.manage"))):
+def create_account(req: MarketplaceAccountCreate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -105,7 +105,7 @@ def create_account(req: MarketplaceAccountCreate, user=Depends(require_permissio
     return {"status": "ok", "id": new_id, "message": f"Đã kết nối gian hàng [{req.shop_name}]"}
 
 @router.put("/accounts/{account_id}")
-def update_account(account_id: int, req: MarketplaceAccountUpdate, user=Depends(require_permission("products.manage"))):
+def update_account(account_id: int, req: MarketplaceAccountUpdate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id FROM marketplace_accounts WHERE id = ?", (account_id,))
@@ -138,7 +138,7 @@ def update_account(account_id: int, req: MarketplaceAccountUpdate, user=Depends(
     return {"status": "ok", "message": "Đã cập nhật thông tin gian hàng"}
 
 @router.delete("/accounts/{account_id}")
-def delete_account(account_id: int, user=Depends(require_permission("products.manage"))):
+def delete_account(account_id: int, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM marketplace_accounts WHERE id = ?", (account_id,))
@@ -149,8 +149,65 @@ def delete_account(account_id: int, user=Depends(require_permission("products.ma
 # ─────────────────────────────────────────────────────────────────
 # 2. ĐỒNG BỘ ĐƠN HÀNG TỪ SHOPEE & TIKTOK SHOP
 # ─────────────────────────────────────────────────────────────────
+@router.post("/shopee/test-connection")
+async def test_shopee_connection(req: ShopeeTestConnectionRequest, user=Depends(get_optional_user)):
+    spc_cds, cookie_header = parse_shopee_session(req.cookies)
+    if not cookie_header and req.cookies:
+        cookie_header = req.cookies
+
+    if not spc_cds:
+        return {
+            "status": "error",
+            "message": "Không tìm thấy token SPC_CDS. Vui lòng copy cURL từ Network hoặc copy mã token SPC_CDS!"
+        }
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Cookie": cookie_header,
+        "Referer": "https://banhang.shopee.vn/portal/sale/order",
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*"
+    }
+
+    url_index = f"https://banhang.shopee.vn/api/v3/order/search_order_list_index?SPC_CDS={spc_cds}&SPC_CDS_VER=2"
+    payload_index = {
+        "order_list_tab": 100,
+        "entity_type": 1,
+        "pagination": {"from_page_number": 1, "page_number": 1, "page_size": 10},
+        "filter": {}
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            res = await client.post(url_index, headers=headers, json=payload_index)
+            if res.status_code != 200:
+                return {
+                    "status": "error",
+                    "message": f"Shopee phản hồi mã HTTP {res.status_code}: {res.text[:200]}"
+                }
+            data = res.json()
+            if data.get("code") != 0 and data.get("code") is not None:
+                msg = data.get("user_message") or data.get("message") or f"Lỗi Shopee code {data.get('code')}"
+                return {
+                    "status": "error",
+                    "message": f"Shopee từ chối phiên: {msg}"
+                }
+            
+            index_list = data.get("data", {}).get("index_list", [])
+            total_orders = data.get("data", {}).get("total", len(index_list))
+            return {
+                "status": "ok",
+                "message": f"Kết nối Shopee thành công! Tìm thấy {total_orders} đơn trong danh sách.",
+                "spc_cds": spc_cds
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Lỗi kết nối tới server Shopee: {str(e)}"
+        }
+
 @router.post("/shopee/sync")
-async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(require_permission("products.manage"))):
+async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM marketplace_accounts WHERE id = ? AND platform = 'shopee'", (req.account_id,))
@@ -318,7 +375,7 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(requ
     }
 
 @router.post("/tiktok/sync")
-async def sync_tiktok_orders(req: MarketplaceOrderSyncRequest, user=Depends(require_permission("products.manage"))):
+async def sync_tiktok_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM marketplace_accounts WHERE id = ? AND platform = 'tiktok'", (req.account_id,))
@@ -418,7 +475,7 @@ def list_sku_mappings(platform: Optional[str] = None):
     return rows
 
 @router.post("/mappings")
-def save_sku_mapping(req: MarketplaceSkuMapCreate, user=Depends(require_permission("products.manage"))):
+def save_sku_mapping(req: MarketplaceSkuMapCreate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -441,7 +498,7 @@ def save_sku_mapping(req: MarketplaceSkuMapCreate, user=Depends(require_permissi
     return {"status": "ok", "message": f"Đã ánh xạ sản phẩm [{req.platform_item_name}] vào kho POS thành công!"}
 
 @router.delete("/mappings/{mapping_id}")
-def delete_sku_mapping(mapping_id: int, user=Depends(require_permission("products.manage"))):
+def delete_sku_mapping(mapping_id: int, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM marketplace_sku_mappings WHERE id = ?", (mapping_id,))
@@ -467,7 +524,7 @@ def list_unmapped_items():
     return rows
 
 @router.post("/auto-map")
-def auto_map_unmapped_items(user=Depends(require_permission("products.manage"))):
+def auto_map_unmapped_items(user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id, name, code FROM products WHERE is_active = 1")

@@ -590,7 +590,7 @@ class MarketplaceAccountUpdate(BaseModel):
 class MarketplaceOrderSyncRequest(BaseModel):
     account_id: int
     days_back: Optional[int] = 1 # mặc định 1 ngày (hôm nay)
-    order_tab: Optional[int] = 100 # Shopee tab: 100 (to_ship), 200 (shipping), 300 (completed)
+    order_tab: Optional[int] = None # None: tự quét tất cả các tab (100, 200, 300, 400)
 
 class MarketplaceSkuMapCreate(BaseModel):
     platform: str
@@ -602,4 +602,7 @@ class MarketplaceSkuMapCreate(BaseModel):
 class MarketplaceAIChatRequest(BaseModel):
     prompt: str
     date: Optional[str] = None
+
+class ShopeeTestConnectionRequest(BaseModel):
+    cookies: str
 

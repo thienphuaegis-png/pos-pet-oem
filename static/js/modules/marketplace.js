@@ -205,8 +205,49 @@
 
     function closeMktAccountModal() {
         document.getElementById('modal-mkt-account-cookie')?.classList.add('hidden');
+        const resDiv = document.getElementById('mkt-test-conn-result');
+        if (resDiv) resDiv.classList.add('hidden');
     }
     window.closeMktAccountModal = closeMktAccountModal;
+
+    async function testMktConnection() {
+        const cookies = document.getElementById('mkt-acc-cookies').value.trim();
+        const resDiv = document.getElementById('mkt-test-conn-result');
+        const btn = document.getElementById('btn-test-mkt-conn');
+
+        if (!cookies) {
+            alert('Vui lòng dán Cookie hoặc cURL trước khi thử kết nối!');
+            return;
+        }
+
+        if (!resDiv) return;
+        resDiv.classList.remove('hidden');
+        resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        resDiv.innerHTML = '⏳ Đang gửi request kiểm tra tới Shopee...';
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/marketplace/shopee/test-connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cookies })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-emerald-100 text-emerald-800 font-bold';
+                resDiv.innerHTML = `✅ ${escapeHtml(data.message)} (SPC_CDS: ${data.spc_cds || 'OK'})`;
+            } else {
+                resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+                resDiv.innerHTML = `❌ ${escapeHtml(data.message)}`;
+            }
+        } catch (e) {
+            resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+            resDiv.innerHTML = `❌ Lỗi: ${e.message}`;
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    window.testMktConnection = testMktConnection;
 
     async function saveMktAccount() {
         const id = document.getElementById('mkt-acc-id').value;
