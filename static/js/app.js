@@ -573,8 +573,10 @@
             if (count > 0) {
                 if (countEl) countEl.innerText = count;
                 bar.classList.remove('hidden');
+                bar.classList.add('flex', 'animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-200');
             } else {
                 bar.classList.add('hidden');
+                bar.classList.remove('flex');
             }
         }
         window.updateUnifiedBulkActionBar = updateUnifiedBulkActionBar;
@@ -3446,6 +3448,18 @@
                 } else {
                     mainContainer.className = "flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6 bg-slate-100";
                 }
+            }
+
+            // Ẩn floating bars nếu rời khỏi tab tương ứng
+            if (tabId !== 'inventory') {
+                const uBar = document.getElementById('unified-bulk-action-bar');
+                if (uBar) { uBar.classList.add('hidden'); uBar.classList.remove('flex'); }
+            } else {
+                updateUnifiedBulkActionBar();
+            }
+            if (tabId !== 'orders') {
+                const oBar = document.getElementById('orders-bulk-action-bar');
+                if (oBar) oBar.classList.add('hidden');
             }
 
             // Đóng mobile sidebar drawer nếu đang mở

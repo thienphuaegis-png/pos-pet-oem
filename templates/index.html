@@ -470,8 +470,8 @@
 
         /* Smooth Tab Pane Cross-Fade & Slide (GPU accelerated, loại bỏ hoàn toàn cảm giác giật) */
         .tab-pane-content {
-            animation: tabContentSmoothIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-            will-change: opacity, transform;
+            animation: tabContentSmoothIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            will-change: opacity;
         }
         @keyframes tabContentSmoothIn {
             0% {
@@ -480,7 +480,7 @@
             }
             100% {
                 opacity: 1;
-                transform: translate3d(0, 0, 0);
+                transform: none;
             }
         }
 
@@ -1455,26 +1455,6 @@
                         </div>
                         <div id="pagination-orders"></div>
                     </div>
-
-                    <!-- Floating Action Bar for Bulk Order Staff Update -->
-                    <div id="orders-bulk-action-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl z-40 flex items-center gap-3.5 border border-slate-700 text-xs">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-[11px]" id="orders-selected-count">0</span>
-                            <span class="font-bold">hóa đơn đã chọn</span>
-                        </div>
-                        <div class="h-4 w-px bg-slate-700"></div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-slate-300">Chuyển sang Thu Ngân:</span>
-                            <select id="orders-bulk-staff-select" class="bg-slate-800 text-white font-bold border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-sky-500">
-                                <option value="">-- Chọn thu ngân mới --</option>
-                            </select>
-                        </div>
-                        <button type="button" onclick="submitBulkUpdateOrderStaff()" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                            <span>⚡ Cập Nhật Thu Ngân</span>
-                        </button>
-                        <button type="button" onclick="clearOrderSelection()" class="text-slate-400 hover:text-white px-2 py-1 rounded transition text-xs font-semibold" title="Bỏ chọn">✕ Hủy</button>
-                    </div>
                 </div>
 
                 <!-- SUBVIEW 2: LỊCH SỬ HÓA ĐƠN SPA -->
@@ -2026,29 +2006,6 @@
                             </table>
                         </div>
                         <div id="pagination-unified-inventory"></div>
-
-                        <!-- Floating Bulk Action Bar khi chọn >= 1 mặt hàng -->
-                        <div id="unified-bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 z-40 backdrop-blur-md hidden transition-all duration-200">
-                            <div class="text-xs font-semibold flex items-center gap-2">
-                                <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold" id="bulk-selected-count">0</span>
-                                <span>mặt hàng đang chọn</span>
-                            </div>
-                            <div class="h-4 w-px bg-slate-700"></div>
-                            <div class="flex items-center gap-2">
-                                <button type="button" onclick="bulkSetProductStatus(0)" class="px-3 py-1.5 bg-amber-600/90 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
-                                    <span>🚫</span> <span>Ngừng kinh doanh</span>
-                                </button>
-                                <button type="button" onclick="bulkSetProductStatus(1)" class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
-                                    <span>✅</span> <span>Kinh doanh lại</span>
-                                </button>
-                                <button type="button" onclick="bulkDeleteProductsAction()" class="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs">
-                                    <span>🗑️</span> <span>Xóa đã chọn</span>
-                                </button>
-                                <button type="button" onclick="clearUnifiedSelection()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition ml-1" title="Bỏ chọn">
-                                    ✕
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -13372,6 +13329,49 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- ==================== FLOATING BULK ACTION TOOLBAR (ROOT LEVEL - ALWAYS FLOATS ON VIEWPORT) ==================== -->
+<div id="unified-bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 z-[95] backdrop-blur-md hidden transition-all duration-200 pointer-events-auto">
+    <div class="text-xs font-semibold flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold" id="bulk-selected-count">0</span>
+        <span class="whitespace-nowrap">mặt hàng đang chọn</span>
+    </div>
+    <div class="h-4 w-px bg-slate-700"></div>
+    <div class="flex items-center gap-2">
+        <button type="button" onclick="bulkSetProductStatus(0)" class="px-3 py-1.5 bg-amber-600/90 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
+            <span>🚫</span> <span>Ngừng kinh doanh</span>
+        </button>
+        <button type="button" onclick="bulkSetProductStatus(1)" class="px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-600 active:scale-95 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
+            <span>✅</span> <span>Kinh doanh lại</span>
+        </button>
+        <button type="button" onclick="bulkDeleteProductsAction()" class="px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 active:scale-95 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
+            <span>🗑️</span> <span>Xóa đã chọn</span>
+        </button>
+        <button type="button" onclick="clearUnifiedSelection()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition ml-1 cursor-pointer" title="Bỏ chọn">
+            ✕
+        </button>
+    </div>
+</div>
+
+<!-- Floating Action Bar for Bulk Order Staff Update (ROOT LEVEL) -->
+<div id="orders-bulk-action-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl z-[95] flex items-center gap-3.5 border border-slate-700 text-xs pointer-events-auto">
+    <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-[11px]" id="orders-selected-count">0</span>
+        <span class="font-bold">hóa đơn đã chọn</span>
+    </div>
+    <div class="h-4 w-px bg-slate-700"></div>
+    <div class="flex items-center gap-2">
+        <span class="text-slate-300">Chuyển sang Thu Ngân:</span>
+        <select id="orders-bulk-staff-select" class="bg-slate-800 text-white font-bold border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-sky-500">
+            <option value="">-- Chọn thu ngân mới --</option>
+        </select>
+    </div>
+    <button type="button" onclick="submitBulkUpdateOrderStaff()" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>⚡ Cập Nhật Thu Ngân</span>
+    </button>
+    <button type="button" onclick="clearOrderSelection()" class="text-slate-400 hover:text-white px-2 py-1 rounded transition text-xs font-semibold cursor-pointer" title="Bỏ chọn">✕ Hủy</button>
 </div>
 
 <!-- ==================== FIXED MOBILE BOTTOM BAR ==================== -->
