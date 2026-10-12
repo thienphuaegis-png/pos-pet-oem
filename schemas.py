@@ -611,3 +611,9 @@ class MarketplaceOrderJsonImportRequest(BaseModel):
     account_id: Optional[int] = None
     raw_json: str
 
+class MarketplaceAutoCookieRequest(BaseModel):
+    platform: str = "shopee"
+    cookies: Optional[str] = ""
+    spc_cds: Optional[str] = ""
+    shop_name: Optional[str] = None
+

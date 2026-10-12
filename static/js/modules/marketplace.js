@@ -196,6 +196,12 @@
         document.getElementById('mkt-modal-platform-icon').textContent = isShopee ? '🟠' : '⚫';
         document.getElementById('mkt-modal-title').textContent = isShopee ? 'Cấu Hình Gian Hàng Shopee' : 'Cấu Hình Gian Hàng TikTok Shop';
 
+        const bLink = document.getElementById('mkt-bookmarklet-link');
+        if (bLink) {
+            bLink.href = generateBookmarkletCode(platform);
+            bLink.title = `Kéo nút này thả lên thanh Dấu trang của trình duyệt`;
+        }
+
         const accounts = isShopee ? state.shopeeAccounts : state.tiktokAccounts;
         if (accounts.length > 0) {
             const acc = accounts[0];
@@ -209,6 +215,55 @@
         }
     }
     window.openMktAccountModal = openMktAccountModal;
+
+    function generateBookmarkletCode(platform = 'shopee') {
+        const posOrigin = window.location.origin;
+        const code = `javascript:(async function(){
+            try {
+                const entry = performance.getEntriesByType('resource').find(e => e.name && e.name.includes('SPC_CDS='));
+                const spc_cds = entry ? new URL(entry.name).searchParams.get('SPC_CDS') : (document.cookie.match(/SPC_CDS=([^;]+)/)?.[1] || '');
+                const cookie = document.cookie;
+                
+                let toast = document.createElement('div');
+                toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:999999;background:#10b981;color:white;padding:14px 22px;border-radius:12px;font-family:sans-serif;font-weight:bold;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,0.3);';
+                toast.innerHTML = '⏳ Đang tự động gửi Cookie về POS Mastercare...';
+                document.body.appendChild(toast);
+
+                const res = await fetch('${posOrigin}/api/marketplace/accounts/auto-cookie', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ platform: '${platform}', cookies: cookie, spc_cds: spc_cds })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    toast.style.background = '#059669';
+                    toast.innerHTML = '✅ ' + (data.message || 'Đã đồng bộ Cookie vào POS thành công!');
+                    setTimeout(() => toast.remove(), 4000);
+                } else {
+                    toast.style.background = '#e11d48';
+                    toast.innerHTML = '❌ Lỗi: ' + (data.detail || data.message || 'Không thể gửi');
+                    setTimeout(() => toast.remove(), 6000);
+                }
+            } catch(e) {
+                alert('Lỗi kết nối POS: ' + e.message + '\\nHãy chắc chắn tab POS Mastercare đang mở tại ${posOrigin}!');
+            }
+        })();`;
+        return code.replace(/\s+/g, ' ');
+    }
+    window.generateBookmarkletCode = generateBookmarkletCode;
+
+    function copyBookmarkletCode() {
+        const platform = document.getElementById('mkt-acc-platform')?.value || 'shopee';
+        const code = generateBookmarkletCode(platform);
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(code);
+            if (window.showToast) window.showToast('Đã sao chép mã Bookmarklet!', 'success');
+            else alert('Đã sao chép mã Bookmarklet! Dán vào thanh Dấu trang hoặc Console để chạy.');
+        } else {
+            prompt('Sao chép mã Bookmarklet:', code);
+        }
+    }
+    window.copyBookmarkletCode = copyBookmarkletCode;
 
     function closeMktAccountModal() {
         document.getElementById('modal-mkt-account-cookie')?.classList.add('hidden');

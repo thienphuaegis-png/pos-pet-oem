@@ -3,6 +3,7 @@ import sys
 import secrets
 import logging
 from fastapi import FastAPI, Response, Request, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from dependencies import get_current_user, require_role
@@ -96,6 +97,14 @@ from routers.ai_assistant import router as ai_assistant_router
 from routers.marketplace import router as marketplace_router
 
 app = FastAPI(title="POS KiotViet Offline")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Middleware ghi log tất cả request và bắt lỗi ngoại lệ
 @app.middleware("http")

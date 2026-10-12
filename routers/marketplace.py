@@ -9,7 +9,7 @@ from schemas import (
     MarketplaceAccountCreate, MarketplaceAccountUpdate,
     MarketplaceOrderSyncRequest, MarketplaceSkuMapCreate,
     MarketplaceAIChatRequest, ShopeeTestConnectionRequest,
-    MarketplaceOrderJsonImportRequest
+    MarketplaceOrderJsonImportRequest, MarketplaceAutoCookieRequest
 )
 from logger_config import get_module_logger
 from dependencies import get_optional_user
@@ -104,6 +104,57 @@ def create_account(req: MarketplaceAccountCreate, user=Depends(get_optional_user
     conn.commit()
     conn.close()
     return {"status": "ok", "id": new_id, "message": f"Đã kết nối gian hàng [{req.shop_name}]"}
+
+@router.post("/accounts/auto-cookie")
+async def auto_save_cookie(req: MarketplaceAutoCookieRequest):
+    conn = get_db()
+    cur = conn.cursor()
+    platform = req.platform.lower().strip()
+    spc_cds = (req.spc_cds or "").strip()
+    raw_cookies = (req.cookies or "").strip()
+
+    full_cookies = raw_cookies
+    if spc_cds and "SPC_CDS=" not in full_cookies:
+        full_cookies = f"SPC_CDS={spc_cds}; {full_cookies}"
+
+    now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cur.execute("SELECT id, shop_name FROM marketplace_accounts WHERE platform = ? ORDER BY id ASC LIMIT 1", (platform,))
+    row = cur.fetchone()
+    if row:
+        acc_id = row[0]
+        cur.execute("""
+            UPDATE marketplace_accounts 
+            SET cookies = ?, is_active = 1, updated_at = ?
+            WHERE id = ?
+        """, (full_cookies, now_vn, acc_id))
+    else:
+        shop_name = req.shop_name or ("Shopee Seller" if platform == "shopee" else "TikTok Shop")
+        cur.execute("""
+            INSERT INTO marketplace_accounts (platform, shop_name, cookies, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, 1, ?, ?)
+        """, (platform, shop_name, full_cookies, now_vn, now_vn))
+        acc_id = cur.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    synced_count = 0
+    sync_msg = ""
+    try:
+        if platform == "shopee":
+            sync_res = await sync_shopee_orders(MarketplaceOrderSyncRequest(account_id=acc_id, days_back=1))
+            synced_count = sync_res.get("synced_orders", 0)
+            sync_msg = sync_res.get("message", "")
+    except Exception as e:
+        sync_msg = str(e)
+
+    return {
+        "status": "ok",
+        "account_id": acc_id,
+        "synced_orders": synced_count,
+        "message": f"Đã tự động nạp Cookie cho {platform.upper()}! {sync_msg}"
+    }
 
 @router.put("/accounts/{account_id}")
 def update_account(account_id: int, req: MarketplaceAccountUpdate, user=Depends(get_optional_user)):
