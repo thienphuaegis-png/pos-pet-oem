@@ -11626,8 +11626,12 @@
                     </div>
                 </div>
 
-                <!-- Mã phiếu & Số tiền -->
+                <!-- Ngày ghi nhận giao dịch & Mã phiếu -->
                 <div class="grid grid-cols-2 gap-3">
+                    <div id="cash-date-container">
+                        <label id="cash-date-label" class="font-bold text-slate-700 block mb-1">📅 Ngày Thu Tiền (*):</label>
+                        <input type="date" id="cash-date-input" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
+                    </div>
                     <div id="cash-code-container">
                         <div class="flex justify-between items-center mb-1">
                             <label class="font-bold text-slate-700">Mã Phiếu (*):</label>
@@ -11635,13 +11639,15 @@
                         </div>
                         <input id="cash-code-input" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-indigo-700 uppercase bg-slate-50 focus:bg-white focus:outline-none focus:border-indigo-500" placeholder="VD: PT-TT-260919-001">
                     </div>
-                    <div id="cash-amount-container">
-                        <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
-                        <input id="cash-amount-input" type="text" inputmode="numeric" 
-                            class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-black text-right text-emerald-700 focus:outline-none focus:border-indigo-500" 
-                            placeholder="0 đ" oninput="handleCashAmountInput(this)">
-                        <input type="hidden" id="cash-amount-raw" value="0">
-                    </div>
+                </div>
+
+                <!-- Số tiền -->
+                <div id="cash-amount-container">
+                    <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
+                    <input id="cash-amount-input" type="text" inputmode="numeric" 
+                        class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-black text-right text-emerald-700 focus:outline-none focus:border-indigo-500" 
+                        placeholder="0 đ" oninput="handleCashAmountInput(this)">
+                    <input type="hidden" id="cash-amount-raw" value="0">
                 </div>
 
                 <!-- Đọc số thành chữ & Nút cộng nhanh -->
@@ -11681,12 +11687,28 @@
                     </datalist>
                 </div>
 
-                <!-- Đối tác liên quan (Ẩn khi chuyển quỹ) -->
-                <div id="cash-contact-container">
-                    <label class="font-bold text-slate-700 block mb-1">Đối Tác Liên Quan (Tùy chọn):</label>
-                    <select id="cash-contact-select" class="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-700 bg-white focus:outline-none focus:border-indigo-500">
+                <!-- Đối tác liên quan (Ẩn khi chuyển quỹ) - Searchable Droplist -->
+                <div id="cash-contact-container" class="relative">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-bold text-slate-700">Đối Tác Liên Quan (Tùy chọn):</label>
+                        <span id="cash-contact-selected-badge" class="text-[10px] text-gray-400 font-medium">Chưa chọn đối tác</span>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="cash-contact-search-input" 
+                            placeholder="🔍 Gõ tên hoặc SĐT để tìm đối tác..." 
+                            autocomplete="off"
+                            onclick="showCashContactDropdown()" 
+                            oninput="filterCashContactDropdown(this.value)"
+                            class="w-full border border-slate-300 rounded-lg p-2 pr-8 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-indigo-500 shadow-2xs">
+                        <button type="button" onclick="clearCashContactSelection()" id="cash-contact-clear-btn" class="hidden absolute right-2.5 top-2.5 text-gray-400 hover:text-rose-600 font-bold text-xs cursor-pointer" title="Bỏ chọn đối tác">✕</button>
+                    </div>
+                    <!-- Hidden select giữ nguyên backward compatibility cho form -->
+                    <select id="cash-contact-select" class="hidden">
                         <option value="">-- Không chọn đối tác --</option>
                     </select>
+                    <!-- Droplist popup menu -->
+                    <div id="cash-contact-dropdown-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto divide-y text-xs">
+                    </div>
                 </div>
 
                 <!-- Ghi chú -->

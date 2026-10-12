@@ -276,6 +276,7 @@ class CashbookTransferCreate(BaseModel):
     to_account_id: int
     amount: float
     note: Optional[str] = ""
+    created_at: Optional[str] = None
 
 class ExpenseRequestCreate(BaseModel):
     type: str = "reimbursement" # 'reimbursement' hoặc 'planned'

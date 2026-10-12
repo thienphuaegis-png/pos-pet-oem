@@ -228,7 +228,13 @@ def create_cashbook(req: CashbookCreate, user=Depends(require_permission("cashbo
 
         note = (req.note or req.description or "").strip()
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
-        created_at_val = req.created_at if req.created_at and req.created_at.strip() else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if req.created_at and req.created_at.strip():
+            created_at_val = req.created_at.strip()
+            if " " not in created_at_val:
+                now_time = datetime.now().strftime("%H:%M:%S")
+                created_at_val = f"{created_at_val} {now_time}"
+        else:
+            created_at_val = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cur.execute('''
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, fund_source, created_by, created_at)
@@ -416,7 +422,21 @@ def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_curren
             raise HTTPException(status_code=400, detail="Tài khoản đích không tồn tại hoặc đã bị khóa")
 
         # Sinh mã giao dịch chuyển tiền
-        date_str = datetime.now().strftime("%y%m%d")
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        if req.created_at and req.created_at.strip():
+            created_at_val = req.created_at.strip()
+            if " " not in created_at_val:
+                now_time = datetime.now().strftime("%H:%M:%S")
+                created_at_val = f"{created_at_val} {now_time}"
+            d_part = created_at_val.split()[0]
+            try:
+                date_str = datetime.strptime(d_part, "%Y-%m-%d").strftime("%y%m%d")
+            except Exception:
+                date_str = datetime.now().strftime("%y%m%d")
+        else:
+            created_at_val = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date_str = datetime.now().strftime("%y%m%d")
+
         pattern = f"PC-CK-{date_str}-%"
         cur.execute("SELECT COUNT(*) FROM cashbook WHERE code LIKE ?", (pattern,))
         count = cur.fetchone()[0]
@@ -436,16 +456,16 @@ def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_curren
 
         # 1. Phiếu Chi (tại tài khoản nguồn)
         cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note)
-            VALUES (?, 'out', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?)
-        """, (pc_code, req.amount, req.from_account_id, from_note))
+            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note, created_by, created_at)
+            VALUES (?, 'out', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?, ?, ?)
+        """, (pc_code, req.amount, req.from_account_id, from_note, user_name, created_at_val))
         out_id = cur.lastrowid
 
         # 2. Phiếu Thu (tại tài khoản đích)
         cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note)
-            VALUES (?, 'in', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?)
-        """, (pt_code, req.amount, req.to_account_id, to_note))
+            INSERT INTO cashbook (code, type, category, amount, account_id, ref_type, note, created_by, created_at)
+            VALUES (?, 'in', 'Chuyển tiền nội bộ', ?, ?, 'fund_transfer', ?, ?, ?)
+        """, (pt_code, req.amount, req.to_account_id, to_note, user_name, created_at_val))
         in_id = cur.lastrowid
 
         conn.commit()

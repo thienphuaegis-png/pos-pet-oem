@@ -2004,6 +2004,7 @@
                 // 2. Tải danh sách đối tác
                 const custRes = await fetch('/api/contacts?_t=' + Date.now());
                 const contacts = await custRes.json();
+                window.allCashContacts = contacts || [];
                 const contactSelect = document.getElementById('cash-contact-select');
                 if (contactSelect) {
                     let cOpts = '<option value="">-- Không chọn đối tác --</option>';
@@ -2013,11 +2014,15 @@
                     });
                     contactSelect.innerHTML = cOpts;
                 }
+                clearCashContactSelection();
 
-                // 3. Reset form
+                // 3. Reset form & ngày giao dịch
                 resetCashAmount();
                 document.getElementById('cash-category-input').value = '';
                 document.getElementById('cash-note-input').value = '';
+                const today = new Date().toISOString().split('T')[0];
+                const dateInp = document.getElementById('cash-date-input');
+                if (dateInp) dateInp.value = today;
 
                 // 4. Set loại phiếu
                 await setCashModalType(type);
@@ -2028,6 +2033,116 @@
                 alert("Lỗi tải thông tin tài khoản!");
             }
         }
+
+        window.allCashContacts = [];
+
+        function showCashContactDropdown() {
+            const menu = document.getElementById('cash-contact-dropdown-menu');
+            if (!menu) return;
+            const query = (document.getElementById('cash-contact-search-input')?.value || '').trim();
+            filterCashContactDropdown(query);
+            menu.classList.remove('hidden');
+        }
+        window.showCashContactDropdown = showCashContactDropdown;
+
+        function filterCashContactDropdown(query = '') {
+            const menu = document.getElementById('cash-contact-dropdown-menu');
+            if (!menu) return;
+            const q = (query || '').toLowerCase().trim();
+            const contacts = window.allCashContacts || [];
+
+            let matches = contacts;
+            if (q) {
+                matches = contacts.filter(c => {
+                    const name = (c.name || '').toLowerCase();
+                    const phone = (c.phone || '').toLowerCase();
+                    if (typeof fuzzyMatch === 'function') {
+                        return fuzzyMatch(q, name) || fuzzyMatch(q, phone) || name.includes(q) || phone.includes(q);
+                    }
+                    return name.includes(q) || phone.includes(q);
+                });
+            }
+
+            let html = `
+                <div onclick="selectCashContact('', '-- Không chọn đối tác --', '', '', 0)" 
+                     class="p-2.5 hover:bg-slate-100 cursor-pointer flex items-center justify-between text-slate-500 font-medium border-b">
+                    <span>-- Không chọn đối tác --</span>
+                    <span class="text-[10px] text-slate-400">Bỏ chọn</span>
+                </div>
+            `;
+
+            if (matches.length === 0) {
+                html += `<div class="p-3 text-center text-slate-400 italic">Không tìm thấy đối tác nào phù hợp</div>`;
+            } else {
+                const list = matches.slice(0, 40);
+                html += list.map(c => {
+                    const isCust = c.type === 'customer';
+                    const badge = isCust 
+                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Khách</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">NCC</span>';
+                    const phoneStr = c.phone ? `<span class="text-slate-400 text-[10px] font-mono ml-1">📞 ${escapeHtml(c.phone)}</span>` : '';
+                    const debt = Number(c.debt || 0);
+                    const debtStr = debt > 0 ? `<span class="text-rose-600 font-bold font-mono text-[10px]">Nợ: ${formatMoney(debt)}</span>` : '';
+                    const safeName = (c.name || '').replace(/'/g, "\\'");
+                    const safePhone = (c.phone || '').replace(/'/g, "\\'");
+
+                    return `
+                        <div onclick="selectCashContact(${c.id}, '${safeName}', '${c.type}', '${safePhone}', ${debt})" 
+                             class="p-2.5 hover:bg-indigo-50/70 cursor-pointer flex items-center justify-between transition group">
+                            <div class="flex items-center gap-1.5 overflow-hidden pr-2">
+                                ${badge}
+                                <span class="font-bold text-slate-800 text-xs truncate group-hover:text-indigo-900">${escapeHtml(c.name)}</span>
+                                ${phoneStr}
+                            </div>
+                            <div class="shrink-0 text-right">
+                                ${debtStr}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            menu.innerHTML = html;
+            menu.classList.remove('hidden');
+        }
+        window.filterCashContactDropdown = filterCashContactDropdown;
+
+        function selectCashContact(id, name, type, phone, debt = 0) {
+            const selectEl = document.getElementById('cash-contact-select');
+            const searchInput = document.getElementById('cash-contact-search-input');
+            const badgeEl = document.getElementById('cash-contact-selected-badge');
+            const clearBtn = document.getElementById('cash-contact-clear-btn');
+            const menu = document.getElementById('cash-contact-dropdown-menu');
+
+            if (selectEl) selectEl.value = id ? String(id) : '';
+
+            if (id) {
+                const tag = type === 'customer' ? '[Khách]' : '[NCC]';
+                if (searchInput) searchInput.value = `${tag} ${name}${phone ? ' (' + phone + ')' : ''}`;
+                if (badgeEl) badgeEl.innerHTML = `<span class="text-indigo-600 font-bold">${tag} ${escapeHtml(name)}</span>`;
+                if (clearBtn) clearBtn.classList.remove('hidden');
+            } else {
+                if (searchInput) searchInput.value = '';
+                if (badgeEl) badgeEl.innerText = 'Chưa chọn đối tác';
+                if (clearBtn) clearBtn.classList.add('hidden');
+            }
+
+            if (menu) menu.classList.add('hidden');
+        }
+        window.selectCashContact = selectCashContact;
+
+        function clearCashContactSelection() {
+            selectCashContact('', '', '', '', 0);
+        }
+        window.clearCashContactSelection = clearCashContactSelection;
+
+        document.addEventListener('pointerdown', (e) => {
+            const container = document.getElementById('cash-contact-container');
+            const menu = document.getElementById('cash-contact-dropdown-menu');
+            if (container && menu && !container.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
 
         async function setCashModalType(type) {
             document.getElementById('cash-type-val').value = type;
@@ -2043,6 +2158,8 @@
             const catContainer = document.getElementById('cash-category-container');
             const contactContainer = document.getElementById('cash-contact-container');
             const codeContainer = document.getElementById('cash-code-container');
+            const dateLabel = document.getElementById('cash-date-label');
+            const dateContainer = document.getElementById('cash-date-container');
 
             if (type === 'transfer') {
                 if (btnTransfer) btnTransfer.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-indigo-50 border-indigo-500 text-indigo-700 cursor-pointer';
@@ -2054,6 +2171,8 @@
                 if (catContainer) catContainer.classList.add('hidden');
                 if (contactContainer) contactContainer.classList.add('hidden');
                 if (codeContainer) codeContainer.classList.add('hidden');
+                if (dateLabel) dateLabel.innerText = '📅 Ngày Chuyển Quỹ (*):';
+                if (dateContainer) dateContainer.className = 'col-span-2';
 
                 if (titleEl) titleEl.innerText = 'Chuyển Tiền / Quỹ Nội Bộ (Rút - Nộp)';
                 if (iconEl) iconEl.innerText = '🔄';
@@ -2071,6 +2190,8 @@
                 if (catContainer) catContainer.classList.remove('hidden');
                 if (contactContainer) contactContainer.classList.remove('hidden');
                 if (codeContainer) codeContainer.classList.remove('hidden');
+                if (dateLabel) dateLabel.innerText = '📅 Ngày Thu Tiền (*):';
+                if (dateContainer) dateContainer.className = 'col-span-1';
 
                 if (titleEl) titleEl.innerText = 'Lập Phiếu Thu Tiền (Vào)';
                 if (iconEl) iconEl.innerText = '🟢';
@@ -2088,6 +2209,8 @@
                 if (catContainer) catContainer.classList.remove('hidden');
                 if (contactContainer) contactContainer.classList.remove('hidden');
                 if (codeContainer) codeContainer.classList.remove('hidden');
+                if (dateLabel) dateLabel.innerText = '📅 Ngày Chi Tiền (*):';
+                if (dateContainer) dateContainer.className = 'col-span-1';
 
                 if (titleEl) titleEl.innerText = 'Lập Phiếu Chi Tiền (Ra)';
                 if (iconEl) iconEl.innerText = '🔴';
@@ -2144,16 +2267,20 @@
                     return;
                 }
 
+                const dateVal = document.getElementById('cash-date-input')?.value || null;
+                const payloadTransfer = {
+                    from_account_id: fromId,
+                    to_account_id: toId,
+                    amount: rawAmount,
+                    note: note
+                };
+                if (dateVal) payloadTransfer.created_at = dateVal;
+
                 try {
                     const res = await fetch('/api/cashbook/transfer', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            from_account_id: fromId,
-                            to_account_id: toId,
-                            amount: rawAmount,
-                            note: note
-                        })
+                        body: JSON.stringify(payloadTransfer)
                     });
                     const result = await res.json();
                     if (!res.ok) throw new Error(result.detail || 'Lỗi chuyển quỹ');
@@ -2184,6 +2311,7 @@
                 return;
             }
 
+            const dateVal = document.getElementById('cash-date-input')?.value || null;
             const payload = {
                 code: code || null,
                 type: type,
@@ -2192,7 +2320,8 @@
                 account_id: accountId || null,
                 contact_id: contactId,
                 ref_type: 'manual',
-                note: note
+                note: note,
+                created_at: dateVal || null
             };
 
             try {
