@@ -780,7 +780,7 @@
                         <td class="p-2.5 text-right">${sellCell}</td>
                         <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${formatMoney(item.total_value)}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${item.created_by || 'Hệ thống'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${(item.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-center">${actionButtons}</td>
                     </tr>
                 `;
@@ -833,7 +833,7 @@
 
                     return `
                         <tr class="border-b hover:bg-gray-50 text-[11px]">
-                            <td class="p-2 text-gray-500 whitespace-nowrap">${l.created_at || '-'}</td>
+                            <td class="p-2 text-gray-500 whitespace-nowrap">${formatDateTime(l.created_at) || '-'}</td>
                             <td class="p-2">${typeBadge}</td>
                             <td class="p-2 text-right ${changeClass}">${changePrefix}${l.change_qty.toLocaleString('vi-VN')}</td>
                             <td class="p-2 text-right font-bold text-slate-800">${(l.new_qty || 0).toLocaleString('vi-VN')}</td>
@@ -1529,7 +1529,7 @@
                     return `
                         <tr class="border-b hover:bg-gray-50 text-xs">
                             <td class="p-2.5 font-mono font-bold text-indigo-700">${a.audit_code}</td>
-                            <td class="p-2.5 text-gray-500 whitespace-nowrap">${a.created_at || '-'}</td>
+                            <td class="p-2.5 text-gray-500 whitespace-nowrap">${formatDateTime(a.created_at) || '-'}</td>
                             <td class="p-2.5 font-bold text-slate-800">${a.warehouse_name || 'Kho'}</td>
                             <td class="p-2.5 text-right font-medium">${(a.items_count || 0).toLocaleString('vi-VN')} món</td>
                             <td class="p-2.5 text-right ${diffColor}">${diffPrefix}${(a.total_diff || 0).toLocaleString('vi-VN')}</td>
@@ -1563,7 +1563,7 @@
                 const res = await fetch(`/api/inventory/audits/${auditId}`);
                 const data = await res.json();
                 document.getElementById('view-audit-code').innerText = data.audit_code;
-                document.getElementById('view-audit-date').innerText = 'Thời gian: ' + (data.created_at || '-');
+                document.getElementById('view-audit-date').innerText = 'Thời gian: ' + (formatDateTime(data.created_at) || '-');
                 document.getElementById('view-audit-wh').innerText = data.warehouse_name;
                 document.getElementById('view-audit-note').innerText = data.note || 'Không có';
 
@@ -1643,7 +1643,7 @@
                             </div>
                             <div style="text-align: right; font-size: 11px;">
                                 <div>Mã phiếu: <strong style="font-family: monospace; font-size: 13px;">${data.audit_code || '-'}</strong></div>
-                                <div>Ngày kiểm: ${data.created_at || '-'}</div>
+                                <div>Ngày kiểm: ${formatDateTime(data.created_at) || '-'}</div>
                             </div>
                         </div>
 
@@ -2230,7 +2230,7 @@
                 tbody.innerHTML = list.map(t => `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${t.transfer_code || t.code}</td>
-                        <td class="p-2.5 text-gray-500 whitespace-nowrap">${t.created_at || '-'}</td>
+                        <td class="p-2.5 text-gray-500 whitespace-nowrap">${formatDateTime(t.created_at) || '-'}</td>
                         <td class="p-2.5 font-bold text-rose-700">${t.from_warehouse_name || 'Kho xuất'}</td>
                         <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
                         <td class="p-2.5 text-right font-medium">${(t.items_count || t.item_count || 0).toLocaleString('vi-VN')} món</td>
@@ -2257,7 +2257,7 @@
                 const res = await fetch(`/api/inventory/transfers/${transferId}`);
                 const data = await res.json();
                 document.getElementById('view-transfer-code').innerText = data.transfer_code || data.code;
-                document.getElementById('view-transfer-date').innerText = 'Thời gian: ' + (data.created_at || '-');
+                document.getElementById('view-transfer-date').innerText = 'Thời gian: ' + (formatDateTime(data.created_at) || '-');
                 document.getElementById('view-transfer-from').innerText = data.from_warehouse_name;
                 document.getElementById('view-transfer-to').innerText = data.to_warehouse_name;
 
@@ -2584,7 +2584,19 @@
         }
 
         async function deleteCategory(id, name) {
-            const confirmed = confirm(`Bạn có chắc muốn xóa nhóm '${name}'? Toàn bộ hàng hóa thuộc nhóm này sẽ chuyển về nhóm 'Khác'.`);
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xóa Nhóm Hàng [${name}]`,
+                    message: `Bạn có chắc chắn muốn xóa nhóm hàng <strong>"${name}"</strong> không?`,
+                    subMessage: `Toàn bộ hàng hóa đang thuộc nhóm này sẽ được tự động chuyển về nhóm mặc định <strong>"Khác"</strong> để đảm bảo an toàn dữ liệu.`,
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy Bỏ',
+                    type: 'danger'
+                });
+            } else {
+                confirmed = confirm(`Bạn có chắc muốn xóa nhóm '${name}'? Toàn bộ hàng hóa thuộc nhóm này sẽ chuyển về nhóm 'Khác'.`);
+            }
             if (!confirmed) return;
 
             try {
@@ -2605,11 +2617,20 @@
                     }
                 } else {
                     const err = await res.json().catch(() => ({}));
-                    alert('Lỗi: ' + (err.detail || 'Không thể xóa nhóm hàng'));
+                    const msg = err.detail || 'Không thể xóa nhóm hàng';
+                    if (typeof showToast === 'function') {
+                        showToast('Lỗi: ' + msg, 'error');
+                    } else {
+                        alert('Lỗi: ' + msg);
+                    }
                 }
             } catch (e) {
                 console.error("deleteCategory error:", e);
-                alert('Lỗi kết nối khi xóa nhóm hàng!');
+                if (typeof showToast === 'function') {
+                    showToast('Lỗi kết nối khi xóa nhóm hàng!', 'error');
+                } else {
+                    alert('Lỗi kết nối khi xóa nhóm hàng!');
+                }
             }
         }
 
@@ -4006,7 +4027,7 @@
                                     <div class="font-bold text-slate-800">${escapeHtml(r.first_name || 'Không tên')}</div>
                                     <div class="text-slate-400 text-3xs font-mono">@${escapeHtml(r.username || 'n/a')}</div>
                                 </td>
-                                <td class="p-2 text-slate-500">${r.created_at ? r.created_at.slice(0, 16) : '-'}</td>
+                                <td class="p-2 text-slate-500">${formatDateTime(r.created_at) || '-'}</td>
                                 <td class="p-2 text-right space-x-1">
                                     <button onclick="approveTelegramAdmin(${r.chat_id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition shadow-2xs">
                                         ✓ Duyệt

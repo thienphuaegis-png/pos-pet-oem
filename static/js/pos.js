@@ -2594,7 +2594,7 @@ function renderAndPrint(ord, isDraft = false) {
         so_dien_thoai: posSettings.shop_phone || "0900000000",
         loi_cam_on: posSettings.shop_footer || "Cảm ơn quý khách!",
         ma_hoa_don: ord.code,
-        ngay_gio: ord.created_at,
+        ngay_gio: typeof formatDateTime === 'function' ? formatDateTime(ord.created_at) : ord.created_at,
         thu_ngan: ord.staff_name || 'Thu ngân',
         ten_khach: ord.customer_name || 'Khách lẻ',
         sdt_khach: ord.customer_phone || '-',
@@ -3879,7 +3879,7 @@ async function showPosWalletHistory() {
 
             return `
                 <tr class="hover:bg-slate-50 border-b border-slate-100 text-xs">
-                    <td class="p-2.5 text-slate-500 font-mono">${r.created_at || ''}</td>
+                    <td class="p-2.5 text-slate-500 font-mono">${typeof formatDateTime === 'function' ? formatDateTime(r.created_at) : (r.created_at || '')}</td>
                     <td class="p-2.5">${typeBadge}</td>
                     <td class="p-2.5 text-right font-mono ${amountColor}">${sign}${Number(r.amount || 0).toLocaleString('vi-VN')} đ</td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-700">${Number(r.balance_after || 0).toLocaleString('vi-VN')} đ</td>
@@ -4172,7 +4172,7 @@ function renderTopupOrdersTable(rows) {
         return `
             <tr class="hover:bg-amber-50/40 border-b border-slate-100 text-xs transition">
                 <td class="p-3 font-mono font-bold text-amber-700">${cbCode}</td>
-                <td class="p-3 text-slate-500 font-mono">${r.created_at || ''}</td>
+                <td class="p-3 text-slate-500 font-mono">${typeof formatDateTime === 'function' ? formatDateTime(r.created_at) : (r.created_at || '')}</td>
                 <td class="p-3">
                     <div class="font-bold text-slate-800">${r.contact_name || 'Khách lẻ'}</div>
                     <div class="text-[10px] text-slate-400 font-mono">${r.contact_phone || ''}</div>

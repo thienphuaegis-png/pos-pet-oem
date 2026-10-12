@@ -715,7 +715,7 @@
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Thời Gian Ghi Sổ:</span>
-                        <span class="font-mono text-slate-600 block mt-0.5">${c.created_at || '-'}</span>
+                        <span class="font-mono text-slate-600 block mt-0.5">${formatDateTime(c.created_at) || '-'}</span>
                     </div>
                 </div>
             `;
@@ -1838,9 +1838,9 @@
                             ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
                         </td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium">${c.created_by || 'Hệ thống'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs">${c.updated_by ? `${c.updated_by} <span class="text-[10px] text-gray-400 block">${(c.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs">${c.updated_by ? `${c.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(c.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-slate-500 text-xs max-w-[200px] truncate" title="${c.note || ''}">${c.note || '-'}</td>
-                        <td class="p-2.5 text-xs text-gray-400 font-mono">${c.created_at || '-'}</td>
+                        <td class="p-2.5 text-xs text-gray-400 font-mono">${formatDateTime(c.created_at) || '-'}</td>
                     </tr>
                 `;
             }).join('');
@@ -4128,11 +4128,11 @@
                         <td class="p-3 font-mono font-bold text-sky-700 cursor-pointer hover:underline" onclick="viewOrderDetailModal('${ord.code}')">
                             ${ord.code}
                         </td>
-                        <td class="p-3 text-gray-500 whitespace-nowrap">${ord.created_at || ''}</td>
+                        <td class="p-3 text-gray-500 whitespace-nowrap">${formatDateTime(ord.created_at) || ''}</td>
                         <td class="p-3 font-medium text-slate-800">${ord.customer_name || 'Khách lẻ'}</td>
                         <td class="p-3 text-gray-600">${ord.staff_name || 'Thu ngân'}</td>
                         <td class="p-3 text-slate-700 font-medium whitespace-nowrap">${ord.created_by || ord.staff_name || 'Thu ngân'}</td>
-                        <td class="p-3 text-slate-500 whitespace-nowrap">${ord.updated_by ? `${ord.updated_by} <span class="text-[10px] text-gray-400 block">${(ord.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-3 text-slate-500 whitespace-nowrap">${ord.updated_by ? `${ord.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(ord.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-3 text-center font-mono font-bold">${ord.item_count || 0}</td>
                         <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(ord.final_amount)}</td>
                         <td class="p-3 text-right font-mono text-gray-500">${formatMoney(ord.discount || 0)}</td>
@@ -4308,7 +4308,7 @@
                 }
 
                 document.getElementById('view-order-code').textContent = ord.code;
-                document.getElementById('view-order-date').textContent = ord.created_at || '';
+                document.getElementById('view-order-date').textContent = formatDateTime(ord.created_at) || '';
                 const custPhoneHtml = ord.customer_phone ? ' (' + (typeof formatMaskedPhone === 'function' ? formatMaskedPhone(ord.customer_phone) : ord.customer_phone) + ')' : '';
                 document.getElementById('view-order-cust').innerHTML = (ord.customer_name || 'Khách lẻ') + custPhoneHtml;
                 document.getElementById('view-order-staff').textContent = ord.staff_name || 'Thu ngân';
@@ -7371,7 +7371,7 @@
                 loi_cam_on: currentSettings.shop_footer || "Cảm ơn quý khách và hẹn gặp lại bé yêu!",
                 ma_hoa_don: ord.code,
                 ma_phieu: ord.code,
-                ngay_gio: ord.created_at,
+                ngay_gio: formatDateTime(ord.created_at),
                 thu_ngan: ord.staff_name || 'Thu ngân',
                 ten_khach: ord.customer_name || 'Khách lẻ',
                 sdt_khach: ord.customer_phone || '-',
@@ -7932,11 +7932,11 @@
                         <td class="p-2.5 font-bold text-slate-800">${o.partner_name || 'Xưởng gia công'}</td>
                         <td class="p-2.5 text-slate-600 font-medium">🏭 ${o.oem_warehouse_name || 'Kho xưởng'}</td>
                         <td class="p-2.5 text-center font-mono text-slate-700">
-                            ${o.expected_delivery_date ? `<span title="Trừ hao ±1 ngày">${o.expected_delivery_date}</span>` : '<span class="text-gray-400">---</span>'}
+                            ${o.expected_delivery_date ? `<span title="Trừ hao ±1 ngày">${formatDate(o.expected_delivery_date)}</span>` : '<span class="text-gray-400">---</span>'}
                         </td>
                         <td class="p-2.5 text-center">${fundBadge}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${o.created_by || 'Quản lý'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${o.updated_by ? `${o.updated_by} <span class="text-[10px] text-gray-400 block">${(o.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${o.updated_by ? `${o.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(o.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-slate-800">${formatMoney(o.total_final_amount)}</td>
                         <td class="p-2.5 text-right font-mono">${dot1Html}</td>
                         <td class="p-2.5 text-right font-mono">${dot2Html}</td>

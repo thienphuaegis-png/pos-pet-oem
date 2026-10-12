@@ -378,8 +378,10 @@
                     <td class="p-2.5 font-bold text-slate-800">${b.room_code} - ${b.room_name}</td>
                     <td class="p-2.5 font-bold text-slate-900">${b.pet_name} <span class="text-[10px] font-normal text-slate-400">(${b.pet_breed || ''})</span></td>
                     <td class="p-2.5 text-slate-700">${b.contact_name} <span class="text-[10px] text-slate-400">(${b.contact_phone || ''})</span></td>
-                    <td class="p-2.5 font-mono text-slate-500">${b.check_in_time ? b.check_in_time.slice(0, 10) : ''}</td>
-                    <td class="p-2.5 font-mono text-amber-700 font-bold">${b.expected_checkout_time ? b.expected_checkout_time.slice(0, 10) : ''}</td>
+                    <td class="p-2.5 font-mono text-slate-500">${b.check_in_time ? formatDateTime(b.check_in_time) : ''}</td>
+                    <td class="p-2.5 font-mono text-amber-700 font-bold">${b.expected_checkout_time ? formatDateTime(b.expected_checkout_time) : ''}</td>
+                    <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${b.created_by || 'Lễ tân'}</td>
+                    <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${b.updated_by ? `${b.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(b.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                     <td class="p-2.5 text-right font-mono font-black text-rose-700">${(b.current_total_amount || 0).toLocaleString('vi-VN')} đ</td>
                     <td class="p-2.5 text-right space-x-1">
                         <button onclick="window.hotelManager.printHotelTicket(${b.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold text-[11px]">🖨️ In</button>

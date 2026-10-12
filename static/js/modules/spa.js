@@ -2925,12 +2925,26 @@
         }
 
         async function deleteSpaCategoryFromManager(id, name, count) {
-            let msg = `Bạn có chắc muốn xóa phân loại "${name}"?`;
-            if (count > 0) {
-                msg = `Phân loại "${name}" đang được áp dụng cho ${count} mức giá dịch vụ.\n\nNếu xóa, toàn bộ ${count} mức giá này sẽ được tự động chuyển về phân loại mặc định "Dịch Vụ Lẻ Chó".\n\nBạn có chắc chắn muốn xóa?`;
+            let confirmed = false;
+            let sub = `Toàn bộ các mức giá thuộc phân loại này sẽ được tự động chuyển về phân loại mặc định <strong>"Dịch Vụ Lẻ Chó"</strong>.`;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: `Xóa Phân Loại Spa [${name}]`,
+                    message: `Bạn có chắc chắn muốn xóa phân loại dịch vụ <strong>"${name}"</strong>?` + (count > 0 ? ` (Đang có ${count} mức giá liên kết)` : ''),
+                    subMessage: sub,
+                    confirmText: 'Xác Nhận Xóa',
+                    cancelText: 'Hủy Bỏ',
+                    type: 'danger'
+                });
+            } else {
+                let msg = `Bạn có chắc muốn xóa phân loại "${name}"?`;
+                if (count > 0) {
+                    msg = `Phân loại "${name}" đang được áp dụng cho ${count} mức giá dịch vụ.\n\nNếu xóa, toàn bộ ${count} mức giá này sẽ được tự động chuyển về phân loại mặc định "Dịch Vụ Lẻ Chó".\n\nBạn có chắc chắn muốn xóa?`;
+                }
+                confirmed = confirm(msg);
             }
 
-            if (!confirm(msg)) return;
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/pet-services/categories/${id}`, {
@@ -2938,16 +2952,20 @@
                 });
 
                 if (!res.ok) {
-                    const err = await res.json();
-                    alert(err.detail || 'Lỗi xóa phân loại');
+                    const err = await res.json().catch(() => ({}));
+                    const msg = err.detail || 'Lỗi xóa phân loại';
+                    if (window.showToast) window.showToast('Lỗi: ' + msg, 'error');
+                    else alert(msg);
                     return;
                 }
 
+                if (window.showToast) window.showToast(`Đã xóa phân loại: ${name}`, 'success');
                 await renderSpaCategoryManagerList();
                 await loadPetPricingList();
             } catch (e) {
                 console.error("deleteSpaCategoryFromManager error:", e);
-                alert('Lỗi kết nối khi xóa phân loại');
+                if (window.showToast) window.showToast('Lỗi kết nối khi xóa phân loại', 'error');
+                else alert('Lỗi kết nối khi xóa phân loại');
             }
         }
 
@@ -3583,7 +3601,7 @@
                 const petTitle = h.pet_name ? `🐾 ${h.pet_name}` : 'Bé chưa đặt tên';
                 const weightStr = h.weight_at_service ? `${h.weight_at_service} kg` : (h.pet_weight ? `${h.pet_weight} kg` : '');
                 const priceStr = formatMoneyString(h.price) + ' đ';
-                const dateStr = h.ticket_date || (h.created_at ? h.created_at.substring(0, 10) : '');
+                const dateStr = formatDate(h.ticket_date || h.created_at);
                 const staffStr = [h.staff_cutter, h.staff_worker_1].filter(Boolean).join(', ') || 'Chưa ghi thợ';
                 const reqStr = h.customer_request || h.note || '';
 

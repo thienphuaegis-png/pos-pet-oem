@@ -1,3 +1,65 @@
+// ── Chuẩn hóa định dạng ngày & giờ Việt Nam (DD/MM/YYYY HH:mm:ss) ──
+function formatDateTime(val, includeTime = true) {
+  if (!val) return '';
+  try {
+    let str = String(val).trim();
+    if (!str || str === '---' || str === '-') return str;
+
+    let datePart = '';
+    let timePart = '';
+    if (str.includes('T')) {
+      const parts = str.split('T');
+      datePart = parts[0];
+      timePart = parts[1].split('+')[0].split('Z')[0].split('.')[0];
+    } else if (str.includes(' ')) {
+      const parts = str.split(' ');
+      datePart = parts[0];
+      timePart = parts[1];
+    } else {
+      datePart = str;
+    }
+
+    const dp = datePart.split('-');
+    if (dp.length === 3 && dp[0].length === 4) {
+      const formattedDate = `${dp[2].padStart(2, '0')}/${dp[1].padStart(2, '0')}/${dp[0]}`;
+      if (includeTime && timePart) {
+        const tp = timePart.split(':');
+        const formattedTime = tp.length >= 2 ? `${tp[0].padStart(2, '0')}:${tp[1].padStart(2, '0')}${tp[2] ? ':' + tp[2].slice(0, 2).padStart(2, '0') : ''}` : timePart;
+        return `${formattedDate} ${formattedTime}`;
+      }
+      return formattedDate;
+    }
+
+    const slashParts = datePart.split('/');
+    if (slashParts.length === 3 && slashParts[2].length === 4) {
+      if (includeTime && timePart) return `${datePart} ${timePart}`;
+      return datePart;
+    }
+
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      if (includeTime) {
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+      }
+      return `${day}/${month}/${year}`;
+    }
+  } catch (_) {}
+  return String(val);
+}
+
+function formatDate(val) {
+  return formatDateTime(val, false);
+}
+
+window.formatDateTime = formatDateTime;
+window.formatDate = formatDate;
+
 // ── Auth state ──
 const Auth = {
   getToken:  () => localStorage.getItem('pos_token'),

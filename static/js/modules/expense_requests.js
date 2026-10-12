@@ -160,7 +160,7 @@
             }
 
             const bankInfo = item.bank_account_info ? `<div class="text-[10px] text-slate-400 truncate max-w-[140px]" title="${escapeHtml(item.bank_account_info)}">🏦 ${escapeHtml(item.bank_account_info)}</div>` : '';
-            const dueDate = item.due_date ? `<div class="text-[10px] text-amber-600">Hạn: ${item.due_date}</div>` : '';
+            const dueDate = item.due_date ? `<div class="text-[10px] text-amber-600">Hạn: ${formatDate(item.due_date)}</div>` : '';
 
             return `
                 <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition text-xs">
@@ -170,6 +170,9 @@
                         ${escapeHtml(item.employee_name)}
                         ${bankInfo}
                     </td>
+                    <td class="p-2.5 font-semibold text-slate-700 whitespace-nowrap">${formatDate(item.expense_date) || '<span class="text-gray-400">---</span>'}</td>
+                    <td class="p-2.5 text-slate-700 font-medium whitespace-nowrap">${item.created_by || 'Nhân viên'}</td>
+                    <td class="p-2.5 text-slate-500 whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                     <td class="p-2.5 text-slate-600 font-medium">${escapeHtml(item.category)}</td>
                     <td class="p-2.5 font-bold text-rose-600 text-right">${formatVND(item.amount)}</td>
                     <td class="p-2.5 text-center">${imgHtml}</td>

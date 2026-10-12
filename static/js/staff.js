@@ -282,7 +282,7 @@ async function renderActivityLog() {
         <td class="py-2.5 px-2">${roleBadges[l.role] || `<span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-600">${l.role || '—'}</span>`}</td>
         <td class="py-2.5 px-3 text-slate-700 font-medium">${l.action}</td>
         <td class="py-2.5 px-2 text-slate-400 font-mono text-[11px]">${l.ip || '—'}</td>
-        <td class="py-2.5 px-3 text-right text-slate-400 text-[11px] whitespace-nowrap">${l.created_at || '—'}</td>
+        <td class="py-2.5 px-3 text-right text-slate-400 text-[11px] whitespace-nowrap">${formatDateTime(l.created_at) || '—'}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -302,7 +302,7 @@ async function renderLoginLog() {
         <td class="py-1.5 pr-2">${r.username}</td>
         <td class="py-1.5 px-2 text-slate-500">${r.ip || ''}</td>
         <td class="py-1.5 px-2">${r.success ? '<span class="text-emerald-600 font-semibold">Thành công</span>' : '<span class="text-rose-600 font-semibold">Sai mật khẩu</span>'}</td>
-        <td class="py-1.5 px-2 text-slate-500">${r.created_at}</td>
+        <td class="py-1.5 px-2 text-slate-500">${formatDateTime(r.created_at) || ''}</td>
       </tr>`).join('');
   } catch (e) { box.innerHTML = '<tr><td colspan="4" class="text-rose-500 py-2">Lỗi tải nhật ký</td></tr>'; }
 }

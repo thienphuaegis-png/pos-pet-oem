@@ -997,10 +997,10 @@
                         <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
                         <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
                         <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>
-                        <td class="p-2.5 font-semibold text-slate-700">${p.expected_date || '<span class="text-gray-400">---</span>'}</td>
+                        <td class="p-2.5 font-semibold text-slate-700">${formatDate(p.expected_date) || '<span class="text-gray-400">---</span>'}</td>
                         <td class="p-2.5 text-center">${fundBadge}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${p.created_by || 'Thủ kho'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${p.updated_by ? `${p.updated_by} <span class="text-[10px] text-gray-400 block">${(p.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${p.updated_by ? `${p.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(p.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_amount)}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${formatMoney(p.paid_amount || 0)}</td>
                         <td class="p-2.5 text-right font-mono font-bold ${p.debt_amount > 0 ? 'text-rose-600' : 'text-gray-400'}">${formatMoney(p.debt_amount)}</td>

@@ -524,7 +524,7 @@
 
                                 return `
                                     <tr class="border-b hover:bg-emerald-50/50">
-                                        <td class="p-2 text-slate-500 font-mono">${r.created_at || '-'}</td>
+                                        <td class="p-2 text-slate-500 font-mono">${formatDateTime(r.created_at) || '-'}</td>
                                         <td class="p-2">${typeBadge}</td>
                                         <td class="p-2 text-right font-mono ${amtColor}">${sign}${formatMoney(r.amount)}</td>
                                         <td class="p-2 text-right font-mono font-bold text-slate-700">${formatMoney(r.balance_after)}</td>
@@ -547,7 +547,7 @@
                     tbHist.innerHTML = data.history.map(h => `
                         <tr class="border-b hover:bg-gray-50">
                             <td class="p-2 font-mono font-bold text-sky-700">${h.code}</td>
-                            <td class="p-2 text-gray-500">${h.created_at || '-'}</td>
+                            <td class="p-2 text-gray-500">${formatDateTime(h.created_at) || '-'}</td>
                             <td class="p-2 text-right font-mono font-bold">${formatMoney(h.total_amount)}</td>
                             <td class="p-2 text-right font-mono text-emerald-600">${formatMoney(h.paid_amount)}</td>
                             <td class="p-2 text-right font-mono text-rose-600 font-bold">${formatMoney(h.debt)}</td>
@@ -562,7 +562,7 @@
                     tbCash.innerHTML = data.cashbook_history.map(c => `
                         <tr class="border-b hover:bg-gray-50">
                             <td class="p-2 font-mono font-bold">${c.code}</td>
-                            <td class="p-2 text-gray-500">${c.created_at || '-'}</td>
+                            <td class="p-2 text-gray-500">${formatDateTime(c.created_at) || '-'}</td>
                             <td class="p-2">${c.category}</td>
                             <td class="p-2 text-right font-mono font-bold ${c.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}">
                                 ${c.type === 'in' ? '+' : '-'}${formatMoney(c.amount)}
