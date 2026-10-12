@@ -10,10 +10,13 @@ from dependencies import get_current_user
 
 init_db()
 
-# Bypass auth
-app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
-
 client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def override_auth():
+    app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 @pytest.fixture(scope="module", autouse=True)
 def cleanup():

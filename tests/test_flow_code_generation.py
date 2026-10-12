@@ -5,7 +5,11 @@ import sqlite3
 import datetime
 import urllib.request
 import json
+import pytest
 from database import get_db
+from tests.conftest import is_port_open
+
+pytestmark = pytest.mark.skipif(not is_port_open(), reason="Cần server 127.0.0.1:8999 đang chạy")
 
 def test_pos_order_creates_pt_bh():
     conn = get_db()

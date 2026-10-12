@@ -208,6 +208,10 @@ class PGConnectionWrapper:
             pass
 
 def get_db_path():
+    env_path = os.environ.get("POS_DB_PATH")
+    if env_path:
+        os.makedirs(os.path.dirname(os.path.abspath(env_path)), exist_ok=True)
+        return env_path
     # Neu chay bang pyinstaller exe: luu pos.db ben canh file .exe
     if getattr(sys, 'frozen', False):
         base_dir = os.path.dirname(sys.executable)
@@ -300,6 +304,17 @@ def init_db():
         name TEXT NOT NULL UNIQUE,
         description TEXT,
         sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS pet_service_pricing (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_name TEXT NOT NULL,
+        category TEXT DEFAULT 'Gói Spa',
+        min_weight REAL DEFAULT 0,
+        max_weight REAL DEFAULT 999,
+        price REAL NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -702,6 +717,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS productions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
+        product_id INTEGER,
+        quantity REAL DEFAULT 0,
         warehouse_id INTEGER DEFAULT 1,
         total_cost REAL DEFAULT 0,
         status TEXT DEFAULT 'completed', -- 'completed'
@@ -711,6 +728,15 @@ def init_db():
     )''')
 
     # Migration productions cols neu thieu
+    for _pcol in [
+        "ALTER TABLE productions ADD COLUMN product_id INTEGER",
+        "ALTER TABLE productions ADD COLUMN quantity REAL DEFAULT 0"
+    ]:
+        try:
+            cur.execute(_pcol)
+        except Exception:
+            pass
+
     cur.execute("PRAGMA table_info(products)")
     prod_table_cols = [c[1] for c in cur.fetchall()]
     if 'is_active' not in prod_table_cols:
@@ -1560,10 +1586,59 @@ def init_db():
         except Exception:
             pass
 
-    # ── Gắn shift_id vào orders và cashbook ──
+    cur.execute("SELECT COUNT(*) FROM hotel_rooms")
+    if cur.fetchone()[0] < 10:
+        rooms = [
+            ("C01", "Phòng Gỗ Mèo C01", "cat", 150000, "available", "Phòng gỗ thông thoáng, có trụ cào móng"),
+            ("C02", "Phòng Gỗ Mèo C02", "cat", 150000, "available", "Phòng gỗ thông thoáng, có trụ cào móng"),
+            ("C03", "Phòng Gỗ Mèo C03", "cat", 150000, "available", "Phòng gỗ thông thoáng, có võng nằm"),
+            ("C04", "Phòng Gỗ Mèo C04", "cat", 150000, "available", "Phòng gỗ thông thoáng, có võng nằm"),
+            ("C05", "Phòng Gỗ Mèo C05", "cat", 150000, "available", "Phòng đôi cho 2 bé mèo"),
+            ("C06", "Phòng Gỗ Mèo C06", "cat", 150000, "available", "Phòng đôi cho 2 bé mèo"),
+            ("C07", "Phòng Gỗ Mèo C07", "cat", 150000, "available", "Tầng 2 yên tĩnh cho bé nhát người"),
+            ("C08", "Phòng Gỗ Mèo C08", "cat", 150000, "available", "Tầng 2 yên tĩnh cho bé nhát người"),
+            ("D01", "Chuồng Inox Chó D01", "dog_small", 180000, "available", "Dành cho cún < 7kg (Poodle, Phốc, Corgi)"),
+            ("D02", "Chuồng Inox Chó D02", "dog_small", 180000, "available", "Dành cho cún < 7kg (Poodle, Phốc, Corgi)"),
+            ("D03", "Chuồng Inox Chó D03", "dog_small", 180000, "available", "Dành cho cún < 7kg"),
+            ("D04", "Chuồng Inox Chó D04", "dog_small", 180000, "available", "Dành cho cún < 7kg"),
+            ("D05", "Chuồng Inox Chó D05", "dog_small", 220000, "available", "Dành cho cún trung bình 7 - 15kg"),
+            ("D06", "Chuồng Inox Chó D06", "dog_small", 220000, "available", "Dành cho cún trung bình 7 - 15kg"),
+            ("V01", "Phòng VIP Tổng Thống 01", "vip", 300000, "available", "Điều hòa 24/24, camera riêng, đồ chơi"),
+            ("V02", "Phòng VIP Tổng Thống 02", "vip", 300000, "available", "Điều hòa 24/24, camera riêng, đồ chơi")
+        ]
+        for code, name, zone, price, status, desc in rooms:
+            cur.execute("""
+                INSERT OR IGNORE INTO hotel_rooms (code, name, zone, price_per_day, status, description)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (code, name, zone, price, status, desc))
+
+    # ── Gắn shift_id vào orders và cashbook & Audit Trail ──
     for _col in [
         "ALTER TABLE orders ADD COLUMN shift_id INTEGER REFERENCES shifts(id)",
+        "ALTER TABLE orders ADD COLUMN warehouse_id INTEGER DEFAULT 1",
+        "ALTER TABLE orders ADD COLUMN created_by TEXT",
+        "ALTER TABLE orders ADD COLUMN updated_by TEXT",
+        "ALTER TABLE orders ADD COLUMN updated_at DATETIME",
         "ALTER TABLE cashbook ADD COLUMN shift_id INTEGER REFERENCES shifts(id)",
+        "ALTER TABLE cashbook ADD COLUMN created_by TEXT",
+        "ALTER TABLE cashbook ADD COLUMN updated_by TEXT",
+        "ALTER TABLE cashbook ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE purchases ADD COLUMN created_by TEXT",
+        "ALTER TABLE purchases ADD COLUMN updated_by TEXT",
+        "ALTER TABLE purchases ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE order_returns ADD COLUMN created_by TEXT",
+        "ALTER TABLE order_returns ADD COLUMN updated_by TEXT",
+        "ALTER TABLE order_returns ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE expense_requests ADD COLUMN expense_date DATE",
+        "ALTER TABLE expense_requests ADD COLUMN created_by TEXT",
+        "ALTER TABLE expense_requests ADD COLUMN updated_by TEXT",
+        "ALTER TABLE expense_requests ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE pet_service_tickets ADD COLUMN created_by TEXT",
+        "ALTER TABLE pet_service_tickets ADD COLUMN updated_by TEXT",
+        "ALTER TABLE pet_service_tickets ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE hotel_bookings ADD COLUMN created_by TEXT",
+        "ALTER TABLE hotel_bookings ADD COLUMN updated_by TEXT",
+        "ALTER TABLE hotel_bookings ADD COLUMN updated_at DATETIME",
     ]:
         try:
             cur.execute(_col)

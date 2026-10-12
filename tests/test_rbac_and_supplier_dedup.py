@@ -268,7 +268,7 @@ async def test_import_customer_excel_priority_and_phone():
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test')")
+    cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901234567', '901234567') OR code = 'KH0099'")
     conn.commit()
     conn.close()
 
@@ -306,12 +306,16 @@ async def test_import_customer_excel_priority_and_phone():
         assert row["address"] == "Bến Tre Mới"
         assert row["debt"] == 70000.0  # 50k + 20k
         assert row["points"] == 150    # 100 + 50
-    finally:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test')")
-        conn.commit()
         conn.close()
+    finally:
+        try:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901234567', '901234567') OR code = 'KH0099'")
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
 @pytest.mark.anyio
 async def test_import_supplier_excel_two_funds():

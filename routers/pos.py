@@ -1014,10 +1014,11 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 if not user or not check_permission(user["id"], role, "shifts.bypass"):
                     raise HTTPException(status_code=400, detail="Bạn chưa mở ca làm việc. Vui lòng mở ca trước khi bán hàng.")
 
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
-        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction))
+        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction, warehouse_id, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, req.customer_id, req.staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction, warehouse_id, user_name))
         
         order_id = cur.lastrowid
         warehouse_id = req.warehouse_id or 1
@@ -1465,17 +1466,19 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         else:
             total_amount = order["total_amount"]
 
+        shipping_fee = float(req.shipping_fee) if req.shipping_fee is not None else float(order["shipping_fee"] or 0.0)
         spa_wallet_deduct = order["spa_wallet_deduction"] or 0.0
-        final_amount = max(0, total_amount - spa_wallet_deduct - new_discount)
+        final_amount = max(0, total_amount - spa_wallet_deduct - new_discount + shipping_fee)
         new_paid = req.paid_amount if req.paid_amount is not None else old_paid
         actual_new_paid = min(new_paid, final_amount) if new_paid > 0 else 0.0
         new_debt = max(0, final_amount - actual_new_paid)
 
+        updater_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
         UPDATE orders 
-        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?
+        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-        """, (new_customer_id, new_staff_id, total_amount, new_discount, final_amount, actual_new_paid, new_debt, new_note, order_id))
+        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, updater_name, order_id))
 
         if old_customer_id == new_customer_id:
             diff_debt = new_debt - old_debt

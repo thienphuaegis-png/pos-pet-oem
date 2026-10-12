@@ -1426,7 +1426,7 @@
 
                     <div class="overflow-hidden">
                         <div class="overflow-x-auto p-1">
-                            <table class="w-full text-left text-xs table-floating-cards">
+                            <table class="w-full min-w-[1250px] text-left text-xs table-floating-cards">
                                 <thead class="bg-slate-50/70 text-slate-600 font-bold">
                                     <tr>
                                         <th class="p-3 w-10 text-center">
@@ -1436,6 +1436,8 @@
                                         <th class="p-3">Thời Gian</th>
                                         <th class="p-3">Khách Hàng</th>
                                         <th class="p-3">Thu Ngân</th>
+                                        <th class="p-3">Người Lập</th>
+                                        <th class="p-3">Sửa Cuối</th>
                                         <th class="p-3 text-center">Số Món</th>
                                         <th class="p-3 text-right">Tổng Tiền</th>
                                         <th class="p-3 text-right">Giảm Giá</th>
@@ -1446,7 +1448,7 @@
                                 </thead>
                                 <tbody id="orders-table-body">
                                     <tr>
-                                        <td colspan="11" class="p-6 text-center text-gray-400 italic">Đang tải danh sách hóa đơn...</td>
+                                        <td colspan="13" class="p-6 text-center text-gray-400 italic">Đang tải danh sách hóa đơn...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -3182,8 +3184,8 @@
                         </div>
                         <div class="text-slate-500 text-[11px]">Bấm Check-out để tính tiền và hoàn tất lưu trú</div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full min-w-[1150px] text-left">
                             <thead class="bg-slate-100/70 border-b text-slate-600 font-bold uppercase text-[10px]">
                                 <tr>
                                     <th class="p-2.5 text-center w-12">STT</th>
@@ -3193,6 +3195,8 @@
                                     <th class="p-2.5">Chủ Nuôi</th>
                                     <th class="p-2.5">Ngày Vào</th>
                                     <th class="p-2.5">Dự Kiến Ra</th>
+                                    <th class="p-2.5">Người Lập</th>
+                                    <th class="p-2.5">Sửa Cuối</th>
                                     <th class="p-2.5 text-right">Tạm Tính</th>
                                     <th class="p-2.5 text-right">Thao Tác</th>
                                 </tr>
@@ -3771,7 +3775,7 @@
                     <!-- Bảng Danh Sách Đơn Nhập Chuẩn -->
                     <div class="overflow-hidden">
                         <div class="overflow-x-auto p-1">
-                            <table class="w-full text-xs text-left table-floating-cards">
+                            <table class="w-full min-w-[1250px] text-xs text-left table-floating-cards">
                                 <thead class="bg-slate-100/70 text-slate-700 font-bold uppercase text-[11px]">
                                     <tr>
                                         <th class="p-2.5">Mã Đơn</th>
@@ -3779,6 +3783,8 @@
                                         <th class="p-2.5">Kho Nhập</th>
                                         <th class="p-2.5">Hẹn Giao</th>
                                         <th class="p-2.5 text-center">Nguồn Tiền</th>
+                                        <th class="p-2.5">Người Lập</th>
+                                        <th class="p-2.5">Sửa Cuối</th>
                                         <th class="p-2.5 text-right">Tổng Tiền</th>
                                         <th class="p-2.5 text-right">Đã Trả</th>
                                         <th class="p-2.5 text-right">Còn Nợ</th>
@@ -3788,7 +3794,7 @@
                                 </thead>
                                 <tbody id="table-purchases-history" class="divide-y divide-gray-100">
                                     <tr>
-                                        <td colspan="10" class="p-6 text-center text-gray-400">Đang tải lịch sử phiếu nhập...</td>
+                                        <td colspan="12" class="p-6 text-center text-gray-400">Đang tải lịch sử phiếu nhập...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -4706,8 +4712,8 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
-                    <table class="w-full text-left text-xs border-collapse">
+                <div class="bg-white rounded-lg shadow-sm border overflow-x-auto w-full">
+                    <table class="w-full min-w-[1150px] text-left text-xs border-collapse">
                         <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase">
                             <tr>
                                 <th class="p-2.5">Mã phiếu</th>
@@ -4716,6 +4722,8 @@
                                 <th class="p-2.5">Hạng mục</th>
                                 <th class="p-2.5">Đối tác / Người nộp-nhận</th>
                                 <th class="p-2.5 text-right">Số tiền</th>
+                                <th class="p-2.5">Người Lập</th>
+                                <th class="p-2.5">Sửa Cuối</th>
                                 <th class="p-2.5">Ghi chú</th>
                                 <th class="p-2.5">Thời gian</th>
                             </tr>
@@ -4740,7 +4748,7 @@
                         <div class="flex flex-wrap gap-2">
                             <button onclick="openCreateExpenseModal('reimbursement')" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
                                 <span>+</span>
-                                <span>Yêu Cầu NV Chi Hộ</span>
+                                <span>Lập Phiếu Chi Hoàn Ứng</span>
                             </button>
                             <button onclick="openCreateExpenseModal('planned')" class="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
                                 <span>+</span>
@@ -4802,13 +4810,16 @@
                     </div>
 
                     <!-- Bảng danh sách yêu cầu chi -->
-                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-xs">
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-x-auto w-full">
+                        <table class="w-full min-w-[1200px] text-left border-collapse text-xs">
                             <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase">
                                 <tr>
                                     <th class="p-2.5">Mã YC</th>
                                     <th class="p-2.5">Loại</th>
                                     <th class="p-2.5">Người đề xuất / NV</th>
+                                    <th class="p-2.5">Ngày Chi</th>
+                                    <th class="p-2.5">Người Lập</th>
+                                    <th class="p-2.5">Sửa Cuối</th>
                                     <th class="p-2.5">Hạng mục</th>
                                     <th class="p-2.5 text-right">Số tiền</th>
                                     <th class="p-2.5 text-center">Ảnh Bill</th>
@@ -8700,6 +8711,23 @@
                     <input type="number" id="pay-debt-amount" class="border p-2 rounded w-full font-bold text-emerald-600 text-sm" placeholder="0">
                 </div>
                 <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tài Khoản Thanh Toán (*):</label>
+                    <select id="pay-debt-account" class="border p-2 rounded w-full bg-white font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <!-- Loaded dynamically from /api/payment-accounts -->
+                    </select>
+                </div>
+                <div id="pay-debt-fund-wrap">
+                    <label class="block font-bold text-slate-700 mb-1">Nguồn Quỹ Chi Trả:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center gap-1.5 p-2 border rounded cursor-pointer hover:bg-slate-50 text-[11px] font-semibold text-slate-700">
+                            <input type="radio" name="pay-debt-fund" value="COMPANY" checked class="text-sky-600"> Quỹ Công Ty
+                        </label>
+                        <label class="flex items-center gap-1.5 p-2 border rounded cursor-pointer hover:bg-slate-50 text-[11px] font-semibold text-slate-700">
+                            <input type="radio" name="pay-debt-fund" value="PERSONAL" class="text-sky-600"> Quỹ Cá Nhân
+                        </label>
+                    </div>
+                </div>
+                <div>
                     <label class="block font-bold text-slate-700 mb-1">Ghi Chú:</label>
                     <input type="text" id="pay-debt-note" class="border p-2 rounded w-full" placeholder="Hình thức chuyển khoản, tiền mặt...">
                 </div>
@@ -10335,15 +10363,21 @@
                 <div>
                     <label class="block text-slate-700 font-bold mb-1">Loại Yêu Cầu *</label>
                     <select id="exp-form-type" onchange="toggleExpenseTypeFields(this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                        <option value="reimbursement">Nhân viên chi hộ (Chờ hoàn ứng)</option>
+                        <option value="reimbursement">Lập phiếu chi hoàn ứng (Nhân viên chi)</option>
                         <option value="planned">Dự chi quán (Khoản cần chi sắp tới)</option>
                     </select>
                 </div>
 
-                <!-- Tên NV / Người đề xuất -->
-                <div>
-                    <label id="exp-form-emp-label" class="block text-slate-700 font-bold mb-1">Tên nhân viên chi hộ *</label>
-                    <input type="text" id="exp-form-emp" placeholder="Ví dụ: Nguyễn Văn A..." required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <!-- Ngày chi tiền thực tế & Tên NV -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-700 font-bold mb-1">Ngày chi tiền thực tế *</label>
+                        <input type="date" id="exp-form-date" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    </div>
+                    <div>
+                        <label id="exp-form-emp-label" class="block text-slate-700 font-bold mb-1">Tên nhân viên nhận hoàn ứng *</label>
+                        <input type="text" id="exp-form-emp" placeholder="Ví dụ: Nguyễn Văn A..." required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    </div>
                 </div>
 
                 <!-- Số tiền & Hạng mục -->

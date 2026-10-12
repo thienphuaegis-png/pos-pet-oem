@@ -261,6 +261,7 @@ class CashbookCreate(BaseModel):
     note: Optional[str] = ""
     description: Optional[str] = ""
     fund_source: Optional[str] = "COMPANY"
+    created_at: Optional[str] = None
 
 class CashbookUpdate(BaseModel):
     category: Optional[str] = None
@@ -268,6 +269,7 @@ class CashbookUpdate(BaseModel):
     account_id: Optional[int] = None
     contact_id: Optional[int] = None
     note: Optional[str] = None
+    created_at: Optional[str] = None
 
 class CashbookTransferCreate(BaseModel):
     from_account_id: int
@@ -284,6 +286,7 @@ class ExpenseRequestCreate(BaseModel):
     bill_image: Optional[str] = None
     bank_account_info: Optional[str] = None
     due_date: Optional[str] = None
+    expense_date: Optional[str] = None
 
 class ExpenseRequestApprove(BaseModel):
     account_id: int

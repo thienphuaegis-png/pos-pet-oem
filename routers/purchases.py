@@ -442,24 +442,25 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
         code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
 
         status = 'draft' if req.status == 'draft' else 'pending'
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
 
         cur.execute('''
         INSERT INTO purchases (
             code, supplier_id, warehouse_id, subtotal_amount, discount, 
             shipping_fee, other_fee, vat_rate, vat_amount, total_amount, 
-            paid_amount, debt_amount, status, expected_date, fund_source, note
+            paid_amount, debt_amount, status, expected_date, fund_source, note, created_by
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             code, req.supplier_id, warehouse_id, subtotal_amount, req.discount,
             req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
-            req.paid_amount, debt_amount, status, req.expected_date, req.fund_source or 'PERSONAL', req.note
+            req.paid_amount, debt_amount, status, req.expected_date, req.fund_source or 'PERSONAL', req.note, user_name
         ))
         purchase_id = cur.lastrowid
 
         for item in req.items:
             subtotal = round(item.quantity * item.cost_price, 2)
-            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
+            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else None
             cur.execute('''
             INSERT INTO purchase_items (
                 purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity
@@ -500,24 +501,26 @@ def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permiss
         total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
 
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute('''
         UPDATE purchases
         SET supplier_id = ?, warehouse_id = ?, subtotal_amount = ?, discount = ?,
             shipping_fee = ?, other_fee = ?, vat_rate = ?, vat_amount = ?, total_amount = ?,
-            paid_amount = ?, debt_amount = ?, expected_date = ?, fund_source = ?, note = ?, status = ?
+            paid_amount = ?, debt_amount = ?, expected_date = ?, fund_source = ?, note = ?, status = ?,
+            updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         ''', (
             req.supplier_id, warehouse_id, subtotal_amount, req.discount,
             req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
             req.paid_amount, debt_amount, req.expected_date, req.fund_source or 'PERSONAL', req.note, new_status,
-            purchase_id
+            user_name, purchase_id
         ))
 
         cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
 
         for item in req.items:
             subtotal = round(item.quantity * item.cost_price, 2)
-            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else 1
+            prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else None
             cur.execute('''
             INSERT INTO purchase_items (
                 purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity

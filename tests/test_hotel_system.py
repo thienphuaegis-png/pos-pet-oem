@@ -1,9 +1,9 @@
 import pytest
 import sqlite3
 import os
-from database import get_db
+from database import get_db, get_db_path
 
-DB_PATH = "data/pos.db"
+DB_PATH = get_db_path()
 
 def test_database_has_hotel_tables():
     """Kiểm tra sự tồn tại của 2 bảng hotel_rooms và hotel_bookings trong SQLite"""
@@ -57,7 +57,13 @@ def test_hotel_api_endpoints():
         cursor.execute("SELECT id FROM contacts LIMIT 1")
         contact_id = cursor.fetchone()["id"]
         cursor.execute("SELECT id FROM pets LIMIT 1")
-        pet_id = cursor.fetchone()["id"]
+        p_row = cursor.fetchone()
+        if not p_row:
+            cursor.execute("INSERT INTO pets (customer_id, name, species) VALUES (?, 'Miu Test', 'cat')", (contact_id,))
+            conn.commit()
+            pet_id = cursor.lastrowid
+        else:
+            pet_id = p_row["id"]
         # Lấy phòng trống
         cursor.execute("SELECT id FROM hotel_rooms WHERE status = 'available' LIMIT 1")
         avail_room_id = cursor.fetchone()["id"]

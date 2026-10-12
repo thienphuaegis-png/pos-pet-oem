@@ -3,7 +3,8 @@ import json
 import sqlite3
 import pytest
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "pos.db")
+from database import get_db_path
+DB_PATH = get_db_path()
 
 def test_print_presets_schema_has_category_and_bold():
     """Kiểm tra 12 preset mẫu in trong database có category và is_bold_all."""

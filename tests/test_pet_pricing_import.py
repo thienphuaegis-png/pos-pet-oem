@@ -2,6 +2,10 @@ import unittest
 import sqlite3
 import os
 import requests
+import pytest
+from tests.conftest import is_port_open
+
+pytestmark = pytest.mark.skipif(not is_port_open(), reason="Cần server 127.0.0.1:8999 đang chạy")
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'pos.db')
 

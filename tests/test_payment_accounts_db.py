@@ -1,7 +1,9 @@
 import os
 import sqlite3
 
-DB_PATH = "data/pos.db"
+from database import get_db_path
+
+DB_PATH = get_db_path()
 
 def test_payment_accounts_table_and_cashbook_column():
     conn = sqlite3.connect(DB_PATH)

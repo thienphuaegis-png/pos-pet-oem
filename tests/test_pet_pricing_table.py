@@ -68,8 +68,8 @@ def test_pet_pricing_html_and_js_integrity():
     assert '<select id="svc-dye-package" onchange="autoCalculateServicePrice()"' in html
     assert '<option value="">-- Không nhuộm --</option>' in html
 
-    # Kiểm tra static/js/app.js có các hàm xử lý phân loại & quản lý sửa xóa
-    with open("static/js/app.js", "r", encoding="utf-8") as f:
+    # Kiểm tra static/js/modules/spa.js có các hàm xử lý phân loại & quản lý sửa xóa
+    with open("static/js/modules/spa.js", "r", encoding="utf-8") as f:
         js = f.read()
     assert 'formatWeightRange' in js
     assert 'updatePetPricingCategoryUI' in js
@@ -85,7 +85,8 @@ def test_pet_pricing_html_and_js_integrity():
 
 def test_spa_categories_crud_and_sync():
     # 1. Test tạo phân loại Spa qua API
-    cat_name = f"Phân Loại Test {sqlite3.connect('data/pos.db').total_changes}"
+    from database import get_db_path
+    cat_name = f"Phân Loại Test {sqlite3.connect(get_db_path()).total_changes}"
     res = client.post("/api/pet-services/categories", json={"name": cat_name})
     assert res.status_code == 200, res.text
     data = res.json()

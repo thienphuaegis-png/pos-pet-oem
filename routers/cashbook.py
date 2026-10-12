@@ -227,13 +227,15 @@ def create_cashbook(req: CashbookCreate, user=Depends(require_permission("cashbo
             code = generate_cashbook_code(cur, prefix)
 
         note = (req.note or req.description or "").strip()
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        created_at_val = req.created_at if req.created_at and req.created_at.strip() else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cur.execute('''
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, fund_source, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             code, norm_type, req.category.strip(), req.amount, req.contact_id,
-            req.ref_type or "manual", req.ref_id, note, acc_id
+            req.ref_type or "manual", req.ref_id, note, acc_id, req.fund_source or "COMPANY", user_name, created_at_val
         ))
         conn.commit()
         new_id = cur.lastrowid
@@ -263,20 +265,6 @@ def update_cashbook_voucher(
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu thu chi")
 
     current = dict(row)
-    cb_type = (current.get("type") or "").lower()
-    ref_type = (current.get("ref_type") or "").lower()
-
-    if cb_type in ("in", "thu"):
-        if ref_type != "topup":
-            conn.close()
-            raise HTTPException(
-                status_code=400,
-                detail="Chỉ được phép sửa phiếu chi hoặc phiếu thu nạp ví Spa. Phiếu thu không được chỉnh sửa tại đây."
-            )
-    elif cb_type not in ("out", "chi"):
-        conn.close()
-        raise HTTPException(status_code=400, detail="Loại phiếu không hợp lệ.")
-
     updates = []
     params = []
 
@@ -306,6 +294,15 @@ def update_cashbook_voucher(
     if req.note is not None:
         updates.append("note = ?")
         params.append(req.note.strip())
+
+    if req.created_at is not None and req.created_at.strip():
+        updates.append("created_at = ?")
+        params.append(req.created_at.strip())
+
+    user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    updates.append("updated_by = ?")
+    params.append(user_name)
+    updates.append("updated_at = CURRENT_TIMESTAMP")
 
     if not updates:
         conn.close()
@@ -337,58 +334,13 @@ def delete_cashbook_voucher(
     cb_type = (current.get("type") or "").lower()
     ref_type = (current.get("ref_type") or "").lower()
 
-    if cb_type in ("in", "thu"):
-        if ref_type == "topup":
-            # Hoàn tác số dư ví Spa & điểm tích lũy của khách hàng
-            ref_id = current.get("ref_id")
-            if ref_id:
-                cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
-                tx_row = cur.fetchone()
-                if tx_row:
-                    tx = dict(tx_row)
-                    cid = tx.get("contact_id")
-                    receive_amt = float(tx.get("amount") or 0.0)
-                    pts = int(tx.get("points_earned") or 0)
-                    if cid:
-                        cur.execute("""
-                            UPDATE contacts
-                            SET spa_wallet_balance = MAX(0, spa_wallet_balance - ?),
-                                points = MAX(0, points - ?)
-                            WHERE id = ?
-                        """, (receive_amt, pts, cid))
-                    cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
-        else:
-            conn.close()
-            raise HTTPException(
-                status_code=400,
-                detail="Chỉ được phép xóa phiếu chi hoặc phiếu thu nạp ví Spa. Phiếu thu không thể xóa tại đây."
-            )
-    elif cb_type in ("out", "chi"):
-        if ref_type == "oem_order":
-            ref_id = current.get("ref_id")
-            if ref_id:
-                amt = float(current.get("amount") or 0.0)
-                cur.execute("SELECT * FROM oem_orders WHERE id = ?", (ref_id,))
-                oem_row = cur.fetchone()
-                if oem_row:
-                    cur.execute("""
-                        UPDATE oem_orders
-                        SET deposit_amount = MAX(0, deposit_amount - ?),
-                            remaining_payment = remaining_payment + ?,
-                            payment_status = 'PARTIAL'
-                        WHERE id = ?
-                    """, (amt, amt, ref_id))
-        cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
-    else:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Loại phiếu không hợp lệ.")
-
+    cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
     conn.commit()
     conn.close()
 
     v_title = "phiếu thu" if cb_type in ("in", "thu") else "phiếu chi"
-    logger.info(f"User {user.get('username')} đã xóa {v_title} {current.get('code')} (id={voucher_id})")
+    logger.info(f"User {user.get('username') if isinstance(user, dict) else ''} đã xóa {v_title} {current.get('code')} (id={voucher_id})")
     return {"success": True, "message": f"Đã xóa thành công {v_title} {current.get('code')}"}
 
 @router.post("/api/cashbook/transfer")
@@ -939,7 +891,7 @@ def list_expense_requests(
     return {"items": items, "stats": stats}
 
 @router.post("/api/expense-requests")
-def create_expense_request(req: ExpenseRequestCreate):
+def create_expense_request(req: ExpenseRequestCreate, user=Depends(get_optional_user)):
     if not req.employee_name or not req.employee_name.strip():
         raise HTTPException(status_code=400, detail="Vui lòng nhập tên người đề xuất / nhân viên chi")
     if req.amount <= 0:
@@ -948,15 +900,17 @@ def create_expense_request(req: ExpenseRequestCreate):
     conn = get_db()
     cur = conn.cursor()
     code = generate_expense_request_code(cur)
+    user_name = (user.get("name") if isinstance(user, dict) else None) or req.employee_name.strip()
+    exp_date = req.expense_date or datetime.now().strftime("%Y-%m-%d")
 
     cur.execute("""
         INSERT INTO expense_requests (
-            code, type, employee_name, amount, category, note, bill_image, bank_account_info, due_date, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            code, type, employee_name, amount, category, note, bill_image, bank_account_info, due_date, expense_date, created_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     """, (
         code, req.type, req.employee_name.strip(), req.amount,
         req.category or "Chi khác", req.note or "", req.bill_image,
-        req.bank_account_info, req.due_date
+        req.bank_account_info, req.due_date, exp_date, user_name
     ))
     req_id = cur.lastrowid
     conn.commit()
@@ -967,7 +921,7 @@ def create_expense_request(req: ExpenseRequestCreate):
     return row
 
 @router.post("/api/expense-requests/{req_id}/approve")
-def approve_expense_request(req_id: int, payload: ExpenseRequestApprove):
+def approve_expense_request(req_id: int, payload: ExpenseRequestApprove, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
 
@@ -998,12 +952,15 @@ def approve_expense_request(req_id: int, payload: ExpenseRequestApprove):
     else:
         cb_note = f"Dự chi giải ngân: {payload.note or req['note'] or req['category']}".strip()
 
+    approver_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    cb_created_at = (req.get("expense_date") + " 12:00:00") if req.get("expense_date") else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     cur.execute("""
         INSERT INTO cashbook (
-            code, type, category, amount, account_id, ref_type, ref_id, note
-        ) VALUES (?, 'out', ?, ?, ?, 'expense_request', ?, ?)
+            code, type, category, amount, account_id, ref_type, ref_id, note, created_by, created_at
+        ) VALUES (?, 'out', ?, ?, ?, 'expense_request', ?, ?, ?, ?)
     """, (
-        cb_code, req["category"], req["amount"], payload.account_id, req_id, cb_note
+        cb_code, req["category"], req["amount"], payload.account_id, req_id, cb_note, approver_name, cb_created_at
     ))
     cb_id = cur.lastrowid
 

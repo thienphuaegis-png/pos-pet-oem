@@ -12,7 +12,7 @@ from schemas import (
     HotelBatchCheckinItem, HotelBatchCheckinRequest,
     HotelCareLogUpdate
 )
-from dependencies import get_current_user
+from dependencies import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/api/hotel", tags=["Hotel"])
 
@@ -455,7 +455,7 @@ def list_booking_history(limit: int = 50, search: str = ""):
         return [dict(r) for r in cursor.fetchall()]
 
 @router.post("/checkin")
-def checkin_hotel_guest(data: HotelBookingCheckin):
+def checkin_hotel_guest(data: HotelBookingCheckin, user=Depends(get_optional_user)):
     """Nhận bé vào lưu trú (Check-in)"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -474,17 +474,18 @@ def checkin_hotel_guest(data: HotelBookingCheckin):
         # Sinh mã phiếu HT-YYMMDD-XXXX
         today_prefix = datetime.now().strftime("%y%m%d")
         booking_code = _generate_booking_code(cursor)
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         
         cursor.execute("""
             INSERT INTO hotel_bookings (
                 code, room_id, contact_id, pet_id, check_in_time, 
                 expected_checkout_time, daily_rate, feeding_notes, 
-                items_brought, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                items_brought, status, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
         """, (
             booking_code, data.room_id, data.contact_id, data.pet_id,
             check_in_time, data.expected_checkout_time, rate,
-            data.feeding_notes, data.items_brought
+            data.feeding_notes, data.items_brought, user_name
         ))
         booking_id = cursor.lastrowid
         
@@ -634,7 +635,7 @@ def get_hotel_batch(batch_code: str):
         return [dict(r) for r in rows]
 
 @router.post("/checkout/{booking_id}")
-def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout):
+def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depends(get_optional_user)):
     """Trả phòng & kết thúc lưu trú (Check-out)"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -711,14 +712,17 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout):
             """, (booking_id,))
         
         # Cập nhật phiếu lưu trú thành completed
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cursor.execute("""
             UPDATE hotel_bookings
             SET status = 'completed',
                 actual_checkout_time = ?,
                 total_days = ?,
-                total_amount = ?
+                total_amount = ?,
+                updated_by = ?,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (checkout_time, days, total_amount, booking_id))
+        """, (checkout_time, days, total_amount, user_name, booking_id))
         
         # Giải phóng phòng về available
         cursor.execute("UPDATE hotel_rooms SET status = 'available' WHERE id = ?", (booking["room_id"],))

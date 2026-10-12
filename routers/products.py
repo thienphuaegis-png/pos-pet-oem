@@ -76,13 +76,30 @@ def list_products(category: Optional[str] = None, user=Depends(get_optional_user
 def list_product_categories():
     conn = get_db()
     cur = conn.cursor()
+    # Dong bo giua bang master product_categories va category thuc te cua san pham
+    cur.execute('''
+        SELECT name as category FROM product_categories ORDER BY sort_order ASC, name ASC
+    ''')
+    master_cats = [r["category"].strip() for r in cur.fetchall() if r["category"] and r["category"].strip()]
+
     cur.execute('''
         SELECT DISTINCT COALESCE(category, 'Khác') as category
         FROM products
         WHERE COALESCE(is_active, 1) = 1 AND type != 'material'
         ORDER BY category ASC
     ''')
-    rows = [r["category"] for r in cur.fetchall() if r["category"]]
+    prod_cats = [r["category"].strip() for r in cur.fetchall() if r["category"] and r["category"].strip()]
+
+    # Hop nhat khong trung lap, giu thu tu uu tien cua master
+    seen = set()
+    rows = []
+    for c in master_cats + prod_cats:
+        c_clean = c.strip()
+        c_lower = c_clean.lower()
+        if c_lower not in seen:
+            seen.add(c_lower)
+            rows.append(c_clean)
+
     conn.close()
     return rows
 

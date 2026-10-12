@@ -3,7 +3,9 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import sqlite3
 import datetime
+import pytest
 from database import get_db
+from tests.conftest import is_port_open
 
 def test_generate_cashbook_code():
     from routers.cashbook import generate_cashbook_code
@@ -18,6 +20,7 @@ def test_generate_cashbook_code():
     assert code2.startswith(f"PC-CP-{today}-"), f"Code {code2} không đúng định dạng!"
     conn.close()
 
+@pytest.mark.skipif(not is_port_open(), reason="Cần server 127.0.0.1:8999 đang chạy")
 def test_payment_accounts_list_and_create():
     import urllib.request
     import json

@@ -4,18 +4,19 @@ from fastapi.testclient import TestClient
 import sqlite3
 import pytest
 from server import app, invalidate_branding_cache
+from database import get_db_path
 
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def preserve_branding():
-    conn = sqlite3.connect("data/pos.db")
+    conn = sqlite3.connect(get_db_path())
     cur = conn.cursor()
     cur.execute("SELECT key, value FROM settings WHERE key IN ('app_name', 'shop_logo')")
     orig = dict(cur.fetchall())
     conn.close()
     yield
-    conn = sqlite3.connect("data/pos.db")
+    conn = sqlite3.connect(get_db_path())
     cur = conn.cursor()
     if 'app_name' in orig:
         cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('app_name', ?)", (orig['app_name'],))
@@ -27,7 +28,7 @@ def preserve_branding():
 
 def test_login_page_injects_app_name_and_logo():
     # Setup test branding
-    conn = sqlite3.connect("data/pos.db")
+    conn = sqlite3.connect(get_db_path())
     cur = conn.cursor()
     cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('app_name', 'PetCare VIP')")
     cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('shop_logo', 'data:image/png;base64,TESTLOGO123')")
@@ -51,7 +52,7 @@ def test_login_page_injects_app_name_and_logo():
 
 def test_login_page_fallback_when_no_logo():
     # Setup branding without logo
-    conn = sqlite3.connect("data/pos.db")
+    conn = sqlite3.connect(get_db_path())
     cur = conn.cursor()
     cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('app_name', 'Shop Test No Logo')")
     cur.execute("DELETE FROM settings WHERE key = 'shop_logo'")

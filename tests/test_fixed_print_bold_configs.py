@@ -3,7 +3,8 @@ import json
 import sqlite3
 import pytest
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "pos.db")
+from database import get_db_path
+DB_PATH = get_db_path()
 
 def test_print_bold_configs_in_db():
     """Kiểm tra setting print_bold_configs tồn tại và có đủ 10 loại hóa đơn."""

@@ -217,6 +217,11 @@
         const form = document.getElementById('form-create-expense-request');
         if (form) form.reset();
 
+        const dateEl = document.getElementById('exp-form-date');
+        if (dateEl) {
+            dateEl.value = new Date().toISOString().split('T')[0];
+        }
+
         const typeEl = document.getElementById('exp-form-type');
         if (typeEl) {
             typeEl.value = defaultType;
@@ -240,7 +245,7 @@
         const dueBox = document.getElementById('exp-form-due-box');
 
         if (type === 'reimbursement') {
-            if (empLabel) empLabel.innerText = "Tên nhân viên chi hộ *";
+            if (empLabel) empLabel.innerText = "Tên nhân viên nhận hoàn ứng *";
             if (bankBox) bankBox.classList.remove('hidden');
             if (dueBox) dueBox.classList.add('hidden');
         } else {
@@ -372,6 +377,7 @@
 
         const type = document.getElementById('exp-form-type')?.value || 'reimbursement';
         const emp = document.getElementById('exp-form-emp')?.value?.trim();
+        const expenseDate = document.getElementById('exp-form-date')?.value || null;
         const amount = parseFloat(document.getElementById('exp-form-amount')?.value || 0);
         const category = document.getElementById('exp-form-category')?.value?.trim() || 'Chi khác';
         const note = document.getElementById('exp-form-note')?.value?.trim() || '';
@@ -390,6 +396,7 @@
         const payload = {
             type: type,
             employee_name: emp,
+            expense_date: expenseDate,
             amount: amount,
             category: category,
             note: note,

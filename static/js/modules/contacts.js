@@ -409,7 +409,7 @@
             }
         }
 
-        function openPayDebtModal(id) {
+        async function openPayDebtModal(id) {
             const c = (allContacts || []).find(item => item.id === id);
             if (!c) return;
             document.getElementById('pay-debt-contact-id').value = c.id;
@@ -417,6 +417,29 @@
             document.getElementById('pay-debt-current').textContent = formatMoney(c.debt);
             document.getElementById('pay-debt-amount').value = c.debt;
             document.getElementById('pay-debt-note').value = '';
+
+            const fundWrap = document.getElementById('pay-debt-fund-wrap');
+            if (fundWrap) {
+                fundWrap.style.display = c.type === 'supplier' ? 'block' : 'none';
+            }
+
+            // Nạp danh sách tài khoản thanh toán
+            const accSelect = document.getElementById('pay-debt-account');
+            if (accSelect) {
+                try {
+                    const res = await fetch('/api/payment-accounts');
+                    if (res.ok) {
+                        const accounts = await res.json();
+                        accSelect.innerHTML = accounts
+                            .filter(a => a.is_active)
+                            .map(a => `<option value="${a.id}" ${a.is_default ? 'selected' : ''}>${a.name} (${a.code})${a.account_type === 'bank' ? ' - NH' : ' - Tiền mặt'}</option>`)
+                            .join('');
+                    }
+                } catch (e) {
+                    console.error('Lỗi nạp payment accounts:', e);
+                }
+            }
+
             document.getElementById('modal-pay-debt').classList.remove('hidden');
         }
 
@@ -428,6 +451,10 @@
             const id = document.getElementById('pay-debt-contact-id').value;
             const amount = parseFloat(document.getElementById('pay-debt-amount').value) || 0;
             const note = document.getElementById('pay-debt-note').value.trim();
+            const accEl = document.getElementById('pay-debt-account');
+            const account_id = accEl ? (parseInt(accEl.value) || null) : null;
+            const fundEl = document.querySelector('input[name="pay-debt-fund"]:checked');
+            const fund_source = fundEl ? fundEl.value : 'COMPANY';
 
             if (amount <= 0) {
                 alert('Số tiền thanh toán phải lớn hơn 0!');
@@ -438,7 +465,7 @@
                 const res = await fetch(`/api/contacts/${id}/pay-debt`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount, note })
+                    body: JSON.stringify({ amount, note, account_id, fund_source })
                 });
                 if (!res.ok) {
                     const err = await res.json();

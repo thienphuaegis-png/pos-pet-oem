@@ -7,10 +7,10 @@ def test_split_view_html_structure():
     with open(html_path, "r", encoding="utf-8") as f:
         html = f.read()
 
-    # Kiểm tra tồn tại 2 cột Split View
+    # Kiểm tra tồn tại các panel trong Split View layout
     assert 'id="print-settings-split-layout"' in html, "Thiếu container print-settings-split-layout"
-    assert 'id="print-settings-col-left"' in html, "Thiếu cột trái print-settings-col-left"
-    assert 'id="print-settings-col-right"' in html, "Thiếu cột phải print-settings-col-right"
+    assert 'id="print-tpl-config-panel"' in html, "Thiếu panel cấu hình print-tpl-config-panel"
+    assert 'id="print-tpl-preview-viewport"' in html, "Thiếu viewport xem trước print-tpl-preview-viewport"
 
     # Kiểm tra công tắc in đậm chống mờ dạng switch ở cột trái
     assert 'id="chk-split-bold-toggle"' in html, "Thiếu switch chk-split-bold-toggle ở cột trái"

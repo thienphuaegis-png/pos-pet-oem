@@ -52,6 +52,7 @@ class ContactPayDebt(BaseModel):
     amount: float
     note: Optional[str] = ""
     account_id: Optional[int] = None
+    fund_source: Optional[str] = "COMPANY"
 
 class PetCreate(BaseModel):
     name: str
@@ -694,7 +695,7 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
         raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, type, name, debt FROM contacts WHERE id = ?", (contact_id,))
+    cur.execute("SELECT id, type, name, debt, initial_debt_company, initial_debt_personal FROM contacts WHERE id = ?", (contact_id,))
     c = cur.fetchone()
     if not c:
         conn.close()
@@ -702,7 +703,20 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
     
     current_debt = c["debt"]
     new_debt = max(0.0, current_debt - req.amount)
-    cur.execute("UPDATE contacts SET debt = ? WHERE id = ?", (new_debt, contact_id))
+    
+    fund_src = (req.fund_source or "COMPANY").upper()
+    c_debt = float(c["initial_debt_company"] or 0.0)
+    p_debt = float(c["initial_debt_personal"] or 0.0)
+    
+    if c["type"] == "supplier":
+        if fund_src == "PERSONAL":
+            p_debt = max(0.0, p_debt - req.amount)
+        else:
+            c_debt = max(0.0, c_debt - req.amount)
+        cur.execute("UPDATE contacts SET debt = ?, initial_debt_company = ?, initial_debt_personal = ? WHERE id = ?", 
+                    (new_debt, c_debt, p_debt, contact_id))
+    else:
+        cur.execute("UPDATE contacts SET debt = ? WHERE id = ?", (new_debt, contact_id))
     
     cb_type = "in" if c["type"] == "customer" else "out"
     cb_cat = "Thu nợ khách hàng" if c["type"] == "customer" else "Chi trả nợ NCC"
@@ -715,9 +729,10 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
         row_acc = cur.fetchone()
         acc_id = row_acc[0] if row_acc else None
 
+    user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
     note = f"Thanh toán nợ cho {c['name']} (Nợ cũ: {current_debt:,.0f} đ, Thu/Chi: {req.amount:,.0f} đ). {req.note or ''}".strip()
-    cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, note, account_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (cb_code, cb_type, cb_cat, req.amount, contact_id, note, acc_id))
+    cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, note, account_id, fund_source, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (cb_code, cb_type, cb_cat, req.amount, contact_id, note, acc_id, fund_src, user_name))
     conn.commit()
     conn.close()
     return {"status": "ok", "new_debt": new_debt}
