@@ -108,4 +108,62 @@ def test_edit_and_delete_cashbook_expense():
         conn.close()
     finally:
         app.dependency_overrides.update(saved_overrides)
-    conn.close()
+
+def test_delete_expense_voucher_restores_debt():
+    saved_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides.clear()
+    try:
+        init_db()
+        conn = get_db()
+        cur = conn.cursor()
+        # Tạo NCC test có nợ
+        cur.execute("INSERT INTO contacts (id, type, name, debt, initial_debt_personal) VALUES (7777, 'supplier', 'NCC Test Debt Rollback', 10000000, 10000000)")
+        # Tạo tài khoản staff admin
+        cur.execute("INSERT OR REPLACE INTO staff (id, name, role, is_active, token_version) VALUES (9999, 'Admin Test', 'owner', 1, 0)")
+        conn.commit()
+        conn.close()
+
+        token = _make_token(9999, token_version=0)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Trả nợ NCC 4.000.000đ với ngày chi trả chọn lùi (Chủ nhật)
+        res_pay = client.post("/api/contacts/7777/pay-debt", headers=headers, json={
+            "amount": 4000000,
+            "fund_source": "PERSONAL",
+            "payment_date": "2026-10-11",
+            "note": "Trả nợ ngày chủ nhật"
+        })
+        assert res_pay.status_code == 200
+        assert res_pay.json()["new_debt"] == 6000000
+
+        # Kiểm tra nợ NCC đã giảm còn 6.000.000đ
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 7777")
+        row_c = cur.fetchone()
+        assert row_c["debt"] == 6000000
+        assert row_c["initial_debt_personal"] == 6000000
+
+        # Lấy phiếu chi vừa sinh
+        cur.execute("SELECT id, code, created_at FROM cashbook WHERE contact_id = 7777 ORDER BY id DESC LIMIT 1")
+        voucher = cur.fetchone()
+        assert voucher is not None
+        v_id = voucher["id"]
+        assert "2026-10-11" in voucher["created_at"]
+        conn.close()
+
+        # 2. Xóa phiếu chi này từ Sổ Quỹ
+        res_del = client.delete(f"/api/cashbook/{v_id}", headers=headers)
+        assert res_del.status_code == 200
+        assert "hoàn tác công nợ" in res_del.json()["message"] or res_del.json()["success"] is True
+
+        # Kiểm tra nợ NCC ĐÃ ĐƯỢC TỰ ĐỘNG HỒI LẠI ĐỦ 10.000.000đ
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 7777")
+        row_restored = cur.fetchone()
+        assert row_restored["debt"] == 10000000
+        assert row_restored["initial_debt_personal"] == 10000000
+        conn.close()
+    finally:
+        app.dependency_overrides.update(saved_overrides)

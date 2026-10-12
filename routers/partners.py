@@ -53,6 +53,7 @@ class ContactPayDebt(BaseModel):
     note: Optional[str] = ""
     account_id: Optional[int] = None
     fund_source: Optional[str] = "COMPANY"
+    payment_date: Optional[str] = None
 
 class PetCreate(BaseModel):
     name: str
@@ -709,6 +710,31 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
     p_debt = float(c["initial_debt_personal"] or 0.0)
     
     if c["type"] == "supplier":
+        # Cấn trừ giảm nợ trên các đơn nhập hàng chưa thanh toán
+        if fund_src == "PERSONAL":
+            cur.execute("""
+                SELECT id, debt_amount FROM purchases 
+                WHERE supplier_id = ? AND debt_amount > 0 AND status != 'cancelled'
+                  AND (vat_rate = 0 OR vat_rate IS NULL) AND (vat_amount = 0 OR vat_amount IS NULL)
+                ORDER BY id ASC
+            """, (contact_id,))
+        else:
+            cur.execute("""
+                SELECT id, debt_amount FROM purchases 
+                WHERE supplier_id = ? AND debt_amount > 0 AND status != 'cancelled'
+                  AND (vat_rate > 0 OR vat_amount > 0)
+                ORDER BY id ASC
+            """, (contact_id,))
+        po_rows = [dict(r) for r in cur.fetchall()]
+        rem_po = req.amount
+        for po in po_rows:
+            if rem_po <= 0:
+                break
+            alloc = min(rem_po, float(po["debt_amount"]))
+            cur.execute("UPDATE purchases SET debt_amount = debt_amount - ?, paid_amount = paid_amount + ? WHERE id = ?", 
+                        (alloc, alloc, po["id"]))
+            rem_po -= alloc
+
         if fund_src == "PERSONAL":
             p_debt = max(0.0, p_debt - req.amount)
         else:
@@ -720,6 +746,7 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
     
     cb_type = "in" if c["type"] == "customer" else "out"
     cb_cat = "Thu nợ khách hàng" if c["type"] == "customer" else "Chi trả nợ NCC"
+    ref_type = "contact_debt" if c["type"] == "customer" else "supplier_debt"
     prefix = "PT-CN" if c["type"] == "customer" else "PC-NH"
     cb_code = generate_cashbook_code(cur, prefix)
     
@@ -731,8 +758,13 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
 
     user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
     note = f"Thanh toán nợ cho {c['name']} (Nợ cũ: {current_debt:,.0f} đ, Thu/Chi: {req.amount:,.0f} đ). {req.note or ''}".strip()
-    cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, note, account_id, fund_source, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (cb_code, cb_type, cb_cat, req.amount, contact_id, note, acc_id, fund_src, user_name))
+    if req.payment_date:
+        cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
+        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, note, account_id, fund_source, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, note, acc_id, fund_src, user_name, cb_created_at))
+    else:
+        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, note, account_id, fund_source, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, note, acc_id, fund_src, user_name))
     conn.commit()
     conn.close()
     return {"status": "ok", "new_debt": new_debt}

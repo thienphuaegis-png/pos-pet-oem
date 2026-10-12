@@ -1021,6 +1021,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         if not effective_staff_id:
             effective_staff_id = 1
 
+        warehouse_id = req.warehouse_id or 1
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
         INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction, warehouse_id, created_by)
@@ -1028,7 +1029,6 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         """, (code, req.customer_id, effective_staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction, warehouse_id, user_name))
         
         order_id = cur.lastrowid
-        warehouse_id = req.warehouse_id or 1
 
         # Cấn trừ số dư ví Spa & ghi nhận lịch sử spa_wallet_transactions
         if wallet_deduction > 0 and req.customer_id:
@@ -1145,6 +1145,8 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     """, (bom["ingredient_id"], warehouse_id, -total_consumed, balance_after, order_id, code, f"Ban {item.quantity} {item.product_id}"))
 
         if debt_amount > 0:
+            if not req.customer_id or req.customer_id == 1:
+                raise HTTPException(status_code=400, detail="Khách lẻ không thể ghi nợ. Vui lòng chọn hoặc thêm khách hàng để lưu công nợ đơn hàng.")
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (debt_amount, req.customer_id))
 
         if actual_paid > 0:

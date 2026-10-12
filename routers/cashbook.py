@@ -333,6 +333,55 @@ def delete_cashbook_voucher(
     current = dict(row)
     cb_type = (current.get("type") or "").lower()
     ref_type = (current.get("ref_type") or "").lower()
+    ref_id = current.get("ref_id")
+    category = current.get("category") or ""
+    amount = float(current.get("amount") or 0.0)
+    contact_id = current.get("contact_id")
+    fund_src = (current.get("fund_source") or "COMPANY").upper()
+    code = current.get("code") or ""
+
+    # 1. Hoàn tác công nợ NCC khi xóa phiếu chi trả nợ / chi mua hàng
+    if cb_type in ("out", "chi") and (
+        category in ("Chi trả nợ NCC", "Chi tiền nhập hàng", "OEM_PAYMENT") or
+        ref_type in ("supplier_debt", "purchase", "oem_order") or
+        code.startswith("PC-NH")
+    ):
+        if contact_id and amount > 0:
+            if fund_src == "PERSONAL":
+                cur.execute("""
+                    UPDATE contacts 
+                    SET debt = debt + ?, initial_debt_personal = initial_debt_personal + ?
+                    WHERE id = ?
+                """, (amount, amount, contact_id))
+            else:
+                cur.execute("""
+                    UPDATE contacts 
+                    SET debt = debt + ?, initial_debt_company = initial_debt_company + ?
+                    WHERE id = ?
+                """, (amount, amount, contact_id))
+
+        if ref_type == "purchase" and ref_id and amount > 0:
+            cur.execute("""
+                UPDATE purchases 
+                SET debt_amount = debt_amount + ?, paid_amount = MAX(0.0, paid_amount - ?)
+                WHERE id = ?
+            """, (amount, amount, ref_id))
+
+        if ref_type == "oem_order" and ref_id and amount > 0:
+            cur.execute("""
+                UPDATE oem_orders 
+                SET remaining_payment = remaining_payment + ?, deposit_amount = MAX(0.0, deposit_amount - ?)
+                WHERE id = ?
+            """, (amount, amount, ref_id))
+
+    # 2. Hoàn tác công nợ khách hàng khi xóa phiếu thu nợ
+    elif cb_type in ("in", "thu") and (
+        category == "Thu nợ khách hàng" or
+        ref_type in ("contact_debt", "customer_debt") or
+        code.startswith("PT-CN")
+    ):
+        if contact_id and amount > 0:
+            cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (amount, contact_id))
 
     cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
@@ -340,8 +389,8 @@ def delete_cashbook_voucher(
     conn.close()
 
     v_title = "phiếu thu" if cb_type in ("in", "thu") else "phiếu chi"
-    logger.info(f"User {user.get('username') if isinstance(user, dict) else ''} đã xóa {v_title} {current.get('code')} (id={voucher_id})")
-    return {"success": True, "message": f"Đã xóa thành công {v_title} {current.get('code')}"}
+    logger.info(f"User {user.get('username') if isinstance(user, dict) else ''} đã xóa {v_title} {code} (id={voucher_id}) và hoàn tác công nợ liên quan")
+    return {"success": True, "message": f"Đã xóa thành công {v_title} {code} và cập nhật lại công nợ"}
 
 @router.post("/api/cashbook/transfer")
 def transfer_cashbook_funds(req: CashbookTransferCreate, user=Depends(get_current_user)):

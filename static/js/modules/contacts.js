@@ -417,6 +417,10 @@
             document.getElementById('pay-debt-current').textContent = formatMoney(c.debt);
             document.getElementById('pay-debt-amount').value = c.debt;
             document.getElementById('pay-debt-note').value = '';
+            const dateEl = document.getElementById('pay-debt-date');
+            if (dateEl) {
+                dateEl.value = new Date().toISOString().split('T')[0];
+            }
 
             const fundWrap = document.getElementById('pay-debt-fund-wrap');
             if (fundWrap) {
@@ -455,6 +459,7 @@
             const account_id = accEl ? (parseInt(accEl.value) || null) : null;
             const fundEl = document.querySelector('input[name="pay-debt-fund"]:checked');
             const fund_source = fundEl ? fundEl.value : 'COMPANY';
+            const payment_date = document.getElementById('pay-debt-date')?.value || null;
 
             if (amount <= 0) {
                 alert('Số tiền thanh toán phải lớn hơn 0!');
@@ -465,7 +470,7 @@
                 const res = await fetch(`/api/contacts/${id}/pay-debt`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount, note, account_id, fund_source })
+                    body: JSON.stringify({ amount, note, account_id, fund_source, payment_date })
                 });
                 if (!res.ok) {
                     const err = await res.json();

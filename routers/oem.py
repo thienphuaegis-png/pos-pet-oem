@@ -28,6 +28,8 @@ class SupplierDebtPaymentRequest(BaseModel):
     amount: float
     fund_source: str = "COMPANY"
     note: Optional[str] = None
+    payment_date: Optional[str] = None
+    account_id: Optional[int] = None
 
 class OrderDebtPaymentRequest(BaseModel):
     order_type: str # 'PO' or 'OEM'
@@ -35,6 +37,8 @@ class OrderDebtPaymentRequest(BaseModel):
     amount: float
     fund_source: str = "COMPANY"
     note: Optional[str] = None
+    payment_date: Optional[str] = None
+    account_id: Optional[int] = None
 
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
@@ -1084,13 +1088,24 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     
     cb_code = generate_cashbook_code(cur, "PC-NH")
     note = req.note or f"Thanh toán nợ cho {supp['name']} ({fund_label})"
-    cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
-    row_acc = cur.fetchone()
-    acc_id = row_acc[0] if row_acc else None
-    cur.execute("""
-        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id)
-        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?)
-    """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id))
+    acc_id = req.account_id
+    if not acc_id:
+        cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
+        row_acc = cur.fetchone()
+        acc_id = row_acc[0] if row_acc else None
+
+    user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    if req.payment_date:
+        cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id, created_by, created_at)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?, ?, ?)
+        """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id, user_name, cb_created_at))
+    else:
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id, created_by)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?, ?)
+        """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id, user_name))
     
     conn.commit()
     conn.close()

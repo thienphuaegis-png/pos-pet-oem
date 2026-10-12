@@ -5132,6 +5132,18 @@
                         </div>
 
                         <div>
+                            <label class="block font-bold text-gray-700 mb-1">📅 Ngày chi trả thực tế (*):</label>
+                            <input type="date" id="cfd-pay-date" class="border p-2 rounded w-full font-bold text-slate-800 bg-white focus:ring-1 focus:ring-amber-500">
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-gray-700 mb-1">🏦 Tài khoản xuất chi (*):</label>
+                            <select id="cfd-pay-account" class="border p-2 rounded w-full bg-white font-medium text-slate-700 focus:ring-1 focus:ring-amber-500">
+                                <!-- Loaded dynamically from payment accounts -->
+                            </select>
+                        </div>
+
+                        <div>
                             <label class="block font-bold text-gray-700 mb-1">Ghi chú thanh toán:</label>
                             <input type="text" id="cfd-pay-note" placeholder="Thanh toán tiền hàng đợt..." class="border p-2 rounded w-full">
                         </div>
@@ -6440,11 +6452,18 @@
                                 <span class="text-gray-600 font-medium">Khách đã trả (Tiền mặt / CK):</span>
                                 <span id="view-order-paid" class="font-bold font-mono text-emerald-600">0 đ</span>
                             </div>
+                            <div class="flex justify-between items-center text-rose-700 font-bold bg-rose-50 p-2 rounded border border-rose-200 mt-1" id="view-order-debt-row">
+                                <span>⚠️ Khách còn nợ lại:</span>
+                                <span id="view-order-debt" class="font-mono text-base font-black">0 đ</span>
+                            </div>
                         </div>
                     </div>
 
                     <div class="flex justify-between items-center pt-2 border-t">
                         <div class="flex gap-2">
+                            <button id="btn-pay-debt-from-view" onclick="payDebtFromCurrentOrderView()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1 shadow-xs hidden" title="Lập phiếu thu nợ cho hóa đơn này">
+                                💵 Thu Nợ Đơn Này
+                            </button>
                             <button onclick="printCurrentViewedOrder()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1">
                                 🖨️ In Lại
                             </button>
@@ -8713,6 +8732,10 @@
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Số Tiền Trả / Thu (*):</label>
                     <input type="number" id="pay-debt-amount" class="border p-2 rounded w-full font-bold text-emerald-600 text-sm" placeholder="0">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ngày Chi Trả / Thu Nợ:</label>
+                    <input type="date" id="pay-debt-date" class="border p-2 rounded w-full font-bold text-slate-800 bg-white focus:outline-none focus:ring-1 focus:ring-sky-500">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Tài Khoản Thanh Toán (*):</label>

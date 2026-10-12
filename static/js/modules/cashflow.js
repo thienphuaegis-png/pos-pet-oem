@@ -509,6 +509,23 @@
             }
 
             document.getElementById('cfd-pay-note').value = '';
+            const dateEl = document.getElementById('cfd-pay-date');
+            if (dateEl) {
+                dateEl.value = new Date().toISOString().split('T')[0];
+            }
+
+            // Nạp tài khoản thanh toán cho modal trả nợ NCC
+            const accSelect = document.getElementById('cfd-pay-account');
+            if (accSelect) {
+                fetch('/api/payment-accounts').then(r => r.json()).then(accounts => {
+                    const fund = document.getElementById('cfd-pay-fund')?.value || 'COMPANY';
+                    accSelect.innerHTML = (accounts || [])
+                        .filter(a => a.is_active)
+                        .map(a => `<option value="${a.id}" ${a.owner_type === fund || a.is_default ? 'selected' : ''}>${a.name} (${a.code})${a.account_type === 'bank' ? ' - NH' : ' - Tiền mặt'}</option>`)
+                        .join('');
+                }).catch(e => console.error('Lỗi tải tài khoản payment accounts:', e));
+            }
+
             document.getElementById('modal-cfd-pay-supplier').classList.remove('hidden');
         }
 
@@ -557,6 +574,9 @@
             const amount = parseFloat(document.getElementById('cfd-pay-amount')?.value) || 0;
             const fundSource = document.getElementById('cfd-pay-fund')?.value || 'COMPANY';
             const note = document.getElementById('cfd-pay-note')?.value || '';
+            const paymentDate = document.getElementById('cfd-pay-date')?.value || null;
+            const accSelect = document.getElementById('cfd-pay-account');
+            const accountId = accSelect ? (parseInt(accSelect.value) || null) : null;
 
             if (!suppId) return alert('Vui lòng chọn Nhà cung cấp!');
             if (amount <= 0) return alert('Số tiền thanh toán phải lớn hơn 0!');
@@ -575,7 +595,9 @@
                         supplier_id: suppId,
                         amount: amount,
                         fund_source: fundSource,
-                        note: note
+                        note: note,
+                        payment_date: paymentDate,
+                        account_id: accountId
                     })
                 });
 

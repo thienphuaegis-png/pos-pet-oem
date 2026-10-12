@@ -1395,14 +1395,34 @@ function renderQuickCashButtons(finalAmount) {
     if (finalAmount < 1000000) presets.add(1000000);
     if (finalAmount < 2000000) presets.add(2000000);
 
-    const sorted = Array.from(presets).slice(0, 6);
+    const sorted = Array.from(presets).slice(0, 5);
 
-    container.innerHTML = sorted.map(val => `
+    container.innerHTML = `
+        <button type="button" onclick="setPosFullDebt()" class="py-1 px-1 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 border border-amber-300 rounded-lg text-[11px] font-bold text-amber-800 transition flex items-center justify-center gap-0.5" title="Khách nợ toàn bộ (Trả 0đ)">
+            <span>📒 Nợ 0đ</span>
+        </button>
+    ` + sorted.map(val => `
         <button type="button" onclick="setQuickCash(${val})" class="py-1 px-1 bg-white hover:bg-sky-50 hover:border-sky-300 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 transition">
             ${formatMoney(val)}
         </button>
     `).join('');
 }
+
+function setPosFullDebt() {
+    const tab = getActiveTab();
+    tab.paid_amount = 0;
+    tab.splitLines = [];
+    tab.split_payment = false;
+    const splitAutoBox = document.getElementById('pos-split-auto-box');
+    if (splitAutoBox) splitAutoBox.classList.add('hidden');
+    const paidInput = document.getElementById('pos-paid-input');
+    if (paidInput) {
+        paidInput.value = '0';
+    }
+    const finalAmount = getPosFinalAmount(tab);
+    calculateChangeOrDebt(finalAmount);
+}
+window.setPosFullDebt = setPosFullDebt;
 
 function setQuickCash(amount) {
     const tab = getActiveTab();
@@ -1841,9 +1861,19 @@ async function submitPOSOrder() {
             return;
         }
         paidAmount = splitPayments.reduce((s, p) => s + p.amount, 0);
-        const finalAmount = getPosFinalAmount(tab);
-        if (paidAmount < finalAmount) {
-            alert("Tổng các hình thức thanh toán (" + formatMoney(paidAmount) + ") chưa đủ số tiền cần trả (" + formatMoney(finalAmount) + ")!");
+    }
+
+    const customerId = tab.customer ? tab.customer.id : 1; // 1: Khách lẻ mặc định
+    const debtAmount = Math.max(0, finalAmount - paidAmount);
+
+    if (debtAmount > 0) {
+        if (!tab.customer || tab.customer.id === 1 || customerId === 1) {
+            alert("⚠️ Khách lẻ không thể ghi nợ!\nVui lòng chọn hoặc thêm khách hàng để lưu công nợ cho hóa đơn này.");
+            return;
+        }
+        const custName = tab.customer.name || 'Khách hàng';
+        const ok = confirm(`Khách [${custName}] thanh toán ${formatMoney(paidAmount)}, còn nợ lại ${formatMoney(debtAmount)}.\n\nBạn có chắc chắn muốn ghi nợ hóa đơn này không?`);
+        if (!ok) {
             return;
         }
     }
@@ -1865,7 +1895,6 @@ async function submitPOSOrder() {
         if (u && u.id) staffId = u.id;
     }
     if (!staffId) staffId = 1;
-    const customerId = tab.customer ? tab.customer.id : 1; // 1: Khách lẻ mặc định
 
     const btnSubmit = document.getElementById('btn-submit-order');
     if (btnSubmit) {

@@ -4364,6 +4364,15 @@
                 document.getElementById('view-order-final').textContent = formatMoney(ord.final_amount);
                 document.getElementById('view-order-paid').textContent = formatMoney(ord.paid_amount);
 
+                const debt = ord.debt_amount || 0;
+                const elDebt = document.getElementById('view-order-debt');
+                const elDebtRow = document.getElementById('view-order-debt-row');
+                const btnPayDebt = document.getElementById('btn-pay-debt-from-view');
+                if (elDebt) elDebt.textContent = formatMoney(debt);
+                if (elDebtRow) elDebtRow.classList.toggle('hidden', debt <= 0);
+                if (btnPayDebt) btnPayDebt.classList.toggle('hidden', debt <= 0 || !ord.customer_id || ord.customer_id === 1);
+
+                window.currentViewedOrderObj = ord;
                 document.getElementById('modal-order-view').classList.remove('hidden');
             } catch (e) {
                 console.error(e);
@@ -4391,6 +4400,23 @@
                 showPrintModal(code);
             }
         }
+
+        async function payDebtFromCurrentOrderView() {
+            const ord = window.currentViewedOrderObj;
+            if (!ord || !ord.customer_id) return;
+            const debt = ord.debt_amount || 0;
+            const code = ord.code;
+            const custId = ord.customer_id;
+            closeModalOrderView();
+            if (typeof openPayDebtModal === 'function') {
+                await openPayDebtModal(custId);
+                const amtInput = document.getElementById('pay-debt-amount');
+                if (amtInput && debt > 0) amtInput.value = debt;
+                const noteInput = document.getElementById('pay-debt-note');
+                if (noteInput) noteInput.value = `Thu nợ hóa đơn [${code}]`;
+            }
+        }
+        window.payDebtFromCurrentOrderView = payDebtFromCurrentOrderView;
 
         // --- ĐỔI / TRẢ HÀNG (ORDER RETURN & EXCHANGE) ---
         let currentReturnOrder = null;
