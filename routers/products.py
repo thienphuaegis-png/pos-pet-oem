@@ -495,12 +495,13 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
             cost_price = p.cost_price
 
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
-                updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                updated_by = ?, updated_at = ?
             WHERE id = ?
-        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, product_id))
+        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, now_vn, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))

@@ -306,9 +306,11 @@ def update_cashbook_voucher(
         params.append(req.created_at.strip())
 
     user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    now_vn = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     updates.append("updated_by = ?")
     params.append(user_name)
-    updates.append("updated_at = CURRENT_TIMESTAMP")
+    updates.append("updated_at = ?")
+    params.append(now_vn)
 
     if not updates:
         conn.close()

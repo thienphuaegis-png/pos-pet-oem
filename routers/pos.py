@@ -1483,11 +1483,12 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         new_debt = max(0, final_amount - actual_new_paid)
 
         updater_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
         UPDATE orders 
-        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, updated_by = ?, updated_at = ?
         WHERE id = ?
-        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, updater_name, order_id))
+        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, updater_name, now_vn, order_id))
 
         if old_customer_id == new_customer_id:
             diff_debt = new_debt - old_debt

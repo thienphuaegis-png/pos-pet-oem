@@ -713,6 +713,7 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depen
         
         # Cập nhật phiếu lưu trú thành completed
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("""
             UPDATE hotel_bookings
             SET status = 'completed',
@@ -720,9 +721,9 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depen
                 total_days = ?,
                 total_amount = ?,
                 updated_by = ?,
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = ?
             WHERE id = ?
-        """, (checkout_time, days, total_amount, user_name, booking_id))
+        """, (checkout_time, days, total_amount, user_name, now_vn, booking_id))
         
         # Giải phóng phòng về available
         cursor.execute("UPDATE hotel_rooms SET status = 'available' WHERE id = ?", (booking["room_id"],))

@@ -1837,10 +1837,10 @@
                         <td class="p-2.5 text-right font-mono font-bold text-xs ${isThu ? 'text-emerald-600' : 'text-rose-600'}">
                             ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
                         </td>
-                        <td class="p-2.5 text-slate-700 text-xs font-medium">${c.created_by || 'Hệ thống'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs">${c.updated_by ? `${c.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(c.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-slate-500 text-xs max-w-[200px] truncate" title="${c.note || ''}">${c.note || '-'}</td>
-                        <td class="p-2.5 text-xs text-gray-400 font-mono">${formatDateTime(c.created_at) || '-'}</td>
+                        <td class="p-2.5 text-xs text-gray-500 font-mono whitespace-nowrap">${formatDateTime(c.created_at) || '-'}</td>
+                        <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${c.created_by || 'Hệ thống'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${c.updated_by ? `${c.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(c.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                     </tr>
                 `;
             }).join('');

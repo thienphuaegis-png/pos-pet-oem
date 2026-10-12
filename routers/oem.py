@@ -400,12 +400,12 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
                 total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
-                fund_source = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                fund_source = ?, updated_by = ?, updated_at = ?
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             req.expected_delivery_date, req.vat_percent, discount_pct,
-            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, order_id
+            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id
         ))
 
         is_received = o["status"] in ("RECEIVED", "COMPLETED")

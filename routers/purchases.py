@@ -502,18 +502,19 @@ def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permiss
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
 
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute('''
         UPDATE purchases
         SET supplier_id = ?, warehouse_id = ?, subtotal_amount = ?, discount = ?,
             shipping_fee = ?, other_fee = ?, vat_rate = ?, vat_amount = ?, total_amount = ?,
             paid_amount = ?, debt_amount = ?, expected_date = ?, fund_source = ?, note = ?, status = ?,
-            updated_by = ?, updated_at = CURRENT_TIMESTAMP
+            updated_by = ?, updated_at = ?
         WHERE id = ?
         ''', (
             req.supplier_id, warehouse_id, subtotal_amount, req.discount,
             req.shipping_fee, req.other_fee, req.vat_rate, vat_amount, total_amount,
             req.paid_amount, debt_amount, req.expected_date, req.fund_source or 'PERSONAL', req.note, new_status,
-            user_name, purchase_id
+            user_name, now_vn, purchase_id
         ))
 
         cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
