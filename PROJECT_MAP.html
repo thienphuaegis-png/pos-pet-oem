@@ -641,10 +641,16 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-11)
-    const ROADMAP_VERSION = 'v5.3-2026-10-11-bank-picker-and-designer-alignment-sync';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-12)
+    const ROADMAP_VERSION = 'v5.4-2026-10-12-marketplace-tailscale-module-toggle';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-11)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-12)
+      { id: 'marketplace-shopee-tiktok-sync', cat: 'POS', title: 'Bán Hàng Sàn TMĐT: Đồng Bộ Đơn Shopee/TikTok, Map SKU, Bookmarklet & Import Excel', done: true, note: 'Sync đơn qua bookmarklet trong trình duyệt (né HttpOnly), quét mọi tab trạng thái, map SKU sàn ↔ kho POS, thống kê ngày, kéo-thả Excel Shopee/TikTok/Pancake' },
+      { id: 'remote-access-tailscale-funnel', cat: 'SYS', title: 'Truy Cập Từ Xa Miễn Phí: Tailscale (pos-server:8998) + Funnel Link HTTPS Cố Định', done: true, note: 'CAI_TAILSCALE.bat cài winget, firewall chỉ 100.64.0.0/10, hostname pos-server, Funnel --bg 8998; CHAY_ONLINE_CLOUDFLARE.bat dự phòng. Chưa chạy thử trên máy chủ' },
+      { id: 'module-toggle-marketplace', cat: 'SYS', title: 'Bật/Tắt Module Bán Hàng Sàn TMĐT & Header Cột Nhân Viên Ma Trận Quyền', done: true, note: 'module_marketplace trong MODULE_KEYS/DEFAULT_MODULES, data-module trên tab sidebar; thêm header cột role staff bị thiếu' },
+      { id: 'exe-cache-bust-git-root-fix', cat: 'SYS', title: 'Sửa Cache-Bust JS Khi Chạy Exe (git đọc sai thư mục _MEIPASS)', done: true, note: 'version_helper ROOT = thư mục exe khi frozen để commit hash đổi theo git pull, ?v= đổi, trình duyệt tự tải JS mới' },
+      { id: 'verify-server-tailscale-and-toggle', cat: 'SYS', title: 'Verify Trên Máy Chủ: CAP_NHAT + Toggle Sàn TMĐT + Link Funnel Từ 4G', done: false, note: 'Chạy CAP_NHAT.bat, Ctrl+F5, chạy CAI_TAILSCALE.bat, test link *.ts.net, đặt mật khẩu mạnh' },
+      // CẬP NHẬT 2026-10-11
       { id: 'pos-bank-picker-and-designer-alignment-sync', cat: 'POS', title: 'Dropdown Ngân Hàng VietQR, Sửa Lỗi Ghi Cứng Tiền Mặt & Đồng Bộ Căn Lề Designer Với Bản In Thật', done: true, note: 'Tạo banks.js danh mục 26 ngân hàng VietQR; đổi ô gõ tay thành dropdown; sửa backend lưu đúng payment_method (transfer/card/wallet) thay vì ép cash; rebuild exe sạch; hiển thị tên ngân hàng đầy đủ trên hóa đơn; đồng bộ toạ độ căn lề Trái/Giữa/Phải trên Designer với bản in thật; cố định draft_code trên tab giỏ hàng; bump v3.6.1' },
       { id: 'pos-auto-version-bump-and-ahead-counting', cat: 'SYS', title: 'Tự Động Đếm Phiên Bản & Script Bump SemVer Chuẩn Chống Sót Đếm Version Ứng Dụng', done: true, note: 'Tự động tính commit ahead từ Git để cộng dồn vào patch version khi code tính năng mới; script scripts/bump_version.py tự động phân tích commit history (--auto/--patch/--minor/--major) và cập nhật version.json + changelog, bump mốc v3.6.0' },
       { id: 'pos-order-return-and-exchange', cat: 'Logic', title: 'Đổi Hàng & Trả Hàng (Return & Exchange) Theo Đơn Gốc, Chứng Từ RET-... & Hạch Toán Dòng Tiền', done: true, note: 'Tạo phiếu RET-..., tự tính SL khả dụng & đơn giá net đã trừ KM, nhập kho món trả (tùy chọn), trừ kho món đổi, tính bù trừ thu thêm / chi hoàn trong 1 transaction an toàn, tích hợp modal 2 cột' },
