@@ -1,6 +1,6 @@
 // ── Quản lý Nhân Viên (Settings > Nhân Viên) ──
 
-const ROLE_LABEL = { owner: 'Chủ Shop', cashier: 'Thu Ngân', accountant: 'Kế Toán', warehouse: 'Thủ Kho' };
+const ROLE_LABEL = { owner: 'Chủ Shop', cashier: 'Thu Ngân', accountant: 'Kế Toán', warehouse: 'Thủ Kho', staff: 'Nhân Viên' };
 
 async function loadStaffList() {
   const tbody = document.getElementById('staff-table-body');

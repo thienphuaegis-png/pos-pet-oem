@@ -3,11 +3,15 @@ import json
 import subprocess
 import datetime
 from pathlib import Path
+import sys
+
+# ponytail: exe PyInstaller giai nen vao _MEIPASS (khong co .git) -> chay git tai thu muc chua exe
+ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 
 def find_version_file():
     candidates = [
         Path("version.json"),
-        Path(__file__).parent / "version.json",
+        ROOT / "version.json",
         Path(os.environ.get("_MEIPASS", "")) / "version.json" if "_MEIPASS" in os.environ else None
     ]
     for c in candidates:
@@ -21,13 +25,13 @@ def get_git_metadata():
         commit = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"],
             stderr=subprocess.DEVNULL,
-            cwd=str(Path(__file__).parent)
+            cwd=str(ROOT)
         ).decode().strip()
         
         date_str = subprocess.check_output(
             ["git", "log", "-1", "--format=%cd", "--date=format:%Y.%m.%d"],
             stderr=subprocess.DEVNULL,
-            cwd=str(Path(__file__).parent)
+            cwd=str(ROOT)
         ).decode().strip()
         return commit, date_str
     except Exception:
@@ -38,7 +42,7 @@ def get_git_commits_ahead(base_commit: str = None) -> int:
     if not base_commit or base_commit == "latest":
         return 0
     try:
-        root_dir = str(Path(__file__).parent)
+        root_dir = str(ROOT)
         out = subprocess.check_output(
             ["git", "rev-list", "--count", f"{base_commit}..HEAD"],
             stderr=subprocess.DEVNULL,
@@ -51,7 +55,7 @@ def get_git_commits_ahead(base_commit: str = None) -> int:
 def get_git_total_commits() -> int:
     """Lấy tổng số commit trong repository (build number)."""
     try:
-        root_dir = str(Path(__file__).parent)
+        root_dir = str(ROOT)
         out = subprocess.check_output(
             ["git", "rev-list", "--count", "HEAD"],
             stderr=subprocess.DEVNULL,
@@ -64,7 +68,7 @@ def get_git_total_commits() -> int:
 def check_remote_update_available():
     """Kiểm tra xem remote repository (github/origin) có bản commit mới hơn local không."""
     try:
-        root_dir = Path(__file__).parent.resolve()
+        root_dir = ROOT.resolve()
         local_head = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
             stderr=subprocess.DEVNULL,
@@ -198,7 +202,7 @@ def get_app_version_info():
 
     # TỰ ĐỘNG ĐỌC NHẬT KÝ TỪ LỊCH SỬ GIT LOG ĐỂ KHÔNG BỊ BỎ SÓT CẬP NHẬT GẦN ĐÂY
     try:
-        root_dir = Path(__file__).parent.resolve()
+        root_dir = ROOT.resolve()
         log_out = subprocess.check_output(
             ["git", "log", "-n", "8", "--format=%h|%cd|%s", "--date=format:%Y.%m.%d %H:%M"],
             stderr=subprocess.DEVNULL,
