@@ -330,7 +330,7 @@ class RolePermissionUpdate(BaseModel):
     allowed: bool
 
 class ModuleToggleUpdate(BaseModel):
-    key: str  # module_oem | module_pet_services | module_price_lists
+    key: str  # module_oem | module_pet_services | module_price_lists | module_hotel | module_marketplace
     enabled: bool
 
 class StaffPermissionUpdate(BaseModel):

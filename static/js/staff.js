@@ -164,7 +164,8 @@ const MODULE_LABEL = {
   module_hotel: "Khách Sạn Thú Cưng",
   module_pet_services: "Dịch Vụ & Thú Cưng",
   module_price_lists: "Bảng Giá Đại Lý",
-  module_oem: "Gia Công OEM"
+  module_oem: "Gia Công OEM",
+  module_marketplace: "Bán Hàng Sàn TMĐT"
 };
 
 async function loadPermissionsUI() {

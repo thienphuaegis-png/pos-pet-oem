@@ -13,7 +13,7 @@ PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.
              "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
              "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
 MANAGEABLE_ROLES = ["cashier", "accountant", "warehouse", "staff"]
-MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel"]
+MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel", "module_marketplace"]
 
 @router.get("/permissions")
 def get_permissions(user=Depends(require_role("owner"))):
