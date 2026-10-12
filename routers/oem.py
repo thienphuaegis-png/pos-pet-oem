@@ -841,7 +841,7 @@ def get_cashflow_debts_summary():
     conn = get_db()
     cur = conn.cursor()
     
-    # Tổng nợ NCC (gộp cả đơn mua PO và đơn gia công OEM còn nợ)
+    # Tổng nợ NCC (gộp cả đơn mua PO, đơn gia công OEM và nợ đầu kỳ còn nợ)
     cur.execute("""
         SELECT 
             COALESCE((
@@ -853,6 +853,10 @@ def get_cashflow_debts_summary():
                 SELECT SUM(o.remaining_payment) 
                 FROM oem_orders o 
                 WHERE o.remaining_payment > 0 AND o.status != 'CANCELLED'
+            ), 0) +
+            COALESCE((
+                SELECT SUM(COALESCE(initial_debt_company, 0) + COALESCE(initial_debt_personal, 0))
+                FROM contacts WHERE type = 'supplier'
             ), 0)
     """)
     total_debt = cur.fetchone()[0]
@@ -926,11 +930,6 @@ def list_debt_suppliers():
         d = dict(r)
         init_c = float(d.get("initial_debt_company", 0.0) or 0.0)
         init_p = float(d.get("initial_debt_personal", 0.0) or 0.0)
-        init_total = float(d.get("initial_debt", 0.0) or 0.0)
-        
-        # Nếu chưa phân tách mà có initial_debt chung, gán tạm vào quỹ cá nhân
-        if init_c == 0.0 and init_p == 0.0 and init_total > 0.0:
-            init_p = init_total
 
         po_oem_company = float(d.get("debt_company", 0.0) or 0.0)
         po_oem_personal = float(d.get("debt_personal", 0.0) or 0.0)
