@@ -860,6 +860,12 @@
                         </span>
                         <span class="sidebar-text truncate">Hóa Đơn</span>
                     </button>
+                    <button onclick="switchTab('marketplace')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="marketplace" data-role="owner,accountant,cashier" data-tooltip="Bán Hàng Sàn TMĐT">
+                        <span class="sidebar-icon bg-amber-100 text-amber-700">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Bán Hàng Sàn TMĐT</span>
+                    </button>
                     <button onclick="switchTab('price-lists')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="price-lists" data-role="owner,accountant" data-module="module_price_lists" data-tooltip="Bảng Giá">
                         <span class="sidebar-icon bg-emerald-100 text-emerald-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><circle cx="7" cy="7" r=".5" fill="currentColor"/></svg>
@@ -1613,6 +1619,334 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB: BÁN HÀNG SÀN TMĐT (SHOPEE & TIKTOK SHOP) -->
+            <div id="tab-marketplace" class="hidden space-y-4">
+                <!-- Sub-tabs Navigation -->
+                <div class="flex border-b border-slate-200 gap-2 bg-white px-4 pt-3 rounded-t-xl shadow-xs overflow-x-auto">
+                    <button id="btn-subtab-mkt-shopee" onclick="switchMktSubTab('shopee')" class="px-4 py-2.5 text-xs font-bold border-b-2 border-orange-500 text-orange-600 flex items-center gap-2 transition cursor-pointer">
+                        <span class="text-base">🟠</span>
+                        <span>Shopee Seller</span>
+                    </button>
+                    <button id="btn-subtab-mkt-tiktok" onclick="switchMktSubTab('tiktok')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer">
+                        <span class="text-base">⚫</span>
+                        <span>TikTok Shop</span>
+                    </button>
+                    <button id="btn-subtab-mkt-mapping" onclick="switchMktSubTab('mapping')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer">
+                        <span class="text-base">🔗</span>
+                        <span>Ánh Xạ Sản Phẩm (SKU)</span>
+                    </button>
+                    <button id="btn-subtab-mkt-analytics" onclick="switchMktSubTab('analytics')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer">
+                        <span class="text-base">📊</span>
+                        <span>Thống Kê Sản Lượng & AI</span>
+                    </button>
+                </div>
+
+                <!-- SUBTAB 1: SHOPEE SELLER -->
+                <div id="pane-mkt-shopee" class="mkt-subtab-pane space-y-4">
+                    <!-- Top Controls -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200">
+                                <span class="text-lg">🟠</span>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Gian Hàng Shopee</div>
+                                    <select id="mkt-shopee-account-select" onchange="onShopeeAccountChange()" class="bg-transparent font-bold text-xs text-orange-800 outline-none cursor-pointer">
+                                        <option value="">-- Chọn Gian Hàng --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <span id="mkt-shopee-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Chưa kiểm tra</span>
+                            <button type="button" onclick="openMktAccountModal('shopee')" class="text-xs text-sky-600 hover:text-sky-700 font-bold underline cursor-pointer">⚙️ Cập nhật Cookie</button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="date" id="mkt-shopee-filter-date" onchange="loadShopeeOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+                            <select id="mkt-shopee-status-filter" onchange="loadShopeeOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="to_ship">Chờ lấy hàng</option>
+                                <option value="shipping">Đang giao</option>
+                                <option value="completed">Đã giao</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
+                            <button type="button" onclick="syncShopeeOrdersNow()" id="btn-sync-shopee" class="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>⚡ Đồng Bộ Đơn Hôm Nay</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Shopee -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Tổng Đơn Hàng</div>
+                            <div id="kpi-shopee-order-count" class="text-xl font-black text-slate-800 mt-1">0</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Sản Phẩm Đã Bán</div>
+                            <div id="kpi-shopee-items-sold" class="text-xl font-black text-orange-600 mt-1">0</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Doanh Số Sàn</div>
+                            <div id="kpi-shopee-revenue" class="text-xl font-black text-emerald-600 mt-1">0 đ</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Đã Ánh Xạ Kho</div>
+                            <div id="kpi-shopee-mapped-ratio" class="text-xl font-black text-indigo-600 mt-1">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Đơn Hàng Shopee -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-3">Mã Đơn Shopee</th>
+                                        <th class="p-3">Thời Gian Đặt</th>
+                                        <th class="p-3">Người Mua</th>
+                                        <th class="p-3">Sản Phẩm Trên Sàn</th>
+                                        <th class="p-3 text-center">SL</th>
+                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-center">Trạng Thái Sàn</th>
+                                        <th class="p-3 text-center">Ánh Xạ Kho POS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mkt-shopee-orders-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng nào. Hãy bấm "Đồng Bộ Đơn Hôm Nay" để tải đơn.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 2: TIKTOK SHOP -->
+                <div id="pane-mkt-tiktok" class="mkt-subtab-pane hidden space-y-4">
+                    <!-- Top Controls -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-300">
+                                <span class="text-lg">⚫</span>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Gian Hàng TikTok</div>
+                                    <select id="mkt-tiktok-account-select" onchange="onTikTokAccountChange()" class="bg-transparent font-bold text-xs text-slate-900 outline-none cursor-pointer">
+                                        <option value="">-- Chọn Gian Hàng --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <span id="mkt-tiktok-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Chưa kiểm tra</span>
+                            <button type="button" onclick="openMktAccountModal('tiktok')" class="text-xs text-sky-600 hover:text-sky-700 font-bold underline cursor-pointer">⚙️ Cập nhật Cookie / Token</button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="date" id="mkt-tiktok-filter-date" onchange="loadTikTokOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+                            <select id="mkt-tiktok-status-filter" onchange="loadTikTokOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="AWAITING_SHIPMENT">Chờ gửi hàng</option>
+                                <option value="IN_TRANSIT">Đang vận chuyển</option>
+                                <option value="DELIVERED">Đã giao</option>
+                                <option value="CANCELLED">Đã hủy</option>
+                            </select>
+                            <button type="button" onclick="syncTikTokOrdersNow()" id="btn-sync-tiktok" class="px-3.5 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>⚡ Đồng Bộ Đơn TikTok</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Đơn Hàng TikTok -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-3">Mã Đơn TikTok</th>
+                                        <th class="p-3">Thời Gian Đặt</th>
+                                        <th class="p-3">Người Mua</th>
+                                        <th class="p-3">Sản Phẩm Trên Sàn</th>
+                                        <th class="p-3 text-center">SL</th>
+                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-center">Trạng Thái Sàn</th>
+                                        <th class="p-3 text-center">Ánh Xạ Kho POS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mkt-tiktok-orders-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 3: ÁNH XẠ SẢN PHẨM (SKU MAPPING) -->
+                <div id="pane-mkt-mapping" class="mkt-subtab-pane hidden space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm">🔗 Liên Kết Sản Phẩm Sàn TMĐT $\leftrightarrow$ Kho Hàng POS</h3>
+                            <p class="text-slate-500 text-[11px] mt-0.5">Ánh xạ giúp hệ thống tự động nhận diện mặt hàng khi tải đơn về và thống kê lượng bán theo ngày mà chưa can thiệp trừ kho.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="autoMapWithAI()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>🤖 AI Tự Động So Khớp</span>
+                            </button>
+                            <button type="button" onclick="openManualMappingModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>+ Thêm Luật Ánh Xạ</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Danh sách các món sàn chưa được ánh xạ (Cần xử lý) -->
+                    <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="font-bold text-amber-900 text-xs flex items-center gap-2">
+                                <span>⚠️</span>
+                                <span>Mặt Hàng Trên Sàn Chưa Được Ánh Xạ Vào Kho POS (<span id="unmapped-count">0</span> món):</span>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto bg-white rounded-lg border border-amber-200">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-amber-50 text-amber-800 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2.5">Sàn</th>
+                                        <th class="p-2.5">Tên Sản Phẩm Sàn</th>
+                                        <th class="p-2.5">Phân Loại / Biến Thể</th>
+                                        <th class="p-2.5 text-center">Đã Bán</th>
+                                        <th class="p-2.5">Chọn Sản Phẩm Kho POS Tương Ứng</th>
+                                        <th class="p-2.5 text-center w-20">Lưu</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="unmapped-items-tbody" class="divide-y divide-amber-100">
+                                    <tr><td colspan="6" class="p-4 text-center text-slate-400">Tuyệt vời! Tất cả sản phẩm đều đã được ánh xạ.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bảng các quy tắc ánh xạ đã lưu -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden space-y-2 p-4">
+                        <div class="font-bold text-slate-800 text-xs">Danh Sách Luật Ánh Xạ Đã Lưu:</div>
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2.5">Sàn</th>
+                                        <th class="p-2.5">Tên Sản Phẩm Sàn</th>
+                                        <th class="p-2.5">Phân Loại</th>
+                                        <th class="p-2.5">Sản Phẩm Trong Kho POS</th>
+                                        <th class="p-2.5 text-center">Tồn Kho Hiện Tại</th>
+                                        <th class="p-2.5 text-center w-24">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sku-mappings-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="6" class="p-4 text-center text-slate-400">Đang tải danh sách luật ánh xạ...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 4: THỐNG KÊ SẢN LƯỢNG & AI ANALYTICS -->
+                <div id="pane-mkt-analytics" class="mkt-subtab-pane hidden space-y-4">
+                    <!-- Filter Bar -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span>📊</span> Báo Cáo Sản Lượng Bán Đa Kênh Trong Ngày
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500 font-semibold">Chọn ngày:</span>
+                            <input type="date" id="mkt-analytics-date" onchange="loadMarketplaceDailyAnalytics()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none">
+                            <button type="button" onclick="loadMarketplaceDailyAnalytics()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">Xem</button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-white p-4 rounded-xl border border-indigo-200 bg-indigo-50/30 shadow-xs">
+                            <div class="text-[11px] font-bold text-indigo-700 uppercase">📦 Tổng SP Bán Toàn Bộ</div>
+                            <div id="kpi-total-sold-all" class="text-2xl font-black text-indigo-900 mt-1">0</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Gộp POS + Shopee + TikTok</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">🏬 Bán Tại Quầy POS</div>
+                            <div id="kpi-total-sold-pos" class="text-2xl font-black text-sky-600 mt-1">0</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Đơn hàng bán tại cửa hàng</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">🟠 Bán Trên Shopee</div>
+                            <div id="kpi-total-sold-shopee" class="text-2xl font-black text-orange-600 mt-1">0</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Đơn Shopee đã đồng bộ</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">⚫ Bán Trên TikTok Shop</div>
+                            <div id="kpi-total-sold-tiktok" class="text-2xl font-black text-slate-900 mt-1">0</div>
+                            <div class="text-[10px] text-slate-500 mt-1">Đơn TikTok Shop đã đồng bộ</div>
+                        </div>
+                    </div>
+
+                    <!-- 2 Cột: Bảng Sản Phẩm Bán vs Trợ Lý AI -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <!-- Cột trái: Bảng Đếm Số Lượng Sản Phẩm (7 cols) -->
+                        <div class="lg:col-span-7 bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="font-bold text-slate-800 text-xs">Chi Tiết Sản Lượng Từng Mặt Hàng:</div>
+                                <span id="daily-product-count-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">0 mặt hàng có phát sinh</span>
+                            </div>
+                            <div class="overflow-x-auto border rounded-lg max-h-[500px]">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] sticky top-0 border-b">
+                                        <tr>
+                                            <th class="p-2.5">Sản Phẩm POS</th>
+                                            <th class="p-2.5 text-center w-14">ĐVT</th>
+                                            <th class="p-2.5 text-center w-16 text-sky-700">POS</th>
+                                            <th class="p-2.5 text-center w-16 text-orange-600">Shopee</th>
+                                            <th class="p-2.5 text-center w-16 text-slate-900">TikTok</th>
+                                            <th class="p-2.5 text-center w-20 bg-indigo-50 font-bold text-indigo-700">Tổng Bán</th>
+                                            <th class="p-2.5 text-center w-16">Kho Còn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="daily-analytics-tbody" class="divide-y divide-slate-100">
+                                        <tr><td colspan="7" class="p-6 text-center text-slate-400">Không có phát sinh bán hàng trong ngày đã chọn.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Cột phải: Trợ Lý AI Chat (5 cols) -->
+                        <div class="lg:col-span-5 bg-white rounded-xl shadow-xs border border-slate-200 p-4 flex flex-col h-[560px]">
+                            <div class="flex items-center justify-between border-b pb-2 mb-3">
+                                <div class="font-bold text-slate-800 text-xs flex items-center gap-2">
+                                    <span>🤖</span>
+                                    <span>Trợ Lý AI Phân Tích Bán Hàng</span>
+                                </div>
+                                <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full">Gemini 2.5 Flash</span>
+                            </div>
+
+                            <!-- Khung tin nhắn AI -->
+                            <div id="mkt-ai-chat-messages" class="flex-1 overflow-y-auto space-y-3 p-2 bg-slate-50 rounded-lg border border-slate-100 text-xs">
+                                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs space-y-2">
+                                    <div class="font-bold text-purple-700 text-xs">Xin chào anh Phú! 👋</div>
+                                    <div class="text-slate-600 leading-relaxed">
+                                        Em là Trợ lý AI Phân tích Doanh số Đa kênh. Em có thể giúp anh tổng kết số lượng sản phẩm bán được hôm nay, chỉ ra mặt hàng bán chạy nhất hoặc cảnh báo sản phẩm nào trong kho sắp hết hàng!
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Câu hỏi gợi ý nhanh -->
+                            <div class="flex flex-wrap gap-1.5 py-2">
+                                <button type="button" onclick="askMarketplaceAI('Hôm nay sản phẩm nào bán chạy nhất trên toàn hệ thống?')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-semibold transition cursor-pointer">🔥 Bán chạy nhất?</button>
+                                <button type="button" onclick="askMarketplaceAI('Có sản phẩm nào bán chạy mà tồn kho sắp hết không?')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-semibold transition cursor-pointer">⚠️ Cảnh báo tồn kho?</button>
+                                <button type="button" onclick="askMarketplaceAI('So sánh tỷ lệ bán giữa sàn Shopee và TikTok Shop hôm nay.')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-semibold transition cursor-pointer">⚖️ So sánh 2 sàn?</button>
+                            </div>
+
+                            <!-- Input chat -->
+                            <div class="flex gap-2 pt-1 border-t">
+                                <input id="mkt-ai-prompt-input" type="text" placeholder="Hỏi AI về tình hình bán hàng..." class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500" onkeydown="if(event.key === 'Enter') sendMarketplaceAIChat()">
+                                <button type="button" onclick="sendMarketplaceAIChat()" id="btn-send-mkt-ai" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center cursor-pointer">
+                                    <span>Gửi</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -10284,6 +10618,7 @@
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261007_01"></script>
     <script src="/static/js/pos.js?v=20261011_03"></script>
+    <script src="/static/js/modules/marketplace.js?v=20261012_01"></script>
 
     <!-- MODAL: XEM ẢNH BILL CHỨNG TỪ -->
     <div id="modal-view-expense-bill" onclick="if(event.target === this) closeExpenseBillModal()" class="hidden fixed inset-0 bg-black/80 items-center justify-center z-[75] p-3 backdrop-blur-sm flex">
@@ -13110,6 +13445,79 @@
         loadTopupPackagesList();
     }
     </script>
+
+    <!-- ==================== MODAL: CẤU HÌNH GIAN HÀNG & PHIÊN ĐĂNG NHẬP COOKIE ==================== -->
+    <div id="modal-mkt-account-cookie" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span id="mkt-modal-platform-icon">🟠</span>
+                    <span id="mkt-modal-title">Cấu Hình Gian Hàng & Phiên Đăng Nhập Sàn</span>
+                </h3>
+                <button type="button" onclick="closeMktAccountModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
+            </div>
+            <div class="p-5 space-y-3.5">
+                <input type="hidden" id="mkt-acc-id">
+                <input type="hidden" id="mkt-acc-platform" value="shopee">
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tên gian hàng / Shop <span class="text-rose-500">*</span></label>
+                    <input id="mkt-acc-shop-name" type="text" placeholder="VD: PetCare Official Store" class="w-full border border-slate-300 rounded-lg p-2.5 font-bold text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Chuỗi Cookie / Token phiên (SPC_CDS) <span class="text-rose-500">*</span></label>
+                    <textarea id="mkt-acc-cookies" rows="4" placeholder="Dán toàn bộ chuỗi Cookie từ trình duyệt Chrome (F12 -> Network -> Header Cookie hoặc SPC_CDS=...)" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+                    <p class="text-[10px] text-slate-500 mt-1">💡 Mẹo: Trên Chrome đã đăng nhập Shopee/TikTok Seller, bấm F12 &rarr; Network/Application copy toàn bộ chuỗi Cookie hoặc SPC_CDS token.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeMktAccountModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">Hủy</button>
+                    <button type="button" onclick="saveMktAccount()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold shadow-xs transition cursor-pointer">Lưu Cấu Hình</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: THÊM LUẬT ÁNH XẠ THỦ CÔNG ==================== -->
+    <div id="modal-mkt-mapping" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span>🔗</span>
+                    <span>Thêm Luật Ánh Xạ Sản Phẩm Sàn</span>
+                </h3>
+                <button type="button" onclick="closeManualMappingModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
+            </div>
+            <div class="p-5 space-y-3.5">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nền tảng sàn:</label>
+                    <select id="map-modal-platform" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none">
+                        <option value="shopee">🟠 Shopee</option>
+                        <option value="tiktok">⚫ TikTok Shop</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tên sản phẩm trên sàn <span class="text-rose-500">*</span></label>
+                    <input id="map-modal-item-name" type="text" placeholder="Nhập chính xác tên hiển thị trên sàn..." class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Phân loại / Biến thể (nếu có):</label>
+                    <input id="map-modal-variation" type="text" placeholder="VD: Chai 500ml, Màu đỏ..." class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Sản phẩm tương ứng trong kho POS <span class="text-rose-500">*</span></label>
+                    <select id="map-modal-product-select" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500">
+                        <option value="">-- Chọn sản phẩm trong kho --</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeManualMappingModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer">Hủy</button>
+                    <button type="button" onclick="saveManualMappingModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs transition cursor-pointer">Lưu Luật Ánh Xạ</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ==================== MODAL: TRỢ LÝ THU CHI AI & ĐỐI SOÁT BILL CHUYỂN KHOẢN ==================== -->
     <div id="modal-ai-cashflow-assistant" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-3 sm:p-4 backdrop-blur-xs">

@@ -574,3 +574,32 @@ class HotelBookingCheckout(BaseModel):
 class HotelCareLogUpdate(BaseModel):
     daily_care_log: str
 
+# ── Marketplace (Shopee & TikTok Shop) ──
+class MarketplaceAccountCreate(BaseModel):
+    platform: str # 'shopee' hoặc 'tiktok'
+    shop_name: str
+    cookies: Optional[str] = ""
+    extra_config: Optional[str] = ""
+
+class MarketplaceAccountUpdate(BaseModel):
+    shop_name: Optional[str] = None
+    cookies: Optional[str] = None
+    extra_config: Optional[str] = None
+    is_active: Optional[int] = None
+
+class MarketplaceOrderSyncRequest(BaseModel):
+    account_id: int
+    days_back: Optional[int] = 1 # mặc định 1 ngày (hôm nay)
+    order_tab: Optional[int] = 100 # Shopee tab: 100 (to_ship), 200 (shipping), 300 (completed)
+
+class MarketplaceSkuMapCreate(BaseModel):
+    platform: str
+    platform_sku: Optional[str] = ""
+    platform_item_name: str
+    platform_variation: Optional[str] = ""
+    product_id: int
+
+class MarketplaceAIChatRequest(BaseModel):
+    prompt: str
+    date: Optional[str] = None
+

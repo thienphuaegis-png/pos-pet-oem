@@ -59,6 +59,7 @@ PATH_MODULE_MAP = [
     ("/api/promotions", "promotions"),
     ("/api/pricing", "promotions"),
     ("/api/topup", "pos"),
+    ("/api/marketplace", "marketplace"),
 ]
 
 def resolve_module_name(path: str) -> str:
@@ -92,6 +93,7 @@ from routers.oem import router as oem_router
 from routers.topup import router as topup_router
 from routers.hotel import router as hotel_router
 from routers.ai_assistant import router as ai_assistant_router
+from routers.marketplace import router as marketplace_router
 
 app = FastAPI(title="POS KiotViet Offline")
 
@@ -391,4 +393,5 @@ app.include_router(oem_router)
 app.include_router(topup_router)
 app.include_router(hotel_router)
 app.include_router(ai_assistant_router)
+app.include_router(marketplace_router)
  

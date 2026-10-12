@@ -3510,6 +3510,8 @@
             } else if (tabId === 'cashbook') {
                 renderTableSkeleton('table-cashbook', 6, 8);
                 loadCashbook();
+            } else if (tabId === 'marketplace') {
+                if (typeof initMarketplaceTab === 'function') initMarketplaceTab(subTabId);
             } else if (tabId === 'reports') {
                 if (typeof initReportsAnalytics === 'function') {
                     initReportsAnalytics();

@@ -1765,6 +1765,74 @@ def init_db():
     except Exception:
         pass
 
+    # ── Phân Hệ Bán Hàng Sàn TMĐT (Shopee & TikTok Shop) ──
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL CHECK(platform IN ('shopee', 'tiktok')),
+        shop_name TEXT NOT NULL,
+        cookies TEXT,
+        extra_config TEXT,
+        is_active INTEGER DEFAULT 1,
+        last_sync_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL CHECK(platform IN ('shopee', 'tiktok')),
+        account_id INTEGER,
+        order_sn TEXT NOT NULL,
+        order_status TEXT NOT NULL,
+        order_date DATETIME NOT NULL,
+        total_amount REAL DEFAULT 0,
+        shipping_fee REAL DEFAULT 0,
+        buyer_username TEXT,
+        tracking_number TEXT,
+        raw_payload TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(account_id) REFERENCES marketplace_accounts(id),
+        UNIQUE(platform, order_sn)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        platform_item_id TEXT,
+        platform_product_name TEXT NOT NULL,
+        platform_variation TEXT,
+        platform_sku TEXT,
+        quantity REAL NOT NULL DEFAULT 1,
+        unit_price REAL DEFAULT 0,
+        subtotal REAL DEFAULT 0,
+        mapped_product_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(order_id) REFERENCES marketplace_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY(mapped_product_id) REFERENCES products(id) ON DELETE SET NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS marketplace_sku_mappings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        platform_sku TEXT,
+        platform_item_name TEXT NOT NULL,
+        platform_variation TEXT,
+        product_id INTEGER NOT NULL,
+        is_auto INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+    )
+    """)
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mkt_sku_map ON marketplace_sku_mappings(platform, platform_sku, platform_item_name, platform_variation)")
+
     conn.commit()
     conn.close()
 
