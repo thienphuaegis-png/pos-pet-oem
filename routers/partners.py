@@ -528,6 +528,43 @@ def get_contact(contact_id: int):
         raise HTTPException(status_code=404, detail="Không tìm thấy đối tác")
     data = dict(row)
     
+    if data.get("type") == "supplier":
+        cur.execute("""
+            SELECT 
+               (
+                   COALESCE(?, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = ? AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate > 0 OR p.vat_amount > 0)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = ? AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
+                   ), 0)
+               ) as calc_debt_company,
+               (
+                   COALESCE(?, 0) +
+                   COALESCE((
+                       SELECT SUM(p.debt_amount) FROM purchases p 
+                       WHERE p.supplier_id = ? AND p.debt_amount > 0 AND p.status != 'cancelled'
+                         AND (p.vat_rate = 0 OR p.vat_rate IS NULL) AND (p.vat_amount = 0 OR p.vat_amount IS NULL)
+                   ), 0) +
+                   COALESCE((
+                       SELECT SUM(o.remaining_payment) FROM oem_orders o 
+                       WHERE o.partner_id = ? AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
+                         AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
+                   ), 0)
+               ) as calc_debt_personal
+        """, (data.get("initial_debt_company") or 0, contact_id, contact_id, data.get("initial_debt_personal") or 0, contact_id, contact_id))
+        d_calc = cur.fetchone()
+        if d_calc:
+            data["debt_company"] = float(d_calc["calc_debt_company"] or 0.0)
+            data["debt_personal"] = float(d_calc["calc_debt_personal"] or 0.0)
+            data["total_debt"] = round(data["debt_company"] + data["debt_personal"], 2)
+            data["debt"] = data["total_debt"]
+    
     # Lấy danh sách thú cưng nếu là khách hàng
     if data["type"] == "customer":
         cur.execute("SELECT * FROM pets WHERE customer_id = ? ORDER BY id ASC", (contact_id,))

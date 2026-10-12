@@ -1712,6 +1712,20 @@ def init_db():
     )
     """)
 
+    # Tự động đồng bộ contacts.debt với purchases và orders tránh lệch công nợ NCC
+    try:
+        cur.execute("""
+            UPDATE contacts 
+            SET debt = (
+                COALESCE(initial_debt_company, 0) + COALESCE(initial_debt_personal, 0) +
+                COALESCE((SELECT SUM(debt_amount) FROM purchases WHERE supplier_id = contacts.id AND debt_amount > 0 AND status != 'cancelled'), 0) +
+                COALESCE((SELECT SUM(remaining_payment) FROM oem_orders WHERE partner_id = contacts.id AND remaining_payment > 0 AND status != 'CANCELLED'), 0)
+            )
+            WHERE type = 'supplier'
+        """)
+    except Exception:
+        pass
+
     conn.commit()
     conn.close()
 
