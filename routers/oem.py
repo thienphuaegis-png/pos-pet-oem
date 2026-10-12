@@ -309,6 +309,7 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
         
         status = "DEPOSITED" if req.deposit_amount > 0 else "DRAFT"
         deposit_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if req.deposit_amount > 0 else None
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         
         cur.execute("""
             INSERT INTO oem_orders (
@@ -316,14 +317,14 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
                 status, expected_delivery_date, fund_source,
                 vat_percent, discount_percent, deposit_amount, deposit_date,
                 total_raw_amount, total_final_amount, remaining_payment,
-                payment_status, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                payment_status, note, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             code, req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             status, req.expected_delivery_date, req.fund_source,
             req.vat_percent, discount_pct, req.deposit_amount, deposit_date,
             total_raw, total_final, remaining,
-            "PARTIAL" if req.deposit_amount > 0 else "UNPAID", req.note or ""
+            "PARTIAL" if req.deposit_amount > 0 else "UNPAID", req.note or "", user_name
         ))
         order_id = cur.lastrowid
         
@@ -389,17 +390,18 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
         discount_factor = (raw_after_discount / total_raw) if total_raw > 0 else 1.0
         vat_factor = 1.0 + (req.vat_percent / 100.0)
 
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
             UPDATE oem_orders
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
                 total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
-                fund_source = ?, updated_at = CURRENT_TIMESTAMP
+                fund_source = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             req.expected_delivery_date, req.vat_percent, discount_pct,
-            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", order_id
+            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, order_id
         ))
 
         is_received = o["status"] in ("RECEIVED", "COMPLETED")

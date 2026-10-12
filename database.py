@@ -1639,6 +1639,12 @@ def init_db():
         "ALTER TABLE hotel_bookings ADD COLUMN created_by TEXT",
         "ALTER TABLE hotel_bookings ADD COLUMN updated_by TEXT",
         "ALTER TABLE hotel_bookings ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE products ADD COLUMN created_by TEXT",
+        "ALTER TABLE products ADD COLUMN updated_by TEXT",
+        "ALTER TABLE products ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE oem_orders ADD COLUMN created_by TEXT",
+        "ALTER TABLE oem_orders ADD COLUMN updated_by TEXT",
+        "ALTER TABLE oem_orders ADD COLUMN updated_at DATETIME",
     ]:
         try:
             cur.execute(_col)

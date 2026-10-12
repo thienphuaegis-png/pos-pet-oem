@@ -779,6 +779,8 @@
                         <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${formatMoney(item.cost_price)}</td>
                         <td class="p-2.5 text-right">${sellCell}</td>
                         <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${formatMoney(item.total_value)}</td>
+                        <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${item.created_by || 'Hệ thống'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${(item.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-center">${actionButtons}</td>
                     </tr>
                 `;

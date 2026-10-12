@@ -1983,7 +1983,7 @@
 
                         <!-- Table -->
                         <div class="overflow-x-auto p-1">
-                            <table class="w-full text-left text-xs table-floating-cards">
+                            <table class="w-full min-w-[1300px] text-left text-xs table-floating-cards">
                                 <thead class="bg-gray-50/70 select-none">
                                     <tr>
                                         <th class="p-2.5 text-center w-8">
@@ -2015,11 +2015,13 @@
                                         <th class="p-2.5 text-right cursor-pointer hover:bg-gray-100 col-cost" onclick="sortUnifiedTable('total_value')">
                                             Tổng giá trị tồn <span id="sort-icon-total_value" class="text-gray-400">↕</span>
                                         </th>
+                                        <th class="p-2.5">Người tạo</th>
+                                        <th class="p-2.5">Sửa cuối</th>
                                         <th class="p-2.5 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-unified-inventory">
-                                    <tr><td colspan="11" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
+                                    <tr><td colspan="13" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3962,8 +3964,8 @@
                                     </div>
                                 </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full min-w-[1250px] text-left text-xs border-collapse">
                             <thead>
                                 <tr class="bg-slate-100 text-slate-700 font-bold border-b">
                                     <th class="p-2.5">Mã Đơn</th>
@@ -3971,6 +3973,8 @@
                                     <th class="p-2.5">Kho NVL Xưởng</th>
                                     <th class="p-2.5 text-center">Hẹn Giao (±1d)</th>
                                     <th class="p-2.5 text-center">Nguồn Tiền</th>
+                                    <th class="p-2.5">Người Lập</th>
+                                    <th class="p-2.5">Sửa Cuối</th>
                                     <th class="p-2.5 text-right">Tổng Tiền (Sau CK/VAT)</th>
                                     <th class="p-2.5 text-right">Đã Cọc Đợt 1</th>
                                     <th class="p-2.5 text-right">Còn Lại (Đợt 2)</th>
@@ -3980,7 +3984,7 @@
                             </thead>
                             <tbody id="table-oem-orders">
                                 <tr>
-                                    <td colspan="10" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
+                                    <td colspan="12" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
                                 </tr>
                             </tbody>
                         </table>

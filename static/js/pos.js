@@ -1859,7 +1859,12 @@ async function submitPOSOrder() {
     }
 
     const staffSelect = document.getElementById('pos-staff-select');
-    const staffId = parseInt(staffSelect?.value) || 1;
+    let staffId = parseInt(staffSelect?.value) || 0;
+    if (!staffId && window.Auth && typeof window.Auth.getUser === 'function') {
+        const u = window.Auth.getUser();
+        if (u && u.id) staffId = u.id;
+    }
+    if (!staffId) staffId = 1;
     const customerId = tab.customer ? tab.customer.id : 1; // 1: Khách lẻ mặc định
 
     const btnSubmit = document.getElementById('btn-submit-order');

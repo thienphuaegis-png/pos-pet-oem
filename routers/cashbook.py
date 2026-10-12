@@ -6,7 +6,7 @@ from datetime import datetime
 from database import get_db
 from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove
 from logger_config import get_module_logger
-from dependencies import get_current_user, require_role, require_permission
+from dependencies import get_current_user, get_optional_user, require_role, require_permission
 
 logger = get_module_logger("cashbook")
 

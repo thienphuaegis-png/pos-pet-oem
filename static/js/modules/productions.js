@@ -4121,6 +4121,8 @@
                         <td class="p-3 text-gray-500 whitespace-nowrap">${ord.created_at || ''}</td>
                         <td class="p-3 font-medium text-slate-800">${ord.customer_name || 'Khách lẻ'}</td>
                         <td class="p-3 text-gray-600">${ord.staff_name || 'Thu ngân'}</td>
+                        <td class="p-3 text-slate-700 font-medium whitespace-nowrap">${ord.created_by || ord.staff_name || 'Thu ngân'}</td>
+                        <td class="p-3 text-slate-500 whitespace-nowrap">${ord.updated_by ? `${ord.updated_by} <span class="text-[10px] text-gray-400 block">${(ord.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-3 text-center font-mono font-bold">${ord.item_count || 0}</td>
                         <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(ord.final_amount)}</td>
                         <td class="p-3 text-right font-mono text-gray-500">${formatMoney(ord.discount || 0)}</td>
@@ -7923,6 +7925,8 @@
                             ${o.expected_delivery_date ? `<span title="Trừ hao ±1 ngày">${o.expected_delivery_date}</span>` : '<span class="text-gray-400">---</span>'}
                         </td>
                         <td class="p-2.5 text-center">${fundBadge}</td>
+                        <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${o.created_by || 'Quản lý'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${o.updated_by ? `${o.updated_by} <span class="text-[10px] text-gray-400 block">${(o.updated_at || '').slice(11, 16)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-slate-800">${formatMoney(o.total_final_amount)}</td>
                         <td class="p-2.5 text-right font-mono">${dot1Html}</td>
                         <td class="p-2.5 text-right font-mono">${dot2Html}</td>

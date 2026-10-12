@@ -442,14 +442,15 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
     }
 
 @router.post("")
-def create_product(p: ProductCreate):
+def create_product(p: ProductCreate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
         cat = p.category or "Khác"
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -492,11 +493,14 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         cost_price = existing["cost_price"] or 0
         if p.cost_price is not None and can_view_cost(user):
             cost_price = p.cost_price
+
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute('''
             UPDATE products 
-            SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?
+            SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
+                updated_by = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, product_id))
+        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
