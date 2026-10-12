@@ -11817,24 +11817,29 @@
 
             <form id="form-edit-cashbook" onsubmit="submitEditCashbook(event)" class="p-4 space-y-3.5">
                 <div class="bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/80 flex justify-between items-center">
-                    <span class="text-slate-600">Mã phiếu chi:</span>
+                    <span id="edit-cash-code-label" class="text-slate-600">Mã phiếu:</span>
                     <span id="edit-cash-code" class="font-mono font-bold text-slate-800"></span>
                 </div>
 
                 <div>
-                    <label class="block text-slate-700 font-bold mb-1">Số tiền chi (VNĐ) *</label>
-                    <input type="text" id="edit-cash-amount" inputmode="numeric" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right text-rose-600 focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="0 đ" oninput="handleEditCashAmountInput(this)">
+                    <label id="edit-cash-amount-label" class="block text-slate-700 font-bold mb-1">Số tiền (VNĐ) *</label>
+                    <input type="text" id="edit-cash-amount" inputmode="numeric" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="0 đ" oninput="handleEditCashAmountInput(this)">
                     <div id="edit-cash-amount-words" class="text-[11px] font-semibold text-slate-500 italic mt-1 text-right">Không đồng</div>
                 </div>
 
                 <div>
-                    <label class="block text-slate-700 font-bold mb-1">Hạng mục chi *</label>
+                    <label class="block text-slate-700 font-bold mb-1">Hạng mục *</label>
                     <input type="text" id="edit-cash-category" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
                 </div>
 
                 <div>
-                    <label class="block text-slate-700 font-bold mb-1">Tài khoản / Quỹ trích tiền xuất *</label>
+                    <label class="block text-slate-700 font-bold mb-1">Tài khoản thanh toán / Nguồn quỹ *</label>
                     <select id="edit-cash-account-select" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"></select>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-1">Ngày giờ phiếu</label>
+                    <input type="text" id="edit-cash-created-at" placeholder="YYYY-MM-DD HH:MM:SS" class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
                 </div>
 
                 <div>

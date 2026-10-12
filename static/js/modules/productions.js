@@ -646,7 +646,7 @@
             const btnEdit = document.getElementById('btn-drawer-edit-cashbook');
             const btnDel = document.getElementById('btn-drawer-delete-cashbook');
             const isAdmin = typeof Auth !== 'undefined' && Auth.hasRole('owner', 'admin');
-            const canModify = isAdmin && (!isThu || c.ref_type === 'topup');
+            const canModify = isAdmin;
             if (canModify) {
                 if (btnEdit) btnEdit.classList.remove('hidden');
                 if (btnDel) btnDel.classList.remove('hidden');
@@ -1065,15 +1065,23 @@
             const titleEl = modal.querySelector('h3');
             if (titleEl) titleEl.innerText = isThu ? 'Chỉnh Sửa Phiếu Thu' : 'Chỉnh Sửa Phiếu Chi';
 
-            document.getElementById('edit-cash-code').innerText = c.code || '-';
+            const amtLabel = document.getElementById('edit-cash-amount-label');
+            if (amtLabel) amtLabel.innerText = isThu ? 'Số tiền thu (VNĐ) *' : 'Số tiền chi (VNĐ) *';
+
             const editAmtEl = document.getElementById('edit-cash-amount');
             if (editAmtEl) {
+                editAmtEl.className = `w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right ${isThu ? 'text-emerald-600' : 'text-rose-600'} focus:outline-none focus:ring-2 focus:ring-amber-400`;
                 const val = c.amount || 0;
                 editAmtEl.value = val > 0 ? (new Intl.NumberFormat('vi-VN').format(val) + ' đ') : '';
                 handleEditCashAmountInput(editAmtEl);
             }
+
+            document.getElementById('edit-cash-code').innerText = c.code || '-';
             document.getElementById('edit-cash-category').value = c.category || '';
             document.getElementById('edit-cash-note').value = c.note || '';
+
+            const dateEl = document.getElementById('edit-cash-created-at');
+            if (dateEl) dateEl.value = c.created_at || '';
 
             const accSelect = document.getElementById('edit-cash-account-select');
             if (accSelect) {
@@ -1110,6 +1118,7 @@
             const category = document.getElementById('edit-cash-category').value.trim();
             const account_id = parseInt(document.getElementById('edit-cash-account-select').value || 0);
             const note = document.getElementById('edit-cash-note').value.trim();
+            const createdAtVal = document.getElementById('edit-cash-created-at')?.value?.trim() || null;
 
             if (!amount || amount <= 0) {
                 if (window.showToast) window.showToast('Số tiền phải lớn hơn 0', 'warning');
@@ -1128,7 +1137,8 @@
                         amount: amount,
                         category: category,
                         account_id: account_id,
-                        note: note
+                        note: note,
+                        created_at: createdAtVal
                     })
                 });
                 const data = await res.json();
