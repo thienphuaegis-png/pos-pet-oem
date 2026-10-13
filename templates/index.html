@@ -8269,193 +8269,187 @@
                     </div>
                 </div>
 
-                <!-- SUB 1: THIẾT KẾ MẪU IN (KIOTVIET 3-COLUMN PROFESSIONAL REDESIGN) -->
-                <div id="settings-sub-templates" class="space-y-4">
-                    <div id="print-settings-split-layout" class="flex flex-col lg:flex-row items-stretch gap-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-xs min-h-[720px]">
-                        
-                        <!-- CỘT 1: CÂY DANH MỤC CHỨNG TỪ (Ẩn để chuyển thành dropdown trên top bar cột 2) -->
-                        <div id="print-tpl-tree" class="hidden">
-                            <button type="button" onclick="selectPrintDocType('pos_retail', this)" class="print-tree-btn"></button>
-                        </div>
-
-                        <!-- CỘT 2: PANEL CẤU HÌNH BẬT TẮT KHỐI TRỰC QUAN (360px) -->
-                        <div id="print-tpl-config-panel" class="w-full lg:w-[360px] bg-white border border-slate-200 rounded-lg p-3 flex flex-col shrink-0 text-xs space-y-3">
-                            <!-- Dropdown Nhóm Danh Mục Chứng Từ Tinh Gọn -->
-                            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                                <label class="font-bold text-slate-700 text-xs flex items-center gap-1.5 mb-1.5">
-                                    <span>🖨️</span>
-                                    <span>Loại Chứng Từ / Nghiệp Vụ:</span>
-                                </label>
-                                <select id="print-doc-type-select" onchange="onPrintDocTypeSelectChange(this.value)" class="w-full border border-sky-400 p-2 rounded-lg bg-white font-bold text-sky-800 text-xs shadow-2xs focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                                    <optgroup label="── ĐƠN HÀNG ──">
-                                        <option value="pos_retail" selected>🧾 Hóa Đơn Bán Lẻ (K80/K58)</option>
-                                        <option value="pos_b2b">📄 Hóa Đơn Sỉ / A4 Đại Lý</option>
-                                        <option value="pos_draft">📝 Phiếu Tạm Tính</option>
+                <!-- SUB 1: THIẾT KẾ MẪU IN ĐA NGHIỆP VỤ (WYSIWYG + TOKEN CHIPS CHUẨN KIOTVIET) -->
+                <div id="settings-sub-templates" class="space-y-3">
+                    <!-- TOP BAR: CHỌN NGHIỆP VỤ & NÚT HÀNH ĐỘNG -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase">Loại Chứng Từ / Nghiệp Vụ:</label>
+                                <select id="print-designer-doc-type" onchange="loadDocumentTemplate(this.value)" class="border border-sky-400 font-bold text-sky-900 bg-sky-50/50 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500 shadow-2xs">
+                                    <optgroup label="── ĐƠN BÁN HÀNG ──">
+                                        <option value="pos_retail" selected>🧾 Hóa Đơn Bán Lẻ (K80 / K58)</option>
+                                        <option value="pos_b2b">📄 Hóa Đơn Sỉ / Đại Lý (A4 Dọc / Ngang)</option>
                                     </optgroup>
-                                    <optgroup label="── DỊCH VỤ SPA ──">
-                                        <option value="spa_intake">💆 Phiếu Tiếp Nhận Spa (K80)</option>
-                                        <option value="pos_topup">⚡ Biên Lai Nạp Ví Spa</option>
-                                        <option value="spa_invoice">📋 Hóa Đơn Dịch Vụ Spa</option>
+                                    <optgroup label="── GIA CÔNG OEM ──">
+                                        <option value="oem_order">🏭 Hợp Đồng & Phụ Lục Gia Công OEM (A4)</option>
+                                    </optgroup>
+                                    <optgroup label="── NHẬP HÀNG & KHO ──">
+                                        <option value="purchase_order">📥 Phiếu Nhập Hàng Nhà Cung Cấp (A4 / K80)</option>
                                     </optgroup>
                                     <optgroup label="── SỔ QUỸ ──">
-                                        <option value="cashbook_thu">📥 Phiếu Thu Tiền (K80 / A5)</option>
-                                        <option value="cashbook_chi">📤 Phiếu Chi Tiền (K80 / A5)</option>
-                                        <option value="shift_zreport">📊 Báo Cáo Đóng Ca (Z-Report)</option>
+                                        <option value="cashbook_voucher">💰 Phiếu Thu / Phiếu Chi Tiền (K80 / A5)</option>
                                     </optgroup>
-                                    <optgroup label="── KHO & KIỂM KÊ ──">
-                                        <option value="stock_audit">📦 Phiếu Kiểm Kê Kho Hàng</option>
+                                    <optgroup label="── DỊCH VỤ SPA ──">
+                                        <option value="spa_intake">💆 Phiếu Tiếp Nhận Thú Cưng Spa (K80)</option>
                                     </optgroup>
                                 </select>
                             </div>
 
-                            <!-- In đậm chống mờ nhiệt -->
-                            <div class="p-2.5 bg-gradient-to-r from-amber-50 to-orange-50/60 rounded-lg border border-amber-200 flex items-center justify-between shadow-2xs">
-                                <div>
-                                    <div class="font-bold text-amber-900 text-xs flex items-center gap-1">
-                                        <span>⚡</span> <span>In Đậm Chống Mờ Nhiệt</span>
-                                    </div>
-                                    <div class="text-[10.5px] text-amber-700 mt-0.5">Nét in nhiệt cực đại (Font 900)</div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="chk-thermal-bold" onchange="onSplitBoldToggleChange(this.checked)" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
-                                </label>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase">Chọn Mẫu Gợi Ý:</label>
+                                <select id="print-designer-preset-select" onchange="onPresetSelectChange(this.value)" class="border border-purple-300 font-semibold text-purple-900 bg-purple-50/50 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-2xs">
+                                    <option value="">-- Chọn mẫu gợi ý --</option>
+                                </select>
                             </div>
-                            <!-- Bật / Ẩn mẫu in khỏi quầy bán hàng -->
-                            <div class="flex items-center justify-between p-2 bg-purple-50/70 rounded-lg border border-purple-200">
-                                <div>
-                                    <div class="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                                        <span>👁️</span> <span>Hiển Thị Ở Quầy POS</span>
-                                    </div>
-                                    <div class="text-[10px] text-purple-700 mt-0.5">Bật để xuất hiện trên thanh POS & Popup in</div>
-                                </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="chk-preset-active" onchange="onPresetActiveToggleChange(this.checked)" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                                </label>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="resetUniversalPrintTemplate()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition border border-slate-200">
+                                🔄 Đặt Lại
+                            </button>
+                            <button type="button" onclick="testPrintCurrentTemplate()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition border border-indigo-200 flex items-center gap-1">
+                                <span>🖨️</span> <span>In Thử</span>
+                            </button>
+                            <button type="button" onclick="saveUniversalPrintTemplate()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5">
+                                <span>💾</span> <span>Lưu Mẫu In</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- GIAO DIỆN 2 CỘT: TRÁI LÀ SOẠN THẢO WYSIWYG, PHẢI LÀ LIVE PREVIEW -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start min-h-[680px]">
+                        
+                        <!-- CỘT 1: KHUNG SOẠN THẢO WYSIWYG & TOOLBAR (7 cols) -->
+                        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
+                            <!-- TOOLBAR ĐỊNH DẠNG -->
+                            <div class="bg-slate-50 p-2 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-xs">
+                                <button type="button" id="btn-toolbar-source" onclick="toggleSourceMode()" class="px-2 py-1 rounded bg-white hover:bg-slate-100 border border-slate-300 font-mono text-[11px] font-bold shadow-2xs" title="Xem & sửa mã HTML trực tiếp">
+                                    &lt;/&gt; Source
+                                </button>
+                                <span class="text-slate-300">|</span>
+                                <select onchange="execEditorCmd('fontName', this.value)" class="border border-slate-300 rounded px-1.5 py-1 bg-white text-xs">
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times New Roman</option>
+                                    <option value="Roboto">Roboto</option>
+                                    <option value="Courier New">Courier New</option>
+                                </select>
+                                <select onchange="execEditorCmd('fontSize', this.value)" class="border border-slate-300 rounded px-1.5 py-1 bg-white text-xs">
+                                    <option value="2">Cỡ 10</option>
+                                    <option value="3" selected>Cỡ 12</option>
+                                    <option value="4">Cỡ 14</option>
+                                    <option value="5">Cỡ 18</option>
+                                    <option value="6">Cỡ 24</option>
+                                </select>
+                                <span class="text-slate-300">|</span>
+                                <button type="button" onclick="execEditorCmd('bold')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 font-bold flex items-center justify-center shadow-2xs">B</button>
+                                <button type="button" onclick="execEditorCmd('italic')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 italic flex items-center justify-center shadow-2xs">I</button>
+                                <button type="button" onclick="execEditorCmd('underline')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 underline flex items-center justify-center shadow-2xs">U</button>
+                                <span class="text-slate-300">|</span>
+                                <button type="button" onclick="execEditorCmd('justifyLeft')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 flex items-center justify-center shadow-2xs" title="Canh trái">⇤</button>
+                                <button type="button" onclick="execEditorCmd('justifyCenter')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 flex items-center justify-center shadow-2xs" title="Canh giữa">↔</button>
+                                <button type="button" onclick="execEditorCmd('justifyRight')" class="w-7 h-7 rounded bg-white hover:bg-slate-100 border border-slate-300 flex items-center justify-center shadow-2xs" title="Canh phải">⇥</button>
+                                <span class="text-slate-300">|</span>
+                                <!-- NÚT CHÈN TOKEN NỔI BẬT -->
+                                <button type="button" onclick="openTokenPickerModal()" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded flex items-center gap-1 shadow-2xs transition">
+                                    <span>🧩</span> <span>+ Chèn Token</span>
+                                </button>
                             </div>
 
-                            <input type="checkbox" id="chk-split-bold-toggle" class="hidden">
-                            <input type="checkbox" id="chk-preset-bold-all" class="hidden">
+                            <!-- VÙNG SOẠN THẢO EDITABLE -->
+                            <div class="relative flex-1">
+                                <div id="wysiwyg-content-area" contenteditable="true" class="p-4 bg-white min-h-[560px] max-h-[720px] overflow-y-auto outline-none text-slate-800 text-xs leading-relaxed" style="font-family: Arial, sans-serif;">
+                                    <!-- Nội dung hiển thị token chip được nạp tại đây -->
+                                </div>
+                                <textarea id="wysiwyg-source-textarea" class="hidden w-full h-full min-h-[560px] p-4 font-mono text-xs bg-slate-900 text-emerald-400 outline-none resize-none" oninput="renderLivePreview()"></textarea>
+                            </div>
+                        </div>
 
-                            <!-- Bộ chọn preset & khổ giấy -->
-                            <div class="space-y-2 p-2 bg-slate-50/60 rounded-lg border border-slate-200">
-                                <div>
-                                    <div class="flex justify-between items-center mb-1">
-                                        <label class="font-bold text-purple-900 text-[11px]">Mẫu In:</label>
-                                        <div class="flex items-center gap-1">
-                                            <button onclick="renameCurrentPreset()" title="Đổi tên" class="text-purple-700 hover:text-purple-900 text-[11px] font-semibold">✏️ Đổi tên</button>
-                                            <span class="text-slate-300">|</span>
-                                            <button onclick="deleteCurrentPreset()" title="Xóa mẫu" class="text-rose-600 hover:text-rose-800 text-[11px] font-semibold">🗑️ Xóa</button>
-                                        </div>
-                                    </div>
-                                    <select id="canvas-preset-select" class="w-full border border-purple-300 p-1.5 rounded bg-white font-bold text-purple-900 text-xs" onchange="switchPreset(this.value)">
+                        <!-- CỘT 2: KHUNG XEM TRƯỚC LIVE PREVIEW (5 cols) -->
+                        <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
+                            <!-- TOP BAR PREVIEW: KHỔ GIẤY & ORIENTATION & ZOOM -->
+                            <div class="bg-slate-50 p-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-slate-700 text-[11px]">Khổ:</span>
+                                    <select id="print-designer-paper-size" onchange="onPaperSizeChange(this.value)" class="border border-slate-300 rounded px-1.5 py-1 bg-white font-bold text-slate-800 text-xs">
+                                        <option value="K80">K80 (80mm)</option>
+                                        <option value="K58">K58 (58mm)</option>
+                                        <option value="A4">A4 (210 x 297mm)</option>
+                                        <option value="A5">A5 (148 x 210mm)</option>
                                     </select>
                                 </div>
-                                <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200">
-                                    <button onclick="saveCurrentPreset()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-1.5 px-2 rounded text-[11px] flex items-center justify-center gap-1 shadow-2xs">
-                                        <span>💾</span> <span>Lưu Mẫu</span>
+
+                                <div class="flex items-center gap-1">
+                                    <button type="button" id="btn-orient-portrait" onclick="setOrientation('portrait')" class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-600 text-white shadow-2xs">
+                                        Dọc
                                     </button>
-                                    <button onclick="saveNewPreset()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-2 rounded text-[11px] flex items-center justify-center gap-1 shadow-2xs">
-                                        <span>➕</span> <span>Lưu Mẫu Mới</span>
+                                    <button type="button" id="btn-orient-landscape" onclick="setOrientation('landscape')" class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs">
+                                        Ngang
                                     </button>
+                                </div>
+
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[11px] text-slate-500">Zoom:</span>
+                                    <input type="range" min="60" max="140" value="100" oninput="onZoomChange(this.value)" class="w-16 accent-sky-600">
+                                    <span id="zoom-percentage-text" class="font-mono text-[10.5px] font-bold text-slate-700 w-8">100%</span>
                                 </div>
                             </div>
 
-                            <!-- Danh sách checklist bật/tắt thành phần -->
-                            <div class="flex-1 overflow-y-auto space-y-2 pr-1">
-                                <div class="font-bold text-slate-700 text-[11px] uppercase tracking-wide flex items-center justify-between">
-                                    <span>Bật / Tắt Khối Nội Dung</span>
-                                    <button type="button" onclick="addCustomTextItem()" class="text-purple-600 font-semibold text-[11px] hover:underline">+ Ô Chữ</button>
-                                </div>
-                                <div class="p-2 bg-sky-50/60 rounded border border-sky-200 space-y-1">
-                                    <div class="font-bold text-sky-800 text-[10.5px]">Đầu Trang & Cửa Hàng</div>
-                                    <div class="grid grid-cols-2 gap-1 text-[11.5px]">
-                                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-logo" onchange="toggleCanvasItem('logo', this.checked)" class="rounded text-sky-600"> Logo Shop</label>
-                                        <label class="flex items-center gap-1 cursor-pointer font-semibold"><input type="checkbox" id="chk-header" onchange="toggleCanvasItem('header', this.checked)" class="rounded text-sky-600"> Tên & Đ/C</label>
-                                        <label class="flex items-center gap-1 cursor-pointer font-semibold"><input type="checkbox" id="chk-title" onchange="toggleCanvasItem('title', this.checked)" class="rounded text-sky-600"> Tiêu Đề</label>
-                                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-info" onchange="toggleCanvasItem('info', this.checked)" class="rounded text-sky-600"> Số HĐ / Giờ</label>
-                                        <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" id="chk-customer" onchange="toggleCanvasItem('customer', this.checked)" class="rounded text-sky-600"> Khách hàng (Tên, SĐT)</label>
-                                        <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" id="chk-customer_address" onchange="toggleCanvasItem('customer_address', this.checked)" class="rounded text-sky-600"> Địa chỉ khách hàng</label>
-                                        <label class="flex items-center gap-1 cursor-pointer col-span-2 text-purple-800 font-semibold"><input type="checkbox" id="chk-pet_info" onchange="toggleCanvasItem('pet_info', this.checked)" class="rounded text-purple-600"> Thú Cưng (Spa)</label>
-                                    </div>
-                                </div>
-                                <div class="p-2 bg-indigo-50/60 rounded border border-indigo-200 space-y-1">
-                                    <div class="font-bold text-indigo-800 text-[10.5px]">Chi Tiết Mặt Hàng / Dịch Vụ</div>
-                                    <div class="space-y-1 text-[11.5px]">
-                                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-indigo-900"><input type="radio" name="table_mode" id="chk-table_b2b" onchange="toggleTableMode('table_b2b')"> Bảng 9 Cột B2B/Đại Lý (A4)</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer font-semibold"><input type="radio" name="table_mode" id="chk-table" onchange="toggleTableMode('table')"> Bảng Tiêu Chuẩn (Bán lẻ / K80)</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-cyan-900"><input type="radio" name="table_mode" id="chk-table_audit" onchange="toggleTableMode('table_audit')"> Bảng 7 Cột Kiểm Kê</label>
-                                        <div class="pt-1 border-t border-indigo-200 grid grid-cols-1 gap-1">
-                                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-cashbook_amount" onchange="toggleCanvasItem('cashbook_amount', this.checked)"> Số tiền thu/chi lớn (Quỹ)</label>
-                                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-cashbook_reason" onchange="toggleCanvasItem('cashbook_reason', this.checked)"> Diễn giải thu chi</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="p-2 bg-emerald-50/60 rounded border border-emerald-200 space-y-1">
-                                    <div class="font-bold text-emerald-800 text-[10.5px]">Thanh Toán & Chân Trang</div>
-                                    <div class="space-y-1 text-[11.5px]">
-                                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-900"><input type="checkbox" id="chk-b2b_footer_boxes" onchange="toggleCanvasItem('b2b_footer_boxes', this.checked)"> 3 Ô Chân Trang (Bank-QR-Tổng)</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-900"><input type="checkbox" id="chk-signatures_3col" onchange="toggleCanvasItem('signatures_3col', this.checked)"> 3 Cột Chữ Ký B2B</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer text-purple-900 font-semibold"><input type="checkbox" id="chk-return_time" onchange="toggleCanvasItem('return_time', this.checked)"> Giờ hẹn trả bé</label>
-                                        <div class="grid grid-cols-2 gap-1 pt-1 border-t border-emerald-200">
-                                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-total" onchange="toggleCanvasItem('total', this.checked)"> Tổng tiền</label>
-                                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="chk-qr" onchange="toggleCanvasItem('qr', this.checked)"> VietQR</label>
-                                            <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" id="chk-footer" onchange="toggleCanvasItem('footer', this.checked)"> Lời cảm ơn</label>
-                                        </div>
-                                    </div>
+                            <!-- VÙNG TỜ IN HIỂN THỊ XEM TRƯỚC -->
+                            <div class="flex-1 bg-slate-200/80 p-4 overflow-auto flex justify-center items-start min-h-[560px] max-h-[720px]">
+                                <div id="wysiwyg-live-paper" class="bg-white shadow-xl p-4 transition-transform origin-top text-xs text-slate-900 border border-slate-300">
+                                    <!-- Live paper HTML render -->
                                 </div>
                             </div>
                         </div>
 
-                        <!-- CỘT 3: VIEWPORT XEM TRƯỚC BẢN IN CỰC ĐẠI (FULL RỘNG 60-70%) -->
-                        <div id="print-tpl-preview-viewport" class="flex-1 bg-slate-200/90 rounded-lg border border-slate-300 flex flex-col overflow-hidden min-h-[640px]">
-                            <!-- Thanh top bar điều khiển khổ giấy & zoom -->
-                            <div class="bg-white px-3 py-2 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-bold text-slate-800 flex items-center gap-1">
-                                        <span>👁️</span> <span>Bản Xem Trước</span>
-                                    </span>
-                                    <span id="canvas-dim-badge" class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-mono border border-slate-200">K80: 80 mm</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="flex items-center gap-1">
-                                        <label class="font-bold text-slate-600 text-[11px]">Khổ giấy:</label>
-                                        <select id="print-paper-select" class="border border-slate-300 rounded px-2 py-1 text-xs font-bold text-sky-800 bg-sky-50/50" onchange="changePrintPaperView(this.value)">
-                                            <option value="K80">Cuộn Nhiệt K80 (80mm)</option>
-                                            <option value="K58">Cuộn Nhiệt K58 (58mm)</option>
-                                            <option value="A4-portrait">A4 Dọc (210 x 297 mm)</option>
-                                            <option value="A4-landscape">A4 Ngang (297 x 210 mm)</option>
-                                            <option value="A5-portrait">A5 Dọc (148 x 210 mm)</option>
-                                            <option value="A5-landscape">A5 Ngang (210 x 148 mm)</option>
-                                        </select>
-                                        <select id="canvas-paper-size" class="hidden" onchange="changePaperSize(this.value)"></select>
-                                    </div>
-                                    <!-- Bộ nút Zoom -->
-                                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200">
-                                        <button type="button" id="btn-print-zoom-out" onclick="zoomPrintSheet(-0.1)" class="w-6 h-6 rounded bg-white hover:bg-slate-50 font-bold text-slate-700 flex items-center justify-center shadow-2xs">-</button>
-                                        <span id="lbl-print-zoom" class="w-11 text-center font-bold font-mono text-sky-700 text-[11px]">100%</span>
-                                        <span id="canvas-zoom-text" class="hidden">100%</span>
-                                        <button type="button" id="btn-print-zoom-in" onclick="zoomPrintSheet(0.1)" class="w-6 h-6 rounded bg-white hover:bg-slate-50 font-bold text-slate-700 flex items-center justify-center shadow-2xs">+</button>
-                                        <button type="button" onclick="zoomPrintSheet('fit')" class="px-1.5 py-0.5 text-[10px] text-slate-600 font-semibold hover:bg-slate-200 rounded">Vừa khung</button>
-                                    </div>
-                                    <button type="button" onclick="printTestTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded text-xs flex items-center gap-1 shadow-2xs">
-                                        <span>🖨️</span> <span>In Thử</span>
-                                    </button>
-                                </div>
+                    </div>
+                </div>
+
+                <!-- MODAL CHỌN TOKEN (TOKEN PICKER MODAL) -->
+                <div id="modal-print-token-picker" class="hidden fixed inset-0 bg-black/50 backdrop-blur-2xs flex items-center justify-center z-50 p-4">
+                    <div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🧩</span>
+                                <h3 class="font-bold text-slate-900 text-sm">Danh Mục Token Dữ Liệu Tự Động</h3>
+                            </div>
+                            <button type="button" onclick="closeTokenPickerModal()" class="text-slate-400 hover:text-slate-600 font-bold text-base px-2">✕</button>
+                        </div>
+
+                        <!-- Ô TÌM KIẾM TOKEN -->
+                        <div class="p-3 border-b border-slate-100 bg-white">
+                            <input type="text" id="token-picker-search-input" oninput="onTokenSearchInput(this.value)" placeholder="🔍 Tìm kiếm token theo tên (vd: khách hàng, mã đơn, xưởng, tiền cọc...)..." class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-sky-500 font-medium">
+                        </div>
+
+                        <!-- KHU VỰC CHỌN THEO NHÓM & BẢNG TOKEN -->
+                        <div class="flex-1 flex overflow-hidden min-h-[320px]">
+                            <!-- Menu nhóm token bên trái -->
+                            <div id="token-picker-groups" class="w-36 bg-slate-50 border-r border-slate-200 p-2 flex flex-col gap-1 overflow-y-auto shrink-0 text-xs">
+                                <!-- Group buttons render by js -->
                             </div>
 
-                            <!-- Vùng cuộn chứa trang giấy canvas hiển thị to rõ -->
-                            <div id="canvas-viewport" class="flex-1 overflow-auto p-4 flex justify-center items-start">
-                                <div id="canvas-scale-wrapper" class="transition-transform duration-150 origin-top">
-                                    <div id="receipt-live-preview" class="hidden"></div>
-                                    <div id="paper-canvas" class="bg-white shadow-xl relative border transition-all" style="width: 297mm; min-height: 210mm;">
-                                        <!-- Các phần tử in được render tại đây -->
-                                    </div>
-                                </div>
+                            <!-- Bảng danh sách token bên phải -->
+                            <div class="flex-1 overflow-y-auto p-2">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead class="bg-slate-50 sticky top-0 border-b text-[11px] text-slate-500 uppercase font-semibold">
+                                        <tr>
+                                            <th class="p-2">Tên Token</th>
+                                            <th class="p-2">Cú Pháp</th>
+                                            <th class="p-2">Nhóm</th>
+                                            <th class="p-2 text-right">Hành Động</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="token-picker-tbody" class="divide-y divide-slate-100">
+                                        <!-- Token rows render by js -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
+                        <div class="p-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+                            <button type="button" onclick="closeTokenPickerModal()" class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg text-xs transition">Đóng</button>
+                        </div>
                     </div>
                 </div>
 
@@ -10790,6 +10784,7 @@
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
     <script src="/static/js/modules/ai_agent.js?v=20261013_01"></script>
+    <script src="/static/js/modules/print_designer.js?v=20261013_01"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261008_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261007_01"></script>

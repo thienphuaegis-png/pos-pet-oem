@@ -21,7 +21,8 @@
         "fix(print): Khóa chuẩn A4 Landscape 297x210mm full width 1 trang và để trống ô Bank/VietQR khi là đơn nợ",
         "feat(ai): Tác nhân AI Copilot bóc tách ảnh hóa đơn/bill tự động tạo đơn POS, PN, OEM, Thu Chi; tối ưu cài đặt & lưu Drive webhook",
         "feat(ai-oem): Nạp tri thức xưởng OEM & sản phẩm trong CSDL cho AI nhận diện tự động Lucky Star, GC244..GC247, VAT 8%, CK 5%, Cọc; hỗ trợ đổi loại đơn linh hoạt và 1-chạm điền đơn OEM",
-        "feat(bom-cost): Tính giá vốn 2 tầng tự động cho sản phẩm OEM (BOM bao bì + Phí xưởng gia công ròng gần nhất) trên card tóm tắt & cập nhật tự động"
+        "feat(bom-cost): Tính giá vốn 2 tầng tự động cho sản phẩm OEM (BOM bao bì + Phí xưởng gia công ròng gần nhất) trên card tóm tắt & cập nhật tự động",
+        "feat(universal-print-designer): Trình thiết kế mẫu in toàn năng WYSIWYG + Token Chips chuẩn KiotViet đa nghiệp vụ (POS, OEM, Nhập hàng, Sổ quỹ, Spa)"
       ]
     },
     {
