@@ -2508,6 +2508,7 @@ function printDraftOrder() {
         created_at: timeStr,
         customer_name: tab.customer ? tab.customer.name : "Khách lẻ",
         customer_phone: tab.customer ? (tab.customer.phone || "-") : "-",
+        customer_address: tab.customer ? (tab.customer.address || "") : "",
         staff_name: staffName,
         note: tab.note || "",
         total_amount: subtotal,
@@ -2627,6 +2628,7 @@ function renderAndPrint(ord, isDraft = false) {
         thu_ngan: ord.staff_name || 'Thu ngân',
         ten_khach: ord.customer_name || 'Khách lẻ',
         sdt_khach: ord.customer_phone || '-',
+        dia_chi_khach: ord.customer_address || ord.address || '',
         tong_tien: formatMoney(ord.total_amount),
         giam_gia: formatMoney(finalDiscountToDisplay),
         tiet_kiem: formatMoney(totalSavings),
@@ -2717,7 +2719,8 @@ function renderAndPrint(ord, isDraft = false) {
         let itemsHeight = 0;
         ord.items.forEach(it => {
             if (isB2B) {
-                itemsHeight += 28;
+                // Font 10px + padding 4px trên/dưới + line-height = ~20px thực tế
+                itemsHeight += 20;
             } else if (isThermal) {
                 const nameLen = (it.product_name || '').length;
                 const nameLines = Math.max(1, Math.ceil(nameLen / 36));
@@ -2759,7 +2762,7 @@ function renderAndPrint(ord, isDraft = false) {
             let itemsH = 0;
             (ord.items || [{}]).forEach(it => {
                 if (isB2B) {
-                    itemsH += 28;
+                    itemsH += 20;
                 } else if (isThermal) {
                     const nameLen = (it.product_name || '').length;
                     const nameLines = Math.max(1, Math.ceil(nameLen / 36));
@@ -2793,9 +2796,11 @@ function renderAndPrint(ord, isDraft = false) {
     if (isThermal) {
         canvasH = Math.max(320, maxContentBottom + 25);
     } else if (isA5) {
-        canvasH = isLandscape ? 559 : 794;
+        const nominalH = isLandscape ? 559 : 794;
+        canvasH = Math.max(nominalH, maxContentBottom + 25);
     } else {
-        canvasH = isLandscape ? 794 : 1123;
+        const nominalH = isLandscape ? 794 : 1123;
+        canvasH = Math.max(nominalH, maxContentBottom + 25);
     }
 
     const watermarkHtml = isDraft ? `
@@ -2837,17 +2842,17 @@ function renderAndPrint(ord, isDraft = false) {
                 overflow: visible !important;
                 box-shadow: none !important;
                 border: none !important;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                break-after: avoid !important;
+                page-break-after: auto !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                break-after: auto !important;
             }
             .print-inner {
                 transform-origin: top left;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                break-after: avoid !important;
+                page-break-after: auto !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                break-after: auto !important;
             }
         }
     </style>
@@ -2858,6 +2863,11 @@ function renderAndPrint(ord, isDraft = false) {
 
     effectiveElements.forEach(e => {
         let content = '';
+        if (e.catalog_key === 'customer_address' || e.type === 'customer_address') {
+            if (!printData.dia_chi_khach || !printData.dia_chi_khach.trim()) {
+                return; // Nếu khách không có địa chỉ, ẩn khối
+            }
+        }
         if (e.type === 'logo') {
             const logoMaxH = e.h || 65;
             const logoMaxW = e.w || 140;
@@ -3074,6 +3084,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{thu_ngan}}/g, printData.thu_ngan);
             txt = txt.replace(/{{ten_khach}}/g, printData.ten_khach);
             txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
+            txt = txt.replace(/{{dia_chi_khach}}/g, printData.dia_chi_khach);
             txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
             txt = txt.replace(/{{tru_vi}}/g, printData.tru_vi);
@@ -3097,7 +3108,8 @@ function renderAndPrint(ord, isDraft = false) {
             elemW = '1043px';
         }
 
-        html += `<div data-zone="${e.zone || 'header'}" style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW};">${content}</div>`;
+        const breakInsideRule = isFooter ? 'page-break-inside: avoid; break-inside: avoid;' : '';
+        html += `<div data-zone="${e.zone || 'header'}" style="position: absolute; left: ${e.x || 0}px; top: ${printY}px; width: ${elemW}; ${breakInsideRule}">${content}</div>`;
     });
 
     html += `</div></div></div>`;
@@ -3322,15 +3334,21 @@ function printInvoiceDirectly() {
             const inner = doc.querySelector('.print-inner');
             const container = doc.querySelector('.print-container');
             if (inner && container && !isThermal) {
-                // A4 landscape chiều cao tối đa an toàn: 720px
+                // A4 landscape chiều cao tối đa an toàn: 720px; Portrait: 1050px
                 const maxAvailableH = isLandscape ? 720 : 1050;
                 const innerH = inner.scrollHeight || inner.offsetHeight;
                 
-                if (innerH > maxAvailableH) {
+                // Nếu vượt nhẹ (trong khoảng 1.0 - 1.15 lần trang 1), scale nhẹ fit 1 trang đẹp mắt
+                if (innerH > maxAvailableH && innerH <= maxAvailableH * 1.15) {
                     const scaleY = maxAvailableH / innerH;
                     inner.style.transform = "scale(" + (scaleY * 0.96) + ")";
                     inner.style.transformOrigin = 'top left';
                     container.style.height = (innerH * scaleY * 0.96) + 'px';
+                } else if (innerH > maxAvailableH * 1.15) {
+                    // Nếu đơn quá dài (>35 dòng), mở rộng container để ngắt tự nhiên sang trang 2, không scale tí nị
+                    inner.style.transform = "none";
+                    container.style.height = 'auto';
+                    container.style.overflow = 'visible';
                 }
             }
 

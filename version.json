@@ -1,15 +1,25 @@
 {
-  "version": "v3.6.1",
-  "build_date": "2026.10.11",
-  "commit_hash": "a797403",
+  "version": "v3.6.2",
+  "build_date": "2026.10.13",
+  "commit_hash": "607c3d7",
   "branch": "main",
-  "release_title": "Bản Cập Nhật Lớn: Đồng Bộ Ví Spa, Mẫu In KiotViet, Kiểm Kê Linh Hoạt & Quản Lý Đơn OEM",
+  "release_title": "Bản Cập Nhật v3.6.2: Mẫu In Khổ Lớn & In Địa Chỉ Khách Hàng",
   "changelog": [
+    {
+      "tag": "v3.6.2",
+      "date": "2026.10.13",
+      "title": "Bản phát hành v3.6.2 (2026.10.13)",
+      "is_new": true,
+      "items": [
+        "feat(print): Thêm tuỳ chọn in địa chỉ khách hàng trong cài đặt mẫu in",
+        "fix(print): Khắc phục lỗi mất chân trang / trắng trang đơn hàng lớn A4 nhiều món"
+      ]
+    },
     {
       "tag": "v3.6.1",
       "date": "2026.10.11",
       "title": "Bản phát hành v3.6.1 (2026.10.11)",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "fix(print-designer): sync alignment coordinates with real print and preserve draft code",
         "feat(pos-print): show full bank name on invoices (e.g. Ngân hàng TMCP Tiên Phong (TPBank))",

@@ -329,7 +329,7 @@ def get_order_detail(code: str):
     cur = conn.cursor()
     param_id = int(code) if code.isdigit() else -1
     cur.execute("""
-    SELECT o.*, c.name as customer_name, c.phone as customer_phone, s.name as staff_name
+    SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, s.name as staff_name
     FROM orders o
     LEFT JOIN contacts c ON o.customer_id = c.id
     LEFT JOIN staff s ON o.staff_id = s.id

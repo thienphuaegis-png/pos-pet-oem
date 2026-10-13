@@ -5572,6 +5572,7 @@
             staff: { zone: "header", type: "text", text: "Thu ngân: {{thu_ngan}}", label: "Thu Ngân / Người Lập", fsz: 10, bold: false, align: "right", w: 250 },
             customer: { zone: "header", type: "text", text: "Khách hàng: {{ten_khach}}", label: "Khách Hàng / Đối Tác", fsz: 10, bold: false, align: "left", w: 450 },
             customer_phone: { zone: "header", type: "text", text: "SĐT: {{sdt_khach}}", label: "SĐT Khách", fsz: 10, bold: false, align: "left", w: 200 },
+            customer_address: { zone: "header", type: "text", text: "Địa chỉ: {{dia_chi_khach}}", label: "Địa Chỉ Khách Hàng", fsz: 10, bold: false, align: "left", w: 550 },
             // Pet Spa
             pet_info: { zone: "header", type: "text", text: "🐾 Bé: {{ten_thu_cung}} - {{giong_loai}} ({{can_nang}}kg)", label: "Thông Tin Thú Cưng", fsz: 11, bold: true, align: "left", w: 580 },
             intake_condition: { zone: "header", type: "text", text: "Tình trạng nhận: {{tinh_trang_tiep_nhan}}", label: "Tình Trạng Tiếp Nhận", fsz: 10, bold: false, align: "left", w: 580 },
@@ -5620,6 +5621,7 @@
                 { id: "e6", catalog_key: "order_code", zone: "header", type: "text", text: "Mã hóa đơn: {{ma_hoa_don}}", label: "Mã Đơn", x: startX, y: 125, w: 260, fsz: 10, bold: false, align: "left" },
                 { id: "e7", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: rightX, y: 125, w: 260, fsz: 10, bold: false, align: "right" },
                 { id: "e8", catalog_key: "customer", zone: "header", type: "text", text: "Đại lý / Khách hàng: {{ten_khach}} ({{sdt_khach}})", label: "Khách Hàng", x: startX, y: 147, w: isLandscape ? 550 : 460, fsz: 10, bold: false, align: "left" },
+                { id: "e8_addr", catalog_key: "customer_address", zone: "header", type: "text", text: "Địa chỉ: {{dia_chi_khach}}", label: "Địa Chỉ Khách", x: startX, y: 163, w: isLandscape ? 550 : 460, fsz: 9.5, bold: false, align: "left" },
                 { id: "e9", catalog_key: "staff", zone: "header", type: "text", text: "Nhân viên kinh doanh: {{thu_ngan}}", label: "Thu Ngân", x: rightX, y: 147, w: 260, fsz: 10, bold: false, align: "right" },
                 { id: "e10", catalog_key: "table_b2b", zone: "body", type: "table_b2b", label: "Bảng 9 Cột B2B/Đại Lý", x: startX, y: 180, w: totalW, fsz: 10 },
                 { id: "e11", catalog_key: "b2b_footer_boxes", zone: "footer", type: "b2b_footer_boxes", label: "3 Ô Chân Trang (Bank - QR - Tổng kết)", x: startX, y: 325, w: totalW, h: 140 },
@@ -6407,7 +6409,7 @@
         function updateSidebarCheckboxes() {
             const keys = [
                 'logo', 'shop_name', 'shop_address', 'shop_phone', 'title',
-                'order_code', 'datetime', 'staff', 'customer', 'customer_phone',
+                'order_code', 'datetime', 'staff', 'customer', 'customer_phone', 'customer_address',
                 'pet_info', 'intake_condition', 'return_time', 'pet_signature',
                 'cashbook_category', 'cashbook_fund', 'cashbook_amount', 'cashbook_reason',
                 'signatures_cashbook', 'signatures_accounting_4col',
@@ -8079,6 +8081,7 @@
                     txt = txt.replace(/{{thu_ngan}}/g, printData.thu_ngan);
                     txt = txt.replace(/{{ten_khach}}/g, printData.ten_khach);
                     txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
+            txt = txt.replace(/{{dia_chi_khach}}/g, printData.dia_chi_khach || '');
                     txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
                     txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
                     txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);

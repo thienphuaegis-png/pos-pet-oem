@@ -16,6 +16,7 @@ presets_def = {
             {'id': 'e6', 'catalog_key': 'order_code', 'zone': 'header', 'type': 'text', 'text': 'Mã hóa đơn: {{ma_hoa_don}}', 'label': 'Mã Đơn', 'x': 40, 'y': 125, 'w': 260, 'fsz': 10, 'bold': False, 'align': 'left'},
             {'id': 'e7', 'catalog_key': 'datetime', 'zone': 'header', 'type': 'text', 'text': 'Ngày lập: {{ngay_gio}}', 'label': 'Thời Gian', 'x': 740, 'y': 125, 'w': 260, 'fsz': 10, 'bold': False, 'align': 'right'},
             {'id': 'e8', 'catalog_key': 'customer', 'zone': 'header', 'type': 'text', 'text': 'Đại lý / Khách hàng: {{ten_khach}} ({{sdt_khach}})', 'label': 'Khách Hàng', 'x': 40, 'y': 147, 'w': 550, 'fsz': 10, 'bold': False, 'align': 'left'},
+            {'id': 'e8_addr', 'catalog_key': 'customer_address', 'zone': 'header', 'type': 'text', 'text': 'Địa chỉ: {{dia_chi_khach}}', 'label': 'Địa Chỉ Khách', 'x': 40, 'y': 163, 'w': 550, 'fsz': 9.5, 'bold': False, 'align': 'left'},
             {'id': 'e9', 'catalog_key': 'staff', 'zone': 'header', 'type': 'text', 'text': 'Nhân viên kinh doanh: {{thu_ngan}}', 'label': 'Thu Ngân', 'x': 740, 'y': 147, 'w': 260, 'fsz': 10, 'bold': False, 'align': 'right'},
             {'id': 'e10', 'catalog_key': 'table_b2b', 'zone': 'body', 'type': 'table_b2b', 'label': 'Bảng 9 Cột B2B/Đại Lý', 'x': 40, 'y': 180, 'w': 980, 'fsz': 10},
             {'id': 'e11', 'catalog_key': 'b2b_footer_boxes', 'zone': 'footer', 'type': 'b2b_footer_boxes', 'label': '3 Ô Chân Trang (Bank - QR - Tổng kết)', 'x': 40, 'y': 325, 'w': 980, 'h': 140},
