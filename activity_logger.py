@@ -5,10 +5,41 @@ Mo ta hanh dong (action) duoc suy tu method + path (VD: POST /api/orders -> "Tao
 neu path khong khop pattern nao thi dung mo ta chung "METHOD /path".
 """
 import re
+import queue
+import threading
 import jwt as pyjwt
 
 from dependencies import SECRET, ALGO
 from database import get_db
+
+_LOG_QUEUE = queue.Queue(maxsize=2000)
+
+def _log_worker():
+    while True:
+        try:
+            item = _LOG_QUEUE.get()
+            if item is None:
+                break
+            staff_id, action, method, path, ip = item
+            db = get_db()
+            cur = db.cursor()
+            cur.execute("SELECT name, role FROM staff WHERE id=?", (staff_id,))
+            row = cur.fetchone()
+            staff_name = row["name"] if row else None
+            role = row["role"] if row else None
+            cur.execute(
+                "INSERT INTO activity_log (staff_id, staff_name, role, action, method, path, ip) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (staff_id, staff_name, role, action, method, path, ip)
+            )
+            db.commit()
+            db.close()
+        except Exception:
+            pass
+        finally:
+            _LOG_QUEUE.task_done()
+
+_worker_thread = threading.Thread(target=_log_worker, daemon=True, name="ActivityLoggerWorker")
+_worker_thread.start()
 
 # Danh sach mau -> mo ta nghiep vu de doc. Kiem tra theo thu tu, khop dau tien duoc dung.
 ACTION_PATTERNS = [
@@ -77,12 +108,10 @@ def log_activity_from_request(request, response):
 
     action = _describe(request.method, request.url.path)
     ip = request.client.host if request.client else None
-    cur.execute(
-        "INSERT INTO activity_log (staff_id, staff_name, role, action, method, path, ip) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (staff_id, staff_name, role, action, request.method, request.url.path, ip)
-    )
-    db.commit()
-    db.close()
+    try:
+        _LOG_QUEUE.put_nowait((staff_id, action, request.method, request.url.path, ip))
+    except queue.Full:
+        pass
 
 
 def cleanup_old_logs():

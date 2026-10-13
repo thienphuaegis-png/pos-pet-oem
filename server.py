@@ -4,6 +4,7 @@ import secrets
 import logging
 from fastapi import FastAPI, Response, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from dependencies import get_current_user, require_role
@@ -105,6 +106,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Middleware ghi log tất cả request và bắt lỗi ngoại lệ
 @app.middleware("http")

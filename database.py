@@ -662,6 +662,14 @@ def init_db():
         FOREIGN KEY(product_id) REFERENCES products(id)
     )''')
 
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_debt_amount ON orders(debt_amount)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_code ON orders(code)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_order_payments_order_id ON order_payments(order_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)')
+
     # Doi tra hang
     cur.execute('''
     CREATE TABLE IF NOT EXISTS order_returns (
@@ -890,6 +898,10 @@ def init_db():
     cb_columns = [col[1] for col in cur.fetchall()]
     if 'account_id' not in cb_columns:
         cur.execute("ALTER TABLE cashbook ADD COLUMN account_id INTEGER REFERENCES payment_accounts(id)")
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_contact_id ON cashbook(contact_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_created_at ON cashbook(created_at DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_ref ON cashbook(ref_type, ref_id)")
 
     # 8b. Expense Requests - Quan ly khoan can chi & hoan ung nhan vien
     cur.execute('''
@@ -1336,6 +1348,9 @@ def init_db():
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_change_reason TEXT DEFAULT ''")
     if 'service_changed_at' not in ticket_cols:
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_changed_at TEXT DEFAULT ''")
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_cust ON pet_service_tickets(customer_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_created ON pet_service_tickets(created_at DESC)")
 
     # 13. Phân hệ Gia Công OEM
     cur.execute('''

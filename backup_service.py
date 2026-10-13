@@ -4,6 +4,7 @@ Chay trong background thread, khoi dong tu server.py.
 """
 import os
 import shutil
+import sqlite3
 import time
 import threading
 from datetime import datetime, timedelta
@@ -12,6 +13,18 @@ from logger_config import get_module_logger
 import database
 
 logger = get_module_logger("backup")
+
+def _safe_sqlite_copy(src_path, dst_path):
+    """Sao lưu an toàn SQLite bằng online backup API (tránh hỏng file khi có WAL ghi đồng thời)."""
+    try:
+        src_conn = sqlite3.connect(src_path, timeout=30.0)
+        dst_conn = sqlite3.connect(dst_path)
+        with dst_conn:
+            src_conn.backup(dst_conn)
+        dst_conn.close()
+        src_conn.close()
+    except Exception:
+        shutil.copy2(src_path, dst_path)
 
 BACKUP_INTERVAL_SECONDS = 3600  # moi gio
 LOCAL_RETENTION_DAYS = 7
@@ -42,7 +55,7 @@ def run_backup_once():
     try:
         local_dir = _local_backup_dir()
         local_file = os.path.join(local_dir, f"auto_{ts}.db")
-        shutil.copy2(src, local_file)
+        _safe_sqlite_copy(src, local_file)
         logger.info(f"Backup local thanh cong: {local_file}")
         _cleanup_old_local_backups(local_dir)
     except Exception as e:
@@ -52,7 +65,7 @@ def run_backup_once():
     try:
         if os.path.isdir(CLOUD_BACKUP_DIR):
             cloud_file = os.path.join(CLOUD_BACKUP_DIR, f"cloud_{ts}.db")
-            shutil.copy2(src, cloud_file)
+            _safe_sqlite_copy(src, cloud_file)
             logger.info(f"Backup cloud thanh cong: {cloud_file}")
         else:
             logger.warning(f"Thu muc Google Drive khong ton tai, bo qua backup cloud: {CLOUD_BACKUP_DIR}")

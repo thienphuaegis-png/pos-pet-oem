@@ -4,9 +4,14 @@ import subprocess
 import datetime
 from pathlib import Path
 import sys
+import time
 
 # ponytail: exe PyInstaller giai nen vao _MEIPASS (khong co .git) -> chay git tai thu muc chua exe
 ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+
+_VERSION_CACHE = None
+_VERSION_CACHE_TIME = 0.0
+_VERSION_CACHE_TTL = 60.0  # Cache 60 giay de tranh spawn 5 tien trinh git.exe tren moi request
 
 def find_version_file():
     candidates = [
@@ -154,6 +159,11 @@ def check_remote_update_available():
 
 def get_app_version_info():
     """Trả về thông tin phiên bản động kèm changelog tự động từ Git + version.json"""
+    global _VERSION_CACHE, _VERSION_CACHE_TIME
+    now_ts = time.time()
+    if _VERSION_CACHE is not None and (now_ts - _VERSION_CACHE_TIME) < _VERSION_CACHE_TTL:
+        return _VERSION_CACHE.copy()
+
     info = {
         "version": "v3.5.0",
         "short_version": "v3.5",
@@ -270,4 +280,6 @@ def get_app_version_info():
     except Exception:
         info["is_recent"] = True
 
+    _VERSION_CACHE = info.copy()
+    _VERSION_CACHE_TIME = now_ts
     return info
