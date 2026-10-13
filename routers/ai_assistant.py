@@ -623,3 +623,119 @@ Yêu cầu:
         "source": source,
         "suggestions": suggestions
     }
+
+class ParseDocumentImageRequest(BaseModel):
+    image_base64: str
+    mime_type: Optional[str] = "image/jpeg"
+    prompt_hint: Optional[str] = ""
+
+@router.post("/parse-document-image")
+async def parse_document_image(req: ParseDocumentImageRequest):
+    """
+    Tác nhân AI phân tích ảnh chứng từ (hóa đơn, phiếu nhập, bill chuyển khoản, tin nhắn đặt xưởng)
+    và tự động nhận diện 1 trong 4 loại nghiệp vụ:
+    1. pos_order: Đơn bán hàng POS / đơn nháp
+    2. purchase_order: Phiếu nhập hàng PO/PN
+    3. oem_order: Đơn gia công OEM
+    4. cashflow_voucher: Phiếu thu/chi Sổ Quỹ
+    """
+    if not req.image_base64:
+        raise HTTPException(status_code=400, detail="Vui lòng cung cấp ảnh dạng base64")
+
+    # Lấy danh mục sản phẩm và đối tác để AI so khớp Heuristic / Context
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, code, sell_price, cost_price, unit FROM products WHERE is_active = 1 LIMIT 200")
+    prods = [dict(r) for r in cur.fetchall()]
+    cur.execute("SELECT id, name, phone, type FROM contacts LIMIT 150")
+    contacts = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    cfg = get_gemini_config()
+    api_key = cfg.get("gemini_api_key", "").strip()
+    model = cfg.get("gemini_model", "gemini-2.5-flash")
+    if model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
+        model = "gemini-2.5-flash"
+
+    prod_context = [{"id": p["id"], "name": p["name"], "code": p["code"], "price": p["sell_price"], "cost": p["cost_price"], "unit": p["unit"]} for p in prods[:100]]
+    contact_context = [{"id": c["id"], "name": c["name"], "phone": c["phone"], "type": c["type"]} for c in contacts[:80]]
+
+    prompt = f"""Bạn là Tác nhân AI Kế Toán & Quản Lý Đơn Hàng cho hệ thống POS thú cưng Mastercare.
+Hãy phân tích hình ảnh này (hóa đơn bán hàng, phiếu giao hàng, phiếu nhập hàng, bill chuyển khoản ngân hàng, hoặc đơn gia công xưởng).
+
+Danh mục sản phẩm có sẵn trong kho:
+{json.dumps(prod_context, ensure_ascii=False)}
+
+Danh mục đối tác (khách hàng / nhà cung cấp / xưởng) có sẵn:
+{json.dumps(contact_context, ensure_ascii=False)}
+
+YÊU CẦU:
+1. Xác định chính xác loại chứng từ ("detected_type"):
+   - "pos_order": Hóa đơn bán lẻ, bill gửi khách, đơn mua hàng của khách.
+   - "purchase_order": Hóa đơn nhập hàng từ nhà cung cấp, phiếu giao hàng từ xưởng/kho sỉ.
+   - "oem_order": Hợp đồng gia công, lệnh sản xuất OEM, báo giá gia công.
+   - "cashflow_voucher": Bill chuyển khoản ngân hàng (VietQR/Banking), hóa đơn tiền điện/nước/vận chuyển, phiếu thu/chi không có danh sách món.
+2. Bóc tách thông tin:
+   - partner_name: Tên đối tác (khách hàng, nhà cung cấp, hoặc xưởng)
+   - matched_partner_id: ID đối tác trong danh mục nếu tìm thấy (hoặc null)
+   - date: Ngày chứng từ YYYY-MM-DD (hoặc ngày hôm nay nếu không có)
+   - total_amount: Tổng số tiền (số nguyên)
+   - note: Ghi chú tóm tắt nội dung
+   - items: Danh sách sản phẩm nếu có (tên, matched_product_id nếu khớp, quantity, price, unit)
+   - cashflow_type: "in" (thu) hoặc "out" (chi) nếu là cashflow_voucher
+   - cashflow_category: Hạng mục phù hợp (ví dụ: Thu tiền bán hàng, Chi tiền nhập hàng, Chi phí vận hành...)
+
+Trả về DUY NHẤT một JSON hợp lệ (không kèm markdown):
+{{
+  "detected_type": "pos_order" | "purchase_order" | "oem_order" | "cashflow_voucher",
+  "partner_name": "Tên đối tác",
+  "matched_partner_id": null,
+  "date": "2026-10-13",
+  "total_amount": 0,
+  "note": "Ghi chú",
+  "items": [
+    {{
+      "product_name": "Tên món trên ảnh",
+      "matched_product_id": null,
+      "quantity": 1,
+      "price": 0,
+      "unit": "Chai"
+    }}
+  ],
+  "cashflow_type": "in",
+  "cashflow_category": "Thu tiền bán lẻ"
+}}"""
+
+    raw_b64 = req.image_base64
+    if "," in raw_b64:
+        raw_b64 = raw_b64.split(",", 1)[1]
+
+    detected_mime = req.mime_type or "image/jpeg"
+    if "png" in req.image_base64[:30].lower():
+        detected_mime = "image/png"
+    elif "webp" in req.image_base64[:30].lower():
+        detected_mime = "image/webp"
+
+    # 1. Nếu có API key -> Gọi Gemini Vision
+    if api_key:
+        try:
+            ai_res = await call_gemini_vision(api_key, model, prompt, raw_b64, detected_mime)
+            if ai_res and isinstance(ai_res, dict) and ai_res.get("detected_type"):
+                ai_res["source"] = "gemini_vision"
+                return ai_res
+        except Exception as e:
+            logger.warning(f"Lỗi gọi Gemini Vision parse document: {str(e)}")
+
+    # 2. Heuristic fallback nếu không có key hoặc lỗi mạng
+    return {
+        "detected_type": "pos_order",
+        "partner_name": "Khách hàng",
+        "matched_partner_id": None,
+        "date": datetime.date.today().strftime("%Y-%m-%d"),
+        "total_amount": 0,
+        "note": "Tác nhân AI nhận diện offline (Chưa cấu hình API Key Gemini hoặc ảnh không có chữ)",
+        "items": [],
+        "cashflow_type": "in",
+        "cashflow_category": "Thu tiền bán lẻ",
+        "source": "heuristic_offline"
+    }

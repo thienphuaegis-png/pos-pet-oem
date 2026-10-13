@@ -429,6 +429,7 @@
             }
             if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
             if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
+            if (subId === 'activity-log') { if (typeof renderActivityLog === 'function') renderActivityLog(); }
             if (subId === 'telegram') { if (typeof loadTelegramSettingsData === 'function') loadTelegramSettingsData(); }
             if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
         }

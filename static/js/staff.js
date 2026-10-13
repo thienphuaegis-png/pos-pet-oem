@@ -169,7 +169,7 @@ const MODULE_LABEL = {
 };
 
 async function loadPermissionsUI() {
-  await Promise.all([renderModuleToggles(), renderPermissionMatrix(), renderLoginLog(), populateStaffPermSelect(), renderActivityLog()]);
+  await Promise.all([renderModuleToggles(), renderPermissionMatrix(), renderLoginLog(), populateStaffPermSelect()]);
 }
 
 async function populateStaffPermSelect() {
@@ -248,13 +248,14 @@ async function renderActivityLog() {
   const days = document.getElementById('activity-log-days')?.value || '90';
   const search = document.getElementById('activity-log-search')?.value || '';
   const actionType = document.getElementById('activity-log-action-type')?.value || '';
+  const limit = document.getElementById('activity-log-limit')?.value || '500';
 
   const params = new URLSearchParams();
   if (staffId) params.append('staff_id', staffId);
   if (days) params.append('days', days);
   if (search.trim()) params.append('search', search.trim());
   if (actionType) params.append('action_type', actionType);
-  params.append('limit', '500');
+  if (limit) params.append('limit', limit);
 
   const url = '/api/settings/activity-log?' + params.toString();
   try {

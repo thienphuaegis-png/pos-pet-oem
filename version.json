@@ -18,7 +18,8 @@
         "feat(debt): Tự động cấn trừ công nợ vào hóa đơn bán hàng (đơn đích danh & FIFO) và ẩn đơn khi trả đủ",
         "feat(ui): Hiện đại hóa modal chi tiết hóa đơn, bỏ nút đóng, hỗ trợ đóng bằng ESC và nhấp ra ngoài",
         "perf: Bật nén Gzip, async queue activity log, cache git metadata, thêm DB index orders/cashbook, và SQLite safe online backup",
-        "fix(print): Khóa chuẩn A4 Landscape 297x210mm full width 1 trang và để trống ô Bank/VietQR khi là đơn nợ"
+        "fix(print): Khóa chuẩn A4 Landscape 297x210mm full width 1 trang và để trống ô Bank/VietQR khi là đơn nợ",
+        "feat(ai): Tác nhân AI Copilot bóc tách ảnh hóa đơn/bill tự động tạo đơn POS, PN, OEM, Thu Chi; tối ưu cài đặt & lưu Drive webhook"
       ]
     },
     {

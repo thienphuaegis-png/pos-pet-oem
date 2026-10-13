@@ -926,6 +926,13 @@
                         </span>
                         <span class="sidebar-text truncate">Hướng Dẫn Nghiệp Vụ</span>
                     </button>
+                    <button onclick="switchTab('ai-agent')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="ai-agent" data-role="owner,cashier,accountant,warehouse" data-tooltip="Tác Nhân AI">
+                        <span class="sidebar-icon bg-purple-100 text-purple-700">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Tác Nhân AI</span>
+                        <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700 border border-purple-200">COPILOT</span>
+                    </button>
                     <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="settings" data-role="owner" data-tooltip="Cài Đặt Hệ Thống">
                         <span class="sidebar-icon bg-slate-200 text-slate-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -8056,6 +8063,139 @@
             </div>
 
 
+            <!-- TAB: TÁC NHÂN AI COPILOT ĐA NĂNG -->
+            <div id="tab-ai-agent" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-lg border border-purple-100 shadow-xs">
+                            🤖
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-base font-bold text-slate-900">Tác Nhân AI Bóc Tách Chứng Từ</h2>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">VISION COPILOT</span>
+                            </div>
+                            <p class="text-xs text-slate-500">Kéo thả ảnh hóa đơn, bill chuyển khoản, tin nhắn báo giá để AI tự động nhận diện và tạo đơn nháp</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="resetAIAgentWorkspace()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition">
+                            🔄 Làm Mới
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                    <!-- KHU VỰC 1: TẢI ẢNH / DROPZONE (5 cols) -->
+                    <div class="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
+                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center justify-between">
+                            <span>📸 Tải Ảnh Hóa Đơn / Bill</span>
+                            <span class="text-slate-400 font-normal italic lowercase">hỗ trợ Ctrl + V</span>
+                        </h3>
+
+                        <!-- Dropzone Empty State -->
+                        <div id="ai-agent-dropzone-empty" ondragover="event.preventDefault()" ondrop="onAIAgentDrop(event)" onclick="document.getElementById('ai-agent-file-input').click()" 
+                             class="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[260px] group">
+                            <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📋</span>
+                            <span class="text-xs font-bold text-slate-800">Thả file ảnh vào đây hoặc nhấp để chọn</span>
+                            <span class="text-[11px] text-slate-500 mt-1">Hoặc chụp ảnh màn hình và bấm <kbd class="px-1.5 py-0.5 rounded bg-white border border-purple-200 font-mono font-bold text-purple-700 text-[10px]">Ctrl + V</kbd></span>
+                            <input type="file" id="ai-agent-file-input" accept="image/*" class="hidden" onchange="onAIAgentFileSelect(event)">
+                        </div>
+
+                        <!-- Preview Ảnh khi đã chọn -->
+                        <div id="ai-agent-preview-wrap" class="hidden space-y-2">
+                            <div class="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center min-h-[260px] max-h-[420px]">
+                                <img id="ai-agent-preview-img" src="" alt="Chứng từ" class="max-h-[400px] w-auto object-contain">
+                                <button type="button" onclick="document.getElementById('ai-agent-file-input').click()" class="absolute bottom-2 right-2 bg-black/70 hover:bg-black text-white text-xs px-2.5 py-1 rounded-md backdrop-blur-xs font-medium">
+                                    Đổi ảnh khác
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="ai-agent-loading" class="hidden p-4 bg-purple-50 rounded-xl border border-purple-200 text-center space-y-2">
+                            <div class="inline-block animate-spin text-2xl">⏳</div>
+                            <div class="text-xs font-bold text-purple-900">AI đang quét và bóc tách dữ liệu...</div>
+                            <div class="text-[11px] text-purple-700">Đang nhận diện đối tác, bảng mặt hàng và số tiền</div>
+                        </div>
+                    </div>
+
+                    <!-- KHU VỰC 2: KẾT QUẢ PHÂN TÍCH & ĐỐI SOÁT (7 cols) -->
+                    <div class="lg:col-span-7 space-y-3">
+                        <div id="ai-agent-result-wrap" class="hidden bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+                            <div class="flex items-center justify-between border-b pb-2.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs text-slate-700">Loại nghiệp vụ:</span>
+                                    <div id="ai-agent-type-badge"></div>
+                                </div>
+                                <div class="text-xs">
+                                    <span class="text-slate-400">Tổng tiền:</span>
+                                    <span id="ai-agent-total" class="font-mono font-black text-sm text-slate-900 ml-1">0 đ</span>
+                                </div>
+                            </div>
+
+                            <!-- Meta fields -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Đối Tác (Khách / NCC / Xưởng):</label>
+                                    <input type="text" id="ai-agent-partner-name" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Ngày Chứng Từ:</label>
+                                    <input type="date" id="ai-agent-date" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1 text-xs">Ghi Chú Trích Xuất:</label>
+                                <input type="text" id="ai-agent-note" class="border p-2 rounded-lg w-full text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                            </div>
+
+                            <!-- Bảng items nếu có -->
+                            <div id="ai-agent-items-wrap" class="space-y-1.5">
+                                <label class="block font-bold text-slate-700 text-xs">Danh Sách Mặt Hàng Bóc Tách:</label>
+                                <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead class="bg-slate-50 text-slate-500 sticky top-0 border-b uppercase text-[10px] font-semibold">
+                                            <tr>
+                                                <th class="p-2 w-8 text-center">TT</th>
+                                                <th class="p-2">Tên Mặt Hàng</th>
+                                                <th class="p-2 text-right w-20">SL</th>
+                                                <th class="p-2 text-right w-24">Đơn Giá</th>
+                                                <th class="p-2 text-right w-28">Thành Tiền</th>
+                                                <th class="p-2 text-center w-8">✕</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ai-agent-items-tbody" class="divide-y divide-slate-100 font-normal"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Cụm nút hành động 1-chạm -->
+                            <div class="border-t pt-3 flex flex-wrap items-center justify-end gap-2">
+                                <button type="button" id="btn-ai-push-pos" onclick="pushAIToPOSCart()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                                    <span>🛒</span> Đẩy Vào Giỏ Bán Hàng POS
+                                </button>
+                                <button type="button" id="btn-ai-create-po" onclick="createAIPurchaseOrder()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                                    <span>📥</span> Tạo Phiếu Nhập Hàng PN
+                                </button>
+                                <button type="button" id="btn-ai-create-oem" onclick="createAIOEMOrder()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                                    <span>🏭</span> Điền Đơn Gia Công OEM
+                                </button>
+                                <button type="button" id="btn-ai-create-cash" onclick="createAICashflowVoucher()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                                    <span>💰</span> Tạo Phiếu Thu/Chi Sổ Quỹ
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Placeholder khi chưa có kết quả -->
+                        <div id="ai-agent-placeholder" class="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
+                            👈 Vui lòng thả ảnh hoặc dán ảnh hóa đơn bên trái để tác nhân AI phân tích
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- TAB: CÀI ĐẶT HỆ THỐNG (CONSOLIDATED) -->
             <div id="tab-settings" class="hidden space-y-4">
                 <div class="flex flex-wrap items-center bg-white p-2.5 rounded-xl shadow-xs border border-slate-200/80 gap-2">
@@ -8066,7 +8206,7 @@
                         </button>
                         <button onclick="switchSettingsSubTab('company')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="company">
                             <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><line x1="10" x2="14" y1="6" y2="6"/><line x1="10" x2="14" y1="10" y2="10"/><line x1="10" x2="14" y1="14" y2="14"/></svg>
-                            <span>Thông Tin Doanh Nghiệp & QR</span>
+                            <span>Thông Tin Doanh Nghiệp</span>
                         </button>
                         <button onclick="switchSettingsSubTab('staff')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="staff" data-role="owner">
                             <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -8075,6 +8215,10 @@
                         <button onclick="switchSettingsSubTab('permissions')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="permissions" data-role="owner">
                             <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
                             <span>Quyền & Module</span>
+                        </button>
+                        <button onclick="switchSettingsSubTab('activity-log')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="activity-log" data-role="owner">
+                            <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+                            <span>Nhật Ký Hoạt Động</span>
                         </button>
                         <button onclick="switchSettingsSubTab('telegram')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-sky-700 hover:bg-sky-50 flex items-center gap-1.5 border border-sky-200 transition" data-sub="telegram" data-role="owner">
                             <svg class="w-3.5 h-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -8285,8 +8429,8 @@
                                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><line x1="10" x2="14" y1="6" y2="6"/><line x1="10" x2="14" y1="10" y2="10"/><line x1="10" x2="14" y1="14" y2="14"/></svg>
                             </span>
                             <div>
-                                <h2 class="text-base font-bold text-slate-900">Thông Tin Doanh Nghiệp & Cấu Hình VietQR</h2>
-                                <p class="text-xs text-slate-500">Cấu hình tên cửa hàng, logo, địa chỉ và tài khoản thanh toán QR trên hóa đơn</p>
+                                <h2 class="text-base font-bold text-slate-900">Thông Tin Doanh Nghiệp & Sao Lưu</h2>
+                                <p class="text-xs text-slate-500">Cấu hình tên cửa hàng, logo, địa chỉ và sao lưu đám mây Google Drive</p>
                             </div>
                         </div>
                         <button onclick="saveCompanySettings()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
@@ -8296,8 +8440,8 @@
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Co ban -->
-                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                        <!-- Thong tin Co ban -->
+                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-3.5">
                             <h3 class="font-bold border-b pb-2 text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
                                 <svg class="w-4 h-4 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span>Thông Tin Chung Cửa Hàng</span>
@@ -8322,90 +8466,35 @@
                                 <label class="block text-xs font-bold text-slate-700 mb-1">Lời Chúc / Chân Trang Hóa Đơn:</label>
                                 <input type="text" id="comp-footer" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-sky-500">
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Logo Cửa Hàng (Ảnh):</label>
-                                <input type="file" id="comp-logo-input" accept="image/*" class="border border-slate-200 p-1.5 rounded-lg w-full text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" onchange="previewUploadImage(this, 'comp-logo-preview')">
-                                <div class="mt-2 text-center">
-                                    <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded-lg hidden">
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Ngan hang & QR -->
-                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
-                            <h3 class="font-bold border-b pb-2 text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
-                                <span>Cấu Hình Tài Khoản & QR Thanh Toán</span>
-                            </h3>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Phương Thức QR Code:</label>
-                                <select id="comp-qr-mode" class="border border-slate-200 p-2 rounded-lg w-full font-semibold text-xs bg-slate-50 shadow-xs focus:outline-none focus:border-sky-500" onchange="toggleQRModeUI()">
-                                    <option value="vietqr">VietQR Động (Tự sinh theo số tiền hóa đơn)</option>
-                                    <option value="static">Ảnh QR Tĩnh Cố Định (Upload từ máy)</option>
-                                </select>
-                            </div>
-
-                            <!-- Panel VietQR Dong -->
-                            <div id="panel-vietqr" class="space-y-3 p-3 bg-sky-50/60 rounded-xl border border-sky-200 text-xs">
+                        <!-- Logo va Sao Luu Drive -->
+                        <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4 flex flex-col justify-between">
+                            <div class="space-y-3.5">
+                                <h3 class="font-bold border-b pb-2 text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <span>Logo & Thương Hiệu</span>
+                                </h3>
                                 <div>
-                                    <label class="block font-bold text-sky-900 mb-1">Ngân Hàng (Mã BIN):</label>
-                                    <select id="comp-bank-code" class="border border-sky-200 p-2 rounded-lg w-full bg-white font-medium shadow-xs">
-                                        <option value="MB">MBBank (Ngân hàng Quân Đội)</option>
-                                        <option value="VCB">Vietcombank (Ngoại thương)</option>
-                                        <option value="TCB">Techcombank (Kỹ thương)</option>
-                                        <option value="ICB">VietinBank (Công thương)</option>
-                                        <option value="BIDV">BIDV (Đầu tư & Phát triển)</option>
-                                        <option value="ACB">ACB (Á Châu)</option>
-                                        <option value="TPB">TPBank (Tiên Phong)</option>
-                                        <option value="VPB">VPBank (Việt Nam Thịnh Vượng)</option>
-                                        <option value="STB">Sacombank (Sài Gòn Thương Tín)</option>
-                                        <option value="VIB">VIB (Quốc Tế)</option>
-                                        <option value="MSB">MSB (Hàng Hải)</option>
-                                        <option value="SHB">SHB (Sài Gòn - Hà Nội)</option>
-                                        <option value="LPB">LPBank (Lộc Phát)</option>
-                                    </select>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Logo Cửa Hàng (Ảnh):</label>
+                                    <input type="file" id="comp-logo-input" accept="image/*" class="border border-slate-200 p-1.5 rounded-lg w-full text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" onchange="previewUploadImage(this, 'comp-logo-preview')">
+                                    <div class="mt-2 text-center">
+                                        <img id="comp-logo-preview" class="max-h-20 max-w-full inline-block border rounded-lg hidden">
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="block font-bold text-sky-900 mb-1">Số Tài Khoản:</label>
-                                    <input type="text" id="comp-bank-account" class="border border-sky-200 p-2 rounded-lg w-full bg-white shadow-xs" placeholder="VD: 0901234567">
-                                </div>
-                                <div>
-                                    <label class="block font-bold text-sky-900 mb-1">Chủ Tài Khoản (Không dấu):</label>
-                                    <input type="text" id="comp-bank-owner" class="border border-sky-200 p-2 rounded-lg w-full bg-white uppercase shadow-xs font-semibold" placeholder="VD: NGUYEN VAN A">
-                                </div>
-                            </div>
 
-                            <!-- Panel QR Tinh -->
-                            <div id="panel-static-qr" class="hidden space-y-3 p-3 bg-amber-50/60 rounded-xl border border-amber-200 text-xs">
-                                <label class="block font-bold text-amber-900 mb-1">Tải Ảnh QR Code Tĩnh Của Shop:</label>
-                                <input type="file" id="comp-qr-input" accept="image/*" class="border border-amber-200 p-1.5 rounded-lg w-full bg-white shadow-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-100 file:text-amber-800" onchange="previewUploadImage(this, 'comp-qr-preview')">
-                                <div class="mt-2 text-center">
-                                    <img id="comp-qr-preview" class="max-h-36 max-w-full inline-block border rounded-lg hidden">
+                                <div class="border-t border-slate-100 pt-3 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                            <span class="text-blue-600">☁️</span> Link Google Drive Apps Script Webhook:
+                                        </label>
+                                        <button type="button" onclick="triggerDriveBackupNow()" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline">Sao lưu ngay ↗</button>
+                                    </div>
+                                    <input type="text" id="comp-drive-webhook-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="border border-slate-200 p-2 rounded-lg w-full text-xs shadow-xs focus:outline-none focus:border-blue-500 font-mono">
+                                    <p class="text-[11px] text-slate-500 leading-relaxed">Hệ thống sẽ tự động đóng gói và sao lưu <code>pos.db</code> vào thư mục Google Drive của bạn mỗi giờ.</p>
+                                    <div id="drive-backup-status-text" class="text-xs font-semibold text-slate-600"></div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- TỰ ĐỘNG SAO LƯU GOOGLE DRIVE WEBHOOK -->
-                    <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
-                        <div class="flex items-center justify-between border-b pb-2">
-                            <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
-                                <span>Tự Động Sao Lưu Đám Mây Google Drive (Apps Script Webhook)</span>
-                            </h3>
-                            <button onclick="triggerDriveBackupNow()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1.5 transition">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                                <span>Sao Lưu Lên Drive Ngay</span>
-                            </button>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="block text-xs font-bold text-slate-700">Link Webhook Google Apps Script:</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="comp-drive-webhook-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="border border-slate-200 p-2 rounded-lg flex-1 text-xs shadow-xs focus:outline-none focus:border-blue-500 font-mono">
-                                <button onclick="saveDriveWebhookSetting()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">Lưu Link</button>
-                            </div>
-                            <p class="text-[11px] text-slate-500">Mỗi giờ và mỗi khi chốt ca, hệ thống sẽ tự động đóng gói cơ sở dữ liệu pos.db gửi thẳng vào thư mục Google Drive của bạn.</p>
-                            <div id="drive-backup-status-text" class="text-xs font-semibold text-slate-600"></div>
                         </div>
                     </div>
                 </div>
@@ -8522,8 +8611,10 @@
                     </div>
                     <div id="staff-perm-table-wrap" class="overflow-x-auto"></div>
                 </div>
+            </div>
 
-                <!-- Log hoat dong (90 ngay) -->
+            <!-- SUB: NHẬT KÝ HOẠT ĐỘNG (TÁCH RIÊNG KHÔNG EAGER-LOAD) -->
+            <div id="settings-sub-activity-log" class="hidden space-y-4">
                 <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                         <div class="flex items-center gap-2">
@@ -8531,8 +8622,8 @@
                                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
                             </span>
                             <div>
-                                <h3 class="font-bold text-base text-slate-800">Nhật Ký Hoạt Động (90 Ngày)</h3>
-                                <p class="text-xs text-slate-500">Theo dõi lịch sử thao tác quan trọng, kiểm toán bảo mật và đối soát</p>
+                                <h3 class="font-bold text-base text-slate-800">Nhật Ký Hoạt Động (Kiểm Toán & Đối Soát)</h3>
+                                <p class="text-xs text-slate-500">Theo dõi lịch sử thao tác quan trọng, kiểm toán bảo mật và đối soát dòng tiền</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -8544,7 +8635,7 @@
                     </div>
 
                     <!-- BỘ LỌC NHANH (Fast Filters) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                         <div class="relative">
                             <input id="activity-log-search" type="text" placeholder="Tìm kiếm hành động, IP..." 
                                    class="w-full text-xs pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500"
@@ -8571,9 +8662,16 @@
                             <option value="thu/chi">Sổ quỹ Thu/Chi</option>
                             <option value="phân quyền">Phân quyền & Cài đặt</option>
                         </select>
+                        <select id="activity-log-limit" class="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-sky-500 cursor-pointer font-bold text-slate-700" onchange="renderActivityLog()">
+                            <option value="100">Hiển thị 100 bản ghi</option>
+                            <option value="200">Hiển thị 200 bản ghi</option>
+                            <option value="500" selected>Hiển thị 500 bản ghi</option>
+                            <option value="1000">Hiển thị 1.000 bản ghi</option>
+                            <option value="2000">Hiển thị 2.000 bản ghi</option>
+                        </select>
                     </div>
 
-                    <div class="overflow-x-auto max-h-96 overflow-y-auto border border-slate-100 rounded-lg">
+                    <div class="overflow-x-auto max-h-[500px] overflow-y-auto border border-slate-100 rounded-lg">
                         <table class="w-full text-xs text-left">
                             <thead class="text-slate-500 border-b sticky top-0 bg-slate-50/95 backdrop-blur-xs font-semibold"><tr>
                                 <th class="py-2.5 px-3">Nhân viên</th>
@@ -8586,6 +8684,7 @@
                         </table>
                     </div>
                 </div>
+            </div>
             </div>
 
             <!-- SUB 5: QUẢN LÝ & XÓA DỮ LIỆU -->
@@ -10652,6 +10751,7 @@
     <script src="/static/js/modules/cashflow.js?v=20261001_03"></script>
     <script src="/static/js/modules/hotel.js?v=20260928_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
+    <script src="/static/js/modules/ai_agent.js?v=20261013_01"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261008_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261007_01"></script>

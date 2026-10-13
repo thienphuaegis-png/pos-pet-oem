@@ -2901,20 +2901,16 @@
 
         async function saveCompanySettings() {
             const logoImg = document.getElementById('comp-logo-preview');
-            const qrImg = document.getElementById('comp-qr-preview');
             const appName = (document.getElementById('comp-app-name')?.value || '').trim() || '⚡ POS Offline';
+            const webhookUrl = (document.getElementById('comp-drive-webhook-url')?.value || '').trim();
             const payload = {
                 app_name: appName,
                 shop_name: document.getElementById('comp-name').value,
                 shop_address: document.getElementById('comp-address').value,
                 shop_phone: document.getElementById('comp-phone').value,
                 shop_footer: document.getElementById('comp-footer').value,
-                shop_bank_code: document.getElementById('comp-bank-code').value,
-                shop_bank_account: document.getElementById('comp-bank-account').value,
-                shop_bank_owner: document.getElementById('comp-bank-owner').value,
-                shop_qr_mode: document.getElementById('comp-qr-mode').value,
                 shop_logo: !logoImg.classList.contains('hidden') ? logoImg.src : '',
-                shop_qr_image: !qrImg.classList.contains('hidden') ? qrImg.src : ''
+                google_drive_webhook_url: webhookUrl
             };
             const res = await fetch('/api/settings/company', {
                 method: 'POST',
@@ -2922,7 +2918,7 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                alert('✅ Đã lưu thông tin doanh nghiệp, tên ứng dụng & cấu hình QR!');
+                alert('✅ Đã lưu thông tin doanh nghiệp & Link Google Drive Webhook thành công!');
                 updateAppTitleUI(appName, payload.shop_logo);
                 const loginNameEl = document.getElementById('login-store-name');
                 if (loginNameEl) loginNameEl.textContent = appName;
