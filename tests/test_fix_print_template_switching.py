@@ -21,14 +21,13 @@ def test_print_blocks_config_has_active_b2b_and_k80():
     assert presets["a4_b2b"].get("is_active") is True
     assert presets["k80_standard"].get("is_active") is True
 
-def test_index_html_has_quick_tag_chips_and_preset_selector():
-    """Kiểm tra giao diện index.html có đầy đủ bộ chọn mẫu in canvas và thanh chèn biến nhanh"""
+def test_index_html_has_simplified_inline_print_designer():
+    """Kiểm tra giao diện index.html tinh giản: bỏ thanh nút token, có bộ chọn mẫu in canvas và hỗ trợ inline edit"""
     res = client.get("/")
     assert res.status_code == 200
     html = res.text
     assert 'id="print-doc-type-select"' in html
     assert 'id="canvas-preset-select"' in html
     assert 'id="paper-canvas"' in html
-    assert 'insertTagToPropText' in html
-    assert '{{dia_chi_khach}}' in html
-    assert '{{so_dien_thoai}}' in html
+    assert 'Click vào chữ trên bản in để sửa trực tiếp' in html
+    assert 'insertTagToPropText' not in html

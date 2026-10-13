@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo MVP: Trình Thiết Kế Mẫu In Hybrid (MasterCare POS x KiotViet)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .editable-field {
+            outline: none;
+            border-radius: 3px;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+        .editable-field:hover {
+            outline: 1px dashed #38bdf8;
+            background-color: rgba(224, 242, 254, 0.25);
+            cursor: text;
+        }
+        .editable-field:focus {
+            outline: 2px solid #0284c7 !important;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        .token-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 11px;
+            font-family: monospace;
+            font-weight: 600;
+            user-select: none;
+        }
+        .token-tag .token-remove {
+            cursor: pointer;
+            color: #0284c7;
+            font-weight: bold;
+        }
+        .token-tag .token-remove:hover { color: #e11d48; }
+
+        .paper-sheet {
+            background: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            transform-origin: top center;
+        }
+
+        .paper-a4-landscape { width: 297mm; min-height: 210mm; padding: 12mm 15mm; }
+        .paper-a4-portrait { width: 210mm; min-height: 297mm; padding: 12mm 12mm; }
+        .paper-k80 { width: 80mm; min-height: 180mm; padding: 5mm; font-family: 'Courier New', Courier, monospace; }
+        .paper-k58 { width: 58mm; min-height: 160mm; padding: 4mm; font-family: 'Courier New', Courier, monospace; }
+
+        .bold-thermal {
+            font-weight: 900 !important;
+            -webkit-text-stroke: 0.35px currentColor;
+        }
+
+        /* Modal backdrop transition */
+        .modal-active { display: flex !important; animation: fadeIn 0.15s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Print styles */
+        @media print {
+            body * { visibility: hidden; }
+            #paper-canvas, #paper-canvas * { visibility: visible; }
+            #paper-canvas {
+                position: absolute;
+                left: 0; top: 0;
+                width: 100% !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col font-sans select-none overflow-hidden">
+
+    <!-- TOP HEADER -->
+    <header class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0 shadow-xs z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                <i class="fa-solid fa-print"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span>Trình Thiết Kế Mẫu In POS</span>
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300">Hybrid MVP v1.0</span>
+                </h1>
+                <p class="text-[11px] text-slate-500">Khung Cố Định Chống Vỡ Layout + Soạn Thảo Inline & Token Picker KiotViet</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                <i class="fa-regular fa-keyboard text-slate-400 mr-1"></i> Mẹo: Gõ <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px] font-bold">/</kbd> để chèn Token
+            </span>
+            <button onclick="resetDefaultTemplate()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-arrow-rotate-left text-[11px]"></i> Đặt lại
+            </button>
+            <button onclick="triggerPrintTest()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-print text-[11px]"></i> In Thử
+            </button>
+            <button onclick="saveCurrentPreset()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fa-solid fa-floppy-disk text-[11px]"></i> Lưu Mẫu
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN SPLIT WORKSPACE -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- ======================================================== -->
+        <!-- LEFT CONTROL SIDEBAR (370px) -->
+        <!-- ======================================================== -->
+        <aside class="w-[370px] bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto p-3.5 space-y-3.5 text-xs">
+            
+            <!-- 1. Loại Chứng Từ -->
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <label class="font-bold text-slate-700 text-[11.5px] flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-invoice text-sky-600"></i>
+                    <span>Loại Chứng Từ / Nghiệp Vụ:</span>
+                </label>
+                <select id="doc-type-select" onchange="onDocTypeChange(this.value)" class="w-full border border-sky-400 p-2 rounded-lg bg-white font-bold text-sky-800 text-xs shadow-2xs focus:ring-2 focus:ring-sky-500 focus:outline-none cursor-pointer">
+                    <optgroup label="── ĐƠN HÀNG BÁN POS ──">
+                        <option value="pos_b2b" selected>📄 Hóa Đơn Sỉ / A4 Đại Lý (Chuẩn 9 Cột)</option>
+                        <option value="pos_retail">🧾 Hóa Đơn Bán Lẻ (Cuộn K80 / K58)</option>
+                        <option value="pos_draft">📝 Phiếu Tạm Tính (K80)</option>
+                    </optgroup>
+                    <optgroup label="── DỊCH VỤ SPA THÚ CƯNG ──">
+                        <option value="spa_intake">💆 Phiếu Tiếp Nhận Thú Cưng (K80)</option>
+                        <option value="pos_topup">⚡ Biên Lai Nạp Ví Spa (K80)</option>
+                        <option value="spa_invoice">📋 Hóa Đơn Dịch Vụ Spa (K80)</option>
+                    </optgroup>
+                    <optgroup label="── SỔ QUỸ & KHO ──">
+                        <option value="cashbook_thu">📥 Phiếu Thu Tiền (K80 / A5)</option>
+                        <option value="cashbook_chi">📤 Phiếu Chi Tiền (K80 / A5)</option>
+                        <option value="shift_zreport">📊 Báo Cáo Đóng Ca (Z-Report)</option>
+                        <option value="stock_audit">📦 Phiếu Kiểm Kê Hàng Hóa (A4)</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- 2. Toggles In Nhiệt & POS Toggle -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="p-2 bg-amber-50/70 border border-amber-200 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-amber-900 text-[11px] flex items-center gap-1">
+                            <i class="fa-solid fa-bolt text-amber-600"></i> In Đậm Nhiệt
+                        </div>
+                        <div class="text-[9.5px] text-amber-700">Nét Font 900</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chk-thermal-bold" onchange="toggleThermalBold(this.checked)" class="sr-only peer">
+                        <div class="w-8 h-4.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-amber-600"></div>
+                    </label>
+                </div>
+
+                <div class="p-2 bg-purple-50/70 border border-purple-200 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-purple-900 text-[11px] flex items-center gap-1">
+                            <i class="fa-solid fa-desktop text-purple-600"></i> Hiện Tại POS
+                        </div>
+                        <div class="text-[9.5px] text-purple-700">Hiển thị ở quầy</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chk-active-pos" checked class="sr-only peer">
+                        <div class="w-8 h-4.5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 3. Mẫu In Preset & Lưu -->
+            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div class="flex justify-between items-center">
+                    <label class="font-bold text-purple-900 text-[11.5px] flex items-center gap-1">
+                        <i class="fa-solid fa-layer-group"></i> <span>Mẫu Đang Dùng:</span>
+                    </label>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="promptRenamePreset()" class="text-purple-700 hover:text-purple-900 font-semibold text-[11px] flex items-center gap-1">
+                            <i class="fa-solid fa-pen text-[10px]"></i> Đổi tên
+                        </button>
+                        <span class="text-slate-300">|</span>
+                        <button onclick="deleteCurrentPreset()" class="text-rose-600 hover:text-rose-800 font-semibold text-[11px] flex items-center gap-1">
+                            <i class="fa-solid fa-trash text-[10px]"></i> Xóa
+                        </button>
+                    </div>
+                </div>
+                <select id="preset-select" onchange="onPresetChange(this.value)" class="w-full border border-purple-300 p-1.5 rounded-lg bg-white font-bold text-purple-900 text-xs focus:ring-1 focus:ring-purple-400">
+                    <option value="a4_b2b_std">Mẫu A4 Đại Lý B2B (Chuẩn 9 Cột & 3 Chữ Ký)</option>
+                    <option value="a4_b2b_minimal">Mẫu A4 Đại Lý Tối Giản (Không QR)</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
+                    <button onclick="saveCurrentPreset()" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-1.5 px-2 rounded-lg text-[11px] flex items-center justify-center gap-1 shadow-2xs transition">
+                        <i class="fa-solid fa-floppy-disk"></i> <span>Lưu Mẫu</span>
+                    </button>
+                    <button onclick="openSaveNewModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-2 rounded-lg text-[11px] flex items-center justify-center gap-1 shadow-2xs transition">
+                        <i class="fa-solid fa-plus"></i> <span>+ Lưu Mẫu Mới</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. Checklist Bật/Tắt Khối Nội Dung (Khung Cố Định) -->
+            <div class="space-y-2">
+                <div class="font-bold text-slate-700 text-[11px] uppercase tracking-wider flex items-center justify-between">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-square-check text-sky-600"></i> Bật / Tắt Khối Nội Dung</span>
+                    <span class="text-[10px] text-slate-400 normal-case font-normal">Chống vỡ bố cục</span>
+                </div>
+
+                <!-- Nhóm 1: Đầu Trang -->
+                <div class="p-2 bg-sky-50/70 rounded-lg border border-sky-200 space-y-1">
+                    <div class="font-bold text-sky-900 text-[10.5px]">Đầu Trang & Cửa Hàng</div>
+                    <div class="grid grid-cols-2 gap-1.5 text-[11.5px]">
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="chk-logo" checked onchange="toggleBlock('block-logo', this.checked)" class="rounded text-sky-600"> Logo Shop
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                            <input type="checkbox" id="chk-header" checked onchange="toggleBlock('block-header', this.checked)" class="rounded text-sky-600"> Tên & Đ/C
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-semibold">
+                            <input type="checkbox" id="chk-title" checked onchange="toggleBlock('block-title', this.checked)" class="rounded text-sky-600"> Tiêu Đề
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="chk-info" checked onchange="toggleBlock('block-info', this.checked)" class="rounded text-sky-600"> Số HĐ / Giờ
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer col-span-2">
+                            <input type="checkbox" id="chk-customer" checked onchange="toggleBlock('block-customer', this.checked)" class="rounded text-sky-600"> Khách hàng (Tên, SĐT)
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer col-span-2">
+                            <input type="checkbox" id="chk-customer-addr" checked onchange="toggleBlock('block-customer-addr', this.checked)" class="rounded text-sky-600"> Địa chỉ khách hàng
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Nhóm 2: Bảng Hàng Hóa -->
+                <div class="p-2 bg-indigo-50/70 rounded-lg border border-indigo-200 space-y-1.5">
+                    <div class="font-bold text-indigo-900 text-[10.5px]">Chi Tiết Mặt Hàng / Dịch Vụ</div>
+                    <div class="space-y-1.5 text-[11.5px]">
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-indigo-950">
+                            <input type="radio" name="table_mode" id="radio-tbl-b2b" value="b2b" checked onchange="switchTableMode('b2b')"> Bảng 9 Cột B2B/Đại Lý (A4)
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
+                            <input type="radio" name="table_mode" id="radio-tbl-retail" value="retail" onchange="switchTableMode('retail')"> Bảng Tiêu Chuẩn (Bán lẻ / K80)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Nhóm 3: Thanh Toán & Chân Trang -->
+                <div class="p-2 bg-emerald-50/70 rounded-lg border border-emerald-200 space-y-1">
+                    <div class="font-bold text-emerald-900 text-[10.5px]">Thanh Toán & Chân Trang</div>
+                    <div class="space-y-1 text-[11.5px]">
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-950">
+                            <input type="checkbox" id="chk-3col-footer" checked onchange="toggleBlock('block-3col-footer', this.checked)" class="rounded text-emerald-600"> 3 Ô Chân Trang (Bank-QR-Tổng)
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer font-bold text-emerald-950">
+                            <input type="checkbox" id="chk-3col-signatures" checked onchange="toggleBlock('block-3col-signatures', this.checked)" class="rounded text-emerald-600"> 3 Cột Chữ Ký B2B
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="chk-footer-note" checked onchange="toggleBlock('block-footer-note', this.checked)" class="rounded text-emerald-600"> Lời Cảm Ơn & Chính Sách
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Thẻ Biến & Modal Token Picker (Chuẩn KiotViet) -->
+            <div class="p-2.5 bg-gradient-to-br from-amber-50 to-orange-50/80 rounded-xl border border-amber-200 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="font-bold text-amber-950 text-[11px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-tags text-amber-600"></i>
+                        <span>Thẻ Biến (Token):</span>
+                    </div>
+                    <button onclick="openTokenModal()" class="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-700 text-white font-bold text-[10.5px] flex items-center gap-1 shadow-2xs transition">
+                        <i class="fa-solid fa-puzzle-piece text-[10px]"></i> 🧩 Chèn Token
+                    </button>
+                </div>
+                <p class="text-[10px] text-amber-800 leading-tight">Bấm token chèn nhanh vào ô đang sửa hoặc mở bảng token KiotViet đầy đủ:</p>
+                <div class="flex flex-wrap gap-1">
+                    <button type="button" onclick="insertTokenInline('{{ten_cua_hang}}')" class="px-1.5 py-0.5 rounded bg-white text-sky-700 border border-amber-300 text-[10px] font-mono hover:bg-amber-100 transition shadow-2xs">+ Tên shop</button>
+                    <button type="button" onclick="insertTokenInline('{{ma_hoa_don}}')" class="px-1.5 py-0.5 rounded bg-white text-sky-700 border border-amber-300 text-[10px] font-mono hover:bg-amber-100 transition shadow-2xs">+ Mã HĐ</button>
+                    <button type="button" onclick="insertTokenInline('{{ngay_gio}}')" class="px-1.5 py-0.5 rounded bg-white text-sky-700 border border-amber-300 text-[10px] font-mono hover:bg-amber-100 transition shadow-2xs">+ Ngày giờ</button>
+                    <button type="button" onclick="insertTokenInline('{{ten_khach}}')" class="px-1.5 py-0.5 rounded bg-white text-purple-700 border border-amber-300 text-[10px] font-mono hover:bg-purple-100 transition shadow-2xs font-bold">+ Tên khách</button>
+                    <button type="button" onclick="insertTokenInline('{{sdt_khach}}')" class="px-1.5 py-0.5 rounded bg-white text-purple-700 border border-amber-300 text-[10px] font-mono hover:bg-purple-100 transition shadow-2xs">+ SĐT khách</button>
+                    <button type="button" onclick="insertTokenInline('{{dia_chi_khach}}')" class="px-1.5 py-0.5 rounded bg-white text-purple-700 border border-amber-300 text-[10px] font-mono hover:bg-purple-100 transition shadow-2xs font-semibold">+ Đ/C khách</button>
+                    <button type="button" onclick="insertTokenInline('{{phai_tra}}')" class="px-1.5 py-0.5 rounded bg-white text-rose-700 border border-amber-300 text-[10px] font-mono hover:bg-rose-100 transition shadow-2xs font-bold">+ Phải trả</button>
+                    <button type="button" onclick="insertTokenInline('{{con_no}}')" class="px-1.5 py-0.5 rounded bg-white text-rose-700 border border-amber-300 text-[10px] font-mono hover:bg-rose-100 transition shadow-2xs">+ Còn nợ</button>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ======================================================== -->
+        <!-- RIGHT VIEWPORT & LIVE PREVIEW (Canvas Sheet) -->
+        <!-- ======================================================== -->
+        <main class="flex-1 bg-slate-200 flex flex-col overflow-hidden relative">
+
+            <!-- Viewport Top Toolbar -->
+            <div class="bg-white border-b border-slate-300 px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 z-10 shadow-xs">
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-eye text-sky-600"></i> Bản Xem Trước Trực Quan
+                    </span>
+                    <span id="badge-paper-dim" class="bg-sky-50 text-sky-800 px-2 py-0.5 rounded font-mono text-[11px] border border-sky-200 font-semibold">
+                        A4 Ngang: 297 x 210 mm
+                    </span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Paper Size Selector -->
+                    <div class="flex items-center gap-1.5">
+                        <label class="font-bold text-slate-600 text-[11px]">Khổ giấy:</label>
+                        <select id="paper-select" onchange="onPaperSizeChange(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-sky-900 bg-sky-50/60 focus:ring-1 focus:ring-sky-500">
+                            <option value="A4-landscape" selected>A4 Ngang (297 x 210 mm)</option>
+                            <option value="A4-portrait">A4 Dọc (210 x 297 mm)</option>
+                            <option value="K80">Cuộn Nhiệt K80 (80mm)</option>
+                            <option value="K58">Cuộn Nhiệt K58 (58mm)</option>
+                        </select>
+                    </div>
+
+                    <!-- Zoom Controls -->
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                        <button onclick="changeZoom(-0.1)" title="Thu nhỏ" class="w-6 h-6 rounded bg-white hover:bg-slate-50 font-bold text-slate-700 flex items-center justify-center shadow-2xs">-</button>
+                        <span id="zoom-text" class="w-12 text-center font-bold font-mono text-sky-800 text-[11px]">90%</span>
+                        <button onclick="changeZoom(0.1)" title="Phóng to" class="w-6 h-6 rounded bg-white hover:bg-slate-50 font-bold text-slate-700 flex items-center justify-center shadow-2xs">+</button>
+                        <button onclick="setZoomFit()" class="px-2 py-0.5 text-[10px] text-slate-600 font-semibold hover:bg-slate-200 rounded">Vừa khung</button>
+                    </div>
+
+                    <!-- Print Button -->
+                    <button onclick="triggerPrintTest()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-2xs transition">
+                        <i class="fa-solid fa-print"></i> <span>In Thử</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Canvas Area -->
+            <div id="canvas-scroll-container" class="flex-1 overflow-auto p-6 flex justify-center items-start">
+                
+                <!-- Scaling Wrapper -->
+                <div id="canvas-scaler" class="transition-transform duration-150 origin-top">
+
+                    <!-- Sheet Document (The Paper Canvas) -->
+                    <div id="paper-canvas" class="paper-sheet paper-a4-landscape relative text-slate-900 text-xs">
+                        
+                        <!-- HEADER SECTION -->
+                        <div id="block-header-wrap" class="flex justify-between items-start border-b border-slate-300 pb-3 mb-3">
+                            <!-- Shop Info (Inline Editable) -->
+                            <div id="block-header" class="space-y-0.5 max-w-[65%]">
+                                <div id="field-shop-name" contenteditable="true" class="editable-field font-black text-slate-900 text-base" title="Click để sửa tên shop">Mastercare For Pet</div>
+                                <div id="field-shop-addr" contenteditable="true" class="editable-field text-slate-600 text-xs" title="Click để sửa địa chỉ">Địa chỉ: 148 Nguyễn Trãi, phường Nha Trang, tỉnh Khánh Hòa</div>
+                                <div id="field-shop-phone" contenteditable="true" class="editable-field text-slate-600 text-xs font-medium" title="Click để sửa hotline">Hotline: 0899 355 558 | MST: 0318992381</div>
+                            </div>
+                            <!-- Logo -->
+                            <div id="block-logo" class="shrink-0 text-right">
+                                <div class="inline-flex items-center gap-1.5 font-black text-slate-800 text-lg tracking-tight">
+                                    <i class="fa-solid fa-paw text-amber-500 text-xl"></i>
+                                    <span>MasterCare</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 font-medium">Pet Care & Spa OEM</div>
+                            </div>
+                        </div>
+
+                        <!-- TITLE (Inline Editable) -->
+                        <div id="block-title" class="text-center my-3">
+                            <h2 id="field-doc-title" contenteditable="true" class="editable-field inline-block font-black text-slate-900 text-lg uppercase tracking-wider" title="Click để sửa tiêu đề hóa đơn">
+                                HÓA ĐƠN BÁN HÀNG ĐẠI LÝ
+                            </h2>
+                        </div>
+
+                        <!-- INFO & CUSTOMER SECTION -->
+                        <div class="grid grid-cols-2 gap-4 mb-4 text-xs">
+                            <!-- Left: Customer info -->
+                            <div class="space-y-1">
+                                <div id="block-customer" class="flex items-center gap-1">
+                                    <span class="font-bold text-slate-700">Đại lý / Khách hàng:</span>
+                                    <span id="field-cust-name" contenteditable="true" class="editable-field font-semibold text-slate-900">Nguyễn Văn A (0987 654 321)</span>
+                                </div>
+                                <div id="block-customer-addr" class="flex items-start gap-1">
+                                    <span class="font-bold text-slate-700 shrink-0">Địa chỉ:</span>
+                                    <span id="field-cust-addr" contenteditable="true" class="editable-field text-slate-800">123 Đường Trần Phú, Phường Lộc Thọ, TP. Nha Trang</span>
+                                </div>
+                            </div>
+                            <!-- Right: Invoice code & time -->
+                            <div id="block-info" class="space-y-1 text-right">
+                                <div>
+                                    <span class="font-bold text-slate-700">Mã hóa đơn:</span>
+                                    <span class="font-mono font-bold text-sky-800">HD2609130001</span>
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-700">Ngày lập:</span>
+                                    <span class="text-slate-700">22:05:25 13/10/2026</span>
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-700">Nhân viên:</span>
+                                    <span class="text-slate-700">Quản Lý (Thu ngân 01)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- LINE ITEMS TABLE (Fixed Bone - 9 Columns B2B) -->
+                        <div id="table-container" class="mb-4 overflow-x-auto">
+                            <!-- Table 9 Columns B2B -->
+                            <table id="tbl-b2b" class="w-full border-collapse border border-slate-300 text-xs text-left">
+                                <thead>
+                                    <tr class="bg-slate-100 font-bold text-slate-800 border-b border-slate-300 text-[11.5px]">
+                                        <th class="p-1.5 border border-slate-300 text-center w-8">TT</th>
+                                        <th class="p-1.5 border border-slate-300 w-20">Mã hàng</th>
+                                        <th class="p-1.5 border border-slate-300">Tên sản phẩm / Quy cách</th>
+                                        <th class="p-1.5 border border-slate-300 text-center w-12">ĐVT</th>
+                                        <th class="p-1.5 border border-slate-300 text-right w-24">Đơn giá</th>
+                                        <th class="p-1.5 border border-slate-300 text-center w-12">CK</th>
+                                        <th class="p-1.5 border border-slate-300 text-center w-12">SL</th>
+                                        <th class="p-1.5 border border-slate-300 text-right w-28">Thành tiền</th>
+                                        <th class="p-1.5 border border-slate-300 w-24">Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-slate-200">
+                                        <td class="p-1.5 border border-slate-300 text-center font-mono">1</td>
+                                        <td class="p-1.5 border border-slate-300 font-mono text-[11px] text-sky-800">SP001</td>
+                                        <td class="p-1.5 border border-slate-300 font-semibold">Sữa Tắm Cho Chó Mèo Mastercare 500ml (Hương Phấn)</td>
+                                        <td class="p-1.5 border border-slate-300 text-center">Chai</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-mono">120.000</td>
+                                        <td class="p-1.5 border border-slate-300 text-center font-mono">0%</td>
+                                        <td class="p-1.5 border border-slate-300 text-center font-bold font-mono">2</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-bold font-mono text-slate-900">240.000</td>
+                                        <td class="p-1.5 border border-slate-300 text-[11px] text-slate-500 italic">Thùng 24 chai</td>
+                                    </tr>
+                                    <tr class="border-b border-slate-200">
+                                        <td class="p-1.5 border border-slate-300 text-center font-mono">2</td>
+                                        <td class="p-1.5 border border-slate-300 font-mono text-[11px] text-sky-800">SP008</td>
+                                        <td class="p-1.5 border border-slate-300 font-semibold">Hạt Dinh Dưỡng MasterCare Salmon & Rice 1.5kg</td>
+                                        <td class="p-1.5 border border-slate-300 text-center">Gói</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-mono">180.000</td>
+                                        <td class="p-1.5 border border-slate-300 text-center font-mono">5%</td>
+                                        <td class="p-1.5 border border-slate-300 text-center font-bold font-mono">1</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-bold font-mono text-slate-900">171.000</td>
+                                        <td class="p-1.5 border border-slate-300 text-[11px] text-slate-500 italic">HSD 12/2027</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- Table Retail Alternative (Hidden by default) -->
+                            <table id="tbl-retail" class="hidden w-full border-collapse border border-slate-300 text-xs text-left">
+                                <thead>
+                                    <tr class="bg-slate-100 font-bold text-slate-800 border-b border-slate-300">
+                                        <th class="p-1.5 border border-slate-300">Tên Mặt Hàng</th>
+                                        <th class="p-1.5 border border-slate-300 text-center w-12">SL</th>
+                                        <th class="p-1.5 border border-slate-300 text-right w-24">Đơn Giá</th>
+                                        <th class="p-1.5 border border-slate-300 text-right w-28">Thành Tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-slate-200">
+                                        <td class="p-1.5 border border-slate-300 font-semibold">Sữa Tắm Cho Chó Mèo Mastercare 500ml</td>
+                                        <td class="p-1.5 border border-slate-300 text-center font-bold">2</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-mono">120.000</td>
+                                        <td class="p-1.5 border border-slate-300 text-right font-bold font-mono">240.000</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 3 BOTTOM FOOTER BOXES (Bank - VietQR - Summary) -->
+                        <div id="block-3col-footer" class="grid grid-cols-3 gap-3 mb-4 border border-slate-300 rounded-lg p-2.5 bg-slate-50/50 text-xs">
+                            <!-- Box 1: Bank Info -->
+                            <div class="border-r border-slate-200 pr-2 space-y-1">
+                                <div class="font-bold text-sky-900 uppercase text-[11px] border-b border-sky-100 pb-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-building-columns text-sky-600"></i> Thông Tin Thanh Toán
+                                </div>
+                                <div class="text-[11px] space-y-0.5 pt-0.5">
+                                    <div><span class="text-slate-500">Ngân hàng:</span> <strong class="text-slate-800">MBBank Quân Đội</strong></div>
+                                    <div><span class="text-slate-500">Số tài khoản:</span> <strong class="font-mono text-sky-900">0899355558</strong></div>
+                                    <div><span class="text-slate-500">Chủ tài khoản:</span> <strong class="text-slate-800 uppercase">CHU SHOP PET NHA TRANG</strong></div>
+                                    <div><span class="text-slate-500">Nội dung CK:</span> <strong class="font-mono text-indigo-800">HD2609130001</strong></div>
+                                </div>
+                            </div>
+
+                            <!-- Box 2: VietQR Code -->
+                            <div class="border-r border-slate-200 px-2 flex flex-col items-center justify-center text-center">
+                                <div class="font-bold text-sky-900 uppercase text-[11px] mb-1">
+                                    <i class="fa-solid fa-qrcode text-sky-600"></i> Quét Mã VietQR
+                                </div>
+                                <!-- Mock VietQR Graphic -->
+                                <div class="w-20 h-20 bg-white border border-slate-300 rounded p-1 flex items-center justify-center shadow-xs">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=240000_HD2609130001" alt="VietQR" class="w-full h-full object-contain">
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-mono mt-0.5">Chuyển khoản 24/7</div>
+                            </div>
+
+                            <!-- Box 3: Total Summary -->
+                            <div class="pl-2 space-y-1 text-right">
+                                <div class="font-bold text-slate-800 uppercase text-[11px] border-b border-slate-200 pb-1 text-left">
+                                    Tổng Kết Thanh Toán
+                                </div>
+                                <div class="space-y-0.5 text-[11.5px]">
+                                    <div class="flex justify-between"><span class="text-slate-600">Tổng tiền hàng:</span> <strong class="font-mono">411.000 đ</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-600">Chiết khấu:</span> <strong class="font-mono text-emerald-700">- 9.000 đ</strong></div>
+                                    <div class="flex justify-between text-rose-700 font-bold border-t border-slate-200 pt-0.5">
+                                        <span>PHẢI TRẢ:</span>
+                                        <span class="text-sm font-mono">402.000 đ</span>
+                                    </div>
+                                    <div class="flex justify-between"><span class="text-slate-600">Khách đã trả:</span> <strong class="font-mono text-emerald-800">402.000 đ</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-600">Còn nợ:</span> <strong class="font-mono text-slate-400">0 đ</strong></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3 SIGNATURES (B2B) -->
+                        <div id="block-3col-signatures" class="grid grid-cols-3 gap-4 text-center mt-6 pt-2 text-xs">
+                            <div>
+                                <div class="font-bold text-slate-900 uppercase">NGƯỜI NHẬN HÀNG</div>
+                                <div class="text-[10.5px] text-slate-500 italic mt-0.5">(Ký, ghi rõ họ tên)</div>
+                                <div class="h-16"></div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-slate-900 uppercase">THỦ KHO</div>
+                                <div class="text-[10.5px] text-slate-500 italic mt-0.5">(Ký, ghi rõ họ tên)</div>
+                                <div class="h-16"></div>
+                            </div>
+                            <div>
+                                <div class="font-bold text-slate-900 uppercase">KẾ TOÁN / NGƯỜI LẬP</div>
+                                <div class="text-[10.5px] text-slate-500 italic mt-0.5">(Ký, ghi rõ họ tên)</div>
+                                <div class="h-16"></div>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER NOTE & RETURN POLICY (Inline Editable) -->
+                        <div id="block-footer-note" class="border-t border-dashed border-slate-300 pt-2 text-center text-slate-500 text-[11px] italic">
+                            <div id="field-footer-note" contenteditable="true" class="editable-field" title="Click để sửa lời cảm ơn / chính sách">
+                                Mastercare For Pet - Cảm ơn quý khách đã tin tưởng và đồng hành! Quý khách vui lòng kiểm tra kỹ hàng hóa trước khi nhận. Đổi trả trong vòng 48h.
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 1: TOKEN PICKER MODAL (CHUẨN KIOTVIET) -->
+    <!-- ======================================================== -->
+    <div id="token-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] animate-scaleIn">
+            
+            <!-- Modal Header -->
+            <div class="px-5 py-3.5 bg-gradient-to-r from-sky-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-puzzle-piece text-amber-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm">Danh Mục Biến Tự Điền (Tokens)</h3>
+                        <p class="text-[11px] text-sky-100">Chọn biến để chèn vào vị trí đang sửa trên mẫu in hoặc sao chép</p>
+                    </div>
+                </div>
+                <!-- CLOSE BUTTON [✕] -->
+                <button type="button" onclick="closeTokenModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition" title="Đóng (ESC)">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2 shrink-0">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="token-search-input" onkeyup="filterTokens(this.value)" placeholder="Tìm kiếm tên token hoặc giải thích (vd: tên shop, khách hàng, tổng tiền...)" class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <span class="text-[11px] text-slate-500 font-mono" id="token-count-badge">24 tokens</span>
+            </div>
+
+            <!-- Modal Body: Split Categories Sidebar & Token Table -->
+            <div class="flex-1 flex overflow-hidden">
+                
+                <!-- Category Sidebar Tabs -->
+                <div class="w-44 bg-slate-50/80 border-r border-slate-200 p-2 space-y-1 overflow-y-auto shrink-0 text-xs">
+                    <button onclick="switchTokenCategory('all')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg font-bold text-sky-800 bg-sky-100/80 flex items-center justify-between">
+                        <span>Tất cả</span> <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                    <button onclick="switchTokenCategory('store')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Gian hàng / Cửa hàng</span>
+                    </button>
+                    <button onclick="switchTokenCategory('customer')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Khách hàng / Đại lý</span>
+                    </button>
+                    <button onclick="switchTokenCategory('order')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Hóa đơn / Đơn hàng</span>
+                    </button>
+                    <button onclick="switchTokenCategory('payment')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Tiền tệ / Thanh toán</span>
+                    </button>
+                    <button onclick="switchTokenCategory('spa')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Spa Thú Cưng</span>
+                    </button>
+                    <button onclick="switchTokenCategory('cashbook')" class="cat-btn w-full text-left px-2.5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-between">
+                        <span>Sổ quỹ & Kho</span>
+                    </button>
+                </div>
+
+                <!-- Token List Table -->
+                <div class="flex-1 overflow-y-auto p-3 text-xs">
+                    <table class="w-full border-collapse text-left">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-500 font-bold text-[11px] pb-2">
+                                <th class="py-1.5 px-2">Tên Token</th>
+                                <th class="py-1.5 px-2">Mã Biến Kỹ Thuật</th>
+                                <th class="py-1.5 px-2">Giải thích / Ý nghĩa</th>
+                                <th class="py-1.5 px-2 text-right">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="token-table-body" class="divide-y divide-slate-100">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer with Close Button -->
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+                <span class="text-[11px] text-slate-500 italic">Nhấn ESC hoặc click ngoài để đóng</span>
+                <button type="button" onclick="closeTokenModal()" class="px-4 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition">
+                    Đóng
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2: SAVE NEW PRESET MODAL -->
+    <!-- ======================================================== -->
+    <div id="save-preset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-emerald-600"></i> Lưu Thành Mẫu Mới
+                </h3>
+                <button onclick="closeSaveNewModal()" class="text-slate-400 hover:text-slate-600 font-bold text-sm">✕</button>
+            </div>
+            <div class="space-y-1.5 text-xs">
+                <label class="font-semibold text-slate-700">Tên mẫu in mới:</label>
+                <input type="text" id="new-preset-name-input" value="Mẫu A4 Đại Lý Bản Tùy Chỉnh 01" class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeSaveNewModal()" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50">Hủy</button>
+                <button onclick="confirmSaveNewPreset()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs">Xác nhận lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-msg" class="fixed bottom-5 right-5 bg-slate-900/90 text-white text-xs px-4 py-2.5 rounded-xl shadow-xl z-50 hidden items-center gap-2 border border-slate-700">
+        <i class="fa-solid fa-circle-check text-emerald-400" id="toast-icon"></i>
+        <span id="toast-text">Đã lưu mẫu thành công!</span>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // State
+        let currentZoom = 0.90;
+        let lastFocusedEditable = null;
+        let activeCategory = 'all';
+
+        // Master Token Registry (KiotViet standard categorized)
+        const MASTER_TOKENS = [
+            // Gian hàng
+            { name: "Tên cửa hàng", code: "{{ten_cua_hang}}", cat: "store", desc: "Tên shop hoặc chi nhánh in trên đầu bill" },
+            { name: "Địa chỉ cửa hàng", code: "{{dia_chi}}", cat: "store", desc: "Địa chỉ chi nhánh phát sinh đơn hàng" },
+            { name: "Hotline cửa hàng", code: "{{so_dien_thoai}}", cat: "store", desc: "Số điện thoại hotline của shop" },
+            { name: "Mã số thuế", code: "{{ma_so_thue}}", cat: "store", desc: "MST doanh nghiệp (nếu có)" },
+            
+            // Khách hàng
+            { name: "Tên khách hàng", code: "{{ten_khach}}", cat: "customer", desc: "Tên khách lẻ hoặc đại lý" },
+            { name: "Số điện thoại khách", code: "{{sdt_khach}}", cat: "customer", desc: "Số điện thoại liên hệ của khách hàng" },
+            { name: "Địa chỉ khách hàng", code: "{{dia_chi_khach}}", cat: "customer", desc: "Địa chỉ giao hàng hoặc trụ sở đại lý" },
+            { name: "Mã khách hàng", code: "{{ma_khach_hang}}", cat: "customer", desc: "Mã định danh khách trên hệ thống" },
+
+            // Đơn hàng / Hóa đơn
+            { name: "Mã hóa đơn", code: "{{ma_hoa_don}}", cat: "order", desc: "Mã chứng từ (VD: HD2609130001)" },
+            { name: "Ngày giờ lập hóa đơn", code: "{{ngay_gio}}", cat: "order", desc: "Thời điểm thanh toán chính xác" },
+            { name: "Tên nhân viên thu ngân", code: "{{thu_ngan}}", cat: "order", desc: "Tên tài khoản nhân viên đứng quầy" },
+            { name: "Ghi chú đơn hàng", code: "{{ghi_chu}}", cat: "order", desc: "Nội dung ghi chú của khách hoặc thu ngân" },
+
+            // Tiền tệ / Thanh toán
+            { name: "Tổng tiền hàng", code: "{{tong_tien}}", cat: "payment", desc: "Tổng giá trị hàng hóa trước giảm giá" },
+            { name: "Tiền chiết khấu", code: "{{giam_gia}}", cat: "payment", desc: "Chiết khấu khuyến mãi hoặc voucher" },
+            { name: "Tổng phải thanh toán", code: "{{phai_tra}}", cat: "payment", desc: "Số tiền cuối cùng khách phải trả" },
+            { name: "Khách đã thanh toán", code: "{{khach_tra}}", cat: "payment", desc: "Số tiền khách đưa (tiền mặt / CK)" },
+            { name: "Tiền thừa trả khách", code: "{{tien_thua}}", cat: "payment", desc: "Tiền trả lại khi khách đưa dư" },
+            { name: "Còn nợ lại", code: "{{con_no}}", cat: "payment", desc: "Số tiền ghi nhận công nợ đơn hàng" },
+            { name: "Phương thức thanh toán", code: "{{phuong_thuc}}", cat: "payment", desc: "Tiền mặt / Chuyển khoản / Quẹt thẻ" },
+
+            // Spa Thú Cưng
+            { name: "Tên thú cưng", code: "{{ten_thu_cung}}", cat: "spa", desc: "Tên bé cún / mèo làm dịch vụ" },
+            { name: "Giống loài & Cân nặng", code: "{{giong_loai}}", cat: "spa", desc: "VD: Poodle (4.5kg)" },
+            { name: "Giờ hẹn trả bé", code: "{{gio_hen_tra}}", cat: "spa", desc: "Thời gian ba mẹ đến đón bé về" },
+
+            // Sổ quỹ & Kho
+            { name: "Mã phiếu thu/chi", code: "{{ma_phieu}}", cat: "cashbook", desc: "Mã phiếu quỹ PT / PC" },
+            { name: "Lý do thu chi", code: "{{ly_do}}", cat: "cashbook", desc: "Nội dung diễn giải khoản thu chi" },
+            { name: "Kho kiểm kê", code: "{{kho_hang}}", cat: "cashbook", desc: "Tên kho thực hiện cân bằng tồn" }
+        ];
+
+        // Track last focused editable element for smart token insertion
+        document.addEventListener('focusin', (e) => {
+            if (e.target.classList && e.target.classList.contains('editable-field')) {
+                lastFocusedEditable = e.target;
+            }
+        });
+
+        // Slash command listener: type "/" inside editable field to open token picker
+        document.addEventListener('keyup', (e) => {
+            if (e.key === '/' && document.activeElement && document.activeElement.classList.contains('editable-field')) {
+                // remove the slash character
+                const text = document.activeElement.innerText;
+                if (text.endsWith('/')) {
+                    document.activeElement.innerText = text.slice(0, -1);
+                }
+                openTokenModal();
+            }
+        });
+
+        // Escape key to close any modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeTokenModal();
+                closeSaveNewModal();
+            }
+        });
+
+        // Click outside backdrop to close
+        document.getElementById('token-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('token-modal')) {
+                closeTokenModal();
+            }
+        });
+        document.getElementById('save-preset-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('save-preset-modal')) {
+                closeSaveNewModal();
+            }
+        });
+
+        // Render Token Table
+        function renderTokenTable(tokens) {
+            const tbody = document.getElementById('token-table-body');
+            tbody.innerHTML = '';
+            document.getElementById('token-count-badge').innerText = `${tokens.length} tokens`;
+
+            if (tokens.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">Không tìm thấy token nào phù hợp.</td></tr>`;
+                return;
+            }
+
+            tokens.forEach(tok => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-sky-50/50 transition";
+                tr.innerHTML = `
+                    <td class="py-2 px-2 font-semibold text-slate-800">${tok.name}</td>
+                    <td class="py-2 px-2 font-mono text-[11px] text-sky-700 font-bold">${tok.code}</td>
+                    <td class="py-2 px-2 text-slate-600 text-[11px]">${tok.desc}</td>
+                    <td class="py-2 px-2 text-right">
+                        <div class="inline-flex items-center gap-1">
+                            <button onclick="insertTokenInline('${tok.code}')" class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-700 text-white font-bold text-[10.5px] transition shadow-2xs">
+                                Chèn
+                            </button>
+                            <button onclick="copyTokenCode('${tok.code}')" class="px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 text-slate-700 text-[10.5px] transition">
+                                Sao chép
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Open Token Modal
+        function openTokenModal() {
+            const modal = document.getElementById('token-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('modal-active');
+            filterTokens(document.getElementById('token-search-input').value);
+            document.getElementById('token-search-input').focus();
+        }
+
+        // Close Token Modal
+        function closeTokenModal() {
+            const modal = document.getElementById('token-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('modal-active');
+        }
+
+        // Filter tokens by text & active category
+        function filterTokens(keyword = '') {
+            const kw = keyword.toLowerCase().trim();
+            const filtered = MASTER_TOKENS.filter(t => {
+                const matchCat = (activeCategory === 'all' || t.cat === activeCategory);
+                const matchKw = (!kw || t.name.toLowerCase().includes(kw) || t.code.toLowerCase().includes(kw) || t.desc.toLowerCase().includes(kw));
+                return matchCat && matchKw;
+            });
+            renderTokenTable(filtered);
+        }
+
+        // Switch category tab in token modal
+        function switchTokenCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.remove('font-bold', 'text-sky-800', 'bg-sky-100/80');
+                btn.classList.add('text-slate-600');
+            });
+            event.currentTarget.classList.add('font-bold', 'text-sky-800', 'bg-sky-100/80');
+            event.currentTarget.classList.remove('text-slate-600');
+            filterTokens(document.getElementById('token-search-input').value);
+        }
+
+        // Insert token into last focused editable or default to Title
+        function insertTokenInline(tokenCode) {
+            const target = lastFocusedEditable || document.getElementById('field-doc-title');
+            if (target) {
+                target.focus();
+                // Insert text at cursor or append
+                document.execCommand('insertText', false, ' ' + tokenCode + ' ');
+                showToast(`Đã chèn "${tokenCode}" vào ô soạn thảo!`);
+            }
+            closeTokenModal();
+        }
+
+        // Copy token code to clipboard
+        function copyTokenCode(tokenCode) {
+            navigator.clipboard.writeText(tokenCode).then(() => {
+                showToast(`Đã sao chép "${tokenCode}" vào bộ nhớ tạm!`);
+            });
+        }
+
+        // Toggle block visibility (Fixed Component Checkboxes)
+        function toggleBlock(blockId, isChecked) {
+            const el = document.getElementById(blockId);
+            if (el) {
+                if (isChecked) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            }
+        }
+
+        // Switch Table Mode (9-column B2B vs Standard Retail)
+        function switchTableMode(mode) {
+            const tblB2B = document.getElementById('tbl-b2b');
+            const tblRetail = document.getElementById('tbl-retail');
+            if (mode === 'b2b') {
+                tblB2B.classList.remove('hidden');
+                tblRetail.classList.add('hidden');
+            } else {
+                tblB2B.classList.add('hidden');
+                tblRetail.classList.remove('hidden');
+            }
+        }
+
+        // Toggle Thermal Bold font 900
+        function toggleThermalBold(isBold) {
+            const canvas = document.getElementById('paper-canvas');
+            if (isBold) {
+                canvas.classList.add('bold-thermal');
+                showToast('Đã kích hoạt chế độ In Đậm Chống Mờ Nhiệt (Font 900)');
+            } else {
+                canvas.classList.remove('bold-thermal');
+                showToast('Đã tắt chế độ in đậm nhiệt');
+            }
+        }
+
+        // Paper Size Switch
+        function onPaperSizeChange(size) {
+            const canvas = document.getElementById('paper-canvas');
+            const badge = document.getElementById('badge-paper-dim');
+            canvas.className = 'paper-sheet relative text-slate-900 text-xs';
+            if (document.getElementById('chk-thermal-bold').checked) {
+                canvas.classList.add('bold-thermal');
+            }
+
+            if (size === 'A4-landscape') {
+                canvas.classList.add('paper-a4-landscape');
+                badge.innerText = 'A4 Ngang: 297 x 210 mm';
+                document.getElementById('block-header-wrap').classList.add('flex-row');
+                document.getElementById('radio-tbl-b2b').checked = true;
+                switchTableMode('b2b');
+            } else if (size === 'A4-portrait') {
+                canvas.classList.add('paper-a4-portrait');
+                badge.innerText = 'A4 Dọc: 210 x 297 mm';
+                document.getElementById('block-header-wrap').classList.add('flex-row');
+                document.getElementById('radio-tbl-b2b').checked = true;
+                switchTableMode('b2b');
+            } else if (size === 'K80') {
+                canvas.classList.add('paper-k80');
+                badge.innerText = 'K80: 80 mm';
+                document.getElementById('block-header-wrap').classList.remove('flex-row');
+                document.getElementById('radio-tbl-retail').checked = true;
+                switchTableMode('retail');
+            } else if (size === 'K58') {
+                canvas.classList.add('paper-k58');
+                badge.innerText = 'K58: 58 mm';
+                document.getElementById('block-header-wrap').classList.remove('flex-row');
+                document.getElementById('radio-tbl-retail').checked = true;
+                switchTableMode('retail');
+            }
+            setZoomFit();
+        }
+
+        // Change Zoom
+        function changeZoom(delta) {
+            currentZoom = Math.max(0.4, Math.min(1.5, currentZoom + delta));
+            applyZoom();
+        }
+
+        function setZoomFit() {
+            const container = document.getElementById('canvas-scroll-container');
+            const canvas = document.getElementById('paper-canvas');
+            const ratio = (container.clientWidth - 48) / canvas.offsetWidth;
+            currentZoom = Math.min(1.0, Math.max(0.4, Math.floor(ratio * 10) / 10));
+            applyZoom();
+        }
+
+        function applyZoom() {
+            document.getElementById('canvas-scaler').style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoom-text').innerText = `${Math.round(currentZoom * 100)}%`;
+        }
+
+        // Document Type Change
+        function onDocTypeChange(val) {
+            const titleField = document.getElementById('field-doc-title');
+            const paperSelect = document.getElementById('paper-select');
+            
+            if (val === 'pos_b2b') {
+                titleField.innerText = 'HÓA ĐƠN BÁN HÀNG ĐẠI LÝ';
+                paperSelect.value = 'A4-landscape';
+                onPaperSizeChange('A4-landscape');
+                document.getElementById('chk-3col-footer').checked = true;
+                toggleBlock('block-3col-footer', true);
+                document.getElementById('chk-3col-signatures').checked = true;
+                toggleBlock('block-3col-signatures', true);
+            } else if (val === 'pos_retail') {
+                titleField.innerText = 'HÓA ĐƠN BÁN LẺ';
+                paperSelect.value = 'K80';
+                onPaperSizeChange('K80');
+                document.getElementById('chk-3col-footer').checked = false;
+                toggleBlock('block-3col-footer', false);
+                document.getElementById('chk-3col-signatures').checked = false;
+                toggleBlock('block-3col-signatures', false);
+            } else if (val === 'pos_draft') {
+                titleField.innerText = 'PHIẾU TẠM TÍNH';
+                paperSelect.value = 'K80';
+                onPaperSizeChange('K80');
+            } else if (val === 'spa_intake') {
+                titleField.innerText = 'PHIẾU TIẾP NHẬN THÚ CƯNG';
+                paperSelect.value = 'K80';
+                onPaperSizeChange('K80');
+            } else if (val === 'cashbook_thu') {
+                titleField.innerText = 'PHIẾU THU TIỀN';
+                paperSelect.value = 'A4-portrait';
+                onPaperSizeChange('A4-portrait');
+            } else if (val === 'cashbook_chi') {
+                titleField.innerText = 'PHIẾU CHI TIỀN';
+                paperSelect.value = 'A4-portrait';
+                onPaperSizeChange('A4-portrait');
+            }
+            showToast(`Đã nạp bố cục chuẩn cho: ${event.target.options[event.target.selectedIndex].text}`);
+        }
+
+        // Preset switcher
+        function onPresetChange(val) {
+            if (val === 'a4_b2b_minimal') {
+                document.getElementById('chk-3col-footer').checked = false;
+                toggleBlock('block-3col-footer', false);
+                showToast('Đã chuyển sang: Mẫu A4 Đại Lý Tối Giản');
+            } else {
+                document.getElementById('chk-3col-footer').checked = true;
+                toggleBlock('block-3col-footer', true);
+                showToast('Đã chuyển sang: Mẫu A4 Đại Lý B2B Chuẩn 9 Cột');
+            }
+        }
+
+        // Save preset
+        function saveCurrentPreset() {
+            showToast('✅ Đã lưu cấu hình mẫu in thành công!');
+        }
+
+        function openSaveNewModal() {
+            const modal = document.getElementById('save-preset-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('modal-active');
+            document.getElementById('new-preset-name-input').focus();
+        }
+
+        function closeSaveNewModal() {
+            const modal = document.getElementById('save-preset-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('modal-active');
+        }
+
+        function confirmSaveNewPreset() {
+            const name = document.getElementById('new-preset-name-input').value.trim();
+            if (!name) return;
+            const sel = document.getElementById('preset-select');
+            const opt = document.createElement('option');
+            opt.value = 'custom_' + Date.now();
+            opt.innerText = name;
+            opt.selected = true;
+            sel.appendChild(opt);
+            closeSaveNewModal();
+            showToast(`✅ Đã lưu thành mẫu mới: "${name}"`);
+        }
+
+        function promptRenamePreset() {
+            const sel = document.getElementById('preset-select');
+            const currentName = sel.options[sel.selectedIndex].text;
+            const newName = prompt('Nhập tên mới cho mẫu in:', currentName);
+            if (newName && newName.trim()) {
+                sel.options[sel.selectedIndex].text = newName.trim();
+                showToast(`Đã đổi tên mẫu thành: "${newName.trim()}"`);
+            }
+        }
+
+        function deleteCurrentPreset() {
+            const sel = document.getElementById('preset-select');
+            if (sel.options.length <= 1) {
+                alert('Không thể xóa mẫu mặc định duy nhất!');
+                return;
+            }
+            if (confirm(`Bạn có chắc muốn xóa mẫu "${sel.options[sel.selectedIndex].text}"?`)) {
+                sel.remove(sel.selectedIndex);
+                onPresetChange(sel.value);
+                showToast('Đã xóa mẫu in thành công');
+            }
+        }
+
+        function resetDefaultTemplate() {
+            if (confirm('Khôi phục lại toàn bộ nội dung mẫu in về mặc định ban đầu?')) {
+                document.getElementById('field-shop-name').innerText = 'Mastercare For Pet';
+                document.getElementById('field-shop-addr').innerText = 'Địa chỉ: 148 Nguyễn Trãi, phường Nha Trang, tỉnh Khánh Hòa';
+                document.getElementById('field-shop-phone').innerText = 'Hotline: 0899 355 558 | MST: 0318992381';
+                document.getElementById('field-doc-title').innerText = 'HÓA ĐƠN BÁN HÀNG ĐẠI LÝ';
+                document.getElementById('field-footer-note').innerText = 'Mastercare For Pet - Cảm ơn quý khách đã tin tưởng và đồng hành! Quý khách vui lòng kiểm tra kỹ hàng hóa trước khi nhận. Đổi trả trong vòng 48h.';
+                showToast('Đã khôi phục mẫu mặc định!');
+            }
+        }
+
+        // Test Print
+        function triggerPrintTest() {
+            window.print();
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            const text = document.getElementById('toast-text');
+            text.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toast.classList.remove('flex');
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Initial setup
+        window.onload = () => {
+            renderTokenTable(MASTER_TOKENS);
+            setZoomFit();
+        };
+    </script>
+</body>
+</html>

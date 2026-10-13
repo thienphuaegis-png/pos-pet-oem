@@ -6922,7 +6922,23 @@
             };
 
             // Auto-flow layout: Khong dung toa do tuyet doi de tranh chong de chu
-            let html = `<div id="snap-guides"></div>`;
+            let html = `
+                <style>
+                    .inline-editable-text {
+                        cursor: text !important;
+                        transition: background-color 0.15s, outline 0.15s;
+                    }
+                    .inline-editable-text:hover {
+                        outline: 1px dashed #0284c7 !important;
+                        background-color: rgba(2, 132, 199, 0.05) !important;
+                    }
+                    .inline-editable-text:focus {
+                        outline: 1.5px solid #0284c7 !important;
+                        background-color: rgba(2, 132, 199, 0.08) !important;
+                    }
+                </style>
+                <div id="snap-guides"></div>
+            `;
 
             // Render elements with auto-flow vertical stack
             canvasElements.forEach((e, index) => {
@@ -7165,7 +7181,18 @@
                     txt = txt.replace(/{{tong_mon_kiem}}/g, mockData.tong_mon_kiem);
                     txt = txt.replace(/{{lech_thua}}/g, mockData.lech_thua);
                     txt = txt.replace(/{{lech_thieu}}/g, mockData.lech_thieu);
-                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap; line-height: 1.3; pointer-events: none;">${txt}</div>`;
+                    content = `
+                        <div class="inline-editable-text"
+                             contenteditable="true"
+                             data-id="${e.id}"
+                             onfocus="onInlineTextFocus(event, '${e.id}')"
+                             onblur="onInlineTextBlur(event, '${e.id}')"
+                             oninput="onInlineTextInput(event, '${e.id}')"
+                             onkeydown="onInlineTextKeyDown(event, '${e.id}')"
+                             onclick="onInlineTextClick(event, '${e.id}')"
+                             style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap; line-height: 1.3; outline: none; border-radius: 2px; cursor: text;"
+                             title="Nhấp vào để sửa chữ trực tiếp">${txt}</div>
+                    `;
                 }
 
                 const resizeHandleHTML = isSel ? `<div class="resize-handle" title="Kéo sang ngang để chỉnh độ rộng" onmousedown="startResize(event, '${e.id}')"></div>` : '';
@@ -7272,24 +7299,6 @@
                     <div>
                         <label class="block font-semibold mb-1 text-xs">Nội dung text / biến:</label>
                         <input id="prop-text-input" type="text" class="border p-1.5 rounded w-full text-xs font-medium" value="${elem.text || ''}" oninput="updateProp('text', this.value)">
-                        <div class="mt-2 bg-slate-50 border border-slate-200 rounded p-2">
-                            <span class="text-[10.5px] font-bold text-slate-600 block mb-1">🏷️ Bấm chèn biến nhanh vào ô:</span>
-                            <div class="flex flex-wrap gap-1">
-                                <button type="button" onclick="insertTagToPropText('{{ten_cua_hang}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Tên shop</button>
-                                <button type="button" onclick="insertTagToPropText('{{dia_chi}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Đ/C shop</button>
-                                <button type="button" onclick="insertTagToPropText('{{so_dien_thoai}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Hotline</button>
-                                <button type="button" onclick="insertTagToPropText('{{ma_hoa_don}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Mã HĐ</button>
-                                <button type="button" onclick="insertTagToPropText('{{ngay_gio}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Ngày giờ</button>
-                                <button type="button" onclick="insertTagToPropText('{{ten_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100">+ Tên khách</button>
-                                <button type="button" onclick="insertTagToPropText('{{sdt_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100">+ SĐT khách</button>
-                                <button type="button" onclick="insertTagToPropText('{{dia_chi_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100 font-bold">+ Đ/C khách</button>
-                                <button type="button" onclick="insertTagToPropText('{{thu_ngan}}')" class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-mono hover:bg-slate-200">+ Thu ngân</button>
-                                <button type="button" onclick="insertTagToPropText('{{tong_tien}}')" class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono hover:bg-emerald-100">+ Tổng tiền</button>
-                                <button type="button" onclick="insertTagToPropText('{{giam_gia}}')" class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono hover:bg-emerald-100">+ Giảm giá</button>
-                                <button type="button" onclick="insertTagToPropText('{{phai_tra}}')" class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-mono hover:bg-rose-100 font-bold">+ Phải trả</button>
-                                <button type="button" onclick="insertTagToPropText('{{con_no}}')" class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-mono hover:bg-rose-100">+ Còn nợ</button>
-                            </div>
-                        </div>
                     </div>` : ''}
                     <div>
                         <div class="flex justify-between items-center mb-1">
@@ -7365,18 +7374,58 @@
             }
         }
 
-        function insertTagToPropText(tag) {
-            const inp = document.getElementById('prop-text-input');
-            if (!inp) return;
-            const start = inp.selectionStart !== undefined ? inp.selectionStart : inp.value.length;
-            const end = inp.selectionEnd !== undefined ? inp.selectionEnd : inp.value.length;
-            const val = inp.value;
-            inp.value = val.substring(0, start) + tag + val.substring(end);
-            inp.focus();
-            inp.setSelectionRange(start + tag.length, start + tag.length);
-            updateProp('text', inp.value);
+        function onInlineTextClick(event, id) {
+            event.stopPropagation();
+            if (selectedElementId !== id) {
+                selectedElementId = id;
+                document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+                const curEl = document.getElementById(id);
+                if (curEl) curEl.classList.add('selected');
+                renderPropsPanel();
+            }
         }
-        window.insertTagToPropText = insertTagToPropText;
+        window.onInlineTextClick = onInlineTextClick;
+
+        function onInlineTextFocus(event, id) {
+            const card = document.getElementById(id);
+            if (card) card.setAttribute('draggable', 'false');
+            if (selectedElementId !== id) {
+                selectedElementId = id;
+                document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+                if (card) card.classList.add('selected');
+                renderPropsPanel();
+            }
+        }
+        window.onInlineTextFocus = onInlineTextFocus;
+
+        function onInlineTextInput(event, id) {
+            const elem = canvasElements.find(e => e.id === id);
+            if (!elem) return;
+            elem.text = event.target.innerText;
+            const propInp = document.getElementById('prop-text-input');
+            if (propInp) propInp.value = elem.text;
+        }
+        window.onInlineTextInput = onInlineTextInput;
+
+        function onInlineTextBlur(event, id) {
+            const card = document.getElementById(id);
+            if (card) card.setAttribute('draggable', 'true');
+            const elem = canvasElements.find(e => e.id === id);
+            if (elem) {
+                elem.text = event.target.innerText;
+            }
+        }
+        window.onInlineTextBlur = onInlineTextBlur;
+
+        function onInlineTextKeyDown(event, id) {
+            if (event.key === 'Escape') {
+                event.target.blur();
+            } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                saveCurrentPreset();
+            }
+        }
+        window.onInlineTextKeyDown = onInlineTextKeyDown;
 
         // Mouse Drag & Resize Logic — snap-to-grid + snap-to-elements
         let isDragging = false;
