@@ -3234,6 +3234,25 @@
                 document.getElementById('cost-sum-cost').textContent = formatMoney(currentBOMData.cost_price);
                 document.getElementById('cost-sum-margin').textContent = formatMoney(currentBOMData.profit_margin);
 
+                // Cập nhật chi tiết 2 tầng giá vốn (BOM bao bì + Phí xưởng gia công)
+                const bomCostEl = document.getElementById('cost-sum-bom');
+                if (bomCostEl) {
+                    const bomMatCost = currentBOMData.bom_material_cost !== undefined ? currentBOMData.bom_material_cost : currentBOMData.cost_price;
+                    bomCostEl.textContent = formatMoney(bomMatCost);
+                }
+                const oemRowEl = document.getElementById('cost-sum-oem-row');
+                const oemCostEl = document.getElementById('cost-sum-oem');
+                const oemFactoryEl = document.getElementById('cost-sum-factory-name');
+                if (oemRowEl && oemCostEl) {
+                    if (currentBOMData.oem_processing_cost && currentBOMData.oem_processing_cost > 0) {
+                        oemRowEl.classList.remove('hidden');
+                        oemCostEl.textContent = formatMoney(currentBOMData.oem_processing_cost);
+                        if (oemFactoryEl) oemFactoryEl.textContent = currentBOMData.oem_factory_name || 'Xưởng gia công';
+                    } else {
+                        oemRowEl.classList.add('hidden');
+                    }
+                }
+
                 const tbody = document.getElementById('table-product-bom-items');
                 if (currentBOMData.bom_items.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Chưa có thành phần nào trong BOM</td></tr>';

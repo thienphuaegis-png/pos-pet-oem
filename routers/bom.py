@@ -72,13 +72,71 @@ def calculate_product_cost_internal(product_id: int, conn) -> dict:
     cur.execute(query, (product_id,))
     bom_items = [dict(r) for r in cur.fetchall()]
 
-    total_cost = 0.0
+    bom_material_cost = 0.0
     for item in bom_items:
         line_cost = round(item["quantity"] * item["latest_cost"], 2)
         item["line_cost"] = line_cost
-        total_cost += line_cost
+        bom_material_cost += line_cost
 
-    total_cost = round(total_cost, 2)
+    bom_material_cost = round(bom_material_cost, 2)
+
+    # TỰ ĐỘNG BÓC PHÍ GIA CÔNG XƯỞNG OEM NẾU SẢN PHẨM THUỘC DIỆN OEM
+    # 1. Tra cứu đơn đặt gia công OEM gần nhất có sản phẩm này
+    cur.execute("""
+        SELECT 
+            oi.unit_price,
+            COALESCE(o.discount_percent, 0) as discount_percent,
+            COALESCE(o.vat_percent, 0) as vat_percent,
+            c.name as factory_name,
+            c.id as factory_id
+        FROM oem_order_items oi
+        JOIN oem_orders o ON oi.order_id = o.id
+        JOIN contacts c ON o.partner_id = c.id
+        WHERE oi.product_id = ?
+        ORDER BY o.id DESC LIMIT 1
+    """, (product_id,))
+    oem_row = cur.fetchone()
+
+    oem_processing_cost = 0.0
+    oem_factory_name = None
+    if oem_row:
+        raw_price = oem_row["unit_price"] or 0.0
+        disc = (1.0 - (oem_row["discount_percent"] or 0.0) / 100.0)
+        vat = (1.0 + (oem_row["vat_percent"] or 0.0) / 100.0)
+        oem_processing_cost = round(raw_price * disc * vat, 2)
+        oem_factory_name = oem_row["factory_name"]
+    else:
+        # 2. Nếu chưa có đơn OEM đích danh, kiểm tra xem sản phẩm có gán xưởng trong supplier_items không
+        cur.execute("""
+            SELECT si.supplier_id, si.default_cost, c.name as factory_name
+            FROM supplier_items si
+            JOIN contacts c ON si.supplier_id = c.id
+            WHERE si.product_id = ? AND si.item_type = 'product'
+            ORDER BY si.id DESC LIMIT 1
+        """, (product_id,))
+        supp_row = cur.fetchone()
+        if supp_row:
+            oem_factory_name = supp_row["factory_name"]
+            if (supp_row["default_cost"] or 0.0) > 0:
+                oem_processing_cost = round(float(supp_row["default_cost"]), 2)
+            else:
+                # Tìm mức phí gia công tiêu chuẩn của xưởng này với cùng nhóm sản phẩm
+                cur.execute("""
+                    SELECT oi.unit_price, COALESCE(o.discount_percent, 0) as discount_percent, COALESCE(o.vat_percent, 0) as vat_percent
+                    FROM oem_order_items oi
+                    JOIN oem_orders o ON oi.order_id = o.id
+                    JOIN products p ON oi.product_id = p.id
+                    WHERE o.partner_id = ? AND p.type = (SELECT type FROM products WHERE id = ?)
+                    ORDER BY o.id DESC LIMIT 1
+                """, (supp_row["supplier_id"], product_id))
+                similar_row = cur.fetchone()
+                if similar_row:
+                    raw_price = similar_row["unit_price"] or 0.0
+                    disc = (1.0 - (similar_row["discount_percent"] or 0.0) / 100.0)
+                    vat = (1.0 + (similar_row["vat_percent"] or 0.0) / 100.0)
+                    oem_processing_cost = round(raw_price * disc * vat, 2)
+
+    total_cost = round(bom_material_cost + oem_processing_cost, 2)
 
     # Cập nhật ngược lại bảng products
     cur.execute("UPDATE products SET cost_price = ? WHERE id = ?", (total_cost, product_id))
@@ -88,6 +146,9 @@ def calculate_product_cost_internal(product_id: int, conn) -> dict:
         "product_id": product_id,
         "product_name": prod["name"],
         "sell_price": prod["sell_price"],
+        "bom_material_cost": bom_material_cost,
+        "oem_processing_cost": oem_processing_cost,
+        "oem_factory_name": oem_factory_name,
         "cost_price": total_cost,
         "profit_margin": round(prod["sell_price"] - total_cost, 2),
         "bom_items": bom_items
