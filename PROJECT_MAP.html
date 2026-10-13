@@ -641,10 +641,12 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-12)
-    const ROADMAP_VERSION = 'v5.4-2026-10-12-marketplace-tailscale-module-toggle';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
+    const ROADMAP_VERSION = 'v5.5-2026-10-13-print-designer-inline-edit-simplified';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-12)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-13)
+      { id: 'pos-print-designer-simplified-inline', cat: 'BILL', title: 'Tinh Giản Thiết Kế Mẫu In: Bỏ Token & Dàn Nút Biến, Giữ Bật/Tắt Khối Sidebar + Sửa Chữ Trực Tiếp Inline (ContentEditable)', done: true, note: 'Bỏ hoàn toàn dàn nút biến và modal token KiotViet thừa thãi; giữ vững sidebar trái kiểm soát cấu trúc in; hỗ trợ click-to-edit trực tiếp trên mặt giấy bản in, đồng bộ tức thì elem.text vào preset SQLite.' },
+      // CẬP NHẬT (2026-10-12)
       { id: 'marketplace-shopee-tiktok-sync', cat: 'POS', title: 'Bán Hàng Sàn TMĐT: Đồng Bộ Đơn Shopee/TikTok, Map SKU, Bookmarklet & Import Excel', done: true, note: 'Sync đơn qua bookmarklet trong trình duyệt (né HttpOnly), quét mọi tab trạng thái, map SKU sàn ↔ kho POS, thống kê ngày, kéo-thả Excel Shopee/TikTok/Pancake' },
       { id: 'remote-access-tailscale-funnel', cat: 'SYS', title: 'Truy Cập Từ Xa Miễn Phí: Tailscale (pos-server:8998) + Funnel Link HTTPS Cố Định', done: true, note: 'CAI_TAILSCALE.bat cài winget, firewall chỉ 100.64.0.0/10, hostname pos-server, Funnel --bg 8998; CHAY_ONLINE_CLOUDFLARE.bat dự phòng. Chưa chạy thử trên máy chủ' },
       { id: 'module-toggle-marketplace', cat: 'SYS', title: 'Bật/Tắt Module Bán Hàng Sàn TMĐT & Header Cột Nhân Viên Ma Trận Quyền', done: true, note: 'module_marketplace trong MODULE_KEYS/DEFAULT_MODULES, data-module trên tab sidebar; thêm header cột role staff bị thiếu' },
