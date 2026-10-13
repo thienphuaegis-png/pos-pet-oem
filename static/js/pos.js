@@ -2851,8 +2851,8 @@ function renderAndPrint(ord, isDraft = false) {
         const nominalH = isLandscape ? 559 : 794;
         canvasH = Math.max(nominalH, maxContentBottom + 25);
     } else {
-        const nominalH = isLandscape ? 794 : 1123;
-        canvasH = Math.max(nominalH, maxContentBottom + 25);
+        const nominalH = isLandscape ? 740 : 1050;
+        canvasH = Math.max(nominalH, maxContentBottom + 15);
     }
 
     const watermarkHtml = isDraft ? `
@@ -2864,7 +2864,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     let html = `
     <style>
-        @page { size: ${dim.printSize || 'auto'}; margin: 0; }
+        ${isThermal ? '@page { size: auto; margin: 0; }' : (isLandscape ? '@page { size: 297mm 210mm; size: landscape; margin: 0; }' : `@page { size: ${dim.printSize || 'auto'}; margin: 0; }`)}
         @media print {
             html, body {
                 margin: 0 !important;
@@ -2978,7 +2978,8 @@ function renderAndPrint(ord, isDraft = false) {
                 </table>
             `;
         } else if (e.type === 'b2b_footer_boxes') {
-            const isCashOnly = !!(ord.is_cash_payment || (ord.payments && ord.payments.length > 0 && ord.payments.every(p => p.method === 'cash')) || (!ord.bank_account && ord.payment_method === 'cash'));
+            const isDebt = (ord.debt_amount || 0) > 0;
+            const isCashOnly = !isDebt && !!(ord.is_cash_payment || (ord.payments && ord.payments.length > 0 && ord.payments.every(p => p.method === 'cash')) || (!ord.bank_account && ord.payment_method === 'cash'));
             const bAcc = ord.bank_account || {};
             const bankName = typeof getBankDisplayName === 'function' ? getBankDisplayName(bAcc.bank_name || 'MB') : (bAcc.bank_name || 'MB Bank');
             const bankNum = bAcc.account_number || '';
@@ -2987,7 +2988,17 @@ function renderAndPrint(ord, isDraft = false) {
             let paymentInfoHtml = '';
             let qrBoxHtml = '';
 
-            if (isCashOnly) {
+            if (isDebt) {
+                // Đơn hàng ghi nợ: Ô 1 để trống, ô 2 để trống hoàn toàn
+                paymentInfoHtml = `
+                    <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                    <div style="min-height: 55px;"></div>
+                `;
+                qrBoxHtml = `
+                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                    <div style="min-height: 55px;"></div>
+                `;
+            } else if (isCashOnly) {
                 paymentInfoHtml = `
                     <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
                     <div>Hình thức: <b>Tiền mặt tại quầy</b></div>
@@ -3338,7 +3349,7 @@ function printInvoiceDirectly() {
             <meta charset="utf-8">
             <title>In Hóa Đơn</title>
             <style>
-                ${isThermal ? '@page { size: auto; margin: 0mm; }' : `@page { size: ${pageRule}; margin: 0; }`}
+                ${isThermal ? '@page { size: auto; margin: 0mm; }' : (isLandscape ? '@page { size: 297mm 210mm; size: landscape; margin: 0; }' : `@page { size: ${pageRule}; margin: 0; }`)}
                 ${boldStyles}
                 html, body {
                     margin: 0 !important;
@@ -3359,6 +3370,8 @@ function printInvoiceDirectly() {
                     margin: 0 auto !important;
                     padding: 0 !important;
                     display: block !important;
+                    width: ${isThermal ? '100%' : (isLandscape ? '297mm' : '100%')} !important;
+                    max-width: 100% !important;
                     overflow: visible !important;
                     page-break-after: auto !important;
                     page-break-inside: auto !important;
@@ -3389,16 +3402,20 @@ function printInvoiceDirectly() {
             const inner = doc.querySelector('.print-inner');
             const container = doc.querySelector('.print-container');
             if (inner && container && !isThermal) {
-                // A4 landscape chiều cao tối đa an toàn: 720px; Portrait: 1050px
-                const maxAvailableH = isLandscape ? 720 : 1050;
+                // A4 landscape chiều cao tối đa an toàn: 740px; Portrait: 1050px
+                const maxAvailableH = isLandscape ? 740 : 1050;
                 const innerH = inner.scrollHeight || inner.offsetHeight;
                 
-                // Nếu vượt nhẹ (trong khoảng 1.0 - 1.15 lần trang 1), scale nhẹ fit 1 trang đẹp mắt
-                if (innerH > maxAvailableH && innerH <= maxAvailableH * 1.15) {
+                if (innerH <= maxAvailableH) {
+                    inner.style.transform = "none";
+                    container.style.height = "auto";
+                    container.style.overflow = "visible";
+                } else if (innerH > maxAvailableH && innerH <= maxAvailableH * 1.15) {
+                    // Nếu vượt nhẹ (trong khoảng 1.0 - 1.15 lần trang 1), scale nhẹ fit 1 trang đẹp mắt
                     const scaleY = maxAvailableH / innerH;
-                    inner.style.transform = "scale(" + (scaleY * 0.96) + ")";
+                    inner.style.transform = "scale(" + (scaleY * 0.98) + ")";
                     inner.style.transformOrigin = 'top center';
-                    container.style.height = (innerH * scaleY * 0.96) + 'px';
+                    container.style.height = (innerH * scaleY * 0.98) + 'px';
                 } else if (innerH > maxAvailableH * 1.15) {
                     // Nếu đơn dài (> 18 món A4 ngang hoặc > 32 món A4 dọc), mở rộng container để ngắt tự nhiên sang trang 2, không scale tí nị
                     inner.style.transform = "none";

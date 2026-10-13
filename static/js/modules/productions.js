@@ -7974,18 +7974,33 @@
                         </table>
                     `;
                 } else if (e.type === 'b2b_footer_boxes') {
+                    const isDebt = (ord.debt_amount || 0) > 0;
+                    const paymentBoxContent = isDebt ? `
+                        <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                        <div style="height: 55px;"></div>
+                    ` : `
+                        <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
+                        <div>Ngân hàng: <b>${getBankDisplayName(currentSettings.shop_bank_code || 'MB')}</b></div>
+                        <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
+                        <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
+                        <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
+                    `;
+
+                    const qrBoxContent = isDebt ? `
+                        <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                        <div style="height: 55px;"></div>
+                    ` : `
+                        <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
+                        ${getQRCodeHTML(ord.final_amount, ord.code)}
+                    `;
+
                     content = `
                         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 8px; font-size: 10px;">
                             <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
-                                <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💳 Thông Tin Thanh Toán</div>
-                                <div>Ngân hàng: <b>${getBankDisplayName(currentSettings.shop_bank_code || 'MB')}</b></div>
-                                <div>Số TK: <b>${currentSettings.shop_bank_account || '123456789'}</b></div>
-                                <div>Chủ TK: <b>${currentSettings.shop_bank_owner || currentSettings.shop_name || 'CHỦ TÀI KHOẢN'}</b></div>
-                                <div style="color: #555; font-size: 9px; margin-top: 3px;">Nội dung CK: <i>${printData.ma_hoa_don}</i></div>
+                                ${paymentBoxContent}
                             </div>
                             <div style="border: 1px solid #000; padding: 6px; border-radius: 2px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                                <div style="font-weight: bold; font-size: 9px; margin-bottom: 2px;">QUÉT MÃ VIETQR</div>
-                                ${getQRCodeHTML(ord.final_amount, ord.code)}
+                                ${qrBoxContent}
                             </div>
                             <div style="border: 1px solid #000; padding: 6px; border-radius: 2px;">
                                 <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
