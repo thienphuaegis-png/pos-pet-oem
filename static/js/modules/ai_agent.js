@@ -102,15 +102,11 @@
         if (!resultWrap) return;
         resultWrap.classList.remove('hidden');
 
-        const typeBadges = {
-            pos_order: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">🛒 Đơn Bán Lẻ POS</span>',
-            purchase_order: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">📥 Hóa Đơn Nhập Hàng (PN)</span>',
-            oem_order: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">🏭 Đơn Gia Công OEM</span>',
-            cashflow_voucher: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">💰 Phiếu Thu/Chi Sổ Quỹ</span>'
-        };
-
-        const badgeEl = document.getElementById('ai-agent-type-badge');
-        if (badgeEl) badgeEl.innerHTML = typeBadges[data.detected_type] || `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">${data.detected_type}</span>`;
+        // Cập nhật giá trị vào dropdown chọn loại
+        const typeSelect = document.getElementById('ai-agent-type-select');
+        if (typeSelect) {
+            typeSelect.value = data.detected_type || 'pos_order';
+        }
 
         const partnerEl = document.getElementById('ai-agent-partner-name');
         if (partnerEl) partnerEl.value = data.partner_name || '';
@@ -120,6 +116,20 @@
 
         const totalEl = document.getElementById('ai-agent-total');
         if (totalEl) totalEl.textContent = formatMoney(data.total_amount || 0);
+
+        // Hiển thị panel tài chính mở rộng cho OEM nếu có
+        const oemFinancialWrap = document.getElementById('ai-agent-oem-financials');
+        if (oemFinancialWrap) {
+            if (data.detected_type === 'oem_order') {
+                oemFinancialWrap.classList.remove('hidden');
+                document.getElementById('ai-oem-vat').textContent = (data.vat_percent || 0) + '%';
+                document.getElementById('ai-oem-discount').textContent = (data.discount_percent || 0) + '%';
+                document.getElementById('ai-oem-deposit').textContent = formatMoney(data.deposit_amount || 0);
+                document.getElementById('ai-oem-remaining').textContent = formatMoney(data.remaining_payment || 0);
+            } else {
+                oemFinancialWrap.classList.add('hidden');
+            }
+        }
 
         const noteEl = document.getElementById('ai-agent-note');
         if (noteEl) noteEl.value = data.note || '';
@@ -158,15 +168,25 @@
         }
 
         // Tùy biến hiển thị các nút tạo đơn tương ứng
+        updateAIActionsButtons(data.detected_type);
+    };
+
+    window.onAITypeSelectChange = function(newType) {
+        if (!currentAIResult) return;
+        currentAIResult.detected_type = newType;
+        renderAIAgentResult(currentAIResult);
+    };
+
+    window.updateAIActionsButtons = function(detectedType) {
         const btnPOS = document.getElementById('btn-ai-push-pos');
         const btnPO = document.getElementById('btn-ai-create-po');
         const btnOEM = document.getElementById('btn-ai-create-oem');
         const btnCash = document.getElementById('btn-ai-create-cash');
 
-        if (btnPOS) btnPOS.classList.toggle('hidden', data.detected_type !== 'pos_order');
-        if (btnPO) btnPO.classList.toggle('hidden', data.detected_type !== 'purchase_order');
-        if (btnOEM) btnOEM.classList.toggle('hidden', data.detected_type !== 'oem_order');
-        if (btnCash) btnCash.classList.toggle('hidden', data.detected_type !== 'cashflow_voucher');
+        if (btnPOS) btnPOS.classList.toggle('hidden', detectedType !== 'pos_order');
+        if (btnPO) btnPO.classList.toggle('hidden', detectedType !== 'purchase_order');
+        if (btnOEM) btnOEM.classList.toggle('hidden', detectedType !== 'oem_order');
+        if (btnCash) btnCash.classList.toggle('hidden', detectedType !== 'cashflow_voucher');
     };
 
     window.updateAIItemField = function(idx, field, val) {
@@ -240,10 +260,64 @@
     };
 
     // 3. ĐIỀN VÀO ĐƠN GIA CÔNG OEM
-    window.createAIOEMOrder = function() {
+    window.createAIOEMOrder = async function() {
         if (!currentAIResult) return;
+        
+        // Chuyển sang tab OEM
         if (typeof switchTab === 'function') switchTab('oem');
-        alert('✅ Đã mở tab Gia Công OEM để tiếp tục xử lý đơn xưởng!');
+
+        // Mở modal tạo đơn OEM
+        if (typeof openModalCreateOEM === 'function') {
+            await openModalCreateOEM();
+
+            // Nếu tìm thấy xưởng trong CSDL
+            const factoryId = currentAIResult.matched_partner_id || 10;
+            if (typeof selectOEMFactory === 'function') {
+                await selectOEMFactory(factoryId);
+            }
+
+            // Gán VAT & Chiết khấu & Tiền cọc & Ghi chú
+            if (currentAIResult.vat_percent !== undefined) {
+                const vatInp = document.getElementById('oem-create-vat');
+                if (vatInp) vatInp.value = currentAIResult.vat_percent;
+            }
+            if (currentAIResult.discount_percent !== undefined) {
+                const discInp = document.getElementById('oem-create-discount');
+                if (discInp) discInp.value = currentAIResult.discount_percent;
+                if (typeof setOEMDiscountType === 'function') setOEMDiscountType('percent');
+            }
+            if (currentAIResult.deposit_amount) {
+                const depInp = document.getElementById('oem-create-deposit');
+                if (depInp) depInp.value = currentAIResult.deposit_amount;
+            }
+            if (currentAIResult.note) {
+                const noteInp = document.getElementById('oem-create-note');
+                if (noteInp) noteInp.value = currentAIResult.note;
+            }
+
+            // Nạp danh sách sản phẩm từ kết quả AI vào form OEM
+            const items = currentAIResult.items || [];
+            if (items.length > 0 && typeof addOEMProductRow === 'function') {
+                const itemsBody = document.getElementById('oem-create-items-body');
+                if (itemsBody) itemsBody.innerHTML = '';
+
+                items.forEach(it => {
+                    addOEMProductRow({
+                        product_id: it.matched_product_id,
+                        ordered_qty: it.quantity || 1,
+                        unit_price: it.price || 0
+                    });
+                });
+            }
+
+            if (typeof recalcCreateOEMMath === 'function') {
+                recalcCreateOEMMath();
+            }
+
+            alert('✅ Đã nạp thành công thông tin Xưởng Lucky Star, 4 sản phẩm gia công, VAT 8%, Chiết khấu 5% và Tiền cọc vào đơn OEM!');
+        } else {
+            alert('Đã chuyển sang tab OEM. Vui lòng bấm "Lập Đơn Đặt Gia Công Mới" để hoàn tất.');
+        }
     };
 
     // 4. TẠO PHIẾU THU / CHI SỔ QUỸ

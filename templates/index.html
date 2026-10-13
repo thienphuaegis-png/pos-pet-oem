@@ -8126,11 +8126,36 @@
                             <div class="flex items-center justify-between border-b pb-2.5">
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-xs text-slate-700">Loại nghiệp vụ:</span>
-                                    <div id="ai-agent-type-badge"></div>
+                                    <select id="ai-agent-type-select" onchange="onAITypeSelectChange(this.value)" class="text-xs font-bold border border-purple-200 bg-purple-50 text-purple-900 rounded-lg px-2.5 py-1 focus:outline-none focus:border-purple-500 shadow-2xs">
+                                        <option value="oem_order">🏭 Đơn Gia Công OEM</option>
+                                        <option value="purchase_order">📥 Hóa Đơn Nhập Hàng (PN)</option>
+                                        <option value="pos_order">🛒 Đơn Bán Lẻ POS</option>
+                                        <option value="cashflow_voucher">💰 Phiếu Thu/Chi Sổ Quỹ</option>
+                                    </select>
                                 </div>
                                 <div class="text-xs">
                                     <span class="text-slate-400">Tổng tiền:</span>
                                     <span id="ai-agent-total" class="font-mono font-black text-sm text-slate-900 ml-1">0 đ</span>
+                                </div>
+                            </div>
+
+                            <!-- Panel tài chính mở rộng cho đơn OEM -->
+                            <div id="ai-agent-oem-financials" class="hidden bg-purple-50/60 border border-purple-200 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                <div>
+                                    <span class="text-[11px] text-purple-700 block font-medium">VAT:</span>
+                                    <span id="ai-oem-vat" class="font-mono font-bold text-slate-900">0%</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-purple-700 block font-medium">Chiết khấu:</span>
+                                    <span id="ai-oem-discount" class="font-mono font-bold text-slate-900">0%</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-purple-700 block font-medium">Đã cọc (Đợt 1):</span>
+                                    <span id="ai-oem-deposit" class="font-mono font-bold text-emerald-700">0 đ</span>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-purple-700 block font-medium">Còn lại:</span>
+                                    <span id="ai-oem-remaining" class="font-mono font-bold text-rose-700">0 đ</span>
                                 </div>
                             </div>
 
