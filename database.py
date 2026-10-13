@@ -1849,6 +1849,8 @@ def init_db():
                     _cidx = next((_i for _i, _e in enumerate(_elems) if _e.get("catalog_key") == "customer" or "ten_khach" in (_e.get("text") or "")), -1)
                     if _cidx >= 0:
                         _ce = _elems[_cidx]
+                        _phone_e = next((_e for _e in _elems if _e.get("catalog_key") == "customer_phone"), None)
+                        _base_y = _phone_e.get("y", 163) if _phone_e else _ce.get("y", 147)
                         _new_e = {
                             "id": f"elem_addr_{_pkey}",
                             "catalog_key": "customer_address",
@@ -1857,13 +1859,28 @@ def init_db():
                             "text": "Địa chỉ: {{dia_chi_khach}}",
                             "label": "Địa Chỉ Khách",
                             "x": _ce.get("x", 40),
-                            "y": _ce.get("y", 147) + 16,
+                            "y": _base_y + 16,
                             "w": _ce.get("w", 550),
                             "fsz": max(9, _ce.get("fsz", 10) - 0.5),
                             "bold": False,
                             "align": _ce.get("align", "left")
                         }
                         _elems.insert(_cidx + 1, _new_e)
+                        _p_updated = True
+                
+                # Sửa xung đột đè toạ độ giữa customer_address và customer_phone nếu bị cách nhau < 14px
+                _phone_el = next((_e for _e in _elems if _e.get("catalog_key") == "customer_phone"), None)
+                _addr_el = next((_e for _e in _elems if _e.get("catalog_key") == "customer_address" or "dia_chi_khach" in (_e.get("text") or "")), None)
+                if _phone_el and _addr_el:
+                    _py = float(_phone_el.get("y", 0))
+                    _ay = float(_addr_el.get("y", 0))
+                    if abs(float(_phone_el.get("x", 0)) - float(_addr_el.get("x", 0))) < 100 and abs(_py - _ay) < 14:
+                        _new_ay = _py + 16
+                        _addr_el["y"] = _new_ay
+                        # Đẩy bảng hàng nếu bị cấn
+                        _tbl = next((_e for _e in _elems if _e.get("type") in ("table", "table_b2b")), None)
+                        if _tbl and float(_tbl.get("y", 0)) <= _new_ay + 14:
+                            _tbl["y"] = _new_ay + 18
                         _p_updated = True
             if _p_updated:
                 cur.execute("UPDATE settings SET value = ? WHERE key = 'print_blocks_config'", (json.dumps(_pcfg, ensure_ascii=False),))

@@ -2743,8 +2743,27 @@ function renderAndPrint(ord, isDraft = false) {
         }
     }
 
+    // Kiểm tra và khắc phục xung đột toạ độ nếu addrElem có sẵn bị đè lên customer_phone
+    if (hasCustAddress) {
+        const liveAddr = effectiveElements.find(e => e.catalog_key === 'customer_address' || (e.text && e.text.includes('{{dia_chi_khach}}')));
+        const livePhone = effectiveElements.find(e => e.catalog_key === 'customer_phone' || (e.text && e.text.includes('{{sdt_khach}}') && e !== liveAddr));
+        if (liveAddr && livePhone && Math.abs((livePhone.x || 0) - (liveAddr.x || 0)) < 120) {
+            const py = livePhone.y || 0;
+            const ay = liveAddr.y || 0;
+            if (Math.abs(py - ay) < 14) {
+                liveAddr.y = py + 16;
+            }
+        }
+    }
+
     // Tính deltaY giãn chân trang theo số lượng dòng sản phẩm
     const tableElem = effectiveElements.find(e => e.type === 'table' || e.type === 'table_b2b');
+    if (tableElem && hasCustAddress) {
+        const liveAddr = effectiveElements.find(e => e.catalog_key === 'customer_address' || (e.text && e.text.includes('{{dia_chi_khach}}')));
+        if (liveAddr && (tableElem.y || 0) <= (liveAddr.y || 0) + 14) {
+            tableElem.y = (liveAddr.y || 0) + 18;
+        }
+    }
     let deltaY = 0;
     if (tableElem && ord.items) {
         const isB2B = tableElem.type === 'table_b2b';
@@ -2857,8 +2876,8 @@ function renderAndPrint(ord, isDraft = false) {
             .print-preview-wrapper {
                 padding: 0 !important;
                 margin: 0 !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
             }
             .draft-watermark-banner {
                 margin: 0 0 6px 0 !important;
@@ -2892,7 +2911,7 @@ function renderAndPrint(ord, isDraft = false) {
     <div class="print-preview-wrapper" style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 100%; padding: 4px 0;">
         ${watermarkHtml}
         <div class="print-container" style="width: ${dim.width}; margin: 0 auto; background: white; overflow: visible; position: relative; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; border-radius: 4px;">
-            <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${canvasH}px; font-family: Arial, sans-serif; overflow: visible; page-break-inside: avoid; break-inside: avoid;">`;
+            <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${canvasH}px; font-family: Arial, sans-serif; overflow: visible; page-break-inside: auto; break-inside: auto;">`;
 
     effectiveElements.forEach(e => {
         let content = '';
@@ -3339,6 +3358,7 @@ function printInvoiceDirectly() {
                     border: none !important;
                     margin: 0 auto !important;
                     padding: 0 !important;
+                    display: block !important;
                     overflow: visible !important;
                     page-break-after: auto !important;
                     page-break-inside: auto !important;
@@ -3348,6 +3368,7 @@ function printInvoiceDirectly() {
                 .print-inner {
                     transform-origin: top center !important;
                     margin: 0 auto !important;
+                    display: block !important;
                     overflow: visible !important;
                     page-break-after: auto !important;
                     page-break-inside: auto !important;
@@ -3356,7 +3377,7 @@ function printInvoiceDirectly() {
                 }
             </style>
         </head>
-        <body style="display: flex; justify-content: center; align-items: flex-start; margin: 0; padding: 0;">
+        <body style="display: block; margin: 0 auto; padding: 0; background: white; text-align: center;">
             ${containerClone.outerHTML}
         </body>
         </html>
@@ -3376,11 +3397,13 @@ function printInvoiceDirectly() {
                 if (innerH > maxAvailableH && innerH <= maxAvailableH * 1.15) {
                     const scaleY = maxAvailableH / innerH;
                     inner.style.transform = "scale(" + (scaleY * 0.96) + ")";
-                    inner.style.transformOrigin = 'top left';
+                    inner.style.transformOrigin = 'top center';
                     container.style.height = (innerH * scaleY * 0.96) + 'px';
                 } else if (innerH > maxAvailableH * 1.15) {
-                    // Nếu đơn quá dài (>35 dòng), mở rộng container để ngắt tự nhiên sang trang 2, không scale tí nị
+                    // Nếu đơn dài (> 18 món A4 ngang hoặc > 32 món A4 dọc), mở rộng container để ngắt tự nhiên sang trang 2, không scale tí nị
                     inner.style.transform = "none";
+                    inner.style.height = 'auto';
+                    inner.style.minHeight = '0';
                     container.style.height = 'auto';
                     container.style.overflow = 'visible';
                 }
@@ -3656,7 +3679,7 @@ function printTopupReceiptDirectly(html) {
                 }
             </style>
         </head>
-        <body style="display: flex; justify-content: center; align-items: flex-start; margin: 0; padding: 0;">
+        <body style="display: block; margin: 0 auto; padding: 0; background: white; text-align: center;">
             ${html}
         </body>
         </html>

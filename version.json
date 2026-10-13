@@ -13,7 +13,8 @@
       "items": [
         "feat(print): Thêm tuỳ chọn in địa chỉ khách hàng trong cài đặt mẫu in",
         "fix(pos): Tự động nạp địa chỉ khách hàng khi chọn tại POS và tự hiển thị trên hóa đơn A4",
-        "fix(print): Khắc phục lỗi mất chân trang / trắng trang đơn hàng lớn A4 nhiều món"
+        "fix(print): Khắc phục lỗi mất chân trang / trắng trang đơn hàng lớn A4 nhiều món",
+        "fix(print): Khắc phục lỗi in lại không hiện địa chỉ và lỗi cắt chân trang / khóa 1 trang trên A4 ngang"
       ]
     },
     {

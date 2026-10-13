@@ -7794,6 +7794,7 @@
                 thu_ngan: ord.staff_name || 'Thu ngân',
                 ten_khach: ord.customer_name || 'Khách lẻ',
                 sdt_khach: ord.customer_phone || '-',
+                dia_chi_khach: ord.customer_address || ord.address || '',
                 tong_tien: formatMoney(ord.total_amount || 0),
                 giam_gia: formatMoney(finalDiscountToDisplay),
                 tiet_kiem: formatMoney(totalSavings),
@@ -8164,6 +8165,9 @@
         }
 
         async function showPrintModal(orderCode) {
+            if (typeof window.showPrintModal === 'function' && window.showPrintModal !== showPrintModal) {
+                return window.showPrintModal(orderCode);
+            }
             if (!currentSettings.shop_name) {
                 const resSet = await fetch('/api/settings');
                 currentSettings = await resSet.json();
