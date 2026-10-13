@@ -6677,114 +6677,133 @@
             </div>
 
             <!-- MODAL: XEM CHI TIẾT HÓA ĐƠN BÁN HÀNG -->
-            <div id="modal-order-view" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg p-5 w-[650px] max-w-full space-y-4 text-xs shadow-2xl max-h-[90vh] flex flex-col">
-                    <div class="flex justify-between items-start border-b pb-2">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-base text-slate-800">Chi Tiết Hóa Đơn</h3>
-                                <span id="view-order-code" class="font-mono font-bold bg-sky-100 text-sky-700 px-2 py-0.5 rounded text-xs">HD...</span>
+            <div id="modal-order-view" onclick="if(event.target === this) closeModalOrderView()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center z-50 p-4 transition-opacity">
+                <div class="bg-white rounded-2xl w-[740px] max-w-full shadow-2xl border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden text-slate-800">
+                    <!-- HEADER -->
+                    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-lg border border-sky-100 shrink-0">
+                                🧾
                             </div>
-                            <p class="text-gray-400 text-[11px] mt-0.5" id="view-order-date">2026-09-14 16:00:00</p>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="font-bold text-base text-slate-900">Chi Tiết Hóa Đơn</h3>
+                                    <span id="view-order-code" class="font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-xs border border-slate-200">HD...</span>
+                                    <span id="view-order-status-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"></span>
+                                </div>
+                                <p class="text-slate-400 text-xs mt-0.5 flex items-center gap-1.5">
+                                    <span>🕒 <span id="view-order-date">2026-09-14 16:00:00</span></span>
+                                    <span>•</span>
+                                    <span>Quầy POS</span>
+                                </p>
+                            </div>
                         </div>
-                        <button onclick="closeModalOrderView()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+                        <button onclick="closeModalOrderView()" class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition text-sm font-bold" title="Đóng (ESC)">
+                            ✕
+                        </button>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded border">
-                        <div>
-                            <span class="text-gray-500">Khách Hàng:</span>
-                            <span id="view-order-cust" class="font-bold text-slate-800 ml-1">Khách lẻ</span>
+                    <!-- METADATA BAR -->
+                    <div class="px-6 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-400">Khách hàng:</span>
+                            <span id="view-order-cust" class="font-bold text-slate-800">Khách lẻ</span>
                         </div>
-                        <div>
-                            <span class="text-gray-500">Thu Ngân / Bán Hàng:</span>
-                            <span id="view-order-staff" class="font-bold text-slate-800 ml-1">Thu ngân 1</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-400">Nhân viên:</span>
+                            <span id="view-order-staff" class="font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">Thu ngân</span>
                         </div>
                     </div>
 
-                    <div class="flex-1 overflow-y-auto border rounded">
-                        <table class="w-full text-left border-collapse text-[11px]">
-                            <thead class="bg-gray-100 sticky top-0 border-b">
+                    <!-- BẢNG HÀNG HÓA -->
+                    <div class="flex-1 overflow-y-auto px-6 py-3 min-h-[160px] max-h-[38vh]">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-500 sticky top-0 border-y border-slate-200/80 uppercase text-[10px] tracking-wider font-semibold">
                                 <tr>
-                                    <th class="p-2">STT</th>
-                                    <th class="p-2">Tên Hàng Hóa</th>
-                                    <th class="p-2 text-right">SL</th>
-                                    <th class="p-2 text-right">Đơn Giá</th>
-                                    <th class="p-2 text-right">Thành Tiền</th>
+                                    <th class="py-2 px-2 text-center w-10">STT</th>
+                                    <th class="py-2 px-2">Sản phẩm / Dịch vụ</th>
+                                    <th class="py-2 px-2 text-right w-16">SL</th>
+                                    <th class="py-2 px-2 text-right w-24">Đơn Giá</th>
+                                    <th class="py-2 px-2 text-right w-28">Thành Tiền</th>
                                 </tr>
                             </thead>
-                            <tbody id="view-order-items"></tbody>
+                            <tbody id="view-order-items" class="divide-y divide-slate-100 font-normal"></tbody>
                         </table>
                     </div>
 
-                    <div class="bg-slate-50 p-3 rounded-lg border space-y-2 text-xs">
-                        <!-- PHÂN TÁCH TIỀN HÀNG HÓA VÀ DỊCH VỤ -->
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="bg-blue-50/80 p-2.5 rounded-lg border border-blue-200">
-                                <div class="text-blue-800 font-bold flex items-center justify-between">
-                                    <span>📦 Tiền Sản Phẩm (Hàng Hóa):</span>
+                    <!-- KHỐI TỔNG KẾT TÀI CHÍNH TINH GỌN -->
+                    <div class="px-6 py-3.5 bg-slate-50/90 border-t border-slate-100">
+                        <div class="grid grid-cols-2 gap-4 items-center">
+                            <!-- Cột trái: Phân loại cơ cấu tiền gọn nhẹ -->
+                            <div class="space-y-1.5 text-xs text-slate-500 border-r border-slate-200/60 pr-4">
+                                <div class="flex justify-between items-center">
+                                    <span>Tiền hàng hóa (SP):</span>
+                                    <span class="font-mono font-bold text-slate-700" id="view-order-prod-total">0 đ</span>
                                 </div>
-                                <div class="text-sm font-black font-mono text-blue-900 mt-1" id="view-order-prod-total">0 đ</div>
-                                <div class="text-[10px] text-blue-700 font-medium mt-0.5">⚠️ Bắt buộc trả Tiền Mặt / CK</div>
-                            </div>
-                            <div class="bg-purple-50/80 p-2.5 rounded-lg border border-purple-200">
-                                <div class="text-purple-800 font-bold flex items-center justify-between">
-                                    <span>💆 Tiền Dịch Vụ Spa:</span>
+                                <div class="flex justify-between items-center">
+                                    <span>Tiền dịch vụ (Spa):</span>
+                                    <span class="font-mono text-slate-600" id="view-order-svc-total">0 đ</span>
                                 </div>
-                                <div class="text-sm font-black font-mono text-purple-900 mt-1" id="view-order-svc-total">0 đ</div>
-                                <div class="text-[10px] text-purple-700 font-medium mt-0.5">✅ Được phép trừ Ví Spa</div>
+                                <div class="flex justify-between items-center text-slate-400 text-[11px] pt-1">
+                                    <span>Ghi chú đơn:</span>
+                                    <span class="font-medium text-slate-600 italic truncate max-w-[170px]" id="view-order-note">-</span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="space-y-1.5 pt-1">
-                            <div class="flex justify-between items-center text-slate-600">
-                                <span class="font-medium">Tổng tiền gộp (Sản phẩm + Dịch vụ):</span>
-                                <span id="view-order-total" class="font-bold font-mono text-slate-800">0 đ</span>
-                            </div>
-                            <div class="flex justify-between items-center text-slate-600">
-                                <span class="font-medium">Giảm giá chung:</span>
-                                <span id="view-order-discount" class="text-rose-600 font-mono font-bold">0 đ</span>
-                            </div>
-                            <div class="flex justify-between items-center text-purple-700 font-semibold" id="view-order-wallet-row">
-                                <span class="flex items-center gap-1">💳 Đã trừ Ví Spa (cho dịch vụ):</span>
-                                <span id="view-order-wallet-deduct" class="font-bold font-mono">-0 đ</span>
-                            </div>
-                            <div class="flex justify-between items-center text-sm font-bold border-t border-amber-200 pt-2 bg-amber-50 p-2 rounded border">
-                                <div class="flex flex-col">
-                                    <span class="text-slate-800">👉 Tiền Mặt / Chuyển Khoản phải trả:</span>
-                                    <span class="text-[10px] text-slate-500 font-normal">(= Tiền SP + Tiền DV sau trừ Ví - Giảm giá)</span>
+                            <!-- Cột phải: Dòng tiền thanh toán & Công nợ -->
+                            <div class="space-y-1.5 text-xs">
+                                <div class="flex justify-between items-center text-slate-600">
+                                    <span>Tổng tiền hàng:</span>
+                                    <span id="view-order-total" class="font-mono font-bold text-slate-800">0 đ</span>
                                 </div>
-                                <span id="view-order-final" class="text-amber-800 font-mono text-base font-black">0 đ</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600 font-medium">Khách đã trả (Tiền mặt / CK):</span>
-                                <span id="view-order-paid" class="font-bold font-mono text-emerald-600">0 đ</span>
-                            </div>
-                            <div class="flex justify-between items-center text-rose-700 font-bold bg-rose-50 p-2 rounded border border-rose-200 mt-1" id="view-order-debt-row">
-                                <span>⚠️ Khách còn nợ lại:</span>
-                                <span id="view-order-debt" class="font-mono text-base font-black">0 đ</span>
+                                <div class="flex justify-between items-center text-slate-500">
+                                    <span>Giảm giá chung:</span>
+                                    <span id="view-order-discount" class="font-mono text-slate-700">0 đ</span>
+                                </div>
+                                <div class="flex justify-between items-center text-purple-700 font-medium" id="view-order-wallet-row">
+                                    <span>💳 Đã trừ Ví Spa:</span>
+                                    <span id="view-order-wallet-deduct" class="font-bold font-mono">-0 đ</span>
+                                </div>
+                                <div class="flex justify-between items-center font-bold text-slate-800 border-t border-slate-200/60 pt-1.5">
+                                    <span>Phải thanh toán:</span>
+                                    <span id="view-order-final" class="font-mono text-sm text-slate-900 font-black">0 đ</span>
+                                </div>
+                                <div class="flex justify-between items-center text-emerald-700">
+                                    <span>Khách đã trả:</span>
+                                    <span id="view-order-paid" class="font-mono font-bold">0 đ</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-800 font-bold" id="view-order-debt-row">
+                                    <span class="flex items-center gap-1.5">
+                                        <span>⚠️</span> Còn nợ lại:
+                                    </span>
+                                    <span id="view-order-debt" class="font-mono text-sm text-rose-700 font-black">0 đ</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex justify-between items-center pt-2 border-t">
-                        <div class="flex gap-2">
-                            <button id="btn-pay-debt-from-view" onclick="payDebtFromCurrentOrderView()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1 shadow-xs hidden" title="Lập phiếu thu nợ cho hóa đơn này">
+                    <!-- FOOTER: CỤM NÚT HÀNH ĐỘNG (ĐÃ BỎ NÚT ĐÓNG) -->
+                    <div class="px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between">
+                        <div class="text-[11px] text-slate-400 italic">
+                            💡 Bấm <kbd class="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600 font-mono text-[10px]">ESC</kbd> hoặc nhấp ra ngoài để đóng
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-pay-debt-from-view" onclick="payDebtFromCurrentOrderView()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-1.5 transition hidden" title="Lập phiếu thu nợ cho hóa đơn này">
                                 💵 Thu Nợ Đơn Này
                             </button>
-                            <button onclick="printCurrentViewedOrder()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1">
+                            <button onclick="printCurrentViewedOrder()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-xs shadow-xs flex items-center gap-1.5 transition">
                                 🖨️ In Lại
                             </button>
-                            <button id="btn-return-order-from-view" onclick="openModalOrderReturnFromView()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold flex items-center gap-1" title="Đổi hoặc trả hàng từ hóa đơn này">
+                            <button id="btn-return-order-from-view" onclick="openModalOrderReturnFromView()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs shadow-xs flex items-center gap-1.5 transition" title="Đổi hoặc trả hàng từ hóa đơn này">
                                 🔄 Đổi / Trả Hàng
                             </button>
-                            <button id="btn-edit-order-from-view" onclick="openModalEditOrderFromView()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold flex items-center gap-1">
-                                ✏️ Sửa Hóa Đơn
+                            <button id="btn-edit-order-from-view" onclick="openModalEditOrderFromView()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition">
+                                ✏️ Sửa
                             </button>
-                            <button id="btn-delete-order-from-view" onclick="deleteOrderFromView()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1">
-                                🗑️ Xóa Hóa Đơn
+                            <button id="btn-delete-order-from-view" onclick="deleteOrderFromView()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-semibold text-xs flex items-center gap-1.5 transition">
+                                🗑️ Xóa
                             </button>
                         </div>
-                        <button onclick="closeModalOrderView()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -10625,7 +10644,7 @@
     <script src="/static/js/auth.js?v=20260923_02"></script>
     <script src="/static/js/shifts.js?v=20260923_04"></script>
     <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261007_02"></script>
+    <script src="/static/js/app.js?v=20261013_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261013_01"></script>
     <script src="/static/js/modules/spa.js?v=20260925_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261001_04"></script>

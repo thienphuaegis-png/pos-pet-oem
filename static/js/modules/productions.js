@@ -4763,6 +4763,22 @@
                 if (elDebtRow) elDebtRow.classList.toggle('hidden', debt <= 0);
                 if (btnPayDebt) btnPayDebt.classList.toggle('hidden', debt <= 0 || !ord.customer_id || ord.customer_id === 1);
 
+                const elNote = document.getElementById('view-order-note');
+                if (elNote) {
+                    elNote.textContent = ord.note ? ord.note : '-';
+                }
+
+                const elStatusBadge = document.getElementById('view-order-status-badge');
+                if (elStatusBadge) {
+                    if (debt > 0) {
+                        elStatusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200';
+                        elStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span> Còn nợ ${formatMoney(debt)}`;
+                    } else {
+                        elStatusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+                        elStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Đã thanh toán đủ`;
+                    }
+                }
+
                 window.currentViewedOrderObj = ord;
                 document.getElementById('modal-order-view').classList.remove('hidden');
             } catch (e) {

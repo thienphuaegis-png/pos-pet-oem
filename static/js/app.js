@@ -4426,6 +4426,7 @@
 
                 // C. Đóng các modal lớn đang hiển thị theo thứ tự ưu tiên
                 const activeModals = [
+                    'modal-order-view',
                     'modal-pos-shortcuts-help',
                     'modal-app-version',
                     'modal-edit-topup-tx',
