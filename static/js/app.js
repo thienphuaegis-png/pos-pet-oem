@@ -424,9 +424,8 @@
 
             if (subId === 'company') loadCompanySettings();
             if (subId === 'templates') {
-                if (typeof initUniversalPrintDesigner === 'function') initUniversalPrintDesigner();
-                else if (typeof window.initUniversalPrintDesigner === 'function') window.initUniversalPrintDesigner();
-                else if (typeof loadSettings === 'function') loadSettings();
+                if (typeof loadSettings === 'function') loadSettings();
+                else if (typeof window.loadSettings === 'function') window.loadSettings();
             }
             if (subId === 'staff') { if (typeof loadStaffList === 'function') loadStaffList(); }
             if (subId === 'permissions') { if (typeof loadPermissionsUI === 'function') loadPermissionsUI(); }
