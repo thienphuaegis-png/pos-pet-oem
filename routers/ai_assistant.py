@@ -755,6 +755,8 @@ Trả về DUY NHẤT một JSON hợp lệ (không kèm markdown):
         try:
             ai_res = await call_gemini_vision(api_key, model, prompt, raw_b64, detected_mime)
             if ai_res and isinstance(ai_res, dict) and ai_res.get("detected_type"):
+                if ai_res["detected_type"] not in ["pos_order", "purchase_order", "oem_order", "cashflow_voucher"]:
+                    ai_res["detected_type"] = "pos_order"
                 ai_res["source"] = "gemini_vision"
                 return ai_res
         except Exception as e:

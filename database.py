@@ -1897,6 +1897,15 @@ def init_db():
                         if _tbl and float(_tbl.get("y", 0)) <= _new_ay + 14:
                             _tbl["y"] = _new_ay + 18
                         _p_updated = True
+
+            # Đảm bảo mẫu đại lý chuẩn a4_b2b và k80_standard không bị cờ ẩn nhầm
+            if "a4_b2b" in _presets and _presets["a4_b2b"].get("is_active") is False:
+                _presets["a4_b2b"]["is_active"] = True
+                _p_updated = True
+            if "k80_standard" in _presets and _presets["k80_standard"].get("is_active") is False:
+                _presets["k80_standard"]["is_active"] = True
+                _p_updated = True
+
             if _p_updated:
                 cur.execute("UPDATE settings SET value = ? WHERE key = 'print_blocks_config'", (json.dumps(_pcfg, ensure_ascii=False),))
     except Exception:

@@ -6025,6 +6025,10 @@
                     matchBtn.classList.remove('font-medium', 'text-slate-600');
                     matchBtn.classList.add('active', 'font-bold', 'text-sky-700', 'bg-sky-100/70');
                 }
+                const docSel = document.getElementById('print-doc-type-select');
+                if (docSel && docSel.value !== preset.doc_type) {
+                    docSel.value = preset.doc_type;
+                }
                 renderPresetSelect(preset.doc_type);
             }
 
@@ -6032,6 +6036,11 @@
             window.paperSize = paperSize;
             const sizeSel = document.getElementById('canvas-paper-size');
             if (sizeSel) sizeSel.value = paperSize;
+            const printPaperSel = document.getElementById('print-paper-select');
+            if (printPaperSel) printPaperSel.value = paperSize;
+
+            const presetSel = document.getElementById('canvas-preset-select');
+            if (presetSel && presetSel.value !== presetKey) presetSel.value = presetKey;
             const boldChk = document.getElementById('chk-preset-bold-all');
             if (boldChk) {
                 boldChk.checked = !!preset.is_bold_all;
@@ -6637,6 +6646,8 @@
 
             wrapper.style.transform = `scale(${canvasZoom})`;
             if (text) text.innerText = Math.round(canvasZoom * 100) + '%';
+            const lblZoom = document.getElementById('lbl-print-zoom');
+            if (lblZoom) lblZoom.innerText = Math.round(canvasZoom * 100) + '%';
         }
 
         function updateCanvasBadge() {
@@ -6723,24 +6734,31 @@
                 'stock_audit': 'stock_audit_a4'
             };
 
-            // First check if current active_preset belongs to this docType
-            const curP = multiTemplates.presets ? multiTemplates.presets[multiTemplates.active_preset] : null;
+            // Khi đổi nhóm loại chứng từ, ưu tiên chuyển sang preset chuẩn đại diện của nhóm đó
             let targetPreset = null;
-            if (curP && (curP.doc_type === docType || inferDocTypeFromKey(multiTemplates.active_preset, curP) === docType)) {
-                targetPreset = multiTemplates.active_preset;
-            } else {
-                // Find first preset belonging to docType
-                for (let k in multiTemplates.presets) {
-                    const p = multiTemplates.presets[k];
-                    const dt = p.doc_type || inferDocTypeFromKey(k, p);
-                    if (dt === docType) {
-                        targetPreset = k;
-                        break;
+            if (docType === 'pos_b2b') {
+                if (multiTemplates.presets && multiTemplates.presets['a4_b2b']) targetPreset = 'a4_b2b';
+                else if (multiTemplates.presets && multiTemplates.presets['preset_1789369697524']) targetPreset = 'preset_1789369697524';
+            } else if (docType === 'pos_retail') {
+                if (multiTemplates.presets && multiTemplates.presets['k80_standard']) targetPreset = 'k80_standard';
+                else if (multiTemplates.presets && multiTemplates.presets['k80_default']) targetPreset = 'k80_default';
+            }
+
+            if (!targetPreset) {
+                targetPreset = docMap[docType];
+                if (!targetPreset || !multiTemplates.presets || !multiTemplates.presets[targetPreset]) {
+                    for (let k in multiTemplates.presets) {
+                        const p = multiTemplates.presets[k];
+                        const dt = p.doc_type || inferDocTypeFromKey(k, p);
+                        if (dt === docType) {
+                            targetPreset = k;
+                            break;
+                        }
                     }
                 }
-                if (!targetPreset) {
-                    targetPreset = docMap[docType] || 'k80_standard';
-                }
+            }
+            if (!targetPreset) {
+                targetPreset = docMap[docType] || 'k80_standard';
             }
 
             multiTemplates.active_preset = targetPreset;
@@ -6878,6 +6896,7 @@
                 thu_ngan: "Quản Lý",
                 ten_khach: "Nguyễn Văn A",
                 sdt_khach: "0987654321",
+                dia_chi_khach: "123 Đường Trần Phú, P. Lộc Thọ, Nha Trang",
                 tong_tien: "240.000 đ",
                 giam_gia: "40.000 đ",
                 tiet_kiem: "40.000 đ",
@@ -7126,6 +7145,7 @@
                     txt = txt.replace(/{{thu_ngan}}/g, mockData.thu_ngan);
                     txt = txt.replace(/{{ten_khach}}/g, mockData.ten_khach);
                     txt = txt.replace(/{{sdt_khach}}/g, mockData.sdt_khach);
+                    txt = txt.replace(/{{dia_chi_khach}}/g, mockData.dia_chi_khach);
                     txt = txt.replace(/{{tong_tien}}/g, mockData.tong_tien);
                     txt = txt.replace(/{{giam_gia}}/g, mockData.giam_gia);
                     txt = txt.replace(/{{tiet_kiem}}/g, mockData.tiet_kiem);
@@ -7251,7 +7271,25 @@
                     ${elem.type === 'text' ? `
                     <div>
                         <label class="block font-semibold mb-1 text-xs">Nội dung text / biến:</label>
-                        <input type="text" class="border p-1.5 rounded w-full text-xs" value="${elem.text || ''}" oninput="updateProp('text', this.value)">
+                        <input id="prop-text-input" type="text" class="border p-1.5 rounded w-full text-xs font-medium" value="${elem.text || ''}" oninput="updateProp('text', this.value)">
+                        <div class="mt-2 bg-slate-50 border border-slate-200 rounded p-2">
+                            <span class="text-[10.5px] font-bold text-slate-600 block mb-1">🏷️ Bấm chèn biến nhanh vào ô:</span>
+                            <div class="flex flex-wrap gap-1">
+                                <button type="button" onclick="insertTagToPropText('{{ten_cua_hang}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Tên shop</button>
+                                <button type="button" onclick="insertTagToPropText('{{dia_chi}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Đ/C shop</button>
+                                <button type="button" onclick="insertTagToPropText('{{so_dien_thoai}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Hotline</button>
+                                <button type="button" onclick="insertTagToPropText('{{ma_hoa_don}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Mã HĐ</button>
+                                <button type="button" onclick="insertTagToPropText('{{ngay_gio}}')" class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-mono hover:bg-sky-100">+ Ngày giờ</button>
+                                <button type="button" onclick="insertTagToPropText('{{ten_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100">+ Tên khách</button>
+                                <button type="button" onclick="insertTagToPropText('{{sdt_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100">+ SĐT khách</button>
+                                <button type="button" onclick="insertTagToPropText('{{dia_chi_khach}}')" class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono hover:bg-purple-100 font-bold">+ Đ/C khách</button>
+                                <button type="button" onclick="insertTagToPropText('{{thu_ngan}}')" class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-mono hover:bg-slate-200">+ Thu ngân</button>
+                                <button type="button" onclick="insertTagToPropText('{{tong_tien}}')" class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono hover:bg-emerald-100">+ Tổng tiền</button>
+                                <button type="button" onclick="insertTagToPropText('{{giam_gia}}')" class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono hover:bg-emerald-100">+ Giảm giá</button>
+                                <button type="button" onclick="insertTagToPropText('{{phai_tra}}')" class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-mono hover:bg-rose-100 font-bold">+ Phải trả</button>
+                                <button type="button" onclick="insertTagToPropText('{{con_no}}')" class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-mono hover:bg-rose-100">+ Còn nợ</button>
+                            </div>
+                        </div>
                     </div>` : ''}
                     <div>
                         <div class="flex justify-between items-center mb-1">
@@ -7326,6 +7364,19 @@
                 renderPropsPanel();
             }
         }
+
+        function insertTagToPropText(tag) {
+            const inp = document.getElementById('prop-text-input');
+            if (!inp) return;
+            const start = inp.selectionStart !== undefined ? inp.selectionStart : inp.value.length;
+            const end = inp.selectionEnd !== undefined ? inp.selectionEnd : inp.value.length;
+            const val = inp.value;
+            inp.value = val.substring(0, start) + tag + val.substring(end);
+            inp.focus();
+            inp.setSelectionRange(start + tag.length, start + tag.length);
+            updateProp('text', inp.value);
+        }
+        window.insertTagToPropText = insertTagToPropText;
 
         // Mouse Drag & Resize Logic — snap-to-grid + snap-to-elements
         let isDragging = false;
