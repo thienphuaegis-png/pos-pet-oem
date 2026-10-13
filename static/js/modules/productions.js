@@ -4798,9 +4798,10 @@
             const debt = ord.debt_amount || 0;
             const code = ord.code;
             const custId = ord.customer_id;
+            const ordId = ord.id;
             closeModalOrderView();
             if (typeof openPayDebtModal === 'function') {
-                await openPayDebtModal(custId);
+                await openPayDebtModal(custId, ordId);
                 const amtInput = document.getElementById('pay-debt-amount');
                 if (amtInput && debt > 0) amtInput.value = debt;
                 const noteInput = document.getElementById('pay-debt-note');

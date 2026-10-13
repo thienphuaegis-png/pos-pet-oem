@@ -385,11 +385,13 @@ def delete_cashbook_voucher(
     # 2. Hoàn tác công nợ khách hàng khi xóa phiếu thu nợ
     elif cb_type in ("in", "thu") and (
         category == "Thu nợ khách hàng" or
-        ref_type in ("contact_debt", "customer_debt") or
+        ref_type in ("contact_debt", "customer_debt", "order_debt") or
         code.startswith("PT-CN")
     ):
         if contact_id and amount > 0:
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (amount, contact_id))
+            if ref_type == "order_debt" and ref_id:
+                cur.execute("UPDATE orders SET debt_amount = debt_amount + ?, paid_amount = MAX(0.0, paid_amount - ?) WHERE id = ?", (amount, amount, ref_id))
 
     cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))

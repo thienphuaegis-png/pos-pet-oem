@@ -54,6 +54,7 @@ class ContactPayDebt(BaseModel):
     account_id: Optional[int] = None
     fund_source: Optional[str] = "COMPANY"
     payment_date: Optional[str] = None
+    order_id: Optional[int] = None
 
 class PetCreate(BaseModel):
     name: str
@@ -746,6 +747,19 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
     c_debt = float(c["initial_debt_company"] or 0.0)
     p_debt = float(c["initial_debt_personal"] or 0.0)
     
+    acc_id = req.account_id
+    if not acc_id:
+        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
+        row_acc = cur.fetchone()
+        acc_id = row_acc[0] if row_acc else None
+
+    pay_method = "cash"
+    if acc_id:
+        cur.execute("SELECT account_type FROM payment_accounts WHERE id = ?", (acc_id,))
+        acc_row = cur.fetchone()
+        if acc_row and acc_row["account_type"] != "cash":
+            pay_method = "transfer"
+
     if c["type"] == "supplier":
         # Cấn trừ giảm nợ trên các đơn nhập hàng chưa thanh toán
         if fund_src == "PERSONAL":
@@ -779,29 +793,70 @@ def pay_contact_debt(contact_id: int, req: ContactPayDebt, user=Depends(require_
         cur.execute("UPDATE contacts SET debt = ?, initial_debt_company = ?, initial_debt_personal = ? WHERE id = ?", 
                     (new_debt, c_debt, p_debt, contact_id))
     else:
+        rem_pay = req.amount
+        # 1. Cấn trừ đơn chỉ định trước nếu có
+        if req.order_id:
+            cur.execute("""
+                SELECT id, debt_amount, paid_amount 
+                FROM orders 
+                WHERE id = ? AND customer_id = ? AND debt_amount > 0 AND status != 'cancelled'
+            """, (req.order_id, contact_id))
+            target_order = cur.fetchone()
+            if target_order:
+                alloc = min(rem_pay, float(target_order["debt_amount"]))
+                cur.execute("""
+                    UPDATE orders 
+                    SET debt_amount = debt_amount - ?, paid_amount = paid_amount + ? 
+                    WHERE id = ?
+                """, (alloc, alloc, target_order["id"]))
+                cur.execute("""
+                    INSERT INTO order_payments (order_id, method, amount, account_id)
+                    VALUES (?, ?, ?, ?)
+                """, (target_order["id"], pay_method, alloc, acc_id))
+                rem_pay -= alloc
+
+        # 2. Nếu còn dư tiền (hoặc không chỉ định đơn), cấn trừ theo thứ tự FIFO
+        if rem_pay > 0:
+            cur.execute("""
+                SELECT id, debt_amount, paid_amount 
+                FROM orders 
+                WHERE customer_id = ? AND debt_amount > 0 AND status != 'cancelled'
+                ORDER BY id ASC
+            """, (contact_id,))
+            unpaid_orders = [dict(r) for r in cur.fetchall()]
+            for ord_row in unpaid_orders:
+                if rem_pay <= 0:
+                    break
+                alloc = min(rem_pay, float(ord_row["debt_amount"]))
+                cur.execute("""
+                    UPDATE orders 
+                    SET debt_amount = debt_amount - ?, paid_amount = paid_amount + ? 
+                    WHERE id = ?
+                """, (alloc, alloc, ord_row["id"]))
+                cur.execute("""
+                    INSERT INTO order_payments (order_id, method, amount, account_id)
+                    VALUES (?, ?, ?, ?)
+                """, (ord_row["id"], pay_method, alloc, acc_id))
+                rem_pay -= alloc
+
         cur.execute("UPDATE contacts SET debt = ? WHERE id = ?", (new_debt, contact_id))
     
     cb_type = "in" if c["type"] == "customer" else "out"
     cb_cat = "Thu nợ khách hàng" if c["type"] == "customer" else "Chi trả nợ NCC"
-    ref_type = "contact_debt" if c["type"] == "customer" else "supplier_debt"
+    ref_type = "order_debt" if (c["type"] == "customer" and req.order_id) else ("contact_debt" if c["type"] == "customer" else "supplier_debt")
+    ref_id = req.order_id if (c["type"] == "customer" and req.order_id) else None
     prefix = "PT-CN" if c["type"] == "customer" else "PC-NH"
     cb_code = generate_cashbook_code(cur, prefix)
-    
-    acc_id = req.account_id
-    if not acc_id:
-        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-        row_acc = cur.fetchone()
-        acc_id = row_acc[0] if row_acc else None
 
     user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
     note = f"Thanh toán nợ cho {c['name']} (Nợ cũ: {current_debt:,.0f} đ, Thu/Chi: {req.amount:,.0f} đ). {req.note or ''}".strip()
     if req.payment_date:
         cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
-        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, note, account_id, fund_source, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, note, acc_id, fund_src, user_name, cb_created_at))
+        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, fund_source, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, ref_id, note, acc_id, fund_src, user_name, cb_created_at))
     else:
-        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, note, account_id, fund_source, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, note, acc_id, fund_src, user_name))
+        cur.execute("INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, fund_source, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cb_code, cb_type, cb_cat, req.amount, contact_id, ref_type, ref_id, note, acc_id, fund_src, user_name))
     conn.commit()
     conn.close()
     return {"status": "ok", "new_debt": new_debt}

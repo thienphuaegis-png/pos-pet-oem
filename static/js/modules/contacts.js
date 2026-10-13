@@ -409,10 +409,16 @@
             }
         }
 
-        async function openPayDebtModal(id) {
+        async function openPayDebtModal(id, orderId = null) {
             const c = (allContacts || []).find(item => item.id === id);
             if (!c) return;
             document.getElementById('pay-debt-contact-id').value = c.id;
+            const orderIdEl = document.getElementById('pay-debt-order-id');
+            if (orderIdEl) orderIdEl.value = orderId || '';
+            const titleEl = document.getElementById('modal-pay-debt-title');
+            if (titleEl) {
+                titleEl.textContent = orderId ? 'Thu Nợ Hóa Đơn' : 'Thanh Toán Công Nợ';
+            }
             document.getElementById('pay-debt-contact-name').textContent = `${c.name} (${c.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'})`;
             document.getElementById('pay-debt-current').textContent = formatMoney(c.debt);
             document.getElementById('pay-debt-amount').value = c.debt;
@@ -460,6 +466,8 @@
             const fundEl = document.querySelector('input[name="pay-debt-fund"]:checked');
             const fund_source = fundEl ? fundEl.value : 'COMPANY';
             const payment_date = document.getElementById('pay-debt-date')?.value || null;
+            const orderIdVal = document.getElementById('pay-debt-order-id')?.value;
+            const order_id = orderIdVal ? (parseInt(orderIdVal) || null) : null;
 
             if (amount <= 0) {
                 alert('Số tiền thanh toán phải lớn hơn 0!');
@@ -470,7 +478,7 @@
                 const res = await fetch(`/api/contacts/${id}/pay-debt`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount, note, account_id, fund_source, payment_date })
+                    body: JSON.stringify({ amount, note, account_id, fund_source, payment_date, order_id })
                 });
                 if (!res.ok) {
                     const err = await res.json();
@@ -480,6 +488,14 @@
                 closePayDebtModal();
                 await loadContacts();
                 if (typeof loadCashbook === 'function') loadCashbook();
+                if (typeof loadOrders === 'function') loadOrders();
+                if (typeof window.loadOrders === 'function' && window.loadOrders !== loadOrders) window.loadOrders();
+                if (typeof currentViewedOrderCode !== 'undefined' && currentViewedOrderCode && typeof openModalOrderView === 'function') {
+                    const viewModal = document.getElementById('modal-order-view');
+                    if (viewModal && !viewModal.classList.contains('hidden')) {
+                        openModalOrderView(currentViewedOrderCode);
+                    }
+                }
                 alert('Đã thanh toán công nợ và cập nhật sổ quỹ thành công!');
             } catch (e) {
                 alert('Lỗi kết nối máy chủ');
