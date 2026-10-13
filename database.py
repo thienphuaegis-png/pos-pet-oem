@@ -1833,6 +1833,43 @@ def init_db():
     """)
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mkt_sku_map ON marketplace_sku_mappings(platform, platform_sku, platform_item_name, platform_variation)")
 
+    # Tự động đồng bộ phần tử địa chỉ khách hàng vào các preset in A4/B2B nếu chưa có
+    try:
+        cur.execute("SELECT value FROM settings WHERE key = 'print_blocks_config'")
+        _prow = cur.fetchone()
+        if _prow and _prow[0]:
+            import json
+            _pcfg = json.loads(_prow[0])
+            _presets = _pcfg.get("presets", {})
+            _p_updated = False
+            for _pkey, _pdata in _presets.items():
+                _elems = _pdata.get("elements", [])
+                _has_addr = any(_e.get("catalog_key") == "customer_address" or "dia_chi_khach" in (_e.get("text") or "") for _e in _elems)
+                if not _has_addr:
+                    _cidx = next((_i for _i, _e in enumerate(_elems) if _e.get("catalog_key") == "customer" or "ten_khach" in (_e.get("text") or "")), -1)
+                    if _cidx >= 0:
+                        _ce = _elems[_cidx]
+                        _new_e = {
+                            "id": f"elem_addr_{_pkey}",
+                            "catalog_key": "customer_address",
+                            "zone": "header",
+                            "type": "text",
+                            "text": "Địa chỉ: {{dia_chi_khach}}",
+                            "label": "Địa Chỉ Khách",
+                            "x": _ce.get("x", 40),
+                            "y": _ce.get("y", 147) + 16,
+                            "w": _ce.get("w", 550),
+                            "fsz": max(9, _ce.get("fsz", 10) - 0.5),
+                            "bold": False,
+                            "align": _ce.get("align", "left")
+                        }
+                        _elems.insert(_cidx + 1, _new_e)
+                        _p_updated = True
+            if _p_updated:
+                cur.execute("UPDATE settings SET value = ? WHERE key = 'print_blocks_config'", (json.dumps(_pcfg, ensure_ascii=False),))
+    except Exception:
+        pass
+
     conn.commit()
     conn.close()
 

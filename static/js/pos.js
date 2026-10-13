@@ -1107,6 +1107,7 @@ async function selectCustomerForActiveTab(customerId) {
         id: cust.id,
         name: cust.name,
         phone: cust.phone || '',
+        address: cust.address || '',
         points: cust.points !== undefined ? cust.points : (cust.reward_points || 0),
         spa_wallet_balance: cust.spa_wallet_balance || 0,
         segment_id: cust.segment_id || null,
@@ -2710,6 +2711,38 @@ function renderAndPrint(ord, isDraft = false) {
         }
     }
 
+    // Tự động chèn Địa Chỉ Khách Hàng cho các mẫu in (A4/A5/B2B/K80) nếu khách có địa chỉ mà mẫu chưa có phần tử
+    const hasCustAddress = !!(printData.dia_chi_khach && printData.dia_chi_khach.trim());
+    const addrElem = effectiveElements.find(e => e.catalog_key === 'customer_address' || (e.text && e.text.includes('{{dia_chi_khach}}')));
+    if (hasCustAddress && !addrElem) {
+        const custElem = effectiveElements.find(e => e.catalog_key === 'customer' || (e.text && e.text.includes('{{ten_khach}}')));
+        if (custElem) {
+            const insY = (custElem.y || 147) + 16;
+            const insX = custElem.x || (isThermal ? 10 : 30);
+            const insW = custElem.w || (isThermal ? 270 : 550);
+            const insFsz = Math.max(9, (custElem.fsz || 10) - 0.5);
+            effectiveElements.forEach(e => {
+                if ((e.zone || 'header') === 'header' && e !== custElem && (e.y || 0) >= insY && Math.abs((e.x || 0) - insX) < 120) {
+                    e.y = (e.y || 0) + 16;
+                }
+            });
+            effectiveElements.push({
+                id: "e_auto_customer_address",
+                catalog_key: "customer_address",
+                zone: "header",
+                type: "text",
+                text: "Địa chỉ: {{dia_chi_khach}}",
+                label: "Địa Chỉ Khách Hàng",
+                x: insX,
+                y: insY,
+                w: insW,
+                fsz: insFsz,
+                bold: false,
+                align: custElem.align || "left"
+            });
+        }
+    }
+
     // Tính deltaY giãn chân trang theo số lượng dòng sản phẩm
     const tableElem = effectiveElements.find(e => e.type === 'table' || e.type === 'table_b2b');
     let deltaY = 0;
@@ -2858,8 +2891,8 @@ function renderAndPrint(ord, isDraft = false) {
     </style>
     <div class="print-preview-wrapper" style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 100%; padding: 4px 0;">
         ${watermarkHtml}
-        <div class="print-container" style="width: ${dim.width}; margin: 0 auto; background: white; overflow: hidden; position: relative; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; border-radius: 4px;">
-            <div class="print-inner" style="position: relative; width: ${canvasW}px; height: ${canvasH}px; font-family: Arial, sans-serif; overflow: hidden; page-break-inside: avoid; break-inside: avoid;">`;
+        <div class="print-container" style="width: ${dim.width}; margin: 0 auto; background: white; overflow: visible; position: relative; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div class="print-inner" style="position: relative; width: ${canvasW}px; min-height: ${canvasH}px; font-family: Arial, sans-serif; overflow: visible; page-break-inside: avoid; break-inside: avoid;">`;
 
     effectiveElements.forEach(e => {
         let content = '';
@@ -3293,8 +3326,8 @@ function printInvoiceDirectly() {
                     padding: 0 !important;
                     background: white !important;
                     width: 100% !important;
-                    height: 100% !important;
-                    overflow: hidden !important;
+                    height: auto !important;
+                    overflow: visible !important;
                 }
                 * {
                     box-sizing: border-box;
@@ -3306,19 +3339,20 @@ function printInvoiceDirectly() {
                     border: none !important;
                     margin: 0 auto !important;
                     padding: 0 !important;
-                    overflow: hidden !important;
-                    page-break-after: avoid !important;
-                    page-break-inside: avoid !important;
-                    break-inside: avoid !important;
-                    break-after: avoid !important;
+                    overflow: visible !important;
+                    page-break-after: auto !important;
+                    page-break-inside: auto !important;
+                    break-inside: auto !important;
+                    break-after: auto !important;
                 }
                 .print-inner {
                     transform-origin: top center !important;
                     margin: 0 auto !important;
-                    page-break-after: avoid !important;
-                    page-break-inside: avoid !important;
-                    break-inside: avoid !important;
-                    break-after: avoid !important;
+                    overflow: visible !important;
+                    page-break-after: auto !important;
+                    page-break-inside: auto !important;
+                    break-inside: auto !important;
+                    break-after: auto !important;
                 }
             </style>
         </head>
