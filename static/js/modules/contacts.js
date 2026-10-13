@@ -410,7 +410,15 @@
         }
 
         async function openPayDebtModal(id, orderId = null) {
-            const c = (allContacts || []).find(item => item.id === id);
+            let c = (allContacts || []).find(item => item.id === id) || (typeof posContacts !== 'undefined' ? (posContacts || []).find(item => item.id === id) : null);
+            if (!c) {
+                try {
+                    const res = await fetch(`/api/contacts/${id}`);
+                    if (res.ok) c = await res.json();
+                } catch (e) {
+                    console.error('Lỗi tải contact:', e);
+                }
+            }
             if (!c) return;
             document.getElementById('pay-debt-contact-id').value = c.id;
             const orderIdEl = document.getElementById('pay-debt-order-id');
@@ -488,12 +496,16 @@
                 closePayDebtModal();
                 await loadContacts();
                 if (typeof loadCashbook === 'function') loadCashbook();
-                if (typeof loadOrders === 'function') loadOrders();
-                if (typeof window.loadOrders === 'function' && window.loadOrders !== loadOrders) window.loadOrders();
-                if (typeof currentViewedOrderCode !== 'undefined' && currentViewedOrderCode && typeof openModalOrderView === 'function') {
-                    const viewModal = document.getElementById('modal-order-view');
-                    if (viewModal && !viewModal.classList.contains('hidden')) {
-                        openModalOrderView(currentViewedOrderCode);
+                if (typeof applyOrdersFilters === 'function') applyOrdersFilters();
+                if (typeof window.applyOrdersFilters === 'function' && window.applyOrdersFilters !== applyOrdersFilters) window.applyOrdersFilters();
+                if (typeof loadOrdersList === 'function') loadOrdersList();
+                if (typeof window.loadOrdersList === 'function' && window.loadOrdersList !== loadOrdersList) window.loadOrdersList();
+                if (typeof currentViewedOrderCode !== 'undefined' && currentViewedOrderCode) {
+                    if (typeof viewOrderDetailModal === 'function') {
+                        const viewModal = document.getElementById('modal-order-view');
+                        if (viewModal && !viewModal.classList.contains('hidden')) {
+                            viewOrderDetailModal(currentViewedOrderCode);
+                        }
                     }
                 }
                 alert('Đã thanh toán công nợ và cập nhật sổ quỹ thành công!');
