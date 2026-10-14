@@ -32,12 +32,13 @@ deploy/QR_POS.png
 deploy/server_ip.txt
 
 # KHOÁ RIÊNG của từng tiệm — KHÔNG BAO GIỜ được commit
-deploy/khoa_tiem
-deploy/khoa_tiem.pub
-deploy/khoa_tiem.txt
+deploy/khoa_tiem*
 deploy/_file_moi_*.bat
+deploy/_file_moi_tiem*.bat
 CAI_DAT_POS_ONLINE_*.bat
 deploy/CAI_DAT_POS_ONLINE_*.bat
+deploy/legacy_scripts/CAI_DAT_POS_ONLINE_*.bat
+deploy/legacy_scripts/CAI_DAT_POS_ONLINE_TIEM_*.bat
 *.pem
 id_ed25519*
 id_rsa*

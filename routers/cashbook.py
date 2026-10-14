@@ -348,13 +348,40 @@ def delete_cashbook_voucher(
     fund_src = (current.get("fund_source") or "COMPANY").upper()
     code = current.get("code") or ""
 
+    # Chặn xóa trực tiếp phiếu thu của đơn hàng bán lẻ tại Sổ Quỹ
+    if ref_type == "order":
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Không thể xóa trực tiếp phiếu thu của đơn hàng bán lẻ tại Sổ Quỹ (chỉ được phép xóa phiếu chi hoặc phiếu thu nạp ví Spa). Vui lòng hủy hoặc sửa từ màn hình Hóa Đơn!"
+        )
+
     # 1. Hoàn tác công nợ NCC khi xóa phiếu chi trả nợ / chi mua hàng
     if cb_type in ("out", "chi") and (
         category in ("Chi trả nợ NCC", "Chi tiền nhập hàng", "OEM_PAYMENT") or
         ref_type in ("supplier_debt", "purchase", "oem_order") or
         code.startswith("PC-NH")
     ):
-        if contact_id and amount > 0:
+        if ref_type == "purchase" and ref_id and amount > 0:
+            if contact_id:
+                cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (amount, contact_id))
+            cur.execute("""
+                UPDATE purchases 
+                SET debt_amount = debt_amount + ?, paid_amount = MAX(0.0, paid_amount - ?)
+                WHERE id = ?
+            """, (amount, amount, ref_id))
+
+        elif ref_type == "oem_order" and ref_id and amount > 0:
+            if contact_id:
+                cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (amount, contact_id))
+            cur.execute("""
+                UPDATE oem_orders 
+                SET remaining_payment = remaining_payment + ?, deposit_amount = MAX(0.0, deposit_amount - ?)
+                WHERE id = ?
+            """, (amount, amount, ref_id))
+
+        elif contact_id and amount > 0:
+            # ref_type == "supplier_debt" hoặc trả nợ đầu kỳ
             if fund_src == "PERSONAL":
                 cur.execute("""
                     UPDATE contacts 
@@ -368,20 +395,6 @@ def delete_cashbook_voucher(
                     WHERE id = ?
                 """, (amount, amount, contact_id))
 
-        if ref_type == "purchase" and ref_id and amount > 0:
-            cur.execute("""
-                UPDATE purchases 
-                SET debt_amount = debt_amount + ?, paid_amount = MAX(0.0, paid_amount - ?)
-                WHERE id = ?
-            """, (amount, amount, ref_id))
-
-        if ref_type == "oem_order" and ref_id and amount > 0:
-            cur.execute("""
-                UPDATE oem_orders 
-                SET remaining_payment = remaining_payment + ?, deposit_amount = MAX(0.0, deposit_amount - ?)
-                WHERE id = ?
-            """, (amount, amount, ref_id))
-
     # 2. Hoàn tác công nợ khách hàng khi xóa phiếu thu nợ
     elif cb_type in ("in", "thu") and (
         category == "Thu nợ khách hàng" or
@@ -392,6 +405,47 @@ def delete_cashbook_voucher(
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (amount, contact_id))
             if ref_type == "order_debt" and ref_id:
                 cur.execute("UPDATE orders SET debt_amount = debt_amount + ?, paid_amount = MAX(0.0, paid_amount - ?) WHERE id = ?", (amount, amount, ref_id))
+
+    # 3. Hoàn tác Ví Spa & điểm tích lũy khi xóa phiếu thu Nạp Ví (topup)
+    if cb_type in ("in", "thu") and (
+        ref_type == "topup" or (code and code.startswith("PT-VI")) or ("nạp ví" in category.lower())
+    ):
+        tx = None
+        if ref_id:
+            cur.execute("SELECT * FROM spa_wallet_transactions WHERE id = ?", (ref_id,))
+            tx = cur.fetchone()
+        if not tx and contact_id:
+            cur.execute("SELECT * FROM spa_wallet_transactions WHERE contact_id = ? ORDER BY id DESC LIMIT 1", (contact_id,))
+            tx = cur.fetchone()
+
+        if tx:
+            tx_id = tx["id"]
+            tx_contact_id = tx["contact_id"] or contact_id
+            wallet_added = float(tx["amount"] or 0.0)
+            pts_earned = int(tx["points_earned"] or 0)
+
+            cur.execute("""
+                UPDATE contacts 
+                SET spa_wallet_balance = MAX(0.0, COALESCE(spa_wallet_balance, 0) - ?),
+                    points = MAX(0, COALESCE(points, 0) - ?)
+                WHERE id = ?
+            """, (wallet_added, pts_earned, tx_contact_id))
+
+            # Cập nhật lại hạng khách hàng theo số điểm mới
+            cur.execute("SELECT points FROM contacts WHERE id = ?", (tx_contact_id,))
+            c_row = cur.fetchone()
+            if c_row:
+                new_points = c_row["points"] or 0
+                cur.execute("""
+                    SELECT id FROM customer_segments
+                    WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
+                    ORDER BY min_points DESC, priority DESC, id DESC LIMIT 1
+                """, (new_points,))
+                seg_row = cur.fetchone()
+                seg_id = seg_row["id"] if seg_row else None
+                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (seg_id, tx_contact_id))
+
+            cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (tx_id,))
 
     cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
@@ -763,7 +817,7 @@ def get_reports_analytics(
     hotel_count = 0
     try:
         cur.execute("""
-        SELECT COUNT(id) as cnt, COALESCE(SUM(total_price), 0) as total_hotel
+        SELECT COUNT(id) as cnt, COALESCE(SUM(total_amount), 0) as total_hotel
         FROM hotel_bookings
         WHERE created_at >= ? AND created_at <= ?
         """, (from_dt_str, to_dt_str))
@@ -771,6 +825,21 @@ def get_reports_analytics(
         if h_row:
             hotel_rev = h_row["total_hotel"] or 0
             hotel_count = h_row["cnt"] or 0
+    except Exception:
+        pass
+
+    # Bổ sung doanh thu từ pet_service_tickets vào chỉ số services_rev và services_qty
+    try:
+        cur.execute("""
+        SELECT COUNT(id) as cnt, COALESCE(SUM(price), 0) as total_spa
+        FROM pet_service_tickets
+        WHERE created_at >= ? AND created_at <= ?
+          AND (payment_status = 'paid' OR status IN ('completed', 'checked_out', 'done'))
+        """, (from_dt_str, to_dt_str))
+        spa_row = cur.fetchone()
+        if spa_row:
+            services_rev += spa_row["total_spa"] or 0
+            services_qty += spa_row["cnt"] or 0
     except Exception:
         pass
 

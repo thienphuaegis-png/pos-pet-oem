@@ -31,7 +31,7 @@ else:
 def start_ngrok(target_dir):
     ngrok_exe = os.path.join(target_dir, "ngrok.exe")
     if os.path.exists(ngrok_exe):
-        ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "3K25d5cxaDd9RJc49PeyZgmDyDn_5YKJ9WoKu1ifynvjKanRh")
+        ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "")
         if ngrok_token:
             try:
                 subprocess.run([ngrok_exe, "config", "add-authtoken", ngrok_token], cwd=target_dir, capture_output=True)

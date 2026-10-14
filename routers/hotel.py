@@ -6,6 +6,7 @@ from datetime import datetime, date
 import math
 import json
 from database import get_db
+from routers.cashbook import generate_cashbook_code
 from schemas import (
     HotelRoomCreate, HotelRoomUpdate,
     HotelBookingCheckin, HotelBookingCheckout,
@@ -713,7 +714,7 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depen
         
         # Cập nhật phiếu lưu trú thành completed
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
-        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_vn = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("""
             UPDATE hotel_bookings
             SET status = 'completed',
@@ -727,6 +728,37 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depen
         
         # Giải phóng phòng về available
         cursor.execute("UPDATE hotel_rooms SET status = 'available' WHERE id = ?", (booking["room_id"],))
+
+        # Ghi nhận sổ quỹ cashbook cho số tiền thực thu lúc trả phòng
+        payable_cash = max(0.0, float(total_amount) - float(booking["deposit_amount"] or 0) + max(0.0, spa_total - wallet_deduction))
+        if payable_cash > 0:
+            acc_type = 'cash' if (data.payment_method or 'cash') == 'cash' else 'bank'
+            cursor.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
+            acc_row = cursor.fetchone()
+            account_id = acc_row["id"] if acc_row else None
+            if not account_id:
+                cursor.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+                acc_row = cursor.fetchone()
+                account_id = acc_row["id"] if acc_row else None
+
+            shift_id = None
+            if user and isinstance(user, dict) and "id" in user:
+                cursor.execute("SELECT id FROM shifts WHERE cashier_id = ? AND status = 'open' LIMIT 1", (user["id"],))
+                s_row = cursor.fetchone()
+                if s_row:
+                    shift_id = s_row["id"]
+            if not shift_id:
+                cursor.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
+                s_row = cursor.fetchone()
+                if s_row:
+                    shift_id = s_row["id"]
+
+            cb_code = generate_cashbook_code(cursor, "PT-KS")
+            note_str = f"Thu tiền khách sạn phòng {booking['room_id']} - Phiếu {booking['code']}"
+            cursor.execute("""
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                VALUES (?, 'in', 'Thu tiền khách sạn thú cưng', ?, ?, 'hotel_booking', ?, ?, ?, ?)
+            """, (cb_code, payable_cash, booking["contact_id"], booking_id, note_str, account_id, shift_id))
         
         conn.commit()
         return {

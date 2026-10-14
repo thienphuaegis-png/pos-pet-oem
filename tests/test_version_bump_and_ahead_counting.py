@@ -25,9 +25,16 @@ def test_git_commits_ahead_calculation():
 
 
 def test_dynamic_version_increments_when_ahead(monkeypatch):
+    import json
+    with open("version.json", "r", encoding="utf-8") as f:
+        base_v = json.load(f)["version"]
+    prefix, parts = parse_semver(base_v)
+    expected_v = f"{prefix}{parts[0]}.{parts[1]}.{parts[2] + 3}"
+
     # Giả lập base_commit bị lùi lại 3 commits
+    monkeypatch.setattr("version_helper._VERSION_CACHE", None)
     monkeypatch.setattr("version_helper.get_git_commits_ahead", lambda base: 3)
     info = get_app_version_info()
     assert info["commits_ahead"] == 3
-    # Phải tự động tăng thêm 3 vào số patch của version.json (v3.6.1 + 3 = v3.6.4)
-    assert info["version"] == "v3.6.4"
+    # Phải tự động tăng thêm 3 vào số patch của version.json
+    assert info["version"] == expected_v

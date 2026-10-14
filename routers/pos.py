@@ -555,6 +555,8 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
         if orig_order["status"] != "completed":
             raise HTTPException(status_code=400, detail="Chỉ có thể đổi trả đơn hàng đã hoàn thành")
 
+        warehouse_id = orig_order["warehouse_id"] if "warehouse_id" in orig_order.keys() and orig_order["warehouse_id"] else 1
+
         if not req.return_items:
             raise HTTPException(status_code=400, detail="Danh sách hàng trả không được để trống")
 
@@ -676,8 +678,8 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
                 seq += 1
 
             cur.execute("""
-                INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, shift_id, status)
-                VALUES (?, ?, ?, ?, 0, 0, ?, ?, 0, ?, ?, 'completed')
+                INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, shift_id, warehouse_id, status)
+                VALUES (?, ?, ?, ?, 0, 0, ?, ?, 0, ?, ?, ?, 'completed')
             """, (
                 exc_order_code,
                 orig_order["customer_id"],
@@ -686,7 +688,8 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
                 exchange_total,
                 exchange_total,
                 f"Đơn đổi hàng từ phiếu {return_code}",
-                shift_id
+                shift_id,
+                warehouse_id
             ))
             exchange_order_id = cur.lastrowid
 
@@ -703,6 +706,37 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
                 # Trừ kho sản phẩm đổi (nếu không phải service)
                 if e_item["type"] != "service":
                     cur.execute("UPDATE products SET stock = stock - ? WHERE id = ?", (base_qty, e_item["product_id"]))
+                    cur.execute("""
+                        INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                            quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, e_item["product_id"], -base_qty, base_qty))
+
+                    cur.execute("""
+                        SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                        FROM product_bom b
+                        JOIN ingredients i ON b.ingredient_id = i.id
+                        WHERE b.product_id = ?
+                    """, (e_item["product_id"],))
+                    bom_rows = cur.fetchall()
+                    for bom in bom_rows:
+                        if bom["ingredient_type"] == 'SERVICE':
+                            continue
+                        total_consumed = bom["quantity"] * base_qty
+                        cur.execute("""
+                            INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                            ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                                quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                        """, (warehouse_id, bom["ingredient_id"], -total_consumed, total_consumed))
+                        cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, bom["ingredient_id"]))
+                        bal_row = cur.fetchone()
+                        balance_after = bal_row["quantity"] if bal_row else 0
+                        cur.execute("""
+                            INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, order_id, order_code, note)
+                            VALUES (?, ?, 'SALE', ?, ?, ?, ?, ?)
+                        """, (bom["ingredient_id"], warehouse_id, -total_consumed, balance_after, exchange_order_id, exc_order_code, f"Đổi hàng {exc_order_code}"))
 
         # 9. Ghi nhận phiếu trả vào bảng order_returns
         cur.execute("""
@@ -741,7 +775,42 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
             ))
 
             if r_item["return_to_stock"] == 1 and r_item["type"] != "service":
-                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (r_item["quantity"], r_item["product_id"]))
+                matching_oi = next((oi for oi in orig_items if oi["id"] == r_item["original_item_id"]), None)
+                unit_ratio = float(matching_oi["unit_ratio"] or 1) if (matching_oi and "unit_ratio" in matching_oi and matching_oi["unit_ratio"]) else 1.0
+                base_return_qty = round(r_item["quantity"] * unit_ratio, 4)
+
+                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (base_return_qty, r_item["product_id"]))
+                cur.execute("""
+                    INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                        quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                """, (warehouse_id, r_item["product_id"], base_return_qty, base_return_qty))
+
+                cur.execute("""
+                    SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                    FROM product_bom b
+                    JOIN ingredients i ON b.ingredient_id = i.id
+                    WHERE b.product_id = ?
+                """, (r_item["product_id"],))
+                bom_rows = cur.fetchall()
+                for bom in bom_rows:
+                    if bom["ingredient_type"] == 'SERVICE':
+                        continue
+                    total_restored = bom["quantity"] * base_return_qty
+                    cur.execute("""
+                        INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, bom["ingredient_id"], total_restored, total_restored))
+                    cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, bom["ingredient_id"]))
+                    bal_row = cur.fetchone()
+                    balance_after = bal_row["quantity"] if bal_row else 0
+                    cur.execute("""
+                        INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, order_id, order_code, note)
+                        VALUES (?, ?, 'RETURN_IN', ?, ?, ?, ?, ?)
+                    """, (bom["ingredient_id"], warehouse_id, total_restored, balance_after, orig_order["id"], orig_order["code"], f"Hoàn hàng trả {return_code}"))
 
         # 11. Hạch toán sổ quỹ cashbook theo diff_amount
         if diff_amount > 0:
@@ -1294,37 +1363,81 @@ def delete_order(code: str, user=Depends(require_role("owner"))):
         cur.execute("SELECT * FROM order_items WHERE order_id = ?", (order_id,))
         items = cur.fetchall()
 
-        warehouse_id = 1
+        warehouse_id = order["warehouse_id"] if "warehouse_id" in order.keys() and order["warehouse_id"] else 1
 
         for item in items:
             prod_id = item["product_id"]
             # Hoan tra theo don vi co ban: nhan he so quy doi da chot luc ban
             qty = item["quantity"] * (float(item["unit_ratio"] or 1) if "unit_ratio" in item.keys() else 1.0)
 
-            cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (qty, prod_id))
-            cur.execute("""
-            UPDATE product_inventory 
-            SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-            WHERE warehouse_id = ? AND product_id = ?
-            """, (qty, warehouse_id, prod_id))
+            cur.execute("SELECT type FROM products WHERE id = ?", (prod_id,))
+            p_type_row = cur.fetchone()
+            p_type = p_type_row["type"] if p_type_row else "product"
 
-            cur.execute("""
-            SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
-            FROM product_bom b
-            JOIN ingredients i ON b.ingredient_id = i.id
-            WHERE b.product_id = ?
-            """, (prod_id,))
-            bom_rows = cur.fetchall()
-
-            for bom in bom_rows:
-                if bom["ingredient_type"] == 'SERVICE':
-                    continue
-                total_consumed = bom["quantity"] * qty
+            if p_type == "combo":
                 cur.execute("""
-                UPDATE inventory 
-                SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                WHERE warehouse_id = ? AND ingredient_id = ?
-                """, (total_consumed, warehouse_id, bom["ingredient_id"]))
+                    SELECT ci.product_id, ci.quantity as component_qty
+                    FROM combo_items ci
+                    JOIN combos c ON ci.combo_id = c.id
+                    WHERE c.code = (SELECT code FROM products WHERE id = ? AND type = 'combo')
+                      AND c.is_active = 1
+                """, (prod_id,))
+                combo_components = cur.fetchall()
+                for comp in combo_components:
+                    comp_id = comp["product_id"]
+                    comp_qty = comp["component_qty"] * qty
+                    cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (comp_qty, comp_id))
+                    cur.execute("""
+                        INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, comp_id, comp_qty, comp_qty))
+
+                    cur.execute("""
+                        SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                        FROM product_bom b
+                        JOIN ingredients i ON b.ingredient_id = i.id
+                        WHERE b.product_id = ?
+                    """, (comp_id,))
+                    bom_rows = cur.fetchall()
+                    for bom in bom_rows:
+                        if bom["ingredient_type"] == 'SERVICE':
+                            continue
+                        total_consumed = bom["quantity"] * comp_qty
+                        cur.execute("""
+                            INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                            ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                                quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                        """, (warehouse_id, bom["ingredient_id"], total_consumed, total_consumed))
+            else:
+                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (qty, prod_id))
+                cur.execute("""
+                    INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                        quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                """, (warehouse_id, prod_id, qty, qty))
+
+                cur.execute("""
+                    SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                    FROM product_bom b
+                    JOIN ingredients i ON b.ingredient_id = i.id
+                    WHERE b.product_id = ?
+                """, (prod_id,))
+                bom_rows = cur.fetchall()
+
+                for bom in bom_rows:
+                    if bom["ingredient_type"] == 'SERVICE':
+                        continue
+                    total_consumed = bom["quantity"] * qty
+                    cur.execute("""
+                        INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, bom["ingredient_id"], total_consumed, total_consumed))
 
         cur.execute("DELETE FROM inventory_logs WHERE order_id = ? OR order_code = ?", (order_id, code))
 
@@ -1399,7 +1512,7 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         old_debt = order["debt_amount"] or 0
         old_paid = order["paid_amount"] or 0
         old_final = order["final_amount"] or 0
-        warehouse_id = req.warehouse_id or 1
+        warehouse_id = order["warehouse_id"] if "warehouse_id" in order.keys() and order["warehouse_id"] else (req.warehouse_id or 1)
 
         new_customer_id = req.customer_id if req.customer_id is not None else old_customer_id
         new_staff_id = req.staff_id if req.staff_id is not None else order["staff_id"]
@@ -1411,23 +1524,68 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             old_items = cur.fetchall()
             for oitem in old_items:
                 old_base_qty = oitem["quantity"] * (float(oitem["unit_ratio"] or 1) if "unit_ratio" in oitem.keys() else 1.0)
-                cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (old_base_qty, oitem["product_id"]))
-                cur.execute("""
-                UPDATE product_inventory 
-                SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                WHERE warehouse_id = ? AND product_id = ?
-                """, (old_base_qty, warehouse_id, oitem["product_id"]))
+                cur.execute("SELECT type FROM products WHERE id = ?", (oitem["product_id"],))
+                p_type_row = cur.fetchone()
+                p_type = p_type_row["type"] if p_type_row else "product"
 
-                cur.execute("""
-                SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
-                FROM product_bom b JOIN ingredients i ON b.ingredient_id = i.id WHERE b.product_id = ?
-                """, (oitem["product_id"],))
-                for bom in cur.fetchall():
-                    if bom["ingredient_type"] != 'SERVICE':
+                if p_type == "combo":
+                    cur.execute("""
+                        SELECT ci.product_id, ci.quantity as component_qty
+                        FROM combo_items ci
+                        JOIN combos c ON ci.combo_id = c.id
+                        WHERE c.code = (SELECT code FROM products WHERE id = ? AND type = 'combo')
+                          AND c.is_active = 1
+                    """, (oitem["product_id"],))
+                    combo_components = cur.fetchall()
+                    for comp in combo_components:
+                        comp_id = comp["product_id"]
+                        comp_qty = comp["component_qty"] * old_base_qty
+                        cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (comp_qty, comp_id))
                         cur.execute("""
-                        UPDATE inventory SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE warehouse_id = ? AND ingredient_id = ?
-                        """, (bom["quantity"] * old_base_qty, warehouse_id, bom["ingredient_id"]))
+                            INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                            ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                                quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                        """, (warehouse_id, comp_id, comp_qty, comp_qty))
+
+                        cur.execute("""
+                            SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                            FROM product_bom b
+                            JOIN ingredients i ON b.ingredient_id = i.id
+                            WHERE b.product_id = ?
+                        """, (comp_id,))
+                        bom_rows = cur.fetchall()
+                        for bom in bom_rows:
+                            if bom["ingredient_type"] == 'SERVICE':
+                                continue
+                            total_consumed = bom["quantity"] * comp_qty
+                            cur.execute("""
+                                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                            """, (warehouse_id, bom["ingredient_id"], total_consumed, total_consumed))
+                else:
+                    cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (old_base_qty, oitem["product_id"]))
+                    cur.execute("""
+                        INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, oitem["product_id"], old_base_qty, old_base_qty))
+
+                    cur.execute("""
+                    SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+                    FROM product_bom b JOIN ingredients i ON b.ingredient_id = i.id WHERE b.product_id = ?
+                    """, (oitem["product_id"],))
+                    for bom in cur.fetchall():
+                        if bom["ingredient_type"] != 'SERVICE':
+                            cur.execute("""
+                                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                            """, (warehouse_id, bom["ingredient_id"], bom["quantity"] * old_base_qty, bom["quantity"] * old_base_qty))
 
             cur.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
             cur.execute("DELETE FROM inventory_logs WHERE order_id = ? OR order_code = ?", (order_id, code))

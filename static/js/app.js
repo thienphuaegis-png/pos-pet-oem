@@ -3978,8 +3978,9 @@
         async function executeResetData() {
             const chk = document.getElementById('reset-data-check')?.checked;
             const txt = (document.getElementById('reset-data-confirm-text')?.value || '').trim().toUpperCase();
-            if (!chk || txt !== 'XOA HET DU LIEU') {
-                return alert('Vui lòng tích xác nhận và gõ chính xác: XOA HET DU LIEU');
+            const validConfirm = (currentResetMode === 'clear_catalog_only') ? 'XOA HANG HOA' : 'XOA HET DU LIEU';
+            if (!chk || txt !== validConfirm) {
+                return alert(`Vui lòng tích xác nhận và gõ chính xác: ${validConfirm}`);
             }
 
             if (!currentResetMode) return;

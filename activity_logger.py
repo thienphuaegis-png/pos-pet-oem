@@ -99,13 +99,6 @@ def log_activity_from_request(request, response):
     if not staff_id:
         return
 
-    db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT name, role FROM staff WHERE id=?", (staff_id,))
-    row = cur.fetchone()
-    staff_name = row["name"] if row else None
-    role = row["role"] if row else None
-
     action = _describe(request.method, request.url.path)
     ip = request.client.host if request.client else None
     try:

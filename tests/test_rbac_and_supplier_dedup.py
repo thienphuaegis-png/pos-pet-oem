@@ -268,7 +268,7 @@ async def test_import_customer_excel_priority_and_phone():
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901234567', '901234567') OR code = 'KH0099'")
+    cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901999888', '901999888') OR code = 'KH_TEST_0099'")
     conn.commit()
     conn.close()
 
@@ -276,10 +276,10 @@ async def test_import_customer_excel_priority_and_phone():
     ws = wb.active
     # Cột 'Mã khách hàng' đi trước 'Tên khách hàng'
     ws.append(["Mã khách hàng", "Tên khách hàng", "Số điện thoại", "Email", "Địa chỉ", "Công nợ", "Điểm tích lũy"])
-    # SĐT mất số 0 đầu do định dạng số trong Excel (901234567)
-    ws.append(["KH0099", "Anh Phú Test", 901234567, "phu@test.com", "Bến Tre", 50000, 100])
-    # Cùng người nhưng lần 2 nhập SĐT chuẩn hóa 0901234567 -> phải UPDATE gộp, không tạo mới
-    ws.append(["KH0099", "Anh Phú Test", "0901234567", "phu_new@test.com", "Bến Tre Mới", 20000, 50])
+    # SĐT mất số 0 đầu do định dạng số trong Excel (901999888)
+    ws.append(["KH_TEST_0099", "Anh Phú Test", 901999888, "phu@test.com", "Bến Tre", 50000, 100])
+    # Cùng người nhưng lần 2 nhập SĐT chuẩn hóa 0901999888 -> phải UPDATE gộp, không tạo mới
+    ws.append(["KH_TEST_0099", "Anh Phú Test", "0901999888", "phu_new@test.com", "Bến Tre Mới", 20000, 50])
 
     bio = io.BytesIO()
     wb.save(bio)
@@ -298,10 +298,10 @@ async def test_import_customer_excel_priority_and_phone():
         rows = cur.fetchall()
         assert len(rows) == 1
         row = dict(rows[0])
-        # Tên phải là 'Anh Phú Test', KHÔNG được lấy mã 'KH0099'
+        # Tên phải là 'Anh Phú Test', KHÔNG được lấy mã 'KH_TEST_0099'
         assert row["name"] == "Anh Phú Test"
         # SĐT phải được bù số 0 đầu
-        assert row["phone"] == "0901234567"
+        assert row["phone"] == "0901999888"
         assert row["email"] == "phu_new@test.com"
         assert row["address"] == "Bến Tre Mới"
         assert row["debt"] == 70000.0  # 50k + 20k
@@ -311,7 +311,7 @@ async def test_import_customer_excel_priority_and_phone():
         try:
             conn = get_db()
             cur = conn.cursor()
-            cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901234567', '901234567') OR code = 'KH0099'")
+            cur.execute("DELETE FROM contacts WHERE LOWER(TRIM(name)) IN ('anh phú test', 'khách vip test') OR phone IN ('0901999888', '901999888') OR code = 'KH_TEST_0099'")
             conn.commit()
             conn.close()
         except Exception:
@@ -325,14 +325,14 @@ async def test_import_supplier_excel_two_funds():
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM contacts WHERE phone = '0988776655' OR name = 'NCC Thức Ăn Hoàng Gia'")
+    cur.execute("DELETE FROM contacts WHERE phone = '0988998899' OR name = 'NCC Thức Ăn Hoàng Gia Test Funds'")
     conn.commit()
     conn.close()
 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["Mã NCC", "Tên Nhà Cung Cấp", "Số Điện Thoại", "Địa Chỉ", "Nợ Quỹ Công Ty", "Nợ Quỹ Cá Nhân"])
-    ws.append(["NCC01", "NCC Thức Ăn Hoàng Gia", "0988776655", "Bến Tre", 3000000, 1500000])
+    ws.append(["NCC_FUNDS_01", "NCC Thức Ăn Hoàng Gia Test Funds", "0988998899", "Bến Tre", 3000000, 1500000])
 
     bio = io.BytesIO()
     wb.save(bio)
@@ -350,19 +350,20 @@ async def test_import_supplier_excel_two_funds():
         cur.execute("""
             SELECT id, name, phone, debt, initial_debt_company, initial_debt_personal 
             FROM contacts 
-            WHERE phone = '0988776655' AND type = 'supplier'
+            WHERE phone = '0988998899' AND type = 'supplier'
         """)
         rows = cur.fetchall()
         assert len(rows) == 1
         row = dict(rows[0])
-        assert row["name"] == "NCC Thức Ăn Hoàng Gia"
+        assert row["name"] == "NCC Thức Ăn Hoàng Gia Test Funds"
         assert row["initial_debt_company"] == 3000000.0
         assert row["initial_debt_personal"] == 1500000.0
         assert row["debt"] == 4500000.0
+        conn.close()
     finally:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("DELETE FROM contacts WHERE phone = '0988776655' OR name = 'NCC Thức Ăn Hoàng Gia'")
+        cur.execute("DELETE FROM contacts WHERE phone = '0988998899' OR name = 'NCC Thức Ăn Hoàng Gia Test Funds'")
         conn.commit()
         conn.close()
 

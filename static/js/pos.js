@@ -107,14 +107,19 @@ async function recalculateBestOfferForCart(tab) {
             for (const item of tab.cart) {
                 const info = calcMap[item.product_id];
                 if (info) {
-                    item.price = info.final_price;
-                    item.applied_rule = info.applied_rule; // 'promo' | 'tier' | 'base'
-                    if (info.applied_rule === 'promo') {
-                        item.price_list_name = `KM: ${info.promo_name || 'Khuyến mãi'}`;
-                    } else if (info.applied_rule === 'tier') {
-                        item.price_list_name = tab.customer?.price_list_name || 'Giá hạng KH';
-                    } else {
+                    if (item.discount_val > 0 && info.applied_rule === 'base') {
+                        item.applied_rule = 'base';
                         item.price_list_name = null;
+                    } else {
+                        item.price = info.final_price;
+                        item.applied_rule = info.applied_rule; // 'promo' | 'tier' | 'base'
+                        if (info.applied_rule === 'promo') {
+                            item.price_list_name = `KM: ${info.promo_name || 'Khuyến mãi'}`;
+                        } else if (info.applied_rule === 'tier') {
+                            item.price_list_name = tab.customer?.price_list_name || 'Giá hạng KH';
+                        } else {
+                            item.price_list_name = null;
+                        }
                     }
                 }
             }
@@ -1503,7 +1508,7 @@ function getPosFinalAmount(tab) {
 function updateShippingFee(val) {
     const tab = getActiveTab();
     tab.shipping_fee = Math.max(0, parseFloat(val) || 0);
-    calculateCartTotals();
+    updateFinancialSummary();
     renderQuickCashButtons();
     const paidInput = document.getElementById('pos-paid-input');
     const finalAmount = getPosFinalAmount(tab);
@@ -1843,7 +1848,7 @@ async function submitPOSOrder() {
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
     const totalDiscount = billDisc + (tab.coupon_discount || 0) + pointsAmount;
 
-    const finalAmount = Math.max(0, subtotal - totalDiscount);
+    const finalAmount = getPosFinalAmount(tab);
 
     const paidInput = document.getElementById('pos-paid-input');
     const cleanPaid = (paidInput?.value || '0').replace(/\D/g, '');
@@ -1972,8 +1977,11 @@ async function submitPOSOrder() {
         tab.coupon_code = "";
         tab.coupon_discount = 0;
         tab.paid_amount = null;
+        tab.shipping_fee = 0;
         tab.split_payment = false;
         tab.splitLines = [];
+        const shippingInput = document.getElementById('pos-shipping-fee-input');
+        if (shippingInput) shippingInput.value = '';
         document.getElementById('pos-split-auto-box')?.classList.add('hidden');
 
         clearDraft();
@@ -2481,7 +2489,8 @@ function printDraftOrder() {
     let billDisc = tab.bill_discount_type === 'pct' ? Math.round(subtotal * (tab.bill_discount / 100)) : tab.bill_discount;
     const pointsAmount = (tab.use_points && tab.customer) ? Math.min((tab.customer.points || 0) * 1000, subtotal) : 0;
     const totalDiscount = billDisc + (tab.coupon_discount || 0) + pointsAmount;
-    const finalAmount = Math.max(0, subtotal - totalDiscount);
+    const shippingFee = parseFloat(tab.shipping_fee) || 0;
+    const finalAmount = Math.max(0, subtotal - totalDiscount + shippingFee);
 
     const paidInput = document.getElementById('pos-paid-input');
     const cleanPaid = (paidInput?.value || '0').replace(/\D/g, '');
@@ -2514,6 +2523,7 @@ function printDraftOrder() {
         note: tab.note || "",
         total_amount: subtotal,
         discount: totalDiscount,
+        shipping_fee: shippingFee,
         final_amount: finalAmount,
         paid_amount: paidAmount,
         debt_amount: Math.max(0, finalAmount - paidAmount),

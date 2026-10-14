@@ -57,11 +57,13 @@ def main():
     ngrok_exe = os.path.join(ROOT_DIR, "ngrok.exe")
     if os.path.exists(ngrok_exe):
         print("[2/2] Dang ket noi duong truyen Ngrok online...")
-        # Dam bao co authtoken tren may moi
-        try:
-            subprocess.run([ngrok_exe, "config", "add-authtoken", "3K25d5cxaDd9RJc49PeyZgmDyDn_5YKJ9WoKu1ifynvjKanRh"], cwd=ROOT_DIR, capture_output=True)
-        except Exception:
-            pass
+        # Dam bao co authtoken tren may moi neu co trong env
+        ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "")
+        if ngrok_token:
+            try:
+                subprocess.run([ngrok_exe, "config", "add-authtoken", ngrok_token], cwd=ROOT_DIR, capture_output=True)
+            except Exception:
+                pass
 
         try:
             req = urllib.request.Request(f"{LOCAL_URL}/api/ping")
