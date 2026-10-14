@@ -50,6 +50,8 @@ def test_transfer_detail_api_returns_sku():
     assert len(detail["items"]) > 0
     assert "sku" in detail["items"][0], "API chi tiết phiếu chuyển kho phải trả về trường sku"
     assert detail["items"][0]["sku"] == expected_sku
+    assert "from_warehouse_address" in detail, "API chi tiết phiếu chuyển kho phải có địa chỉ kho xuất"
+    assert "to_warehouse_address" in detail, "API chi tiết phiếu chuyển kho phải có địa chỉ kho nhập"
 
 def test_print_stock_transfer_a4_js_logic():
     """Kiểm tra hàm printStockTransferA4 trong static/js/app.js đáp ứng đúng chuẩn mẫu A4 ẩn giá vốn."""
@@ -61,8 +63,11 @@ def test_print_stock_transfer_a4_js_logic():
         "app.js phải định nghĩa hàm printStockTransferA4"
     assert "iframe-stock-transfer-print" in content, "Phải sử dụng iframe ẩn iframe-stock-transfer-print để in"
     assert "size: A4" in content, "Phải định dạng khổ giấy @page size: A4"
-    assert "BIÊN BẢN GIAO NHẬN" in content or "PHIẾU ĐIỀU CHUYỂN KHO NỘI BỘ" in content, \
-        "Tiêu đề phiếu phải chuẩn biên bản điều chuyển nội bộ"
+    assert "PHIẾU CHUYỂN KHO" in content, "Tiêu đề phiếu phải là PHIẾU CHUYỂN KHO"
+    assert "(Ban hành kèm theo quy trình quản lý kho & điều chuyển nội bộ)" not in content, \
+        "Không được chứa dòng phụ đề ban hành"
+    assert "Biên bản được lập thành 03 bản" not in content, \
+        "Không được chứa dòng ghi chú chân trang 03 bản"
 
     # Kiểm tra 4 chữ ký
     assert "Người Lập Phiếu" in content, "Phải có chữ ký Người Lập Phiếu"

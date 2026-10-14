@@ -2328,10 +2328,23 @@
                 if (!res.ok) throw new Error("Không thể tải chi tiết phiếu chuyển kho");
                 const data = await res.json();
 
-                const company = window.companySettings || {};
-                const storeName = company.shop_name || company.app_name || 'HỆ THỐNG MASTERCARE PET CARE & CLINIC';
-                const storeAddr = company.shop_address || '120/45 Đường Trần Phú, Nha Trang, Khánh Hòa';
+                let company = window.companySettings;
+                if (!company || !company.shop_name) {
+                    try {
+                        const setRes = await fetch('/api/settings');
+                        if (setRes.ok) {
+                            company = await setRes.json();
+                            window.companySettings = company;
+                        }
+                    } catch(e) {}
+                }
+                company = company || window.posSettings || {};
+                const storeName = company.shop_name || company.app_name || 'Mastercare For Pet';
+                const storeAddr = company.shop_address || '';
                 const storePhone = company.shop_phone || '';
+
+                const fromWhText = (data.from_warehouse_name || 'Kho xuất') + (data.from_warehouse_address ? ` - Địa chỉ: ${data.from_warehouse_address}` : '');
+                const toWhText = (data.to_warehouse_name || 'Kho nhập') + (data.to_warehouse_address ? ` - Địa chỉ: ${data.to_warehouse_address}` : '');
 
                 const items = data.items || [];
                 let totalQty = 0;
@@ -2363,7 +2376,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #999; padding-bottom: 8px;">
                             <div style="max-width: 65%;">
                                 <div style="font-weight: bold; text-transform: uppercase; font-size: 13px;">${storeName}</div>
-                                <div style="font-size: 11px; margin-top: 2px;">Địa chỉ: ${storeAddr}</div>
+                                ${storeAddr ? `<div style="font-size: 11px; margin-top: 2px;">Địa chỉ: ${storeAddr}</div>` : ''}
                                 ${storePhone ? `<div style="font-size: 11px;">Hotline: ${storePhone}</div>` : ''}
                             </div>
                             <div style="text-align: right; font-size: 11px;">
@@ -2373,29 +2386,28 @@
                         </div>
 
                         <!-- TITLE -->
-                        <div style="text-align: center; margin-bottom: 12px;">
-                            <h1 style="margin: 0; font-size: 19px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">BIÊN BẢN GIAO NHẬN & ĐIỀU CHUYỂN KHO NỘI BỘ</h1>
-                            <div style="font-style: italic; font-size: 11.5px; margin-top: 3px;">(Ban hành kèm theo quy trình quản lý kho & điều chuyển nội bộ)</div>
+                        <div style="text-align: center; margin-bottom: 14px;">
+                            <h1 style="margin: 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">PHIẾU CHUYỂN KHO</h1>
                         </div>
 
                         <!-- INFO BOX -->
                         <div style="border: 1px solid #000; padding: 8px 10px; margin-bottom: 12px; font-size: 12px; line-height: 1.5; background: #fafafa;">
                             <div style="display: flex; margin-bottom: 3px;">
-                                <div style="width: 130px; font-weight: bold;">📤 Kho xuất (Nơi giao):</div>
-                                <div style="flex: 1; font-weight: bold;">${data.from_warehouse_name || 'Kho xuất'}</div>
+                                <div style="width: 140px; font-weight: bold;">📤 Kho xuất (Nơi giao):</div>
+                                <div style="flex: 1; font-weight: bold;">${fromWhText}</div>
                             </div>
                             <div style="display: flex; margin-bottom: 3px;">
-                                <div style="width: 130px; font-weight: bold;">📥 Kho nhập (Nơi nhận):</div>
-                                <div style="flex: 1; font-weight: bold;">${data.to_warehouse_name || 'Kho nhập'}</div>
+                                <div style="width: 140px; font-weight: bold;">📥 Kho nhập (Nơi nhận):</div>
+                                <div style="flex: 1; font-weight: bold;">${toWhText}</div>
                             </div>
                             <div style="display: flex;">
-                                <div style="width: 130px; font-weight: bold;">📝 Lý do / Ghi chú:</div>
+                                <div style="width: 140px; font-weight: bold;">📝 Lý do / Ghi chú:</div>
                                 <div style="flex: 1;">${data.note || 'Điều chuyển hàng hóa nội bộ'}</div>
                             </div>
                         </div>
 
                         <!-- TABLE -->
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;">
                             <thead>
                                 <tr style="background: #f0f0f0;">
                                     <th style="border: 1px solid #000; padding: 6px 4px; width: 35px; text-align: center;">STT</th>
@@ -2416,12 +2428,8 @@
                             </tbody>
                         </table>
 
-                        <div style="font-size: 11px; font-style: italic; margin-bottom: 12px;">
-                            * Biên bản được lập thành 03 bản có giá trị như nhau: 01 bản lưu tại kho xuất, 01 bản giao người vận chuyển, 01 bản lưu tại kho nhận sau khi đối soát đủ số lượng.
-                        </div>
-
                         <!-- 4 SIGNATURES -->
-                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11.5px; margin-top: 20px; page-break-inside: avoid;">
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11.5px; margin-top: 25px; page-break-inside: avoid;">
                             <div style="width: 24%;">
                                 <div style="font-weight: bold;">Người Lập Phiếu</div>
                                 <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>

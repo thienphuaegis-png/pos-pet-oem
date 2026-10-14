@@ -1158,7 +1158,9 @@ def list_transfers():
         t.*,
         t.code as transfer_code,
         w1.name as from_warehouse_name,
+        w1.address as from_warehouse_address,
         w2.name as to_warehouse_name,
+        w2.address as to_warehouse_address,
         (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as item_count,
         (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as items_count
     FROM warehouse_transfers t
@@ -1189,7 +1191,9 @@ def get_transfer_detail(transfer_id: int):
         t.*,
         t.code as transfer_code,
         w1.name as from_warehouse_name,
+        w1.address as from_warehouse_address,
         w2.name as to_warehouse_name,
+        w2.address as to_warehouse_address,
         (SELECT COUNT(*) FROM warehouse_transfer_items ti WHERE ti.transfer_id = t.id) as items_count
     FROM warehouse_transfers t
     JOIN warehouses w1 ON t.from_warehouse_id = w1.id
