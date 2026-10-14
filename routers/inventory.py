@@ -1022,7 +1022,16 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
         if not from_w or not to_w:
             raise HTTPException(status_code=404, detail="Không tìm thấy kho hàng")
             
-        code = f"CK{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        base_code = f"CK{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        code = base_code
+        seq = 1
+        while True:
+            cur.execute("SELECT 1 FROM warehouse_transfers WHERE code = ?", (code,))
+            if not cur.fetchone():
+                break
+            code = f"{base_code}_{seq}"
+            seq += 1
+
         cur.execute('''
         INSERT INTO warehouse_transfers (code, from_warehouse_id, to_warehouse_id, note)
         VALUES (?, ?, ?, ?)
@@ -1159,7 +1168,14 @@ def list_transfers():
     ''')
     transfers = [dict(r) for r in cur.fetchall()]
     for t in transfers:
-        cur.execute("SELECT *, item_name as name FROM warehouse_transfer_items WHERE transfer_id = ?", (t["id"],))
+        cur.execute('''
+            SELECT ti.*, ti.item_name as name,
+                   COALESCE(p.code, ing.code, '') as sku
+            FROM warehouse_transfer_items ti
+            LEFT JOIN products p ON ti.item_type = 'product' AND ti.product_id = p.id
+            LEFT JOIN ingredients ing ON ti.item_type = 'ingredient' AND ti.ingredient_id = ing.id
+            WHERE ti.transfer_id = ?
+        ''', (t["id"],))
         t["items"] = [dict(r) for r in cur.fetchall()]
     conn.close()
     return transfers
@@ -1185,7 +1201,14 @@ def get_transfer_detail(transfer_id: int):
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu chuyển kho")
     data = dict(row)
-    cur.execute("SELECT *, item_name as name FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+    cur.execute('''
+        SELECT ti.*, ti.item_name as name,
+               COALESCE(p.code, ing.code, '') as sku
+        FROM warehouse_transfer_items ti
+        LEFT JOIN products p ON ti.item_type = 'product' AND ti.product_id = p.id
+        LEFT JOIN ingredients ing ON ti.item_type = 'ingredient' AND ti.ingredient_id = ing.id
+        WHERE ti.transfer_id = ?
+    ''', (transfer_id,))
     data["items"] = [dict(r) for r in cur.fetchall()]
     conn.close()
     return data

@@ -2202,15 +2202,37 @@
                 }
 
                 const result = await res.json();
-                if (window.showToast) {
-                    window.showToast(`✅ Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`, "success", 4000);
-                } else {
-                    alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${result.transfer_code || result.code}`);
-                }
+                const transferId = result.id;
+                const transferCode = result.transfer_code || result.code;
+
                 document.getElementById('transfer-note').value = '';
                 currentTransferRows = [];
                 onTransferFromChange();
                 loadUnifiedInventory();
+
+                if (window.showConfirmModal) {
+                    const wantPrint = await window.showConfirmModal({
+                        title: 'Chuyển Kho Thành Công',
+                        message: `Đã hoàn tất điều chuyển kho! Mã phiếu: <strong class="text-sky-700 font-bold">${transferCode}</strong>`,
+                        subMessage: 'Bạn có muốn in phiếu điều chuyển kho A4 để ký biên bản bàn giao ngay bây giờ không?',
+                        confirmText: '🖨️ In Phiếu A4',
+                        cancelText: '✕ Đóng',
+                        type: 'transfer',
+                        icon: '✅'
+                    });
+                    if (wantPrint && transferId) {
+                        printStockTransferA4(transferId);
+                    }
+                } else {
+                    if (window.showToast) {
+                        window.showToast(`✅ Đã hoàn tất chuyển kho! Mã phiếu: ${transferCode}`, "success", 4000);
+                    } else {
+                        alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${transferCode}`);
+                    }
+                    if (confirm("Bạn có muốn in phiếu chuyển kho A4 ngay không?")) {
+                        printStockTransferA4(transferId);
+                    }
+                }
             } catch (e) {
                 console.error("submitStockTransfer error:", e);
                 if (window.showToast) window.showToast("❌ Lỗi kết nối khi gửi phiếu chuyển kho", "error");
@@ -2238,9 +2260,12 @@
                         <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
                         <td class="p-2.5 text-right font-medium">${(t.items_count || t.item_count || 0).toLocaleString('vi-VN')} món</td>
                         <td class="p-2.5 text-gray-500">${t.note || '-'}</td>
-                        <td class="p-2.5 text-center">
-                            <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold">
+                        <td class="p-2.5 text-center whitespace-nowrap space-x-1">
+                            <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold" title="Xem chi tiết">
                                 👁️ Xem
+                            </button>
+                            <button onclick="printStockTransferA4(${t.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="In Phiếu Điều Chuyển A4">
+                                🖨️ In
                             </button>
                         </td>
                     </tr>
@@ -2250,7 +2275,10 @@
             }
         }
 
+        let currentViewedTransferId = null;
+
         async function viewTransferDetail(transferId) {
+            currentViewedTransferId = transferId;
             const modal = document.getElementById('modal-transfer-detail');
             modal.classList.remove('hidden');
             const tbody = document.getElementById('view-transfer-items');
@@ -2287,6 +2315,187 @@
         function closeModalTransferDetail() {
             document.getElementById('modal-transfer-detail')?.classList.add('hidden');
         }
+
+        async function printStockTransferA4(transferId) {
+            const id = transferId || currentViewedTransferId;
+            if (!id) {
+                if (window.showToast) window.showToast("Không tìm thấy thông tin phiếu chuyển kho!", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/inventory/transfers/${id}`);
+                if (!res.ok) throw new Error("Không thể tải chi tiết phiếu chuyển kho");
+                const data = await res.json();
+
+                const company = window.companySettings || {};
+                const storeName = company.shop_name || company.app_name || 'HỆ THỐNG MASTERCARE PET CARE & CLINIC';
+                const storeAddr = company.shop_address || '120/45 Đường Trần Phú, Nha Trang, Khánh Hòa';
+                const storePhone = company.shop_phone || '';
+
+                const items = data.items || [];
+                let totalQty = 0;
+
+                const rowsHtml = items.map((it, idx) => {
+                    totalQty += (it.quantity || 0);
+                    const sku = it.sku || it.code || '-';
+                    const name = it.name || it.item_name || 'Mặt hàng';
+                    const unit = it.unit || 'cái';
+                    const qty = (it.quantity || 0).toLocaleString('vi-VN');
+                    return `
+                        <tr>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 5px;">${idx + 1}</td>
+                            <td style="font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #000; padding: 5px;">${sku}</td>
+                            <td style="font-weight: bold; font-size: 12px; border: 1px solid #000; padding: 5px;">${name}</td>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 5px;">${unit}</td>
+                            <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: bold; border: 1px solid #000; padding: 5px;">${qty}</td>
+                            <td style="font-size: 11px; border: 1px solid #000; padding: 5px;">${it.note || ''}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const transferCode = data.transfer_code || data.code || `CK-${id}`;
+                const createdTime = formatDateTime(data.created_at) || '-';
+
+                const printHtml = `
+                    <div style="width: 190mm; max-width: 190mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 12px; line-height: 1.35; color: #000; padding: 4mm;">
+                        <!-- HEADER -->
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #999; padding-bottom: 8px;">
+                            <div style="max-width: 65%;">
+                                <div style="font-weight: bold; text-transform: uppercase; font-size: 13px;">${storeName}</div>
+                                <div style="font-size: 11px; margin-top: 2px;">Địa chỉ: ${storeAddr}</div>
+                                ${storePhone ? `<div style="font-size: 11px;">Hotline: ${storePhone}</div>` : ''}
+                            </div>
+                            <div style="text-align: right; font-size: 11px;">
+                                <div>Mã phiếu: <strong style="font-family: monospace; font-size: 13px;">${transferCode}</strong></div>
+                                <div>Thời gian: ${createdTime}</div>
+                            </div>
+                        </div>
+
+                        <!-- TITLE -->
+                        <div style="text-align: center; margin-bottom: 12px;">
+                            <h1 style="margin: 0; font-size: 19px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">BIÊN BẢN GIAO NHẬN & ĐIỀU CHUYỂN KHO NỘI BỘ</h1>
+                            <div style="font-style: italic; font-size: 11.5px; margin-top: 3px;">(Ban hành kèm theo quy trình quản lý kho & điều chuyển nội bộ)</div>
+                        </div>
+
+                        <!-- INFO BOX -->
+                        <div style="border: 1px solid #000; padding: 8px 10px; margin-bottom: 12px; font-size: 12px; line-height: 1.5; background: #fafafa;">
+                            <div style="display: flex; margin-bottom: 3px;">
+                                <div style="width: 130px; font-weight: bold;">📤 Kho xuất (Nơi giao):</div>
+                                <div style="flex: 1; font-weight: bold;">${data.from_warehouse_name || 'Kho xuất'}</div>
+                            </div>
+                            <div style="display: flex; margin-bottom: 3px;">
+                                <div style="width: 130px; font-weight: bold;">📥 Kho nhập (Nơi nhận):</div>
+                                <div style="flex: 1; font-weight: bold;">${data.to_warehouse_name || 'Kho nhập'}</div>
+                            </div>
+                            <div style="display: flex;">
+                                <div style="width: 130px; font-weight: bold;">📝 Lý do / Ghi chú:</div>
+                                <div style="flex: 1;">${data.note || 'Điều chuyển hàng hóa nội bộ'}</div>
+                            </div>
+                        </div>
+
+                        <!-- TABLE -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                            <thead>
+                                <tr style="background: #f0f0f0;">
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 35px; text-align: center;">STT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 85px; text-align: left;">Mã SKU</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; text-align: left;">Tên Mặt Hàng / Vật Tư</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 50px; text-align: center;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 80px; text-align: right;">Số Lượng</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 110px; text-align: left;">Ghi Chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                                <tr style="font-weight: bold; background: #fafafa;">
+                                    <td colspan="4" style="border: 1px solid #000; padding: 6px; text-align: right;">TỔNG CỘNG (${items.length} mặt hàng):</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: right; font-family: monospace;">${totalQty.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #000; padding: 6px;"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="font-size: 11px; font-style: italic; margin-bottom: 12px;">
+                            * Biên bản được lập thành 03 bản có giá trị như nhau: 01 bản lưu tại kho xuất, 01 bản giao người vận chuyển, 01 bản lưu tại kho nhận sau khi đối soát đủ số lượng.
+                        </div>
+
+                        <!-- 4 SIGNATURES -->
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11.5px; margin-top: 20px; page-break-inside: avoid;">
+                            <div style="width: 24%;">
+                                <div style="font-weight: bold;">Người Lập Phiếu</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 55px;"></div>
+                            </div>
+                            <div style="width: 24%;">
+                                <div style="font-weight: bold;">Thủ Kho Xuất</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 55px;"></div>
+                            </div>
+                            <div style="width: 24%;">
+                                <div style="font-weight: bold;">Người Vận Chuyển</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 55px;"></div>
+                            </div>
+                            <div style="width: 24%;">
+                                <div style="font-weight: bold;">Thủ Kho Nhận</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 55px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                let iframe = document.getElementById('iframe-stock-transfer-print');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'iframe-stock-transfer-print';
+                    iframe.style.position = 'fixed';
+                    iframe.style.left = '-9999px';
+                    iframe.style.top = '-9999px';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    document.body.appendChild(iframe);
+                }
+
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Phiếu Chuyển Kho - ${transferCode}</title>
+                        <style>
+                            @page { size: A4 portrait; margin: 8mm 10mm; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #000; padding: 5px; }
+                            @media print {
+                                html, body { margin: 0; padding: 0; background: #fff; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${printHtml}
+                    </body>
+                    </html>
+                `);
+                doc.close();
+
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch(e) {
+                        console.error('Lỗi in phiếu chuyển kho:', e);
+                    }
+                }, 300);
+            } catch (err) {
+                console.error("printStockTransferA4 error:", err);
+                if (window.showToast) window.showToast("Không thể tải và in phiếu chuyển kho!", "error");
+            }
+        }
+        window.printStockTransferA4 = printStockTransferA4;
 
         // --- IMPORT & EXPORT HÀNG HÓA (EXCEL / CSV) ---
         function exportProductsExcel() {
