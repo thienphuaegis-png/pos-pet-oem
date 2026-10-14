@@ -329,9 +329,15 @@ def get_order_detail(code: str):
     cur = conn.cursor()
     param_id = int(code) if code.isdigit() else -1
     cur.execute("""
-    SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, s.name as staff_name
+    SELECT o.*, 
+           c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
+           c.segment_id, cs.name as customer_segment_name, cs.price_list_id,
+           pl.name as customer_price_list_name,
+           s.name as staff_name
     FROM orders o
     LEFT JOIN contacts c ON o.customer_id = c.id
+    LEFT JOIN customer_segments cs ON c.segment_id = cs.id
+    LEFT JOIN price_lists pl ON cs.price_list_id = pl.id
     LEFT JOIN staff s ON o.staff_id = s.id
     WHERE o.code = ? OR o.id = ?
     """, (code, param_id))
@@ -340,13 +346,54 @@ def get_order_detail(code: str):
         conn.close()
         raise HTTPException(status_code=404, detail="Khong tim thay don hang")
     
+    order_dict = dict(order)
+    price_list_id = order_dict.get("price_list_id")
+
     cur.execute("""
-    SELECT oi.*, p.name as product_name, p.code as product_code, p.unit, p.sell_price as original_price, p.type as product_type
+    SELECT oi.*, 
+           p.name as product_name, p.code as product_code, p.unit, 
+           p.sell_price as retail_price,
+           ppl.price as price_list_price,
+           p.type as product_type
     FROM order_items oi
     JOIN products p ON oi.product_id = p.id
+    LEFT JOIN product_price_list ppl ON (ppl.product_id = p.id AND ppl.price_list_id = ?)
     WHERE oi.order_id = ?
-    """, (order["id"],))
-    items = [dict(r) for r in cur.fetchall()]
+    """, (price_list_id, order["id"]))
+    raw_items = [dict(r) for r in cur.fetchall()]
+
+    items = []
+    for it in raw_items:
+        ratio = float(it.get("unit_ratio") or 1.0)
+        if ratio <= 0:
+            ratio = 1.0
+        retail_price = float(it.get("retail_price") or 0.0) * ratio
+        pl_price = (float(it.get("price_list_price") or 0.0) * ratio) if (it.get("price_list_price") is not None) else None
+        item_price = float(it.get("price") or 0.0)
+        is_gift = (item_price == 0 and float(it.get("quantity") or 0) > 0)
+        it["is_gift"] = is_gift
+
+        if price_list_id:
+            # Khách hàng đại lý / có bảng giá riêng
+            if pl_price is not None and pl_price > 0:
+                if is_gift:
+                    it["original_price"] = 0.0
+                elif item_price >= pl_price:
+                    it["original_price"] = item_price
+                else:
+                    it["original_price"] = pl_price
+            else:
+                if is_gift:
+                    it["original_price"] = 0.0
+                elif item_price > 0:
+                    it["original_price"] = item_price
+                else:
+                    it["original_price"] = retail_price
+        else:
+            # Khách lẻ
+            it["original_price"] = retail_price
+
+        items.append(it)
 
     cur.execute("SELECT method, amount, account_id FROM order_payments WHERE order_id = ?", (order["id"],))
     payments = [dict(r) for r in cur.fetchall()]
@@ -431,6 +478,7 @@ def get_order_detail(code: str):
             is_cash_payment = True
 
     result = dict(order)
+    result["is_wholesale"] = bool(price_list_id or (result.get("customer_name") and any(k in result["customer_name"].lower() for k in ("đại lý", "dai ly", "sỉ", "si "))))
     result["items"] = items
     result["payments"] = payments
     result["bank_account"] = bank_account_info

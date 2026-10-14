@@ -2118,16 +2118,21 @@ function changeActivePrintTemplate(presetKey) {
 
 function isWholesaleOrder(ord) {
     if (!ord) return false;
-    const name = (ord.customer_name || '').toLowerCase();
-    return !!(
-        ord.is_wholesale ||
-        name.includes('đại lý') ||
-        name.includes('dai ly') ||
-        name.includes('sỉ') ||
-        name.includes('si ') ||
-        ord.customer_price_list_name ||
-        (ord.items && ord.items.some(it => it.price_list_name))
-    );
+    if (ord.is_wholesale === true) return true;
+    if (ord.price_list_id && Number(ord.price_list_id) > 0) return true;
+    const plName = (ord.customer_price_list_name || ord.price_list_name || ord.customer_segment_name || '').toLowerCase();
+    if (plName && (plName.includes('sỉ') || plName.includes('đại lý') || plName.includes('b2b') || plName.includes('vip') || !plName.includes('lẻ'))) {
+        if (ord.price_list_id || plName.includes('sỉ') || plName.includes('đại lý')) return true;
+    }
+    const cName = (ord.customer_name || '').toLowerCase();
+    if (cName.includes('đại lý') || cName.includes('dai ly') || cName.includes('sỉ') || cName.includes('si ')) {
+        return true;
+    }
+    if (cName.includes('shop') || cName.includes('pet')) {
+        if (ord.price_list_id) return true;
+    }
+    if (ord.items && ord.items.some(it => it.price_list_name)) return true;
+    return false;
 }
 
 var currentModalPaperFilter = 'ALL';
@@ -2505,6 +2510,7 @@ function printDraftOrder() {
 
     const isWholesale = !!(
         (tab.customer && (tab.customer.name.toLowerCase().includes('đại lý') || tab.customer.name.toLowerCase().includes('dai ly') || tab.customer.name.toLowerCase().includes('sỉ') || tab.customer.name.toLowerCase().includes('si '))) ||
+        (tab.customer?.price_list_id && Number(tab.customer.price_list_id) > 0) ||
         tab.customer?.price_list_name ||
         (tab.cart && tab.cart.some(i => i.price_list_name))
     );
@@ -2512,6 +2518,8 @@ function printDraftOrder() {
     if (!tab.draft_code) {
         tab.draft_code = "DRAFT-" + Math.floor(100000 + Math.random() * 900000);
     }
+
+    const isCustomerWholesale = !!(tab.customer?.price_list_id && Number(tab.customer.price_list_id) > 0) || isWholesale;
 
     const draftOrder = {
         code: tab.draft_code,
@@ -2527,17 +2535,36 @@ function printDraftOrder() {
         final_amount: finalAmount,
         paid_amount: paidAmount,
         debt_amount: Math.max(0, finalAmount - paidAmount),
+        price_list_id: tab.customer?.price_list_id || null,
         customer_price_list_name: tab.customer?.price_list_name || null,
+        customer_segment_name: tab.customer?.segment_name || null,
         is_wholesale: isWholesale,
-        items: tab.cart.map(i => ({
-            product_code: i.code,
-            product_name: i.name,
-            unit: i.unit,
-            price: i.price,
-            original_price: i.original_price || i.price,
-            price_list_name: i.price_list_name || null,
-            quantity: i.quantity
-        }))
+        items: tab.cart.map(i => {
+            const isGift = (Number(i.price) === 0 && Number(i.quantity || 0) > 0);
+            let origPrice;
+            if (isCustomerWholesale) {
+                const discVal = parseFloat(i.discount_val) || 0;
+                if (isGift) {
+                    origPrice = 0;
+                } else if (discVal > 0) {
+                    origPrice = (i.original_price && i.original_price > i.price) ? i.original_price : (i.price + discVal);
+                } else {
+                    origPrice = i.price;
+                }
+            } else {
+                origPrice = i.original_price || i.price;
+            }
+            return {
+                product_code: i.code,
+                product_name: i.name,
+                unit: i.unit,
+                price: i.price,
+                original_price: origPrice, // original_price: i.original_price || i.price
+                price_list_name: i.price_list_name || null,
+                quantity: i.quantity,
+                is_gift: isGift
+            };
+        })
     };
 
     // Đồng bộ tài khoản ngân hàng / tiền mặt cho đơn tạm tính
@@ -2619,15 +2646,15 @@ function renderAndPrint(ord, isDraft = false) {
 
     let itemDiscountTotal = 0;
     (ord.items || []).forEach(it => {
-        if (!isWholesale && it.original_price && it.original_price > it.price) {
+        const isGift = (Number(it.price) === 0 && Number(it.quantity || 0) > 0);
+        if (!isGift && it.original_price && it.original_price > it.price) {
             itemDiscountTotal += (it.original_price - it.price) * (it.quantity || 1);
         }
     });
     const billDiscount = ord.discount || 0;
-    const totalSavings = isWholesale ? billDiscount : (itemDiscountTotal + billDiscount);
-
-    // Đối với đại lý / bán buôn (PA1): giam_gia chỉ là chiết khấu đơn phát sinh thêm
-    const finalDiscountToDisplay = isWholesale ? billDiscount : (totalSavings > 0 ? (billDiscount > 0 ? billDiscount : totalSavings) : (billDiscount || 0));
+    const finalDiscountToDisplay = itemDiscountTotal + billDiscount;
+    const displayTotalAmount = (ord.total_amount || 0) + itemDiscountTotal;
+    const totalSavings = finalDiscountToDisplay;
 
     const printData = {
         ten_cua_hang: posSettings.shop_name || "TÊN CỬA HÀNG",
@@ -2640,7 +2667,7 @@ function renderAndPrint(ord, isDraft = false) {
         ten_khach: ord.customer_name || 'Khách lẻ',
         sdt_khach: ord.customer_phone || '-',
         dia_chi_khach: ord.customer_address || ord.address || '',
-        tong_tien: formatMoney(ord.total_amount),
+        tong_tien: formatMoney(displayTotalAmount),
         giam_gia: formatMoney(finalDiscountToDisplay),
         tiet_kiem: formatMoney(totalSavings),
         tru_vi: formatMoney(ord.spa_wallet_deduction || 0),
@@ -2670,7 +2697,7 @@ function renderAndPrint(ord, isDraft = false) {
 
     // Sao chép canvasElements để không mutate config gốc và xử lý tự ẩn dòng giảm giá K80 khi không có giảm giá
     let effectiveElements = canvasElements.map(e => ({ ...e }));
-    const hasAnyDiscount = isWholesale ? (billDiscount > 0) : (totalSavings > 0);
+    const hasAnyDiscount = finalDiscountToDisplay > 0;
     const hasBillDiscount = hasAnyDiscount;
     const discElem = effectiveElements.find(e => e.text && (e.text.includes('{{giam_gia}}') || e.text.includes('{{tiet_kiem}}') || (e.label && e.label.toLowerCase().includes('giảm giá'))));
     if (!hasAnyDiscount && discElem && isThermal) {
@@ -2968,19 +2995,40 @@ function renderAndPrint(ord, isDraft = false) {
                     </thead>
                     <tbody>
                         ${ord.items.map((it, idx) => {
-                            const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
-                            const discText = hasItemDisc ? `${Math.round((1 - it.price / it.original_price) * 100)}%` : '0%';
+                            const isGift = (Number(it.price) === 0 && Number(it.quantity || 0) > 0);
+                            const hasItemDisc = !isGift && ((!isWholesale && it.original_price && (it.original_price > it.price)) || (isWholesale && it.original_price && (it.original_price > it.price)));
+                            let discText = '';
+                            if (isGift) {
+                                discText = '100%';
+                            } else if (hasItemDisc) {
+                                discText = `${Math.round((1 - it.price / it.original_price) * 100)}%`;
+                            } else {
+                                discText = isWholesale ? '' : '0%';
+                            }
+
+                            let priceHtml = '';
+                            if (isGift) {
+                                priceHtml = formatMoney(0);
+                            } else if (hasItemDisc) {
+                                priceHtml = `
+                                    <div style="font-weight: 500;">${formatMoney(it.price)}</div>
+                                    <div style="text-decoration: line-through; color: #888; font-size: 8.5px;">${formatMoney(it.original_price)}</div>
+                                `;
+                            } else {
+                                priceHtml = formatMoney(it.price);
+                            }
+
                             return `
                         <tr style="border-bottom: 1px solid #ccc; text-align: center;">
                             <td style="border: 1px solid #ccc; padding: 4px 2px;">${idx + 1}</td>
                             ${showCode ? `<td style="border: 1px solid #ccc; padding: 4px 4px;">${it.product_code || ''}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: left; font-weight: 500;">${it.product_name}</td>
                             ${showUnit ? `<td style="border: 1px solid #ccc; padding: 4px 2px;">${it.unit || 'Cái'}</td>` : ''}
-                            <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">${formatMoney(it.price)}</td>
+                            <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right;">${priceHtml}</td>
                             ${showDisc ? `<td style="border: 1px solid #ccc; padding: 4px 2px; text-align: right;">${discText}</td>` : ''}
                             <td style="border: 1px solid #ccc; padding: 4px 2px; font-weight: bold;">${it.quantity}</td>
                             <td style="border: 1px solid #ccc; padding: 4px 4px; text-align: right; font-weight: bold;">${formatMoney(it.quantity * it.price)}</td>
-                            ${showNote ? `<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">-</td>` : ''}
+                            ${showNote ? `<td style="border: 1px solid #ccc; padding: 4px 4px; font-size: 9px; color: #666;">${isGift ? 'Hàng tặng' : '-'}</td>` : ''}
                         </tr>
                             `;
                         }).join('')}
@@ -3045,6 +3093,7 @@ function renderAndPrint(ord, isDraft = false) {
                         <div style="font-weight: bold; border-bottom: 0.5px solid #ccc; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase;">💰 Tổng Kết Thanh Toán</div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Tổng tiền hàng:</span> <span>${printData.tong_tien}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Chiết khấu:</span> <span>${printData.giam_gia}</span></div>
+                        ${(ord.shipping_fee || 0) > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Phí giao hàng:</span> <span>+${formatMoney(ord.shipping_fee)}</span></div>` : ''}
                         ${(ord.spa_wallet_deduction || 0) > 0 ? `<div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #6b21a8; font-weight: 500;"><span>Trừ Ví Spa:</span> <span>-${printData.tru_vi}</span></div>` : ''}
                         <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px; margin-bottom: 2px; border-top: 1px dashed #999; padding-top: 2px;"><span>PHẢI TRẢ:</span> <span style="color: #b91c1c;">${printData.phai_tra}</span></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;"><span>Khách đã trả:</span> <span>${printData.khach_tra}</span></div>
@@ -3085,19 +3134,25 @@ function renderAndPrint(ord, isDraft = false) {
                         </thead>
                         <tbody>
                             ${ord.items.map(it => {
-                                const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
+                                const isGift = (Number(it.price) === 0 && Number(it.quantity || 0) > 0);
+                                const hasItemDisc = !isGift && ((!isWholesale && it.original_price && (it.original_price > it.price)) || (isWholesale && it.original_price && (it.original_price > it.price)));
                                 const itemDiff = hasItemDisc ? (it.original_price - it.price) : 0;
-                                const priceDisplay = hasItemDisc ? `
+                                const priceDisplay = isGift ? `
+                                    <div style="font-weight: bold; line-height: 1.1;">${formatMoney(0)}</div>
+                                    <div style="color: #15803d; font-size: 9px; line-height: 1.1; margin-top: 1px;">(Hàng tặng)</div>
+                                ` : (hasItemDisc ? `
                                     <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
                                     <div style="color: #666; font-size: 9px; line-height: 1.1; margin-top: 1px;">
                                         <span style="text-decoration: line-through;">${formatMoney(it.original_price)}</span>
                                         <span style="color: #15803d; font-weight: 500;">(Giảm ${formatMoney(itemDiff)})</span>
                                     </div>
-                                ` : `<div>${formatMoney(it.price)}</div>`;
-                                const subtotalDisplay = (hasItemDisc && it.quantity > 1) ? `
+                                ` : `<div>${formatMoney(it.price)}</div>`);
+                                const subtotalDisplay = isGift ? `
+                                    <div style="font-weight: bold;">${formatMoney(0)}</div>
+                                ` : ((hasItemDisc && it.quantity > 1) ? `
                                     <div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>
                                     <div style="color: #15803d; font-size: 9px; line-height: 1.1;">(Giảm ${formatMoney(itemDiff * it.quantity)})</div>
-                                ` : `<div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>`;
+                                ` : `<div style="font-weight: bold;">${formatMoney(it.quantity * it.price)}</div>`);
                                 return `
                                 <tr>
                                     <td colspan="3" style="padding: 5px 0 2px 0; font-weight: 600; text-align: left; word-break: break-word; line-height: 1.2;">${it.product_name}</td>
@@ -3125,11 +3180,15 @@ function renderAndPrint(ord, isDraft = false) {
                         </thead>
                         <tbody>
                             ${ord.items.map(it => {
-                                const hasItemDisc = !isWholesale && it.original_price && (it.original_price > it.price);
-                                const priceDisplay = hasItemDisc ? `
+                                const isGift = (Number(it.price) === 0 && Number(it.quantity || 0) > 0);
+                                const hasItemDisc = !isGift && ((!isWholesale && it.original_price && (it.original_price > it.price)) || (isWholesale && it.original_price && (it.original_price > it.price)));
+                                const priceDisplay = isGift ? `
+                                    <div style="font-weight: bold; line-height: 1.1;">${formatMoney(0)}</div>
+                                    <div style="color: #15803d; font-size: 9px; line-height: 1.1; margin-top: 1px;">(Hàng tặng)</div>
+                                ` : (hasItemDisc ? `
                                     <div style="font-weight: bold; line-height: 1.1;">${formatMoney(it.price)}</div>
                                     <div style="text-decoration: line-through; color: #777; font-size: 9px; line-height: 1.1; margin-top: 1px;">${formatMoney(it.original_price)}</div>
-                                ` : `<div>${formatMoney(it.price)}</div>`;
+                                ` : `<div>${formatMoney(it.price)}</div>`);
                                 return `
                                 <tr style="border-bottom: 0.5px dotted #ccc;">
                                     <td style="padding: 4px 2px 4px 0; vertical-align: top; word-break: break-word;">${it.product_name}</td>
@@ -3159,6 +3218,8 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{sdt_khach}}/g, printData.sdt_khach);
             txt = txt.replace(/{{dia_chi_khach}}/g, printData.dia_chi_khach);
             txt = txt.replace(/{{tong_tien}}/g, printData.tong_tien);
+            txt = txt.replace(/{{tong_tien_hang}}/g, printData.tong_tien);
+            txt = txt.replace(/{{tong_thanh_toan}}/g, printData.phai_tra);
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
             txt = txt.replace(/{{tru_vi}}/g, printData.tru_vi);
             txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
