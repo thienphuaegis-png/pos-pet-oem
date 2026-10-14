@@ -22,6 +22,12 @@ class PurchaseReceiveRequest(BaseModel):
     items: Optional[List[PurchaseReceiveItem]] = None
     note: Optional[str] = None
 
+class PurchasePayRequest(BaseModel):
+    amount: float
+    account_id: Optional[int] = None
+    fund_source: Optional[str] = "PERSONAL"
+    note: Optional[str] = None
+
 @router.get("/api/purchases/kpi")
 def get_purchases_kpi():
     conn = get_db()
@@ -84,7 +90,10 @@ def list_purchases(limit: int = 50):
     cur = conn.cursor()
     cur.execute('''
     SELECT p.*, c.name as supplier_name, c.phone as supplier_phone, w.name as warehouse_name,
-           (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count
+           (SELECT COUNT(*) FROM purchase_items WHERE purchase_id = p.id) as item_count,
+           (SELECT cb.code FROM cashbook cb WHERE cb.ref_type = 'purchase' AND cb.ref_id = p.id ORDER BY cb.id DESC LIMIT 1) as cashbook_code,
+           (SELECT cb.id FROM cashbook cb WHERE cb.ref_type = 'purchase' AND cb.ref_id = p.id ORDER BY cb.id DESC LIMIT 1) as cashbook_id,
+           (SELECT COUNT(*) FROM cashbook cb WHERE cb.ref_type = 'purchase' AND cb.ref_id = p.id) as cashbook_count
     FROM purchases p
     LEFT JOIN contacts c ON p.supplier_id = c.id
     LEFT JOIN warehouses w ON p.warehouse_id = w.id
@@ -472,6 +481,17 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
                 item.quantity, item.cost_price, subtotal, item.quantity
             ))
 
+        if req.paid_amount > 0:
+            cb_code = generate_cashbook_code(cur, "PC-NH")
+            fund_source = req.fund_source or 'PERSONAL'
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
+            cur.execute('''
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
+            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?, ?)
+            ''', (cb_code, req.paid_amount, req.supplier_id, purchase_id, fund_source, f"Chi thanh toán phiếu nhập {code}", acc_id, user_name))
+
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -656,17 +676,21 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
         if final_debt > 0 and p["supplier_id"]:
             cur.execute("UPDATE contacts SET debt = debt + ? WHERE id = ?", (final_debt, p["supplier_id"]))
 
-        # Ghi sổ quỹ nếu có trả trước
+        # Ghi sổ quỹ nếu có trả trước nhưng chưa sinh phiếu chi đủ
         if paid_amount > 0:
-            cb_code = generate_cashbook_code(cur, "PC-NH")
-            fund_source = p["fund_source"] or 'PERSONAL'
-            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
-            row_acc = cur.fetchone()
-            acc_id = row_acc[0] if row_acc else None
-            cur.execute('''
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id)
-            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?)
-            ''', (cb_code, paid_amount, p["supplier_id"], purchase_id, fund_source, f"Chi thanh toán phiếu nhập {code}", acc_id))
+            cur.execute("SELECT COALESCE(SUM(amount), 0) FROM cashbook WHERE ref_type = 'purchase' AND ref_id = ?", (purchase_id,))
+            already_paid_cb = cur.fetchone()[0] or 0.0
+            remaining_to_pay = round(paid_amount - already_paid_cb, 2)
+            if remaining_to_pay > 0:
+                cb_code = generate_cashbook_code(cur, "PC-NH")
+                fund_source = p["fund_source"] or 'PERSONAL'
+                cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
+                row_acc = cur.fetchone()
+                acc_id = row_acc[0] if row_acc else None
+                cur.execute('''
+                INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id)
+                VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?)
+                ''', (cb_code, remaining_to_pay, p["supplier_id"], purchase_id, fund_source, f"Chi thanh toán phiếu nhập {code}", acc_id))
 
         # Đổi trạng thái phiếu nhập sang 'received'
         cur.execute('''
@@ -974,5 +998,77 @@ def assign_supplier_items(supplier_id: int, payload: SupplierItemAssignPayload):
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok", "message": f"Đã gán {len(payload.items)} mặt hàng cho nhà cung cấp!"}
+
+@router.post("/api/purchases/{code}/pay")
+def pay_purchase_debt(code: str, req: PurchasePayRequest, user=Depends(require_permission("purchases.manage"))):
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Số tiền thanh toán phải lớn hơn 0")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+        if p["status"] == "cancelled":
+            raise HTTPException(status_code=400, detail="Phiếu nhập đã bị hủy, không thể thanh toán!")
+
+        current_debt = float(p["debt_amount"] or 0.0)
+        if req.amount > current_debt + 100:  # dung sai 100đ
+            raise HTTPException(status_code=400, detail=f"Số tiền thanh toán ({req.amount:,.0f} đ) vượt quá số nợ còn lại ({current_debt:,.0f} đ)")
+
+        pay_amount = min(req.amount, current_debt)
+        new_paid = round(float(p["paid_amount"] or 0) + pay_amount, 2)
+        new_debt = round(max(0.0, float(current_debt) - pay_amount), 2)
+
+        # Cập nhật phiếu nhập
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("""
+            UPDATE purchases
+            SET paid_amount = ?, debt_amount = ?, updated_by = ?, updated_at = ?
+            WHERE id = ?
+        """, (new_paid, new_debt, user_name, now_vn, p["id"]))
+
+        # Giảm công nợ NCC
+        if p["supplier_id"]:
+            fund_source = (req.fund_source or p["fund_source"] or "PERSONAL").upper()
+            if fund_source == "PERSONAL":
+                cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?), initial_debt_personal = MAX(0.0, initial_debt_personal - ?) WHERE id = ?", (pay_amount, pay_amount, p["supplier_id"]))
+            else:
+                cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?), initial_debt_company = MAX(0.0, initial_debt_company - ?) WHERE id = ?", (pay_amount, pay_amount, p["supplier_id"]))
+
+        # Lập phiếu chi cashbook
+        cb_code = generate_cashbook_code(cur, "PC-NH")
+        acc_id = req.account_id
+        fund_source = (req.fund_source or p["fund_source"] or "PERSONAL").upper()
+        if not acc_id:
+            cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (fund_source,))
+            row_acc = cur.fetchone()
+            acc_id = row_acc[0] if row_acc else None
+
+        cb_note = req.note or f"Chi thanh toán công nợ phiếu nhập {code}"
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
+            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?, ?)
+        """, (cb_code, pay_amount, p["supplier_id"], p["id"], fund_source, cb_note, acc_id, user_name))
+
+        conn.commit()
+        return {
+            "status": "ok",
+            "message": f"Đã lập phiếu chi {cb_code} thanh toán {pay_amount:,.0f} đ cho phiếu nhập {code}",
+            "cashbook_code": cb_code,
+            "paid_amount": new_paid,
+            "debt_amount": new_debt
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
 
 # San xuat (BOM Execution)

@@ -1,15 +1,38 @@
 {
-  "version": "v3.6.2",
-  "build_date": "2026.10.13",
-  "commit_hash": "607c3d7",
+  "version": "v3.6.3",
+  "build_date": "2026.10.14",
+  "commit_hash": "3045a17",
   "branch": "main",
   "release_title": "Bản Cập Nhật v3.6.2: Mẫu In Khổ Lớn & In Địa Chỉ Khách Hàng",
   "changelog": [
     {
+      "tag": "v3.6.3",
+      "date": "2026.10.14",
+      "title": "Bản phát hành v3.6.3 (2026.10.14)",
+      "is_new": true,
+      "items": [
+        "docs(roadmap): update PROJECT_MAP.html checkpoint for simplified inline print designer",
+        "feat(print-designer): simplify designer, remove token chips/picker and add inline click-to-edit",
+        "fix(print-designer): fix B2B template switching, synchronize preset and paper size dropdowns, add quick tag chips",
+        "Revert \"feat(print-designer): build universal WYSIWYG and token print designer for all 6 document types\"",
+        "feat(print-designer): build universal WYSIWYG and token print designer for all 6 document types",
+        "feat(bom-cost): support automatic two-tier OEM cost calculation (BOM packaging + factory processing fee) on cost summary card",
+        "feat(ai-oem): inject OEM factory knowledge graph into AI context, support manual type override dropdown, and 1-click OEM order creation",
+        "feat(ai): add AI agent vision tab for doc parsing, decouple activity log subtab, and cleanup company settings",
+        "fix(print): leave bank & VietQR boxes blank for debt orders and force A4 landscape full width",
+        "perf: enable Gzip compression, async queue activity log, cache git metadata, add DB indexes, and safe SQLite online backup",
+        "fix(debt): bundle latest POS_Mastercare.exe binary and fix order list refresh after debt payment",
+        "feat(ui): modernize order detail modal, remove close button, enable ESC key and backdrop click to close",
+        "feat(debt): settle customer order debt directly and via FIFO, auto-update order paid/debt amounts",
+        "fix(print): fix reprint missing customer address and multipage cutoff on A4 landscape",
+        "fix(pos): auto-bind customer address on tab selection, auto-inject into A4 presets, and support multi-page printing"
+      ]
+    },
+    {
       "tag": "v3.6.2",
       "date": "2026.10.13",
       "title": "Bản phát hành v3.6.2 (2026.10.13)",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "feat(print): Thêm tuỳ chọn in địa chỉ khách hàng trong cài đặt mẫu in",
         "fix(pos): Tự động nạp địa chỉ khách hàng khi chọn tại POS và tự hiển thị trên hóa đơn A4",

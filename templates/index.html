@@ -6286,6 +6286,44 @@
                 </div>
             </div>
 
+            <!-- MODAL: LẬP PHIẾU CHI THANH TOÁN ĐƠN NHẬP -->
+            <div id="modal-pay-purchase" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs">
+                    <div class="p-3.5 bg-slate-800 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-sm flex items-center gap-1.5">
+                            <span>💳 Lập Phiếu Chi Thanh Toán:</span>
+                            <span id="pay-po-code" class="text-amber-400 font-mono">PN-XXX</span>
+                        </h3>
+                        <button onclick="closePayPurchaseModal()" class="text-gray-400 hover:text-white text-lg font-bold px-2">✕</button>
+                    </div>
+                    <div class="p-4 space-y-3">
+                        <div class="bg-amber-50 border border-amber-200 p-2.5 rounded-lg flex justify-between items-center">
+                            <span class="text-amber-800 font-semibold">Công nợ còn lại:</span>
+                            <span id="pay-po-debt" class="font-mono font-bold text-rose-600 text-sm">0 đ</span>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Số tiền chi thanh toán (*):</label>
+                            <input type="number" id="pay-po-amount" class="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-indigo-600 text-sm outline-none focus:border-indigo-500" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Nguồn tiền:</label>
+                            <select id="pay-po-fund" class="w-full border border-slate-300 rounded-lg p-2 font-semibold">
+                                <option value="PERSONAL">👤 Cá Nhân (Không VAT)</option>
+                                <option value="COMPANY">🏢 Công Ty (Có VAT)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Ghi chú phiếu chi:</label>
+                            <input type="text" id="pay-po-note" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="Chi thanh toán tiền nhập hàng...">
+                        </div>
+                        <div class="pt-2 flex justify-end gap-2 border-t">
+                            <button type="button" onclick="closePayPurchaseModal()" class="px-4 py-2 border rounded-lg font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+                            <button type="button" onclick="submitPayPurchaseDebt()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">Xác Nhận Chi Tiền</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- MODAL: CHI TIẾT LỆNH SẢN XUẤT -->
             <div id="modal-production-detail" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
@@ -8723,7 +8761,6 @@
                         </table>
                     </div>
                 </div>
-            </div>
             </div>
 
             <!-- SUB 5: QUẢN LÝ & XÓA DỮ LIỆU -->

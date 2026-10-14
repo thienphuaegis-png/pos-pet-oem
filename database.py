@@ -1911,6 +1911,12 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        from scripts.migrate_cashbook_sync import sync_missing_cashbook_entries
+        sync_missing_cashbook_entries(conn)
+    except Exception as e:
+        logger.warning(f"Cashbook sync check skipped or failed: {e}")
+
     conn.commit()
     conn.close()
 

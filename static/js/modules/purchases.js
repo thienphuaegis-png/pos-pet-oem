@@ -979,14 +979,24 @@
                         ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">🏢 Quỹ Cty</span>'
                         : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">👤 Cá Nhân</span>';
 
+                    const cashbookBadge = p.cashbook_code 
+                        ? `<button type="button" onclick="viewPurchaseCashbook('${p.cashbook_code}')" class="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded transition mt-0.5" title="Bấm để xem phiếu chi trong Sổ Quỹ"><span>📄</span><span>${p.cashbook_code}</span></button>` 
+                        : (p.paid_amount > 0 ? '' : '<span class="text-[10px] text-slate-400 block mt-0.5">Chưa chi</span>');
+
+                    const payDebtBtn = (p.debt_amount > 0 && p.status !== 'cancelled')
+                        ? `<button type="button" onclick="openPayPurchaseModal('${p.code}', ${p.debt_amount}, '${p.fund_source || 'PERSONAL'}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow-xs flex items-center gap-1" title="Lập phiếu chi thanh toán nợ"><span>💳</span><span>Chi Trả</span></button>`
+                        : '';
+
                     const actionButtons = (p.status === 'pending' || p.status === 'draft')
                         ? `
+                        ${payDebtBtn}
                         <button onclick="openEditPurchaseModal('${p.code}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Chỉnh sửa số lượng, mặt hàng hoặc thông tin đơn">✏️ Sửa Đơn</button>
                         <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế gửi cho kho">🖨️ Phiếu Kiểm</button>
                         <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và xác nhận nhập kho thực tế">📥 Nhận Hàng</button>
                         <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu nhập">✕ Hủy</button>
                         `
                         : `
+                        ${payDebtBtn}
                         <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]" title="In phiếu">🖨️ In</button>
                         <button onclick="openReceiveModal('${p.code}', true)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
                         <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
@@ -1002,7 +1012,10 @@
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${p.created_by || 'Thủ kho'}</td>
                         <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${p.updated_by ? `${p.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(p.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_amount)}</td>
-                        <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${formatMoney(p.paid_amount || 0)}</td>
+                        <td class="p-2.5 text-right font-mono font-bold text-emerald-700">
+                            <div>${formatMoney(p.paid_amount || 0)}</div>
+                            ${cashbookBadge}
+                        </td>
                         <td class="p-2.5 text-right font-mono font-bold ${p.debt_amount > 0 ? 'text-rose-600' : 'text-gray-400'}">${formatMoney(p.debt_amount)}</td>
                         <td class="p-2.5 text-center">${statusBadge}</td>
                         <td class="p-2.5 text-center space-x-1 whitespace-nowrap">${actionButtons}</td>
@@ -1352,6 +1365,84 @@
                 alert("Lỗi kết nối khi lưu gán hàng!");
             } finally {
                 if (btn) btn.disabled = false;
+            }
+        }
+
+        let currentPayingPurchaseCode = null;
+
+        function openPayPurchaseModal(code, currentDebt, fundSource = 'PERSONAL') {
+            currentPayingPurchaseCode = code;
+            const codeEl = document.getElementById('pay-po-code');
+            const debtEl = document.getElementById('pay-po-debt');
+            const amtInput = document.getElementById('pay-po-amount');
+            const fundSelect = document.getElementById('pay-po-fund');
+            const noteInput = document.getElementById('pay-po-note');
+
+            if (codeEl) codeEl.textContent = code;
+            if (debtEl) debtEl.textContent = formatMoney(currentDebt);
+            if (amtInput) amtInput.value = currentDebt;
+            if (fundSelect) fundSelect.value = fundSource;
+            if (noteInput) noteInput.value = `Chi thanh toán tiền phiếu nhập ${code}`;
+
+            const modal = document.getElementById('modal-pay-purchase');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closePayPurchaseModal() {
+            currentPayingPurchaseCode = null;
+            const modal = document.getElementById('modal-pay-purchase');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitPayPurchaseDebt() {
+            if (!currentPayingPurchaseCode) return;
+            const amtInput = document.getElementById('pay-po-amount');
+            const fundSelect = document.getElementById('pay-po-fund');
+            const noteInput = document.getElementById('pay-po-note');
+
+            const amount = parseFloat(amtInput?.value) || 0;
+            if (amount <= 0) {
+                alert("Vui lòng nhập số tiền thanh toán hợp lệ lớn hơn 0!");
+                amtInput?.focus();
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/purchases/${currentPayingPurchaseCode}/pay`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        fund_source: fundSelect?.value || 'PERSONAL',
+                        note: (noteInput?.value || '').trim()
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert("Lỗi: " + (data.detail || "Không thể thực hiện thanh toán"));
+                    return;
+                }
+
+                alert(data.message || "Đã thanh toán thành công!");
+                closePayPurchaseModal();
+                loadPurchasesList();
+            } catch (err) {
+                console.error("submitPayPurchaseDebt err:", err);
+                alert("Lỗi kết nối khi thanh toán phiếu nhập!");
+            }
+        }
+
+        function viewPurchaseCashbook(cbCode) {
+            if (typeof switchTab === 'function') {
+                switchTab('cashbook');
+                setTimeout(() => {
+                    const searchInput = document.getElementById('cashbook-search');
+                    if (searchInput) {
+                        searchInput.value = cbCode;
+                        if (typeof loadCashbook === 'function') loadCashbook();
+                    }
+                }, 150);
             }
         }
 
