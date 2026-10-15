@@ -715,40 +715,42 @@
             <div id="login-store-name" style="color:#0369a1;font-size:1.45rem;font-weight:800;margin-top:4px;letter-spacing:-0.5px">POS Offline</div>
             <div style="color:#64748b;font-size:0.82rem;margin-top:4px">Đăng nhập để tiếp tục</div>
         </div>
-        <div style="margin-bottom:14px">
-            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Tên đăng nhập</label>
-            <input id="login-username" type="text" placeholder="username" autocomplete="username"
-                style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
-                onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#cbd5e1'">
-        </div>
-        <div style="margin-bottom:22px">
-            <label style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Mật khẩu</label>
-            <div style="position:relative;display:flex;align-items:center">
-                <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"
-                    style="width:100%;padding:10px 65px 10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
-                    onfocus="this.style.borderColor='#38bdf8'" 
-                    onblur="this.style.borderColor='#cbd5e1'; checkPasswordCapsLock(event, 'login-caps-warn')"
-                    onkeyup="checkPasswordCapsLock(event, 'login-caps-warn')"
-                    onkeydown="checkPasswordCapsLock(event, 'login-caps-warn')">
-                <button type="button" onclick="togglePasswordVisibility('login-password', this)"
-                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:#f1f5f9;color:#64748b;cursor:pointer;padding:4px 8px;border-radius:6px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;transition:all .15s"
-                    title="Hiện/Ẩn mật khẩu">
-                    <svg class="pwd-icon" style="width:15px;height:15px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                    <span class="pwd-label">Xem</span>
-                </button>
+        <form id="login-form" method="POST" autocomplete="on" onsubmit="event.preventDefault(); handleLogin();">
+            <div style="margin-bottom:14px">
+                <label for="login-username" style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Tên đăng nhập</label>
+                <input id="login-username" name="username" type="text" placeholder="username" autocomplete="username"
+                    style="width:100%;padding:10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
+                    onfocus="this.style.borderColor='#38bdf8'" onblur="this.style.borderColor='#cbd5e1'">
             </div>
-            <div id="login-caps-warn" style="display:none;color:#d97706;font-size:0.75rem;font-weight:600;margin-top:5px;align-items:center;gap:4px">
-                <span>⚠️</span> <span>Chú ý: Đang bật Caps Lock (viết hoa)</span>
+            <div style="margin-bottom:22px">
+                <label for="login-password" style="color:#374151;font-size:0.82rem;font-weight:600;display:block;margin-bottom:5px">Mật khẩu</label>
+                <div style="position:relative;display:flex;align-items:center">
+                    <input id="login-password" name="password" type="password" placeholder="••••••••" autocomplete="current-password"
+                        style="width:100%;padding:10px 65px 10px 13px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;outline:none;transition:border .15s"
+                        onfocus="this.style.borderColor='#38bdf8'" 
+                        onblur="this.style.borderColor='#cbd5e1'; checkPasswordCapsLock(event, 'login-caps-warn')"
+                        onkeyup="checkPasswordCapsLock(event, 'login-caps-warn')"
+                        onkeydown="checkPasswordCapsLock(event, 'login-caps-warn')">
+                    <button type="button" onclick="togglePasswordVisibility('login-password', this)"
+                        style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:#f1f5f9;color:#64748b;cursor:pointer;padding:4px 8px;border-radius:6px;display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;transition:all .15s"
+                        title="Hiện/Ẩn mật khẩu">
+                        <svg class="pwd-icon" style="width:15px;height:15px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                        <span class="pwd-label">Xem</span>
+                    </button>
+                </div>
+                <div id="login-caps-warn" style="display:none;color:#d97706;font-size:0.75rem;font-weight:600;margin-top:5px;align-items:center;gap:4px">
+                    <span>⚠️</span> <span>Chú ý: Đang bật Caps Lock (viết hoa)</span>
+                </div>
             </div>
-        </div>
-        <button onclick="handleLogin()" id="login-btn"
-            style="width:100%;padding:12px;background:linear-gradient(90deg,#0ea5e9,#0284c7);color:#fff;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.2px;box-shadow:0 2px 8px rgba(14,165,233,0.3);transition:opacity .15s"
-            onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-            Đăng Nhập
-        </button>
+            <button type="submit" id="login-btn"
+                style="width:100%;padding:12px;background:linear-gradient(90deg,#0ea5e9,#0284c7);color:#fff;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;letter-spacing:0.2px;box-shadow:0 2px 8px rgba(14,165,233,0.3);transition:opacity .15s"
+                onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+                Đăng Nhập
+            </button>
+        </form>
         <p id="login-error" style="color:#dc2626;font-size:0.82rem;margin-top:10px;min-height:18px;text-align:center;font-weight:500"></p>
     </div>
 </div>

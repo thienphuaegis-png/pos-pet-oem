@@ -3907,7 +3907,10 @@
                     initPOS();
                 }
                 setTimeout(() => {
-                    document.getElementById('pos-search-input')?.focus();
+                    const loginOverlay = document.getElementById('login-overlay');
+                    if (!loginOverlay || loginOverlay.style.display === 'none') {
+                        document.getElementById('pos-search-input')?.focus();
+                    }
                 }, 100);
             } else if (tabId === 'hotel') {
                 if (window.hotelManager && typeof window.hotelManager.init === 'function') {

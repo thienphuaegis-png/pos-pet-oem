@@ -235,6 +235,15 @@ function showLoginOverlay() {
   const el = document.getElementById('login-overlay');
   if (el) el.style.display = 'flex';
   loadLoginStoreBranding();
+  setTimeout(() => {
+    const userInp = document.getElementById('login-username');
+    const pwdInp = document.getElementById('login-password');
+    if (userInp && !userInp.value) {
+      userInp.focus();
+    } else if (pwdInp) {
+      pwdInp.focus();
+    }
+  }, 100);
 }
 function hideLoginOverlay() {
   const el = document.getElementById('login-overlay');
@@ -280,6 +289,20 @@ async function applyRoleUI() {
 
 // ── Enter key trên form login ──
 document.addEventListener('DOMContentLoaded', () => {
+  const userInput = document.getElementById('login-username');
+  if (userInput) {
+    userInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const pwdInput = document.getElementById('login-password');
+        if (pwdInput && !pwdInput.value) {
+          pwdInput.focus();
+        } else {
+          handleLogin();
+        }
+      }
+    });
+  }
+
   const pwdInput = document.getElementById('login-password');
   if (pwdInput) {
     pwdInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
