@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 import datetime
 import time
-from database import get_db
+from database import get_db, archive_code, is_code_archived
 from schemas import OrderCreate, OrderUpdate, ReturnItemSchema, ExchangeItemSchema, CreateReturnRequest
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
@@ -564,17 +564,29 @@ def get_order_returnable_items(code: str):
 
 
 def generate_return_code(cur) -> str:
-    """Sinh mã phiếu trả/đổi hàng định dạng: RET-{YYYYMMDD}-{seq:04d}"""
+    """Sinh mã phiếu trả/đổi hàng định dạng: RET-{YYYYMMDD}-{seq:04d} (chống trùng mã vĩnh viễn)"""
     today_str = datetime.datetime.now().strftime("%Y%m%d")
     pattern = f"RET-{today_str}-%"
-    cur.execute("SELECT COUNT(*) FROM order_returns WHERE code LIKE ?", (pattern,))
-    count = cur.fetchone()[0]
-    seq = count + 1
+    
+    # Tìm sequence lớn nhất từ cả 2 bảng order_returns và archived_codes
+    cur.execute("""
+        SELECT MAX(CAST(SUBSTR(code, 14) AS INTEGER))
+        FROM (
+            SELECT code FROM order_returns WHERE code LIKE ?
+            UNION ALL
+            SELECT code FROM archived_codes WHERE code LIKE ?
+        )
+    """, (pattern, pattern))
+    row = cur.fetchone()
+    max_seq = row[0] if row and row[0] is not None else 0
+    seq = max_seq + 1
+
     while True:
-        code = f"RET-{today_str}-{seq:04d}"
-        cur.execute("SELECT 1 FROM order_returns WHERE code = ?", (code,))
-        if not cur.fetchone():
-            return code
+        candidate = f"RET-{today_str}-{seq:04d}"
+        cur.execute("SELECT 1 FROM order_returns WHERE code = ?", (candidate,))
+        if not cur.fetchone() and not is_code_archived(cur, candidate):
+            archive_code(cur, candidate, "return")
+            return candidate
         seq += 1
 
 
@@ -1112,7 +1124,8 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         seq = 1
         while True:
             cur.execute("SELECT 1 FROM orders WHERE code = ?", (code,))
-            if not cur.fetchone():
+            if not cur.fetchone() and not is_code_archived(cur, code):
+                archive_code(cur, code, "order")
                 break
             code = f"{base_code}_{seq}"
             seq += 1

@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from typing import Optional, List
 import datetime
 from datetime import datetime
-from database import get_db
+from database import get_db, archive_code, is_code_archived
 from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove, CashbookCategoryCreate, CashbookCategoryUpdate
 from logger_config import get_module_logger
 from dependencies import get_current_user, get_optional_user, require_role, require_permission
@@ -13,17 +13,27 @@ logger = get_module_logger("cashbook")
 router = APIRouter(tags=["Cashbook & Reports"])
 
 def generate_cashbook_code(cur, prefix: str = "SQ") -> str:
-    """Sinh mã phiếu Thu / Chi theo định dạng: {PREFIX}-{YYMMDD}-{STT:03d}"""
+    """Sinh mã phiếu Thu / Chi theo định dạng: {PREFIX}-{YYMMDD}-{STT:03d} (chống trùng mã vĩnh viễn)"""
     date_str = datetime.now().strftime("%y%m%d")
     pattern = f"{prefix}-{date_str}-%"
-    cur.execute("SELECT COUNT(*) FROM cashbook WHERE code LIKE ?", (pattern,))
-    count = cur.fetchone()[0]
     
-    stt = count + 1
+    cur.execute("""
+        SELECT MAX(CAST(SUBSTR(code, LENGTH(?) + 2) AS INTEGER))
+        FROM (
+            SELECT code FROM cashbook WHERE code LIKE ?
+            UNION ALL
+            SELECT code FROM archived_codes WHERE code LIKE ?
+        )
+    """, (f"{prefix}-{date_str}", pattern, pattern))
+    row = cur.fetchone()
+    max_stt = row[0] if row and row[0] is not None else 0
+    stt = max_stt + 1
+    
     while True:
         candidate = f"{prefix}-{date_str}-{stt:03d}"
         cur.execute("SELECT 1 FROM cashbook WHERE code = ?", (candidate,))
-        if not cur.fetchone():
+        if not cur.fetchone() and not is_code_archived(cur, candidate):
+            archive_code(cur, candidate, "cashbook")
             return candidate
         stt += 1
 
@@ -1050,17 +1060,27 @@ def export_reports_excel(
 # --- Phân Hệ: Dự Chi & Hoàn Ứng Nhân Viên (Expense Requests) ---
 
 def generate_expense_request_code(cur, prefix: str = "YC") -> str:
-    """Sinh mã yêu cầu chi theo định dạng: YC-{YYMMDD}-{STT:03d}"""
+    """Sinh mã yêu cầu chi theo định dạng: YC-{YYMMDD}-{STT:03d} (chống trùng mã vĩnh viễn)"""
     date_str = datetime.now().strftime("%y%m%d")
     pattern = f"{prefix}-{date_str}-%"
-    cur.execute("SELECT COUNT(*) FROM expense_requests WHERE code LIKE ?", (pattern,))
-    count = cur.fetchone()[0]
+    
+    cur.execute("""
+        SELECT MAX(CAST(SUBSTR(code, LENGTH(?) + 2) AS INTEGER))
+        FROM (
+            SELECT code FROM expense_requests WHERE code LIKE ?
+            UNION ALL
+            SELECT code FROM archived_codes WHERE code LIKE ?
+        )
+    """, (f"{prefix}-{date_str}", pattern, pattern))
+    row = cur.fetchone()
+    max_stt = row[0] if row and row[0] is not None else 0
+    stt = max_stt + 1
 
-    stt = count + 1
     while True:
         candidate = f"{prefix}-{date_str}-{stt:03d}"
         cur.execute("SELECT 1 FROM expense_requests WHERE code = ?", (candidate,))
-        if not cur.fetchone():
+        if not cur.fetchone() and not is_code_archived(cur, candidate):
+            archive_code(cur, candidate, "expense_request")
             return candidate
         stt += 1
 

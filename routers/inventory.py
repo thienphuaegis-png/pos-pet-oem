@@ -6,7 +6,7 @@ import time
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from database import get_db
+from database import get_db, archive_code, is_code_archived
 from schemas import (
     WarehouseCreate, WarehouseUpdate, IngredientCreate, IngredientUpdate,
     InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
@@ -1027,7 +1027,8 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
         seq = 1
         while True:
             cur.execute("SELECT 1 FROM warehouse_transfers WHERE code = ?", (code,))
-            if not cur.fetchone():
+            if not cur.fetchone() and not is_code_archived(cur, code):
+                archive_code(cur, code, "transfer")
                 break
             code = f"{base_code}_{seq}"
             seq += 1

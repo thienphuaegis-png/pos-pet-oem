@@ -236,6 +236,25 @@ def get_db():
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
+def archive_code(cur, code: str, doc_type: str):
+    """Ghi nhận mã chứng từ vào danh sách đã sử dụng vĩnh viễn (chống trùng lặp)."""
+    if not code:
+        return
+    try:
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) VALUES (?, ?)", (code.strip(), doc_type))
+    except Exception:
+        pass
+
+def is_code_archived(cur, code: str) -> bool:
+    """Kiểm tra mã chứng từ đã từng được sử dụng (hoặc đã bị xóa/hủy) hay chưa."""
+    if not code:
+        return False
+    try:
+        cur.execute("SELECT 1 FROM archived_codes WHERE code = ?", (code.strip(),))
+        return cur.fetchone() is not None
+    except Exception:
+        return False
+
 def init_db():
     if os.environ.get("DATABASE_URL"):
         # Running against Supabase PostgreSQL: schema is already managed and migrated
@@ -1879,6 +1898,27 @@ def init_db():
             if _col not in _mkt_cols:
                 cur.execute(f"ALTER TABLE marketplace_orders ADD COLUMN {_col} {_type}")
     except Exception as _e:
+        pass
+
+    # Bảng lưu vết mã chứng từ vĩnh viễn (chống trùng mã kể cả khi đơn đã bị xóa hoặc hủy)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS archived_codes (
+        code TEXT PRIMARY KEY,
+        doc_type TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_archived_codes_type ON archived_codes(doc_type)")
+
+    # Nạp các mã chứng từ hiện hữu vào archived_codes nếu chưa có
+    try:
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'order' FROM orders WHERE code IS NOT NULL")
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'purchase' FROM purchases WHERE code IS NOT NULL")
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'oem' FROM oem_orders WHERE code IS NOT NULL")
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'cashbook' FROM cashbook WHERE code IS NOT NULL")
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'return' FROM order_returns WHERE code IS NOT NULL")
+        cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'transfer' FROM warehouse_transfers WHERE code IS NOT NULL")
+    except Exception:
         pass
 
     # Tự động đồng bộ phần tử địa chỉ khách hàng vào các preset in A4/B2B nếu chưa có

@@ -642,9 +642,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
-    const ROADMAP_VERSION = 'v5.9-2026-10-15-mkt-smart-combobox-ai-review-and-ing-conversion';
+    const ROADMAP_VERSION = 'v6.0-2026-10-15-ironclad-anti-duplicate-code-architecture';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-15)
+      { id: 'ironclad-anti-duplicate-code-system', cat: 'SYS', title: 'Kiến Trúc Chống Trùng Hóa Đơn & Mã Chứng Từ Tuyệt Đối (Kể Cả Khi Đã Xóa / Hủy)', done: true, note: 'Bảng archived_codes lưu vết vĩnh viễn mọi mã hóa đơn/phiếu đã từng sinh; chuyển thuật toán sinh mã OEM, Cashbook, Return, Purchase sang tịnh tiến MAX() + check archived_codes để khi xóa/hủy đơn cũ thì đơn mới không bao giờ bị thụt lùi hay trùng mã cũ; cờ isSubmittingPOSOrder chống đúp chuột F9 tại quầy.' },
       { id: 'convert-ingredient-to-product-action', cat: 'INV', title: 'Chuyển Đổi Nguyên Vật Liệu Sang Hàng Hóa Bán Tại POS', done: true, note: 'Bổ sung nút 🔄 Thành Hàng Hóa trên bảng tồn kho hợp nhất; API chuyển tồn kho từ inventory sang product_inventory, cập nhật giá vốn gần nhất và chuyển liên kết NCC sang product.' },
       { id: 'mkt-smart-combobox-and-human-in-the-loop-ai', cat: 'POS', title: 'Droplist Combobox Tìm Kiếm Ánh Xạ & Duyệt Gợi Ý AI (Human-in-the-loop)', done: true, note: 'Thay thế thẻ select cũ bằng Combobox gõ tìm kiếm 0ms; AI chuyển sang cơ chế Gợi ý (Suggestion) hiển thị lên bảng cho con người kiểm tra trước khi bấm Lưu từng dòng hoặc Duyệt tất cả; đồng bộ đầy đủ KPI và bảng đơn TikTok giống Shopee.' },
       { id: 'oem-processing-fee-and-stats-fix', cat: 'PROD', title: 'Khắc Phục Đơn Đặt Gia Công OEM: Lấy Chuẩn Phí Chiết Rót / Công Xưởng Thay Vì Giá Bán Lẻ & Cập Nhật Thẻ Thống Kê', done: true, note: 'Sửa tiêu đề cột thành Phí Chiết Rót / Công Xưởng (đ); tự động tra cứu đơn giá gia công gần nhất của xưởng từ các đơn trước (vd 18.288 đ thay vì giá bán lẻ 89.000 đ); xóa bỏ fallback nhầm vào sell_price; cập nhật chính xác thẻ thống kê Tổng Đơn Gia Công và Tiền Đợt 2 Còn Lại.' },

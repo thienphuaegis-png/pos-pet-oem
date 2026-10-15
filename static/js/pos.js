@@ -1839,7 +1839,14 @@ window.submitQuickCustomer = submitQuickCustomer;
 // ----------------------------------------------------
 // GỬI ĐƠN HÀNG (THANH TOÁN) & IN HÓA ĐƠN
 // ----------------------------------------------------
+let isSubmittingPOSOrder = false;
+
 async function submitPOSOrder() {
+    if (isSubmittingPOSOrder) {
+        console.warn("Thao tác thanh toán đang được xử lý, bỏ qua click trùng lặp!");
+        return;
+    }
+
     const tab = getActiveTab();
     if (!tab.cart || tab.cart.length === 0) {
         alert("Giỏ hàng đang trống! Vui lòng chọn sản phẩm trước.");
@@ -1918,6 +1925,7 @@ async function submitPOSOrder() {
         btnSubmit.disabled = true;
         btnSubmit.innerText = "Đang xử lý...";
     }
+    isSubmittingPOSOrder = true;
 
     try {
         const reqBody = {
@@ -2005,6 +2013,7 @@ async function submitPOSOrder() {
         console.error("submitPOSOrder error:", e);
         alert("Lỗi kết nối khi thanh toán đơn hàng!");
     } finally {
+        isSubmittingPOSOrder = false;
         if (btnSubmit) {
             btnSubmit.disabled = false;
             btnSubmit.innerHTML = "<span>💳</span><span>THANH TOÁN (F9)</span>";

@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import datetime
 import time
-from database import get_db
+from database import get_db, archive_code, is_code_archived
 from schemas import PurchaseCreate
 from logger_config import get_module_logger
 from dependencies import require_role, require_permission
@@ -448,7 +448,17 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
         vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2) if req.vat_rate > 0 else 0.0
         total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
-        code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        
+        base_code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        code = base_code
+        seq = 1
+        while True:
+            cur.execute("SELECT 1 FROM purchases WHERE code = ?", (code,))
+            if not cur.fetchone() and not is_code_archived(cur, code):
+                archive_code(cur, code, "purchase")
+                break
+            code = f"{base_code}_{seq}"
+            seq += 1
 
         status = 'draft' if req.status == 'draft' else 'pending'
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"

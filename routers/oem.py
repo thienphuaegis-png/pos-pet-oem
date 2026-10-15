@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
 import datetime
-from database import get_db
+from database import get_db, archive_code, is_code_archived
 from schemas import (
     OEMOrderCreate, OEMOrderUpdate, OEMOrderDeposit, OEMOrderReceive
 )
@@ -48,10 +48,28 @@ logger = get_module_logger("oem")
 router = APIRouter(tags=["oem"])
 
 def generate_oem_code(cur):
+    """Sinh mã đơn đặt gia công: OEM-{YYYYMMDD}-{seq:03d} (chống trùng mã vĩnh viễn)"""
     today_str = datetime.datetime.now().strftime("%Y%m%d")
-    cur.execute("SELECT COUNT(*) FROM oem_orders WHERE code LIKE ?", (f"OEM-{today_str}-%",))
-    count = cur.fetchone()[0]
-    return f"OEM-{today_str}-{count + 1:03d}"
+    pattern = f"OEM-{today_str}-%"
+    cur.execute("""
+        SELECT MAX(CAST(SUBSTR(code, 14) AS INTEGER))
+        FROM (
+            SELECT code FROM oem_orders WHERE code LIKE ?
+            UNION ALL
+            SELECT code FROM archived_codes WHERE code LIKE ?
+        )
+    """, (pattern, pattern))
+    row = cur.fetchone()
+    max_seq = row[0] if row and row[0] is not None else 0
+    seq = max_seq + 1
+
+    while True:
+        candidate = f"OEM-{today_str}-{seq:03d}"
+        cur.execute("SELECT 1 FROM oem_orders WHERE code = ?", (candidate,))
+        if not cur.fetchone() and not is_code_archived(cur, candidate):
+            archive_code(cur, candidate, "oem")
+            return candidate
+        seq += 1
 
 @router.get("/api/oem/factories")
 def list_oem_factories():
