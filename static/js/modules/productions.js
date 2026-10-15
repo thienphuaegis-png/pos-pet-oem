@@ -3457,10 +3457,22 @@
             document.getElementById('modal-ing-type').value = 'IS_PHYSICAL';
             document.getElementById('modal-ing-stock').value = '0';
             document.getElementById('modal-ing-cost').value = '0';
+            document.getElementById('btn-convert-ing-to-product-modal')?.classList.add('hidden');
             populateIngredientSuppliersDropdown([]);
             document.getElementById('modal-ing-stock-group').classList.remove('hidden');
             document.getElementById('modal-ingredient').classList.remove('hidden');
         }
+
+        async function convertCurrentIngredientToProductFromModal() {
+            const id = document.getElementById('modal-ing-id').value;
+            const name = document.getElementById('modal-ing-name').value.trim();
+            if (!id) return;
+            if (typeof convertCurrentIngredientToProduct === 'function') {
+                closeModalIngredient();
+                await convertCurrentIngredientToProduct(id, encodeURIComponent(name));
+            }
+        }
+        window.convertCurrentIngredientToProductFromModal = convertCurrentIngredientToProductFromModal;
 
         async function openModalEditIngredient(id) {
             const ing = costIngredients.find(x => x.id === id);
@@ -3491,11 +3503,17 @@
             
             // Khi sửa thì ẩn ô tồn ban đầu để tránh sai lệch thẻ kho
             document.getElementById('modal-ing-stock-group').classList.add('hidden');
+            
+            // Hiện nút chuyển thành hàng hóa khi đang chỉnh sửa nguyên liệu
+            const btnConv = document.getElementById('btn-convert-ing-to-product-modal');
+            if (btnConv) btnConv.classList.remove('hidden');
+
             document.getElementById('modal-ingredient').classList.remove('hidden');
         }
 
         function closeModalIngredient() {
             closeIngSuppDropdown();
+            document.getElementById('btn-convert-ing-to-product-modal')?.classList.add('hidden');
             document.getElementById('modal-ingredient').classList.add('hidden');
         }
 

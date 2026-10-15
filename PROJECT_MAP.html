@@ -642,9 +642,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
-    const ROADMAP_VERSION = 'v6.0-2026-10-15-ironclad-anti-duplicate-code-architecture';
+    const ROADMAP_VERSION = 'v6.1-2026-10-15-bidirectional-product-ingredient-conversion';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-15)
+      { id: 'convert-ingredient-to-product-full', cat: 'INV', title: 'Chuyển Đổi Hai Chiều: Nguyên Vật Liệu ↔ Hàng Hóa Bán Tại POS', done: true, note: 'Tích hợp nút chuyển đổi nhanh trên cả bảng tồn kho hợp nhất và bên trong modal Chỉnh sửa nguyên liệu (BOM/Sản xuất); tự động chuyển số dư tồn kho, giá vốn nhập gần nhất và nhà cung cấp sang Hàng hóa để bán tại POS.' },
       { id: 'ironclad-anti-duplicate-code-system', cat: 'SYS', title: 'Kiến Trúc Chống Trùng Hóa Đơn & Mã Chứng Từ Tuyệt Đối (Kể Cả Khi Đã Xóa / Hủy)', done: true, note: 'Bảng archived_codes lưu vết vĩnh viễn mọi mã hóa đơn/phiếu đã từng sinh; chuyển thuật toán sinh mã OEM, Cashbook, Return, Purchase sang tịnh tiến MAX() + check archived_codes để khi xóa/hủy đơn cũ thì đơn mới không bao giờ bị thụt lùi hay trùng mã cũ; cờ isSubmittingPOSOrder chống đúp chuột F9 tại quầy.' },
       { id: 'convert-ingredient-to-product-action', cat: 'INV', title: 'Chuyển Đổi Nguyên Vật Liệu Sang Hàng Hóa Bán Tại POS', done: true, note: 'Bổ sung nút 🔄 Thành Hàng Hóa trên bảng tồn kho hợp nhất; API chuyển tồn kho từ inventory sang product_inventory, cập nhật giá vốn gần nhất và chuyển liên kết NCC sang product.' },
       { id: 'mkt-smart-combobox-and-human-in-the-loop-ai', cat: 'POS', title: 'Droplist Combobox Tìm Kiếm Ánh Xạ & Duyệt Gợi Ý AI (Human-in-the-loop)', done: true, note: 'Thay thế thẻ select cũ bằng Combobox gõ tìm kiếm 0ms; AI chuyển sang cơ chế Gợi ý (Suggestion) hiển thị lên bảng cho con người kiểm tra trước khi bấm Lưu từng dòng hoặc Duyệt tất cả; đồng bộ đầy đủ KPI và bảng đơn TikTok giống Shopee.' },
