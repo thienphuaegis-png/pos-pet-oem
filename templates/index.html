@@ -4442,8 +4442,8 @@
                                         <tr class="bg-slate-100 text-slate-700 border-b">
                                             <th class="p-2.5 w-5/12">Sản Phẩm Gia Công</th>
                                             <th class="p-2.5 w-32 text-right">SL Đặt</th>
-                                            <th class="p-2.5 w-36 text-right">Đơn Giá Niêm Yết (đ)</th>
-                                            <th class="p-2.5 w-36 text-right">Thành Tiền Thô</th>
+                                            <th class="p-2.5 w-40 text-right">Phí Chiết Rót / Công Xưởng (đ)</th>
+                                            <th class="p-2.5 w-36 text-right">Tiền Công Gia Công</th>
                                             <th class="p-2.5 w-12 text-center">Xóa</th>
                                         </tr>
                                     </thead>
@@ -4488,7 +4488,7 @@
                         <!-- Bảng tổng hợp thanh toán & cọc 50% -->
                         <div class="bg-slate-100 p-3 rounded-lg border flex flex-wrap justify-between items-center gap-3">
                             <div class="space-y-1">
-                                <div class="text-xs">Tiền hàng niêm yết: <strong id="oem-math-raw" class="font-mono text-slate-700">0 đ</strong></div>
+                                <div class="text-xs">Tổng tiền công thô: <strong id="oem-math-raw" class="font-mono text-slate-700">0 đ</strong></div>
                                 <div class="text-xs">Trừ Chiết khấu (<span id="oem-lbl-discount">5%</span>): <strong id="oem-math-discount" class="font-mono text-emerald-600">- 0 đ</strong></div>
                                 <div class="text-xs">Thuế VAT (<span id="oem-lbl-vat">8%</span>): <strong id="oem-math-vat" class="font-mono text-rose-600">+ 0 đ</strong></div>
                                 <div class="text-sm font-bold text-slate-800">TỔNG THÀNH TIỀN: <span id="oem-math-final" class="font-mono text-amber-600 text-base">0 đ</span></div>
@@ -7268,7 +7268,7 @@
 
             <!-- MODAL: THÊM / SỬA HÀNG HÓA -->
             <div id="modal-product" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg p-5 w-[460px] max-w-full space-y-3 text-xs shadow-xl">
+                <div id="modal-product-content" class="bg-white rounded-lg p-5 w-[460px] max-w-full space-y-3 text-xs shadow-xl max-h-[92vh] overflow-y-auto">
                     <div class="flex justify-between items-center border-b pb-2">
                         <h3 id="modal-prod-title" class="font-bold text-sm text-slate-800">Thêm Hàng Hóa Mới</h3>
                         <button onclick="closeModalProduct()" class="text-gray-400 hover:text-gray-600 text-base">✕</button>
@@ -7285,9 +7285,10 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block font-bold mb-1">Loại:</label>
-                            <select id="modal-prod-type" class="border p-2 rounded w-full font-bold">
+                            <select id="modal-prod-type" onchange="onProductTypeChange()" class="border p-2 rounded w-full font-bold">
                                 <option value="product">Hàng hóa (Có tồn kho)</option>
                                 <option value="service">Dịch vụ (Không tồn kho)</option>
+                                <option value="combo">Gói Combo (A + B, trừ kho món con)</option>
                             </select>
                         </div>
                         <div>
@@ -7300,18 +7301,66 @@
                             </div>
                         </div>
                     </div>
-                    <div>
+                    <div id="modal-prod-unit-group">
                         <label class="block font-bold mb-1">Đơn vị tính:</label>
                         <input id="modal-prod-unit" type="text" class="border p-2 rounded w-full" placeholder="cái, hộp, gói, lon...">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div class="col-cost">
+                        <div class="col-cost" id="modal-prod-cost-group">
                             <label class="block font-bold mb-1">Giá vốn (đ):</label>
                             <input id="modal-prod-cost" type="text" inputmode="numeric" class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-slate-800 text-right" placeholder="0" value="">
                         </div>
-                        <div>
-                            <label class="block font-bold mb-1">Giá bán niêm yết (đ):</label>
-                            <input id="modal-prod-price" type="text" inputmode="numeric" class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-emerald-700 text-right" placeholder="0" value="">
+                        <div id="modal-prod-price-col" class="w-full">
+                            <label id="modal-prod-price-label" class="block font-bold mb-1">Giá bán niêm yết (đ):</label>
+                            <input id="modal-prod-price" oninput="calculateComboSavings()" type="text" inputmode="numeric" class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-emerald-700 text-right" placeholder="0" value="">
+                        </div>
+                    </div>
+                    <!-- CẤU HÌNH GÓI COMBO: Chọn các mặt hàng con -->
+                    <div id="modal-prod-combo-group" class="border border-amber-300 bg-amber-50/40 rounded-lg p-3 space-y-2.5 hidden">
+                        <div class="flex items-center justify-between">
+                            <label class="font-bold text-amber-800 text-xs flex items-center gap-1">
+                                <span>🎁</span> Danh sách sản phẩm thành phần
+                            </label>
+                            <span id="combo-items-count-badge" class="text-[10px] text-amber-700 bg-amber-100 font-bold px-1.5 py-0.5 rounded border border-amber-300">0 món</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-snug">
+                            Gói Combo là sản phẩm ảo không lưu tồn riêng. Khi bán tại POS, hệ thống sẽ tự động trừ tồn kho của các sản phẩm con bên dưới.
+                        </p>
+
+                        <!-- Ô tìm kiếm thêm sản phẩm con -->
+                        <div class="relative">
+                            <input type="text" id="combo-item-search" oninput="searchComboComponent(this.value)" placeholder="🔍 Gõ tên hoặc mã SP con để thêm vào combo..." class="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 focus:ring-amber-500 outline-none">
+                            <div id="combo-item-search-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-slate-100 text-xs">
+                            </div>
+                        </div>
+
+                        <!-- Bảng các sản phẩm con trong combo -->
+                        <div class="max-h-48 overflow-y-auto rounded border border-slate-200 bg-white">
+                            <table class="w-full text-[11px]">
+                                <thead class="bg-slate-50 text-slate-600 border-b">
+                                    <tr>
+                                        <th class="text-left font-bold p-1.5">Sản phẩm con</th>
+                                        <th class="text-right font-bold p-1.5 w-16">SL</th>
+                                        <th class="text-right font-bold p-1.5 w-24">Giá lẻ</th>
+                                        <th class="text-right font-bold p-1.5 w-24">Thành tiền</th>
+                                        <th class="w-8 p-1.5 text-center"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-combo-components">
+                                    <tr><td colspan="5" class="text-center text-slate-400 italic py-3">Chưa có sản phẩm nào trong combo</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Tổng kết giá trị combo & gợi ý giá bán -->
+                        <div class="bg-amber-100/70 rounded-lg p-2 flex justify-between items-center text-xs text-amber-950 font-medium">
+                            <div>
+                                <span>Tổng giá lẻ gốc: </span>
+                                <span id="combo-total-retail-price" class="font-bold text-slate-900 font-mono">0 đ</span>
+                            </div>
+                            <div id="combo-savings-hint" class="text-[11px] text-emerald-700 font-bold hidden">
+                                Tiết kiệm: 0 đ (0%)
+                            </div>
                         </div>
                     </div>
                     <!-- ĐƠN VỊ QUY ĐỔI: 1 Thùng = 16 Chai, mỗi mặt hàng một hệ số riêng -->

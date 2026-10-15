@@ -1817,6 +1817,11 @@ def init_db():
         order_date DATETIME NOT NULL,
         total_amount REAL DEFAULT 0,
         shipping_fee REAL DEFAULT 0,
+        fee_fixed REAL DEFAULT 0,
+        fee_service REAL DEFAULT 0,
+        fee_payment REAL DEFAULT 0,
+        shop_voucher REAL DEFAULT 0,
+        net_payout REAL DEFAULT 0,
         buyer_username TEXT,
         tracking_number TEXT,
         raw_payload TEXT,
@@ -1859,6 +1864,22 @@ def init_db():
     )
     """)
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mkt_sku_map ON marketplace_sku_mappings(platform, platform_sku, platform_item_name, platform_variation)")
+
+    # Migration: thêm các trường phí sàn và doanh thu thực vào marketplace_orders nếu chưa có
+    try:
+        cur.execute("PRAGMA table_info(marketplace_orders)")
+        _mkt_cols = [c[1] for c in cur.fetchall()]
+        for _col, _type in [
+            ("fee_fixed", "REAL DEFAULT 0"),
+            ("fee_service", "REAL DEFAULT 0"),
+            ("fee_payment", "REAL DEFAULT 0"),
+            ("shop_voucher", "REAL DEFAULT 0"),
+            ("net_payout", "REAL DEFAULT 0"),
+        ]:
+            if _col not in _mkt_cols:
+                cur.execute(f"ALTER TABLE marketplace_orders ADD COLUMN {_col} {_type}")
+    except Exception as _e:
+        pass
 
     # Tự động đồng bộ phần tử địa chỉ khách hàng vào các preset in A4/B2B nếu chưa có
     try:

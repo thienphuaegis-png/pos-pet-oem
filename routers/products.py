@@ -65,6 +65,29 @@ def list_products(category: Optional[str] = None, user=Depends(get_optional_user
     for r in rows:
         r["units"] = units_map.get(r["id"], [])
 
+    # Gắn danh sách tóm tắt các món con cho combo (type = 'combo')
+    try:
+        cur.execute('''
+            SELECT c.code, ci.quantity, p.name as product_name
+            FROM combo_items ci
+            JOIN combos c ON ci.combo_id = c.id
+            JOIN products p ON ci.product_id = p.id
+            WHERE COALESCE(c.is_active, 1) = 1
+            ORDER BY ci.id ASC
+        ''')
+        combo_map = {}
+        for ci in cur.fetchall():
+            c_code = (ci["code"] or "").strip().upper()
+            qty_fmt = int(ci["quantity"]) if ci["quantity"] == int(ci["quantity"]) else ci["quantity"]
+            combo_map.setdefault(c_code, []).append(f"{qty_fmt}x {ci['product_name']}")
+        
+        for r in rows:
+            if r.get("type") == "combo":
+                c_code = (r.get("code") or "").strip().upper()
+                r["combo_summary"] = ", ".join(combo_map.get(c_code, []))
+    except Exception:
+        pass
+
     if not can_view_cost(user):
         for r in rows:
             r.pop("cost_price", None)

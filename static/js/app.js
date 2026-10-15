@@ -687,10 +687,14 @@
 
             tbody.innerHTML = pagedItems.map((item, idx) => {
                 const isProd = item.item_type === 'product';
+                const isCombo = isProd && (item.sub_type === 'combo' || item.type === 'combo');
+                const isService = isProd && (item.sub_type === 'service' || item.type === 'service');
                 let badge = '';
                 if (isProd) {
-                    if (item.sub_type === 'service') {
+                    if (isService) {
                         badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">Dịch Vụ</span>';
+                    } else if (isCombo) {
+                        badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Gói Combo</span>';
                     } else {
                         badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>';
                     }
@@ -722,17 +726,19 @@
                     } else {
                         actionButtons = `
                             <div class="flex items-center justify-center gap-1">
-                                <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
+                                ${isCombo ? '' : `
+                                <button onclick="openItemLogsModal('product', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
                                         class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
                                     📜 Thẻ kho
                                 </button>
+                                `}
                                 <button onclick="openModalEditProduct(${item.id})" 
                                         class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-bold" title="Chỉnh sửa thông tin">
                                     ✏️ Sửa
                                 </button>
                                 <button onclick="deleteProductItem(${item.id}, '${encodeURIComponent(item.name)}')" 
-                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Xóa / Ẩn hàng hóa">
-                                    🗑️ Ẩn
+                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Ẩn hoặc xóa hàng hóa">
+                                    🗑️ Xóa
                                 </button>
                             </div>
                         `;
@@ -769,6 +775,10 @@
                     ? `<td class="p-2.5 text-center"><input type="checkbox" data-id="${item.id}" onchange="toggleItemUnified(${item.id}, this.checked)" ${isSelected ? 'checked' : ''} class="chk-item-unified w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"></td>`
                     : '<td class="p-2.5 text-center text-slate-300">--</td>';
 
+                const qtyCell = isCombo 
+                    ? `<span class="text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 text-[10px]" title="Combo ảo, trừ kho món con khi bán">Gói (Ảo)</span>` 
+                    : (isService ? `<span class="text-slate-400 font-bold">∞</span>` : (item.quantity || 0).toLocaleString('vi-VN'));
+
                 return `
                     <tr class="card-row card-row-anim text-xs select-none ${isSelected ? 'bg-indigo-50/50' : ''}" style="--row-idx: ${idx};">
                         ${chkCell}
@@ -777,11 +787,11 @@
                         <td class="p-2.5 text-center">${badge}</td>
                         <td class="p-2.5">${suppBadge}</td>
                         <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
-                        <td class="p-2.5 text-right ${stockColor}">${item.quantity.toLocaleString('vi-VN')}</td>
+                        <td class="p-2.5 text-right ${isCombo || isService ? '' : stockColor}">${qtyCell}</td>
                         <td class="p-2.5 text-gray-500">${item.unit || 'cái'}${unitBadge}</td>
-                        <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${formatMoney(item.cost_price)}</td>
+                        <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${isCombo ? '<span class="text-slate-300 italic">Theo món</span>' : formatMoney(item.cost_price)}</td>
                         <td class="p-2.5 text-right">${sellCell}</td>
-                        <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${formatMoney(item.total_value)}</td>
+                        <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${isCombo ? '<span class="text-slate-300 italic">---</span>' : formatMoney(item.total_value)}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${item.created_by || 'Hệ thống'}</td>
                         <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-center">${actionButtons}</td>
@@ -3156,8 +3166,253 @@
         window.setProdUnitDefault = setProdUnitDefault;
         window.prodUnitRows = prodUnitRows;
 
+        // --- COMBO BUNDLE MANAGEMENT IN PRODUCT MODAL ---
+        let currentComboItems = [];
+
+        function onProductTypeChange() {
+            const type = document.getElementById('modal-prod-type').value;
+            const isCombo = type === 'combo';
+            const isService = type === 'service';
+            const isEdit = !!document.getElementById('modal-prod-id').value;
+
+            const modalContent = document.getElementById('modal-product-content');
+            if (modalContent) {
+                if (isCombo) {
+                    modalContent.classList.remove('w-[460px]');
+                    modalContent.classList.add('w-[560px]');
+                } else {
+                    modalContent.classList.remove('w-[560px]');
+                    modalContent.classList.add('w-[460px]');
+                }
+            }
+
+            // Nhóm tồn kho: ẩn khi là combo, dịch vụ hoặc khi đang chỉnh sửa
+            const stockGroup = document.getElementById('modal-prod-stock-group');
+            if (stockGroup) {
+                if (isCombo || isService || isEdit) {
+                    stockGroup.classList.add('hidden');
+                } else {
+                    stockGroup.classList.remove('hidden');
+                }
+            }
+
+            // Nhóm giá vốn: ẩn khi là combo (giá vốn tính theo món con)
+            const costGroup = document.getElementById('modal-prod-cost-group');
+            if (costGroup) {
+                if (isCombo) {
+                    costGroup.classList.add('hidden');
+                } else {
+                    costGroup.classList.remove('hidden');
+                }
+            }
+
+            // Nhóm nhà cung cấp: ẩn khi là combo
+            const suppGroup = document.getElementById('container-prod-suppliers');
+            if (suppGroup) {
+                if (isCombo) {
+                    suppGroup.classList.add('hidden');
+                } else {
+                    suppGroup.classList.remove('hidden');
+                }
+            }
+
+            // Nhóm đơn vị quy đổi
+            const unitsGroup = document.getElementById('modal-prod-units-group');
+            if (unitsGroup && isCombo) {
+                unitsGroup.classList.add('hidden');
+            }
+
+            // Đơn vị tính
+            const unitInput = document.getElementById('modal-prod-unit');
+            if (unitInput) {
+                if (isCombo && (!unitInput.value || unitInput.value === 'cái')) {
+                    unitInput.value = 'combo';
+                }
+            }
+
+            // Nhóm cấu hình combo
+            const comboGroup = document.getElementById('modal-prod-combo-group');
+            if (comboGroup) {
+                if (isCombo) {
+                    comboGroup.classList.remove('hidden');
+                    renderComboComponentsTable();
+                } else {
+                    comboGroup.classList.add('hidden');
+                }
+            }
+        }
+        window.onProductTypeChange = onProductTypeChange;
+
+        async function searchComboComponent(query) {
+            const q = (query || '').trim().toLowerCase();
+            const resultsContainer = document.getElementById('combo-item-search-results');
+            if (!resultsContainer) return;
+            if (!q) {
+                resultsContainer.innerHTML = '';
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            let products = window.posProducts || [];
+            if (products.length === 0) {
+                try {
+                    const res = await fetch('/api/products');
+                    products = await res.json();
+                    window.posProducts = products;
+                } catch (e) {
+                    console.error("searchComboComponent fetch error:", e);
+                }
+            }
+
+            const currentProdId = parseInt(document.getElementById('modal-prod-id').value) || 0;
+
+            const matches = products.filter(p => {
+                if (p.id === currentProdId) return false;
+                if (p.type === 'material' || p.type === 'combo') return false;
+                const name = (p.name || '').toLowerCase();
+                const code = (p.code || '').toLowerCase();
+                return name.includes(q) || code.includes(q);
+            }).slice(0, 8);
+
+            if (matches.length === 0) {
+                resultsContainer.innerHTML = '<div class="p-2.5 text-center text-slate-400 italic">Không tìm thấy sản phẩm phù hợp</div>';
+                resultsContainer.classList.remove('hidden');
+                return;
+            }
+
+            resultsContainer.innerHTML = matches.map(p => `
+                <div onclick="addComboComponent(${p.id}, '${encodeURIComponent(p.name)}', '${p.code || ''}', ${p.sell_price || 0}, '${p.unit || 'cái'}')" 
+                     class="p-2 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition">
+                    <div>
+                        <span class="font-mono font-bold text-slate-400 mr-1">[${p.code || '-'}]</span>
+                        <span class="font-bold text-slate-800">${p.name}</span>
+                        <span class="text-slate-400 text-[11px]">(${p.unit || 'cái'})</span>
+                    </div>
+                    <div class="text-right shrink-0 ml-2">
+                        <div class="font-bold text-emerald-600">${formatMoneyNumber(p.sell_price)} đ</div>
+                        <div class="text-[10px] text-slate-400">Tồn: ${p.stock || 0}</div>
+                    </div>
+                </div>
+            `).join('');
+            resultsContainer.classList.remove('hidden');
+        }
+        window.searchComboComponent = searchComboComponent;
+
+        function addComboComponent(productId, encodedName, code, sellPrice, unit) {
+            const name = decodeURIComponent(encodedName);
+            const existing = currentComboItems.find(i => i.product_id === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                currentComboItems.push({
+                    product_id: productId,
+                    name: name,
+                    code: code,
+                    sell_price: sellPrice,
+                    unit: unit,
+                    quantity: 1
+                });
+            }
+
+            const searchInput = document.getElementById('combo-item-search');
+            if (searchInput) searchInput.value = '';
+            const resultsContainer = document.getElementById('combo-item-search-results');
+            if (resultsContainer) resultsContainer.classList.add('hidden');
+
+            renderComboComponentsTable();
+        }
+        window.addComboComponent = addComboComponent;
+
+        function updateComboComponentQty(idx, qtyVal) {
+            let q = parseFloat(qtyVal) || 0;
+            if (q <= 0) q = 1;
+            if (currentComboItems[idx]) {
+                currentComboItems[idx].quantity = q;
+            }
+            renderComboComponentsTable();
+        }
+        window.updateComboComponentQty = updateComboComponentQty;
+
+        function removeComboComponent(idx) {
+            currentComboItems.splice(idx, 1);
+            renderComboComponentsTable();
+        }
+        window.removeComboComponent = removeComboComponent;
+
+        function renderComboComponentsTable() {
+            const tbody = document.getElementById('table-combo-components');
+            const badge = document.getElementById('combo-items-count-badge');
+            const totalRetailEl = document.getElementById('combo-total-retail-price');
+            if (!tbody) return;
+
+            if (badge) badge.innerText = `${currentComboItems.length} món`;
+
+            if (currentComboItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 italic py-3">Chưa có sản phẩm nào trong combo</td></tr>';
+                if (totalRetailEl) totalRetailEl.innerText = '0 đ';
+                calculateComboSavings();
+                return;
+            }
+
+            let totalRetail = 0;
+            tbody.innerHTML = currentComboItems.map((item, idx) => {
+                const subtotal = item.quantity * item.sell_price;
+                totalRetail += subtotal;
+                return `
+                    <tr class="border-b last:border-0 hover:bg-slate-50">
+                        <td class="p-1.5">
+                            <div class="font-bold text-slate-800">${item.name}</div>
+                            <div class="font-mono text-[10px] text-slate-400">[${item.code || '-'}] · ${item.unit || 'cái'}</div>
+                        </td>
+                        <td class="p-1.5 text-right">
+                            <input type="number" min="0.1" step="any" value="${item.quantity}" 
+                                   onchange="updateComboComponentQty(${idx}, this.value)"
+                                   class="w-14 border rounded px-1 py-0.5 text-right font-bold text-slate-800 focus:ring-1 focus:ring-amber-500">
+                        </td>
+                        <td class="p-1.5 text-right font-mono text-slate-600">${formatMoneyNumber(item.sell_price)} đ</td>
+                        <td class="p-1.5 text-right font-mono font-bold text-amber-700">${formatMoneyNumber(subtotal)} đ</td>
+                        <td class="p-1.5 text-center">
+                            <button type="button" onclick="removeComboComponent(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-1" title="Xóa món">✕</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (totalRetailEl) totalRetailEl.innerText = formatMoneyNumber(totalRetail) + ' đ';
+
+            const priceInput = document.getElementById('modal-prod-price');
+            if (priceInput && (!priceInput.value || parseMoneyInput(priceInput.value) === 0)) {
+                priceInput.value = formatMoneyNumber(totalRetail);
+            }
+
+            calculateComboSavings();
+        }
+        window.renderComboComponentsTable = renderComboComponentsTable;
+
+        function calculateComboSavings() {
+            const hintEl = document.getElementById('combo-savings-hint');
+            if (!hintEl) return;
+
+            let totalRetail = 0;
+            currentComboItems.forEach(it => {
+                totalRetail += it.quantity * it.sell_price;
+            });
+
+            const comboPrice = parseMoneyInput(document.getElementById('modal-prod-price')?.value) || 0;
+            if (totalRetail > 0 && comboPrice > 0 && comboPrice < totalRetail) {
+                const diff = totalRetail - comboPrice;
+                const pct = Math.round((diff / totalRetail) * 100);
+                hintEl.innerText = `Tiết kiệm: ${formatMoneyNumber(diff)} đ (${pct}%)`;
+                hintEl.classList.remove('hidden');
+            } else {
+                hintEl.classList.add('hidden');
+            }
+        }
+        window.calculateComboSavings = calculateComboSavings;
+
         // --- MODAL PRODUCT CRUD (THÊM / SỬA / XÓA HÀNG HÓA) ---
         async function openModalProductUnified() {
+            currentComboItems = [];
             document.getElementById('modal-prod-title').innerText = 'Thêm Hàng Hóa Mới';
             document.getElementById('modal-prod-id').value = '';
             document.getElementById('modal-prod-code').value = '';
@@ -3167,16 +3422,17 @@
             document.getElementById('modal-prod-cost').value = '';
             document.getElementById('modal-prod-price').value = '';
             document.getElementById('modal-prod-stock').value = '';
-            document.getElementById('modal-prod-stock-group').classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
             await loadProdUnits(null);
 
             await Promise.all([populateProductSuppliersDropdown([]), loadProductCategoriesDropdown('Khác')]);
+            onProductTypeChange();
             document.getElementById('modal-product').classList.remove('hidden');
         }
 
         async function openModalEditProduct(productId) {
             try {
+                currentComboItems = [];
                 // Lấy sản phẩm từ cache hoặc fetch thẳng
                 const res = await fetch('/api/products');
                 const products = await res.json();
@@ -3186,18 +3442,44 @@
                 }
                 if (!p) return alert('Không tìm thấy sản phẩm!');
 
-                document.getElementById('modal-prod-title').innerText = 'Chỉnh Sửa Hàng Hóa';
+                const isCombo = (p.type === 'combo' || p.sub_type === 'combo');
+
+                document.getElementById('modal-prod-title').innerText = isCombo ? 'Chỉnh Sửa Gói Combo' : 'Chỉnh Sửa Hàng Hóa';
                 document.getElementById('modal-prod-id').value = p.id;
                 document.getElementById('modal-prod-code').value = p.code || '';
                 document.getElementById('modal-prod-name').value = p.name || '';
-                document.getElementById('modal-prod-type').value = p.type || p.sub_type || 'product';
-                document.getElementById('modal-prod-unit').value = p.unit || 'cái';
+                document.getElementById('modal-prod-type').value = isCombo ? 'combo' : (p.type || p.sub_type || 'product');
+                document.getElementById('modal-prod-unit').value = p.unit || (isCombo ? 'combo' : 'cái');
                 document.getElementById('modal-prod-cost').value = p.cost_price ? formatMoneyNumber(p.cost_price) : '';
                 document.getElementById('modal-prod-price').value = p.sell_price ? formatMoneyNumber(p.sell_price) : '';
                 document.getElementById('modal-prod-stock-group').classList.add('hidden');
                 
-                // Hiện nút chuyển sang nguyên liệu khi đang sửa
-                document.getElementById('btn-convert-to-ingredient')?.classList.remove('hidden');
+                // Nạp thành phần combo nếu là combo
+                if (isCombo) {
+                    try {
+                        const resCombo = await fetch('/api/combos/product/' + p.id);
+                        if (resCombo.ok) {
+                            const cData = await resCombo.json();
+                            currentComboItems = (cData.items || []).map(it => ({
+                                product_id: it.product_id,
+                                name: it.product_name,
+                                code: it.product_code,
+                                sell_price: it.current_price || it.price_at_time || 0,
+                                unit: it.unit || 'cái',
+                                quantity: it.quantity || 1
+                            }));
+                        }
+                    } catch (errCombo) {
+                        console.warn("fetch combo detail error:", errCombo);
+                    }
+                }
+
+                // Hiện nút chuyển sang nguyên liệu khi đang sửa (không áp dụng cho combo)
+                if (isCombo) {
+                    document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
+                } else {
+                    document.getElementById('btn-convert-to-ingredient')?.classList.remove('hidden');
+                }
 
                 // Nạp NCC
                 let attachedSuppIds = [];
@@ -3216,6 +3498,7 @@
                 await loadProdUnits(p.id);
                 applyCostVisibility();
 
+                onProductTypeChange();
                 document.getElementById('modal-product').classList.remove('hidden');
             } catch (e) {
                 console.error("openModalEditProduct error:", e);
@@ -3411,9 +3694,93 @@
                 return;
             }
 
+            if (type === 'combo') {
+                if (currentComboItems.length === 0) {
+                    alert("Vui lòng chọn ít nhất 1 sản phẩm con cho Gói Combo!");
+                    return;
+                }
+            }
+
             try {
                 let res;
-                if (id) {
+                if (type === 'combo') {
+                    if (id) {
+                        let comboId = null;
+                        try {
+                            const resDetail = await fetch('/api/combos/product/' + id);
+                            if (resDetail.ok) {
+                                const cData = await resDetail.json();
+                                comboId = cData.id;
+                            }
+                        } catch (eC) {}
+
+                        if (comboId) {
+                            res = await fetch(`/api/combos/${comboId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    code: code,
+                                    name: name,
+                                    sell_price: sell_price,
+                                    items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
+                                })
+                            });
+                            if (res.ok && category) {
+                                await fetch(`/api/products/${id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ category })
+                                });
+                            }
+                        } else {
+                            res = await fetch('/api/combos', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    code: code || ('CB-' + Date.now().toString().slice(-6)),
+                                    name: name,
+                                    sell_price: sell_price,
+                                    discount_percent: 0,
+                                    items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
+                                })
+                            });
+                            if (res.ok) {
+                                await fetch(`/api/products/${id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'combo', category })
+                                });
+                            }
+                        }
+                    } else {
+                        const finalCode = code || ('CB-' + Date.now().toString().slice(-6));
+                        res = await fetch('/api/combos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                code: finalCode,
+                                name: name,
+                                sell_price: sell_price,
+                                discount_percent: 0,
+                                items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
+                            })
+                        });
+                        if (res.ok && category) {
+                            try {
+                                const pListRes = await fetch('/api/products');
+                                const pList = await pListRes.json();
+                                const pEntry = pList.find(x => x.code === finalCode);
+                                if (pEntry) {
+                                    await fetch(`/api/products/${pEntry.id}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ category })
+                                    });
+                                }
+                            } catch (eCat) {}
+                        }
+                    }
+                } else if (id) {
                     // Update
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',

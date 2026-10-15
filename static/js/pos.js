@@ -572,7 +572,9 @@ function filterProductSearch(val) {
 
     dropdown.innerHTML = matches.map(p => {
         const clickHandler = `addProductToActiveCart(${p.id})`;
-        const typeLabel = p.type === 'combo' ? '<span class="text-[10px] font-bold text-amber-600 mr-1">COMBO</span>' : '';
+        const isCombo = p.type === 'combo';
+        const typeLabel = isCombo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
+        const comboHint = isCombo && p.combo_summary ? `<div class="text-[10px] text-amber-700 italic truncate max-w-xs mt-0.5">📦 Gồm: ${p.combo_summary}</div>` : '';
         return `
         <div onclick="${clickHandler}" class="p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
             <div>
@@ -580,10 +582,11 @@ function filterProductSearch(val) {
                 ${typeLabel}
                 <span class="font-bold text-slate-800">${p.name}</span>
                 <span class="text-slate-400 text-[11px] ml-1">(${p.unit || 'cái'})</span>
+                ${comboHint}
             </div>
             <div class="text-right shrink-0 ml-2">
                 <div class="font-bold text-sky-600">${formatMoney(p.sell_price)}</div>
-                <div class="text-[10px] text-slate-400">Tồn: ${p.type === 'service' ? '∞' : (p.stock || 0)}</div>
+                <div class="text-[10px] text-slate-400">Tồn: ${p.type === 'service' ? '∞' : (isCombo ? 'Gói' : (p.stock || 0))}</div>
             </div>
         </div>
         `;
@@ -627,19 +630,22 @@ async function addProductToActiveCart(productId) {
     } else {
         const itemPrice = getProductPriceForTab(tab, p);
         const hasCustomPrice = itemPrice !== p.sell_price;
+        const isCombo = p.type === 'combo';
         tab.cart.push({
             product_id: p.id,
             code: p.code,
             name: p.name,
             type: p.type || 'product',
-            unit: p.unit || 'cái',
+            is_combo: isCombo,
+            combo_summary: p.combo_summary || '',
+            unit: p.unit || (isCombo ? 'combo' : 'cái'),
             original_price: p.sell_price,
             price: itemPrice,
             price_list_name: hasCustomPrice ? (tab.customer?.price_list_name || null) : null,
             discount_val: 0,
             discount_type: 'vnd',
             quantity: 1,
-            base_unit: p.unit || 'cái',
+            base_unit: p.unit || (isCombo ? 'combo' : 'cái'),
             base_price: p.sell_price || 0,
             unit_ratio: 1,
             units: Array.isArray(p.units) ? p.units : []
@@ -756,10 +762,14 @@ function renderActiveTabCart() {
                 ? `-${itemDiscountVal}%` 
                 : `-${formatMoney(itemDiscountVal)}`;
 
-            const comboBadge = item.is_combo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1">COMBO</span>' : '';
+            const isComboItem = !!(item.is_combo || item.type === 'combo');
+            const comboBadge = isComboItem ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
             const manualGiftBadge = item.is_manual_gift 
                 ? '<span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mr-1">🎁 QUÀ TẶNG</span>' 
                 : '';
+
+            const comboSummaryText = item.combo_summary || (posProducts.find(x => x.id === item.product_id)?.combo_summary) || '';
+            const comboSubLine = isComboItem && comboSummaryText ? `<div class="text-[10px] text-amber-700 font-medium italic mt-0.5 truncate" title="Gồm: ${comboSummaryText}">📦 Gồm: ${comboSummaryText}</div>` : '';
 
             const baseUnit = item.base_unit || item.unit || 'cái';
             const extraUnits = Array.isArray(item.units) ? item.units : [];
@@ -796,6 +806,7 @@ function renderActiveTabCart() {
                     <!-- Tên hàng hóa -->
                     <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
                         ${comboBadge}${manualGiftBadge}${item.name}
+                        ${comboSubLine}
                     </div>
 
                     <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->

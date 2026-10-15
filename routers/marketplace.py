@@ -630,34 +630,65 @@ async def import_orders_excel(
     if not headers:
         headers = [str(c).strip() if c is not None else "" for c in rows[0]]
 
-    # Map cột tự động
+    # Map cột tự động (dùng NFC để chuẩn hóa tiếng Việt)
+    import unicodedata
     col_map = {}
     for idx, h in enumerate(headers):
-        h_lower = h.lower()
-        if "mã đơn hàng đầy đủ" in h_lower:
+        h_norm = unicodedata.normalize('NFC', h.lower().strip())
+        if "mã đơn hàng đầy đủ" in h_norm:
             col_map["order_sn"] = idx
-        elif "mã đơn hàng" in h_lower and "order_sn" not in col_map:
+        elif "mã đơn hàng" in h_norm and "order_sn" not in col_map:
             col_map["order_sn"] = idx
-        elif h_lower in ("order id", "order_id", "mã đơn", "order number", "mã vận đơn"):
+        elif h_norm in ("order id", "order_id", "mã đơn", "order number"):
             col_map.setdefault("order_sn", idx)
-        elif h_lower in ("tên sản phẩm", "product name"):
+        elif "mã vận đơn" in h_norm or h_norm in ("tracking number", "tracking_no", "tracking_number"):
+            col_map.setdefault("tracking_number", idx)
+        elif "tên sản phẩm" in h_norm or h_norm in ("product name",):
             col_map["product_name"] = idx
-        elif "sản phẩm" in h_lower and "chi tiết" not in h_lower and "mã" not in h_lower and "product_name" not in col_map:
+        elif "sản phẩm" in h_norm and "chi tiết" not in h_norm and "mã" not in h_norm and "product_name" not in col_map:
             col_map.setdefault("product_name", idx)
-        elif h_lower in ("tên phân loại hàng", "phân loại", "mẫu mã", "variation", "thuộc tính từng sản phẩm"):
+        elif "sku phân loại hàng" in h_norm or "mã sku phân loại" in h_norm or "variation sku" in h_norm:
+            col_map["sku_variation"] = idx
+        elif "sku sản phẩm" in h_norm or "mã sku sản phẩm" in h_norm or "product sku" in h_norm:
+            col_map["sku_product"] = idx
+        elif h_norm in ("sku", "mã hàng", "seller sku"):
+            col_map.setdefault("sku_variation", idx)
+        elif "tên phân loại hàng" in h_norm or h_norm in ("phân loại", "mẫu mã", "variation", "thuộc tính từng sản phẩm"):
             col_map.setdefault("variation", idx)
-        elif h_lower in ("số lượng", "quantity", "sl"):
+        elif "số lượng" in h_norm and "hoàn trả" not in h_norm and "trả hàng" not in h_norm:
             col_map.setdefault("quantity", idx)
-        elif h_lower in ("tổng số tiền", "tổng giá trị đơn hàng", "trị giá đơn hàng", "tổng tiền đơn hàng", "tổng giá bán", "total amount", "order amount"):
-            col_map.setdefault("total_amount", idx)
-        elif h_lower in ("đơn giá", "giá sp", "đơn giá sau giảm giá", "unit price", "price"):
+        elif h_norm in ("quantity", "sl"):
+            col_map.setdefault("quantity", idx)
+        elif "giá ưu đãi" in h_norm or h_norm in ("đơn giá sau giảm giá", "giá sp"):
+            col_map["unit_price"] = idx
+        elif "đơn giá" in h_norm and "unit_price" not in col_map:
+            col_map["unit_price"] = idx
+        elif h_norm in ("unit price", "price"):
             col_map.setdefault("unit_price", idx)
-        elif h_lower in ("trạng thái", "trạng thái đơn hàng", "order status", "trạng thái vc"):
+        elif "tổng số tiền" in h_norm or "tổng giá trị đơn hàng" in h_norm or "trị giá đơn hàng" in h_norm:
+            col_map.setdefault("total_amount", idx)
+        elif "trạng thái" in h_norm or h_norm in ("order status", "trạng thái vc"):
             col_map.setdefault("status", idx)
-        elif h_lower in ("ngày đặt hàng", "thời điểm tạo đơn", "ngày tạo đơn", "created time", "order date"):
+        elif "ngày đặt hàng" in h_norm or "thời điểm tạo đơn" in h_norm or "ngày tạo đơn" in h_norm:
             col_map.setdefault("order_date", idx)
-        elif h_lower in ("người mua", "khách hàng", "người nhận", "buyer username", "username"):
+        elif h_norm in ("created time", "order date"):
+            col_map.setdefault("order_date", idx)
+        elif "người mua" in h_norm and "nhận" not in h_norm and "thanh toán" not in h_norm:
             col_map.setdefault("buyer", idx)
+        elif h_norm in ("buyer username", "username"):
+            col_map.setdefault("buyer", idx)
+        elif "phí cố định" in h_norm:
+            col_map.setdefault("fee_fixed", idx)
+        elif "phí dịch vụ" in h_norm:
+            col_map.setdefault("fee_service", idx)
+        elif "phí xử lý giao dịch" in h_norm or "phí thanh toán" in h_norm:
+            col_map.setdefault("fee_payment", idx)
+        elif "mã giảm giá của shop" in h_norm and "shopee" not in h_norm:
+            col_map.setdefault("shop_voucher", idx)
+        elif "giảm giá từ combo của shop" in h_norm and "shopee" not in h_norm:
+            col_map.setdefault("combo_voucher", idx)
+        elif "phí vận chuyển (dự kiến)" in h_norm or "phí vận chuyển mà người mua trả" in h_norm:
+            col_map.setdefault("shipping_fee", idx)
 
     if "order_sn" not in col_map or "product_name" not in col_map:
         raise HTTPException(
@@ -690,6 +721,16 @@ async def import_orders_excel(
 
         raw_var = r[col_map["variation"]] if "variation" in col_map and col_map["variation"] < len(r) else ""
         variation = str(raw_var or "").strip() if raw_var != "None" else ""
+
+        sku_v = str(r[col_map["sku_variation"]] or "").strip() if "sku_variation" in col_map and col_map["sku_variation"] < len(r) else ""
+        sku_p = str(r[col_map["sku_product"]] or "").strip() if "sku_product" in col_map and col_map["sku_product"] < len(r) else ""
+        effective_sku = sku_v or sku_p
+        if effective_sku == "None":
+            effective_sku = ""
+
+        tracking_no = str(r[col_map["tracking_number"]] or "").strip() if "tracking_number" in col_map and col_map["tracking_number"] < len(r) else ""
+        if tracking_no == "None":
+            tracking_no = ""
 
         raw_qty = r[col_map["quantity"]] if "quantity" in col_map and col_map["quantity"] < len(r) else 1
         try:
@@ -732,6 +773,13 @@ async def import_orders_excel(
         if not order_date_str:
             order_date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        fee_fixed = float(r[col_map["fee_fixed"]] or 0.0) if "fee_fixed" in col_map and col_map["fee_fixed"] < len(r) else 0.0
+        fee_service = float(r[col_map["fee_service"]] or 0.0) if "fee_service" in col_map and col_map["fee_service"] < len(r) else 0.0
+        fee_payment = float(r[col_map["fee_payment"]] or 0.0) if "fee_payment" in col_map and col_map["fee_payment"] < len(r) else 0.0
+        shop_vouch = float(r[col_map["shop_voucher"]] or 0.0) if "shop_voucher" in col_map and col_map["shop_voucher"] < len(r) else 0.0
+        combo_vouch = float(r[col_map["combo_voucher"]] or 0.0) if "combo_voucher" in col_map and col_map["combo_voucher"] < len(r) else 0.0
+        ship_fee = float(r[col_map["shipping_fee"]] or 0.0) if "shipping_fee" in col_map and col_map["shipping_fee"] < len(r) else 0.0
+
         if order_sn not in orders_dict:
             orders_dict[order_sn] = {
                 "order_sn": order_sn,
@@ -739,15 +787,32 @@ async def import_orders_excel(
                 "order_date": order_date_str,
                 "total_amount": total_amount,
                 "buyer": buyer,
+                "tracking_number": tracking_no,
+                "fee_fixed": fee_fixed,
+                "fee_service": fee_service,
+                "fee_payment": fee_payment,
+                "shop_voucher": shop_vouch + combo_vouch,
+                "shipping_fee": ship_fee,
                 "items": []
             }
         else:
+            if tracking_no and not orders_dict[order_sn]["tracking_number"]:
+                orders_dict[order_sn]["tracking_number"] = tracking_no
+            if fee_fixed > orders_dict[order_sn]["fee_fixed"]:
+                orders_dict[order_sn]["fee_fixed"] = fee_fixed
+            if fee_service > orders_dict[order_sn]["fee_service"]:
+                orders_dict[order_sn]["fee_service"] = fee_service
+            if fee_payment > orders_dict[order_sn]["fee_payment"]:
+                orders_dict[order_sn]["fee_payment"] = fee_payment
+            if (shop_vouch + combo_vouch) > orders_dict[order_sn]["shop_voucher"]:
+                orders_dict[order_sn]["shop_voucher"] = shop_vouch + combo_vouch
             if total_amount > orders_dict[order_sn]["total_amount"]:
                 orders_dict[order_sn]["total_amount"] = total_amount
 
         orders_dict[order_sn]["items"].append({
             "product_name": prod_name,
             "variation": variation,
+            "sku": effective_sku,
             "quantity": qty,
             "unit_price": unit_price,
             "subtotal": qty * unit_price
@@ -757,14 +822,34 @@ async def import_orders_excel(
     synced_items = 0
 
     for sn, o in orders_dict.items():
+        item_total = sum(it["subtotal"] for it in o["items"])
+        total_fee = o["fee_fixed"] + o["fee_service"] + o["fee_payment"]
+        net_payout = max(0.0, item_total - o["shop_voucher"] - total_fee)
+        gross_total = item_total if item_total > 0 else o["total_amount"]
+
         cur.execute("""
-            INSERT INTO marketplace_orders (platform, account_id, order_sn, order_status, order_date, total_amount, buyer_username)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO marketplace_orders (
+                platform, account_id, order_sn, order_status, order_date,
+                total_amount, shipping_fee, fee_fixed, fee_service, fee_payment,
+                shop_voucher, net_payout, buyer_username, tracking_number
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(platform, order_sn) DO UPDATE SET
                 order_status = excluded.order_status,
                 total_amount = excluded.total_amount,
+                shipping_fee = excluded.shipping_fee,
+                fee_fixed = excluded.fee_fixed,
+                fee_service = excluded.fee_service,
+                fee_payment = excluded.fee_payment,
+                shop_voucher = excluded.shop_voucher,
+                net_payout = excluded.net_payout,
+                tracking_number = COALESCE(excluded.tracking_number, marketplace_orders.tracking_number),
                 updated_at = CURRENT_TIMESTAMP
-        """, (platform.lower(), account_id, sn, o["status"], o["order_date"], o["total_amount"], o["buyer"]))
+        """, (
+            platform.lower(), account_id, sn, o["status"], o["order_date"],
+            gross_total, o["shipping_fee"], o["fee_fixed"], o["fee_service"], o["fee_payment"],
+            o["shop_voucher"], net_payout, o["buyer"], o["tracking_number"]
+        ))
 
         cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (platform.lower(), sn))
         order_db_id = cur.fetchone()[0]
@@ -774,24 +859,36 @@ async def import_orders_excel(
         for it in o["items"]:
             p_name = it["product_name"]
             p_var = it["variation"]
+            p_sku = it["sku"]
             qty = it["quantity"]
             u_price = it["unit_price"]
             sub_amt = it["subtotal"]
 
             # Ánh xạ sản phẩm
             mapped_pid = None
-            for m in mappings:
-                if m["platform_item_name"].lower() == p_name.lower():
-                    if not m["platform_variation"] or m["platform_variation"].lower() == p_var.lower():
+            if p_sku:
+                sku_clean = p_sku.strip().upper()
+                cur.execute("SELECT id FROM products WHERE UPPER(TRIM(code)) = ? AND is_active = 1 LIMIT 1", (sku_clean,))
+                p_row = cur.fetchone()
+                if p_row:
+                    mapped_pid = p_row[0]
+
+            if not mapped_pid:
+                for m in mappings:
+                    if m.get("platform_sku") and p_sku and m["platform_sku"].strip().lower() == p_sku.lower():
                         mapped_pid = m["product_id"]
                         break
+                    elif m["platform_item_name"].lower() == p_name.lower():
+                        if not m["platform_variation"] or m["platform_variation"].lower() == p_var.lower():
+                            mapped_pid = m["product_id"]
+                            break
 
             cur.execute("""
                 INSERT INTO marketplace_order_items (
                     order_id, platform_product_name, platform_variation,
-                    quantity, unit_price, subtotal, mapped_product_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (order_db_id, p_name, p_var, qty, u_price, sub_amt, mapped_pid))
+                    platform_sku, quantity, unit_price, subtotal, mapped_product_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (order_db_id, p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
             synced_items += 1
 
     conn.commit()

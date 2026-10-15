@@ -8445,6 +8445,15 @@
             const elDep = document.getElementById('oem-stat-deposited-amount');
             if (elDep) elDep.innerText = formatMoney(depositedCompany);
 
+            const remainingCompany = allOEMOrders
+                .filter(o => o.fund_source === 'COMPANY' && (o.status === 'DRAFT' || o.status === 'DEPOSITED'))
+                .reduce((sum, o) => sum + (o.remaining_payment || 0), 0);
+            const elForecast = document.getElementById('oem-stat-forecast-company');
+            if (elForecast) elForecast.innerText = formatMoney(remainingCompany);
+
+            const elTotal = document.getElementById('oem-stat-total-count');
+            if (elTotal) elTotal.innerText = `${allOEMOrders.length} đơn`;
+
             const elCount = document.getElementById('oem-order-count');
             if (elCount) elCount.innerText = `${allOEMOrders.length} đơn`;
         }
@@ -8983,7 +8992,7 @@
             if (!found) {
                 const tr = document.createElement('tr');
                 tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
-                const initialPrice = p.cost_price > 0 ? p.cost_price : (p.sell_price > 0 ? p.sell_price : 0);
+                const initialPrice = p.cost_price > 0 ? p.cost_price : '';
                 tr.innerHTML = `
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
@@ -8995,7 +9004,7 @@
                         <input type="number" step="any" min="1" value="" placeholder="Nhập SL" class="oem-prod-qty border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                     </td>
                     <td class="p-2.5">
-                        <input type="number" step="any" min="0" value="${initialPrice > 0 ? initialPrice : ''}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                        <input type="number" step="any" min="0" value="${initialPrice !== '' ? initialPrice : ''}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                     </td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
                         0 đ
@@ -9036,8 +9045,8 @@
             const unit = item.product_unit || p.unit || 'chai';
             const bomCount = item.bom_count !== undefined ? item.bom_count : (p.bom_count || 0);
             const qty = (item.ordered_qty !== undefined && item.ordered_qty !== null && item.ordered_qty !== '') ? item.ordered_qty : '';
-            const defaultCost = p.cost_price > 0 ? p.cost_price : (p.sell_price > 0 ? p.sell_price : 0);
-            const price = (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') ? item.unit_price : (defaultCost > 0 ? defaultCost : '');
+            const defaultCost = p.cost_price > 0 ? p.cost_price : '';
+            const price = (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') ? item.unit_price : defaultCost;
 
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';

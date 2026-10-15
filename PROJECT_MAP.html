@@ -642,9 +642,12 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
-    const ROADMAP_VERSION = 'v5.5-2026-10-13-print-designer-inline-edit-simplified';
+    const ROADMAP_VERSION = 'v5.7-2026-10-15-oem-processing-fee-and-combo-bundles';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-13)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-15)
+      { id: 'oem-processing-fee-and-stats-fix', cat: 'PROD', title: 'Khắc Phục Đơn Đặt Gia Công OEM: Lấy Chuẩn Phí Chiết Rót / Công Xưởng Thay Vì Giá Bán Lẻ & Cập Nhật Thẻ Thống Kê', done: true, note: 'Sửa tiêu đề cột thành Phí Chiết Rót / Công Xưởng (đ); tự động tra cứu đơn giá gia công gần nhất của xưởng từ các đơn trước (vd 18.288 đ thay vì giá bán lẻ 89.000 đ); xóa bỏ fallback nhầm vào sell_price; cập nhật chính xác thẻ thống kê Tổng Đơn Gia Công và Tiền Đợt 2 Còn Lại.' },
+      { id: 'marketplace-shopee-excel-real-revenue-and-sku-mapping', cat: 'POS', title: 'Import Excel Đơn Hàng Shopee: Ánh Xạ Chuẩn SKU Phân Loại, Khớp products.code Tự Động & Hạch Toán Doanh Thu Thực Nhận', done: true, note: 'Khắc phục bẫy rỗng cột SKU sản phẩm bằng cách ưu tiên cột SKU phân loại hàng; tự động map vào products.code kho POS; bóc tách phí cố định, phí dịch vụ, phí xử lý giao dịch và voucher shop để tính doanh thu thực nhận vào ví chuẩn xác.' },
+      // CẬP NHẬT (2026-10-13)
       { id: 'pos-print-designer-simplified-inline', cat: 'BILL', title: 'Tinh Giản Thiết Kế Mẫu In: Bỏ Token & Dàn Nút Biến, Giữ Bật/Tắt Khối Sidebar + Sửa Chữ Trực Tiếp Inline (ContentEditable)', done: true, note: 'Bỏ hoàn toàn dàn nút biến và modal token KiotViet thừa thãi; giữ vững sidebar trái kiểm soát cấu trúc in; hỗ trợ click-to-edit trực tiếp trên mặt giấy bản in, đồng bộ tức thì elem.text vào preset SQLite.' },
       // CẬP NHẬT (2026-10-12)
       { id: 'marketplace-shopee-tiktok-sync', cat: 'POS', title: 'Bán Hàng Sàn TMĐT: Đồng Bộ Đơn Shopee/TikTok, Map SKU, Bookmarklet & Import Excel', done: true, note: 'Sync đơn qua bookmarklet trong trình duyệt (né HttpOnly), quét mọi tab trạng thái, map SKU sàn ↔ kho POS, thống kê ngày, kéo-thả Excel Shopee/TikTok/Pancake' },

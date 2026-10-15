@@ -402,6 +402,7 @@ class ComboUpdate(BaseModel):
     sell_price: Optional[float] = Field(default=None, ge=0)
     discount_percent: Optional[float] = Field(default=None, ge=0, le=100)
     is_active: Optional[int] = Field(default=None, ge=0, le=1)
+    items: Optional[List[ComboItemIn]] = None
 
 
 # --- OEM Orders ---

@@ -102,14 +102,21 @@ def list_factory_products(supplier_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT 
-            p.id, p.code, p.name, p.unit, COALESCE(MAX(si.default_cost), p.cost_price, 0) as cost_price, p.sell_price,
+            p.id, p.code, p.name, p.unit,
+            COALESCE(
+                (SELECT oi.unit_price FROM oem_order_items oi JOIN oem_orders o ON oi.order_id = o.id WHERE o.partner_id = ? AND oi.product_id = p.id ORDER BY o.id DESC LIMIT 1),
+                CASE WHEN MAX(si.default_cost) > 0 THEN MAX(si.default_cost) ELSE NULL END,
+                CASE WHEN p.cost_price > 0 THEN p.cost_price ELSE NULL END,
+                0
+            ) as cost_price,
+            p.sell_price,
             (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
         FROM supplier_items si
         JOIN products p ON si.product_id = p.id
         WHERE si.supplier_id = ? AND si.item_type = 'product' AND p.is_active = 1
         GROUP BY p.id
         ORDER BY p.name ASC
-    """, (supplier_id,))
+    """, (supplier_id, supplier_id))
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -341,6 +348,14 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
                     unit_price, final_unit_cost, full_cost_per_unit
                 ) VALUES (?, ?, ?, 0, ?, ?, 0)
             """, (order_id, it.product_id, it.ordered_qty, it.unit_price, net_cost))
+
+            # Ghi nhớ đơn giá gia công vào quan hệ nhà máy nếu có giá > 0
+            if it.unit_price > 0:
+                cur.execute("""
+                    UPDATE supplier_items 
+                    SET default_cost = ? 
+                    WHERE supplier_id = ? AND item_type = 'product' AND product_id = ?
+                """, (it.unit_price, req.partner_id, it.product_id))
             
         # Nếu có cọc đợt 1 ngay, ghi nhận vào Sổ Quỹ (cashbook)
         if req.deposit_amount > 0:

@@ -28,20 +28,21 @@ def _combo_to_dict(cur, combo_id: int) -> dict | None:
     return result
 
 
-def _sync_product_entry(conn, combo_id: int, code: str, name: str, sell_price: float, is_active: int):
+def _sync_product_entry(conn, combo_id: int, code: str, name: str, sell_price: float, is_active: int, old_code: str = None):
     """Đồng bộ product entry (type='combo') với dữ liệu combo."""
     cur = conn.cursor()
-    cur.execute("SELECT id FROM products WHERE code = ? AND type = 'combo'", (code,))
+    target_code = (old_code or code).strip()
+    cur.execute("SELECT id FROM products WHERE UPPER(TRIM(code)) = UPPER(TRIM(?)) AND type = 'combo'", (target_code,))
     existing = cur.fetchone()
     if existing:
         cur.execute(
-            "UPDATE products SET name = ?, sell_price = ?, is_active = ? WHERE id = ?",
-            (name, sell_price, is_active, existing["id"])
+            "UPDATE products SET code = ?, name = ?, sell_price = ?, is_active = ? WHERE id = ?",
+            (code.strip(), name, sell_price, is_active, existing["id"])
         )
     elif is_active:
         cur.execute(
             "INSERT INTO products (code, name, type, sell_price, stock, unit, is_active) VALUES (?, ?, 'combo', ?, 0, 'combo', ?)",
-            (code, name, sell_price, is_active)
+            (code.strip(), name, sell_price, is_active)
         )
     conn.commit()
 
@@ -66,6 +67,27 @@ def list_combos():
         r["items"] = [dict(x) for x in cur.fetchall()]
     conn.close()
     return rows
+
+
+@router.get("/product/{product_id}")
+def get_combo_by_product_id(product_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT code FROM products WHERE id = ?", (product_id,))
+    p = cur.fetchone()
+    if not p:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    
+    cur.execute("SELECT id FROM combos WHERE UPPER(TRIM(code)) = UPPER(TRIM(?))", (p["code"],))
+    c = cur.fetchone()
+    if not c:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy combo tương ứng")
+    
+    res = _combo_to_dict(cur, c["id"])
+    conn.close()
+    return res
 
 
 # ---------- DETAIL ----------
@@ -148,9 +170,12 @@ def update_combo(combo_id: int, req: ComboUpdate):
     cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM combos WHERE id = ?", (combo_id,))
-        if not cur.fetchone():
+        existing_combo = cur.fetchone()
+        if not existing_combo:
             conn.close()
             raise HTTPException(status_code=404, detail="Không tìm thấy combo")
+
+        old_code = existing_combo["code"]
 
         updates = []
         params = []
@@ -174,11 +199,39 @@ def update_combo(combo_id: int, req: ComboUpdate):
             params.append(combo_id)
             cur.execute(f"UPDATE combos SET {', '.join(updates)} WHERE id = ?", params)
 
+        # Cập nhật danh sách món con nếu có gửi lên
+        if req.items is not None:
+            if len(req.items) == 0:
+                conn.close()
+                raise HTTPException(status_code=400, detail="Combo phải có ít nhất 1 sản phẩm con")
+
+            for item in req.items:
+                cur.execute("SELECT id, name, sell_price, type FROM products WHERE id = ? AND COALESCE(is_active, 1) = 1", (item.product_id,))
+                prod = cur.fetchone()
+                if not prod:
+                    conn.close()
+                    raise HTTPException(status_code=400, detail=f"Sản phẩm ID {item.product_id} không tồn tại hoặc đã ẩn")
+                if prod["type"] == "material":
+                    conn.close()
+                    raise HTTPException(status_code=400, detail=f"Không thể thêm nguyên liệu '{prod['name']}' vào combo")
+                if prod["type"] == "combo":
+                    conn.close()
+                    raise HTTPException(status_code=400, detail=f"Không thể thêm combo '{prod['name']}' vào combo khác")
+
+            cur.execute("DELETE FROM combo_items WHERE combo_id = ?", (combo_id,))
+            for item in req.items:
+                cur.execute("SELECT sell_price FROM products WHERE id = ?", (item.product_id,))
+                price = cur.fetchone()["sell_price"]
+                cur.execute(
+                    "INSERT INTO combo_items (combo_id, product_id, quantity, price_at_time) VALUES (?, ?, ?, ?)",
+                    (combo_id, item.product_id, item.quantity, price)
+                )
+
         # Đồng bộ product entry
         cur.execute("SELECT code, name, sell_price, is_active FROM combos WHERE id = ?", (combo_id,))
         combo = cur.fetchone()
         if combo:
-            _sync_product_entry(conn, combo_id, combo["code"], combo["name"], combo["sell_price"], combo["is_active"])
+            _sync_product_entry(conn, combo_id, combo["code"], combo["name"], combo["sell_price"], combo["is_active"], old_code=old_code)
 
         conn.commit()
     except HTTPException:
