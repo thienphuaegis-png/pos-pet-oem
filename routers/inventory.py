@@ -1032,10 +1032,12 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
             code = f"{base_code}_{seq}"
             seq += 1
 
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        transfer_note = (req.note or "").strip()
         cur.execute('''
-        INSERT INTO warehouse_transfers (code, from_warehouse_id, to_warehouse_id, note)
-        VALUES (?, ?, ?, ?)
-        ''', (code, req.from_warehouse_id, req.to_warehouse_id, req.note))
+        INSERT INTO warehouse_transfers (code, from_warehouse_id, to_warehouse_id, note, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ''', (code, req.from_warehouse_id, req.to_warehouse_id, transfer_note, now_vn))
         transfer_id = cur.lastrowid
         
         for it in req.items:
@@ -1076,14 +1078,14 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 
                 # Logs
                 cur.execute('''
-                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?)
-                ''', (prod_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (prod_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})", now_vn))
                 
                 cur.execute('''
-                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?)
-                ''', (prod_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (prod_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})", now_vn))
                 
                 cur.execute('''
                 INSERT INTO warehouse_transfer_items (transfer_id, item_type, product_id, item_name, unit, quantity)
@@ -1127,14 +1129,14 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
                 
                 # Logs
                 cur.execute('''
-                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?)
-                ''', (ing_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})"))
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (ing_id, req.from_warehouse_id, -it.quantity, bal_from, f"Chuyển đến {to_w['name']} ({code})", now_vn))
                 
                 cur.execute('''
-                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note)
-                VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?)
-                ''', (ing_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})"))
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (ing_id, req.to_warehouse_id, it.quantity, bal_to, f"Nhận từ {from_w['name']} ({code})", now_vn))
                 
                 cur.execute('''
                 INSERT INTO warehouse_transfer_items (transfer_id, item_type, ingredient_id, item_name, unit, quantity)

@@ -2188,7 +2188,7 @@
                     body: JSON.stringify({
                         from_warehouse_id: fromWh,
                         to_warehouse_id: toWh,
-                        note: note || 'Chuyển kho nội bộ',
+                        note: note || '',
                         items: itemsPayload
                     })
                 });
@@ -2368,7 +2368,7 @@
                 }).join('');
 
                 const transferCode = data.transfer_code || data.code || `CK-${id}`;
-                const createdTime = formatDateTime(data.created_at) || '-';
+                const transferDate = (typeof formatDate === 'function' && data.created_at) ? formatDate(data.created_at) : (data.created_at ? data.created_at.split(' ')[0].split('-').reverse().join('/') : '');
 
                 const printHtml = `
                     <div style="width: 190mm; max-width: 190mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 12px; line-height: 1.35; color: #000; padding: 4mm;">
@@ -2381,7 +2381,7 @@
                             </div>
                             <div style="text-align: right; font-size: 11px;">
                                 <div>Mã phiếu: <strong style="font-family: monospace; font-size: 13px;">${transferCode}</strong></div>
-                                <div>Thời gian: ${createdTime}</div>
+                                <div>Ngày: ${transferDate || '-'}</div>
                             </div>
                         </div>
 
@@ -2402,7 +2402,7 @@
                             </div>
                             <div style="display: flex;">
                                 <div style="width: 140px; font-weight: bold;">📝 Lý do / Ghi chú:</div>
-                                <div style="flex: 1;">${data.note || 'Điều chuyển hàng hóa nội bộ'}</div>
+                                <div style="flex: 1;">${data.note || ''}</div>
                             </div>
                         </div>
 

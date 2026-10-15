@@ -68,6 +68,10 @@ def test_print_stock_transfer_a4_js_logic():
         "Không được chứa dòng phụ đề ban hành"
     assert "Biên bản được lập thành 03 bản" not in content, \
         "Không được chứa dòng ghi chú chân trang 03 bản"
+    assert "Điều chuyển hàng hóa nội bộ" not in content, \
+        "Không được tự bịa ghi chú khi ghi chú trống"
+    assert "Ngày: " in content or "Ngày:" in content, \
+        "Phiếu phải chỉ hiển thị Ngày chuyển kho (không hiện giờ)"
 
     # Kiểm tra 4 chữ ký
     assert "Người Lập Phiếu" in content, "Phải có chữ ký Người Lập Phiếu"
