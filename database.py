@@ -542,10 +542,22 @@ def init_db():
         from_warehouse_id INTEGER NOT NULL,
         to_warehouse_id INTEGER NOT NULL,
         note TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        updated_at DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(id),
         FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(id)
     )''')
+
+    cur.execute("PRAGMA table_info(warehouse_transfers)")
+    wt_cols = [c[1] for c in cur.fetchall()]
+    if 'created_by' not in wt_cols:
+        cur.execute("ALTER TABLE warehouse_transfers ADD COLUMN created_by TEXT DEFAULT NULL")
+    if 'updated_by' not in wt_cols:
+        cur.execute("ALTER TABLE warehouse_transfers ADD COLUMN updated_by TEXT DEFAULT NULL")
+    if 'updated_at' not in wt_cols:
+        cur.execute("ALTER TABLE warehouse_transfers ADD COLUMN updated_at DATETIME DEFAULT NULL")
 
     cur.execute('''
     CREATE TABLE IF NOT EXISTS warehouse_transfer_items (

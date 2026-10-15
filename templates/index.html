@@ -2784,7 +2784,7 @@
                             <div class="space-y-2">
                                 <div class="flex justify-between items-center">
                                     <div>
-                                        <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide">📦 Danh Sách Mặt Hàng Điều Chuyển</h4>
+                                        <h4 id="transfer-create-title" class="font-bold text-slate-800 text-xs uppercase tracking-wide">📦 Danh Sách Mặt Hàng Điều Chuyển</h4>
                                         <p class="text-[10px] text-gray-500" id="transfer-wh-hint">Vui lòng chọn Kho Xuất để tìm kiếm mặt hàng còn tồn</p>
                                     </div>
                                     <span id="transfer-rows-count-badge" class="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-0.5 rounded-full font-mono">0 mặt hàng</span>
@@ -2821,8 +2821,11 @@
                                 </table>
                             </div>
 
-                            <div class="flex justify-end pt-2 border-t">
-                                <button onclick="submitStockTransfer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded shadow">
+                            <div class="flex justify-end items-center gap-2 pt-2 border-t">
+                                <button type="button" id="btn-cancel-edit-transfer" onclick="cancelEditStockTransfer()" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded">
+                                    ✕ Hủy Bỏ Sửa
+                                </button>
+                                <button id="btn-submit-transfer" onclick="submitStockTransfer()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded shadow">
                                     🚀 Xác Nhận Điều Chuyển Hàng
                                 </button>
                             </div>
@@ -2843,13 +2846,14 @@
                                         <th class="p-2.5">Thời gian</th>
                                         <th class="p-2.5">Từ kho (Xuất)</th>
                                         <th class="p-2.5">Đến kho (Nhập)</th>
-                                        <th class="p-2.5 text-right">Số món chuyển</th>
+                                        <th class="p-2.5 text-right">Số món</th>
                                         <th class="p-2.5">Ghi chú</th>
-                                        <th class="p-2.5 text-center">Chi tiết</th>
+                                        <th class="p-2.5">Người lập / Sửa</th>
+                                        <th class="p-2.5 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-transfer-history">
-                                    <tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có dữ liệu</td></tr>
+                                    <tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có dữ liệu</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -7632,6 +7636,8 @@
                     <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded border text-xs">
                         <div><span class="text-gray-500">Từ kho (Xuất):</span> <span id="view-transfer-from" class="font-bold text-rose-700 ml-1"></span></div>
                         <div><span class="text-gray-500">Đến kho (Nhập):</span> <span id="view-transfer-to" class="font-bold text-emerald-700 ml-1"></span></div>
+                        <div><span class="text-gray-500">Người tạo:</span> <span id="view-transfer-creator" class="font-bold text-slate-700 ml-1">---</span></div>
+                        <div><span class="text-gray-500">Sửa cuối:</span> <span id="view-transfer-updater" class="font-bold text-amber-700 ml-1">---</span></div>
                     </div>
                     <div class="flex-1 overflow-y-auto border rounded">
                         <table class="w-full text-left border-collapse text-[11px]">
@@ -7648,9 +7654,17 @@
                         </table>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t">
-                        <button onclick="printStockTransferA4()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold flex items-center gap-1.5 shadow-xs transition">
-                            <span>🖨️</span> In Phiếu Chuyển Kho A4
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="printStockTransferA4()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold flex items-center gap-1.5 shadow-xs transition">
+                                <span>🖨️</span> In Phiếu A4
+                            </button>
+                            <button onclick="editCurrentTransfer()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold flex items-center gap-1.5 shadow-xs transition">
+                                <span>✏️</span> Sửa Phiếu
+                            </button>
+                            <button onclick="deleteCurrentTransfer()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold flex items-center gap-1.5 shadow-xs transition">
+                                <span>🗑️</span> Xóa Phiếu
+                            </button>
+                        </div>
                         <button onclick="closeModalTransferDetail()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded font-medium">Đóng</button>
                     </div>
                 </div>

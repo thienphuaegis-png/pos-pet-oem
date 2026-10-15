@@ -1034,10 +1034,11 @@ def create_warehouse_transfer(req: TransferCreate, user=Depends(require_permissi
 
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         transfer_note = (req.note or "").strip()
+        user_name = (user.get("name") if isinstance(user, dict) else None) or (user.get("username") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute('''
-        INSERT INTO warehouse_transfers (code, from_warehouse_id, to_warehouse_id, note, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        ''', (code, req.from_warehouse_id, req.to_warehouse_id, transfer_note, now_vn))
+        INSERT INTO warehouse_transfers (code, from_warehouse_id, to_warehouse_id, note, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ''', (code, req.from_warehouse_id, req.to_warehouse_id, transfer_note, user_name, now_vn))
         transfer_id = cur.lastrowid
         
         for it in req.items:
@@ -1218,6 +1219,365 @@ def get_transfer_detail(transfer_id: int):
     data["items"] = [dict(r) for r in cur.fetchall()]
     conn.close()
     return data
+
+@router.delete("/api/inventory/transfers/{transfer_id}")
+def delete_warehouse_transfer(transfer_id: int, user=Depends(require_permission("inventory.manage"))):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM warehouse_transfers WHERE id = ?", (transfer_id,))
+        t_row = cur.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu chuyển kho")
+        transfer = dict(t_row)
+        from_wh_id = transfer["from_warehouse_id"]
+        to_wh_id = transfer["to_warehouse_id"]
+        code = transfer["code"] or f"CK-{transfer_id}"
+
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (from_wh_id,))
+        from_w = cur.fetchone()
+        from_w_name = from_w["name"] if from_w else f"Kho #{from_wh_id}"
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (to_wh_id,))
+        to_w = cur.fetchone()
+        to_w_name = to_w["name"] if to_w else f"Kho #{to_wh_id}"
+
+        cur.execute("SELECT * FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+        items = [dict(r) for r in cur.fetchall()]
+
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        for it in items:
+            qty = float(it["quantity"] or 0)
+            if qty <= 0:
+                continue
+
+            if it["item_type"] == 'product':
+                prod_id = it["product_id"]
+                if not prod_id:
+                    continue
+                # Hoàn trả kho xuất (+qty)
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (from_wh_id, prod_id, qty, qty))
+
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (from_wh_id, prod_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                # Trừ thu hồi kho nhập (-qty)
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (to_wh_id, prod_id, -qty, qty))
+
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (to_wh_id, prod_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                # Logs
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (prod_id, from_wh_id, qty, bal_from, f"Hủy phiếu chuyển {code}: Hoàn trả lại từ {to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (prod_id, to_wh_id, -qty, bal_to, f"Hủy phiếu chuyển {code}: Thu hồi trả về {from_w_name}", now_vn))
+
+            elif it["item_type"] == 'ingredient':
+                ing_id = it["ingredient_id"]
+                if not ing_id:
+                    continue
+                # Hoàn trả kho xuất (+qty)
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (from_wh_id, ing_id, qty, qty))
+
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (from_wh_id, ing_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                # Trừ thu hồi kho nhập (-qty)
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (to_wh_id, ing_id, -qty, qty))
+
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (to_wh_id, ing_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                # Logs
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (ing_id, from_wh_id, qty, bal_from, f"Hủy phiếu chuyển {code}: Hoàn trả lại từ {to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (ing_id, to_wh_id, -qty, bal_to, f"Hủy phiếu chuyển {code}: Thu hồi trả về {from_w_name}", now_vn))
+
+        cur.execute("DELETE FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+        cur.execute("DELETE FROM warehouse_transfers WHERE id = ?", (transfer_id,))
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": "Đã xóa phiếu và hoàn tác tồn kho thành công"}
+
+@router.put("/api/inventory/transfers/{transfer_id}")
+def update_warehouse_transfer(transfer_id: int, req: TransferCreate, user=Depends(require_permission("inventory.manage"))):
+    if req.from_warehouse_id == req.to_warehouse_id:
+        raise HTTPException(status_code=400, detail="Kho xuất và kho nhận không được trùng nhau")
+    if not req.items:
+        raise HTTPException(status_code=400, detail="Danh sách chuyển hàng không được rỗng")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM warehouse_transfers WHERE id = ?", (transfer_id,))
+        t_row = cur.fetchone()
+        if not t_row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu chuyển kho")
+        old_transfer = dict(t_row)
+        old_from_wh = old_transfer["from_warehouse_id"]
+        old_to_wh = old_transfer["to_warehouse_id"]
+        code = old_transfer["code"] or f"CK-{transfer_id}"
+
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (old_from_wh,))
+        old_from_w = cur.fetchone()
+        old_from_w_name = old_from_w["name"] if old_from_w else f"Kho #{old_from_wh}"
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (old_to_wh,))
+        old_to_w = cur.fetchone()
+        old_to_w_name = old_to_w["name"] if old_to_w else f"Kho #{old_to_wh}"
+
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (req.from_warehouse_id,))
+        new_from_w = cur.fetchone()
+        cur.execute("SELECT name FROM warehouses WHERE id = ?", (req.to_warehouse_id,))
+        new_to_w = cur.fetchone()
+        if not new_from_w or not new_to_w:
+            raise HTTPException(status_code=404, detail="Không tìm thấy kho hàng mới")
+        new_from_w_name = new_from_w["name"]
+        new_to_w_name = new_to_w["name"]
+
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_name = (user.get("name") if isinstance(user, dict) else None) or (user.get("username") if isinstance(user, dict) else None) or "Quản trị viên"
+
+        # 1. Hoàn tác danh sách hàng cũ
+        cur.execute("SELECT * FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+        old_items = [dict(r) for r in cur.fetchall()]
+        for it in old_items:
+            qty = float(it["quantity"] or 0)
+            if qty <= 0:
+                continue
+            if it["item_type"] == 'product':
+                prod_id = it["product_id"]
+                if not prod_id:
+                    continue
+                # Trả lại kho xuất cũ
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (old_from_wh, prod_id, qty, qty))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (old_from_wh, prod_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                # Thu hồi kho nhập cũ
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (old_to_wh, prod_id, -qty, qty))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (old_to_wh, prod_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                # Log hoàn tác
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (prod_id, old_from_wh, qty, bal_from, f"Sửa phiếu {code}: Hoàn trả lại từ {old_to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (prod_id, old_to_wh, -qty, bal_to, f"Sửa phiếu {code}: Thu hồi trả về {old_from_w_name}", now_vn))
+
+            elif it["item_type"] == 'ingredient':
+                ing_id = it["ingredient_id"]
+                if not ing_id:
+                    continue
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (old_from_wh, ing_id, qty, qty))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (old_from_wh, ing_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (old_to_wh, ing_id, -qty, qty))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (old_to_wh, ing_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (ing_id, old_from_wh, qty, bal_from, f"Sửa phiếu {code}: Hoàn trả lại từ {old_to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (ing_id, old_to_wh, -qty, bal_to, f"Sửa phiếu {code}: Thu hồi trả về {old_from_w_name}", now_vn))
+
+        # 2. Xóa các items cũ
+        cur.execute("DELETE FROM warehouse_transfer_items WHERE transfer_id = ?", (transfer_id,))
+
+        # 3. Áp dụng các items mới
+        for it in req.items:
+            if it.quantity <= 0:
+                continue
+            if it.item_type == 'product':
+                prod_id = it.product_id or it.item_id
+                if not prod_id:
+                    continue
+                cur.execute("SELECT name, unit FROM products WHERE id = ?", (prod_id,))
+                p_row = cur.fetchone()
+                item_name = p_row["name"] if p_row else "Sản phẩm"
+                unit = p_row["unit"] if p_row else "cái"
+
+                # Trừ kho xuất mới
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (req.from_warehouse_id, prod_id, -it.quantity, it.quantity))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (req.from_warehouse_id, prod_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                # Cộng kho nhận mới
+                cur.execute('''
+                INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (req.to_warehouse_id, prod_id, it.quantity, it.quantity))
+                cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?",
+                            (req.to_warehouse_id, prod_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                # Logs
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (prod_id, req.from_warehouse_id, -it.quantity, bal_from, f"Sửa phiếu {code}: Chuyển đến {new_to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('product', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (prod_id, req.to_warehouse_id, it.quantity, bal_to, f"Sửa phiếu {code}: Nhận từ {new_from_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO warehouse_transfer_items (transfer_id, item_type, product_id, item_name, unit, quantity)
+                VALUES (?, 'product', ?, ?, ?, ?)
+                ''', (transfer_id, prod_id, item_name, unit, it.quantity))
+
+            elif it.item_type == 'ingredient':
+                ing_id = it.ingredient_id or it.item_id
+                if not ing_id:
+                    continue
+                cur.execute("SELECT name, unit, type FROM ingredients WHERE id = ?", (ing_id,))
+                ing_row = cur.fetchone()
+                if not ing_row or ing_row["type"] == 'SERVICE':
+                    continue
+                item_name = ing_row["name"]
+                unit = ing_row["unit"]
+
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+                ''', (req.from_warehouse_id, ing_id, -it.quantity, it.quantity))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (req.from_warehouse_id, ing_id))
+                bal_from = cur.fetchone()["quantity"]
+
+                cur.execute('''
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                ''', (req.to_warehouse_id, ing_id, it.quantity, it.quantity))
+                cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                            (req.to_warehouse_id, ing_id))
+                bal_to = cur.fetchone()["quantity"]
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_OUT', ?, ?, ?, ?)
+                ''', (ing_id, req.from_warehouse_id, -it.quantity, bal_from, f"Sửa phiếu {code}: Chuyển đến {new_to_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note, created_at)
+                VALUES ('ingredient', ?, ?, 'TRANSFER_IN', ?, ?, ?, ?)
+                ''', (ing_id, req.to_warehouse_id, it.quantity, bal_to, f"Sửa phiếu {code}: Nhận từ {new_from_w_name}", now_vn))
+
+                cur.execute('''
+                INSERT INTO warehouse_transfer_items (transfer_id, item_type, ingredient_id, item_name, unit, quantity)
+                VALUES (?, 'ingredient', ?, ?, ?, ?)
+                ''', (transfer_id, ing_id, item_name, unit, it.quantity))
+
+        # 4. Cập nhật warehouse_transfers
+        transfer_note = (req.note or "").strip()
+        cur.execute('''
+        UPDATE warehouse_transfers
+        SET from_warehouse_id = ?, to_warehouse_id = ?, note = ?, updated_by = ?, updated_at = ?
+        WHERE id = ?
+        ''', (req.from_warehouse_id, req.to_warehouse_id, transfer_note, user_name, now_vn, transfer_id))
+
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": "Cập nhật phiếu chuyển kho thành công", "id": transfer_id, "code": code}
 
 @router.post("/api/inventory/audit")
 def create_stock_audit(req: AuditCreate, user=Depends(require_permission("inventory.manage"))):

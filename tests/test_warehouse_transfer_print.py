@@ -100,4 +100,12 @@ def test_ui_transfer_print_integration():
     assert "printStockTransferA4(result.id)" in app_content or "printStockTransferA4(result.transfer_id" in app_content or "printStockTransferA4" in app_content, \
         "app.js phải hỗ trợ in phiếu chuyển kho ngay sau khi tạo"
 
+    # 4. Kiểm tra nút Sửa và Xóa trong bảng lịch sử và modal chi tiết
+    assert "editStockTransfer" in app_content, "app.js phải có hàm editStockTransfer"
+    assert "deleteStockTransfer" in app_content, "app.js phải có hàm deleteStockTransfer"
+    assert "editCurrentTransfer" in idx_content, "index.html phải có nút sửa trong modal chi tiết"
+    assert "deleteCurrentTransfer" in idx_content, "index.html phải có nút xóa trong modal chi tiết"
+    assert "btn-cancel-edit-transfer" in idx_content, "index.html phải có nút hủy chỉnh sửa phiếu chuyển kho"
+
+
 

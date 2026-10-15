@@ -2095,6 +2095,8 @@
             }).join('');
         }
 
+        let currentEditingTransferId = null;
+
         async function submitStockTransfer() {
             const fromWhEl = document.getElementById('transfer-from-wh');
             const toWhEl = document.getElementById('transfer-to-wh');
@@ -2152,8 +2154,10 @@
             `).join('') + (currentTransferRows.length > 4 ? `<div class="text-[10px] text-gray-400 italic text-center pt-1.5">...và ${currentTransferRows.length - 4} mặt hàng khác</div>` : '');
 
             const confirmed = await window.showConfirmModal({
-                title: 'Xác Nhận Điều Chuyển Kho',
-                message: `Bạn có chắc chắn muốn chuyển <strong class="text-sky-700 font-bold">${itemsPayload.length} mặt hàng</strong> sang kho nhận?`,
+                title: currentEditingTransferId ? 'Xác Nhận Cập Nhật Phiếu Chuyển Kho' : 'Xác Nhận Điều Chuyển Kho',
+                message: currentEditingTransferId
+                    ? `Bạn có chắc chắn muốn lưu cập nhật cho <strong class="text-sky-700 font-bold">${itemsPayload.length} mặt hàng</strong>?`
+                    : `Bạn có chắc chắn muốn chuyển <strong class="text-sky-700 font-bold">${itemsPayload.length} mặt hàng</strong> sang kho nhận?`,
                 subMessage: `
                     <div class="space-y-2.5">
                         <div class="grid grid-cols-2 gap-2 text-[11px] pb-2 border-b border-slate-200">
@@ -2173,17 +2177,20 @@
                         ${note ? `<div class="text-[11px] text-slate-600 bg-amber-50/60 p-2 rounded border border-amber-200/80">📝 Ghi chú: <em>"${note}"</em></div>` : ''}
                     </div>
                 `,
-                confirmText: '🚀 Xác Nhận Chuyển',
+                confirmText: currentEditingTransferId ? '💾 Lưu Cập Nhật' : '🚀 Xác Nhận Chuyển',
                 cancelText: '✕ Hủy Bỏ',
                 type: 'transfer',
-                icon: '🔄'
+                icon: currentEditingTransferId ? '✏️' : '🔄'
             });
 
             if (!confirmed) return;
 
             try {
-                const res = await fetch('/api/inventory/transfer', {
-                    method: 'POST',
+                const url = currentEditingTransferId ? `/api/inventory/transfers/${currentEditingTransferId}` : '/api/inventory/transfer';
+                const method = currentEditingTransferId ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         from_warehouse_id: fromWh,
@@ -2202,18 +2209,17 @@
                 }
 
                 const result = await res.json();
-                const transferId = result.id;
+                const transferId = result.id || currentEditingTransferId;
                 const transferCode = result.transfer_code || result.code;
+                const isEdit = !!currentEditingTransferId;
 
-                document.getElementById('transfer-note').value = '';
-                currentTransferRows = [];
-                onTransferFromChange();
+                cancelEditStockTransfer();
                 loadUnifiedInventory();
 
                 if (window.showConfirmModal) {
                     const wantPrint = await window.showConfirmModal({
-                        title: 'Chuyển Kho Thành Công',
-                        message: `Đã hoàn tất điều chuyển kho! Mã phiếu: <strong class="text-sky-700 font-bold">${transferCode}</strong>`,
+                        title: isEdit ? 'Cập Nhật Thành Công' : 'Chuyển Kho Thành Công',
+                        message: `Đã hoàn tất ${isEdit ? 'cập nhật' : 'điều chuyển'} kho! Mã phiếu: <strong class="text-sky-700 font-bold">${transferCode}</strong>`,
                         subMessage: 'Bạn có muốn in phiếu điều chuyển kho A4 để ký biên bản bàn giao ngay bây giờ không?',
                         confirmText: '🖨️ In Phiếu A4',
                         cancelText: '✕ Đóng',
@@ -2225,9 +2231,9 @@
                     }
                 } else {
                     if (window.showToast) {
-                        window.showToast(`✅ Đã hoàn tất chuyển kho! Mã phiếu: ${transferCode}`, "success", 4000);
+                        window.showToast(`✅ Đã ${isEdit ? 'cập nhật' : 'hoàn tất'} chuyển kho! Mã phiếu: ${transferCode}`, "success", 4000);
                     } else {
-                        alert(`Đã hoàn tất chuyển kho! Mã phiếu: ${transferCode}`);
+                        alert(`Đã ${isEdit ? 'cập nhật' : 'hoàn tất'} chuyển kho! Mã phiếu: ${transferCode}`);
                     }
                     if (confirm("Bạn có muốn in phiếu chuyển kho A4 ngay không?")) {
                         printStockTransferA4(transferId);
@@ -2240,19 +2246,136 @@
             }
         }
 
+        function cancelEditStockTransfer() {
+            currentEditingTransferId = null;
+            document.getElementById('transfer-note').value = '';
+            currentTransferRows = [];
+            const submitBtn = document.getElementById('btn-submit-transfer');
+            if (submitBtn) {
+                submitBtn.innerHTML = '🚀 Xác Nhận Điều Chuyển Hàng';
+                submitBtn.className = 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded shadow';
+            }
+            const cancelBtn = document.getElementById('btn-cancel-edit-transfer');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+            const headerTitle = document.getElementById('transfer-create-title');
+            if (headerTitle) headerTitle.innerText = '📦 Danh Sách Mặt Hàng Điều Chuyển';
+            onTransferFromChange();
+        }
+
+        async function editStockTransfer(id) {
+            try {
+                const res = await fetch(`/api/inventory/transfers/${id}`);
+                if (!res.ok) throw new Error("Không thể tải chi tiết phiếu chuyển kho");
+                const data = await res.json();
+
+                currentEditingTransferId = id;
+                toggleTransferView('create');
+
+                const fromWhEl = document.getElementById('transfer-from-wh');
+                const toWhEl = document.getElementById('transfer-to-wh');
+                const noteEl = document.getElementById('transfer-note');
+                if (fromWhEl) fromWhEl.value = data.from_warehouse_id;
+                if (toWhEl) toWhEl.value = data.to_warehouse_id;
+                if (noteEl) noteEl.value = data.note || '';
+
+                let stockMap = {};
+                try {
+                    const stockRes = await fetch(`/api/inventory/stock-by-warehouse?warehouse_id=${data.from_warehouse_id}`);
+                    if (stockRes.ok) {
+                        const stockData = await stockRes.json();
+                        (stockData.products || []).forEach(p => stockMap['product_' + p.id] = p.stock || 0);
+                        (stockData.ingredients || []).forEach(ing => stockMap['ingredient_' + ing.id] = ing.stock || 0);
+                    }
+                } catch(_) {}
+
+                currentTransferRows = (data.items || []).map(it => {
+                    const isProd = it.item_type === 'product';
+                    const itemId = isProd ? (it.product_id || it.id) : (it.ingredient_id || it.id);
+                    const key = (isProd ? 'product_' : 'ingredient_') + itemId;
+                    const currentStock = (stockMap[key] !== undefined ? stockMap[key] : 0) + (it.quantity || 0);
+                    return {
+                        item_type: it.item_type,
+                        item_id: itemId,
+                        name: it.name || it.item_name || 'Mặt hàng',
+                        sku: it.sku || it.code || '---',
+                        stock: Math.max(currentStock, it.quantity || 0),
+                        quantity: it.quantity || 0,
+                        unit: it.unit || 'cái'
+                    };
+                });
+
+                renderTransferRows();
+
+                const submitBtn = document.getElementById('btn-submit-transfer');
+                if (submitBtn) {
+                    submitBtn.innerHTML = `💾 Cập Nhật Phiếu Chuyển (${data.transfer_code || data.code})`;
+                    submitBtn.className = 'bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded shadow flex items-center gap-1.5';
+                }
+                const cancelBtn = document.getElementById('btn-cancel-edit-transfer');
+                if (cancelBtn) cancelBtn.classList.remove('hidden');
+                const headerTitle = document.getElementById('transfer-create-title');
+                if (headerTitle) headerTitle.innerText = `✏️ Chỉnh Sửa Phiếu Điều Chuyển (${data.transfer_code || data.code})`;
+
+                if (window.showToast) {
+                    window.showToast(`Đang chỉnh sửa phiếu ${data.transfer_code || data.code}`, "info");
+                }
+            } catch(err) {
+                console.error("editStockTransfer error:", err);
+                if (window.showToast) window.showToast("Không thể nạp phiếu để sửa: " + err.message, "error");
+            }
+        }
+
+        async function deleteStockTransfer(id) {
+            const confirmed = await window.showConfirmModal({
+                title: 'Xóa Phiếu Điều Chuyển Kho',
+                message: 'Bạn có chắc chắn muốn <strong>XÓA</strong> phiếu điều chuyển này không?',
+                subMessage: 'Hệ thống sẽ <strong>tự động hoàn tác tồn kho</strong>: cộng trả lại toàn bộ số lượng vào Kho Xuất ban đầu và trừ thu hồi khỏi Kho Nhập.',
+                confirmText: '🗑️ Xác Nhận Xóa & Hoàn Kho',
+                cancelText: '✕ Hủy Bỏ',
+                type: 'danger',
+                icon: '⚠️'
+            });
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/inventory/transfers/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || "Lỗi khi xóa phiếu");
+                }
+                if (window.showToast) {
+                    window.showToast("✅ Đã xóa phiếu và hoàn tác tồn kho thành công!", "success");
+                }
+                loadStockTransfersList();
+                loadUnifiedInventory();
+                closeModalTransferDetail();
+            } catch(e) {
+                console.error("deleteStockTransfer error:", e);
+                if (window.showToast) window.showToast("❌ Không thể xóa phiếu: " + e.message, "error");
+                else alert("Lỗi xóa phiếu: " + e.message);
+            }
+        }
+
         async function loadStockTransfersList() {
             const tbody = document.getElementById('table-transfer-history');
-            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Đang tải lịch sử chuyển kho...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải lịch sử chuyển kho...</td></tr>';
 
             try {
                 const res = await fetch('/api/inventory/transfers');
                 const list = await res.json();
                 if (!list || list.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có phiếu chuyển kho nào</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có phiếu chuyển kho nào</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = list.map(t => `
+                tbody.innerHTML = list.map(t => {
+                    const creatorHtml = `
+                        <div class="font-medium text-slate-800">👤 ${t.created_by || 'Admin'}</div>
+                        ${t.updated_by ? `<div class="text-[10px] text-amber-600 font-semibold italic">✏️ Sửa: ${t.updated_by}</div>` : ''}
+                    `;
+                    return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${t.transfer_code || t.code}</td>
                         <td class="p-2.5 text-gray-500 whitespace-nowrap">${formatDateTime(t.created_at) || '-'}</td>
@@ -2260,6 +2383,7 @@
                         <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
                         <td class="p-2.5 text-right font-medium">${(t.items_count || t.item_count || 0).toLocaleString('vi-VN')} món</td>
                         <td class="p-2.5 text-gray-500">${t.note || '-'}</td>
+                        <td class="p-2.5 text-[11px]">${creatorHtml}</td>
                         <td class="p-2.5 text-center whitespace-nowrap space-x-1">
                             <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold" title="Xem chi tiết">
                                 👁️ Xem
@@ -2267,9 +2391,16 @@
                             <button onclick="printStockTransferA4(${t.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="In Phiếu Điều Chuyển A4">
                                 🖨️ In
                             </button>
+                            <button onclick="editStockTransfer(${t.id})" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-[11px] font-bold" title="Sửa phiếu chuyển kho">
+                                ✏️ Sửa
+                            </button>
+                            <button onclick="deleteStockTransfer(${t.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[11px] font-bold" title="Xóa phiếu chuyển kho (hoàn tác tồn kho)">
+                                🗑️ Xóa
+                            </button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             } catch (e) {
                 console.error("loadStockTransfersList error:", e);
             }
@@ -2291,6 +2422,10 @@
                 document.getElementById('view-transfer-date').innerText = 'Thời gian: ' + (formatDateTime(data.created_at) || '-');
                 document.getElementById('view-transfer-from').innerText = data.from_warehouse_name;
                 document.getElementById('view-transfer-to').innerText = data.to_warehouse_name;
+                const creatorEl = document.getElementById('view-transfer-creator');
+                if (creatorEl) creatorEl.innerText = data.created_by || 'Admin';
+                const updaterEl = document.getElementById('view-transfer-updater');
+                if (updaterEl) updaterEl.innerText = data.updated_by ? `${data.updated_by} (${formatDateTime(data.updated_at)})` : 'Chưa chỉnh sửa';
 
                 tbody.innerHTML = (data.items || []).map((it, idx) => {
                     const badge = it.item_type === 'product'
@@ -2315,6 +2450,24 @@
         function closeModalTransferDetail() {
             document.getElementById('modal-transfer-detail')?.classList.add('hidden');
         }
+
+        function editCurrentTransfer() {
+            if (currentViewedTransferId) {
+                closeModalTransferDetail();
+                editStockTransfer(currentViewedTransferId);
+            }
+        }
+        window.editCurrentTransfer = editCurrentTransfer;
+
+        function deleteCurrentTransfer() {
+            if (currentViewedTransferId) {
+                deleteStockTransfer(currentViewedTransferId);
+            }
+        }
+        window.deleteCurrentTransfer = deleteCurrentTransfer;
+        window.editStockTransfer = editStockTransfer;
+        window.deleteStockTransfer = deleteStockTransfer;
+        window.cancelEditStockTransfer = cancelEditStockTransfer;
 
         async function printStockTransferA4(transferId) {
             const id = transferId || currentViewedTransferId;
@@ -2433,24 +2586,26 @@
                             <div style="width: 24%;">
                                 <div style="font-weight: bold;">Người Lập Phiếu</div>
                                 <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
-                                <div style="height: 55px;"></div>
+                                <div style="height: 45px;"></div>
+                                <div style="font-weight: 600; font-size: 11px;">${data.created_by || ''}</div>
                             </div>
                             <div style="width: 24%;">
                                 <div style="font-weight: bold;">Thủ Kho Xuất</div>
                                 <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
-                                <div style="height: 55px;"></div>
+                                <div style="height: 45px;"></div>
                             </div>
                             <div style="width: 24%;">
                                 <div style="font-weight: bold;">Người Vận Chuyển</div>
                                 <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
-                                <div style="height: 55px;"></div>
+                                <div style="height: 45px;"></div>
                             </div>
                             <div style="width: 24%;">
                                 <div style="font-weight: bold;">Thủ Kho Nhận</div>
                                 <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
-                                <div style="height: 55px;"></div>
+                                <div style="height: 45px;"></div>
                             </div>
                         </div>
+                        ${data.updated_by ? `<div style="font-size: 10px; color: #666; font-style: italic; margin-top: 15px; text-align: left;">* Phiếu được chỉnh sửa lần cuối bởi: <strong>${data.updated_by}</strong> (${data.updated_at ? formatDate(data.updated_at) : ''})</div>` : ''}
                     </div>
                 `;
 
