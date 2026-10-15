@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bản Đồ Tiến Độ POS Petcare — Tailwind UI</title>
+  <!-- CDN Tailwind CSS dự phòng nếu mở trực tiếp bằng file:// -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="/static/js/tailwind.js"></script>
   <script>
     tailwind.config = {
@@ -189,6 +191,18 @@
           <button onclick="setCategoryFilter('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs">
             Tất Cả
           </button>
+          <button onclick="setCategoryFilter('POS')" data-cat="POS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏪 Quầy POS
+          </button>
+          <button onclick="setCategoryFilter('INV')" data-cat="INV" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📦 Kho Hàng
+          </button>
+          <button onclick="setCategoryFilter('PROD')" data-cat="PROD" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏭 Sản Xuất
+          </button>
+          <button onclick="setCategoryFilter('PO')" data-cat="PO" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📥 Nhập Hàng
+          </button>
           <button onclick="setCategoryFilter('SPA')" data-cat="SPA" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
             🐾 Dịch Vụ Spa
           </button>
@@ -198,8 +212,11 @@
           <button onclick="setCategoryFilter('SYS')" data-cat="SYS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
             🏨 Khách Sạn & Hệ Thống
           </button>
+          <button onclick="setCategoryFilter('CASH')" data-cat="CASH" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            💰 Sổ Quỹ
+          </button>
           <button onclick="setCategoryFilter('UI')" data-cat="UI" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
-            🎨 Giao Diện Đã Xong
+            🎨 Giao Diện
           </button>
           <button onclick="setCategoryFilter('ECOMM')" data-cat="ECOMM" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
             🛍️ Sàn TMĐT
@@ -642,7 +659,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
-    const ROADMAP_VERSION = 'v6.2-2026-10-15-custom-confirm-modal-and-roadmap-tasks';
+    const ROADMAP_VERSION = 'v6.3-2026-10-15-clean-project-map-badges-and-cdn-tailwind';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT (2026-10-15)
       { id: 'pos-unify-confirm-modal-and-ui-cleanup', cat: 'UI', title: 'Đồng Bộ Toàn Diện Hộp Thoại Thông Báo / Xác Nhận Chuẩn POS & Tối Ưu Giao Diện Hệ Thống', done: false, note: 'Thay thế triệt để các popup confirm() mặc định của trình duyệt còn sót lại (chuyển đổi Hàng Hóa ↔ Nguyên Liệu, cân bằng kho, xóa đơn sàn) bằng showConfirmModal chuẩn POS; tối ưu hóa layout và đồng bộ trải nghiệm người dùng.' },
@@ -864,10 +881,16 @@
         filtered.forEach((t, idx) => {
           const catBadges = {
             ECOMM: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200">🛍️ Sàn TMĐT</span>',
+            POS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🏪 Quầy POS</span>',
             SPA: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">🐾 Spa</span>',
             BILL: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🧾 Hóa Đơn</span>',
             SYS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">🏨 Hệ Thống</span>',
             UI: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">🎨 Giao Diện</span>',
+            INV: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-200">📦 Kho Hàng</span>',
+            PROD: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">🏭 Sản Xuất</span>',
+            PO: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">📥 Nhập Hàng</span>',
+            CASH: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">💰 Sổ Quỹ</span>',
+            Logic: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">⚙️ Nghiệp Vụ</span>',
           };
           const catBadge = catBadges[t.cat] || `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">${t.cat}</span>`;
 

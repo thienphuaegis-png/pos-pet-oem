@@ -380,6 +380,15 @@ def pos_mobile_page():
             return f.read()
     return "<h1>POS Mobile template not found</h1>"
 
+@app.get("/project-map", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/roadmap", response_class=HTMLResponse, include_in_schema=False)
+def project_map_page():
+    map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PROJECT_MAP.html")
+    if os.path.exists(map_path):
+        with open(map_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>PROJECT_MAP.html not found</h1>"
+
 # Đăng ký toàn bộ các sub-routers
 app.include_router(auth_router)
 app.include_router(shifts_router)
