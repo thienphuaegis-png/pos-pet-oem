@@ -726,6 +726,86 @@ def restore_product(product_id: int):
     conn.close()
     return {"status": "ok"}
 
+@router.post("/{ingredient_id}/convert-to-product")
+def convert_ingredient_to_product(ingredient_id: int):
+    """
+    Chuyển đổi một Nguyên Vật Liệu sang Hàng Hóa (thành phẩm bán):
+    - Tạo hoặc kích hoạt bản ghi trong bảng products (type='product', is_active=1)
+    - Chuyển tồn kho từ inventory sang product_inventory và products.stock
+    - Lấy đơn giá nhập gần nhất làm cost_price và gợi ý sell_price
+    - Chuyển liên kết nhà cung cấp (supplier_items) sang item_type='product'
+    - Cập nhật định mức BOM: chuyển các BOM cũ đang dùng nguyên liệu này sang dùng product_id nếu cần, hoặc xóa nguyên liệu
+    - Đánh dấu nguyên liệu cũ type='SERVICE' hoặc xóa khỏi inventory
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM ingredients WHERE id = ?", (ingredient_id,))
+        ing = cur.fetchone()
+        if not ing:
+            raise HTTPException(status_code=404, detail="Không tìm thấy nguyên liệu")
+
+        cur.execute("SELECT purchase_price FROM price_history WHERE ingredient_id = ? ORDER BY effective_date DESC, id DESC LIMIT 1", (ingredient_id,))
+        ph = cur.fetchone()
+        cost_price = float(ph["purchase_price"]) if ph and ph["purchase_price"] else 0.0
+
+        # Kiểm tra sản phẩm đã có theo code hoặc name
+        cur.execute("SELECT id, type, is_active FROM products WHERE (code = ? AND code IS NOT NULL) OR name = ?", (ing["code"], ing["name"]))
+        existing_p = cur.fetchone()
+
+        if existing_p:
+            prod_id = existing_p["id"]
+            cur.execute("""
+                UPDATE products 
+                SET type = 'product', is_active = 1, unit = ?, cost_price = COALESCE(NULLIF(cost_price, 0), ?)
+                WHERE id = ?
+            """, (ing["unit"] or "cái", cost_price, prod_id))
+        else:
+            p_code = ing["code"] if ing["code"] else f"SP_{ing['id']}"
+            cur.execute("""
+                INSERT INTO products (code, name, type, unit, cost_price, sell_price, stock, category, is_active)
+                VALUES (?, ?, 'product', ?, ?, 0, 0, 'Khác', 1)
+            """, (p_code, ing["name"], ing["unit"] or "cái", cost_price))
+            prod_id = cur.lastrowid
+
+        # Chuyển tồn kho từ inventory sang product_inventory
+        cur.execute("SELECT warehouse_id, quantity FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
+        inv_rows = cur.fetchall()
+        total_transferred_stock = 0
+        for r in inv_rows:
+            wh_id = r["warehouse_id"]
+            qty = float(r["quantity"] or 0)
+            if qty != 0:
+                cur.execute("""
+                    INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                        quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+                """, (wh_id, prod_id, qty, qty))
+                total_transferred_stock += qty
+
+        # Cập nhật tổng stock vào bảng products
+        cur.execute("UPDATE products SET stock = stock + ? WHERE id = ?", (total_transferred_stock, prod_id))
+
+        # Chuyển supplier_items
+        cur.execute("""
+            UPDATE supplier_items 
+            SET item_type = 'product', product_id = ?, ingredient_id = NULL
+            WHERE item_type = 'ingredient' AND ingredient_id = ?
+        """, (prod_id, ingredient_id))
+
+        # Xóa tồn kho nguyên liệu cũ
+        cur.execute("DELETE FROM inventory WHERE ingredient_id = ?", (ingredient_id,))
+        cur.execute("UPDATE ingredients SET type = 'SERVICE' WHERE id = ?", (ingredient_id,))
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "message": f"Đã chuyển đổi thành công '{ing['name']}' thành Hàng Hóa!"}
+
 @router.post("/{product_id}/convert-to-ingredient")
 def convert_product_to_ingredient(product_id: int):
     """

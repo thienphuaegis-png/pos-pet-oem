@@ -746,6 +746,10 @@
                 } else {
                     actionButtons = `
                         <div class="flex items-center justify-center gap-1">
+                            <button onclick="convertCurrentIngredientToProduct(${item.id}, '${encodeURIComponent(item.name)}')" 
+                                    class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded text-[11px] font-bold" title="Chuyển đổi nguyên liệu này thành hàng hóa bán tại POS">
+                                🔄 Thành Hàng Hóa
+                            </button>
                             <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
                                     class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
                                 📜 Thẻ kho
@@ -3531,6 +3535,31 @@
                 alert("Lỗi kết nối khi chuyển đổi!");
             }
         }
+
+        async function convertCurrentIngredientToProduct(ingredientId, encodedName) {
+            const name = decodeURIComponent(encodedName);
+            if (!ingredientId) return;
+
+            if (!confirm(`Bạn có chắc chắn muốn chuyển đổi:\n"${name}"\ntừ NGUYÊN LIỆU sang HÀNG HÓA bán tại POS?\n- Tồn kho nguyên liệu sẽ được chuyển sang tồn kho sản phẩm.\n- Đơn vị tính và giá vốn gần nhất sẽ được giữ nguyên.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${ingredientId}/convert-to-product`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(data.message || "Đã chuyển đổi thành công sang Hàng Hóa!");
+                    await Promise.all([loadUnifiedInventory(), loadCostIngredients()]);
+                } else {
+                    const err = await res.json();
+                    alert("Lỗi: " + (err.detail || "Không thể chuyển đổi"));
+                }
+            } catch (e) {
+                console.error("convertCurrentIngredientToProduct error:", e);
+                alert("Lỗi kết nối khi chuyển đổi!");
+            }
+        }
+        window.convertCurrentIngredientToProduct = convertCurrentIngredientToProduct;
 
         let currentProdSuppliers = [];
         let selectedProdSupplierIds = [];

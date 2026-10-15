@@ -1775,6 +1775,26 @@
                         </div>
                     </div>
 
+                    <!-- KPI TikTok -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Tổng Đơn Hàng</div>
+                            <div id="kpi-tiktok-order-count" class="text-xl font-black text-slate-800 mt-1">0</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Sản Phẩm Đã Bán</div>
+                            <div id="kpi-tiktok-items-sold" class="text-xl font-black text-slate-900 mt-1">0</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Doanh Số Sàn</div>
+                            <div id="kpi-tiktok-revenue" class="text-xl font-black text-emerald-600 mt-1">0 đ</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Đã Ánh Xạ Kho</div>
+                            <div id="kpi-tiktok-mapped-ratio" class="text-xl font-black text-indigo-600 mt-1">0%</div>
+                        </div>
+                    </div>
+
                     <!-- Bảng Đơn Hàng TikTok -->
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
                         <div class="overflow-x-auto">
@@ -1809,15 +1829,18 @@
                 <div id="pane-mkt-mapping" class="mkt-subtab-pane hidden space-y-4">
                     <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h3 class="font-bold text-slate-800 text-sm">🔗 Liên Kết Sản Phẩm Sàn TMĐT $\leftrightarrow$ Kho Hàng POS</h3>
+                            <h3 class="font-bold text-slate-800 text-sm">🔗 Liên Kết Sản Phẩm Sàn TMĐT ↔ Kho Hàng POS</h3>
                             <p class="text-slate-500 text-[11px] mt-0.5">Ánh xạ giúp hệ thống tự động nhận diện mặt hàng khi tải đơn về và thống kê lượng bán theo ngày mà chưa can thiệp trừ kho.</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick="autoMapWithAI()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-                                <span>🤖 AI Tự Động So Khớp</span>
+                            <button type="button" onclick="suggestAIMappings()" id="btn-suggest-ai" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>🤖 AI Gợi Ý Ánh Xạ</span>
                             </button>
-                            <button type="button" onclick="openManualMappingModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-                                <span>+ Thêm Luật Ánh Xạ</span>
+                            <button type="button" onclick="acceptAllAISuggestions()" id="btn-accept-all-ai" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
+                                <span>⚡ Duyệt Tất Cả Gợi Ý AI</span>
+                            </button>
+                            <button type="button" onclick="openManualMappingModal()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                                <span>+ Thêm Thủ Công</span>
                             </button>
                         </div>
                     </div>

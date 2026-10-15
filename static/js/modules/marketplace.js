@@ -910,6 +910,34 @@
         document.getElementById('kpi-shopee-mapped-ratio').textContent = `${ratio}%`;
     }
 
+    function updateTikTokKPIs(orders) {
+        const count = orders.length;
+        let totalItems = 0;
+        let totalRev = 0;
+        let mappedItems = 0;
+
+        orders.forEach(o => {
+            totalRev += (o.total_amount || 0);
+            (o.items || []).forEach(it => {
+                totalItems += (it.quantity || 1);
+                if (it.mapped_product_id) mappedItems += (it.quantity || 1);
+            });
+        });
+
+        const elCount = document.getElementById('kpi-tiktok-order-count');
+        const elItems = document.getElementById('kpi-tiktok-items-sold');
+        const elRev = document.getElementById('kpi-tiktok-revenue');
+        const elRatio = document.getElementById('kpi-tiktok-mapped-ratio');
+
+        if (elCount) elCount.textContent = count;
+        if (elItems) elItems.textContent = totalItems;
+        if (elRev) elRev.textContent = formatMoney(totalRev);
+        if (elRatio) {
+            const ratio = totalItems > 0 ? Math.round((mappedItems / totalItems) * 100) : 100;
+            elRatio.textContent = `${ratio}%`;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 3. ĐỒNG BỘ & DANH SÁCH ĐƠN HÀNG TIKTOK SHOP
     // ─────────────────────────────────────────────────────────────
@@ -966,6 +994,9 @@
             const res = await fetch(url);
             if (!res.ok) throw new Error('Không thể tải đơn hàng');
             const orders = await res.json();
+
+            // Cập nhật KPIs TikTok
+            updateTikTokKPIs(orders);
 
             if (!orders || orders.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào trong ngày này.</td></tr>';
@@ -1037,8 +1068,11 @@
     window.loadTikTokOrders = loadTikTokOrders;
 
     // ─────────────────────────────────────────────────────────────
-    // 4. ÁNH XẠ SẢN PHẨM (SKU MAPPING)
+    // 4. ÁNH XẠ SẢN PHẨM (SKU MAPPING) VỚI COMBOBOX TÌM KIẾM & DUYỆT AI
     // ─────────────────────────────────────────────────────────────
+    let currentUnmappedItems = [];
+    let unmappedRowSelections = {}; // idx -> { productId, productName, productCode, isAi }
+
     async function loadUnmappedItems() {
         const tbody = document.getElementById('unmapped-items-tbody');
         if (!tbody) return;
@@ -1047,56 +1081,297 @@
             const res = await fetch('/api/marketplace/unmapped-items');
             if (!res.ok) return;
             const items = await res.json();
+            currentUnmappedItems = items || [];
+            unmappedRowSelections = {};
 
             document.getElementById('unmapped-count').textContent = items.length;
 
+            const btnAcceptAll = document.getElementById('btn-accept-all-ai');
+            if (btnAcceptAll) btnAcceptAll.classList.add('hidden');
+
             if (!items || items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Tuyệt vời! Tất cả sản phẩm đều đã được ánh xạ.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-medium">🎉 Tuyệt vời! Tất cả sản phẩm sàn đều đã được ánh xạ vào kho POS.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = items.map((it, idx) => {
-                const safeName = (it.platform_product_name || '').replace(/'/g, "\\'");
-                const safeVar = (it.platform_variation || '').replace(/'/g, "\\'");
-                const platformBadge = it.platform === 'shopee'
-                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800">Shopee</span>'
-                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
-
-                const selectOptions = state.posProducts.map(p =>
-                    `<option value="${p.id}">[${escapeHtml(p.code)}] ${escapeHtml(p.name)} (${p.unit || 'cái'}) - Tồn: ${p.stock}</option>`
-                ).join('');
-
-                return `
-                    <tr class="hover:bg-amber-50/40 transition">
-                        <td class="p-2.5">${platformBadge}</td>
-                        <td class="p-2.5 font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</td>
-                        <td class="p-2.5 text-slate-500">${escapeHtml(it.platform_variation || 'Mặc định')}</td>
-                        <td class="p-2.5 text-center font-bold text-orange-600 font-mono">${it.total_sold_qty || 1}</td>
-                        <td class="p-2.5">
-                            <select id="quick-map-sel-${idx}" class="w-full border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 bg-white focus:outline-none">
-                                <option value="">-- Chọn sản phẩm kho POS --</option>
-                                ${selectOptions}
-                            </select>
-                        </td>
-                        <td class="p-2.5 text-center">
-                            <button type="button" onclick="saveQuickMapFromRow(${idx}, '${it.platform}', '${safeName}', '${safeVar}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs shadow-xs transition">Lưu</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            renderUnmappedItemsTable();
         } catch (e) {
             console.error("loadUnmappedItems error:", e);
         }
     }
     window.loadUnmappedItems = loadUnmappedItems;
 
-    async function saveQuickMapFromRow(idx, platform, itemName, variation) {
-        const sel = document.getElementById(`quick-map-sel-${idx}`);
-        const productId = sel ? parseInt(sel.value) : null;
-        if (!productId) {
-            alert('Vui lòng chọn sản phẩm trong kho để ánh xạ!');
+    function renderUnmappedItemsTable() {
+        const tbody = document.getElementById('unmapped-items-tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = currentUnmappedItems.map((it, idx) => {
+            const safeName = (it.platform_product_name || '').replace(/'/g, "\\'");
+            const safeVar = (it.platform_variation || '').replace(/'/g, "\\'");
+            const platformBadge = it.platform === 'shopee'
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Shopee</span>'
+                : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
+
+            const sel = unmappedRowSelections[idx];
+            const hasSelection = sel && sel.productId;
+            const displayLabel = hasSelection ? `[${sel.productCode}] ${sel.productName}` : '';
+            const aiBadge = sel && sel.isAi 
+                ? '<span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 font-bold px-1.5 py-0.5 rounded ml-1 animate-pulse">🤖 Gợi ý</span>' 
+                : '';
+
+            return `
+                <tr class="hover:bg-amber-50/40 transition">
+                    <td class="p-2.5">${platformBadge}</td>
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</div>
+                        ${it.platform_sku ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">SKU: ${escapeHtml(it.platform_sku)}</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-slate-500 font-medium">${escapeHtml(it.platform_variation || 'Mặc định')}</td>
+                    <td class="p-2.5 text-center font-bold text-orange-600 font-mono">${it.total_sold_qty || 1}</td>
+                    <td class="p-2.5 relative">
+                        <div class="relative w-full">
+                            <input type="text" id="mkt-map-input-${idx}" 
+                                   value="${escapeHtml(displayLabel)}" 
+                                   placeholder="🔍 Gõ tên hoặc mã SP kho POS..." 
+                                   autocomplete="off"
+                                   onfocus="showMktProductCombobox(${idx})" 
+                                   oninput="filterMktProductCombobox(${idx}, this.value)"
+                                   class="w-full border ${sel && sel.isAi ? 'border-indigo-400 bg-indigo-50/30 font-bold text-indigo-900' : 'border-slate-300 bg-white font-medium text-slate-800'} rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none">
+                            <div id="mkt-map-dropdown-${idx}" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs">
+                            </div>
+                        </div>
+                        ${aiBadge ? `<div class="mt-1">${aiBadge}</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-center">
+                        <button type="button" onclick="saveQuickMapFromRow(${idx}, '${it.platform}', '${safeName}', '${safeVar}')" 
+                                class="px-3 py-1.5 ${hasSelection ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'} rounded-lg font-bold text-xs shadow-xs transition cursor-pointer">
+                            Lưu
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function showMktProductCombobox(idx) {
+        filterMktProductCombobox(idx, '');
+    }
+    window.showMktProductCombobox = showMktProductCombobox;
+
+    function filterMktProductCombobox(idx, searchVal) {
+        const dd = document.getElementById(`mkt-map-dropdown-${idx}`);
+        if (!dd) return;
+
+        const q = (searchVal || '').trim().toLowerCase();
+        const prods = state.posProducts || [];
+
+        const matches = prods.filter(p => {
+            if (!q) return true;
+            const name = (p.name || '').toLowerCase();
+            const code = (p.code || '').toLowerCase();
+            return name.includes(q) || code.includes(q);
+        }).slice(0, 15);
+
+        if (matches.length === 0) {
+            dd.innerHTML = '<div class="p-3 text-center text-slate-400 italic">Không tìm thấy sản phẩm nào trong kho</div>';
+            dd.classList.remove('hidden');
             return;
         }
+
+        dd.innerHTML = matches.map(p => `
+            <div onclick="selectMktProductForRow(${idx}, ${p.id}, '${escapeHtml(p.name)}', '${escapeHtml(p.code || '')}')" 
+                 class="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition">
+                <div>
+                    <span class="font-mono font-bold text-slate-500 mr-1">[${p.code || '-'}]</span>
+                    <span class="font-bold text-slate-800">${p.name}</span>
+                    <span class="text-slate-400 text-[11px] ml-1">(${p.unit || 'cái'})</span>
+                </div>
+                <div class="text-right shrink-0 ml-2">
+                    <span class="text-[10px] text-slate-400">Tồn: <strong class="text-slate-700">${p.stock || 0}</strong></span>
+                </div>
+            </div>
+        `).join('');
+
+        dd.classList.remove('hidden');
+    }
+    window.filterMktProductCombobox = filterMktProductCombobox;
+
+    function selectMktProductForRow(idx, productId, productName, productCode) {
+        unmappedRowSelections[idx] = {
+            productId,
+            productName,
+            productCode,
+            isAi: false
+        };
+
+        const inp = document.getElementById(`mkt-map-input-${idx}`);
+        if (inp) {
+            inp.value = `[${productCode}] ${productName}`;
+            inp.className = 'w-full border border-slate-300 bg-white font-medium text-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none';
+        }
+
+        const dd = document.getElementById(`mkt-map-dropdown-${idx}`);
+        if (dd) dd.classList.add('hidden');
+
+        renderUnmappedItemsTable();
+    }
+    window.selectMktProductForRow = selectMktProductForRow;
+
+    // Đóng dropdown khi click ngoài
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('[id^="mkt-map-dropdown-"]').forEach(dd => {
+            const idx = dd.id.replace('mkt-map-dropdown-', '');
+            const inp = document.getElementById(`mkt-map-input-${idx}`);
+            if (dd && !dd.contains(e.target) && e.target !== inp) {
+                dd.classList.add('hidden');
+            }
+        });
+    });
+
+    // AI Gợi ý ánh xạ thông minh (Chỉ gợi ý lên UI, con người kiểm tra rồi bấm duyệt)
+    function suggestAIMappings() {
+        if (!currentUnmappedItems || currentUnmappedItems.length === 0) {
+            alert('Không có mặt hàng nào cần gợi ý ánh xạ!');
+            return;
+        }
+
+        const prods = state.posProducts || [];
+        if (prods.length === 0) {
+            alert('Chưa có dữ liệu hàng hóa trong kho POS!');
+            return;
+        }
+
+        let suggestedCount = 0;
+        currentUnmappedItems.forEach((it, idx) => {
+            // Nếu đã chọn rồi thì không đè
+            if (unmappedRowSelections[idx] && unmappedRowSelections[idx].productId) return;
+
+            const targetName = (it.platform_product_name || '').toLowerCase();
+            const targetVar = (it.platform_variation || '').toLowerCase();
+            const targetSku = (it.platform_sku || '').toLowerCase();
+
+            let bestMatch = null;
+            let bestScore = 0;
+
+            for (const p of prods) {
+                const pName = (p.name || '').toLowerCase();
+                const pCode = (p.code || '').toLowerCase();
+
+                // 1. Trùng mã SKU kho tuyệt đối
+                if (targetSku && pCode && targetSku === pCode) {
+                    bestMatch = p;
+                    bestScore = 100;
+                    break;
+                }
+
+                // 2. Tên biến thể trùng mã sản phẩm
+                if (targetVar && pCode && (targetVar === pCode || targetVar.includes(pCode))) {
+                    bestMatch = p;
+                    bestScore = 90;
+                    break;
+                }
+
+                // 3. Tên sản phẩm chứa nhau
+                if (pName.length >= 6 && targetName.includes(pName)) {
+                    if (pName.length > bestScore) {
+                        bestMatch = p;
+                        bestScore = pName.length;
+                    }
+                } else if (targetName.length >= 6 && pName.includes(targetName)) {
+                    if (targetName.length > bestScore) {
+                        bestMatch = p;
+                        bestScore = targetName.length;
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                unmappedRowSelections[idx] = {
+                    productId: bestMatch.id,
+                    productName: bestMatch.name,
+                    productCode: bestMatch.code,
+                    isAi: true
+                };
+                suggestedCount++;
+            }
+        });
+
+        renderUnmappedItemsTable();
+
+        const btnAcceptAll = document.getElementById('btn-accept-all-ai');
+        if (btnAcceptAll) {
+            if (suggestedCount > 0) {
+                btnAcceptAll.classList.remove('hidden');
+                btnAcceptAll.innerText = `⚡ Duyệt Tất Cả (${suggestedCount} Gợi Ý AI)`;
+            } else {
+                btnAcceptAll.classList.add('hidden');
+            }
+        }
+
+        if (window.showToast) {
+            window.showToast(`AI đã tìm thấy ${suggestedCount} gợi ý phù hợp! Vui lòng kiểm tra và bấm Lưu.`, 'success');
+        } else {
+            alert(`AI đã tìm thấy ${suggestedCount} gợi ý phù hợp! Vui lòng kiểm tra lại trước khi bấm Duyệt.`);
+        }
+    }
+    window.suggestAIMappings = suggestAIMappings;
+
+    // Duyệt và lưu toàn bộ các gợi ý AI đã khớp
+    async function acceptAllAISuggestions() {
+        const toSave = [];
+        Object.entries(unmappedRowSelections).forEach(([idx, sel]) => {
+            const it = currentUnmappedItems[idx];
+            if (it && sel && sel.productId) {
+                toSave.push({
+                    platform: it.platform,
+                    platform_sku: it.platform_sku || '',
+                    platform_item_name: it.platform_product_name,
+                    platform_variation: it.platform_variation || '',
+                    product_id: sel.productId
+                });
+            }
+        });
+
+        if (toSave.length === 0) {
+            alert('Không có dòng gợi ý nào để lưu!');
+            return;
+        }
+
+        if (!confirm(`Xác nhận lưu ${toSave.length} luật ánh xạ sản phẩm vào kho POS?`)) return;
+
+        const btn = document.getElementById('btn-accept-all-ai');
+        if (btn) btn.disabled = true;
+
+        let savedOk = 0;
+        for (const item of toSave) {
+            try {
+                const res = await fetch('/api/marketplace/mappings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item)
+                });
+                if (res.ok) savedOk++;
+            } catch (e) {}
+        }
+
+        if (btn) btn.disabled = false;
+        if (window.showToast) window.showToast(`Đã lưu thành công ${savedOk} luật ánh xạ!`, 'success');
+        else alert(`Đã lưu thành công ${savedOk} luật ánh xạ!`);
+
+        await loadUnmappedItems();
+        await loadSkuMappings();
+    }
+    window.acceptAllAISuggestions = acceptAllAISuggestions;
+
+    async function saveQuickMapFromRow(idx, platform, itemName, variation) {
+        const sel = unmappedRowSelections[idx];
+        const productId = sel ? sel.productId : null;
+        if (!productId) {
+            alert('Vui lòng chọn sản phẩm trong kho bằng ô tìm kiếm trước khi Lưu!');
+            return;
+        }
+
+        const it = currentUnmappedItems[idx] || {};
 
         try {
             const res = await fetch('/api/marketplace/mappings', {
@@ -1104,6 +1379,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     platform: platform,
+                    platform_sku: it.platform_sku || '',
                     platform_item_name: itemName,
                     platform_variation: variation,
                     product_id: productId
