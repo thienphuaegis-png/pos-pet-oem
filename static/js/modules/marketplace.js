@@ -40,6 +40,13 @@
     }
     window.clearShopeeDateFilter = clearShopeeDateFilter;
 
+    function clearTikTokDateFilter() {
+        const dateTikTok = document.getElementById('mkt-tiktok-filter-date');
+        if (dateTikTok) dateTikTok.value = '';
+        loadTikTokOrders();
+    }
+    window.clearTikTokDateFilter = clearTikTokDateFilter;
+
     function switchMktSubTab(subTab) {
         state.activeSubTab = subTab;
         const subTabs = ['shopee', 'tiktok', 'mapping', 'analytics'];
@@ -667,6 +674,134 @@
     }
     window.submitImportJson = submitImportJson;
 
+    // Quản lý checkbox chọn nhiều đơn hàng sàn
+    let selectedMktOrderIds = new Set();
+
+    function toggleSelectAllMktOrders(platform, checked) {
+        const checkboxes = document.querySelectorAll(`.chk-mkt-order-${platform}`);
+        checkboxes.forEach(cb => {
+            cb.checked = checked;
+            const id = parseInt(cb.dataset.id);
+            if (checked) {
+                selectedMktOrderIds.add(id);
+            } else {
+                selectedMktOrderIds.delete(id);
+            }
+        });
+        updateMktBulkActionBar();
+    }
+    window.toggleSelectAllMktOrders = toggleSelectAllMktOrders;
+
+    function toggleMktOrderItem(id, checked, platform) {
+        if (checked) {
+            selectedMktOrderIds.add(id);
+        } else {
+            selectedMktOrderIds.delete(id);
+        }
+        const allBoxes = document.querySelectorAll(`.chk-mkt-order-${platform}`);
+        const allChecked = allBoxes.length > 0 && Array.from(allBoxes).every(b => b.checked);
+        const masterChk = document.getElementById(`chk-${platform}-all`);
+        if (masterChk) masterChk.checked = allChecked;
+        updateMktBulkActionBar();
+    }
+    window.toggleMktOrderItem = toggleMktOrderItem;
+
+    function clearMktOrderSelection() {
+        selectedMktOrderIds.clear();
+        ['shopee', 'tiktok'].forEach(plat => {
+            const masterChk = document.getElementById(`chk-${plat}-all`);
+            if (masterChk) masterChk.checked = false;
+            document.querySelectorAll(`.chk-mkt-order-${plat}`).forEach(b => b.checked = false);
+        });
+        updateMktBulkActionBar();
+    }
+    window.clearMktOrderSelection = clearMktOrderSelection;
+
+    function updateMktBulkActionBar() {
+        const bar = document.getElementById('mkt-bulk-action-bar');
+        const countEl = document.getElementById('mkt-bulk-selected-count');
+        const count = selectedMktOrderIds.size;
+        if (!bar) return;
+        if (count > 0) {
+            if (countEl) countEl.innerText = count;
+            bar.classList.remove('hidden');
+            bar.classList.add('flex', 'animate-in', 'fade-in', 'slide-in-from-bottom-4', 'duration-200');
+        } else {
+            bar.classList.add('hidden');
+            bar.classList.remove('flex');
+        }
+    }
+    window.updateMktBulkActionBar = updateMktBulkActionBar;
+
+    async function deleteSingleMarketplaceOrder(orderId, orderSn, platform) {
+        if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng ${orderSn}?`)) return;
+        try {
+            const res = await fetch(`/api/marketplace/orders/${orderId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                if (window.showToast) window.showToast(data.message, 'success');
+                else alert(data.message);
+                selectedMktOrderIds.delete(orderId);
+                updateMktBulkActionBar();
+                if (platform === 'shopee') await loadShopeeOrders();
+                else await loadTikTokOrders();
+            } else {
+                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+            }
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        }
+    }
+    window.deleteSingleMarketplaceOrder = deleteSingleMarketplaceOrder;
+
+    async function bulkDeleteMarketplaceOrdersAction() {
+        const ids = Array.from(selectedMktOrderIds);
+        if (ids.length === 0) return;
+
+        if (!confirm(`Bạn có chắc chắn muốn XÓA ${ids.length} đơn hàng đã chọn?`)) return;
+
+        try {
+            const res = await fetch('/api/marketplace/orders/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_ids: ids })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (window.showToast) window.showToast(data.message, 'success');
+                else alert(data.message);
+                clearMktOrderSelection();
+                await Promise.all([loadShopeeOrders(), loadTikTokOrders()]);
+            } else {
+                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+            }
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        }
+    }
+    window.bulkDeleteMarketplaceOrdersAction = bulkDeleteMarketplaceOrdersAction;
+
+    async function confirmClearAllMarketplaceOrders(platform) {
+        const platName = platform === 'shopee' ? 'Shopee' : 'TikTok Shop';
+        if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn XÓA TOÀN BỘ đơn hàng ${platName} đã tải về máy?`)) return;
+        try {
+            const res = await fetch(`/api/marketplace/orders-clear-all?platform=${platform}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                if (window.showToast) window.showToast(data.message, 'success');
+                else alert(data.message);
+                clearMktOrderSelection();
+                if (platform === 'shopee') await loadShopeeOrders();
+                else await loadTikTokOrders();
+            } else {
+                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+            }
+        } catch (e) {
+            alert('Lỗi kết nối: ' + e.message);
+        }
+    }
+    window.confirmClearAllMarketplaceOrders = confirmClearAllMarketplaceOrders;
+
     async function loadShopeeOrders() {
         const date = document.getElementById('mkt-shopee-filter-date')?.value || '';
         const status = document.getElementById('mkt-shopee-status-filter')?.value || 'all';
@@ -703,7 +838,7 @@
                                 <span class="font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</span>
                                 ${it.platform_variation ? `<span class="text-slate-400 font-normal">(${escapeHtml(it.platform_variation)})</span>` : ''}
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 shrink-0">
                                 <span class="font-bold text-orange-600 font-mono">x${it.quantity}</span>
                                 ${mappedBadge}
                             </div>
@@ -716,18 +851,34 @@
                     ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
                     : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
 
+                const totalFee = (o.fee_fixed || 0) + (o.fee_service || 0) + (o.fee_payment || 0) + (o.shop_voucher || 0);
+                const netPayout = o.net_payout > 0 ? o.net_payout : Math.max(0, (o.total_amount || 0) - totalFee);
+                const trackingBadge = o.tracking_number ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
+                const isSelected = selectedMktOrderIds.has(o.id);
+
                 return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="p-3 font-mono font-bold text-slate-900">${escapeHtml(o.order_sn)}</td>
+                    <tr class="hover:bg-slate-50 transition ${isSelected ? 'bg-orange-50/50' : ''}">
+                        <td class="p-3 text-center">
+                            <input type="checkbox" data-id="${o.id}" onchange="toggleMktOrderItem(${o.id}, this.checked, 'shopee')" ${isSelected ? 'checked' : ''} class="chk-mkt-order-shopee w-4 h-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer">
+                        </td>
+                        <td class="p-3 font-mono font-bold text-slate-900">
+                            ${escapeHtml(o.order_sn)}
+                            ${trackingBadge}
+                        </td>
                         <td class="p-3 text-slate-500 font-medium">${formatDateTime(o.order_date)}</td>
-                        <td class="p-3 text-slate-700 font-semibold">${escapeHtml(o.buyer_username || 'Khách Shopee')}</td>
+                        <td class="p-3 text-slate-700 font-semibold">${escapeHtml(o.buyer_username && o.buyer_username !== '0.00' ? o.buyer_username : 'Khách Shopee')}</td>
                         <td class="p-3 max-w-sm">${itemsHtml}</td>
                         <td class="p-3 text-center font-bold text-slate-800">${o.total_qty || 0}</td>
-                        <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(o.total_amount)} đ</td>
+                        <td class="p-3 text-right font-medium text-slate-700 font-mono">${formatMoney(o.total_amount)}</td>
+                        <td class="p-3 text-right font-medium text-rose-600 font-mono">-${formatMoney(totalFee)}</td>
+                        <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(netPayout)}</td>
                         <td class="p-3 text-center font-medium">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
                         </td>
                         <td class="p-3 text-center">${orderMappedStatus}</td>
+                        <td class="p-3 text-center">
+                            <button type="button" onclick="deleteSingleMarketplaceOrder(${o.id}, '${escapeHtml(o.order_sn)}', 'shopee')" class="text-slate-400 hover:text-rose-600 font-bold p-1 transition" title="Xóa đơn này">✕</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -753,7 +904,7 @@
 
         document.getElementById('kpi-shopee-order-count').textContent = count;
         document.getElementById('kpi-shopee-items-sold').textContent = totalItems;
-        document.getElementById('kpi-shopee-revenue').textContent = formatMoney(totalRev) + ' đ';
+        document.getElementById('kpi-shopee-revenue').textContent = formatMoney(totalRev);
 
         const ratio = totalItems > 0 ? Math.round((mappedItems / totalItems) * 100) : 100;
         document.getElementById('kpi-shopee-mapped-ratio').textContent = `${ratio}%`;
@@ -824,16 +975,18 @@
             tbody.innerHTML = orders.map(o => {
                 const itemsHtml = (o.items || []).map(it => {
                     const mappedBadge = it.mapped_product_id
-                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
+                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
                         : `<button type="button" onclick="promptMapItem('tiktok', '${escapeHtml(it.platform_product_name)}', '${escapeHtml(it.platform_variation || '')}')" class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition">⚠️ Map ngay</button>`;
+
+                    const skuHint = it.platform_sku ? `<span class="text-[10px] text-slate-400 font-mono">[${escapeHtml(it.platform_sku)}]</span> ` : '';
 
                     return `
                         <div class="py-1 border-b border-slate-50 last:border-0 flex items-center justify-between gap-2">
                             <div>
-                                <span class="font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</span>
+                                ${skuHint}<span class="font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</span>
                                 ${it.platform_variation ? `<span class="text-slate-400 font-normal">(${escapeHtml(it.platform_variation)})</span>` : ''}
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 shrink-0">
                                 <span class="font-bold text-slate-900 font-mono">x${it.quantity}</span>
                                 ${mappedBadge}
                             </div>
@@ -841,19 +994,38 @@
                     `;
                 }).join('');
 
+                const isFullyMapped = (o.items || []).every(it => it.mapped_product_id);
+                const orderMappedStatus = isFullyMapped
+                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
+                    : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
+
+                const shopVoucher = o.shop_voucher || 0;
+                const netPayout = o.net_payout > 0 ? o.net_payout : Math.max(0, (o.total_amount || 0) - shopVoucher);
+                const trackingBadge = o.tracking_number ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
+                const isSelected = selectedMktOrderIds.has(o.id);
+
                 return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="p-3 font-mono font-bold text-slate-900">${escapeHtml(o.order_sn)}</td>
+                    <tr class="hover:bg-slate-50 transition ${isSelected ? 'bg-slate-100/70' : ''}">
+                        <td class="p-3 text-center">
+                            <input type="checkbox" data-id="${o.id}" onchange="toggleMktOrderItem(${o.id}, this.checked, 'tiktok')" ${isSelected ? 'checked' : ''} class="chk-mkt-order-tiktok w-4 h-4 rounded text-slate-900 focus:ring-slate-500 cursor-pointer">
+                        </td>
+                        <td class="p-3 font-mono font-bold text-slate-900">
+                            ${escapeHtml(o.order_sn)}
+                            ${trackingBadge}
+                        </td>
                         <td class="p-3 text-slate-500 font-medium">${formatDateTime(o.order_date)}</td>
                         <td class="p-3 text-slate-700 font-semibold">${escapeHtml(o.buyer_username || 'Khách TikTok')}</td>
                         <td class="p-3 max-w-sm">${itemsHtml}</td>
                         <td class="p-3 text-center font-bold text-slate-800">${o.total_qty || 0}</td>
-                        <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(o.total_amount)} đ</td>
+                        <td class="p-3 text-right font-medium text-slate-700 font-mono">${formatMoney(o.total_amount)}</td>
+                        <td class="p-3 text-right font-medium text-rose-600 font-mono">${shopVoucher > 0 ? '-' + formatMoney(shopVoucher) : '0 đ'}</td>
+                        <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(netPayout)}</td>
                         <td class="p-3 text-center">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
                         </td>
+                        <td class="p-3 text-center">${orderMappedStatus}</td>
                         <td class="p-3 text-center">
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">OK</span>
+                            <button type="button" onclick="deleteSingleMarketplaceOrder(${o.id}, '${escapeHtml(o.order_sn)}', 'tiktok')" class="text-slate-400 hover:text-rose-600 font-bold p-1 transition" title="Xóa đơn này">✕</button>
                         </td>
                     </tr>
                 `;

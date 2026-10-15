@@ -128,5 +128,23 @@ def test_marketplace_full_flow():
         assert res_excel.status_code == 200, res_excel.text
         assert res_excel.json()["synced_orders"] >= 1
 
+        # 9. Test Xóa đơn lẻ, xóa hàng loạt & dọn sạch
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM marketplace_orders WHERE order_sn = 'EXCEL-001'")
+        row_del = cur.fetchone()
+        assert row_del is not None
+        del_ord_id = row_del[0]
+        conn.close()
+
+        res_del_single = client.delete(f"/api/marketplace/orders/{del_ord_id}")
+        assert res_del_single.status_code == 200
+
+        res_del_bulk = client.post("/api/marketplace/orders/bulk-delete", json={"order_ids": [ord_id]})
+        assert res_del_bulk.status_code == 200
+
+        res_clear = client.delete("/api/marketplace/orders-clear-all?platform=shopee")
+        assert res_clear.status_code == 200
+
     finally:
         app.dependency_overrides.update(saved_overrides)

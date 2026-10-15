@@ -9,7 +9,8 @@ from schemas import (
     MarketplaceAccountCreate, MarketplaceAccountUpdate,
     MarketplaceOrderSyncRequest, MarketplaceSkuMapCreate,
     MarketplaceAIChatRequest, ShopeeTestConnectionRequest,
-    MarketplaceOrderJsonImportRequest, MarketplaceAutoCookieRequest
+    MarketplaceOrderJsonImportRequest, MarketplaceAutoCookieRequest,
+    MarketplaceOrderBulkDeleteRequest
 )
 from logger_config import get_module_logger
 from dependencies import get_optional_user
@@ -659,12 +660,18 @@ async def import_orders_excel(
             col_map.setdefault("quantity", idx)
         elif h_norm in ("quantity", "sl"):
             col_map.setdefault("quantity", idx)
+        elif "sku subtotal after discount" in h_norm:
+            col_map["subtotal_after_discount"] = idx
+        elif "sku seller discount" in h_norm:
+            col_map.setdefault("shop_voucher", idx)
         elif "giá ưu đãi" in h_norm or h_norm in ("đơn giá sau giảm giá", "giá sp"):
             col_map["unit_price"] = idx
         elif "đơn giá" in h_norm and "unit_price" not in col_map:
             col_map["unit_price"] = idx
-        elif h_norm in ("unit price", "price"):
+        elif h_norm in ("unit price", "price", "sku unit original price"):
             col_map.setdefault("unit_price", idx)
+        elif "order amount" in h_norm:
+            col_map["total_amount"] = idx
         elif "tổng số tiền" in h_norm or "tổng giá trị đơn hàng" in h_norm or "trị giá đơn hàng" in h_norm:
             col_map.setdefault("total_amount", idx)
         elif "trạng thái" in h_norm or h_norm in ("order status", "trạng thái vc"):
@@ -673,9 +680,9 @@ async def import_orders_excel(
             col_map.setdefault("order_date", idx)
         elif h_norm in ("created time", "order date"):
             col_map.setdefault("order_date", idx)
-        elif "người mua" in h_norm and "nhận" not in h_norm and "thanh toán" not in h_norm:
-            col_map.setdefault("buyer", idx)
-        elif h_norm in ("buyer username", "username"):
+        elif h_norm in ("người mua", "buyer username", "username"):
+            col_map["buyer"] = idx
+        elif "người mua" in h_norm and not any(k in h_norm for k in ("thanh toán", "trả", "nhận xét", "tiền")):
             col_map.setdefault("buyer", idx)
         elif "phí cố định" in h_norm:
             col_map.setdefault("fee_fixed", idx)
@@ -707,6 +714,10 @@ async def import_orders_excel(
     for r in rows[header_row_idx + 1:]:
         if not any(r):
             continue
+        # Bỏ qua dòng chú thích mô tả cột của TikTok (dòng 2 có 'Platform unique order ID')
+        if any("platform unique order id" in str(c).lower() or "current order status" in str(c).lower() for c in r if c is not None):
+            continue
+
         raw_sn = r[col_map["order_sn"]] if col_map["order_sn"] < len(r) else None
         if not raw_sn:
             continue
@@ -744,6 +755,15 @@ async def import_orders_excel(
         except Exception:
             unit_price = 0.0
 
+        # Nếu có cột Thành tiền sau chiết khấu (TikTok), tính lại đơn giá
+        if "subtotal_after_discount" in col_map and col_map["subtotal_after_discount"] < len(r):
+            try:
+                sub_disc = float(r[col_map["subtotal_after_discount"]] or 0.0)
+                if sub_disc > 0 and qty > 0:
+                    unit_price = sub_disc / qty
+            except Exception:
+                pass
+
         raw_total = r[col_map["total_amount"]] if "total_amount" in col_map and col_map["total_amount"] < len(r) else 0
         try:
             total_amount = float(raw_total or (qty * unit_price))
@@ -764,10 +784,14 @@ async def import_orders_excel(
             order_date_str = f"{raw_date.strftime('%Y-%m-%d')} 00:00:00"
         elif raw_date:
             s_date = str(raw_date).strip()
-            m_vn = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", s_date)
+            # Bắt dạng 01/09/2026 23:50:39 (TikTok) hoặc 01/09/2026
+            m_vn = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}:\d{1,2}(?::\d{1,2})?))?", s_date)
             if m_vn:
-                d, m, y = m_vn.groups()
-                order_date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)} 00:00:00"
+                d, m, y, t = m_vn.groups()
+                time_part = t if t else "00:00:00"
+                if len(time_part.split(":")) == 2:
+                    time_part += ":00"
+                order_date_str = f"{y}-{m.zfill(2)}-{d.zfill(2)} {time_part}"
             else:
                 order_date_str = s_date
         if not order_date_str:
@@ -950,6 +974,57 @@ def list_marketplace_orders(
 
     conn.close()
     return orders
+
+@router.delete("/orders/{order_id}")
+def delete_marketplace_order(order_id: int, user=Depends(get_optional_user)):
+    """Xóa 1 đơn hàng sàn và chi tiết mặt hàng liên quan."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, order_sn FROM marketplace_orders WHERE id = ?", (order_id,))
+    o = cur.fetchone()
+    if not o:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng sàn")
+
+    cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_id,))
+    cur.execute("DELETE FROM marketplace_orders WHERE id = ?", (order_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã xóa đơn hàng {o['order_sn']}"}
+
+@router.post("/orders/bulk-delete")
+def bulk_delete_marketplace_orders(req: MarketplaceOrderBulkDeleteRequest, user=Depends(get_optional_user)):
+    """Xóa hàng loạt các đơn hàng sàn theo danh sách ID."""
+    if not req.order_ids:
+        return {"status": "ok", "deleted_count": 0}
+
+    conn = get_db()
+    cur = conn.cursor()
+    placeholders = ",".join(["?"] * len(req.order_ids))
+    cur.execute(f"DELETE FROM marketplace_order_items WHERE order_id IN ({placeholders})", req.order_ids)
+    cur.execute(f"DELETE FROM marketplace_orders WHERE id IN ({placeholders})", req.order_ids)
+    affected = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "deleted_count": affected, "message": f"Đã xóa thành công {affected} đơn hàng"}
+
+@router.delete("/orders-clear-all")
+def clear_all_marketplace_orders(platform: Optional[str] = None, user=Depends(get_optional_user)):
+    """Dọn sạch toàn bộ đơn hàng sàn (theo platform hoặc tất cả)."""
+    conn = get_db()
+    cur = conn.cursor()
+    if platform and platform != "all":
+        cur.execute("DELETE FROM marketplace_order_items WHERE order_id IN (SELECT id FROM marketplace_orders WHERE platform = ?)", (platform.lower(),))
+        cur.execute("DELETE FROM marketplace_orders WHERE platform = ?", (platform.lower(),))
+        msg = f"Đã xóa sạch toàn bộ đơn hàng của sàn {platform.upper()}"
+    else:
+        cur.execute("DELETE FROM marketplace_order_items")
+        cur.execute("DELETE FROM marketplace_orders")
+        msg = "Đã xóa sạch toàn bộ đơn hàng của tất cả các sàn"
+    affected = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "deleted_count": affected, "message": msg}
 
 # ─────────────────────────────────────────────────────────────────
 # 4. ÁNH XẠ SẢN PHẨM SÀN -> SẢN PHẨM KHO POS

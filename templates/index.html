@@ -1663,17 +1663,10 @@
                             <div class="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-200">
                                 <span class="text-lg">🟠</span>
                                 <div>
-                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Gian Hàng Shopee</div>
-                                    <select id="mkt-shopee-account-select" onchange="onShopeeAccountChange()" class="bg-transparent font-bold text-xs text-orange-800 outline-none cursor-pointer">
-                                        <option value="">-- Chọn Gian Hàng --</option>
-                                    </select>
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Sàn Giao Dịch</div>
+                                    <div class="font-bold text-xs text-orange-800">Shopee Seller Center</div>
                                 </div>
                             </div>
-                            <span id="mkt-shopee-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Chưa kiểm tra</span>
-                            <button type="button" onclick="openMktAccountModal('shopee')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer">
-                                <span>⚡ Tự Lấy Cookie (1-Click)</span>
-                            </button>
-                            <button type="button" onclick="openMktAccountModal('shopee')" class="text-xs text-slate-500 hover:text-slate-700 font-semibold underline cursor-pointer">⚙️ Nhập tay</button>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
@@ -1688,14 +1681,11 @@
                                 <option value="completed">Đã giao</option>
                                 <option value="cancelled">Đã hủy</option>
                             </select>
-                            <button type="button" onclick="openImportExcelModal('shopee')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer" title="Kéo thả file Excel đơn hàng Shopee/TikTok">
+                            <button type="button" onclick="openImportExcelModal('shopee')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer" title="Kéo thả file Excel đơn hàng Shopee (.xlsx)">
                                 <span>📥 Nhập File Excel</span>
                             </button>
-                            <button type="button" onclick="syncShopeeOrdersNow()" id="btn-sync-shopee" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-                                <span>⚡ Đồng Bộ Shopee</span>
-                            </button>
-                            <button type="button" onclick="openImportJsonModal('shopee')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer" title="Dán trực tiếp JSON đơn hàng">
-                                <span>📋 Dán JSON</span>
+                            <button type="button" onclick="confirmClearAllMarketplaceOrders('shopee')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition cursor-pointer" title="Xóa toàn bộ đơn hàng Shopee đã tải">
+                                <span>🗑️ Xóa Tất Cả Đơn</span>
                             </button>
                         </div>
                     </div>
@@ -1726,18 +1716,24 @@
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
                                     <tr>
+                                        <th class="p-3 w-10 text-center">
+                                            <input type="checkbox" id="chk-shopee-all" onchange="toggleSelectAllMktOrders('shopee', this.checked)" class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer">
+                                        </th>
                                         <th class="p-3">Mã Đơn Shopee</th>
                                         <th class="p-3">Thời Gian Đặt</th>
                                         <th class="p-3">Người Mua</th>
                                         <th class="p-3">Sản Phẩm Trên Sàn</th>
                                         <th class="p-3 text-center">SL</th>
-                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-right">Tiền Hàng</th>
+                                        <th class="p-3 text-right">Phí Sàn</th>
+                                        <th class="p-3 text-right">Thực Nhận (Ví)</th>
                                         <th class="p-3 text-center">Trạng Thái Sàn</th>
-                                        <th class="p-3 text-center">Ánh Xạ Kho POS</th>
+                                        <th class="p-3 text-center">Ánh Xạ Kho</th>
+                                        <th class="p-3 text-center w-12">Xóa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mkt-shopee-orders-tbody" class="divide-y divide-slate-100">
-                                    <tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng nào. Hãy bấm "Đồng Bộ Đơn Hôm Nay" để tải đơn.</td></tr>
+                                    <tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng nào. Hãy bấm "Nhập File Excel" để tải đơn.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1752,17 +1748,17 @@
                             <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-300">
                                 <span class="text-lg">⚫</span>
                                 <div>
-                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Gian Hàng TikTok</div>
-                                    <select id="mkt-tiktok-account-select" onchange="onTikTokAccountChange()" class="bg-transparent font-bold text-xs text-slate-900 outline-none cursor-pointer">
-                                        <option value="">-- Chọn Gian Hàng --</option>
-                                    </select>
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Sàn Giao Dịch</div>
+                                    <div class="font-bold text-xs text-slate-900">TikTok Shop Seller Center</div>
                                 </div>
                             </div>
-                            <span id="mkt-tiktok-status-badge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-500">Chưa kiểm tra</span>
-                            <button type="button" onclick="openMktAccountModal('tiktok')" class="text-xs text-sky-600 hover:text-sky-700 font-bold underline cursor-pointer">⚙️ Cập nhật Cookie / Token</button>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <input type="date" id="mkt-tiktok-filter-date" onchange="loadTikTokOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+                            <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
+                                <span class="text-[10px] text-slate-400 font-bold">Ngày:</span>
+                                <input type="date" id="mkt-tiktok-filter-date" onchange="loadTikTokOrders()" class="text-xs font-semibold text-slate-700 focus:outline-none">
+                                <button type="button" onclick="clearTikTokDateFilter()" class="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer ml-1" title="Xem tất cả ngày">&times;</button>
+                            </div>
                             <select id="mkt-tiktok-status-filter" onchange="loadTikTokOrders()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
                                 <option value="all">Tất cả trạng thái</option>
                                 <option value="AWAITING_SHIPMENT">Chờ gửi hàng</option>
@@ -1770,11 +1766,11 @@
                                 <option value="DELIVERED">Đã giao</option>
                                 <option value="CANCELLED">Đã hủy</option>
                             </select>
-                            <button type="button" onclick="openImportExcelModal('tiktok')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer" title="Kéo thả file Excel đơn hàng TikTok">
+                            <button type="button" onclick="openImportExcelModal('tiktok')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer" title="Kéo thả file Excel đơn hàng TikTok (.xlsx)">
                                 <span>📥 Nhập File Excel</span>
                             </button>
-                            <button type="button" onclick="syncTikTokOrdersNow()" id="btn-sync-tiktok" class="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer">
-                                <span>⚡ Đồng Bộ TikTok</span>
+                            <button type="button" onclick="confirmClearAllMarketplaceOrders('tiktok')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition cursor-pointer" title="Xóa toàn bộ đơn hàng TikTok đã tải">
+                                <span>🗑️ Xóa Tất Cả Đơn</span>
                             </button>
                         </div>
                     </div>
@@ -1785,18 +1781,24 @@
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
                                     <tr>
+                                        <th class="p-3 w-10 text-center">
+                                            <input type="checkbox" id="chk-tiktok-all" onchange="toggleSelectAllMktOrders('tiktok', this.checked)" class="w-4 h-4 rounded text-slate-900 focus:ring-slate-500 cursor-pointer">
+                                        </th>
                                         <th class="p-3">Mã Đơn TikTok</th>
                                         <th class="p-3">Thời Gian Đặt</th>
                                         <th class="p-3">Người Mua</th>
                                         <th class="p-3">Sản Phẩm Trên Sàn</th>
                                         <th class="p-3 text-center">SL</th>
-                                        <th class="p-3 text-right">Tổng Tiền</th>
+                                        <th class="p-3 text-right">Tiền Hàng</th>
+                                        <th class="p-3 text-right">Voucher Shop</th>
+                                        <th class="p-3 text-right">Thực Nhận (Ví)</th>
                                         <th class="p-3 text-center">Trạng Thái Sàn</th>
-                                        <th class="p-3 text-center">Ánh Xạ Kho POS</th>
+                                        <th class="p-3 text-center">Ánh Xạ Kho</th>
+                                        <th class="p-3 text-center w-12">Xóa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mkt-tiktok-orders-tbody" class="divide-y divide-slate-100">
-                                    <tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào.</td></tr>
+                                    <tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào. Hãy bấm "Nhập File Excel" để tải đơn.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -14222,6 +14224,22 @@
 </div>
 
 <!-- ==================== FLOATING BULK ACTION TOOLBAR (ROOT LEVEL - ALWAYS FLOATS ON VIEWPORT) ==================== -->
+<div id="mkt-bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 z-[95] backdrop-blur-md hidden transition-all duration-200 pointer-events-auto">
+    <div class="text-xs font-semibold flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold" id="mkt-bulk-selected-count">0</span>
+        <span class="whitespace-nowrap">đơn hàng đang chọn</span>
+    </div>
+    <div class="h-4 w-px bg-slate-700"></div>
+    <div class="flex items-center gap-2">
+        <button type="button" onclick="bulkDeleteMarketplaceOrdersAction()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
+            <span>🗑️</span> <span>Xóa đã chọn</span>
+        </button>
+        <button type="button" onclick="clearMktOrderSelection()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition ml-1 cursor-pointer" title="Bỏ chọn">
+            ✕
+        </button>
+    </div>
+</div>
+
 <div id="unified-bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center gap-4 z-[95] backdrop-blur-md hidden transition-all duration-200 pointer-events-auto">
     <div class="text-xs font-semibold flex items-center gap-2">
         <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold" id="bulk-selected-count">0</span>

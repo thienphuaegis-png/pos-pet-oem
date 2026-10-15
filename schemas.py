@@ -618,3 +618,7 @@ class MarketplaceAutoCookieRequest(BaseModel):
     spc_cds: Optional[str] = ""
     shop_name: Optional[str] = None
 
+
+class MarketplaceOrderBulkDeleteRequest(BaseModel):
+    order_ids: List[int]
+
