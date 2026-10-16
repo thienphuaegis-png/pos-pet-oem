@@ -7,8 +7,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from fastapi.testclient import TestClient
 from server import app
 from database import get_db
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_api_contact_detail_wallet_tracking():
     # 1. Tạo customer test

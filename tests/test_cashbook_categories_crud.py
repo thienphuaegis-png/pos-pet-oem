@@ -3,8 +3,9 @@ from starlette.testclient import TestClient
 from server import app
 from database import get_db, init_db
 from routers.auth import _make_token
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_cashbook_categories_api_crud():
     saved_overrides = dict(app.dependency_overrides)

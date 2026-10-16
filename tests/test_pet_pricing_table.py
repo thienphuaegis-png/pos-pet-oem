@@ -3,8 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from server import app
 from database import get_db
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_pet_pricing_custom_category_api():
     # 1. Tạo mức giá với phân loại người dùng tự đặt

@@ -2,8 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from server import app
 from database import init_db, get_db
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_return_tables_exist():
     init_db()
