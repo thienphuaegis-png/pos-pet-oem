@@ -2,6 +2,7 @@ import os
 import sys
 import secrets
 import logging
+import datetime
 from fastapi import FastAPI, Response, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -138,7 +139,7 @@ async def activity_log_middleware(request: Request, call_next):
 init_db()
 
 # Khởi động backup tự động (local rotating + cloud Google Drive, mỗi giờ)
-if not os.environ.get("VERCEL"):
+if not os.environ.get("VERCEL") and not os.environ.get("POS_DISABLE_BACKGROUND"):
     from backup_service import start_backup_scheduler
     start_backup_scheduler()
     try:
