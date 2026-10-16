@@ -2385,7 +2385,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-unified-inventory">
-                                    <tr><td colspan="13" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
+                                    <tr><td colspan="14" class="p-4 text-center text-gray-400">Đang tải dữ liệu tồn kho...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3247,7 +3247,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-pet-services">
-                                    <tr><td colspan="13" class="p-8 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
+                                    <tr><td colspan="12" class="p-8 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3685,7 +3685,7 @@
                                 <input type="datetime-local" id="hotel-batch-expected-time" class="w-full border p-2 rounded-lg bg-white font-medium text-xs">
                             </div>
                             <div>
-                                <label class="block font-bold text-slate-700 mb-1">Tiền Đặt Cọc Trước (VNĐ):</label>
+                                <label class="block font-bold text-slate-700 mb-1">Tiền Đặt Cọc Trước (đ):</label>
                                 <input type="number" id="hotel-deposit-amount" value="0" min="0" step="10000" placeholder="0" class="w-full border p-2 rounded-lg bg-white font-mono font-bold text-indigo-700 text-xs">
                             </div>
                         </div>
@@ -4842,7 +4842,7 @@
                                 </tr>
                             </thead>
                             <tbody id="table-customers">
-                                <tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải danh sách khách hàng...</td></tr>
+                                <tr><td colspan="9" class="p-4 text-center text-gray-400">Đang tải danh sách khách hàng...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -5578,7 +5578,7 @@
                                     <button type="button" onclick="setPlanQuickAmount(1)" class="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 font-bold">100% nợ</button>
                                 </div>
                             </div>
-                            <input type="number" id="plan-amount" step="any" min="1" placeholder="Nhập số tiền hẹn trả (VNĐ)..." class="border p-2 rounded w-full font-mono font-black text-rose-600 text-base outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                            <input type="number" id="plan-amount" step="any" min="1" placeholder="Nhập số tiền hẹn trả (đ)..." class="border p-2 rounded w-full font-mono font-black text-rose-600 text-base outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
                         </div>
 
                         <!-- Nguồn tiền & Ngày hẹn -->
@@ -10541,7 +10541,7 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">Đơn Giá (VNĐ) (*):</label>
+                    <label class="block font-bold text-slate-700 mb-1">Đơn Giá (đ) (*):</label>
                     <input type="number" id="pet-pricing-input-price" step="1000" placeholder="0" class="border p-2 rounded w-full bg-white font-bold text-emerald-700">
                 </div>
             </div>
@@ -10981,7 +10981,7 @@
                 <!-- Số tiền & Hạng mục -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-slate-700 font-bold mb-1">Số tiền (VNĐ) *</label>
+                        <label class="block text-slate-700 font-bold mb-1">Số tiền (đ) *</label>
                         <input type="number" id="exp-form-amount" placeholder="Ví dụ: 150000" min="1" step="any" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold text-rose-600 focus:outline-none focus:ring-2 focus:ring-indigo-400">
                     </div>
                     <div>
@@ -12214,7 +12214,7 @@
 
                 <!-- Số tiền -->
                 <div id="cash-amount-container">
-                    <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
+                    <label class="font-bold text-slate-700 block mb-1">Số Tiền (đ) (*):</label>
                     <input id="cash-amount-input" type="text" inputmode="numeric" 
                         class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-black text-right text-emerald-700 focus:outline-none focus:border-indigo-500" 
                         placeholder="0 đ" oninput="handleCashAmountInput(this)">
@@ -12432,7 +12432,7 @@
                 </div>
 
                 <div>
-                    <label id="edit-cash-amount-label" class="block text-slate-700 font-bold mb-1">Số tiền (VNĐ) *</label>
+                    <label id="edit-cash-amount-label" class="block text-slate-700 font-bold mb-1">Số tiền (đ) *</label>
                     <input type="text" id="edit-cash-amount" inputmode="numeric" required class="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="0 đ" oninput="handleEditCashAmountInput(this)">
                     <div id="edit-cash-amount-words" class="text-[11px] font-semibold text-slate-500 italic mt-1 text-right">Không đồng</div>
                 </div>
@@ -12574,7 +12574,7 @@
 
                 <div class="grid grid-cols-2 gap-3 items-center">
                     <div>
-                        <label class="font-bold text-slate-700 block mb-1">Số Dư Ban Đầu (VNĐ):</label>
+                        <label class="font-bold text-slate-700 block mb-1">Số Dư Ban Đầu (đ):</label>
                         <input id="acc-initial-balance" type="number" step="1000" class="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-right" placeholder="0">
                     </div>
                     <div class="pt-4">
@@ -13988,7 +13988,7 @@
                                 <input type="hidden" id="ai-type-val" value="in">
                             </div>
                             <div>
-                                <label class="font-bold text-slate-700 block mb-1">Số Tiền (VNĐ) (*):</label>
+                                <label class="font-bold text-slate-700 block mb-1">Số Tiền (đ) (*):</label>
                                 <input type="number" id="ai-amount-input" step="1000" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-sm font-mono font-black text-right text-emerald-700 bg-emerald-50/40 focus:outline-none focus:border-indigo-500">
                             </div>
                         </div>

@@ -1056,7 +1056,7 @@
 
             const items = Array.from(compactBulkStateMap.values());
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">Không có phiếu dịch vụ nào để cập nhật</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 italic">Không có phiếu dịch vụ nào để cập nhật</td></tr>';
                 updateCompactBulkCounts();
                 return;
             }

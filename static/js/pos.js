@@ -4038,7 +4038,7 @@ async function showPosWalletHistory() {
     document.getElementById('pos-wallet-hist-current-balance').innerText = `${Number(cust.spa_wallet_balance || 0).toLocaleString('vi-VN')} đ`;
 
     const tbody = document.getElementById('pos-wallet-hist-table-body');
-    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Đang tải lịch sử ví...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Đang tải lịch sử ví...</td></tr>';
     modal.classList.remove('hidden');
 
     try {
@@ -4047,7 +4047,7 @@ async function showPosWalletHistory() {
         const rows = await res.json();
 
         if (!rows || rows.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Chưa có giao dịch biến động ví nào</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">Chưa có giao dịch biến động ví nào</td></tr>';
             return;
         }
 

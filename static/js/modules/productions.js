@@ -321,7 +321,7 @@
                 tbody.innerHTML = list.map(p => `
                     <tr class="border-b hover:bg-gray-50 text-xs">
                         <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
-                        <td class="p-2.5 text-gray-500">${p.created_at || '-'}</td>
+                        <td class="p-2.5 text-gray-500">${formatDateTime(p.created_at) || '-'}</td>
                         <td class="p-2.5 text-slate-700 font-medium">${p.warehouse_name || 'Kho Tổng'}</td>
                         <td class="p-2.5 text-center font-bold">${p.item_count || 1} món</td>
                         <td class="p-2.5 text-right font-mono font-bold text-sky-700">${p.total_produced_qty}</td>
@@ -2020,7 +2020,7 @@
                 resetCashAmount();
                 document.getElementById('cash-category-input').value = '';
                 document.getElementById('cash-note-input').value = '';
-                const today = new Date().toISOString().split('T')[0];
+                const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
                 const dateInp = document.getElementById('cash-date-input');
                 if (dateInp) dateInp.value = today;
 
@@ -4319,7 +4319,7 @@
 
                         return `
                             <tr class="border-b hover:bg-gray-50">
-                                <td class="p-2 text-gray-500 whitespace-nowrap">${l.created_at || '-'}</td>
+                                <td class="p-2 text-gray-500 whitespace-nowrap">${formatDateTime(l.created_at) || '-'}</td>
                                 <td class="p-2">${typeBadge}</td>
                                 <td class="p-2 text-right font-mono">${qtyDisplay} ${ing.unit}</td>
                                 <td class="p-2 text-right font-mono font-bold text-slate-700">${l.balance_after}</td>
@@ -4452,7 +4452,7 @@
         async function applyOrdersFilters() {
             const tbody = document.getElementById('orders-table-body');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Đang lọc danh sách hóa đơn từ máy chủ...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Đang lọc danh sách hóa đơn từ máy chủ...</td></tr>';
 
             const fromDate = document.getElementById('filter-order-from-date')?.value || '';
             const toDate = document.getElementById('filter-order-to-date')?.value || '';
@@ -4524,7 +4524,7 @@
             if (!tbody) return;
 
             if (!allCachedOrders || allCachedOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
                 const pContainer = document.getElementById('pagination-orders');
                 if (pContainer) pContainer.innerHTML = '';
                 updateOrdersBulkActionBar();
@@ -8672,7 +8672,7 @@
             // Gán ngày hẹn mặc định là 5 ngày sau
             const today = new Date();
             today.setDate(today.getDate() + 5);
-            document.getElementById('oem-create-date').value = today.toISOString().split('T')[0];
+            document.getElementById('oem-create-date').value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr(today) : new Intl.DateTimeFormat('en-CA').format(today);
 
             setOEMDiscountType('percent');
             document.getElementById('oem-create-discount').value = '0';

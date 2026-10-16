@@ -272,7 +272,7 @@
                                 : '<span class="bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded font-bold text-[10px]">👤 Không VAT • Quỹ Cá Nhân</span>'
                             }
                         </td>
-                        <td class="p-2 text-gray-500 font-mono text-[11px]">${o.created_at || '-'}</td>
+                        <td class="p-2 text-gray-500 font-mono text-[11px]">${formatDateTime(o.created_at) || '-'}</td>
                         <td class="p-2 text-right font-mono font-bold text-slate-700">${formatMoney(o.total_amount || 0)}</td>
                         <td class="p-2 text-right font-mono font-bold text-emerald-600">${formatMoney(o.paid_amount || 0)}</td>
                         <td class="p-2 text-right font-mono font-black text-rose-600">${formatMoney(o.debt_amount || 0)}</td>
@@ -511,7 +511,7 @@
             document.getElementById('cfd-pay-note').value = '';
             const dateEl = document.getElementById('cfd-pay-date');
             if (dateEl) {
-                dateEl.value = new Date().toISOString().split('T')[0];
+                dateEl.value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
             }
 
             // Nạp tài khoản thanh toán cho modal trả nợ NCC
@@ -734,7 +734,7 @@
 
             const targetDate = new Date();
             targetDate.setDate(targetDate.getDate() + 3);
-            const dateStr = targetDate.toISOString().split('T')[0];
+            const dateStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr(targetDate) : new Intl.DateTimeFormat('en-CA').format(targetDate);
             const dateInput = document.getElementById('plan-date');
             if (dateInput) dateInput.value = dateStr;
 

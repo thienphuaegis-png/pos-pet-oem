@@ -103,7 +103,7 @@
 
                 const expInput = document.getElementById('purchase-expected-date');
                 if (expInput && !expInput.value) {
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
                     expInput.value = today;
                 }
 
@@ -542,7 +542,7 @@
             document.getElementById('purchase-note').value = '';
             if (typeof setPurchaseFundSource === 'function') setPurchaseFundSource('PERSONAL');
             const expInput = document.getElementById('purchase-expected-date');
-            if (expInput) expInput.value = new Date().toISOString().split('T')[0];
+            if (expInput) expInput.value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
             renderPurchaseItems();
         }
 

@@ -48,7 +48,7 @@
         const occupied = state.rooms.filter(r => r.status === 'occupied').length;
         const available = state.rooms.filter(r => r.status === 'available').length;
         
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
         const returningToday = state.rooms.filter(r => 
             r.status === 'occupied' && 
             r.expected_checkout_time && 
@@ -136,7 +136,7 @@
 
     // Lọc danh sách phòng theo bộ lọc
     function getFilteredRooms() {
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
         return state.rooms.filter(r => {
             if (state.filterZone !== 'all' && r.zone !== state.filterZone) return false;
             if (state.filterStatus === 'available' && r.status !== 'available') return false;
@@ -162,7 +162,7 @@
             return;
         }
 
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
 
         container.innerHTML = filtered.map(room => {
             const isOccupied = room.status === 'occupied';
@@ -276,11 +276,11 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-slate-500">Giờ vào:</span>
-                        <span class="font-mono text-slate-700">${room.check_in_time ? room.check_in_time.slice(0, 16).replace('T', ' ') : 'N/A'}</span>
+                        <span class="font-mono text-slate-700">${formatDateTime(room.check_in_time) || 'N/A'}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-slate-500">Dự kiến đón:</span>
-                        <span class="font-mono text-amber-700 font-bold">${room.expected_checkout_time ? room.expected_checkout_time.slice(0, 16).replace('T', ' ') : 'N/A'}</span>
+                        <span class="font-mono text-amber-700 font-bold">${formatDateTime(room.expected_checkout_time) || 'N/A'}</span>
                     </div>
                     <div class="flex justify-between pt-1 border-t">
                         <span class="text-slate-500">Thời gian đã ở:</span>
@@ -418,7 +418,7 @@
         }
 
         const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
 
         let html = `
             <div class="overflow-x-auto">
@@ -523,8 +523,8 @@
 
         const checkinInput = document.getElementById('hotel-batch-checkin-time');
         const checkoutInput = document.getElementById('hotel-batch-expected-time');
-        if (checkinInput) checkinInput.value = now.toISOString().slice(0, 16);
-        if (checkoutInput) checkoutInput.value = tomorrow.toISOString().slice(0, 16);
+        if (checkinInput) checkinInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(now) : new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        if (checkoutInput) checkoutInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(tomorrow) : new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
         // Khởi tạo dòng đầu tiên
         const tbody = document.getElementById('tbody-hotel-batch-pets');
@@ -1478,7 +1478,7 @@
         if (expInput) {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            expInput.value = tomorrow.toISOString().slice(0, 16);
+            expInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(tomorrow) : new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         }
 
         modal.classList.remove('hidden');
@@ -1571,8 +1571,8 @@
                 <td class="p-3 font-bold text-slate-800">${b.room_code} - ${b.room_name}</td>
                 <td class="p-3 font-bold text-slate-900">${b.pet_name} <span class="text-[10px] font-normal text-slate-400">(${b.pet_breed || ''})</span></td>
                 <td class="p-3 text-slate-700">${b.contact_name} <span class="text-[10px] text-slate-400">(${b.contact_phone || ''})</span></td>
-                <td class="p-3 font-mono text-slate-500">${b.check_in_time ? b.check_in_time.slice(0, 16).replace('T', ' ') : ''}</td>
-                <td class="p-3 font-mono text-slate-500">${b.actual_checkout_time ? b.actual_checkout_time.slice(0, 16).replace('T', ' ') : ''}</td>
+                <td class="p-3 font-mono text-slate-500">${formatDateTime(b.check_in_time) || ''}</td>
+                <td class="p-3 font-mono text-slate-500">${formatDateTime(b.actual_checkout_time) || ''}</td>
                 <td class="p-3 text-center font-mono font-bold text-indigo-700">${b.total_days} ngày</td>
                 <td class="p-3 text-right font-mono font-black text-rose-700">${(b.total_amount || 0).toLocaleString('vi-VN')} đ</td>
                 <td class="p-3 text-center">

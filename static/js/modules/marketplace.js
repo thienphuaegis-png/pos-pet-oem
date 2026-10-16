@@ -11,12 +11,12 @@
         posProducts: [],
         selectedShopeeAccId: null,
         selectedTikTokAccId: null,
-        currentDate: new Date().toISOString().split('T')[0]
+        currentDate: (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date())
     };
     window.mktState = state;
 
     function initMarketplaceTab(subTab = 'shopee') {
-        const today = new Date().toISOString().split('T')[0];
+        const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
         const dateShopee = document.getElementById('mkt-shopee-filter-date');
         if (dateShopee) dateShopee.value = ''; // Mặc định để trống để xem tất cả đơn vừa đồng bộ
 
@@ -693,7 +693,7 @@
         if (!tbody) return;
 
         try {
-            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Đang tải danh sách đơn...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Đang tải danh sách đơn...</td></tr>';
             let url = `/api/marketplace/orders?platform=shopee`;
             if (date) url += `&date=${date}`;
             if (status !== 'all') url += `&status=${status}`;
@@ -706,7 +706,7 @@
             updateShopeeKPIs(orders);
 
             if (!orders || orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Không có đơn hàng nào trong ngày đã chọn.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Không có đơn hàng nào trong ngày đã chọn.</td></tr>';
                 return;
             }
 
@@ -870,7 +870,7 @@
         if (!tbody) return;
 
         try {
-            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Đang tải danh sách đơn TikTok...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Đang tải danh sách đơn TikTok...</td></tr>';
             let url = `/api/marketplace/orders?platform=tiktok`;
             if (date) url += `&date=${date}`;
             if (status !== 'all') url += `&status=${status}`;
@@ -883,7 +883,7 @@
             updateTikTokKPIs(orders);
 
             if (!orders || orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào trong ngày này.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào trong ngày này.</td></tr>';
                 return;
             }
 
@@ -1412,7 +1412,7 @@
     // ─────────────────────────────────────────────────────────────
     async function loadMarketplaceDailyAnalytics() {
         const dateInput = document.getElementById('mkt-analytics-date');
-        const targetDate = dateInput?.value || new Date().toISOString().split('T')[0];
+        const targetDate = dateInput?.value || ((typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date()));
         const tbody = document.getElementById('daily-analytics-tbody');
         if (!tbody) return;
 
@@ -1474,7 +1474,7 @@
         const prompt = (inp?.value || '').trim();
         if (!prompt) return;
 
-        const date = document.getElementById('mkt-analytics-date')?.value || new Date().toISOString().split('T')[0];
+        const date = document.getElementById('mkt-analytics-date')?.value || ((typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date()));
         const container = document.getElementById('mkt-ai-chat-messages');
 
         // Render user message

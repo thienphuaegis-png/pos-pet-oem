@@ -433,7 +433,7 @@
             document.getElementById('pay-debt-note').value = '';
             const dateEl = document.getElementById('pay-debt-date');
             if (dateEl) {
-                dateEl.value = new Date().toISOString().split('T')[0];
+                dateEl.value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
             }
 
             const fundWrap = document.getElementById('pay-debt-fund-wrap');
