@@ -3592,7 +3592,7 @@
             const whId = document.getElementById('cost-wh-filter')?.value || '';
             let url = '/api/ingredients/export-excel';
             if (whId) url += `?warehouse_id=${whId}`;
-            window.location.href = url;
+            downloadWithAuth(url, 'Nguyen_Lieu.xlsx');
         }
 
         function openModalImportIngredients() {
@@ -3675,7 +3675,7 @@
                     url += `?product_id=${prodId}`;
                 }
             }
-            window.location.href = url;
+            downloadWithAuth(url, 'Dinh_Luong_BOM.xlsx');
         }
 
         function openModalImportBOM() {

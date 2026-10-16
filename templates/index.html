@@ -6515,7 +6515,7 @@
                             <div class="font-bold">💡 Hướng dẫn file mẫu:</div>
                             <p class="text-[11px] leading-relaxed">Cột bắt buộc: <strong>Tên nguyên liệu</strong>. Các cột tùy chọn: <strong>Mã nguyên liệu, Phân loại, ĐVT, Tồn kho ban đầu, Giá nhập, Nhà cung cấp</strong>.</p>
                             <div class="pt-1">
-                                <a href="/api/ingredients/template-excel" download="Mau_Import_Nguyen_Lieu.xlsx" class="inline-flex items-center gap-1 text-teal-700 hover:underline font-bold">
+                                <a href="#" onclick="downloadWithAuth('/api/ingredients/template-excel', 'Mau_Import_Nguyen_Lieu.xlsx'); return false;" class="inline-flex items-center gap-1 text-teal-700 hover:underline font-bold">
                                     📄 Tải file mẫu Excel (.xlsx)
                                 </a>
                             </div>
@@ -6557,7 +6557,7 @@
                             <div class="font-bold">💡 Hướng dẫn thiết lập BOM hàng loạt:</div>
                             <p class="text-[11px] leading-relaxed">Cột bắt buộc: <strong>Tên/Mã sản phẩm</strong>, <strong>Tên/Mã nguyên liệu</strong>, <strong>Định lượng tiêu hao</strong>. Hệ thống sẽ tự động ghép nối và tính toán lại giá cost sản phẩm.</p>
                             <div class="pt-1">
-                                <a href="/api/bom/template-excel" download="Mau_Import_BOM.xlsx" class="inline-flex items-center gap-1 text-indigo-700 hover:underline font-bold">
+                                <a href="#" onclick="downloadWithAuth('/api/bom/template-excel', 'Mau_Import_BOM.xlsx'); return false;" class="inline-flex items-center gap-1 text-indigo-700 hover:underline font-bold">
                                     📄 Tải file mẫu BOM (.xlsx)
                                 </a>
                             </div>
@@ -7264,7 +7264,7 @@
                             <div class="font-bold">💡 Hướng dẫn định dạng file:</div>
                             <p class="text-[11px] leading-relaxed">Cột bắt buộc: <strong>Tên hàng hóa</strong>. Các cột tùy chọn: <strong>Mã hàng, Phân loại, ĐVT, Giá vốn, Giá bán, Tồn kho ban đầu, Nhà cung cấp</strong>.</p>
                             <div class="pt-1">
-                                <a href="/api/products/template-excel" download="Mau_Import_Hang_Hoa.xlsx" class="inline-flex items-center gap-1 text-sky-600 hover:underline font-bold">
+                                <a href="#" onclick="downloadWithAuth('/api/products/template-excel', 'Mau_Import_Hang_Hoa.xlsx'); return false;" class="inline-flex items-center gap-1 text-sky-600 hover:underline font-bold">
                                     📄 Tải file mẫu Excel (.xlsx)
                                 </a>
                             </div>
@@ -9448,7 +9448,7 @@
             <div class="space-y-3 text-xs">
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">Loại Đối Tác Import (*):</label>
-                    <select id="import-contact-type" class="border p-2 rounded w-full bg-gray-50 font-bold text-slate-800" onchange="updateDownloadTemplateLink()">
+                    <select id="import-contact-type" class="border p-2 rounded w-full bg-gray-50 font-bold text-slate-800">
                         <option value="customer">👤 Khách Hàng</option>
                         <option value="supplier">🏭 Nhà Cung Cấp</option>
                     </select>
@@ -12865,7 +12865,7 @@
             alert('Vui lòng chọn 1 bảng giá để xuất file mẫu!');
             return;
         }
-        window.location.href = `/api/price-lists/${plId}/export-excel`;
+        downloadWithAuth(`/api/price-lists/${plId}/export-excel`, 'Bang_Gia.xlsx');
     }
 
     async function submitImportPriceList() {

@@ -2679,7 +2679,7 @@
             const whId = document.getElementById('unified-wh-filter')?.value || '';
             let url = '/api/products/export-excel';
             if (whId) url += `?warehouse_id=${whId}`;
-            window.location.href = url;
+            downloadWithAuth(url, 'Hang_Hoa.xlsx');
         }
 
         function openModalImportProducts() {
