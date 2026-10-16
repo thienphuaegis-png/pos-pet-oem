@@ -42,6 +42,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("pos_server")
 
+# httpx log mỗi request kèm full URL — URL Telegram chứa bot token -> chỉ log WARNING trở lên
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 # Ánh xạ URL prefix sang tên module để dispatch log riêng
 PATH_MODULE_MAP = [
     ("/api/products", "products"),
