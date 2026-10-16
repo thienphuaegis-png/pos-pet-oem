@@ -48,6 +48,8 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+> **Plan chi tiết việc còn tồn:** `docs/plans/2026-10-16-remaining-bugfix-plan.md` (Phase A–F, re-check code 16/10; nghiệp vụ đổi/trả đã chốt; 1 câu chờ chốt: trả hàng khi đơn gốc còn nợ).
+- [x] Vá trần giá trả hàng loại trừ ship/ví (cả `create_order_return` lẫn `returnable-items`), validate `InventoryAdjust` (null/mode/âm, giữ 404), backup an toàn `safe_sqlite_copy` cho reset/clear. Test: 633 passed.
 - [x] Merge nhánh `fix/api-auth-lockdown` vào `main`.
 - [x] Rebuild exe `POS_Mastercare.exe` trước khi triển khai máy khách.
 - [ ] Thu hồi (`/revoke`) token bot Telegram cũ trên `@BotFather` và cấp lại token mới.

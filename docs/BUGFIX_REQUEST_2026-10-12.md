@@ -149,9 +149,8 @@
 - Trả: `products.stock += quantity` bỏ `unit_ratio`, không cập nhật `product_inventory`, không hoàn combo/BOM.
 - Đổi: chỉ trừ `products.stock`.
 
-### 3.5 [V] `routers/combos.py:31-46` đổi mã combo
-- `_sync_product_entry` tìm theo code mới → INSERT bản mới, bản cũ vẫn active → bán bản cũ không trừ thành phần.
-- **Sửa:** tìm theo code cũ rồi UPDATE code.
+### 3.5 [x] FIXED `routers/combos.py:31-46` đổi mã combo
+- `_sync_product_entry` đã tìm theo `old_code` rồi UPDATE code (xác nhận lại 2026-10-16).
 
 ### 3.6 [V] `routers/combos.py:327-337, 351, 376-386`
 - Kiểm tồn cả thành phần service; kiểm theo `products.stock` tổng nhưng trừ kho 1; không ghi log.
