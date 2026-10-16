@@ -112,7 +112,7 @@
         if (partnerEl) partnerEl.value = data.partner_name || '';
 
         const dateEl = document.getElementById('ai-agent-date');
-        if (dateEl) dateEl.value = data.date || new Date().toISOString().split('T')[0];
+        if (dateEl) dateEl.value = data.date || getLocalTodayDateStr();
 
         const totalEl = document.getElementById('ai-agent-total');
         if (totalEl) totalEl.textContent = formatMoney(data.total_amount || 0);

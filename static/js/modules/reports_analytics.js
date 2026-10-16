@@ -12,7 +12,7 @@ let chartStaffInstance = null;
 
 function initReportsAnalytics() {
     // Gán mặc định ngày hôm nay
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalTodayDateStr();
     const fromInput = document.getElementById('rep-filter-from');
     const toInput = document.getElementById('rep-filter-to');
     if (fromInput && !fromInput.value) fromInput.value = today;

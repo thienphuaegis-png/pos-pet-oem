@@ -418,7 +418,7 @@
         }
 
         const dayNames = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'];
-        const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
+        const todayStr = getLocalTodayDateStr();
 
         let html = `
             <div class="overflow-x-auto">
@@ -427,7 +427,7 @@
                         <tr class="bg-slate-100 text-slate-700 font-bold border-b text-[11px]">
                             <th class="p-2.5 w-44 text-left border-r bg-slate-200/60 sticky left-0 z-10">Buồng Phòng</th>
                             ${days.map((d, i) => {
-                                const dStr = d.toISOString().slice(0, 10);
+                                const dStr = getLocalTodayDateStr(d);
                                 const isToday = dStr === todayStr;
                                 return `
                                     <th class="p-2 text-center border-r w-32 ${isToday ? 'bg-amber-100/70 text-amber-900 border-amber-300' : ''}">
@@ -451,7 +451,7 @@
                                         <div class="text-[10px] text-slate-400 font-normal truncate">${room.name}</div>
                                     </td>
                                     ${days.map(d => {
-                                        const dStr = d.toISOString().slice(0, 10);
+                                        const dStr = getLocalTodayDateStr(d);
                                         const isInStay = isOccupied && checkinDate && checkoutDate && (dStr >= checkinDate && dStr <= checkoutDate);
 
                                         if (isInStay) {
@@ -523,8 +523,8 @@
 
         const checkinInput = document.getElementById('hotel-batch-checkin-time');
         const checkoutInput = document.getElementById('hotel-batch-expected-time');
-        if (checkinInput) checkinInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(now) : new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        if (checkoutInput) checkoutInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(tomorrow) : new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        if (checkinInput) checkinInput.value = getLocalNowDateTimeLocalStr(now);
+        if (checkoutInput) checkoutInput.value = getLocalNowDateTimeLocalStr(tomorrow);
 
         // Khởi tạo dòng đầu tiên
         const tbody = document.getElementById('tbody-hotel-batch-pets');
@@ -1478,7 +1478,7 @@
         if (expInput) {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            expInput.value = (typeof getLocalNowDateTimeLocalStr === 'function') ? getLocalNowDateTimeLocalStr(tomorrow) : new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            expInput.value = getLocalNowDateTimeLocalStr(tomorrow);
         }
 
         modal.classList.remove('hidden');

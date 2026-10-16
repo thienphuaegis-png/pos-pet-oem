@@ -82,12 +82,9 @@ function getLocalTodayDateStr(dateObj = new Date()) {
 
 function getLocalNowDateTimeLocalStr(dateObj = new Date()) {
   const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return `${getLocalTodayDateStr(d)}T${hours}:${minutes}`;
 }
 
 window.formatDateTime = formatDateTime;

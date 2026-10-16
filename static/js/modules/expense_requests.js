@@ -222,7 +222,7 @@
 
         const dateEl = document.getElementById('exp-form-date');
         if (dateEl) {
-            dateEl.value = new Date().toISOString().split('T')[0];
+            dateEl.value = getLocalTodayDateStr();
         }
 
         const typeEl = document.getElementById('exp-form-type');

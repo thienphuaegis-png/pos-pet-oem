@@ -492,7 +492,7 @@
             const container = document.getElementById('spa-date-strip-container');
             if (!container) return;
 
-            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+            const todayStr = getLocalTodayDateStr();
             const baseDate = new Date(todayStr + 'T00:00:00');
             const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
@@ -1568,7 +1568,7 @@
             }
 
             const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
-            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+            const todayStr = getLocalTodayDateStr();
             const targetDate = (petServiceFilterDate === 'today') ? todayStr : petServiceFilterDate;
 
             // Đếm số lượng ca cho ngày được chọn để cập nhật cụm nút lọc nhanh
@@ -1909,7 +1909,7 @@
             if (!Array.isArray(allPetServiceTickets)) allPetServiceTickets = [];
 
             const q = (document.getElementById('search-pet-services')?.value || '').trim().toLowerCase();
-            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+            const todayStr = getLocalTodayDateStr();
             let filtered = allPetServiceTickets.filter(t => {
                 if (petServiceFilterDate === 'today') {
                     if (t.ticket_date && t.ticket_date !== todayStr) return false;
@@ -2181,7 +2181,7 @@
             const q = (document.getElementById('search-spa-invoices')?.value || '').trim().toLowerCase();
             const statusFilter = document.getElementById('select-spa-invoice-status-filter')?.value || 'checked_out';
             const paymentFilter = document.getElementById('select-spa-invoice-payment-filter')?.value || 'all';
-            const todayStr = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Date().toISOString().split('T')[0];
+            const todayStr = getLocalTodayDateStr();
 
             let filtered = allSpaInvoicesData.filter(t => {
                 // Lọc ngày
