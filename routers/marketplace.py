@@ -13,7 +13,7 @@ from schemas import (
     MarketplaceOrderBulkDeleteRequest
 )
 from logger_config import get_module_logger
-from dependencies import get_optional_user
+from dependencies import get_optional_user, require_role
 
 logger = get_module_logger("marketplace")
 
@@ -33,7 +33,7 @@ def parse_shopee_session(input_str: str) -> tuple[str, str]:
             d = json.loads(raw)
             spc_cds = d.get("spc_cds") or d.get("SPC_CDS") or ""
             cookie_str = d.get("cookie") or d.get("cookies") or ""
-        except:
+        except Exception:
             pass
 
     # 2. Tìm SPC_CDS từ query param (?SPC_CDS=... hoặc &SPC_CDS=...)
@@ -191,7 +191,7 @@ def update_account(account_id: int, req: MarketplaceAccountUpdate, user=Depends(
     return {"status": "ok", "message": "Đã cập nhật thông tin gian hàng"}
 
 @router.delete("/accounts/{account_id}")
-def delete_account(account_id: int, user=Depends(get_optional_user)):
+def delete_account(account_id: int, user=Depends(require_role("owner"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM marketplace_accounts WHERE id = ?", (account_id,))
@@ -976,15 +976,15 @@ def list_marketplace_orders(
     return orders
 
 @router.delete("/orders/{order_id}")
-def delete_marketplace_order(order_id: int, user=Depends(get_optional_user)):
+def delete_marketplace_order(order_id: int, user=Depends(require_role("owner"))):
     """Xóa 1 đơn hàng sàn và chi tiết mặt hàng liên quan."""
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, order_sn FROM marketplace_orders WHERE id = ?", (order_id,))
+    cur.execute("SELECT order_sn FROM marketplace_orders WHERE id = ?", (order_id,))
     o = cur.fetchone()
     if not o:
         conn.close()
-        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng sàn")
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
 
     cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_id,))
     cur.execute("DELETE FROM marketplace_orders WHERE id = ?", (order_id,))
@@ -993,7 +993,7 @@ def delete_marketplace_order(order_id: int, user=Depends(get_optional_user)):
     return {"status": "ok", "message": f"Đã xóa đơn hàng {o['order_sn']}"}
 
 @router.post("/orders/bulk-delete")
-def bulk_delete_marketplace_orders(req: MarketplaceOrderBulkDeleteRequest, user=Depends(get_optional_user)):
+def bulk_delete_marketplace_orders(req: MarketplaceOrderBulkDeleteRequest, user=Depends(require_role("owner"))):
     """Xóa hàng loạt các đơn hàng sàn theo danh sách ID."""
     if not req.order_ids:
         return {"status": "ok", "deleted_count": 0}
@@ -1009,7 +1009,7 @@ def bulk_delete_marketplace_orders(req: MarketplaceOrderBulkDeleteRequest, user=
     return {"status": "ok", "deleted_count": affected, "message": f"Đã xóa thành công {affected} đơn hàng"}
 
 @router.delete("/orders-clear-all")
-def clear_all_marketplace_orders(platform: Optional[str] = None, user=Depends(get_optional_user)):
+def clear_all_marketplace_orders(platform: Optional[str] = None, user=Depends(require_role("owner"))):
     """Dọn sạch toàn bộ đơn hàng sàn (theo platform hoặc tất cả)."""
     conn = get_db()
     cur = conn.cursor()

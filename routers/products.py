@@ -4,7 +4,9 @@ from typing import Optional
 from database import get_db
 from schemas import ProductCreate, ProductUpdate, ProductBulkStatusIn, ProductBulkDeleteIn
 from logger_config import get_module_logger
-from dependencies import get_optional_user, can_view_cost
+from dependencies import get_optional_user, can_view_cost, require_role, require_permission
+import os
+import shutil
 import io
 import time
 import datetime
@@ -564,7 +566,7 @@ def bulk_update_product_status(req: ProductBulkStatusIn):
     }
 
 @router.post("/bulk-delete")
-def bulk_delete_products(req: ProductBulkDeleteIn):
+def bulk_delete_products(req: ProductBulkDeleteIn, user=Depends(require_role("owner"))):
     if not req.product_ids:
         return {"status": "ok", "deleted_count": 0, "inactivated_count": 0, "skipped_has_stock": 0}
     conn = get_db()
@@ -639,7 +641,7 @@ def bulk_delete_products(req: ProductBulkDeleteIn):
     }
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, force: bool = False):
+def delete_product(product_id: int, force: bool = False, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -691,15 +693,55 @@ def delete_product(product_id: int, force: bool = False):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/clear/all-products")
-def clear_all_products_api():
-    """API xóa sạch toàn bộ hàng hóa để chuẩn bị import lại từ đầu"""
+def clear_all_products_api(user=Depends(require_role("owner"))):
+    """API xóa sạch toàn bộ hàng hóa để chuẩn bị import lại từ đầu (tự động sao lưu trước khi xóa)"""
+    from database import get_db_path
+    db_path = get_db_path()
+    try:
+        backup_dir = os.path.join(os.path.dirname(db_path), "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"pos_backup_pre_clear_products_{timestamp}.db"
+        shutil.copy2(db_path, os.path.join(backup_dir, backup_filename))
+        logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filename}")
+    except Exception as e:
+        logger.error(f"Lỗi khi sao lưu trước khi xóa hàng hóa: {e}")
+        raise HTTPException(status_code=500, detail=f"Không thể tạo bản sao lưu an toàn trước khi xóa: {e}")
+
     conn = get_db()
     cur = conn.cursor()
     try:
+        cur.execute("SELECT COUNT(*) FROM order_items")
+        order_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM purchase_items")
+        purchase_count = cur.fetchone()[0]
+
+        if order_count > 0 or purchase_count > 0:
+            # Nếu đã có hóa đơn/phiếu nhập: Ẩn toàn bộ để tránh lỗi Foreign Key và bảo toàn dữ liệu sổ sách
+            cur.execute("UPDATE products SET is_active = 0")
+            cur.execute("DELETE FROM item_units WHERE item_type = 'product'")
+            cur.execute("DELETE FROM supplier_items WHERE item_type = 'product'")
+            cur.execute("DELETE FROM product_bom")
+            cur.execute("DELETE FROM combo_items")
+            cur.execute("DELETE FROM product_price_list")
+            cur.execute("DELETE FROM promotion_items")
+            cur.execute("DELETE FROM marketplace_sku_mappings")
+            conn.commit()
+            conn.close()
+            return {
+                "status": "ok",
+                "message": "Đã chuyển toàn bộ hàng hóa sang trạng thái ẨN để bảo vệ dữ liệu hóa đơn/phiếu nhập đã có. Bạn có thể import danh mục mới."
+            }
+
+        # Nếu chưa từng có hóa đơn/phiếu nhập: Xóa sạch vĩnh viễn
         cur.execute("DELETE FROM item_units WHERE item_type = 'product'")
         cur.execute("DELETE FROM supplier_items WHERE item_type = 'product'")
         cur.execute("DELETE FROM product_inventory")
         cur.execute("DELETE FROM product_bom")
+        cur.execute("DELETE FROM combo_items")
+        cur.execute("DELETE FROM product_price_list")
+        cur.execute("DELETE FROM promotion_items")
+        cur.execute("DELETE FROM marketplace_sku_mappings")
         cur.execute("DELETE FROM inventory_logs WHERE product_id IS NOT NULL")
         cur.execute("DELETE FROM products")
         try:

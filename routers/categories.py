@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from database import get_db
 from logger_config import get_module_logger
+from dependencies import require_permission
 
 logger = get_module_logger("categories")
 
@@ -98,7 +99,7 @@ def update_category(cat_id: int, payload: CategoryUpdate):
     return row
 
 @router.delete("/{cat_id}")
-def delete_category(cat_id: int):
+def delete_category(cat_id: int, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
     

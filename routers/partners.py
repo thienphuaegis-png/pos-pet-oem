@@ -395,21 +395,21 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         if idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None:
             try:
                 debt = float(str(r[idx_debt]).replace(",", "").strip())
-            except:
+            except Exception:
                 debt = 0.0
 
         debt_comp = 0.0
         if type == "supplier" and idx_debt_comp != -1 and idx_debt_comp < len(r) and r[idx_debt_comp] is not None:
             try:
                 debt_comp = float(str(r[idx_debt_comp]).replace(",", "").strip())
-            except:
+            except Exception:
                 debt_comp = 0.0
 
         debt_pers = 0.0
         if type == "supplier" and idx_debt_pers != -1 and idx_debt_pers < len(r) and r[idx_debt_pers] is not None:
             try:
                 debt_pers = float(str(r[idx_debt_pers]).replace(",", "").strip())
-            except:
+            except Exception:
                 debt_pers = 0.0
 
         if type == "supplier":
@@ -422,7 +422,7 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         if idx_points != -1 and idx_points < len(r) and r[idx_points] is not None:
             try:
                 points = int(float(r[idx_points]))
-            except:
+            except Exception:
                 points = 0
 
         email = str(r[idx_email] or "").strip() if idx_email != -1 and idx_email < len(r) else ""

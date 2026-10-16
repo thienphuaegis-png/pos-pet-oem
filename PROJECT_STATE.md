@@ -12,6 +12,14 @@
 - **Khóa Bảo Vệ API Cấp Hệ Thống (`server.py`):**
   - Gắn `dependencies=[Depends(get_current_user)]` lên toàn bộ 23 business sub-routers.
   - Mọi request không token tới `/api/*` trả `401 Unauthorized`. Các endpoint mở công khai: `/api/auth/login`, `/api/ping`, `/api/version`.
+- **Khóa Quyền RBAC Endpoint Xóa & Dọn Dữ Liệu Hàng Loạt (`routers/`):**
+  - `routers/products.py`: `POST /bulk-delete` & `DELETE /clear/all-products` khóa `require_role("owner")`. Khi clear-all: tự chụp snapshot backup DB an toàn trước khi xóa; tự phát hiện giao dịch bán/nhập để chuyển sang ẩn (`is_active = 0`) tránh gãy khóa ngoại Foreign Key.
+  - `routers/products.py`: `DELETE /{id}` khóa `require_permission("inventory.manage")`.
+  - `routers/marketplace.py`: `DELETE /orders-clear-all`, `POST /orders/bulk-delete`, `DELETE /orders/{id}`, `DELETE /accounts/{id}` khóa `require_role("owner")`.
+  - `routers/categories.py`: `DELETE /{id}` khóa `require_permission("inventory.manage")`.
+  - `routers/combos.py`: `DELETE /{id}` & `DELETE /{id}/items/{id}` khóa `require_permission("price_lists.manage")`.
+  - `routers/hotel.py`: `DELETE /rooms/{id}` khóa `require_role("owner")`.
+  - Dọn lỗi lặp import datetime và chuẩn hóa các khối `except:` trần sang `except Exception:`.
 - **Bảo Mật Cấu Hình & Che Giấu Token (`routers/settings.py`, `server.py`):**
   - `GET /api/settings` lọc bỏ hoàn toàn `gemini_api_key` và `telegram_bot_token`.
   - Cấu hình logging `httpx` mức `WARNING` để ngăn rò rỉ token bot Telegram qua URL `getUpdates`.

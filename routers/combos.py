@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
 from schemas import ComboCreate, ComboUpdate, ComboItemIn
 from logger_config import get_module_logger
+from dependencies import require_permission
 import datetime
 
 logger = get_module_logger("combos")
@@ -247,7 +248,7 @@ def update_combo(combo_id: int, req: ComboUpdate):
 # ---------- DELETE (soft) ----------
 
 @router.delete("/{combo_id}")
-def delete_combo(combo_id: int):
+def delete_combo(combo_id: int, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("UPDATE combos SET is_active = 0 WHERE id = ?", (combo_id,))
@@ -325,7 +326,7 @@ def add_item_to_combo(combo_id: int, req: ComboItemIn):
 
 
 @router.delete("/{combo_id}/items/{item_id}")
-def remove_item_from_combo(combo_id: int, item_id: int):
+def remove_item_from_combo(combo_id: int, item_id: int, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM combo_items WHERE id = ? AND combo_id = ?", (item_id, combo_id))

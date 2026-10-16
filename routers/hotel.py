@@ -13,7 +13,7 @@ from schemas import (
     HotelBatchCheckinItem, HotelBatchCheckinRequest,
     HotelCareLogUpdate
 )
-from dependencies import get_current_user, get_optional_user
+from dependencies import get_current_user, get_optional_user, require_role
 
 router = APIRouter(prefix="/api/hotel", tags=["Hotel"])
 
@@ -170,7 +170,7 @@ def update_hotel_room(room_id: int, room: HotelRoomUpdate):
         return dict(cursor.fetchone())
 
 @router.delete("/rooms/{room_id}")
-def delete_hotel_room(room_id: int):
+def delete_hotel_room(room_id: int, user=Depends(require_role("owner"))):
     """Xóa buồng phòng nếu đang ở trạng thái trống và không có lịch sử booking ràng buộc"""
     with get_db() as conn:
         cursor = conn.cursor()
