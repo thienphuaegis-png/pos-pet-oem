@@ -936,7 +936,11 @@ def get_supplier_assignable_items(supplier_id: int):
     cur.execute("SELECT ingredient_id FROM supplier_items WHERE supplier_id = ? AND item_type = 'ingredient'", (supplier_id,))
     assigned_ing_ids = set(r[0] for r in cur.fetchall() if r[0])
     
-    cur.execute("SELECT id, code, name, unit, cost_price, category FROM products WHERE is_active = 1 ORDER BY name ASC")
+    cur.execute("""
+        SELECT p.id, p.code, p.name, p.unit, p.cost_price, p.category,
+               (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
+        FROM products p WHERE p.is_active = 1 ORDER BY p.name ASC
+    """)
     products = [
         {
             "id": r["id"],
@@ -946,6 +950,7 @@ def get_supplier_assignable_items(supplier_id: int):
             "unit": r["unit"] or "cái",
             "cost_price": r["cost_price"] or 0,
             "category": r["category"] or "Hàng Hóa",
+            "bom_count": r["bom_count"] or 0,
             "is_assigned": r["id"] in assigned_prod_ids
         }
         for r in cur.fetchall()

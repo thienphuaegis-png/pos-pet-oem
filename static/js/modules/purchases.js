@@ -1183,20 +1183,30 @@
         // ==========================================
         let assignSupplierItemsRaw = [];
         let currentAssignSupplierId = null;
+        let quickAssignSavedCallback = null;
 
-        async function openQuickAssignSupplierModal() {
-            const suppIdInput = document.getElementById('purchase-supplier');
-            const suppSearchInput = document.getElementById('purchase-supplier-search');
-            const suppId = suppIdInput ? parseInt(suppIdInput.value) : null;
-            const suppName = suppSearchInput ? suppSearchInput.value : '';
+        async function openQuickAssignSupplierModal(overrideSupplierId = null, overrideSupplierName = null, onSavedCallback = null, defaultFilter = 'ALL') {
+            let suppId = overrideSupplierId;
+            let suppName = overrideSupplierName;
 
             if (!suppId) {
-                alert("Vui lòng chọn Nhà Cung Cấp trước khi gán hàng!");
+                const suppIdInput = document.getElementById('purchase-supplier');
+                const suppSearchInput = document.getElementById('purchase-supplier-search');
+                suppId = suppIdInput ? parseInt(suppIdInput.value) : null;
+                suppName = suppSearchInput ? suppSearchInput.value : '';
+            }
+
+            if (!suppId) {
+                const msg = "Vui lòng chọn Nhà Cung Cấp trước khi gán hàng!";
+                if (window.showToast) window.showToast(msg, "warning");
+                else alert(msg);
+                const suppSearchInput = document.getElementById('purchase-supplier-search');
                 suppSearchInput?.focus();
                 return;
             }
 
             currentAssignSupplierId = suppId;
+            quickAssignSavedCallback = onSavedCallback;
             const modal = document.getElementById('modal-quick-assign-supplier');
             const nameDisplay = document.getElementById('assign-supplier-name-display');
             const container = document.getElementById('assign-items-list-container');
@@ -1205,7 +1215,7 @@
 
             if (nameDisplay) nameDisplay.textContent = `Đang chọn NCC: ${suppName || ('#' + suppId)}`;
             if (searchInput) searchInput.value = '';
-            if (filterType) filterType.value = 'ALL';
+            if (filterType) filterType.value = defaultFilter || 'ALL';
             if (container) container.innerHTML = '<div class="text-center py-8 text-gray-400">Đang tải danh sách mặt hàng...</div>';
             if (modal) modal.classList.remove('hidden');
 
@@ -1220,14 +1230,18 @@
                 if (container) container.innerHTML = '<div class="text-center py-8 text-rose-500 font-bold">Lỗi tải danh mục mặt hàng</div>';
             }
         }
+        window.openQuickAssignSupplierModal = openQuickAssignSupplierModal;
 
         function closeQuickAssignSupplierModal() {
             document.getElementById('modal-quick-assign-supplier')?.classList.add('hidden');
+            quickAssignSavedCallback = null;
         }
+        window.closeQuickAssignSupplierModal = closeQuickAssignSupplierModal;
 
         function filterAssignItemsList() {
             renderAssignItemsList();
         }
+        window.filterAssignItemsList = filterAssignItemsList;
 
         function selectAllAssignItems(checked) {
             const kw = (document.getElementById('assign-item-search')?.value || '').trim().toLowerCase();
@@ -1238,6 +1252,7 @@
                 if (typeFilter === 'PRODUCT') matchType = it.item_type === 'product';
                 else if (typeFilter === 'INGREDIENT') matchType = it.item_type === 'ingredient';
                 else if (typeFilter === 'ASSIGNED') matchType = it.is_assigned;
+                else if (typeFilter === 'BOM') matchType = it.item_type === 'product' && (it.bom_count > 0);
 
                 let matchKw = true;
                 if (kw) {
@@ -1253,6 +1268,7 @@
 
             renderAssignItemsList();
         }
+        window.selectAllAssignItems = selectAllAssignItems;
 
         function toggleAssignItemCheck(idx, checked) {
             if (assignSupplierItemsRaw[idx]) {
@@ -1260,12 +1276,14 @@
                 updateAssignItemsSummary();
             }
         }
+        window.toggleAssignItemCheck = toggleAssignItemCheck;
 
         function updateAssignItemsSummary() {
             const count = assignSupplierItemsRaw.filter(x => x.is_assigned).length;
             const el = document.getElementById('assign-items-count-summary');
             if (el) el.textContent = `Đã chọn: ${count} món (${count}/${assignSupplierItemsRaw.length})`;
         }
+        window.updateAssignItemsSummary = updateAssignItemsSummary;
 
         function renderAssignItemsList() {
             const container = document.getElementById('assign-items-list-container');
@@ -1278,6 +1296,7 @@
                 if (typeFilter === 'PRODUCT' && it.item_type !== 'product') return false;
                 if (typeFilter === 'INGREDIENT' && it.item_type !== 'ingredient') return false;
                 if (typeFilter === 'ASSIGNED' && !it.is_assigned) return false;
+                if (typeFilter === 'BOM' && (it.item_type !== 'product' || !it.bom_count)) return false;
 
                 if (kw) {
                     const c = (it.code || '').toLowerCase();
@@ -1299,6 +1318,9 @@
                 const badge = isProd 
                     ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">Hàng Hóa</span>'
                     : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Nguyên Liệu</span>';
+                const bomBadge = isProd
+                    ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${it.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">${it.bom_count > 0 ? 'BOM: Có' : 'Chưa BOM'}</span>`
+                    : '';
 
                 return `
                     <label class="flex items-center justify-between p-2 hover:bg-sky-50/70 rounded-lg cursor-pointer transition select-none ${it.is_assigned ? 'bg-sky-50/40' : ''}">
@@ -1310,6 +1332,7 @@
                                 <div class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                                     <span class="truncate">${it.name}</span>
                                     ${badge}
+                                    ${bomBadge}
                                 </div>
                                 <div class="text-[11px] text-gray-400 font-mono">
                                     Mã: ${it.code || '-'} | ĐVT: ${it.unit} | Giá vốn: ${Number(it.cost_price || 0).toLocaleString('vi-VN')} đ
@@ -1327,6 +1350,7 @@
 
             updateAssignItemsSummary();
         }
+        window.renderAssignItemsList = renderAssignItemsList;
 
         async function saveQuickAssignSupplierItems() {
             if (!currentAssignSupplierId) return;
@@ -1350,23 +1374,35 @@
 
                 if (!res.ok) {
                     const err = await res.json();
-                    alert("Lỗi lưu gán hàng: " + (err.detail || "Không thể lưu"));
+                    const msg = "Lỗi lưu gán hàng: " + (err.detail || "Không thể lưu");
+                    if (window.showToast) window.showToast(msg, 'error');
+                    else alert(msg);
                     return;
                 }
 
-                alert(`Đã gán thành công ${selectedItems.length} mặt hàng cho nhà cung cấp!`);
+                const successMsg = `Đã gán thành công ${selectedItems.length} mặt hàng cho nhà cung cấp!`;
+                if (window.showToast) window.showToast(successMsg, 'success');
+                else alert(successMsg);
+
+                const savedSupplierId = currentAssignSupplierId;
+                const callback = quickAssignSavedCallback;
                 closeQuickAssignSupplierModal();
 
                 if (typeof loadSupplierItemsForFuzzy === 'function') {
-                    await loadSupplierItemsForFuzzy(currentAssignSupplierId);
+                    await loadSupplierItemsForFuzzy(savedSupplierId);
+                }
+                if (typeof callback === 'function') {
+                    await callback(savedSupplierId, selectedItems);
                 }
             } catch (err) {
                 console.error("saveQuickAssignSupplierItems error:", err);
-                alert("Lỗi kết nối khi lưu gán hàng!");
+                if (window.showToast) window.showToast("Lỗi kết nối khi lưu gán hàng!", 'error');
+                else alert("Lỗi kết nối khi lưu gán hàng!");
             } finally {
                 if (btn) btn.disabled = false;
             }
         }
+        window.saveQuickAssignSupplierItems = saveQuickAssignSupplierItems;
 
         let currentPayingPurchaseCode = null;
 

@@ -9,6 +9,12 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-16)
+- **Chuẩn Hóa Gán Sản Phẩm Nhà Máy OEM (`purchases.js`, `productions.js`, `purchases.py`, `templates/index.html`):**
+  - Loại bỏ hoàn toàn modal cũ `modal-add-prod-to-factory` dùng `<select>` HTML native đơn chiếc, không tìm kiếm, không chọn nhiều món.
+  - Tái sử dụng modal chuẩn `modal-quick-assign-supplier`: tìm kiếm fuzzy, lọc theo nhóm Hàng Hóa / Có BOM / Nguyên Liệu / Đã Gán, checkbox chọn hàng loạt nhiều món 1 chạm.
+  - `routers/purchases.py`: Bổ sung `bom_count` vào `/api/suppliers/{id}/assignable-items` để hiển thị huy hiệu `BOM: Có` / `Chưa BOM` trực quan.
+  - Tích hợp nút `📦 X SP (Gán)` trực tiếp trên từng dòng nhà máy trong bảng quản lý xưởng (`modal-manage-oem-factories`).
+  - Thay thế `alert()` gây gián đoạn bằng `showToast()` êm ái tự tắt sau 3.2s; tự động refresh danh sách SP xưởng và dropdown đơn OEM.
 - **Vá 8 Lỗi Trọng Yếu Logic & Bảo Mật (`routers/`, `schemas.py`, `dependencies.py`):**
   - `routers/settings.py`: Khóa `user=Depends(require_role("owner"))` cho `POST /company`, `/template`, `/print-bold-configs`, `/backup-drive-now`.
   - `routers/pos.py`: Khóa `Depends(require_permission("pos.sell"))` cho `POST /api/pos/returns`, kiểm tra trần đơn giá trả `return_price <= max_return_price` (tự tính từ giá thực mua sau chiết khấu đơn gốc).

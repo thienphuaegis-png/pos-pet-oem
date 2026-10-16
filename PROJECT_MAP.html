@@ -658,10 +658,12 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-13)
-    const ROADMAP_VERSION = 'v6.4-2026-10-15-marketplace-performance-pagination-and-stats-audit';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-16)
+    const ROADMAP_VERSION = 'v6.5-2026-10-16-oem-batch-product-assign-and-smart-search';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-15)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-16)
+      { id: 'oem-batch-product-assign-unified-modal', cat: 'PROD', title: 'Tối Ưu Gán Sản Phẩm Nhà Máy OEM: Thay Thẻ Select HTML Thuần Bằng Modal Gán Hàng Loạt Chuẩn POS', done: true, note: 'Xóa bỏ thẻ select native đơn điệu, thay bằng modal gán hàng loạt có ô tìm kiếm fuzzy, lọc theo nhóm Hàng Hóa / Có BOM / Nguyên Liệu / Đã gán, checkbox chọn nhiều món 1 chạm; tích hợp nút gán trực tiếp từ bảng quản lý nhà máy gia công và tự động refresh đơn OEM.' },
+      // 0.1 CẬP NHẬT (2026-10-15)
       { id: 'marketplace-pagination-and-accurate-kpi', cat: 'ECOMM', title: 'Tối Ưu Hiệu Năng Sàn TMĐT: Phân Trang Server-Side (Pagination) & Fix Thống Kê Số Lượng Đơn Hàng', done: false, note: 'Khi import hàng nghìn đơn Shopee/TikTok làm DOM quá tải và load chậm; chuyển sang phân trang server-side (page, limit 20/50/100, N+1 query batching); tách riêng API thống kê KPI tổng (SELECT COUNT(*), SUM(...) toàn bộ database thay vì chỉ đếm mảng 100 đơn trả về bị sai).' },
       { id: 'pos-unify-confirm-modal-and-ui-cleanup', cat: 'UI', title: 'Đồng Bộ Toàn Diện Hộp Thoại Thông Báo / Xác Nhận Chuẩn POS & Tối Ưu Giao Diện Hệ Thống', done: false, note: 'Thay thế triệt để các popup confirm() mặc định của trình duyệt còn sót lại (chuyển đổi Hàng Hóa ↔ Nguyên Liệu, cân bằng kho, xóa đơn sàn) bằng showConfirmModal chuẩn POS; tối ưu hóa layout và đồng bộ trải nghiệm người dùng.' },
       { id: 'convert-ingredient-to-product-full', cat: 'INV', title: 'Chuyển Đổi Hai Chiều: Nguyên Vật Liệu ↔ Hàng Hóa Bán Tại POS', done: true, note: 'Tích hợp nút chuyển đổi nhanh trên cả bảng tồn kho hợp nhất và bên trong modal Chỉnh sửa nguyên liệu (BOM/Sản xuất); tự động chuyển số dư tồn kho, giá vốn nhập gần nhất và nhà cung cấp sang Hàng hóa để bán tại POS.' },

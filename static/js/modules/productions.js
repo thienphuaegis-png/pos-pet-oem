@@ -9696,8 +9696,12 @@
                     <td class="p-2 font-semibold text-emerald-700">
                         📦 ${f.warehouse_name}
                     </td>
-                    <td class="p-2 text-center font-bold text-amber-700 font-mono">
-                        ${f.product_count} sản phẩm
+                    <td class="p-2 text-center">
+                        <button type="button" onclick="openQuickAssignSupplierModal(${f.id}, '${(f.name || '').replace(/'/g, "\\'")}', () => renderManageFactoriesTable(), 'PRODUCT')"
+                                class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-[11px] font-bold transition flex items-center justify-center gap-1 mx-auto"
+                                title="Gán hoặc quản lý sản phẩm gia công cho nhà máy này">
+                            <span>📦</span> <span>${f.product_count} SP (Gán)</span>
+                        </button>
                     </td>
                     <td class="p-2 text-center">
                         <button type="button" onclick="unlinkFactoryWarehouse(${f.warehouse_id}, '${(f.name || '').replace(/'/g, "\\'")}', '${(f.warehouse_name || '').replace(/'/g, "\\'")}')"
@@ -9762,52 +9766,46 @@
             }
         }
 
-        // --- GÁN SẢN PHẨM KHÁC CHO NHÀ MÁY (MODAL) ---
+        // --- GÁN SẢN PHẨM KHÁC CHO NHÀ MÁY (DÙNG MODAL GÁN CHUẨN TẬP TRUNG) ---
         function openModalAddProductToFactory() {
-            if (!selectedOEMFactory) return alert('Vui lòng chọn nhà máy trước!');
-            document.getElementById('oem-add-prod-factory-name').innerText = `🏭 ${selectedOEMFactory.name}`;
-
-            const sel = document.getElementById('oem-add-prod-select');
-            if (sel) {
-                const linkedIds = new Set(currentFactoryProducts.map(p => p.id));
-                const available = (allProducts || []).filter(p => !linkedIds.has(p.id));
-                sel.innerHTML = available.map(p => `<option value="${p.id}">${p.code ? '['+p.code+'] ' : ''}${p.name} (${p.unit||'chai'})</option>`).join('');
+            if (!selectedOEMFactory) {
+                if (window.showToast) window.showToast('Vui lòng chọn nhà máy trước!', 'warning');
+                else alert('Vui lòng chọn nhà máy trước!');
+                return;
             }
 
-            document.getElementById('modal-add-prod-to-factory')?.classList.remove('hidden');
+            if (typeof openQuickAssignSupplierModal === 'function') {
+                openQuickAssignSupplierModal(selectedOEMFactory.id, selectedOEMFactory.name, async (suppId, items) => {
+                    // Tải lại sản phẩm của xưởng
+                    try {
+                        const resP = await fetch(`/api/oem/factories/${selectedOEMFactory.id}/products`);
+                        if (resP.ok) currentFactoryProducts = await resP.json();
+                    } catch (e) {}
+
+                    const hint = document.getElementById('oem-prod-filter-hint');
+                    if (hint) {
+                        hint.innerText = `Đang hiển thị ${currentFactoryProducts.length} sản phẩm cấu hình cho xưởng ${selectedOEMFactory.name}`;
+                    }
+
+                    if (typeof filterOEMQuickSearchDropdown === 'function') {
+                        filterOEMQuickSearchDropdown();
+                    }
+                    if (typeof loadOEMFactoriesList === 'function') {
+                        await loadOEMFactoriesList();
+                    }
+                }, 'PRODUCT');
+            } else {
+                alert('Không tìm thấy chức năng gán sản phẩm');
+            }
         }
+        window.openModalAddProductToFactory = openModalAddProductToFactory;
 
         function closeModalAddProductToFactory() {
-            document.getElementById('modal-add-prod-to-factory')?.classList.add('hidden');
-        }
-
-        async function submitLinkProductToFactory() {
-            if (!selectedOEMFactory) return;
-            const prodId = parseInt(document.getElementById('oem-add-prod-select')?.value);
-            if (!prodId) return alert('Vui lòng chọn sản phẩm!');
-
-            try {
-                const res = await fetch(`/api/oem/factories/${selectedOEMFactory.id}/link-product`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ product_id: prodId })
-                });
-                if (!res.ok) throw new Error('Không thể gán sản phẩm');
-                alert('✅ Đã gán sản phẩm cho nhà máy thành công!');
-                closeModalAddProductToFactory();
-
-                // Tải lại sản phẩm của xưởng
-                const resP = await fetch(`/api/oem/factories/${selectedOEMFactory.id}/products`);
-                if (resP.ok) currentFactoryProducts = await resP.json();
-                
-                const hint = document.getElementById('oem-prod-filter-hint');
-                if (hint) hint.innerText = `Đang hiển thị ${currentFactoryProducts.length} sản phẩm cấu hình cho xưởng ${selectedOEMFactory.name}`;
-
-                addOEMProductRow();
-            } catch (e) {
-                alert(`❌ Lỗi: ${e.message}`);
+            if (typeof closeQuickAssignSupplierModal === 'function') {
+                closeQuickAssignSupplierModal();
             }
         }
+        window.closeModalAddProductToFactory = closeModalAddProductToFactory;
 
         // --- MODAL: NHẬN HÀNG GIA CÔNG THỰC TẾ ---
         async function openModalReceiveOEM(orderId) {

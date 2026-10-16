@@ -73,6 +73,7 @@ def test_supplier_assignable_items_and_batch_assign(setup_db):
     prod_item = next(x for x in check_data if x["id"] == prod_id and x["item_type"] == "product")
     ing_item = next(x for x in check_data if x["id"] == ing_id and x["item_type"] == "ingredient")
     assert prod_item["is_assigned"] is True
+    assert "bom_count" in prod_item
     assert ing_item["is_assigned"] is True
 
 def get_auth_headers():

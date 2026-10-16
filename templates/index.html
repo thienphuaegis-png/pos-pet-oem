@@ -4741,38 +4741,6 @@
                 </div>
             </div>
 
-            <!-- MODAL: GÁN SẢN PHẨM KHÁC CHO NHÀ MÁY -->
-            <div id="modal-add-prod-to-factory" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs">
-                    <div class="flex justify-between items-center border-b p-3 bg-slate-50 rounded-t-xl">
-                        <h3 class="font-bold text-slate-800 flex items-center gap-1.5">
-                            <span>➕ Gán Sản Phẩm Thuộc Nhà Máy</span>
-                        </h3>
-                        <button onclick="closeModalAddProductToFactory()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
-                    </div>
-                    <div class="p-4 space-y-3">
-                        <div>
-                            <label class="block font-bold text-gray-700 mb-1">Nhà máy đang chọn:</label>
-                            <div id="oem-add-prod-factory-name" class="font-bold text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
-                                -
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block font-bold text-gray-700 mb-1">Chọn sản phẩm cần gán:</label>
-                            <select id="oem-add-prod-select" class="border p-2 rounded w-full font-bold bg-white text-slate-800">
-                                <!-- Products not yet linked -->
-                            </select>
-                        </div>
-                    </div>
-                    <div class="p-3 border-t bg-slate-50 rounded-b-xl flex justify-end gap-2">
-                        <button onclick="closeModalAddProductToFactory()" class="px-3 py-1.5 border rounded text-gray-600 hover:bg-gray-100">Hủy</button>
-                        <button onclick="submitLinkProductToFactory()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow">
-                            Lưu Gán
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- TAB: DOI TAC & CONG NO -->
             <div id="tab-contacts" class="hidden space-y-4">
                 <!-- Header & Stats -->
@@ -6205,6 +6173,7 @@
                             <option value="ALL">Tất cả mặt hàng</option>
                             <option value="ASSIGNED">Chỉ món đã chọn</option>
                             <option value="PRODUCT">Chỉ Hàng Hóa</option>
+                            <option value="BOM">Hàng Hóa Có BOM</option>
                             <option value="INGREDIENT">Chỉ Nguyên Liệu</option>
                         </select>
                         <div class="flex items-center gap-1 ml-auto">
