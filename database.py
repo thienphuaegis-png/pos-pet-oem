@@ -3,6 +3,9 @@ import os
 import sys
 import re
 from collections.abc import Mapping
+import logging
+
+logger = logging.getLogger("database")
 
 # Adapter for PostgreSQL (Supabase / Cloud)
 class RowWrapper:

@@ -2,6 +2,7 @@ import pytest
 import sqlite3
 import os
 from database import get_db, get_db_path
+from tests.auth_helpers import owner_auth_headers
 
 DB_PATH = get_db_path()
 
@@ -40,7 +41,7 @@ def test_hotel_api_endpoints():
     """Kiểm tra các API endpoints của phân hệ Hotel qua FastAPI TestClient"""
     from fastapi.testclient import TestClient
     from server import app
-    client = TestClient(app)
+    client = TestClient(app, headers=owner_auth_headers())
 
     # 1. GET /api/hotel/rooms
     res = client.get("/api/hotel/rooms")
@@ -174,7 +175,7 @@ def test_hotel_checkin_batch_api():
     """Task 2: Kiểm tra API POST /api/hotel/checkin-batch tiếp nhận nhiều bé cùng lúc"""
     from fastapi.testclient import TestClient
     from server import app
-    client = TestClient(app)
+    client = TestClient(app, headers=owner_auth_headers())
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -293,7 +294,7 @@ def test_hotel_room_crud_and_spa_workflow_apis():
     """Task 2: Kiểm tra các API CRUD phòng, room-groups và workflow chuyển Spa <-> Hotel"""
     from fastapi.testclient import TestClient
     from server import app
-    client = TestClient(app)
+    client = TestClient(app, headers=owner_auth_headers())
 
     with get_db() as conn:
         cursor = conn.cursor()

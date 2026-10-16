@@ -406,7 +406,7 @@ function renderTopProducts(products) {
 function exportReportsExcel() {
     const fromVal = document.getElementById('rep-filter-from')?.value || '';
     const toVal = document.getElementById('rep-filter-to')?.value || '';
-    window.location.href = `/api/reports/export-excel?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}`;
+    downloadWithAuth(`/api/reports/export-excel?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}`, 'Bao_Cao_Tong_Hop.xlsx');
 }
 
 // Xuất các hàm ra window

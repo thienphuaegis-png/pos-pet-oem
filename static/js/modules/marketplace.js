@@ -203,12 +203,6 @@
         document.getElementById('mkt-modal-platform-icon').textContent = isShopee ? '🟠' : '⚫';
         document.getElementById('mkt-modal-title').textContent = isShopee ? 'Cấu Hình Gian Hàng Shopee' : 'Cấu Hình Gian Hàng TikTok Shop';
 
-        const bLink = document.getElementById('mkt-bookmarklet-link');
-        if (bLink) {
-            bLink.href = generateBookmarkletCode(platform);
-            bLink.title = `Kéo nút này thả lên thanh Dấu trang của trình duyệt`;
-        }
-
         const accounts = isShopee ? state.shopeeAccounts : state.tiktokAccounts;
         if (accounts.length > 0) {
             const acc = accounts[0];
@@ -222,116 +216,6 @@
         }
     }
     window.openMktAccountModal = openMktAccountModal;
-
-    function generateBookmarkletCode(platform = 'shopee') {
-        const posOrigin = window.location.origin;
-        const code = `javascript:(async function(){
-            try {
-                let toast = document.createElement('div');
-                toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999999;background:#ea580c;color:white;padding:14px 22px;border-radius:12px;font-family:sans-serif;font-weight:bold;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,0.35);transition:all 0.3s;';
-                toast.innerHTML = '⏳ Đang quét đơn hàng từ Shopee...';
-                document.body.appendChild(toast);
-
-                const entry = performance.getEntriesByType('resource').find(e => e.name && e.name.includes('SPC_CDS='));
-                const spc_cds = entry ? new URL(entry.name).searchParams.get('SPC_CDS') : (document.cookie.match(/SPC_CDS=([^;]+)/)?.[1] || '');
-                if (!spc_cds) {
-                    toast.style.background = '#e11d48';
-                    toast.innerHTML = '❌ Chưa thấy token SPC_CDS. Anh bấm F5 tải lại trang Shopee rồi bấm lại nhé!';
-                    setTimeout(() => toast.remove(), 5000);
-                    return;
-                }
-
-                const tabs = [100, 200, 300, 400];
-                let allCards = [];
-                for (const tab of tabs) {
-                    try {
-                        const resIdx = await fetch('/api/v3/order/search_order_list_index?SPC_CDS=' + spc_cds + '&SPC_CDS_VER=2', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                order_list_tab: tab,
-                                entity_type: 1,
-                                pagination: { from_page_number: 1, page_number: 1, page_size: 40 },
-                                filter: {}
-                            })
-                        });
-                        const dIdx = await resIdx.json();
-                        const indexList = dIdx?.data?.index_list || [];
-                        if (indexList.length > 0) {
-                            const resCards = await fetch('/api/v3/order/get_order_list_card_list?SPC_CDS=' + spc_cds + '&SPC_CDS_VER=2', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    order_list_tab: tab,
-                                    need_count_down_desc: false,
-                                    order_param_list: indexList
-                                })
-                            });
-                            const dCards = await resCards.json();
-                            const cardList = dCards?.data?.card_list || [];
-                            allCards = allCards.concat(cardList);
-                        }
-                    } catch(e) {
-                        console.error('Lỗi tab Shopee:', tab, e);
-                    }
-                }
-
-                toast.innerHTML = '⏳ Đã lấy ' + allCards.length + ' đơn. Đang lưu về POS...';
-                const posHost = '${posOrigin}';
-
-                try {
-                    await fetch(posHost + '/api/marketplace/accounts/auto-cookie', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ platform: 'shopee', cookies: document.cookie, spc_cds: spc_cds })
-                    });
-                } catch(e) {}
-
-                if (allCards.length === 0) {
-                    toast.style.background = '#3b82f6';
-                    toast.innerHTML = 'ℹ️ Kết nối thành công! Không có đơn hàng nào trong các tab Chờ gửi/Đang giao/Đã giao.';
-                    setTimeout(() => toast.remove(), 4500);
-                    return;
-                }
-
-                const resImport = await fetch(posHost + '/api/marketplace/orders/import-json', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        platform: 'shopee',
-                        raw_json: JSON.stringify(allCards)
-                    })
-                });
-                const dImport = await resImport.json();
-                if (resImport.ok) {
-                    toast.style.background = '#059669';
-                    toast.innerHTML = '✅ ' + (dImport.message || ('Đã đồng bộ ' + allCards.length + ' đơn hàng vào POS!'));
-                    setTimeout(() => toast.remove(), 4500);
-                } else {
-                    toast.style.background = '#e11d48';
-                    toast.innerHTML = '❌ Lỗi POS: ' + (dImport.detail || dImport.message);
-                    setTimeout(() => toast.remove(), 6000);
-                }
-            } catch(err) {
-                alert('Lỗi: ' + err.message + '\\nHãy chắc chắn POS Mastercare đang mở tại ${posOrigin}!');
-            }
-        })();`;
-        return code.replace(/\s+/g, ' ');
-    }
-    window.generateBookmarkletCode = generateBookmarkletCode;
-
-    function copyBookmarkletCode() {
-        const platform = document.getElementById('mkt-acc-platform')?.value || 'shopee';
-        const code = generateBookmarkletCode(platform);
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(code);
-            if (window.showToast) window.showToast('Đã sao chép mã Bookmarklet!', 'success');
-            else alert('Đã sao chép mã Bookmarklet! Dán vào thanh Dấu trang hoặc Console để chạy.');
-        } else {
-            prompt('Sao chép mã Bookmarklet:', code);
-        }
-    }
-    window.copyBookmarkletCode = copyBookmarkletCode;
 
     function closeMktAccountModal() {
         document.getElementById('modal-mkt-account-cookie')?.classList.add('hidden');

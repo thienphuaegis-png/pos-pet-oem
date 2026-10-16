@@ -2,8 +2,9 @@ import pytest
 from starlette.testclient import TestClient
 from server import app
 from database import get_db
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_oem_two_tier_cost_calculation_for_product_37():
     """

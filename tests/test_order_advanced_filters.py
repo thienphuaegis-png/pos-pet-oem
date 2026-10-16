@@ -3,10 +3,11 @@ from fastapi.testclient import TestClient
 from database import init_db, get_db
 from server import app
 from dependencies import get_current_user
+from tests.auth_helpers import owner_auth_headers
 
 init_db()
 app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_filter_test_data():

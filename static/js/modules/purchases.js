@@ -913,7 +913,7 @@
 
         function printPurchaseChecklistCurrent() {
             if (currentViewingPurchase && currentViewingPurchase.code) {
-                window.open(`/api/purchases/${currentViewingPurchase.code}/print-checklist`, '_blank');
+                openWithAuth(`/api/purchases/${currentViewingPurchase.code}/print-checklist`);
             }
         }
 
@@ -991,13 +991,13 @@
                         ? `
                         ${payDebtBtn}
                         <button onclick="openEditPurchaseModal('${p.code}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Chỉnh sửa số lượng, mặt hàng hoặc thông tin đơn">✏️ Sửa Đơn</button>
-                        <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế gửi cho kho">🖨️ Phiếu Kiểm</button>
+                        <button onclick="openWithAuth('/api/purchases/${p.code}/print-checklist')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế gửi cho kho">🖨️ Phiếu Kiểm</button>
                         <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và xác nhận nhập kho thực tế">📥 Nhận Hàng</button>
                         <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu nhập">✕ Hủy</button>
                         `
                         : `
                         ${payDebtBtn}
-                        <button onclick="window.open('/api/purchases/${p.code}/print-checklist', '_blank')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]" title="In phiếu">🖨️ In</button>
+                        <button onclick="openWithAuth('/api/purchases/${p.code}/print-checklist')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]" title="In phiếu">🖨️ In</button>
                         <button onclick="openReceiveModal('${p.code}', true)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
                         <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
                         `;

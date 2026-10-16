@@ -2,8 +2,9 @@ import pytest
 from database import get_db, init_db
 from fastapi.testclient import TestClient
 from server import app
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_oem_order_discount_vnd_and_percent():
     init_db()

@@ -2,6 +2,7 @@ import pytest
 import sqlite3
 from database import get_db, init_db
 from schemas import ExpenseRequestCreate, ExpenseRequestApprove
+from tests.auth_helpers import owner_auth_headers
 
 def test_database_table_expense_requests_exists():
     init_db()
@@ -50,7 +51,7 @@ def test_schemas_validation():
 def test_api_expense_requests_flow():
     from starlette.testclient import TestClient
     from server import app
-    client = TestClient(app)
+    client = TestClient(app, headers=owner_auth_headers())
 
     # Đảm bảo có payment account id=1
     conn = get_db()
@@ -148,7 +149,7 @@ def test_frontend_subtab_and_module_exist():
 def test_expense_request_with_image_and_stats():
     from starlette.testclient import TestClient
     from server import app
-    client = TestClient(app)
+    client = TestClient(app, headers=owner_auth_headers())
 
     # Đảm bảo payment account id=1 tồn tại
     conn = get_db()

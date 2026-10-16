@@ -4,9 +4,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from database import init_db, get_db
 from fastapi.testclient import TestClient
 from server import app
+from tests.auth_helpers import owner_auth_headers
 
 init_db()
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 
 def test_wholesale_order_original_price_and_gift():

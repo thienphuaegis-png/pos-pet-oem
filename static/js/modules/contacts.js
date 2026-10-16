@@ -624,7 +624,6 @@
                     selectType.value = currentContactTab || 'customer';
                 }
                 modal.classList.remove('hidden');
-                updateDownloadTemplateLink();
             }
         }
 
@@ -635,16 +634,7 @@
 
         function downloadContactTemplate() {
             const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
-            window.location.href = `/api/contacts/template-excel?type=${encodeURIComponent(type)}&_t=${Date.now()}`;
-        }
-
-        function updateDownloadTemplateLink() {
-            const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
-            const link = document.getElementById('btn-download-contact-template') || document.getElementById('link-download-contact-template');
-            if (link) {
-                link.href = `/api/contacts/template-excel?type=${type}&_t=${Date.now()}`;
-                link.setAttribute('download', type === 'customer' ? 'Mau_Khach_Hang.xlsx' : 'Mau_Nha_Cung_Cap.xlsx');
-            }
+            downloadWithAuth(`/api/contacts/template-excel?type=${encodeURIComponent(type)}&_t=${Date.now()}`, type === 'customer' ? 'Mau_Khach_Hang.xlsx' : 'Mau_Nha_Cung_Cap.xlsx');
         }
 
         async function submitImportContacts() {
@@ -691,7 +681,7 @@
 
         function exportContactsExcel() {
             const type = currentContactTab || 'customer';
-            window.location.href = `/api/contacts/export-excel?type=${type}`;
+            downloadWithAuth(`/api/contacts/export-excel?type=${type}`, `Danh_Ba_${type}.xlsx`);
         }
 
         function closeContactDetailModal() {

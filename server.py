@@ -2,6 +2,7 @@ import os
 import sys
 import secrets
 import logging
+import datetime
 from fastapi import FastAPI, Response, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -40,6 +41,9 @@ logging.basicConfig(
     handlers=handlers
 )
 logger = logging.getLogger("pos_server")
+
+# httpx log mỗi request kèm full URL — URL Telegram chứa bot token -> chỉ log WARNING trở lên
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Ánh xạ URL prefix sang tên module để dispatch log riêng
 PATH_MODULE_MAP = [
@@ -138,7 +142,7 @@ async def activity_log_middleware(request: Request, call_next):
 init_db()
 
 # Khởi động backup tự động (local rotating + cloud Google Drive, mỗi giờ)
-if not os.environ.get("VERCEL"):
+if not os.environ.get("VERCEL") and not os.environ.get("POS_DISABLE_BACKGROUND"):
     from backup_service import start_backup_scheduler
     start_backup_scheduler()
     try:
@@ -390,28 +394,17 @@ def project_map_page():
     return "<h1>PROJECT_MAP.html not found</h1>"
 
 # Đăng ký toàn bộ các sub-routers
+# auth_router tự quản lý quyền từng endpoint (/login phải mở) -> không gắn dependency chung.
 app.include_router(auth_router)
-app.include_router(shifts_router)
-app.include_router(combos_router)
-app.include_router(settings_router)
-app.include_router(categories_router)
-app.include_router(spa_cat_router)
-app.include_router(products_router)
-app.include_router(pos_router)
-app.include_router(inventory_router)
-app.include_router(bom_router)
-app.include_router(partners_router)
-app.include_router(pets_router)
-app.include_router(service_router)
-app.include_router(purchases_router)
-app.include_router(production_router)
-app.include_router(cashbook_router)
-app.include_router(price_lists_router)
-app.include_router(router_segments)
-app.include_router(promotions_router)
-app.include_router(oem_router)
-app.include_router(topup_router)
-app.include_router(hotel_router)
-app.include_router(ai_assistant_router)
-app.include_router(marketplace_router)
+
+# Mọi router nghiệp vụ: BẮT BUỘC đăng nhập. Phân quyền chi tiết (require_permission) nằm trong từng endpoint.
+_LOGIN_REQUIRED = [Depends(get_current_user)]
+for _r in (
+    shifts_router, combos_router, settings_router, categories_router, spa_cat_router,
+    products_router, pos_router, inventory_router, bom_router, partners_router,
+    pets_router, service_router, purchases_router, production_router, cashbook_router,
+    price_lists_router, router_segments, promotions_router, oem_router, topup_router,
+    hotel_router, ai_assistant_router, marketplace_router,
+):
+    app.include_router(_r, dependencies=_LOGIN_REQUIRED)
  

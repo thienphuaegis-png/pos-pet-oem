@@ -4,6 +4,9 @@ import tempfile
 import socket
 import pytest
 
+# Disable telegram poller / backup scheduler in tests
+os.environ.setdefault("POS_DISABLE_BACKGROUND", "1")
+
 # T0.1 & T0.2: Ensure POS_DB_PATH is isolated in temporary directory for tests
 _test_db_dir = tempfile.mkdtemp(prefix="pos_test_")
 _test_db_path = os.path.join(_test_db_dir, "pos_test.db")

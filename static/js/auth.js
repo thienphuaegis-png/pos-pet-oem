@@ -133,6 +133,40 @@ window.fetch = async (url, opts = {}) => {
   return res;
 };
 
+// ── Tải file / mở trang in KÈM TOKEN ──
+// Link trực tiếp (<a href>, window.open, location.href) không gửi header Authorization,
+// nên mọi file/trang lấy từ /api phải đi qua fetch (interceptor ở trên tự gắn Bearer).
+async function downloadWithAuth(url, fallbackName = 'download.xlsx') {
+  const res = await fetch(url);
+  if (!res.ok) {
+    if (window.showToast) window.showToast(`Không tải được file (lỗi ${res.status})`, 'error');
+    return;
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  const name = m ? decodeURIComponent(m[1] || m[2]) : fallbackName;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+async function openWithAuth(url) {
+  const win = window.open('', '_blank'); // mở ngay trong cú click để không bị chặn popup
+  const res = await fetch(url);
+  const html = await res.text();
+  if (!win) return;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+window.downloadWithAuth = downloadWithAuth;
+window.openWithAuth = openWithAuth;
+
 // ── Login / Logout ──
 async function handleLogin() {
   const username = document.getElementById('login-username').value.trim();
