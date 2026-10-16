@@ -50,8 +50,8 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] Merge nhánh `fix/api-auth-lockdown` vào `main`.
-- [ ] Rebuild exe `POS_Mastercare.exe` trước khi triển khai máy khách.
+- [x] Merge nhánh `fix/api-auth-lockdown` vào `main`.
+- [x] Rebuild exe `POS_Mastercare.exe` trước khi triển khai máy khách.
 - [ ] Thu hồi (`/revoke`) token bot Telegram cũ trên `@BotFather` và cấp lại token mới.
 - [ ] Cấp lại Gemini API key mới trên Google AI Studio.
 - [ ] Giai đoạn 2: Phân quyền chi tiết `require_permission` / `require_role("owner")` cho các hành động xóa hàng loạt và thay đổi thiết lập hệ thống.
