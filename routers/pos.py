@@ -522,7 +522,9 @@ def get_order_returnable_items(code: str):
     conn.close()
 
     total_amount = float(order["total_amount"]) if order["total_amount"] is not None else 0.0
-    final_amount = float(order["final_amount"]) if order["final_amount"] is not None else 0.0
+    # Phải khớp công thức trần trong create_order_return: loại trừ ship & ví, chỉ trừ discount
+    order_discount = float(order["discount"]) if order["discount"] is not None else 0.0
+    net_goods_amount = max(0.0, total_amount - order_discount)
 
     items = []
     for it in raw_items:
@@ -532,7 +534,7 @@ def get_order_returnable_items(code: str):
         qty_avail = max(0.0, qty - qty_returned)
 
         if total_amount > 0 and qty > 0:
-            unit_price_net = (float(it_dict["subtotal"]) / total_amount * final_amount) / qty
+            unit_price_net = (float(it_dict["subtotal"]) / total_amount * net_goods_amount) / qty
         else:
             unit_price_net = float(it_dict["price"])
 
@@ -557,8 +559,8 @@ def get_order_returnable_items(code: str):
         "customer_id": order["customer_id"],
         "customer_name": order["customer_name"],
         "total_amount": total_amount,
-        "discount": float(order["discount"]) if order["discount"] is not None else 0.0,
-        "final_amount": final_amount,
+        "discount": order_discount,
+        "final_amount": float(order["final_amount"] or 0),
         "items": items
     }
 
@@ -670,9 +672,10 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
             running_returned[actual_oi_id] = prev_batch_qty + r_item.quantity
 
             total_amount = float(orig_order["total_amount"]) if orig_order["total_amount"] is not None else 0.0
-            final_amount = float(orig_order["final_amount"]) if orig_order["final_amount"] is not None else 0.0
+            order_discount = float(orig_order["discount"]) if orig_order["discount"] is not None else 0.0
+            net_goods_amount = max(0.0, total_amount - order_discount)
             if total_amount > 0 and qty_bought > 0:
-                max_return_price = round((float(matching_oi["subtotal"]) / total_amount * final_amount) / qty_bought, 2)
+                max_return_price = round((float(matching_oi["subtotal"]) / total_amount * net_goods_amount) / qty_bought, 2)
             else:
                 max_return_price = float(matching_oi["price"])
 

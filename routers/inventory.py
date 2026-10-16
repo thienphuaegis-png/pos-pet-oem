@@ -660,8 +660,16 @@ def adjust_inventory(req: InventoryAdjust, user=Depends(require_permission("inve
         cur_inv = cur.fetchone()
         cur_qty = float(cur_inv["quantity"]) if cur_inv and cur_inv["quantity"] is not None else 0.0
 
-        target_qty = req.quantity if req.quantity is not None else (req.new_quantity if req.new_quantity is not None else 0.0)
-        mode = (req.mode or "set").lower()
+        if req.quantity is None and req.new_quantity is None:
+            raise HTTPException(status_code=400, detail="Vui lòng cung cấp số lượng điều chỉnh (quantity hoặc new_quantity)")
+
+        mode = (req.mode or "set").strip().lower()
+        if mode not in ("set", "add"):
+            raise HTTPException(status_code=400, detail="Chế độ điều chỉnh tồn kho không hợp lệ (chỉ chấp nhận 'set' hoặc 'add')")
+
+        target_qty = float(req.quantity if req.quantity is not None else req.new_quantity)
+        if mode == "set" and target_qty < 0:
+            raise HTTPException(status_code=400, detail="Số lượng tồn kho không được âm")
 
         if mode == "set":
             new_qty = target_qty
@@ -692,6 +700,9 @@ def adjust_inventory(req: InventoryAdjust, user=Depends(require_permission("inve
             ''', (req.ingredient_id, req.supplier_id, req.purchase_price, req.note or "Điều chỉnh tồn / Nhập kho"))
 
         conn.commit()
+    except HTTPException:
+        conn.close()
+        raise
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=400, detail=str(e))

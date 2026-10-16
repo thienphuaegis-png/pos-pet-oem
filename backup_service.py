@@ -26,6 +26,8 @@ def _safe_sqlite_copy(src_path, dst_path):
     except Exception:
         shutil.copy2(src_path, dst_path)
 
+safe_sqlite_copy = _safe_sqlite_copy
+
 BACKUP_INTERVAL_SECONDS = 3600  # moi gio
 LOCAL_RETENTION_DAYS = 7
 # Thu muc Google Drive Desktop dong bo san tren may - neu khong ton tai thi bo qua lop cloud (khong crash app)

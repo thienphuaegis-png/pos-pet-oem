@@ -238,6 +238,7 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
         raise HTTPException(status_code=400, detail="Chế độ xóa dữ liệu không hợp lệ")
 
     from database import get_db, get_db_path
+    from backup_service import safe_sqlite_copy
     db_path = get_db_path()
 
     # 1. Tu dong tao backup an toan truoc khi xoa
@@ -247,8 +248,11 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"pos_backup_pre_reset_{req.mode}_{timestamp}.db"
         backup_filepath = os.path.join(backup_dir, backup_filename)
-        shutil.copy2(db_path, backup_filepath)
-        logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filepath}")
+        if os.path.exists(db_path):
+            safe_sqlite_copy(db_path, backup_filepath)
+            logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filepath}")
+        else:
+            logger.warning(f"DB file không tồn tại tại {db_path}, bỏ qua sao lưu file")
     except Exception as e:
         logger.error(f"Lỗi khi sao lưu trước khi xóa: {e}")
         raise HTTPException(status_code=500, detail=f"Không thể tạo bản sao lưu an toàn trước khi xóa: {e}")

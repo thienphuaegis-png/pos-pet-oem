@@ -259,10 +259,14 @@ def test_delete_warehouse_safeguard():
 def test_reset_data_customers_lowercase():
     """Bug 4.4: Reset dữ liệu phải xóa được contacts có type = 'customer' chữ thường."""
     owner_headers = owner_auth_headers()
+    from backup_service import safe_sqlite_copy
     db_path = os.environ.get("POS_DB_PATH")
     backup_path = db_path + ".bak_test_reset"
     if db_path and os.path.exists(db_path):
-        shutil.copy2(db_path, backup_path)
+        conn = get_db()
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+        safe_sqlite_copy(db_path, backup_path)
 
     try:
         db = get_db()
@@ -295,7 +299,10 @@ def test_reset_data_customers_lowercase():
         assert supp_count >= 1
     finally:
         if db_path and os.path.exists(backup_path):
-            shutil.copy2(backup_path, db_path)
+            conn = get_db()
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            conn.close()
+            safe_sqlite_copy(backup_path, db_path)
             try:
                 os.remove(backup_path)
             except OSError:
@@ -332,3 +339,129 @@ def test_jwt_typ_claim_and_password_validation():
     }, headers=owner_headers)
     assert res.status_code == 400
     assert "ít nhất 6 ký tự" in res.json()["detail"]
+
+
+def test_order_return_max_price_excludes_wallet_and_shipping():
+    """Bug fix verify: Đơn hàng trả hoàn toàn bằng ví (final_amount = 0) vẫn tính đúng trần trả hàng; phí ship không làm đội trần."""
+    owner_headers = owner_auth_headers()
+    conn = get_db()
+    cur = conn.cursor()
+    import time
+    ts = int(time.time() * 1000)
+
+    try:
+        cur.execute("INSERT INTO contacts (name, phone, type) VALUES (?, '0988888888', 'customer')", (f"Khách Test Ví {ts}",))
+        customer_id = cur.lastrowid
+
+        cur.execute("INSERT INTO products (code, name, type, cost_price, sell_price, stock) VALUES (?, 'Pate Thưởng', 'product', 20000, 50000, 20)", (f"SP-PATE-{ts}",))
+        prod_id = cur.lastrowid
+
+        # Đơn: 1 món 50.000đ, không discount, phí ship 30.000đ, khấu trừ ví 50.000đ -> final_amount = 30.000đ (tiền ship).
+        # Trần trả hàng của món Pate phải là 50.000đ (dựa trên total_amount - discount = 50.000đ), KHÔNG PHẢI 30.000đ.
+        order_code = f"ORD-WAL-{ts}"
+        cur.execute("""
+            INSERT INTO orders (code, customer_id, total_amount, discount, shipping_fee, spa_wallet_deduction, final_amount, paid_amount, status)
+            VALUES (?, ?, 50000, 0, 30000, 50000, 30000, 30000, 'completed')
+        """, (order_code, customer_id))
+        order_id = cur.lastrowid
+
+        cur.execute("""
+            INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
+            VALUES (?, ?, 1, 50000, 50000)
+        """, (order_id, prod_id))
+        oi_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Thử trả hàng với return_price = 50.000đ -> phải thành công 200 (nếu dùng final_amount=30.000đ cũ sẽ bị 400)
+    res = client.post("/api/pos/returns", json={
+        "original_order_id": order_id,
+        "return_items": [{
+            "product_id": prod_id,
+            "original_item_id": oi_id,
+            "quantity": 1,
+            "return_price": 50000,
+            "return_to_stock": 1,
+            "reason": "Test hoàn ví"
+        }],
+        "refund_payment_method": "cash"
+    }, headers=owner_headers)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["success"] is True
+    assert data["return_total"] == 50000
+
+    # Màn hình trả hàng phải gợi ý cùng đơn giá trần (không bị ship/ví làm lệch)
+    res = client.get(f"/api/pos/orders/{order_code}/returnable-items", headers=owner_headers)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    items = body["items"] if isinstance(body, dict) else body
+    assert any(round(it["unit_price_net"]) == 50000 for it in items)
+
+
+def test_inventory_adjust_validation_modes_and_nulls():
+    """Bug fix verify: InventoryAdjust chặn null cả quantity & new_quantity, chặn mode rác, chặn âm ở mode set."""
+    owner_headers = owner_auth_headers()
+    conn = get_db()
+    cur = conn.cursor()
+    import time
+    ts = int(time.time() * 1000)
+
+    try:
+        cur.execute("SELECT id FROM warehouses WHERE id = 1")
+        wh = cur.fetchone()
+        if not wh:
+            cur.execute("INSERT OR IGNORE INTO warehouses (id, code, name) VALUES (1, 'KHO-TEST', 'Kho Test')")
+        cur.execute("INSERT INTO ingredients (code, name, type) VALUES (?, 'NL Test Adj', 'IS_PHYSICAL')", (f"ING-TEST-ADJ-{ts}",))
+        ing_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    # 1. Null cả 2 trường số lượng -> 400
+    res = client.post("/api/inventory/adjust", json={
+        "warehouse_id": 1,
+        "ingredient_id": ing_id,
+        "mode": "set"
+    }, headers=owner_headers)
+    assert res.status_code == 400
+    assert "số lượng điều chỉnh" in res.json()["detail"]
+
+    # 2. Mode sai -> 400
+    res = client.post("/api/inventory/adjust", json={
+        "warehouse_id": 1,
+        "ingredient_id": ing_id,
+        "quantity": 10,
+        "mode": "invalid_mode"
+    }, headers=owner_headers)
+    assert res.status_code == 400
+    assert "chỉ chấp nhận 'set' hoặc 'add'" in res.json()["detail"]
+
+    # 3. Set số lượng âm -> 400
+    res = client.post("/api/inventory/adjust", json={
+        "warehouse_id": 1,
+        "ingredient_id": ing_id,
+        "quantity": -5,
+        "mode": "set"
+    }, headers=owner_headers)
+    assert res.status_code == 400
+    assert "không được âm" in res.json()["detail"]
+
+    # 3b. Nguyên liệu không tồn tại -> giữ 404 (không bị nuốt thành 400)
+    res = client.post("/api/inventory/adjust", json={
+        "warehouse_id": 1, "ingredient_id": 999999999, "quantity": 1, "mode": "set"
+    }, headers=owner_headers)
+    assert res.status_code == 404
+
+    # 4. Hợp lệ mode add -> 200
+    res = client.post("/api/inventory/adjust", json={
+        "warehouse_id": 1,
+        "ingredient_id": ing_id,
+        "quantity": 15,
+        "mode": "add",
+        "note": "Điều chỉnh hợp lệ"
+    }, headers=owner_headers)
+    assert res.status_code == 200
+    assert res.json()["status"] == "ok"
+    assert res.json()["new_quantity"] == 15

@@ -66,9 +66,14 @@ def test_owner_clear_all_products_creates_backup():
     owner_headers = owner_auth_headers()
     client = TestClient(app, headers=owner_headers)
 
+    from backup_service import safe_sqlite_copy
     db_path = get_db_path()
     snapshot_path = db_path + ".test_snapshot"
-    shutil.copy2(db_path, snapshot_path)
+
+    conn = get_db()
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn.close()
+    safe_sqlite_copy(db_path, snapshot_path)
 
     try:
         # Insert a dummy product
@@ -95,7 +100,10 @@ def test_owner_clear_all_products_creates_backup():
             except OSError:
                 pass
     finally:
-        shutil.copy2(snapshot_path, db_path)
+        conn = get_db()
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+        safe_sqlite_copy(snapshot_path, db_path)
         try:
             os.remove(snapshot_path)
         except OSError:

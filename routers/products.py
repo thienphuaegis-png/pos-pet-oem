@@ -696,14 +696,19 @@ def delete_product(product_id: int, force: bool = False, user=Depends(require_pe
 def clear_all_products_api(user=Depends(require_role("owner"))):
     """API xóa sạch toàn bộ hàng hóa để chuẩn bị import lại từ đầu (tự động sao lưu trước khi xóa)"""
     from database import get_db_path
+    from backup_service import safe_sqlite_copy
     db_path = get_db_path()
     try:
         backup_dir = os.path.join(os.path.dirname(db_path), "backups")
         os.makedirs(backup_dir, exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"pos_backup_pre_clear_products_{timestamp}.db"
-        shutil.copy2(db_path, os.path.join(backup_dir, backup_filename))
-        logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filename}")
+        backup_filepath = os.path.join(backup_dir, backup_filename)
+        if os.path.exists(db_path):
+            safe_sqlite_copy(db_path, backup_filepath)
+            logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filename}")
+        else:
+            logger.warning(f"DB file không tồn tại tại {db_path}, bỏ qua sao lưu file")
     except Exception as e:
         logger.error(f"Lỗi khi sao lưu trước khi xóa hàng hóa: {e}")
         raise HTTPException(status_code=500, detail=f"Không thể tạo bản sao lưu an toàn trước khi xóa: {e}")
