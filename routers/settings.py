@@ -140,12 +140,15 @@ def update_module(req: ModuleToggleUpdate, user=Depends(require_role("owner"))):
     conn.close()
     return {"status": "ok"}
 
+# Không bao giờ trả qua API đọc chung; có endpoint riêng (mask / owner-only)
+SECRET_SETTING_KEYS = {"gemini_api_key", "telegram_bot_token"}
+
 @router.get("")
 def get_settings():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT key, value FROM settings")
-    settings = {r["key"]: r["value"] for r in cur.fetchall()}
+    settings = {r["key"]: r["value"] for r in cur.fetchall() if r["key"] not in SECRET_SETTING_KEYS}
     conn.close()
     return settings
 
