@@ -591,19 +591,13 @@ def generate_return_code(cur) -> str:
 
 
 @router.post("/api/pos/returns")
-def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user)):
+def create_order_return(req: CreateReturnRequest, user=Depends(require_permission("pos.sell"))):
     """
     Xử lý tạo phiếu đổi / trả hàng theo đơn hàng gốc.
     - Cập nhật tồn kho hàng hoàn (nếu return_to_stock=1)
     - Tạo đơn hàng mới cho món đổi (nếu có exchange_items) và trừ tồn kho món mới
     - Ghi nhận phiếu thu / chi tương ứng trong sổ quỹ cashbook
     """
-    if user:
-        if user.get("role") not in ("owner", "admin"):
-            from dependencies import check_permission
-            if not check_permission(user["id"], user.get("role", ""), "pos.sell"):
-                raise HTTPException(status_code=403, detail="Không có quyền truy cập")
-
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -674,6 +668,19 @@ def create_order_return(req: CreateReturnRequest, user=Depends(get_optional_user
                     detail=f"Số lượng trả ({r_item.quantity + prev_batch_qty}) vượt quá số lượng khả dụng ({qty_avail}) của sản phẩm {p_row['name']}"
                 )
             running_returned[actual_oi_id] = prev_batch_qty + r_item.quantity
+
+            total_amount = float(orig_order["total_amount"]) if orig_order["total_amount"] is not None else 0.0
+            final_amount = float(orig_order["final_amount"]) if orig_order["final_amount"] is not None else 0.0
+            if total_amount > 0 and qty_bought > 0:
+                max_return_price = round((float(matching_oi["subtotal"]) / total_amount * final_amount) / qty_bought, 2)
+            else:
+                max_return_price = float(matching_oi["price"])
+
+            if float(r_item.return_price) > max_return_price + 1.0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Đơn giá trả ({r_item.return_price:,.0f}đ) vượt quá đơn giá thực mua tối đa ({max_return_price:,.0f}đ) của sản phẩm {p_row['name']}"
+                )
 
             validated_return_items.append({
                 "product_id": r_item.product_id,

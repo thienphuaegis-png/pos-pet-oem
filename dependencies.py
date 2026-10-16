@@ -31,6 +31,9 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token không hợp lệ")
 
+    if payload.get("typ") and payload.get("typ") != "access":
+        raise HTTPException(status_code=401, detail="Token không hợp lệ (yêu cầu access token)")
+
     staff_id = payload.get("sub")
     db = get_db()
     cur = db.cursor()
@@ -49,6 +52,8 @@ def get_optional_user(token: str = Depends(oauth2_scheme_optional)):
         return None
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGO])
+        if payload.get("typ") and payload.get("typ") != "access":
+            return None
         staff_id = payload.get("sub")
         db = get_db()
         cur = db.cursor()

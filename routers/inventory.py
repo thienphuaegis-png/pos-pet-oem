@@ -87,8 +87,29 @@ def update_warehouse(warehouse_id: int, w: WarehouseUpdate, user=Depends(require
 
 @router.delete("/api/warehouses/{warehouse_id}")
 def delete_warehouse(warehouse_id: int, user=Depends(require_permission("inventory.manage"))):
+    if warehouse_id == 1:
+        raise HTTPException(status_code=400, detail="Không thể xóa kho mặc định của hệ thống")
+
     conn = get_db()
     cur = conn.cursor()
+    cur.execute("SELECT id, name FROM warehouses WHERE id = ?", (warehouse_id,))
+    wh = cur.fetchone()
+    if not wh:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy kho hàng")
+
+    # Kiểm tra tồn kho sản phẩm
+    cur.execute("SELECT COALESCE(SUM(quantity), 0) FROM product_inventory WHERE warehouse_id = ? AND quantity > 0", (warehouse_id,))
+    prod_stock = cur.fetchone()[0] or 0.0
+
+    # Kiểm tra tồn kho nguyên liệu
+    cur.execute("SELECT COALESCE(SUM(quantity), 0) FROM inventory WHERE warehouse_id = ? AND quantity > 0", (warehouse_id,))
+    ing_stock = cur.fetchone()[0] or 0.0
+
+    if prod_stock > 0 or ing_stock > 0:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Kho hàng vẫn còn hàng tồn kho, vui lòng chuyển kho hoặc xuất hủy trước khi xóa")
+
     cur.execute("DELETE FROM warehouses WHERE id = ?", (warehouse_id,))
     conn.commit()
     conn.close()
@@ -634,13 +655,20 @@ def adjust_inventory(req: InventoryAdjust, user=Depends(require_permission("inve
         if row["type"] == "SERVICE":
             raise HTTPException(status_code=400, detail="Thành phần SERVICE không lưu trữ tồn kho")
 
-        if req.mode == "set":
-            new_qty = req.quantity
+        cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
+                    (req.warehouse_id, req.ingredient_id))
+        cur_inv = cur.fetchone()
+        cur_qty = float(cur_inv["quantity"]) if cur_inv and cur_inv["quantity"] is not None else 0.0
+
+        target_qty = req.quantity if req.quantity is not None else (req.new_quantity if req.new_quantity is not None else 0.0)
+        mode = (req.mode or "set").lower()
+
+        if mode == "set":
+            new_qty = target_qty
+            diff_qty = new_qty - cur_qty
         else: # add
-            cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?",
-                        (req.warehouse_id, req.ingredient_id))
-            cur_inv = cur.fetchone()
-            new_qty = (cur_inv["quantity"] if cur_inv else 0) + req.quantity
+            diff_qty = target_qty
+            new_qty = cur_qty + diff_qty
 
         cur.execute('''
         INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
@@ -654,7 +682,7 @@ def adjust_inventory(req: InventoryAdjust, user=Depends(require_permission("inve
         cur.execute('''
         INSERT INTO inventory_logs (ingredient_id, warehouse_id, change_type, quantity, balance_after, supplier_id, note)
         VALUES (?, ?, 'ADJUST', ?, ?, ?, ?)
-        ''', (req.ingredient_id, req.warehouse_id, req.quantity if req.mode == 'add' else (new_qty - (cur_inv["quantity"] if cur_inv else 0)), new_qty, req.supplier_id, req.note or "Điều chỉnh tồn kho"))
+        ''', (req.ingredient_id, req.warehouse_id, diff_qty, new_qty, req.supplier_id, req.note or req.reason or "Điều chỉnh tồn kho"))
 
         # Lưu giá nhập vào price_history nếu có truyền vào
         if req.purchase_price is not None and req.purchase_price > 0:

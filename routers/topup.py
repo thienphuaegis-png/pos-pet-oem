@@ -387,15 +387,29 @@ def delete_topup_transaction(
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch nạp ví")
 
     tx_data = dict(tx)
+    if tx_data.get("type") != "topup":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Chỉ có thể xóa giao dịch loại nạp ví (topup)")
+
     cid = tx_data.get("contact_id")
     receive_amt = float(tx_data.get("amount") or 0.0)
     pts = int(tx_data.get("points_earned") or 0)
 
     # 1. Rollback customer balance and points
     if cid:
+        cur.execute("SELECT spa_wallet_balance, points FROM contacts WHERE id = ?", (cid,))
+        c_row = cur.fetchone()
+        if c_row:
+            cur_bal = float(c_row["spa_wallet_balance"] or 0.0)
+            if cur_bal < receive_amt:
+                conn.close()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Số dư ví khách hàng ({cur_bal:,.0f}đ) không đủ để hoàn tác khoản nạp ({receive_amt:,.0f}đ)"
+                )
         cur.execute("""
             UPDATE contacts
-            SET spa_wallet_balance = MAX(0, spa_wallet_balance - ?),
+            SET spa_wallet_balance = spa_wallet_balance - ?,
                 points = MAX(0, points - ?)
             WHERE id = ?
         """, (receive_amt, pts, cid))

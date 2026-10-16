@@ -148,8 +148,13 @@ class WarehouseUpdate(BaseModel):
 class InventoryAdjust(BaseModel):
     warehouse_id: int
     ingredient_id: int
-    new_quantity: float
-    reason: str
+    new_quantity: Optional[float] = None
+    reason: Optional[str] = None
+    quantity: Optional[float] = None
+    mode: Optional[str] = 'set'
+    purchase_price: Optional[float] = None
+    supplier_id: Optional[int] = None
+    note: Optional[str] = None
 
 class TransferItemIn(BaseModel):
     item_type: str # product hoac ingredient

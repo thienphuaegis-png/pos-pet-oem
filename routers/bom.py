@@ -136,11 +136,13 @@ def calculate_product_cost_internal(product_id: int, conn) -> dict:
                     vat = (1.0 + (similar_row["vat_percent"] or 0.0) / 100.0)
                     oem_processing_cost = round(raw_price * disc * vat, 2)
 
-    total_cost = round(bom_material_cost + oem_processing_cost, 2)
-
-    # Cập nhật ngược lại bảng products
-    cur.execute("UPDATE products SET cost_price = ? WHERE id = ?", (total_cost, product_id))
-    conn.commit()
+    has_bom_or_oem = (len(bom_items) > 0) or (oem_processing_cost > 0)
+    if has_bom_or_oem:
+        total_cost = round(bom_material_cost + oem_processing_cost, 2)
+        cur.execute("UPDATE products SET cost_price = ? WHERE id = ?", (total_cost, product_id))
+        conn.commit()
+    else:
+        total_cost = float(prod["cost_price"] or 0.0)
 
     return {
         "product_id": product_id,

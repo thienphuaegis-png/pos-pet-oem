@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from database import get_db
-from dependencies import get_current_user, require_role, get_user_effective_permissions, SECRET, ALGO
+from dependencies import get_current_user, require_role, get_user_effective_permissions, oauth2_scheme, SECRET, ALGO
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -15,9 +15,9 @@ MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_MINUTES = 15
 
 
-def _make_token(staff_id: int, token_version: int = 0, hours: int = 8) -> str:
+def _make_token(staff_id: int, token_version: int = 0, hours: int = 8, typ: str = "access") -> str:
     exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=hours)
-    return jwt.encode({"sub": str(staff_id), "tv": token_version, "exp": exp}, SECRET, algorithm=ALGO)
+    return jwt.encode({"sub": str(staff_id), "tv": token_version, "exp": exp, "typ": typ}, SECRET, algorithm=ALGO)
 
 
 @router.post("/login")
@@ -57,8 +57,8 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     db.close()
 
     tv = user["token_version"] or 0
-    access = _make_token(user["id"], tv, hours=8)
-    refresh = _make_token(user["id"], tv, hours=24 * 7)
+    access = _make_token(user["id"], tv, hours=8, typ="access")
+    refresh = _make_token(user["id"], tv, hours=24 * 7, typ="refresh")
     perms = get_user_effective_permissions(user["id"], user["role"])
     return {
         "access_token": access,
@@ -70,10 +70,32 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
 
 
 @router.post("/refresh")
-def refresh(current: dict = Depends(get_current_user)):
-    # ponytail: reuse get_current_user để validate, không pool refresh token riêng
-    # Upgrade: thêm bảng refresh_tokens + revoke khi cần multi-device logout
-    return {"access_token": _make_token(current["id"], current.get("token_version", 0), hours=8), "token_type": "bearer"}
+def refresh(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGO])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token hết hạn, vui lòng đăng nhập lại")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Token không hợp lệ")
+
+    if payload.get("typ") != "refresh":
+        raise HTTPException(status_code=401, detail="Token cung cấp không phải là refresh token")
+
+    staff_id = payload.get("sub")
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, name, role, is_active, must_change_password, token_version FROM staff WHERE id=?", (staff_id,))
+    user = cur.fetchone()
+    db.close()
+    if not user or not user["is_active"]:
+        raise HTTPException(status_code=401, detail="Tài khoản không tồn tại hoặc bị khóa")
+    if (user["token_version"] or 0) != payload.get("tv", 0):
+        raise HTTPException(status_code=401, detail="Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại")
+
+    return {
+        "access_token": _make_token(user["id"], user["token_version"] or 0, hours=8, typ="access"),
+        "token_type": "bearer"
+    }
 
 
 @router.get("/me")
@@ -91,6 +113,8 @@ class ChangePasswordIn(BaseModel):
 
 @router.post("/change-password")
 def change_password(body: ChangePasswordIn, current: dict = Depends(get_current_user)):
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT password_hash FROM staff WHERE id=?", (current["id"],))
@@ -148,6 +172,8 @@ def login_log(current: dict = Depends(require_role("owner")), limit: int = 100):
 
 @router.post("/staff")
 def create_staff(body: StaffCreate, current: dict = Depends(require_role("owner"))):
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự")
     db = get_db(); cur = db.cursor()
     try:
         cur.execute(
@@ -184,6 +210,8 @@ def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(requi
 @router.post("/staff/{staff_id}/reset-password")
 def reset_staff_password(staff_id: int, body: ChangePasswordIn, current: dict = Depends(require_role("owner"))):
     """Owner reset mật khẩu bất kỳ nhân viên nào (không cần old_password)."""
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
     db = get_db(); cur = db.cursor()
     cur.execute("UPDATE staff SET password_hash=?, must_change_password=1, token_version=token_version+1 WHERE id=?", (pwd_ctx.hash(body.new_password), staff_id))
     db.commit(); db.close()

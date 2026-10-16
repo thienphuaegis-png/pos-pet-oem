@@ -153,7 +153,7 @@ def get_settings():
     return settings
 
 @router.post("/company")
-def update_company_settings(req: CompanySettingsUpdate):
+def update_company_settings(req: CompanySettingsUpdate, user=Depends(require_role("owner"))):
     conn = get_db()
     cur = conn.cursor()
     updates = [
@@ -182,7 +182,7 @@ def update_company_settings(req: CompanySettingsUpdate):
     return {"status": "ok"}
 
 @router.post("/template")
-def update_template_settings(req: TemplateSettingsUpdate):
+def update_template_settings(req: TemplateSettingsUpdate, user=Depends(require_role("owner"))):
     import json
     conn = get_db()
     cur = conn.cursor()
@@ -209,7 +209,7 @@ def update_template_settings(req: TemplateSettingsUpdate):
     return {"status": "ok"}
 
 @router.post("/print-bold-configs")
-def update_print_bold_configs(req: PrintBoldConfigsUpdate):
+def update_print_bold_configs(req: PrintBoldConfigsUpdate, user=Depends(require_role("owner"))):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("INSERT INTO settings (key, value) VALUES ('print_bold_configs', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (req.print_bold_configs, req.print_bold_configs))
@@ -279,8 +279,11 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
             # Che do 1: Xoa hoa don, khach hang, so quy, nhap hang, dich vu thu cung.
             # GIU LAI: Hang hoa (products, ingredients), bang gia (price_lists), cau hinh (settings), kho (warehouses)
             tables_to_clear = [
+                'order_payments', 'order_return_items', 'order_returns',
                 'order_items', 'orders',
                 'pet_service_tickets', 'pets',
+                'spa_wallet_transactions',
+                'hotel_bookings',
                 'cashbook',
                 'purchase_items', 'purchases',
                 'oem_order_items', 'oem_orders',
@@ -292,8 +295,8 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
             for t in tables_to_clear:
                 cur.execute(f"DELETE FROM {t}")
 
-            # Xoa contacts la Khach hang (type = 'CUSTOMER' hoac 'KHACH_HANG'), giu lai Nha Cung Cap
-            cur.execute("DELETE FROM contacts WHERE type IN ('CUSTOMER', 'KHACH_HANG')")
+            # Xoa contacts la Khach hang (type = 'customer' hoac 'khach_hang'), giu lai Nha Cung Cap
+            cur.execute("DELETE FROM contacts WHERE LOWER(type) IN ('customer', 'khach_hang')")
 
             # Reset so ton kho ve 0
             cur.execute("UPDATE inventory SET quantity = 0")
@@ -306,8 +309,11 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
             # Che do 2: Xoa toan bo du lieu, dua ve trang thai moi tinh (Factory Reset)
             # Giu lai: settings, staff (tai khoan admin), danh muc kho mac dinh
             all_data_tables = [
+                'order_payments', 'order_return_items', 'order_returns',
                 'order_items', 'orders',
                 'pet_service_tickets', 'pets', 'pet_service_pricing',
+                'spa_wallet_transactions',
+                'hotel_bookings',
                 'cashbook',
                 'purchase_items', 'purchases', 'supplier_items',
                 'oem_order_items', 'oem_orders',
@@ -338,7 +344,7 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
     return {"status": "ok", "message": msg, "backup_file": backup_filename}
 
 @router.post("/backup-drive-now")
-def trigger_google_drive_backup():
+def trigger_google_drive_backup(user=Depends(require_role("owner"))):
     """Kich hoat sao luu tuc thi len Google Drive qua Webhook"""
     from backup_service import backup_to_google_drive_webhook
     ok, message = backup_to_google_drive_webhook()
