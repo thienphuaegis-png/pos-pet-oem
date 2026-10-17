@@ -9,6 +9,11 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-17)
+- **Tối Ưu Bảng Đơn Hàng OEM Chuẩn Đẹp (`oem-expandable-table-and-factory-filter`):**
+  - Chuyển đổi bảng từ 12 cột cũ sang chuẩn 6 cột (Mã đơn, Đối tác & Kho, Tổng tiền, Đã thanh toán, Trạng thái, Thao tác).
+  - Tích hợp thanh tiến trình % cọc (Progress Bar) màu cam/xanh trực quan; nút chính `Nhận hàng` / `Xem phiếu` kèm menu 3 chấm `⋮` mở 4 chức năng: Chi tiết, In phiếu kiểm, Sửa, Xóa.
+  - Cơ chế dòng mở rộng (Expandable Row): Click dòng trượt mở Drawer hiển thị Người lập, Hạn giao, Sửa cuối, Bảng sản phẩm và Bảng đối chiếu vỏ chai/tem nhãn tại xưởng.
+  - Dropdown lọc nhà máy động `oem-filter-factory` có đếm số đơn từng xưởng, giải quyết dứt điểm tình trạng 10+ xưởng làm rối màn hình.
 - **Đồng Bộ Modal Xác Nhận & UI Toast Toàn Diện (`pos-unify-confirm-modal-and-ui-cleanup`):**
   - Nâng cấp `window.showConfirmModal`: Hỗ trợ phím ESC, chống click đúp (`disabled`), hiển thị ngắt dòng `whitespace-pre-line`.
   - Thay thế 100% `confirm()` / `alert()` thô trên toàn bộ mã nguồn (`app.js`, `marketplace.js`, `shifts.js`, `staff.js`, `pos.js`, `expense_requests.js`, `cashflow.js`, `spa.js`, `hotel.js`, `productions.js`).

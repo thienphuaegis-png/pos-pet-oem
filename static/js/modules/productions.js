@@ -8499,6 +8499,49 @@
             ]);
         }
 
+        function populateOEMFactoryFilter(orders) {
+            const sel = document.getElementById('oem-filter-factory');
+            if (!sel) return;
+            const currentVal = sel.value;
+            const factoryCounts = {};
+            (orders || []).forEach(o => {
+                const name = o.partner_name || 'Xưởng gia công';
+                factoryCounts[name] = (factoryCounts[name] || 0) + 1;
+            });
+            const names = Object.keys(factoryCounts).sort();
+            let html = `<option value="">Tất cả nhà máy (${names.length} xưởng)</option>`;
+            names.forEach(name => {
+                html += `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${factoryCounts[name]} đơn)</option>`;
+            });
+            sel.innerHTML = html;
+            if (currentVal && names.includes(currentVal)) {
+                sel.value = currentVal;
+            }
+        }
+
+        function filterOEMOrdersLocal() {
+            const query = (document.getElementById('oem-search-filter')?.value || '').trim().toLowerCase();
+            const factory = (document.getElementById('oem-filter-factory')?.value || '').trim().toLowerCase();
+
+            let filtered = allOEMOrders || [];
+            if (factory) {
+                filtered = filtered.filter(o => (o.partner_name || '').toLowerCase() === factory);
+            }
+            if (query) {
+                filtered = filtered.filter(o => {
+                    const code = (o.code || '').toLowerCase();
+                    const partner = (o.partner_name || '').toLowerCase();
+                    const wh = (o.oem_warehouse_name || '').toLowerCase();
+                    return code.includes(query) || partner.includes(query) || wh.includes(query);
+                });
+            }
+
+            renderOEMOrdersTable(filtered);
+            const elCount = document.getElementById('oem-order-count');
+            if (elCount) elCount.innerText = `${filtered.length} đơn`;
+        }
+        window.filterOEMOrdersLocal = filterOEMOrdersLocal;
+
         async function loadOEMOrders() {
             try {
                 const statusFilter = document.getElementById('oem-filter-status')?.value || '';
@@ -8507,7 +8550,8 @@
                 const res = await fetch(url);
                 if (!res.ok) return;
                 allOEMOrders = await res.json();
-                renderOEMOrdersTable();
+                populateOEMFactoryFilter(allOEMOrders);
+                filterOEMOrdersLocal();
                 updateOEMStats();
             } catch (err) {
                 console.error("Lỗi tải đơn OEM:", err);
@@ -8538,77 +8582,248 @@
             if (elCount) elCount.innerText = `${allOEMOrders.length} đơn`;
         }
 
-        function renderOEMOrdersTable() {
+        function closeAllOEMActionMenus() {
+            document.querySelectorAll('.oem-action-dropdown').forEach(m => m.classList.add('hidden'));
+        }
+        window.closeAllOEMActionMenus = closeAllOEMActionMenus;
+
+        function toggleOEMActionMenu(orderId, event) {
+            if (event) event.stopPropagation();
+            const targetMenu = document.getElementById(`oem-menu-${orderId}`);
+            document.querySelectorAll('.oem-action-dropdown').forEach(m => {
+                if (m !== targetMenu) m.classList.add('hidden');
+            });
+            if (targetMenu) targetMenu.classList.toggle('hidden');
+        }
+        window.toggleOEMActionMenu = toggleOEMActionMenu;
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.oem-action-dropdown') && !e.target.closest('[onclick^="toggleOEMActionMenu"]')) {
+                closeAllOEMActionMenus();
+            }
+        });
+
+        async function toggleOEMOrderExpand(orderId, event) {
+            const row = document.getElementById(`oem-exp-row-${orderId}`);
+            const icon = document.getElementById(`oem-exp-icon-${orderId}`);
+            const container = document.getElementById(`oem-exp-content-${orderId}`);
+            if (!row) return;
+
+            const isOpening = row.classList.contains('hidden');
+            if (isOpening) {
+                row.classList.remove('hidden');
+                if (icon) icon.classList.add('rotate-90');
+
+                try {
+                    const res = await fetch(`/api/oem/orders/${orderId}`);
+                    if (!res.ok) throw new Error('Không thể tải chi tiết');
+                    const ord = await res.json();
+
+                    const items = ord.items || [];
+                    const materials = ord.materials_needed || [];
+
+                    const metaHtml = `
+                        <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 text-xs text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <div>👤 Người Lập: <strong class="text-slate-800">${escapeHtml(ord.created_by || 'Quản lý')}</strong></div>
+                            <div class="text-slate-300">|</div>
+                            <div>📅 Hạn Giao: <strong class="text-slate-800">${ord.expected_delivery_date ? formatDate(ord.expected_delivery_date) : '---'}</strong> (±1 ngày)</div>
+                            <div class="text-slate-300">|</div>
+                            <div>🏢 Nguồn Tiền: <span class="font-bold ${ord.fund_source === 'COMPANY' ? 'text-teal-700' : 'text-purple-700'}">${ord.fund_source === 'COMPANY' ? 'Quỹ Công Ty (Bank Cty / VAT)' : 'Quỹ Cá Nhân'}</span></div>
+                            <div class="text-slate-300">|</div>
+                            <div>🕒 Sửa Cuối: <span class="text-slate-500">${ord.updated_by ? `${escapeHtml(ord.updated_by)} (${formatDateTime(ord.updated_at)})` : '---'}</span></div>
+                        </div>
+                    `;
+
+                    const itemsHtml = `
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                            <div class="font-bold text-slate-800 uppercase text-[10px] tracking-wider flex justify-between">
+                                <span>📦 Sản Phẩm Đặt Gia Công</span>
+                                <span class="text-teal-700 font-mono">${items.length} mặt hàng</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-[11px]">
+                                    <thead class="bg-slate-50 text-slate-500 border-b">
+                                        <tr>
+                                            <th class="p-1.5">Sản Phẩm</th>
+                                            <th class="p-1.5 text-right">SL Đặt</th>
+                                            <th class="p-1.5 text-right">SL Nhận</th>
+                                            <th class="p-1.5 text-right">Công Xưởng</th>
+                                            <th class="p-1.5 text-right">Thành Tiền</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 font-mono">
+                                        ${items.length === 0 ? '<tr><td colspan="5" class="p-2 text-center text-slate-400 font-sans italic">Không có sản phẩm nào</td></tr>' : items.map(it => `
+                                            <tr>
+                                                <td class="p-1.5 font-sans font-medium text-slate-800">${escapeHtml(it.product_name)}</td>
+                                                <td class="p-1.5 text-right font-bold text-teal-700">${it.ordered_qty} ${escapeHtml(it.product_unit || '')}</td>
+                                                <td class="p-1.5 text-right font-bold text-amber-700">${it.received_qty > 0 ? it.received_qty : '-'}</td>
+                                                <td class="p-1.5 text-right">${formatMoney(it.unit_price)}</td>
+                                                <td class="p-1.5 text-right font-bold text-slate-800">${formatMoney((it.ordered_qty || 0) * (it.unit_price || 0))}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    const materialsHtml = `
+                        <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-200 space-y-2">
+                            <div class="font-bold text-amber-900 uppercase text-[10px] tracking-wider flex justify-between">
+                                <span>🔍 Tồn Kho Tem / Vỏ Chai Tại Xưởng [${escapeHtml(ord.oem_warehouse_name || 'Xưởng')}]</span>
+                                <span class="text-slate-500 text-[10px]">Tự đối chiếu BOM</span>
+                            </div>
+                            <div class="bg-white rounded-lg border border-amber-200 overflow-hidden">
+                                <table class="w-full text-left text-[11px]">
+                                    <thead class="bg-amber-100/50 text-amber-900 border-b font-bold">
+                                        <tr>
+                                            <th class="p-1.5">Vật Tư</th>
+                                            <th class="p-1.5 text-right">Cần</th>
+                                            <th class="p-1.5 text-right">Tồn xưởng</th>
+                                            <th class="p-1.5 text-center">Tình Trạng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 font-mono">
+                                        ${materials.length === 0 ? '<tr><td colspan="4" class="p-2 text-center text-slate-400 font-sans italic">Sản phẩm chưa thiết lập BOM vật tư</td></tr>' : materials.map(mat => {
+                                            const isEnough = (mat.current_stock_at_oem || 0) >= (mat.needed_qty || 0);
+                                            const statusClass = isEnough ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50 font-bold';
+                                            const statusLabel = isEnough ? 'Đủ ✅' : `Thiếu ${Math.round((mat.needed_qty || 0) - (mat.current_stock_at_oem || 0))} ⚠️`;
+                                            return `
+                                                <tr>
+                                                    <td class="p-1.5 font-sans font-medium text-slate-800">${escapeHtml(mat.ingredient_name)}</td>
+                                                    <td class="p-1.5 text-right text-slate-700">${mat.needed_qty} ${escapeHtml(mat.ingredient_unit || '')}</td>
+                                                    <td class="p-1.5 text-right ${isEnough ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}">${mat.current_stock_at_oem || 0}</td>
+                                                    <td class="p-1.5 text-center font-sans"><span class="px-1.5 py-0.5 rounded text-[10px] ${statusClass}">${statusLabel}</span></td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    container.innerHTML = `
+                        ${metaHtml}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                            ${itemsHtml}
+                            ${materialsHtml}
+                        </div>
+                    `;
+                } catch (e) {
+                    container.innerHTML = `<div class="p-3 text-center text-rose-500 font-medium">Lỗi tải chi tiết: ${escapeHtml(e.message)}</div>`;
+                }
+            } else {
+                row.classList.add('hidden');
+                if (icon) icon.classList.remove('rotate-90');
+            }
+        }
+        window.toggleOEMOrderExpand = toggleOEMOrderExpand;
+
+        function renderOEMOrdersTable(ordersToRender) {
             const tbody = document.getElementById('table-oem-orders');
             if (!tbody) return;
-            if (allOEMOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-gray-400">Chưa có đơn đặt gia công OEM nào. Nhấn "+ Tạo Đơn Đặt Gia Công Mới" để bắt đầu!</td></tr>';
+            const orders = ordersToRender !== undefined ? ordersToRender : allOEMOrders;
+            if (!orders || orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-medium">Chưa có đơn đặt gia công OEM nào khớp điều kiện tìm kiếm.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = allOEMOrders.map(o => {
+            tbody.innerHTML = orders.map(o => {
                 let statusBadge = '';
                 if (o.status === 'DRAFT') {
-                    statusBadge = '<span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-bold text-[10px]">Nháp (Chưa cọc)</span>';
+                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
                 } else if (o.status === 'DEPOSITED') {
-                    statusBadge = '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold text-[10px]">Đã cọc 50% (Đang SX)</span>';
+                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Đang SX</span></span>';
                 } else if (o.status === 'RECEIVED') {
-                    statusBadge = '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold text-[10px]">✅ Đã nhận hàng</span>';
+                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhận Hàng</span></span>';
                 } else {
-                    statusBadge = `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[10px]">${o.status}</span>`;
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${o.status}</span>`;
                 }
 
-                const fundBadge = o.fund_source === 'COMPANY'
-                    ? '<span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[10px]">🏢 Cty</span>'
-                    : '<span class="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold text-[10px]">👤 Cá nhân</span>';
-
-                const canReceive = o.status === 'DRAFT' || o.status === 'DEPOSITED';
-
+                const fundText = o.fund_source === 'COMPANY' ? '🏢 Quỹ Cty (VAT)' : '👤 Quỹ Cá Nhân';
                 const totalAmt = o.total_final_amount || 0;
                 const depositAmt = o.deposit_amount || 0;
                 const remainingAmt = o.remaining_payment !== undefined && o.remaining_payment !== null ? o.remaining_payment : (totalAmt - depositAmt);
+                const pct = totalAmt > 0 ? Math.min(100, Math.max(0, Math.round((depositAmt / totalAmt) * 100))) : (depositAmt > 0 ? 100 : 0);
 
-                let dot1Html = '';
-                let dot2Html = '';
-
-                if (remainingAmt <= 0) {
-                    // Đã thanh toán đủ 100%
-                    dot1Html = `<span class="text-emerald-700 font-bold">${formatMoney(totalAmt)}</span><span class="text-[10px] text-emerald-600 block">Đủ 100%</span>`;
-                    dot2Html = `<span class="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold text-[11px] border border-emerald-200">✅ Đã xong (0 đ)</span>`;
-                } else if (depositAmt > 0) {
-                    // Đã cọc 1 phần, còn nợ đợt 2
-                    const pct = totalAmt > 0 ? Math.round((depositAmt / totalAmt) * 100) : 50;
-                    dot1Html = `<span class="text-emerald-700 font-bold">${formatMoney(depositAmt)}</span><span class="text-[10px] text-emerald-600 block">Đã cọc ${pct}%</span>`;
-                    dot2Html = `<span class="font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">${formatMoney(remainingAmt)}</span><span class="text-[10px] text-amber-600 block">Còn thiếu ${100 - pct}%</span>`;
+                let primaryActionBtn = '';
+                if (o.status === 'DRAFT' || o.status === 'DEPOSITED') {
+                    primaryActionBtn = `
+                        <button type="button" onclick="openModalReceiveOEM(${o.id})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-2xs transition" title="Nhận hàng thực tế từ xưởng & quyết toán">
+                            Nhận hàng
+                        </button>
+                    `;
                 } else {
-                    // Chưa thanh toán đợt nào
-                    dot1Html = `<span class="text-gray-400 font-mono">0 đ</span><span class="text-[10px] text-gray-400 block">Chưa cọc</span>`;
-                    dot2Html = `<span class="font-mono font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">${formatMoney(remainingAmt)}</span><span class="text-[10px] text-rose-600 block">Nợ 100%</span>`;
+                    primaryActionBtn = `
+                        <button type="button" onclick="viewOEMOrderDetail(${o.id})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 transition" title="Xem chi tiết phiếu đơn">
+                            Xem phiếu
+                        </button>
+                    `;
                 }
 
                 return `
-                    <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="p-2.5 font-mono font-bold text-amber-700">${o.code}</td>
-                        <td class="p-2.5 font-bold text-slate-800">${o.partner_name || 'Xưởng gia công'}</td>
-                        <td class="p-2.5 text-slate-600 font-medium">🏭 ${o.oem_warehouse_name || 'Kho xưởng'}</td>
-                        <td class="p-2.5 text-center font-mono text-slate-700">
-                            ${o.expected_delivery_date ? `<span title="Trừ hao ±1 ngày">${formatDate(o.expected_delivery_date)}</span>` : '<span class="text-gray-400">---</span>'}
+                    <tr onclick="toggleOEMOrderExpand(${o.id}, event)" class="hover:bg-slate-50/70 transition cursor-pointer border-b border-slate-100">
+                        <td class="p-3 font-mono font-bold text-amber-700 flex items-center gap-1.5">
+                            <span id="oem-exp-icon-${o.id}" class="text-slate-400 text-[10px] transform transition-transform duration-200">▶</span>
+                            <span>${escapeHtml(o.code)}</span>
                         </td>
-                        <td class="p-2.5 text-center">${fundBadge}</td>
-                        <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${o.created_by || 'Quản lý'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${o.updated_by ? `${o.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(o.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
-                        <td class="p-2.5 text-right font-mono font-bold text-slate-800">${formatMoney(o.total_final_amount)}</td>
-                        <td class="p-2.5 text-right font-mono">${dot1Html}</td>
-                        <td class="p-2.5 text-right font-mono">${dot2Html}</td>
-                        <td class="p-2.5 text-center">${statusBadge}</td>
-                        <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                            <button onclick="viewOEMOrderDetail(${o.id})" class="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 px-2 py-1 rounded font-bold" title="Xem chi tiết đơn và vật tư BOM">🔍 Chi tiết</button>
-                            <button onclick="printOEMInspectionSheet(${o.id})" class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded font-bold" title="In phiếu kiểm nhận hàng cầm tay cho thủ kho">🖨️ In Phiếu Kiểm</button>
-                            ${canReceive ? `
-                                <button onclick="openModalReceiveOEM(${o.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded font-bold shadow" title="Nhận hàng thực tế từ xưởng & trừ kho tem chai">📥 Nhận hàng</button>
-                            ` : ''}
-                            <button onclick="openModalEditOEM(${o.id})" class="text-xs bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded font-bold" title="Sửa đơn đặt gia công">✏️ Sửa</button>
-                            <button onclick="deleteOEMOrder(${o.id}, '${o.code}', '${o.status}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 px-2 py-1 rounded font-bold" title="Xóa đơn gia công & hoàn tác">🗑️ Xóa</button>
+                        <td class="p-3">
+                            <div class="font-bold text-slate-900">${escapeHtml(o.partner_name || 'Xưởng gia công')}</div>
+                            <div class="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <span>📦 ${escapeHtml(o.oem_warehouse_name || 'Kho xưởng')}</span>
+                            </div>
+                        </td>
+                        <td class="p-3 text-right">
+                            <div class="font-mono font-bold text-slate-900 text-xs">${formatMoney(totalAmt)}</div>
+                            <div class="text-[10px] text-slate-400 font-normal">${fundText}</div>
+                        </td>
+                        <td class="p-3 text-right">
+                            <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1 overflow-hidden">
+                                <div class="${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'} h-1.5 rounded-full" style="width: ${pct}%"></div>
+                            </div>
+                            <div class="font-mono text-[11px] font-semibold text-emerald-700">
+                                Cọc: ${formatMoney(depositAmt)} <span class="text-slate-400 font-normal">(${pct}%)</span>
+                            </div>
+                            <div class="font-mono text-[10px] ${remainingAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
+                                ${remainingAmt > 0 ? `Còn: ${formatMoney(remainingAmt)} (${100 - pct}%)` : '✅ Đã xong (0 đ)'}
+                            </div>
+                        </td>
+                        <td class="p-3 text-center">
+                            ${statusBadge}
+                        </td>
+                        <td class="p-3 text-center" onclick="event.stopPropagation()">
+                            <div class="flex items-center justify-center gap-1.5 relative">
+                                ${primaryActionBtn}
+                                <div class="relative">
+                                    <button type="button" onclick="toggleOEMActionMenu(${o.id}, event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
+                                        ⋮
+                                    </button>
+                                    <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
+                                        <div class="py-0.5">
+                                            <button type="button" onclick="closeAllOEMActionMenus(); viewOEMOrderDetail(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                                <span>ℹ️</span> <span>Chi tiết</span>
+                                            </button>
+                                            <button type="button" onclick="closeAllOEMActionMenus(); printOEMInspectionSheet(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-indigo-700">
+                                                <span>🖨️</span> <span>In phiếu kiểm</span>
+                                            </button>
+                                            <button type="button" onclick="closeAllOEMActionMenus(); openModalEditOEM(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-sky-700">
+                                                <span>✏️</span> <span>Sửa</span>
+                                            </button>
+                                        </div>
+                                        <div class="py-0.5">
+                                            <button type="button" onclick="closeAllOEMActionMenus(); deleteOEMOrder(${o.id}, '${escapeHtml(o.code)}', '${o.status}')" class="w-full px-3 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-600 font-bold">
+                                                <span>🗑️</span> <span>Xóa</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr id="oem-exp-row-${o.id}" class="hidden bg-slate-50/80 border-b border-slate-200">
+                        <td colspan="6" class="p-4 space-y-3" id="oem-exp-content-${o.id}">
+                            <div class="text-center py-2 text-slate-400">Đang tải chi tiết đơn hàng...</div>
                         </td>
                     </tr>
                 `;

@@ -1,15 +1,25 @@
 {
-  "version": "v3.6.4",
+  "version": "v3.6.5",
   "build_date": "2026.10.17",
-  "commit_hash": "6c34c8e",
+  "commit_hash": "3c921ca",
   "branch": "main",
   "release_title": "Bản Cập Nhật v3.6.2: Mẫu In Khổ Lớn & In Địa Chỉ Khách Hàng",
   "changelog": [
     {
+      "tag": "v3.6.5",
+      "date": "2026.10.17",
+      "title": "Bản phát hành v3.6.5 (2026.10.17)",
+      "is_new": true,
+      "items": [
+        "docs: update PROJECT_STATE.md and add CHECKPOINT_2026_10_17.md",
+        "feat(marketplace): add server-side pagination, independent accurate kpi, and unify confirm modals"
+      ]
+    },
+    {
       "tag": "v3.6.4",
       "date": "2026.10.17",
       "title": "Bản phát hành v3.6.4 (2026.10.17)",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "fix(ui): resolve gantt timezone shift, purge utc date remnants, and bump cache version",
         "fix(ui): unify table colspans, vn datetime handling, and currency formatting",

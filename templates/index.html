@@ -4348,48 +4348,58 @@
 
                             <!-- BẢNG DANH SÁCH ĐƠN GIA CÔNG OEM -->
                             <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
-                                <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-2 gap-2">
+                                <div class="flex flex-wrap justify-between items-center border-b border-slate-100 pb-2.5 gap-2.5">
                                     <div class="flex items-center gap-2">
-                                        <h3 class="font-bold text-slate-800 text-sm">Danh Sách Đơn Đặt Gia Công OEM</h3>
+                                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wide">Danh Sách Đơn Đặt Hàng</h3>
                                         <span id="oem-order-count" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">0 đơn</span>
+                                        <span class="text-xs text-slate-400 italic hidden sm:inline">(Thiết kế Dòng Mở Rộng - Expandable)</span>
                                     </div>
-                                    <div class="flex items-center gap-2 text-xs">
-                                        <span class="text-slate-500 font-medium">Lọc trạng thái:</span>
-                                        <select id="oem-filter-status" onchange="loadOEMOrders()" class="tui-input text-xs w-auto py-1 font-semibold">
-                                            <option value="">Tất cả trạng thái</option>
-                                            <option value="DRAFT">Nháp (Chưa cọc)</option>
-                                            <option value="DEPOSITED">Đã cọc 50% (Đang sản xuất)</option>
-                                            <option value="RECEIVED">Đã nhận hàng (Đã quyết toán)</option>
-                                        </select>
+                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                        <!-- Ô tìm kiếm nhanh đơn OEM -->
+                                        <div class="relative">
+                                            <span class="absolute left-2.5 top-2 text-slate-400">🔍</span>
+                                            <input type="text" id="oem-search-filter" oninput="filterOEMOrdersLocal()" placeholder="Mã đơn, xưởng, SP..." class="pl-8 pr-2.5 py-1 border border-slate-300 rounded-lg text-xs w-44 focus:w-56 focus:outline-none focus:border-teal-500 transition-all bg-white font-medium">
+                                        </div>
+                                        <!-- Lọc theo xưởng gia công (không bị rối khi có 10+ xưởng) -->
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-slate-500 font-medium hidden md:inline">Xưởng:</span>
+                                            <select id="oem-filter-factory" onchange="filterOEMOrdersLocal()" class="tui-input text-xs w-auto py-1 font-semibold bg-white border border-slate-300 rounded-lg">
+                                                <option value="">Tất cả nhà máy</option>
+                                            </select>
+                                        </div>
+                                        <!-- Lọc trạng thái -->
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-slate-500 font-medium hidden md:inline">Trạng thái:</span>
+                                            <select id="oem-filter-status" onchange="loadOEMOrders()" class="tui-input text-xs w-auto py-1 font-semibold bg-white border border-slate-300 rounded-lg">
+                                                <option value="">Tất cả trạng thái</option>
+                                                <option value="DRAFT">Nháp (Chưa cọc)</option>
+                                                <option value="DEPOSITED">Đang SX (Đã cọc 50%)</option>
+                                                <option value="RECEIVED">Đã nhận hàng</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
-                    <div class="overflow-x-auto w-full">
-                        <table class="w-full min-w-[1250px] text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-100 text-slate-700 font-bold border-b">
-                                    <th class="p-2.5">Mã Đơn</th>
-                                    <th class="p-2.5">Nhà Máy / NCC</th>
-                                    <th class="p-2.5">Kho NVL Xưởng</th>
-                                    <th class="p-2.5 text-center">Hẹn Giao (±1d)</th>
-                                    <th class="p-2.5 text-center">Nguồn Tiền</th>
-                                    <th class="p-2.5">Người Lập</th>
-                                    <th class="p-2.5">Sửa Cuối</th>
-                                    <th class="p-2.5 text-right">Tổng Tiền (Sau CK/VAT)</th>
-                                    <th class="p-2.5 text-right">Đã Cọc Đợt 1</th>
-                                    <th class="p-2.5 text-right">Còn Lại (Đợt 2)</th>
-                                    <th class="p-2.5 text-center">Trạng Thái</th>
-                                    <th class="p-2.5 text-center">Thao Tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-oem-orders">
-                                <tr>
-                                    <td colspan="12" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                <div class="overflow-x-auto w-full">
+                                    <table class="w-full text-left text-xs border-collapse">
+                                        <thead>
+                                            <tr class="bg-slate-50/80 text-slate-600 font-bold border-b text-[11px] uppercase">
+                                                <th class="p-3 w-44">Mã Đơn</th>
+                                                <th class="p-3">Đối Tác & Kho</th>
+                                                <th class="p-3 text-right w-36">Tổng Tiền</th>
+                                                <th class="p-3 text-right w-56">Đã Thanh Toán</th>
+                                                <th class="p-3 text-center w-32">Trạng Thái</th>
+                                                <th class="p-3 text-center w-36">Thao Tác Nhanh</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="table-oem-orders" class="divide-y divide-slate-100">
+                                            <tr>
+                                                <td colspan="6" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
             </div>
 
             <!-- MODAL: TẠO ĐƠN ĐẶT GIA CÔNG OEM MỚI -->

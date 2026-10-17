@@ -2,8 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 import database
 from server import app
+from tests.auth_helpers import owner_auth_headers
 
-client = TestClient(app)
+client = TestClient(app, headers=owner_auth_headers())
 
 @pytest.fixture(autouse=True)
 def setup_db():

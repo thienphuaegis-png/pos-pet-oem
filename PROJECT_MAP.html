@@ -658,10 +658,12 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-16)
-    const ROADMAP_VERSION = 'v6.5-2026-10-16-oem-batch-product-assign-and-smart-search';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-17)
+    const ROADMAP_VERSION = 'v6.6-2026-10-17-oem-expandable-table-and-action-menu';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-16)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-17)
+      { id: 'oem-expandable-table-and-factory-filter', cat: 'PROD', title: 'Tối Ưu Bảng Đơn Hàng OEM: Thiết Kế Dòng Mở Rộng 6 Cột (Expandable Row) & Dropdown Lọc Nhà Máy Thông Minh', done: true, note: 'Rút gọn từ 12 cột còn 6 cột chuẩn đẹp không cuộn ngang; thêm thanh tiến trình % cọc, menu thao tác 3 chấm ⋮ (Chi tiết, In phiếu kiểm, Sửa, Xóa); bấm vào dòng trượt mở rộng hiển thị người lập, hạn giao, mặt hàng và bảng đối soát vỏ chai/tem nhãn tại xưởng; dropdown lọc xưởng chống rối màn hình khi có 10+ nhà máy.' },
+      // 0.1 CẬP NHẬT (2026-10-16)
       { id: 'oem-batch-product-assign-unified-modal', cat: 'PROD', title: 'Tối Ưu Gán Sản Phẩm Nhà Máy OEM: Thay Thẻ Select HTML Thuần Bằng Modal Gán Hàng Loạt Chuẩn POS', done: true, note: 'Xóa bỏ thẻ select native đơn điệu, thay bằng modal gán hàng loạt có ô tìm kiếm fuzzy, lọc theo nhóm Hàng Hóa / Có BOM / Nguyên Liệu / Đã gán, checkbox chọn nhiều món 1 chạm; tích hợp nút gán trực tiếp từ bảng quản lý nhà máy gia công và tự động refresh đơn OEM.' },
       // 0.1 CẬP NHẬT (2026-10-15)
       { id: 'marketplace-pagination-and-accurate-kpi', cat: 'ECOMM', title: 'Tối Ưu Hiệu Năng Sàn TMĐT: Phân Trang Server-Side (Pagination) & Fix Thống Kê Số Lượng Đơn Hàng', done: true, note: 'Khi import hàng nghìn đơn Shopee/TikTok làm DOM quá tải và load chậm; chuyển sang phân trang server-side (page, limit 20/50/100, N+1 query batching); tách riêng API thống kê KPI tổng (SELECT COUNT(*), SUM(...) toàn bộ database thay vì chỉ đếm mảng 100 đơn trả về bị sai); tìm kiếm 0ms theo mã đơn/người mua/mã vận đơn.' },
