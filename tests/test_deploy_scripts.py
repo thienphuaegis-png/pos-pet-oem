@@ -38,6 +38,21 @@ def test_no_bare_winget():
                 f"{b}:{i} gọi winget trần, sẽ fail trên máy tiệm: {s}"
 
 
+def test_tailscale_installers_no_bare_winget():
+    """CAI_TAILSCALE.bat (gốc + deploy/) từng gọi winget trần → máy tiệm báo
+    'winget is not recognized'. Phải gọi full path và có đường tải MSI dự phòng."""
+    for path in (os.path.join(ROOT, "CAI_TAILSCALE.bat"), os.path.join(DEPLOY, "CAI_TAILSCALE.bat")):
+        with open(path, encoding="utf-8") as f:
+            src = f.read()
+        for i, line in enumerate(src.splitlines(), 1):
+            s = line.strip()
+            if s.startswith(("REM", "::", "echo")):
+                continue
+            assert not re.search(r'(?<!["\\])\bwinget\b(?!\.exe")', s) or "%WINGET%" in s \
+                or "WINGET=" in s or "winget.exe" in s, f"{path}:{i} gọi winget trần: {s}"
+        assert "tailscale-setup-latest-amd64.msi" in src, f"{path} thiếu đường tải MSI khi không có winget"
+
+
 def test_echo_lines_are_ascii():
     """Console Windows dùng cp437 — chữ có dấu in ra sẽ vỡ thành ký tự lạ."""
     for b in _existing_bats():

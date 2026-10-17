@@ -19,8 +19,14 @@ echo [1/5] Kiem tra Tailscale...
 if exist "%TS%" (
     echo    -^> Da cai san.
 ) else (
-    echo    -^> Chua co, dang cai qua winget...
-    winget install -e --id Tailscale.Tailscale --accept-source-agreements --accept-package-agreements
+    echo    -^> Chua co, dang cai...
+    REM winget tran khong co trong PATH phien admin / may Win10 cu -> goi full path, khong co thi tai MSI.
+    if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe" "%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe" install -e --id Tailscale.Tailscale --silent --accept-source-agreements --accept-package-agreements
+    if not exist "%TS%" (
+        echo    -^> Tai truc tiep tu tailscale.com, doi 1-2 phut...
+        powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi' -OutFile ($env:SystemRoot+'\Temp\tailscale.msi') -UseBasicParsing"
+        start "" /wait msiexec /i "%SystemRoot%\Temp\tailscale.msi" /qn /norestart
+    )
     if not exist "%TS%" (
         echo    LOI: Cai that bai. Tai tay tai https://tailscale.com/download/windows roi chay lai file nay.
         pause

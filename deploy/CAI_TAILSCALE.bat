@@ -19,19 +19,13 @@ pause
 REM Da cai roi thi khong cai lai
 if exist "%TS%" goto dangnhap
 
-if not exist "%WINGET%" (
-    echo [LOI] May nay khong co winget.
-    echo       Tai tay tai https://tailscale.com/download/windows
-    start "" "https://tailscale.com/download/windows"
-    pause & exit /b 1
-)
-
 echo Dang cai Tailscale...
-"%WINGET%" install -e --id tailscale.tailscale --accept-source-agreements --accept-package-agreements
-if %errorlevel% neq 0 (
-    echo [LOI] Cai that bai. Tai tay tai https://tailscale.com/download/windows
-    start "" "https://tailscale.com/download/windows"
-    pause & exit /b 1
+if exist "%WINGET%" "%WINGET%" install -e --id tailscale.tailscale --silent --accept-source-agreements --accept-package-agreements
+REM Win10 cu / LTSC khong co winget -> tai MSI truc tiep
+if not exist "%TS%" (
+    echo Tai truc tiep tu tailscale.com, doi 1-2 phut...
+    powershell -NoProfile -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest 'https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi' -OutFile ($env:SystemRoot+'\Temp\tailscale.msi') -UseBasicParsing"
+    start "" /wait msiexec /i "%SystemRoot%\Temp\tailscale.msi" /qn /norestart
 )
 
 if not exist "%TS%" (
