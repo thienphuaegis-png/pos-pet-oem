@@ -418,13 +418,6 @@ def init_db():
         for name, c_type, order in seed_cash_cats:
             cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type, sort_order) VALUES (?, ?, ?)", (name, c_type, order))
 
-    # Tự động nạp các category đã từng dùng trong cashbook vào cashbook_categories nếu chưa có
-    cur.execute("SELECT DISTINCT category, type FROM cashbook WHERE category IS NOT NULL AND category != ''")
-    for r in cur.fetchall():
-        c_name = r[0].strip()
-        c_t = 'in' if (r[1] or '').lower() in ('in', 'thu') else 'out'
-        cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES (?, ?)", (c_name, c_t))
-
     # 3.1. Module Cost: Nguyen lieu & Dich vu thanh phan (ingredients)
     cur.execute('''
     CREATE TABLE IF NOT EXISTS ingredients (
@@ -936,6 +929,14 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_contact_id ON cashbook(contact_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_created_at ON cashbook(created_at DESC)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_cashbook_ref ON cashbook(ref_type, ref_id)")
+
+    # Tự động nạp các category đã từng dùng trong cashbook vào cashbook_categories nếu chưa có
+    # (phải nằm SAU khi tạo bảng cashbook — DB trắng máy mới sẽ crash nếu đặt trước)
+    cur.execute("SELECT DISTINCT category, type FROM cashbook WHERE category IS NOT NULL AND category != ''")
+    for r in cur.fetchall():
+        c_name = r[0].strip()
+        c_t = 'in' if (r[1] or '').lower() in ('in', 'thu') else 'out'
+        cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES (?, ?)", (c_name, c_t))
 
     # 8b. Expense Requests - Quan ly khoan can chi & hoan ung nhan vien
     cur.execute('''
