@@ -1,63 +1,48 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-16 — Vá Lỗi Logic & Siết Bảo Mật (Settings, Trả Hàng, BOM, Điều Chỉnh Kho, Xóa Ví, Xóa Kho, Reset Data, JWT Typ)
+**Checkpoint:** 2026-10-17 — Đồng Bộ Modal Xác Nhận Chuẩn POS, Phân Trang Server-Side & Chuẩn Hóa KPI Sàn TMĐT
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Archive Log:** `docs/archive/STATE_2026_10.md` (phiên 2026-10-11), `docs/archive/STATE_2026_09.md`
+**Version:** `v3.6.4` — Exe: `POS_Mastercare.exe` (31.2 MB) khớp commit `6b9476c`
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-16)
-- **Chuẩn Hóa Gán Sản Phẩm Nhà Máy OEM (`purchases.js`, `productions.js`, `purchases.py`, `templates/index.html`):**
-  - Loại bỏ hoàn toàn modal cũ `modal-add-prod-to-factory` dùng `<select>` HTML native đơn chiếc, không tìm kiếm, không chọn nhiều món.
-  - Tái sử dụng modal chuẩn `modal-quick-assign-supplier`: tìm kiếm fuzzy, lọc theo nhóm Hàng Hóa / Có BOM / Nguyên Liệu / Đã Gán, checkbox chọn hàng loạt nhiều món 1 chạm.
-  - `routers/purchases.py`: Bổ sung `bom_count` vào `/api/suppliers/{id}/assignable-items` để hiển thị huy hiệu `BOM: Có` / `Chưa BOM` trực quan.
-  - Tích hợp nút `📦 X SP (Gán)` trực tiếp trên từng dòng nhà máy trong bảng quản lý xưởng (`modal-manage-oem-factories`).
-  - Thay thế `alert()` gây gián đoạn bằng `showToast()` êm ái tự tắt sau 3.2s; tự động refresh danh sách SP xưởng và dropdown đơn OEM.
-- **Vá 8 Lỗi Trọng Yếu Logic & Bảo Mật (`routers/`, `schemas.py`, `dependencies.py`):**
-  - `routers/settings.py`: Khóa `user=Depends(require_role("owner"))` cho `POST /company`, `/template`, `/print-bold-configs`, `/backup-drive-now`.
-  - `routers/pos.py`: Khóa `Depends(require_permission("pos.sell"))` cho `POST /api/pos/returns`, kiểm tra trần đơn giá trả `return_price <= max_return_price` (tự tính từ giá thực mua sau chiết khấu đơn gốc).
-  - `routers/bom.py`: `calculate_product_cost_internal` chỉ cập nhật `products.cost_price` khi có định lượng BOM hoặc phí OEM; tránh ghi đè giá vốn về 0 khi xem BOM sản phẩm thường.
-  - `schemas.py` & `routers/inventory.py`: Mở rộng `InventoryAdjust` hỗ trợ `quantity, mode, purchase_price, supplier_id, note`; gán `cur_inv` chuẩn trước tính toán diff tồn kho.
-  - `routers/topup.py`: `DELETE /transactions/{id}` chỉ cho xóa loại `topup`, kiểm tra số dư ví khách hàng trước khi hoàn tác để ngăn âm ví.
-  - `routers/inventory.py`: `DELETE /api/warehouses/{id}` chặn xóa kho 1 và kho còn hàng tồn (sản phẩm hoặc nguyên liệu).
-  - `routers/settings.py`: Sửa reset data sang `LOWER(type) IN ('customer', 'khach_hang')` để xóa sạch khách hàng thật; xóa các bảng phụ thuộc trước (`order_payments`, `order_returns`, `order_return_items`, `spa_wallet_transactions`, `hotel_bookings`).
-  - `dependencies.py` & `routers/auth.py`: Thêm claim `typ: "access"` và `typ: "refresh"`; `get_current_user` từ chối refresh token; `/api/auth/refresh` yêu cầu refresh token hợp lệ; ràng buộc mật khẩu mới tối thiểu 6 ký tự.
-- **Hạ Tầng Test Suite Tự Động (`tests/test_bugfixes_2026_10.py`):**
-  - Viết 8 test case kiểm tra hồi quy độc lập cho toàn bộ các lỗi trên, cách ly DB test an toàn.
+## 1. Phiên Hiện Tại ✅ (2026-10-17)
+- **Đồng Bộ Modal Xác Nhận & UI Toast Toàn Diện (`pos-unify-confirm-modal-and-ui-cleanup`):**
+  - Nâng cấp `window.showConfirmModal`: Hỗ trợ phím ESC, chống click đúp (`disabled`), hiển thị ngắt dòng `whitespace-pre-line`.
+  - Thay thế 100% `confirm()` / `alert()` thô trên toàn bộ mã nguồn (`app.js`, `marketplace.js`, `shifts.js`, `staff.js`, `pos.js`, `expense_requests.js`, `cashflow.js`, `spa.js`, `hotel.js`, `productions.js`).
+- **Phân Trang Server-Side & Chuẩn Hóa KPI Sàn TMĐT (`marketplace-pagination-and-accurate-kpi`):**
+  - `routers/marketplace.py`: Khử N+1 query bằng batch lookup chi tiết món; hỗ trợ `page`, `limit` (20/50/100) và tìm kiếm `q` (mã đơn, người mua, mã vận đơn).
+  - Tách API độc lập `GET /api/marketplace/orders-kpi` tính toán chính xác tổng đơn, doanh thu, phí, sản phẩm bán, tỷ lệ ánh xạ trên toàn bộ CSDL.
+  - `marketplace.js` & `templates/index.html`: Bổ sung thanh phân trang tiêu chuẩn và ô tìm kiếm 0ms cho cả Shopee và TikTok Shop.
+- **Đóng gói & Phân phối:**
+  - Bump phiên bản SemVer lên `v3.6.4` (`version.json`).
+  - Build lại sạch `POS_Mastercare.exe` (31.2 MB).
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- **Lưới an toàn Auth (`tests/test_api_requires_auth.py`):** 314/314 endpoint tự động kiểm tra từ OpenAPI schema trả đúng 401 khi ẩn danh.
-- **Test Hồi Quy Mới (`tests/test_bugfixes_2026_10.py`):** 8/8 passed.
-- **Toàn bộ Test Suite:** 631 passed, 10 skipped, 0 failed.
-- **Kiểm tra điều hướng trực tiếp (`tests/test_authed_downloads.py`):** 0 vi phạm trên toàn bộ mã nguồn JS và HTML.
+- **Test Hồi Quy Phân Trang & KPI (`tests/test_marketplace_pagination_and_kpi.py`):** 1/1 passed.
+- **Toàn bộ Test Suite:** 635 passed, 10 skipped, 0 failed.
+- **Kiểm tra tính toàn vẹn Checkpoint (`tests/test_checkpoint_integrity.py`):** 4/4 passed.
 
 ---
 
 ## 3. Files Thay Đổi Chính
 | Module / File | Trách nhiệm |
 |---|---|
-| `routers/settings.py` | Khóa owner cho POST company/template/backup; sửa reset data customer lowercase & xóa bảng phụ thuộc |
-| `routers/pos.py` | Kiểm tra trần return_price và phân quyền pos.sell cho trả hàng |
-| `routers/bom.py` | Không ghi đè giá vốn sản phẩm về 0 khi không có BOM |
-| `schemas.py` | Mở rộng InventoryAdjust schema |
-| `routers/inventory.py` | Sửa logic adjust_inventory và chặn xóa kho có tồn kho / kho 1 |
-| `routers/topup.py` | Chặn xóa giao dịch spend và kiểm tra số dư ví trước khi hoàn tác topup |
-| `dependencies.py` | Thêm kiểm tra JWT `typ == "access"` trong get_current_user |
-| `routers/auth.py` | Phát sinh token có `typ`, viết lại endpoint `/refresh` nhận refresh token, chặn password < 6 ký tự |
-| `tests/test_bugfixes_2026_10.py` | 8 test case hồi quy cho toàn bộ các lỗi trên |
-| `docs/BUGFIX_REQUEST_2026-10-12.md` | Cập nhật trạng thái FIXED cho toàn bộ các mục đã hoàn tất |
+| `routers/marketplace.py` | Phân trang server-side, khử N+1 query, API KPI độc lập |
+| `static/js/modules/marketplace.js` | Điều khiển phân trang, tìm kiếm 0ms và cập nhật KPI Shopee/TikTok |
+| `static/js/app.js` & các modules | Nâng cấp showConfirmModal, dọn dẹp confirm()/alert() |
+| `templates/index.html` | Thêm thanh phân trang và ô tìm kiếm đơn sàn Shopee/TikTok |
+| `tests/test_marketplace_pagination_and_kpi.py` | Test case phân trang, batch item loading và KPI sàn |
+| `version.json` & `POS_Mastercare.exe` | Bump v3.6.4 và rebuild bản chạy portable |
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-> **Plan chi tiết việc còn tồn:** `docs/plans/2026-10-16-remaining-bugfix-plan.md` (Phase A–F, re-check code 16/10; nghiệp vụ đổi/trả đã chốt; 1 câu chờ chốt: trả hàng khi đơn gốc còn nợ).
-- [x] Vá trần giá trả hàng loại trừ ship/ví (cả `create_order_return` lẫn `returnable-items`), validate `InventoryAdjust` (null/mode/âm, giữ 404), backup an toàn `safe_sqlite_copy` cho reset/clear. Test: 633 passed.
-- [x] Merge nhánh `fix/api-auth-lockdown` vào `main`.
-- [x] Rebuild exe `POS_Mastercare.exe` trước khi triển khai máy khách.
+- [ ] `ecomm-sync-shopee-tiktok`: Tự động trừ tồn kho POS & Ghi nhận Sổ Quỹ cho đơn sàn TMĐT (đã hoàn thành thiết kế Data Mapping & Brainstorming).
+- [ ] `verify-server-tailscale-and-toggle`: Nghiệm thu thực tế trên máy chủ tiệm (chạy `CAP_NHAT_1_CHAM.bat`, toggle module, kiểm tra Funnel 4G).
 - [ ] Thu hồi (`/revoke`) token bot Telegram cũ trên `@BotFather` và cấp lại token mới.
 - [ ] Cấp lại Gemini API key mới trên Google AI Studio.
-- [ ] Giai đoạn 2: Phân quyền chi tiết `require_permission` / `require_role("owner")` cho các hành động xóa hàng loạt và thay đổi thiết lập hệ thống.
