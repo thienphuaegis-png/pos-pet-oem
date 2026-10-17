@@ -54,7 +54,9 @@ if %errorlevel% neq 0 (
 
 REM --- 1/5 Tat server dang chay ---
 echo [1/5] Tam dung server...
-powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8999 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }; $c2 = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c2) { Stop-Process -Id $c2.OwningProcess -Force -ErrorAction SilentlyContinue }"
+powershell -NoProfile -Command ^
+  "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+  "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
 REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
 REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
 powershell -NoProfile -Command "Start-Sleep -Seconds 3"
@@ -82,7 +84,7 @@ set "BACKUP=data\backups\pos_truoc_capnhat_!STAMP!.db"
 if !errorlevel! neq 0 (
     echo [LOI] Sao luu that bai - DUNG LAI, khong cap nhat.
     call :write_status FAILED_BACKUP "Sao luu DB that bai"
-    start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+    start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
     %PAUSE% & exit /b 1
 )
 echo       Da luu: !BACKUP!
@@ -95,12 +97,12 @@ REM   deploy\id_pos_shop = SSH deploy key mac dinh
 REM   deploy\khoa_tiem   = SSH deploy key bo sung (USB)
 REM   deploy\khoa_tiem.txt = token HTTPS (cai bang file moi tu Zalo)
 REM ssh nuot dau \ nen phai doi sang / truoc khi dua vao GIT_SSH_COMMAND.
-set "SSHKEY="
-if exist "%ROOT%\deploy\id_pos_shop" set "SSHKEY=%ROOT%\deploy\id_pos_shop"
-if exist "%ROOT%\deploy\khoa_tiem" set "SSHKEY=%ROOT%\deploy\khoa_tiem"
+set "KEYPATH="
+if exist "%ROOT%\deploy\id_pos_shop" set "KEYPATH=%ROOT%\deploy\id_pos_shop"
+if exist "%ROOT%\deploy\khoa_tiem" set "KEYPATH=%ROOT%\deploy\khoa_tiem"
 
-if defined SSHKEY (
-    set "KEYPATH=!SSHKEY:\=/!"
+if defined KEYPATH (
+    set "KEYPATH=!KEYPATH:\=/!"
     set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 )
 
@@ -134,7 +136,7 @@ if !RC! neq 0 (
     echo       Hay goi cho nguoi quan tri he thong.
     echo.
     echo       Dang khoi dong lai ban cu...
-    start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+    start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
     call :write_status FAILED_PULL "Khong tai duoc ban cap nhat"
     %PAUSE% & exit /b 1
 )
@@ -142,7 +144,7 @@ echo       OK
 for /f %%h in ('"%GIT%" rev-parse HEAD') do set "NEW=%%h"
 if "!NEW!"=="!OLD!" (
     echo       Da la ban moi nhat.
-    start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+    start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
     call :write_status NO_CHANGE "Khong co ban moi"
     %PAUSE% & exit /b 0
 )
@@ -165,12 +167,12 @@ echo       OK
 
 REM --- 5/5 Chay lai va kiem tra thuc su len ---
 echo [5/5] Khoi dong lai...
-start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 
-REM Cho server len, toi da 45 giay.
+REM Cho server len, toi da 30 giay.
 set "READY="
 powershell -NoProfile -Command ^
-  "for ($i=0; $i -lt 45; $i++) {" ^
+  "for ($i=0; $i -lt 30; $i++) {" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8998/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
@@ -179,7 +181,15 @@ powershell -NoProfile -Command ^
 if %errorlevel% equ 0 set "READY=1"
 
 if not defined READY (
-    set "REASON=Server ban moi khong khoi dong duoc"
+    set "ERR_DETAIL="
+    if exist "pos_debug.log" (
+        for /f "delims=" %%l in ('powershell -NoProfile -Command "Get-Content pos_debug.log -Tail 15 -ErrorAction SilentlyContinue | Out-String"') do set "ERR_DETAIL=%%l"
+    )
+    if defined ERR_DETAIL (
+        set "REASON=Server khoi dong loi: !ERR_DETAIL!"
+    ) else (
+        set "REASON=Server ban moi khong khoi dong duoc"
+    )
     goto rollback
 )
 call :write_status OK "Cap nhat thanh cong"
@@ -194,12 +204,15 @@ exit /b 0
 :rollback
 echo.
 echo [ROLLBACK] !REASON! - dang quay ve ban cu !OLD!...
-powershell -NoProfile -Command "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }; Start-Sleep -Seconds 3"
+powershell -NoProfile -Command ^
+  "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+  "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } };" ^
+  "Start-Sleep -Seconds 3"
 "%GIT%" reset --hard !OLD!
 del /q "data\pos.db-wal" "data\pos.db-shm" >nul 2>&1
 "%VPY%" -c "import sqlite3; s=sqlite3.connect(r'!BACKUP!'); d=sqlite3.connect(r'data\pos.db'); s.backup(d); d.close(); s.close()"
 "%VPY%" -m pip install -r requirements.txt -q
-start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 powershell -NoProfile -Command "for ($i=0; $i -lt 45; $i++) { foreach ($p in 8998,8999) { try { $r = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $p + '/api/ping') -TimeoutSec 2 -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } } catch {} }; Start-Sleep -Seconds 1 }; exit 1"
 if !errorlevel! equ 0 (
     call :write_status ROLLED_BACK "!REASON! - da quay ve ban cu"
