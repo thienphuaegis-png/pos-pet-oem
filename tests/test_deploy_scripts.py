@@ -98,14 +98,49 @@ def test_installer_asks_no_questions():
 
 
 def test_update_backs_up_before_pull():
-    if not os.path.exists(os.path.join(DEPLOY, "CAP_NHAT.bat")):
-        return
     src = _read("CAP_NHAT.bat")
-    i_backup = src.lower().find("copy ")
+    i_backup = src.find(".backup(")
     i_pull = src.find("pull --ff-only")
-    assert i_backup != -1, "CAP_NHAT.bat không có bước sao lưu DB"
+    assert i_backup != -1, "CAP_NHAT.bat phải backup bằng sqlite3 backup API (an toàn với WAL)"
     assert i_pull != -1, "CAP_NHAT.bat không có bước pull"
     assert i_backup < i_pull, "Sao lưu PHẢI nằm trước pull"
+
+
+def test_update_stops_server_before_backup():
+    """copy pos.db khi server đang chạy chế độ WAL → bản sao thiếu giao dịch gần nhất."""
+    src = _read("CAP_NHAT.bat")
+    i_stop = src.find("Stop-Process")
+    i_backup = src.find(".backup(")
+    assert -1 < i_stop < i_backup, "Phải tắt server TRƯỚC khi backup DB"
+
+
+def test_update_auto_mode_never_pauses():
+    """Chạy từ nút web (/auto) không có ai bấm phím — `pause` trần làm treo vĩnh viễn."""
+    src = _read("CAP_NHAT.bat")
+    assert '"%~1"=="/auto"' in src, "CAP_NHAT.bat phải nhận tham số /auto"
+    for i, line in enumerate(src.splitlines(), 1):
+        s = line.strip().lower()
+        if s.startswith(("rem", "::", "echo")):
+            continue
+        assert not re.search(r"(^|&|\()\s*pause\b", s), \
+            f"CAP_NHAT.bat:{i} dùng pause trần — đổi thành %PAUSE%: {line.strip()}"
+
+
+def test_update_rolls_back_on_failure():
+    """Bản mới hỏng (init_db lỗi / server không lên) → quay về commit cũ + DB cũ.
+    Thiếu cái này, anh cập nhật từ xa mà bản mới crash là mất luôn đường vào."""
+    src = _read("CAP_NHAT.bat")
+    assert "rev-parse HEAD" in src, "Phải nhớ commit cũ TRƯỚC khi pull"
+    assert "reset --hard !OLD!" in src, "Rollback phải về đúng commit cũ"
+    rb = src[src.find(":rollback"):]
+    assert ":rollback" in src and ".backup(" in rb, "Rollback phải khôi phục DB từ bản backup"
+    assert "pos.db-wal" in rb, "Phải xóa pos.db-wal cũ trước khi khôi phục DB"
+    i_init = src.find("database.init_db()")
+    i_ping = src.find("/api/ping", i_init)
+    assert "goto rollback" in src[i_init:i_init + 400], "init_db lỗi phải rollback"
+    assert "goto rollback" in src[i_ping:i_ping + 900], "Server không lên phải rollback"
+    for r in ("ROLLED_BACK", "ROLLBACK_FAILED", "FAILED_PULL", "NO_CHANGE"):
+        assert r in src, f"Thiếu trạng thái {r}"
 
 
 def test_update_aborts_on_pull_failure():

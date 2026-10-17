@@ -5,11 +5,11 @@ setlocal EnableDelayedExpansion
 cd /d "%~dp0.."
 set "ROOT=%CD%"
 
-REM ============================================================
-REM  Thu tu BAT BUOC: sao luu DB -> tat server -> pull -> cai
-REM  thu vien -> nang schema -> chay lai.
-REM  Pull loi thi DUNG NGAY, khoi dong lai ban cu, khong lam gi them.
-REM ============================================================
+REM /auto = chay tu nut web: khong pause, ghi ket qua ra logs\update_status.txt
+set "PAUSE=pause"
+if /i "%~1"=="/auto" set "PAUSE=rem"
+if not exist "logs" mkdir "logs"
+set "OLD=" & set "NEW=" & set "BACKUP="
 
 echo ==================================================
 echo   CAP NHAT POS PET OEM
@@ -19,7 +19,8 @@ echo.
 REM --- 0/5 Kiem tra moi truong ---
 if not exist ".venv\Scripts\python.exe" (
     echo [LOI] Chua cai dat. Hay chay deploy\CAI_DAT_MAY_CHU.bat truoc.
-    pause & exit /b 1
+    call :write_status FAILED_PRECHECK "Chua cai dat venv"
+    %PAUSE% & exit /b 1
 )
 set "VPY=%ROOT%\.venv\Scripts\python.exe"
 
@@ -39,21 +40,32 @@ if not defined GIT (
 if not defined GIT (
     echo [LOI] Khong tim thay Git tren may nay - khong the cap nhat.
     echo       Hay goi cho nguoi quan tri he thong.
-    pause & exit /b 1
+    call :write_status FAILED_PRECHECK "Khong tim thay Git"
+    %PAUSE% & exit /b 1
 )
 
 "%GIT%" rev-parse --is-inside-work-tree >nul 2>&1
 if %errorlevel% neq 0 (
     echo [LOI] Thu muc nay khong phai ban sao tu GitHub, khong the cap nhat.
     echo       Hay goi cho nguoi quan tri he thong.
-    pause & exit /b 1
+    call :write_status FAILED_PRECHECK "Khong phai git repo"
+    %PAUSE% & exit /b 1
 )
 
-REM --- 1/5 Sao luu du lieu TRUOC KHI lam bat cu dieu gi ---
-echo [1/5] Sao luu du lieu...
+REM --- 1/5 Tat server dang chay ---
+echo [1/5] Tam dung server...
+powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8999 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }; $c2 = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c2) { Stop-Process -Id $c2.OwningProcess -Force -ErrorAction SilentlyContinue }"
+REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
+REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
+powershell -NoProfile -Command "Start-Sleep -Seconds 3"
+echo       OK
+
+REM --- 2/5 Sao luu du lieu ---
+echo [2/5] Sao luu du lieu...
 if not exist "data\pos.db" (
     echo [LOI] Khong tim thay data\pos.db - khong cap nhat de an toan.
-    pause & exit /b 1
+    call :write_status FAILED_PRECHECK "Khong tim thay data\pos.db"
+    %PAUSE% & exit /b 1
 )
 if not exist "data\backups" mkdir "data\backups"
 
@@ -66,29 +78,18 @@ if not defined dt (
 )
 set "BACKUP=data\backups\pos_truoc_capnhat_!STAMP!.db"
 
-copy /y "data\pos.db" "!BACKUP!" >nul
+"%VPY%" -c "import sqlite3,sys; s=sqlite3.connect(r'data\pos.db'); d=sqlite3.connect(r'!BACKUP!'); s.backup(d); n=d.execute('select count(*) from sqlite_master where type=\"table\"').fetchone()[0]; d.close(); s.close(); sys.exit(0 if n>5 else 1)"
 if !errorlevel! neq 0 (
     echo [LOI] Sao luu that bai - DUNG LAI, khong cap nhat.
-    pause & exit /b 1
-)
-REM Xac nhan ban sao doc duoc va co du bang (khong phai file rong)
-"%VPY%" -c "import sqlite3,sys; c=sqlite3.connect(r'!BACKUP!'); n=c.execute('select count(*) from sqlite_master where type=\"table\"').fetchone()[0]; sys.exit(0 if n>5 else 1)"
-if !errorlevel! neq 0 (
-    echo [LOI] Ban sao luu bi loi - DUNG LAI, khong cap nhat.
-    pause & exit /b 1
+    call :write_status FAILED_BACKUP "Sao luu DB that bai"
+    start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+    %PAUSE% & exit /b 1
 )
 echo       Da luu: !BACKUP!
 
-REM --- 2/5 Tat server dang chay ---
-echo [2/5] Tam dung server...
-powershell -NoProfile -Command "$c = Get-NetTCPConnection -LocalPort 8999 -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }; $c2 = Get-NetTCPConnection -LocalPort 8998 -State Listen -ErrorAction SilentlyContinue; if ($c2) { Stop-Process -Id $c2.OwningProcess -Force -ErrorAction SilentlyContinue }"
-REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
-REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
-powershell -NoProfile -Command "Start-Sleep -Seconds 3"
-echo       OK
-
 REM --- 3/5 Tai code moi ---
 echo [3/5] Tai ban cap nhat tu GitHub...
+for /f %%h in ('"%GIT%" rev-parse HEAD') do set "OLD=%%h"
 REM Chon cach xac thuc theo thu co san tren may tiem:
 REM   khoa_tiem     = SSH deploy key (cai bang USB)
 REM   khoa_tiem.txt = token HTTPS (cai bang file moi tu Zalo)
@@ -127,9 +128,17 @@ if !RC! neq 0 (
     echo.
     echo       Dang khoi dong lai ban cu...
     start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
-    pause & exit /b 1
+    call :write_status FAILED_PULL "Khong tai duoc ban cap nhat"
+    %PAUSE% & exit /b 1
 )
 echo       OK
+for /f %%h in ('"%GIT%" rev-parse HEAD') do set "NEW=%%h"
+if "!NEW!"=="!OLD!" (
+    echo       Da la ban moi nhat.
+    start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+    call :write_status NO_CHANGE "Khong co ban moi"
+    %PAUSE% & exit /b 0
+)
 
 REM --- 4/5 Cai thu vien moi + nang cap co so du lieu ---
 echo [4/5] Cap nhat thu vien va co so du lieu...
@@ -139,11 +148,8 @@ if !errorlevel! neq 0 (
 )
 "%VPY%" -c "import database; database.init_db()"
 if !errorlevel! neq 0 (
-    echo.
-    echo [LOI] Nang cap co so du lieu that bai.
-    echo       Ban sao luu truoc cap nhat o: !BACKUP!
-    echo       Hay goi cho nguoi quan tri he thong - DUNG tu sua.
-    pause & exit /b 1
+    set "REASON=Nang cap co so du lieu that bai"
+    goto rollback
 )
 if exist "scripts\deduplicate_contacts.py" (
     "%VPY%" scripts\deduplicate_contacts.py
@@ -154,11 +160,10 @@ REM --- 5/5 Chay lai va kiem tra thuc su len ---
 echo [5/5] Khoi dong lai...
 start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 
-REM Cho server len, toi da 15 giay. Gom ca vong lap vao 1 lan goi PowerShell
-REM cho nhanh va tranh phu thuoc "timeout" (Git Bash / stdin redirect).
+REM Cho server len, toi da 45 giay.
 set "READY="
 powershell -NoProfile -Command ^
-  "for ($i=0; $i -lt 15; $i++) {" ^
+  "for ($i=0; $i -lt 45; $i++) {" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8998/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
@@ -166,16 +171,47 @@ powershell -NoProfile -Command ^
   "  Start-Sleep -Seconds 1 }; exit 1"
 if %errorlevel% equ 0 set "READY=1"
 
+if not defined READY (
+    set "REASON=Server ban moi khong khoi dong duoc"
+    goto rollback
+)
+call :write_status OK "Cap nhat thanh cong"
 echo.
 echo ==================================================
-if defined READY (
-    echo   CAP NHAT XONG - SERVER DANG CHAY
-    echo   Du lieu giu nguyen. Bam icon "POS PET OEM" de tiep tuc.
-) else (
-    echo   CAP NHAT XONG nhung SERVER CHUA LEN
-    echo   Thu bam shortcut "KHOI DONG POS" tren Desktop.
-    echo   Neu van khong duoc, goi nguoi quan tri he thong.
-    echo   Ban sao luu o: !BACKUP!
-)
+echo   CAP NHAT XONG - SERVER DANG CHAY
+echo   Du lieu giu nguyen. Bam icon "POS PET OEM" de tiep tuc.
 echo ==================================================
-pause
+%PAUSE%
+exit /b 0
+
+:rollback
+echo.
+echo [ROLLBACK] !REASON! - dang quay ve ban cu !OLD!...
+powershell -NoProfile -Command "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }; Start-Sleep -Seconds 3"
+"%GIT%" reset --hard !OLD!
+del /q "data\pos.db-wal" "data\pos.db-shm" >nul 2>&1
+"%VPY%" -c "import sqlite3; s=sqlite3.connect(r'!BACKUP!'); d=sqlite3.connect(r'data\pos.db'); s.backup(d); d.close(); s.close()"
+"%VPY%" -m pip install -r requirements.txt -q
+start "" wscript.exe "%ROOT%\deploy\start_server.vbs"
+powershell -NoProfile -Command "for ($i=0; $i -lt 45; $i++) { foreach ($p in 8998,8999) { try { $r = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $p + '/api/ping') -TimeoutSec 2 -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } } catch {} }; Start-Sleep -Seconds 1 }; exit 1"
+if !errorlevel! equ 0 (
+    call :write_status ROLLED_BACK "!REASON! - da quay ve ban cu"
+    echo   DA QUAY VE BAN CU - du lieu giu nguyen.
+) else (
+    call :write_status ROLLBACK_FAILED "!REASON! - ban cu cung khong len, can truy cap may qua Tailscale"
+    echo   [LOI] Ban cu cung khong len. Goi nguoi quan tri.
+)
+%PAUSE%
+exit /b 1
+
+:write_status
+(
+    echo result=%~1
+    echo message=%~2
+    echo old=!OLD!
+    echo new=!NEW!
+    echo backup=!BACKUP!
+    echo at=!STAMP!
+) > "%ROOT%\logs\update_status.txt"
+del "%ROOT%\logs\update.lock" >nul 2>&1
+exit /b 0
