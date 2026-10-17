@@ -9,6 +9,11 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-17)
+- **Chuẩn Hóa Bảng Đơn Nhập Hàng & Đơn OEM 6 Cột — 1-Click Mở Thẳng Modal Chi Tiết (`purchases-and-oem-6col-click-to-detail`):**
+  - Đơn Nhập Hàng NCC (Purchases): Rút gọn từ 12 cột còn 6 cột chuẩn không cuộn ngang; tích hợp thanh tiến trình thanh toán (Progress bar) % đã trả / còn nợ / mã phiếu chi Sổ Quỹ.
+  - Xóa bỏ triệt để nút `💳 Chi Trả` trên từng dòng bảng nhập hàng để tránh vỡ giao diện và rối loạn nghiệp vụ chi nợ (thanh toán qua Sổ Quỹ hoặc phân hệ công nợ).
+  - Tối ưu tương tác cả OEM và Nhập Hàng: Click trực tiếp vào dòng mở ngay Modal xem chi tiết phiếu đầy đủ thay vì trượt dòng mở rộng (Drawer) cồng kềnh; cột thao tác gồm 1 nút chính nổi bật (`Nhận Hàng` / `In Phiếu` / `Xem Phiếu`) + nút menu `⋮` 3 chấm đổ xuống.
+  - Dropdown lọc thông minh: Thêm `filter-po-supplier` tự động gom danh sách NCC và đếm số đơn từng đối tác.
 - **Tối Ưu Bảng Đơn Hàng OEM Chuẩn Đẹp (`oem-expandable-table-and-factory-filter`):**
   - Chuyển đổi bảng từ 12 cột cũ sang chuẩn 6 cột (Mã đơn, Đối tác & Kho, Tổng tiền, Đã thanh toán, Trạng thái, Thao tác).
   - Tích hợp thanh tiến trình % cọc (Progress Bar) màu cam/xanh trực quan; nút chính `Nhận hàng` / `Xem phiếu` kèm menu 3 chấm `⋮` mở 4 chức năng: Chi tiết, In phiếu kiểm, Sửa, Xóa.

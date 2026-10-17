@@ -917,6 +917,47 @@
             }
         }
 
+        function closeAllPurchaseActionMenus() {
+            document.querySelectorAll('.po-action-dropdown').forEach(m => m.classList.add('hidden'));
+        }
+        window.closeAllPurchaseActionMenus = closeAllPurchaseActionMenus;
+
+        function togglePurchaseActionMenu(code, event) {
+            if (event) event.stopPropagation();
+            const targetMenu = document.getElementById(`po-menu-${code}`);
+            document.querySelectorAll('.po-action-dropdown').forEach(m => {
+                if (m !== targetMenu) m.classList.add('hidden');
+            });
+            if (targetMenu) targetMenu.classList.toggle('hidden');
+        }
+        window.togglePurchaseActionMenu = togglePurchaseActionMenu;
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.po-action-dropdown') && !e.target.closest('[onclick^="togglePurchaseActionMenu"]')) {
+                closeAllPurchaseActionMenus();
+            }
+        });
+
+        function populatePurchaseSupplierFilter(purchases) {
+            const sel = document.getElementById('filter-po-supplier');
+            if (!sel) return;
+            const currentVal = sel.value;
+            const supplierCounts = {};
+            (purchases || []).forEach(p => {
+                const name = p.supplier_name || 'NCC Mặc định';
+                supplierCounts[name] = (supplierCounts[name] || 0) + 1;
+            });
+            const names = Object.keys(supplierCounts).sort();
+            let html = `<option value="">Tất cả NCC (${names.length} đối tác)</option>`;
+            names.forEach(name => {
+                html += `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${supplierCounts[name]} đơn)</option>`;
+            });
+            sel.innerHTML = html;
+            if (currentVal && names.includes(currentVal)) {
+                sel.value = currentVal;
+            }
+        }
+
         async function loadPurchasesList() {
             try {
                 const tbody = document.getElementById('table-purchases-history');
@@ -937,7 +978,10 @@
                 }).catch(e => console.warn('Lỗi tải KPI purchases:', e));
 
                 const res = await fetch('/api/purchases');
-                let list = await res.json();
+                let rawList = await res.json();
+                populatePurchaseSupplierFilter(rawList);
+
+                let list = rawList;
                 if (!tbody) return;
 
                 // Lọc theo trạng thái
@@ -951,6 +995,12 @@
                     list = list.filter(p => (p.fund_source || 'PERSONAL') === fundFilter);
                 }
 
+                // Lọc theo nhà cung cấp
+                const supplierFilter = document.getElementById('filter-po-supplier') ? document.getElementById('filter-po-supplier').value : '';
+                if (supplierFilter) {
+                    list = list.filter(p => (p.supplier_name || 'NCC Mặc định') === supplierFilter);
+                }
+
                 // Lọc tìm kiếm
                 const kw = (document.getElementById('search-po-input')?.value || '').trim();
                 if (kw) {
@@ -960,66 +1010,119 @@
                     });
                 }
 
+                const elCount = document.getElementById('purchase-order-count');
+                if (elCount) elCount.innerText = `${list.length} đơn`;
+
                 if (list.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400">Không tìm thấy phiếu nhập hàng nào phù hợp</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-medium">Không tìm thấy phiếu nhập hàng nào phù hợp</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = list.map((p, idx) => {
-                    const statusBadge = p.status === 'received' 
-                        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đã Nhập Kho</span>' 
-                        : (p.status === 'cancelled'
-                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">❌ Đã Hủy</span>'
-                            : (p.status === 'draft'
-                                ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">📝 Bản Nháp</span>'
-                                : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ Chờ Nhận</span>'));
+                    let statusBadge = '';
+                    if (p.status === 'received') {
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhập Kho</span></span>';
+                    } else if (p.status === 'cancelled') {
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200"><span>❌</span><span>Đã Hủy</span></span>';
+                    } else if (p.status === 'draft') {
+                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
+                    } else {
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Chờ Nhận</span></span>';
+                    }
 
                     const isCompany = (p.fund_source || 'PERSONAL') === 'COMPANY' || (p.vat_rate > 0);
-                    const fundBadge = isCompany
-                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">🏢 Quỹ Cty</span>'
-                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">👤 Cá Nhân</span>';
+                    const fundText = isCompany ? '🏢 Quỹ Cty (VAT)' : '👤 Quỹ Cá Nhân';
+
+                    const totalAmt = p.total_amount || 0;
+                    const paidAmt = p.paid_amount || 0;
+                    const debtAmt = p.debt_amount !== undefined && p.debt_amount !== null ? p.debt_amount : Math.max(0, totalAmt - paidAmt);
+                    const pct = totalAmt > 0 ? Math.min(100, Math.max(0, Math.round((paidAmt / totalAmt) * 100))) : (paidAmt > 0 ? 100 : 0);
 
                     const cashbookBadge = p.cashbook_code 
-                        ? `<button type="button" onclick="viewPurchaseCashbook('${p.cashbook_code}')" class="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded transition mt-0.5" title="Bấm để xem phiếu chi trong Sổ Quỹ"><span>📄</span><span>${p.cashbook_code}</span></button>` 
-                        : (p.paid_amount > 0 ? '' : '<span class="text-[10px] text-slate-400 block mt-0.5">Chưa chi</span>');
-
-                    const payDebtBtn = (p.debt_amount > 0 && p.status !== 'cancelled')
-                        ? `<button type="button" onclick="openPayPurchaseModal('${p.code}', ${p.debt_amount}, '${p.fund_source || 'PERSONAL'}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow-xs flex items-center gap-1" title="Lập phiếu chi thanh toán nợ"><span>💳</span><span>Chi Trả</span></button>`
+                        ? `<button type="button" onclick="event.stopPropagation(); viewPurchaseCashbook('${escapeHtml(p.cashbook_code)}')" class="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded transition mt-0.5" title="Bấm để xem phiếu chi trong Sổ Quỹ"><span>📄</span><span>${escapeHtml(p.cashbook_code)}</span></button>` 
                         : '';
 
-                    const actionButtons = (p.status === 'pending' || p.status === 'draft')
-                        ? `
-                        ${payDebtBtn}
-                        <button onclick="openEditPurchaseModal('${p.code}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Chỉnh sửa số lượng, mặt hàng hoặc thông tin đơn">✏️ Sửa Đơn</button>
-                        <button onclick="openWithAuth('/api/purchases/${p.code}/print-checklist')" class="bg-sky-50 text-sky-700 hover:bg-sky-100 font-bold px-2 py-1 rounded text-[11px] border border-sky-200" title="In phiếu kiểm tay thực tế gửi cho kho">🖨️ Phiếu Kiểm</button>
-                        <button onclick="openReceiveModal('${p.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[11px] shadow" title="Kiểm đếm và xác nhận nhập kho thực tế">📥 Nhận Hàng</button>
-                        <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu nhập">✕ Hủy</button>
-                        `
-                        : `
-                        ${payDebtBtn}
-                        <button onclick="openWithAuth('/api/purchases/${p.code}/print-checklist')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]" title="In phiếu">🖨️ In</button>
-                        <button onclick="openReceiveModal('${p.code}', true)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
-                        <button onclick="deletePurchaseOrder('${p.code}')" class="text-rose-600 hover:text-rose-800 font-bold px-1 py-1 border border-rose-200 rounded text-[11px]" title="Hủy phiếu và hoàn lại kho/công nợ">🗑️ Hủy</button>
+                    let primaryActionBtn = '';
+                    if (p.status === 'pending' || p.status === 'draft') {
+                        primaryActionBtn = `
+                            <button type="button" onclick="openReceiveModal('${escapeHtml(p.code)}', false)" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition" title="Kiểm đếm và xác nhận nhập kho thực tế">
+                                Nhận hàng
+                            </button>
                         `;
+                    } else if (p.status === 'received') {
+                        primaryActionBtn = `
+                            <button type="button" onclick="openWithAuth('/api/purchases/${escapeHtml(p.code)}/print-checklist')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 transition" title="In phiếu nhập kho">
+                                🖨️ In Phiếu
+                            </button>
+                        `;
+                    } else {
+                        primaryActionBtn = `
+                            <button type="button" onclick="openReceiveModal('${escapeHtml(p.code)}', true)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-medium border border-slate-200 transition" title="Xem chi tiết phiếu">
+                                Xem phiếu
+                            </button>
+                        `;
+                    }
 
                     return `
-                    <tr class="card-row card-row-anim text-xs select-none" style="--row-idx: ${idx};">
-                        <td class="p-2.5 font-mono font-bold text-sky-700">${p.code}</td>
-                        <td class="p-2.5 font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định'}</td>
-                        <td class="p-2.5 text-gray-600">${p.warehouse_name || 'Kho Tổng'}</td>
-                        <td class="p-2.5 font-semibold text-slate-700">${formatDate(p.expected_date) || '<span class="text-gray-400">---</span>'}</td>
-                        <td class="p-2.5 text-center">${fundBadge}</td>
-                        <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${p.created_by || 'Thủ kho'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${p.updated_by ? `${p.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(p.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
-                        <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_amount)}</td>
-                        <td class="p-2.5 text-right font-mono font-bold text-emerald-700">
-                            <div>${formatMoney(p.paid_amount || 0)}</div>
-                            ${cashbookBadge}
-                        </td>
-                        <td class="p-2.5 text-right font-mono font-bold ${p.debt_amount > 0 ? 'text-rose-600' : 'text-gray-400'}">${formatMoney(p.debt_amount)}</td>
-                        <td class="p-2.5 text-center">${statusBadge}</td>
-                        <td class="p-2.5 text-center space-x-1 whitespace-nowrap">${actionButtons}</td>
-                    </tr>
+                        <tr onclick="openReceiveModal('${escapeHtml(p.code)}', true)" class="hover:bg-slate-50/70 transition cursor-pointer border-b border-slate-100">
+                            <td class="p-3 font-mono font-bold text-sky-700">
+                                <span>${escapeHtml(p.code)}</span>
+                            </td>
+                            <td class="p-3">
+                                <div class="font-bold text-slate-900">${escapeHtml(p.supplier_name || 'NCC Mặc định')}</div>
+                                <div class="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span>📦 ${escapeHtml(p.warehouse_name || 'Kho Tổng')}</span>
+                                </div>
+                            </td>
+                            <td class="p-3 text-right">
+                                <div class="font-mono font-bold text-slate-900 text-xs">${formatMoney(totalAmt)}</div>
+                                <div class="text-[10px] text-slate-400 font-normal">${fundText}</div>
+                            </td>
+                            <td class="p-3 text-right">
+                                <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1 overflow-hidden">
+                                    <div class="${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'} h-1.5 rounded-full" style="width: ${pct}%"></div>
+                                </div>
+                                <div class="font-mono text-[11px] font-semibold text-emerald-700">
+                                    Đã trả: ${formatMoney(paidAmt)} <span class="text-slate-400 font-normal">(${pct}%)</span>
+                                    ${cashbookBadge}
+                                </div>
+                                <div class="font-mono text-[10px] ${debtAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
+                                    ${debtAmt > 0 ? `Còn nợ: ${formatMoney(debtAmt)} (${100 - pct}%)` : '✅ Đã xong (0 đ)'}
+                                </div>
+                            </td>
+                            <td class="p-3 text-center">
+                                ${statusBadge}
+                            </td>
+                            <td class="p-3 text-center" onclick="event.stopPropagation()">
+                                <div class="flex items-center justify-center gap-1.5 relative">
+                                    ${primaryActionBtn}
+                                    <div class="relative">
+                                        <button type="button" onclick="togglePurchaseActionMenu('${escapeHtml(p.code)}', event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
+                                            ⋮
+                                        </button>
+                                        <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-38 py-1 text-left text-xs divide-y divide-slate-100">
+                                            <div class="py-0.5">
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); openReceiveModal('${escapeHtml(p.code)}', true)" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
+                                                    <span>👁️</span> <span>Chi tiết</span>
+                                                </button>
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); openWithAuth('/api/purchases/${escapeHtml(p.code)}/print-checklist')" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-indigo-700">
+                                                    <span>🖨️</span> <span>In phiếu kiểm</span>
+                                                </button>
+                                                ${(p.status === 'pending' || p.status === 'draft') ? `
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); openEditPurchaseModal('${escapeHtml(p.code)}')" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-sky-700">
+                                                    <span>✏️</span> <span>Sửa đơn</span>
+                                                </button>` : ''}
+                                            </div>
+                                            <div class="py-0.5">
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); deletePurchaseOrder('${escapeHtml(p.code)}')" class="w-full px-3 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-600 font-bold">
+                                                    <span>🗑️</span> <span>Hủy phiếu</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     `;
                 }).join('');
             } catch (e) {
