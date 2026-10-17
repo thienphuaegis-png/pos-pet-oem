@@ -3,6 +3,8 @@ import sys
 import secrets
 import logging
 import datetime
+import subprocess
+import time
 from fastapi import FastAPI, Response, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -223,9 +225,11 @@ def get_pos_template_path():
 def get_pos_mobile_template_path():
     return find_resource_path(os.path.join("templates", "pos_mobile.html"))
 
-from version_helper import get_app_version_info, check_remote_update_available
+from version_helper import get_app_version_info, check_remote_update_available, ROOT as APP_ROOT
 
 APP_VERSION = get_app_version_info()["version"]  # đồng bộ động từ version.json & git
+UPDATE_DIR = APP_ROOT / "logs"
+_UPDATE_LOCK_STALE = 900  # ponytail: lock quá 15 phút coi như script chết giữa chừng
 
 @app.get("/api/version")
 def api_get_version():
@@ -240,26 +244,34 @@ def check_system_update(user=Depends(get_current_user)):
 @app.post("/api/system/apply-update")
 def apply_system_update(user=Depends(require_role("owner", "admin"))):
     """Máy chủ tự động thực thi cập nhật: Backup DB -> Git Pull -> Migration -> Restart."""
-    import subprocess
-    import sys
     from pathlib import Path
-    
     root_dir = Path(__file__).parent.resolve()
-    cap_nhat_bat = root_dir / "CAP_NHAT.bat"
+    deploy_bat = APP_ROOT / "deploy" / "CAP_NHAT.bat"
 
-    # 1. Nếu có CAP_NHAT.bat trên Windows, kích hoạt file bat chạy độc lập và trả về ngay
-    if cap_nhat_bat.exists() and sys.platform.startswith("win"):
+    # 1. Nếu có deploy/CAP_NHAT.bat trên Windows, kích hoạt file bat chạy độc lập và trả về ngay
+    if deploy_bat.exists() and sys.platform.startswith("win"):
+        UPDATE_DIR.mkdir(parents=True, exist_ok=True)
+        lock = UPDATE_DIR / "update.lock"
+        if lock.exists() and time.time() - lock.stat().st_mtime < _UPDATE_LOCK_STALE:
+            raise HTTPException(status_code=409, detail="Máy chủ đang cập nhật, vui lòng đợi.")
+        username = user.get("username", "admin") if isinstance(user, dict) else getattr(user, "username", "admin")
+        lock.write_text(f"{username} {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", encoding="utf-8")
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log = open(UPDATE_DIR / f"update_{stamp}.log", "w", encoding="utf-8", errors="replace")
+        base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        kw = dict(cwd=str(APP_ROOT), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
+        args = ["cmd", "/c", str(deploy_bat), "/auto"]
         try:
-            # Chạy cmd /c start độc lập để không bị block tiến trình hiện tại
-            cmd = f'start "" /min "{str(cap_nhat_bat)}"'
-            subprocess.Popen(cmd, shell=True, cwd=str(root_dir))
-            return {
-                "success": True,
-                "mode": "windows_batch",
-                "message": "Đang tiến hành sao lưu, cập nhật từ GitHub và khởi động lại POS... Vui lòng đợi trong giây lát!"
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Không thể khởi chạy script cập nhật: {e}")
+            # Thoát khỏi job object của Task Scheduler để không bị giết khi server tắt
+            subprocess.Popen(args, creationflags=base | subprocess.CREATE_BREAKAWAY_FROM_JOB, **kw)
+        except OSError:
+            try:
+                subprocess.Popen(args, creationflags=base, **kw)
+            except OSError as e:
+                lock.unlink(missing_ok=True)
+                raise HTTPException(status_code=500, detail=f"Không thể khởi chạy script cập nhật: {e}")
+        return {"success": True, "mode": "windows_batch",
+                "message": "Đang sao lưu và cập nhật. Máy chủ sẽ tạm ngắt 1-3 phút."}
 
     # 2. Ngược lại (Linux/Docker/Server Cloud), chạy trực tiếp git pull & migration
     try:
@@ -303,6 +315,19 @@ def apply_system_update(user=Depends(require_role("owner", "admin"))):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi khi thực thi cập nhật máy chủ: {e}")
+
+@app.get("/api/system/update-status")
+def system_update_status(user=Depends(require_role("owner", "admin"))):
+    """Kết quả lần cập nhật cuối + đuôi log, để anh xem từ xa."""
+    lock = UPDATE_DIR / "update.lock"
+    in_progress = lock.exists() and time.time() - lock.stat().st_mtime < _UPDATE_LOCK_STALE
+    last = None
+    st = UPDATE_DIR / "update_status.txt"
+    if st.exists():
+        last = dict(l.split("=", 1) for l in st.read_text(encoding="utf-8", errors="replace").splitlines() if "=" in l)
+    logs = sorted(UPDATE_DIR.glob("update_*.log")) if UPDATE_DIR.exists() else []
+    tail = "\n".join(logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-40:]) if logs else ""
+    return {"in_progress": in_progress, "last": last, "log_tail": tail}
 
 @app.get("/api/ping", include_in_schema=False)
 def ping():
