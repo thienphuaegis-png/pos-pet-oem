@@ -1,15 +1,38 @@
 {
-  "version": "v3.6.3",
-  "build_date": "2026.10.14",
-  "commit_hash": "3045a17",
+  "version": "v3.6.4",
+  "build_date": "2026.10.17",
+  "commit_hash": "6c34c8e",
   "branch": "main",
   "release_title": "Bản Cập Nhật v3.6.2: Mẫu In Khổ Lớn & In Địa Chỉ Khách Hàng",
   "changelog": [
     {
+      "tag": "v3.6.4",
+      "date": "2026.10.17",
+      "title": "Bản phát hành v3.6.4 (2026.10.17)",
+      "is_new": true,
+      "items": [
+        "fix(ui): resolve gantt timezone shift, purge utc date remnants, and bump cache version",
+        "fix(ui): unify table colspans, vn datetime handling, and currency formatting",
+        "fix(oem): replace raw select droplist with multi-select fuzzy modal for factory product assignment",
+        "docs: add remaining bugfix plan and update project state",
+        "fix(core): return price cap excludes shipping/wallet, inventory adjust validation, safe sqlite backup before reset/clear",
+        "fix(core): patch logic and security bugs in settings, returns, bom, inventory, topup, auth",
+        "fix(security): lock destructive and bulk-delete endpoints with rbac and auto-backup",
+        "build: rebuild POS_Mastercare.exe after api auth lockdown",
+        "merge: api auth lockdown and security hardening (Tasks 1-13)",
+        "docs: update PROJECT_STATE.md with 2026-10-16 API auth lockdown verification",
+        "docs: add api auth lockdown implementation plan",
+        "chore(marketplace): remove bookmarklet (cannot authenticate cross-site)",
+        "fix(auth): route excel downloads and print pages through authenticated fetch",
+        "feat(auth): add downloadWithAuth/openWithAuth helpers",
+        "fix(security): stop httpx from logging telegram bot token URLs"
+      ]
+    },
+    {
       "tag": "v3.6.3",
       "date": "2026.10.14",
       "title": "Bản phát hành v3.6.3 (2026.10.14)",
-      "is_new": true,
+      "is_new": false,
       "items": [
         "docs(roadmap): update PROJECT_MAP.html checkpoint for simplified inline print designer",
         "feat(print-designer): simplify designer, remove token chips/picker and add inline click-to-edit",

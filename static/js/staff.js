@@ -114,16 +114,34 @@ async function submitStaffForm() {
 
 async function toggleStaffActive(id, isActive) {
   const newState = isActive ? 0 : 1;
-  if (!confirm(newState ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?')) return;
+  const actionText = newState ? 'Mở khóa' : 'Khóa';
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal({
+        title: `${actionText} Tài Khoản`,
+        message: `Bạn có chắc chắn muốn ${actionText.toLowerCase()} tài khoản nhân viên này?`,
+        type: newState ? 'primary' : 'warning',
+        confirmText: actionText,
+        cancelText: 'Hủy bỏ',
+        icon: newState ? '🔓' : '🔒'
+      })
+    : confirm(newState ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?');
+  if (!confirmed) return;
   try {
     const res = await fetch(`/api/auth/staff/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: newState })
     });
-    if (res.ok) loadStaffList(); else alert('❌ Lỗi cập nhật trạng thái');
+    if (res.ok) {
+      if (typeof showToast === 'function') showToast(`Đã ${actionText.toLowerCase()} tài khoản thành công!`, 'success');
+      loadStaffList();
+    } else {
+      if (typeof showToast === 'function') showToast('❌ Lỗi cập nhật trạng thái', 'error');
+      else alert('❌ Lỗi cập nhật trạng thái');
+    }
   } catch (e) {
-    alert('❌ Không kết nối được server');
+    if (typeof showToast === 'function') showToast('❌ Không kết nối được server', 'error');
+    else alert('❌ Không kết nối được server');
   }
 }
 

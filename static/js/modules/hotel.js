@@ -1372,7 +1372,17 @@
     async function deleteRoom(roomId) {
         const room = state.rooms.find(r => r.id === roomId);
         const code = room ? room.code : roomId;
-        if (!confirm(`Bạn có chắc chắn muốn xóa buồng phòng ${code} không?`)) return;
+        const confirmed = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Xóa Buồng Phòng',
+                message: `Bạn có chắc chắn muốn xóa buồng phòng ${code} không?`,
+                type: 'danger',
+                confirmText: 'Xóa Phòng',
+                cancelText: 'Hủy bỏ',
+                icon: '🗑️'
+            })
+            : confirm(`Bạn có chắc chắn muốn xóa buồng phòng ${code} không?`);
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`/api/hotel/rooms/${roomId}`, { method: 'DELETE' });
@@ -1382,9 +1392,11 @@
             }
             await loadHotelRooms();
             renderRoomsConfigTable();
-            alert(`Đã xóa buồng phòng ${code} thành công!`);
+            if (window.showToast) window.showToast(`Đã xóa buồng phòng ${code} thành công!`, 'success');
+            else alert(`Đã xóa buồng phòng ${code} thành công!`);
         } catch (err) {
-            alert(err.message);
+            if (window.showToast) window.showToast('Lỗi: ' + err.message, 'error');
+            else alert(err.message);
         }
     }
 

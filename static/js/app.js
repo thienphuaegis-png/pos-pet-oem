@@ -20,6 +20,9 @@
 
             window.showConfirmModal = function(options) {
                 return new Promise((resolve) => {
+                    if (typeof options === 'string') {
+                        options = { message: options, title: arguments[1] || 'Xác nhận' };
+                    }
                     const {
                         title = 'Xác nhận',
                         message = 'Bạn có chắc chắn muốn thực hiện?',
@@ -28,7 +31,7 @@
                         cancelText = 'Hủy bỏ',
                         type = 'danger', // danger, warning, primary, transfer, success
                         icon: customIcon = null
-                    } = options;
+                    } = options || {};
 
                     // Xóa modal cũ nếu còn
                     const old = document.getElementById('global-confirm-modal');
@@ -67,10 +70,10 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <h3 class="text-base font-bold text-slate-900 leading-snug">${title}</h3>
-                                    <div class="text-xs font-medium text-slate-700 mt-1.5 leading-relaxed break-words">
+                                    <div class="text-xs font-medium text-slate-700 mt-1.5 leading-relaxed break-words whitespace-pre-line">
                                         ${message}
                                     </div>
-                                    ${subMessage ? `<div class="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 mt-2.5 leading-normal">${subMessage}</div>` : ''}
+                                    ${subMessage ? `<div class="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 mt-2.5 leading-normal whitespace-pre-line">${subMessage}</div>` : ''}
                                 </div>
                             </div>
                             <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
@@ -86,21 +89,39 @@
 
                     document.body.appendChild(modal);
 
+                    const confirmBtn = document.getElementById('btn-modal-confirm');
+                    const cancelBtn = document.getElementById('btn-modal-cancel');
+
                     // Animate in
                     requestAnimationFrame(() => {
                         modal.classList.remove('opacity-0');
                         modal.querySelector('div').classList.remove('scale-95');
+                        if (confirmBtn) confirmBtn.focus();
                     });
 
+                    const handleKey = (e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cleanup(false);
+                        }
+                    };
+                    window.addEventListener('keydown', handleKey);
+
                     const cleanup = (val) => {
+                        window.removeEventListener('keydown', handleKey);
                         modal.classList.add('opacity-0');
                         modal.querySelector('div').classList.add('scale-95');
                         setTimeout(() => modal.remove(), 150);
                         resolve(val);
                     };
 
-                    document.getElementById('btn-modal-confirm').onclick = () => cleanup(true);
-                    document.getElementById('btn-modal-cancel').onclick = () => cleanup(false);
+                    if (confirmBtn) {
+                        confirmBtn.onclick = () => {
+                            confirmBtn.disabled = true;
+                            cleanup(true);
+                        };
+                    }
+                    if (cancelBtn) cancelBtn.onclick = () => cleanup(false);
                     modal.onclick = (e) => { if (e.target === modal) cleanup(false); };
                 });
             };
@@ -1472,13 +1493,15 @@
         async function submitStockAudit() {
             const whId = parseInt(document.getElementById('audit-wh-select').value);
             if (!whId) {
-                alert("Vui lòng chọn kho kiểm kê!");
+                if (window.showToast) window.showToast("Vui lòng chọn kho kiểm kê!", "warning");
+                else alert("Vui lòng chọn kho kiểm kê!");
                 return;
             }
 
             const selectedAuditItems = currentAuditItems.filter(it => it.is_selected !== false);
             if (!selectedAuditItems || selectedAuditItems.length === 0) {
-                alert("Vui lòng chọn ít nhất 1 mặt hàng để kiểm kê và cân bằng kho!");
+                if (window.showToast) window.showToast("Vui lòng chọn ít nhất 1 mặt hàng để kiểm kê và cân bằng kho!", "warning");
+                else alert("Vui lòng chọn ít nhất 1 mặt hàng để kiểm kê và cân bằng kho!");
                 return;
             }
 
@@ -1495,7 +1518,16 @@
                 note: it.note || ''
             }));
 
-            if (!confirm(`Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng đã chọn (${scopeDesc})?\nCác mặt hàng không chọn sẽ được GIỮ NGUYÊN tồn kho hiện tại.`)) return;
+            const confirmed = await window.showConfirmModal({
+                title: 'Xác Nhận Cân Bằng Kho',
+                message: `Xác nhận cân bằng kho cho ${itemsPayload.length} mặt hàng đã chọn (${scopeDesc})?`,
+                subMessage: 'Các mặt hàng không chọn sẽ được GIỮ NGUYÊN tồn kho hiện tại.',
+                type: 'warning',
+                confirmText: 'Cân Bằng Kho',
+                cancelText: 'Hủy bỏ',
+                icon: '⚖️'
+            });
+            if (!confirmed) return;
 
             try {
                 const res = await fetch('/api/inventory/audit', {
@@ -1510,12 +1542,14 @@
 
                 if (!res.ok) {
                     const err = await res.json();
-                    alert("Lỗi kiểm kê: " + (err.detail || "Không thể lưu phiếu"));
+                    if (window.showToast) window.showToast("Lỗi kiểm kê: " + (err.detail || "Không thể lưu phiếu"), "error");
+                    else alert("Lỗi kiểm kê: " + (err.detail || "Không thể lưu phiếu"));
                     return;
                 }
 
                 const result = await res.json();
-                alert(`Đã hoàn tất kiểm kê kho! Mã phiếu: ${result.audit_code}`);
+                if (window.showToast) window.showToast(`Đã hoàn tất kiểm kê kho! Mã phiếu: ${result.audit_code}`, "success");
+                else alert(`Đã hoàn tất kiểm kê kho! Mã phiếu: ${result.audit_code}`);
                 
                 // Reset tờ phiếu mới
                 document.getElementById('audit-note').value = '';
@@ -1524,7 +1558,8 @@
                 await loadUnifiedInventory();
             } catch (e) {
                 console.error("submitStockAudit error:", e);
-                alert("Lỗi kết nối khi gửi phiếu kiểm kê");
+                if (window.showToast) window.showToast("Lỗi kết nối khi gửi phiếu kiểm kê", "error");
+                else alert("Lỗi kết nối khi gửi phiếu kiểm kê");
             }
         }
 
@@ -3515,24 +3550,34 @@
             const name = document.getElementById('modal-prod-name').value.trim();
             if (!id) return;
 
-            if (!confirm(`Bạn có chắc chắn muốn chuyển đổi:\n"${name}"\ntừ HÀNG HÓA sang NGUYÊN LIỆU?\n- Tồn kho và giá vốn sẽ được chuyển sang danh mục nguyên liệu.\n- Hàng hóa sẽ được rút khỏi danh mục bán POS.`)) {
-                return;
-            }
+            const confirmed = await window.showConfirmModal({
+                title: 'Chuyển Đổi Sang Nguyên Liệu',
+                message: `Bạn có chắc chắn muốn chuyển đổi "${name}" từ HÀNG HÓA sang NGUYÊN LIỆU?`,
+                subMessage: '• Tồn kho và giá vốn sẽ được chuyển sang danh mục nguyên liệu.\n• Hàng hóa sẽ được rút khỏi danh mục bán POS.',
+                type: 'warning',
+                confirmText: 'Chuyển Đổi',
+                cancelText: 'Hủy bỏ',
+                icon: '🔄'
+            });
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/products/${id}/convert-to-ingredient`, { method: 'POST' });
                 if (res.ok) {
                     const data = await res.json();
-                    alert(data.message || "Đã chuyển đổi thành công!");
+                    if (window.showToast) window.showToast(data.message || "Đã chuyển đổi thành công!", "success");
+                    else alert(data.message || "Đã chuyển đổi thành công!");
                     closeModalProduct();
                     await Promise.all([loadUnifiedInventory(), loadCostIngredients()]);
                 } else {
                     const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể chuyển đổi"));
+                    if (window.showToast) window.showToast("Lỗi: " + (err.detail || "Không thể chuyển đổi"), "error");
+                    else alert("Lỗi: " + (err.detail || "Không thể chuyển đổi"));
                 }
             } catch (e) {
                 console.error("convertCurrentProductToIngredient error:", e);
-                alert("Lỗi kết nối khi chuyển đổi!");
+                if (window.showToast) window.showToast("Lỗi kết nối khi chuyển đổi!", "error");
+                else alert("Lỗi kết nối khi chuyển đổi!");
             }
         }
 
@@ -3540,23 +3585,33 @@
             const name = decodeURIComponent(encodedName);
             if (!ingredientId) return;
 
-            if (!confirm(`Bạn có chắc chắn muốn chuyển đổi:\n"${name}"\ntừ NGUYÊN LIỆU sang HÀNG HÓA bán tại POS?\n- Tồn kho nguyên liệu sẽ được chuyển sang tồn kho sản phẩm.\n- Đơn vị tính và giá vốn gần nhất sẽ được giữ nguyên.`)) {
-                return;
-            }
+            const confirmed = await window.showConfirmModal({
+                title: 'Chuyển Đổi Sang Hàng Hóa POS',
+                message: `Bạn có chắc chắn muốn chuyển đổi "${name}" từ NGUYÊN LIỆU sang HÀNG HÓA bán tại POS?`,
+                subMessage: '• Tồn kho nguyên liệu sẽ được chuyển sang tồn kho sản phẩm.\n• Đơn vị tính và giá vốn gần nhất sẽ được giữ nguyên.',
+                type: 'transfer',
+                confirmText: 'Chuyển Đổi',
+                cancelText: 'Hủy bỏ',
+                icon: '🛍️'
+            });
+            if (!confirmed) return;
 
             try {
                 const res = await fetch(`/api/products/${ingredientId}/convert-to-product`, { method: 'POST' });
                 if (res.ok) {
                     const data = await res.json();
-                    alert(data.message || "Đã chuyển đổi thành công sang Hàng Hóa!");
+                    if (window.showToast) window.showToast(data.message || "Đã chuyển đổi thành công sang Hàng Hóa!", "success");
+                    else alert(data.message || "Đã chuyển đổi thành công sang Hàng Hóa!");
                     await Promise.all([loadUnifiedInventory(), loadCostIngredients()]);
                 } else {
                     const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể chuyển đổi"));
+                    if (window.showToast) window.showToast("Lỗi: " + (err.detail || "Không thể chuyển đổi"), "error");
+                    else alert("Lỗi: " + (err.detail || "Không thể chuyển đổi"));
                 }
             } catch (e) {
                 console.error("convertCurrentIngredientToProduct error:", e);
-                alert("Lỗi kết nối khi chuyển đổi!");
+                if (window.showToast) window.showToast("Lỗi kết nối khi chuyển đổi!", "error");
+                else alert("Lỗi kết nối khi chuyển đổi!");
             }
         }
         window.convertCurrentIngredientToProduct = convertCurrentIngredientToProduct;
@@ -4877,10 +4932,12 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Lưu thất bại');
-                alert('🎉 ' + data.message);
+                if (window.showToast) window.showToast('🎉 ' + data.message, 'success');
+                else alert('🎉 ' + data.message);
                 loadTelegramSettingsData();
             } catch (e) {
-                alert('❌ Lỗi: ' + e.message);
+                if (window.showToast) window.showToast('❌ Lỗi: ' + e.message, 'error');
+                else alert('❌ Lỗi: ' + e.message);
             }
         }
 
@@ -4893,15 +4950,25 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Duyệt thất bại');
-                alert('✅ ' + data.message);
+                if (window.showToast) window.showToast('✅ ' + data.message, 'success');
+                else alert('✅ ' + data.message);
                 loadTelegramSettingsData();
             } catch (e) {
-                alert('❌ Lỗi: ' + e.message);
+                if (window.showToast) window.showToast('❌ Lỗi: ' + e.message, 'error');
+                else alert('❌ Lỗi: ' + e.message);
             }
         }
 
         async function rejectTelegramAdmin(chatId) {
-            if (!confirm(`Anh có chắc chắn muốn hủy/xóa quyền Admin Telegram ID: ${chatId}?`)) return;
+            const confirmed = await window.showConfirmModal({
+                title: 'Hủy Quyền Admin Telegram',
+                message: `Anh có chắc chắn muốn hủy/xóa quyền Admin Telegram ID: ${chatId}?`,
+                type: 'danger',
+                confirmText: 'Xóa Quyền',
+                cancelText: 'Hủy bỏ',
+                icon: '🗑️'
+            });
+            if (!confirmed) return;
             try {
                 const res = await fetch('/api/settings/telegram/reject', {
                     method: 'POST',
@@ -4910,10 +4977,12 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Thao tác thất bại');
-                alert('ℹ️ ' + data.message);
+                if (window.showToast) window.showToast('ℹ️ ' + data.message, 'info');
+                else alert('ℹ️ ' + data.message);
                 loadTelegramSettingsData();
             } catch (e) {
-                alert('❌ Lỗi: ' + e.message);
+                if (window.showToast) window.showToast('❌ Lỗi: ' + e.message, 'error');
+                else alert('❌ Lỗi: ' + e.message);
             }
         }
 

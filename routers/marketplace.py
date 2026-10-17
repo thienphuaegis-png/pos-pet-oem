@@ -928,51 +928,154 @@ async def import_orders_excel(
 # ─────────────────────────────────────────────────────────────────
 # 3. DANH SÁCH ĐƠN HÀNG SÀN & CHI TIẾT
 # ─────────────────────────────────────────────────────────────────
+def _build_order_filter_sql(
+    platform: Optional[str] = None,
+    date: Optional[str] = None,
+    status: Optional[str] = None,
+    q: Optional[str] = None
+):
+    where = ""
+    params = []
+    if platform and platform != "all":
+        where += " AND o.platform = ?"
+        params.append(platform.lower())
+    if date:
+        where += " AND date(o.order_date) = date(?)"
+        params.append(date)
+    if status and status != "all":
+        where += " AND o.order_status = ?"
+        params.append(status)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        where += " AND (o.order_sn LIKE ? OR o.buyer_username LIKE ? OR o.tracking_number LIKE ?)"
+        params.extend([term, term, term])
+    return where, params
+
+@router.get("/orders-kpi")
+def get_marketplace_orders_kpi(
+    platform: Optional[str] = None,
+    date: Optional[str] = None,
+    status: Optional[str] = None,
+    q: Optional[str] = None
+):
+    """Thống kê KPI sàn TMĐT độc lập trên toàn bộ CSDL theo bộ lọc (không bị giới hạn bởi phân trang)."""
+    conn = get_db()
+    cur = conn.cursor()
+    where, params = _build_order_filter_sql(platform, date, status, q)
+
+    cur.execute(f"""
+        SELECT 
+            COUNT(*) as order_count,
+            COALESCE(SUM(total_amount), 0) as total_revenue,
+            COALESCE(SUM(net_payout), 0) as total_net_payout,
+            COALESCE(SUM(COALESCE(fee_fixed, 0) + COALESCE(fee_service, 0) + COALESCE(fee_payment, 0) + COALESCE(shop_voucher, 0)), 0) as total_fee
+        FROM marketplace_orders o
+        WHERE 1=1 {where}
+    """, tuple(params))
+    r_orders = dict(cur.fetchone() or {})
+
+    cur.execute(f"""
+        SELECT 
+            COALESCE(SUM(i.quantity), 0) as items_sold,
+            COALESCE(SUM(CASE WHEN i.mapped_product_id IS NOT NULL THEN i.quantity ELSE 0 END), 0) as mapped_items
+        FROM marketplace_order_items i
+        WHERE i.order_id IN (
+            SELECT o.id FROM marketplace_orders o WHERE 1=1 {where}
+        )
+    """, tuple(params))
+    r_items = dict(cur.fetchone() or {})
+    conn.close()
+
+    items_sold = r_items.get("items_sold", 0)
+    mapped_items = r_items.get("mapped_items", 0)
+    mapped_ratio = round((mapped_items / items_sold) * 100) if items_sold > 0 else 100
+
+    return {
+        "order_count": r_orders.get("order_count", 0),
+        "total_revenue": r_orders.get("total_revenue", 0),
+        "total_net_payout": r_orders.get("total_net_payout", 0),
+        "total_fee": r_orders.get("total_fee", 0),
+        "items_sold": items_sold,
+        "mapped_items": mapped_items,
+        "mapped_ratio": mapped_ratio
+    }
+
 @router.get("/orders")
 def list_marketplace_orders(
     platform: Optional[str] = None,
     date: Optional[str] = None,
     status: Optional[str] = None,
-    limit: int = 100
+    q: Optional[str] = None,
+    page: Optional[int] = None,
+    limit: int = 50
 ):
     conn = get_db()
     cur = conn.cursor()
-    query = """
+    where, params = _build_order_filter_sql(platform, date, status, q)
+
+    total_count = 0
+    if page is not None:
+        cur.execute(f"SELECT COUNT(*) FROM marketplace_orders o WHERE 1=1 {where}", tuple(params))
+        total_count = cur.fetchone()[0]
+
+    query = f"""
         SELECT o.*, a.shop_name,
                (SELECT COUNT(*) FROM marketplace_order_items WHERE order_id = o.id) as item_count,
                (SELECT SUM(quantity) FROM marketplace_order_items WHERE order_id = o.id) as total_qty,
                (SELECT COUNT(*) FROM marketplace_order_items WHERE order_id = o.id AND mapped_product_id IS NOT NULL) as mapped_count
         FROM marketplace_orders o
         LEFT JOIN marketplace_accounts a ON o.account_id = a.id
-        WHERE 1=1
+        WHERE 1=1 {where}
+        ORDER BY o.order_date DESC, o.id DESC
     """
-    params = []
-    if platform and platform != "all":
-        query += " AND o.platform = ?"
-        params.append(platform)
-    if date:
-        query += " AND date(o.order_date) = date(?)"
-        params.append(date)
-    if status and status != "all":
-        query += " AND o.order_status = ?"
-        params.append(status)
 
-    query += " ORDER BY o.order_date DESC, o.id DESC LIMIT ?"
-    params.append(limit)
+    exec_params = list(params)
+    if page is not None:
+        p = max(1, page)
+        lim = max(1, min(limit, 200))
+        offset = (p - 1) * lim
+        query += " LIMIT ? OFFSET ?"
+        exec_params.extend([lim, offset])
+    else:
+        lim = max(1, min(limit, 200))
+        query += " LIMIT ?"
+        exec_params.append(lim)
 
-    cur.execute(query, tuple(params))
+    cur.execute(query, tuple(exec_params))
     orders = [dict(r) for r in cur.fetchall()]
 
-    for ord_item in orders:
-        cur.execute("""
+    # Batch load items (loại bỏ N+1 query)
+    order_ids = [o["id"] for o in orders]
+    items_by_order = {oid: [] for oid in order_ids}
+    if order_ids:
+        placeholders = ",".join("?" for _ in order_ids)
+        cur.execute(f"""
             SELECT i.*, p.name as pos_product_name, p.code as pos_product_code, p.unit as pos_unit
             FROM marketplace_order_items i
             LEFT JOIN products p ON i.mapped_product_id = p.id
-            WHERE i.order_id = ?
-        """, (ord_item["id"],))
-        ord_item["items"] = [dict(it) for it in cur.fetchall()]
+            WHERE i.order_id IN ({placeholders})
+            ORDER BY i.id ASC
+        """, order_ids)
+        for it in cur.fetchall():
+            it_dict = dict(it)
+            items_by_order[it_dict["order_id"]].append(it_dict)
+
+    for ord_item in orders:
+        ord_item["items"] = items_by_order.get(ord_item["id"], [])
 
     conn.close()
+
+    if page is not None:
+        lim = max(1, min(limit, 200))
+        total_pages = (total_count + lim - 1) // lim if lim > 0 else 1
+        return {
+            "orders": orders,
+            "total": total_count,
+            "page": max(1, page),
+            "limit": lim,
+            "total_pages": total_pages
+        }
+
     return orders
 
 @router.delete("/orders/{order_id}")

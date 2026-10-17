@@ -951,18 +951,31 @@
         }
 
         async function cancelDebtPlan(planId) {
-            if (!confirm("Bạn có chắc chắn muốn HỦY kế hoạch hẹn trả nợ này?")) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Hủy Kế Hoạch Trả Nợ',
+                    message: 'Bạn có chắc chắn muốn HỦY kế hoạch hẹn trả nợ này?',
+                    type: 'warning',
+                    confirmText: 'Hủy Kế Hoạch',
+                    cancelText: 'Quay lại',
+                    icon: '📅'
+                })
+                : confirm("Bạn có chắc chắn muốn HỦY kế hoạch hẹn trả nợ này?");
+            if (!confirmed) return;
             try {
                 const res = await fetch(`/api/cashflow-debts/payment-plans/${planId}`, { method: 'DELETE' });
                 if (!res.ok) {
                     const err = await res.json();
-                    alert("Lỗi: " + (err.detail || "Không thể hủy"));
+                    if (window.showToast) window.showToast("Lỗi: " + (err.detail || "Không thể hủy"), "error");
+                    else alert("Lỗi: " + (err.detail || "Không thể hủy"));
                     return;
                 }
+                if (window.showToast) window.showToast("Đã hủy kế hoạch trả nợ!", "success");
                 await loadCashflowDebtsData();
             } catch (e) {
                 console.error("cancelDebtPlan error:", e);
-                alert("Lỗi kết nối máy chủ!");
+                if (window.showToast) window.showToast("Lỗi kết nối máy chủ!", "error");
+                else alert("Lỗi kết nối máy chủ!");
             }
         }
 

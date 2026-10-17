@@ -1669,6 +1669,10 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
+                                <span class="text-slate-400">🔍</span>
+                                <input type="text" id="mkt-shopee-search" oninput="debounceShopeeOrders()" placeholder="Mã đơn, người mua..." class="text-xs font-medium text-slate-700 w-36 focus:outline-none focus:w-48 transition-all">
+                            </div>
                             <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
                                 <span class="text-[10px] text-slate-400 font-bold">Ngày:</span>
                                 <input type="date" id="mkt-shopee-filter-date" onchange="loadShopeeOrders()" class="text-xs font-semibold text-slate-700 focus:outline-none">
@@ -1737,6 +1741,23 @@
                                 </tbody>
                             </table>
                         </div>
+                        <!-- Thanh Phân Trang Shopee -->
+                        <div id="mkt-shopee-pagination" class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                            <div class="flex items-center gap-2">
+                                <span>Hiển thị:</span>
+                                <select id="mkt-shopee-limit" onchange="changeShopeeLimit(this.value)" class="border border-slate-300 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white">
+                                    <option value="20">20</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <span id="mkt-shopee-page-info" class="font-medium text-slate-500">Đang tải...</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" id="btn-shopee-prev" onclick="prevShopeePage()" class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition cursor-pointer">◀ Trước</button>
+                                <span id="mkt-shopee-page-number" class="px-2 py-1 font-bold text-slate-800">1 / 1</span>
+                                <button type="button" id="btn-shopee-next" onclick="nextShopeePage()" class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition cursor-pointer">Sau ▶</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1754,6 +1775,10 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
+                                <span class="text-slate-400">🔍</span>
+                                <input type="text" id="mkt-tiktok-search" oninput="debounceTikTokOrders()" placeholder="Mã đơn, người mua..." class="text-xs font-medium text-slate-700 w-36 focus:outline-none focus:w-48 transition-all">
+                            </div>
                             <div class="flex items-center gap-1 bg-white border border-slate-300 rounded-lg px-2 py-1">
                                 <span class="text-[10px] text-slate-400 font-bold">Ngày:</span>
                                 <input type="date" id="mkt-tiktok-filter-date" onchange="loadTikTokOrders()" class="text-xs font-semibold text-slate-700 focus:outline-none">
@@ -1821,6 +1846,23 @@
                                     <tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào. Hãy bấm "Nhập File Excel" để tải đơn.</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <!-- Thanh Phân Trang TikTok -->
+                        <div id="mkt-tiktok-pagination" class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                            <div class="flex items-center gap-2">
+                                <span>Hiển thị:</span>
+                                <select id="mkt-tiktok-limit" onchange="changeTikTokLimit(this.value)" class="border border-slate-300 rounded-md px-2 py-0.5 text-xs font-semibold text-slate-700 bg-white">
+                                    <option value="20">20</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                </select>
+                                <span id="mkt-tiktok-page-info" class="font-medium text-slate-500">Đang tải...</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" id="btn-tiktok-prev" onclick="prevTikTokPage()" class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition cursor-pointer">◀ Trước</button>
+                                <span id="mkt-tiktok-page-number" class="px-2 py-1 font-bold text-slate-800">1 / 1</span>
+                                <button type="button" id="btn-tiktok-next" onclick="nextTikTokPage()" class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition cursor-pointer">Sau ▶</button>
+                            </div>
                         </div>
                     </div>
                 </div>

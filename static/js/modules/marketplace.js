@@ -618,7 +618,15 @@
     window.updateMktBulkActionBar = updateMktBulkActionBar;
 
     async function deleteSingleMarketplaceOrder(orderId, orderSn, platform) {
-        if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng ${orderSn}?`)) return;
+        const confirmed = await window.showConfirmModal({
+            title: 'Xóa Đơn Hàng Sàn TMĐT',
+            message: `Bạn có chắc chắn muốn xóa đơn hàng ${orderSn}?`,
+            type: 'danger',
+            confirmText: 'Xóa Đơn',
+            cancelText: 'Hủy bỏ',
+            icon: '🗑️'
+        });
+        if (!confirmed) return;
         try {
             const res = await fetch(`/api/marketplace/orders/${orderId}`, { method: 'DELETE' });
             const data = await res.json();
@@ -630,10 +638,12 @@
                 if (platform === 'shopee') await loadShopeeOrders();
                 else await loadTikTokOrders();
             } else {
-                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+                if (window.showToast) window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error');
+                else alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
             }
         } catch (e) {
-            alert('Lỗi kết nối: ' + e.message);
+            if (window.showToast) window.showToast('Lỗi kết nối: ' + e.message, 'error');
+            else alert('Lỗi kết nối: ' + e.message);
         }
     }
     window.deleteSingleMarketplaceOrder = deleteSingleMarketplaceOrder;
@@ -642,7 +652,15 @@
         const ids = Array.from(selectedMktOrderIds);
         if (ids.length === 0) return;
 
-        if (!confirm(`Bạn có chắc chắn muốn XÓA ${ids.length} đơn hàng đã chọn?`)) return;
+        const confirmed = await window.showConfirmModal({
+            title: 'Xóa Nhiều Đơn Hàng Sàn',
+            message: `Bạn có chắc chắn muốn XÓA ${ids.length} đơn hàng đã chọn?`,
+            type: 'danger',
+            confirmText: `Xóa ${ids.length} Đơn`,
+            cancelText: 'Hủy bỏ',
+            icon: '🗑️'
+        });
+        if (!confirmed) return;
 
         try {
             const res = await fetch('/api/marketplace/orders/bulk-delete', {
@@ -657,17 +675,28 @@
                 clearMktOrderSelection();
                 await Promise.all([loadShopeeOrders(), loadTikTokOrders()]);
             } else {
-                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+                if (window.showToast) window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error');
+                else alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
             }
         } catch (e) {
-            alert('Lỗi kết nối: ' + e.message);
+            if (window.showToast) window.showToast('Lỗi kết nối: ' + e.message, 'error');
+            else alert('Lỗi kết nối: ' + e.message);
         }
     }
     window.bulkDeleteMarketplaceOrdersAction = bulkDeleteMarketplaceOrdersAction;
 
     async function confirmClearAllMarketplaceOrders(platform) {
         const platName = platform === 'shopee' ? 'Shopee' : 'TikTok Shop';
-        if (!confirm(`CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn XÓA TOÀN BỘ đơn hàng ${platName} đã tải về máy?`)) return;
+        const confirmed = await window.showConfirmModal({
+            title: `Xóa Toàn Bộ Đơn Hàng ${platName}`,
+            message: `CẢNH BÁO NGUY HIỂM: Bạn có chắc chắn muốn XÓA TOÀN BỘ đơn hàng ${platName} đã tải về máy?`,
+            subMessage: 'Dữ liệu đơn hàng sàn đã xóa trên máy cục bộ sẽ không thể tự phục hồi.',
+            type: 'danger',
+            confirmText: 'Xóa Toàn Bộ',
+            cancelText: 'Hủy bỏ',
+            icon: '⚠️'
+        });
+        if (!confirmed) return;
         try {
             const res = await fetch(`/api/marketplace/orders-clear-all?platform=${platform}`, { method: 'DELETE' });
             const data = await res.json();
@@ -678,35 +707,126 @@
                 if (platform === 'shopee') await loadShopeeOrders();
                 else await loadTikTokOrders();
             } else {
-                alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
+                if (window.showToast) window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error');
+                else alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
             }
         } catch (e) {
-            alert('Lỗi kết nối: ' + e.message);
+            if (window.showToast) window.showToast('Lỗi kết nối: ' + e.message, 'error');
+            else alert('Lỗi kết nối: ' + e.message);
         }
     }
     window.confirmClearAllMarketplaceOrders = confirmClearAllMarketplaceOrders;
 
-    async function loadShopeeOrders() {
+    // Trạng thái phân trang & tìm kiếm Shopee
+    let mktShopeeCurrentPage = 1;
+    let mktShopeeLimit = 50;
+    let mktShopeeTotalPages = 1;
+    let mktShopeeTotalOrders = 0;
+    let shopeeSearchDebounceTimer = null;
+
+    function debounceShopeeOrders() {
+        clearTimeout(shopeeSearchDebounceTimer);
+        shopeeSearchDebounceTimer = setTimeout(() => {
+            loadShopeeOrders(1);
+        }, 300);
+    }
+    window.debounceShopeeOrders = debounceShopeeOrders;
+
+    function prevShopeePage() {
+        if (mktShopeeCurrentPage > 1) {
+            loadShopeeOrders(mktShopeeCurrentPage - 1);
+        }
+    }
+    window.prevShopeePage = prevShopeePage;
+
+    function nextShopeePage() {
+        if (mktShopeeCurrentPage < mktShopeeTotalPages) {
+            loadShopeeOrders(mktShopeeCurrentPage + 1);
+        }
+    }
+    window.nextShopeePage = nextShopeePage;
+
+    function changeShopeeLimit(val) {
+        mktShopeeLimit = parseInt(val) || 50;
+        loadShopeeOrders(1);
+    }
+    window.changeShopeeLimit = changeShopeeLimit;
+
+    function updateShopeePaginationUI() {
+        const pageInfo = document.getElementById('mkt-shopee-page-info');
+        const pageNum = document.getElementById('mkt-shopee-page-number');
+        const btnPrev = document.getElementById('btn-shopee-prev');
+        const btnNext = document.getElementById('btn-shopee-next');
+
+        if (pageInfo) {
+            if (mktShopeeTotalOrders === 0) {
+                pageInfo.textContent = '(0 đơn hàng)';
+            } else {
+                const from = (mktShopeeCurrentPage - 1) * mktShopeeLimit + 1;
+                const to = Math.min(mktShopeeTotalOrders, mktShopeeCurrentPage * mktShopeeLimit);
+                pageInfo.textContent = `(Hiển thị ${from} - ${to} trên ${mktShopeeTotalOrders} đơn)`;
+            }
+        }
+        if (pageNum) {
+            pageNum.textContent = `${mktShopeeCurrentPage} / ${mktShopeeTotalPages || 1}`;
+        }
+        if (btnPrev) {
+            btnPrev.disabled = mktShopeeCurrentPage <= 1;
+        }
+        if (btnNext) {
+            btnNext.disabled = mktShopeeCurrentPage >= mktShopeeTotalPages;
+        }
+    }
+
+    async function loadShopeeOrders(page = 1) {
+        mktShopeeCurrentPage = Math.max(1, page);
         const date = document.getElementById('mkt-shopee-filter-date')?.value || '';
         const status = document.getElementById('mkt-shopee-status-filter')?.value || 'all';
+        const q = document.getElementById('mkt-shopee-search')?.value.trim() || '';
+        const limitSelect = document.getElementById('mkt-shopee-limit');
+        if (limitSelect) mktShopeeLimit = parseInt(limitSelect.value) || mktShopeeLimit;
+
         const tbody = document.getElementById('mkt-shopee-orders-tbody');
         if (!tbody) return;
 
         try {
             tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Đang tải danh sách đơn...</td></tr>';
-            let url = `/api/marketplace/orders?platform=shopee`;
-            if (date) url += `&date=${date}`;
-            if (status !== 'all') url += `&status=${status}`;
+            
+            const params = new URLSearchParams({
+                platform: 'shopee',
+                page: mktShopeeCurrentPage,
+                limit: mktShopeeLimit
+            });
+            if (date) params.append('date', date);
+            if (status !== 'all') params.append('status', status);
+            if (q) params.append('q', q);
 
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('Không thể tải đơn hàng');
-            const orders = await res.json();
+            const kpiParams = new URLSearchParams({ platform: 'shopee' });
+            if (date) kpiParams.append('date', date);
+            if (status !== 'all') kpiParams.append('status', status);
+            if (q) kpiParams.append('q', q);
 
-            // Cập nhật KPIs
-            updateShopeeKPIs(orders);
+            const [ordersRes, kpiRes] = await Promise.all([
+                fetch(`/api/marketplace/orders?${params.toString()}`),
+                fetch(`/api/marketplace/orders-kpi?${kpiParams.toString()}`)
+            ]);
+
+            if (kpiRes.ok) {
+                const kpi = await kpiRes.json();
+                updateShopeeKPIsFromData(kpi);
+            }
+
+            if (!ordersRes.ok) throw new Error('Không thể tải đơn hàng');
+            const data = await ordersRes.json();
+            const orders = Array.isArray(data) ? data : (data.orders || []);
+            mktShopeeTotalOrders = typeof data.total === 'number' ? data.total : orders.length;
+            mktShopeeTotalPages = typeof data.total_pages === 'number' ? data.total_pages : 1;
+            mktShopeeCurrentPage = typeof data.page === 'number' ? data.page : mktShopeeCurrentPage;
+
+            updateShopeePaginationUI();
 
             if (!orders || orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Không có đơn hàng nào trong ngày đã chọn.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Không có đơn hàng nào khớp điều kiện tìm kiếm.</td></tr>';
                 return;
             }
 
@@ -767,10 +887,22 @@
                 `;
             }).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
         }
     }
     window.loadShopeeOrders = loadShopeeOrders;
+
+    function updateShopeeKPIsFromData(kpi) {
+        const elCount = document.getElementById('kpi-shopee-order-count');
+        const elItems = document.getElementById('kpi-shopee-items-sold');
+        const elRev = document.getElementById('kpi-shopee-revenue');
+        const elRatio = document.getElementById('kpi-shopee-mapped-ratio');
+
+        if (elCount) elCount.textContent = kpi.order_count || 0;
+        if (elItems) elItems.textContent = kpi.items_sold || 0;
+        if (elRev) elRev.textContent = formatMoney(kpi.total_revenue || 0);
+        if (elRatio) elRatio.textContent = `${kpi.mapped_ratio || 0}%`;
+    }
 
     function updateShopeeKPIs(orders) {
         const count = orders.length;
@@ -792,6 +924,18 @@
 
         const ratio = totalItems > 0 ? Math.round((mappedItems / totalItems) * 100) : 100;
         document.getElementById('kpi-shopee-mapped-ratio').textContent = `${ratio}%`;
+    }
+
+    function updateTikTokKPIsFromData(kpi) {
+        const elCount = document.getElementById('kpi-tiktok-order-count');
+        const elItems = document.getElementById('kpi-tiktok-items-sold');
+        const elRev = document.getElementById('kpi-tiktok-revenue');
+        const elRatio = document.getElementById('kpi-tiktok-mapped-ratio');
+
+        if (elCount) elCount.textContent = kpi.order_count || 0;
+        if (elItems) elItems.textContent = kpi.items_sold || 0;
+        if (elRev) elRev.textContent = formatMoney(kpi.total_revenue || 0);
+        if (elRatio) elRatio.textContent = `${kpi.mapped_ratio || 0}%`;
     }
 
     function updateTikTokKPIs(orders) {
@@ -825,6 +969,67 @@
     // ─────────────────────────────────────────────────────────────
     // 3. ĐỒNG BỘ & DANH SÁCH ĐƠN HÀNG TIKTOK SHOP
     // ─────────────────────────────────────────────────────────────
+    // Trạng thái phân trang & tìm kiếm TikTok
+    let mktTikTokCurrentPage = 1;
+    let mktTikTokLimit = 50;
+    let mktTikTokTotalPages = 1;
+    let mktTikTokTotalOrders = 0;
+    let tiktokSearchDebounceTimer = null;
+
+    function debounceTikTokOrders() {
+        clearTimeout(tiktokSearchDebounceTimer);
+        tiktokSearchDebounceTimer = setTimeout(() => {
+            loadTikTokOrders(1);
+        }, 300);
+    }
+    window.debounceTikTokOrders = debounceTikTokOrders;
+
+    function prevTikTokPage() {
+        if (mktTikTokCurrentPage > 1) {
+            loadTikTokOrders(mktTikTokCurrentPage - 1);
+        }
+    }
+    window.prevTikTokPage = prevTikTokPage;
+
+    function nextTikTokPage() {
+        if (mktTikTokCurrentPage < mktTikTokTotalPages) {
+            loadTikTokOrders(mktTikTokCurrentPage + 1);
+        }
+    }
+    window.nextTikTokPage = nextTikTokPage;
+
+    function changeTikTokLimit(val) {
+        mktTikTokLimit = parseInt(val) || 50;
+        loadTikTokOrders(1);
+    }
+    window.changeTikTokLimit = changeTikTokLimit;
+
+    function updateTikTokPaginationUI() {
+        const pageInfo = document.getElementById('mkt-tiktok-page-info');
+        const pageNum = document.getElementById('mkt-tiktok-page-number');
+        const btnPrev = document.getElementById('btn-tiktok-prev');
+        const btnNext = document.getElementById('btn-tiktok-next');
+
+        if (pageInfo) {
+            if (mktTikTokTotalOrders === 0) {
+                pageInfo.textContent = '(0 đơn hàng)';
+            } else {
+                const from = (mktTikTokCurrentPage - 1) * mktTikTokLimit + 1;
+                const to = Math.min(mktTikTokTotalOrders, mktTikTokCurrentPage * mktTikTokLimit);
+                pageInfo.textContent = `(Hiển thị ${from} - ${to} trên ${mktTikTokTotalOrders} đơn)`;
+            }
+        }
+        if (pageNum) {
+            pageNum.textContent = `${mktTikTokCurrentPage} / ${mktTikTokTotalPages || 1}`;
+        }
+        if (btnPrev) {
+            btnPrev.disabled = mktTikTokCurrentPage <= 1;
+        }
+        if (btnNext) {
+            btnNext.disabled = mktTikTokCurrentPage >= mktTikTokTotalPages;
+        }
+    }
+
     async function syncTikTokOrdersNow() {
         if (!state.selectedTikTokAccId) {
             alert('Vui lòng cấu hình gian hàng TikTok Shop trước!');
@@ -863,27 +1068,55 @@
     }
     window.syncTikTokOrdersNow = syncTikTokOrdersNow;
 
-    async function loadTikTokOrders() {
+    async function loadTikTokOrders(page = 1) {
+        mktTikTokCurrentPage = Math.max(1, page);
         const date = document.getElementById('mkt-tiktok-filter-date')?.value || '';
         const status = document.getElementById('mkt-tiktok-status-filter')?.value || 'all';
+        const q = document.getElementById('mkt-tiktok-search')?.value.trim() || '';
+        const limitSelect = document.getElementById('mkt-tiktok-limit');
+        if (limitSelect) mktTikTokLimit = parseInt(limitSelect.value) || mktTikTokLimit;
+
         const tbody = document.getElementById('mkt-tiktok-orders-tbody');
         if (!tbody) return;
 
         try {
             tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Đang tải danh sách đơn TikTok...</td></tr>';
-            let url = `/api/marketplace/orders?platform=tiktok`;
-            if (date) url += `&date=${date}`;
-            if (status !== 'all') url += `&status=${status}`;
+            
+            const params = new URLSearchParams({
+                platform: 'tiktok',
+                page: mktTikTokCurrentPage,
+                limit: mktTikTokLimit
+            });
+            if (date) params.append('date', date);
+            if (status !== 'all') params.append('status', status);
+            if (q) params.append('q', q);
 
-            const res = await fetch(url);
-            if (!res.ok) throw new Error('Không thể tải đơn hàng');
-            const orders = await res.json();
+            const kpiParams = new URLSearchParams({ platform: 'tiktok' });
+            if (date) kpiParams.append('date', date);
+            if (status !== 'all') kpiParams.append('status', status);
+            if (q) kpiParams.append('q', q);
 
-            // Cập nhật KPIs TikTok
-            updateTikTokKPIs(orders);
+            const [ordersRes, kpiRes] = await Promise.all([
+                fetch(`/api/marketplace/orders?${params.toString()}`),
+                fetch(`/api/marketplace/orders-kpi?${kpiParams.toString()}`)
+            ]);
+
+            if (kpiRes.ok) {
+                const kpi = await kpiRes.json();
+                updateTikTokKPIsFromData(kpi);
+            }
+
+            if (!ordersRes.ok) throw new Error('Không thể tải đơn hàng');
+            const data = await ordersRes.json();
+            const orders = Array.isArray(data) ? data : (data.orders || []);
+            mktTikTokTotalOrders = typeof data.total === 'number' ? data.total : orders.length;
+            mktTikTokTotalPages = typeof data.total_pages === 'number' ? data.total_pages : 1;
+            mktTikTokCurrentPage = typeof data.page === 'number' ? data.page : mktTikTokCurrentPage;
+
+            updateTikTokPaginationUI();
 
             if (!orders || orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào trong ngày này.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-400">Chưa có đơn hàng TikTok Shop nào khớp điều kiện tìm kiếm.</td></tr>';
                 return;
             }
 
@@ -946,7 +1179,7 @@
                 `;
             }).join('');
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
         }
     }
     window.loadTikTokOrders = loadTikTokOrders;
@@ -1217,11 +1450,20 @@
         });
 
         if (toSave.length === 0) {
-            alert('Không có dòng gợi ý nào để lưu!');
+            if (window.showToast) window.showToast('Không có dòng gợi ý nào để lưu!', 'warning');
+            else alert('Không có dòng gợi ý nào để lưu!');
             return;
         }
 
-        if (!confirm(`Xác nhận lưu ${toSave.length} luật ánh xạ sản phẩm vào kho POS?`)) return;
+        const confirmed = await window.showConfirmModal({
+            title: 'Lưu Gợi Ý Ánh Xạ AI',
+            message: `Xác nhận lưu ${toSave.length} luật ánh xạ sản phẩm vào kho POS?`,
+            type: 'primary',
+            confirmText: 'Lưu Tất Cả',
+            cancelText: 'Hủy bỏ',
+            icon: '✨'
+        });
+        if (!confirmed) return;
 
         const btn = document.getElementById('btn-accept-all-ai');
         if (btn) btn.disabled = true;
@@ -1251,7 +1493,8 @@
         const sel = unmappedRowSelections[idx];
         const productId = sel ? sel.productId : null;
         if (!productId) {
-            alert('Vui lòng chọn sản phẩm trong kho bằng ô tìm kiếm trước khi Lưu!');
+            if (window.showToast) window.showToast('Vui lòng chọn sản phẩm trong kho bằng ô tìm kiếm trước khi Lưu!', 'warning');
+            else alert('Vui lòng chọn sản phẩm trong kho bằng ô tìm kiếm trước khi Lưu!');
             return;
         }
 
@@ -1276,7 +1519,8 @@
             await loadUnmappedItems();
             await loadSkuMappings();
         } catch (e) {
-            alert('Lỗi: ' + e.message);
+            if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+            else alert('Lỗi: ' + e.message);
         }
     }
     window.saveQuickMapFromRow = saveQuickMapFromRow;
@@ -1323,16 +1567,29 @@
     window.loadSkuMappings = loadSkuMappings;
 
     async function deleteSkuMapping(id) {
-        if (!confirm('Bạn có chắc muốn xóa luật ánh xạ này?')) return;
+        const confirmed = await window.showConfirmModal({
+            title: 'Xóa Luật Ánh Xạ',
+            message: 'Bạn có chắc chắn muốn xóa luật ánh xạ sản phẩm này?',
+            type: 'danger',
+            confirmText: 'Xóa',
+            cancelText: 'Hủy bỏ',
+            icon: '🗑️'
+        });
+        if (!confirmed) return;
         try {
             const res = await fetch(`/api/marketplace/mappings/${id}`, { method: 'DELETE' });
             if (res.ok) {
                 if (window.showToast) window.showToast('Đã xóa luật ánh xạ', 'success');
                 await loadSkuMappings();
                 await loadUnmappedItems();
+            } else {
+                const data = await res.json();
+                if (window.showToast) window.showToast('Lỗi: ' + (data.detail || 'Không thể xóa'), 'error');
+                else alert('Lỗi: ' + (data.detail || 'Không thể xóa'));
             }
         } catch (e) {
-            alert('Lỗi: ' + e.message);
+            if (window.showToast) window.showToast('Lỗi: ' + e.message, 'error');
+            else alert('Lỗi: ' + e.message);
         }
     }
     window.deleteSkuMapping = deleteSkuMapping;

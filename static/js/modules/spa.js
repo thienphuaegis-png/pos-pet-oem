@@ -221,18 +221,31 @@
         }
 
         async function deletePet(petId) {
-            if (!confirm('Bạn có chắc muốn xóa hồ sơ bé thú cưng này?')) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xóa Thú Cưng',
+                    message: 'Bạn có chắc muốn xóa hồ sơ bé thú cưng này?',
+                    type: 'danger',
+                    confirmText: 'Xóa Hồ Sơ',
+                    cancelText: 'Hủy bỏ',
+                    icon: '🐾'
+                })
+                : confirm('Bạn có chắc muốn xóa hồ sơ bé thú cưng này?');
+            if (!confirmed) return;
             try {
                 const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
                 if (!res.ok) {
-                    alert('Không thể xóa thú cưng');
+                    if (window.showToast) window.showToast('Không thể xóa thú cưng', 'error');
+                    else alert('Không thể xóa thú cưng');
                     return;
                 }
+                if (window.showToast) window.showToast('Đã xóa thú cưng thành công!', 'success');
                 if (currentPetCustomerId) await loadCustomerPets(currentPetCustomerId);
                 await loadContacts();
                 if (typeof loadAllPetsList === 'function') loadAllPetsList();
             } catch (e) {
-                alert('Lỗi kết nối');
+                if (window.showToast) window.showToast('Lỗi kết nối', 'error');
+                else alert('Lỗi kết nối');
             }
         }
 
@@ -3179,11 +3192,25 @@
         }
 
         async function deletePetPricingItem(id) {
-            if (!confirm('Xác nhận xóa mức giá dịch vụ này?')) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xóa Mức Giá Dịch Vụ',
+                    message: 'Xác nhận xóa mức giá dịch vụ này?',
+                    type: 'danger',
+                    confirmText: 'Xóa Mức Giá',
+                    cancelText: 'Hủy bỏ',
+                    icon: '🗑️'
+                })
+                : confirm('Xác nhận xóa mức giá dịch vụ này?');
+            if (!confirmed) return;
             try {
                 await fetch(`/api/pet-services/pricing/${id}`, { method: 'DELETE' });
+                if (window.showToast) window.showToast('Đã xóa mức giá thành công!', 'success');
                 await loadPetPricingList();
-            } catch(e) { alert('Lỗi xóa mức giá'); }
+            } catch(e) {
+                if (window.showToast) window.showToast('Lỗi xóa mức giá', 'error');
+                else alert('Lỗi xóa mức giá');
+            }
         }
 
         // ==========================================
@@ -3281,11 +3308,25 @@
         }
 
         async function deleteSpaStaff(id) {
-            if (!confirm('Xác nhận xóa nhân viên này khỏi Spa?')) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xóa Nhân Viên Spa',
+                    message: 'Xác nhận xóa nhân viên này khỏi Spa?',
+                    type: 'danger',
+                    confirmText: 'Xóa Nhân Viên',
+                    cancelText: 'Hủy bỏ',
+                    icon: '🗑️'
+                })
+                : confirm('Xác nhận xóa nhân viên này khỏi Spa?');
+            if (!confirmed) return;
             try {
                 await fetch(`/api/pet-services/staff/${id}`, { method: 'DELETE' });
+                if (window.showToast) window.showToast('Đã xóa nhân viên thành công!', 'success');
                 await loadSpaStaffList();
-            } catch(e) { alert('Lỗi xóa nhân viên'); }
+            } catch(e) {
+                if (window.showToast) window.showToast('Lỗi xóa nhân viên', 'error');
+                else alert('Lỗi xóa nhân viên');
+            }
         }
 
         // ==========================================

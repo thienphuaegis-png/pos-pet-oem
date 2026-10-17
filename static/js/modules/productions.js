@@ -282,7 +282,18 @@
                 }))
             };
 
-            if (!confirm(`Tiến hành tạo lệnh sản xuất cho ${productionCart.length} mặt hàng?\nKho nguyên vật liệu sẽ được khấu trừ tương ứng theo định lượng BOM.`)) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Tạo Lệnh Sản Xuất',
+                    message: `Tiến hành tạo lệnh sản xuất cho ${productionCart.length} mặt hàng?`,
+                    subMessage: 'Kho nguyên vật liệu sẽ được khấu trừ tương ứng theo định lượng BOM.',
+                    type: 'primary',
+                    confirmText: 'Tạo Lệnh Sản Xuất',
+                    cancelText: 'Hủy bỏ',
+                    icon: '⚙️'
+                })
+                : confirm(`Tiến hành tạo lệnh sản xuất cho ${productionCart.length} mặt hàng?\nKho nguyên vật liệu sẽ được khấu trừ tương ứng theo định lượng BOM.`);
+            if (!confirmed) return;
 
             try {
                 const res = await fetch('/api/productions', {
@@ -293,7 +304,8 @@
 
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`✅ Lệnh sản xuất [${data.production_code}] hoàn tất thành công!\nĐã nhập kho thành phẩm và khấu trừ nguyên vật liệu.`);
+                    if (window.showToast) window.showToast(`✅ Lệnh sản xuất [${data.production_code}] hoàn tất thành công!`, 'success');
+                    else alert(`✅ Lệnh sản xuất [${data.production_code}] hoàn tất thành công!\nĐã nhập kho thành phẩm và khấu trừ nguyên vật liệu.`);
                     resetProductionForm();
                     await Promise.all([loadCostIngredients(), loadProducts()]);
                     toggleProductionView('list');
@@ -3667,11 +3679,22 @@
         }
 
         // --- XUẤT VÀ NHẬP EXCEL CHO ĐỊNH LƯỢNG BOM ---
-        function exportBOMExcel() {
+        async function exportBOMExcel() {
             const prodId = getActiveBOMTargetId();
             let url = '/api/bom/export-excel';
             if (prodId) {
-                if (confirm(`Bạn có muốn xuất riêng định lượng BOM của sản phẩm đang chọn không?\n(Bấm OK để chỉ xuất sản phẩm này, hoặc bấm Cancel để xuất TOÀN BỘ định lượng BOM tất cả sản phẩm)`)) {
+                const exportSingle = typeof window.showConfirmModal === 'function'
+                    ? await window.showConfirmModal({
+                        title: 'Tùy Chọn Xuất Định Lượng BOM',
+                        message: 'Bạn có muốn xuất riêng định lượng BOM của sản phẩm đang chọn không?',
+                        subMessage: 'Bấm "Chỉ SP Này" để xuất sản phẩm đang chọn, hoặc "Xuất Tất Cả" để xuất toàn bộ BOM.',
+                        type: 'primary',
+                        confirmText: 'Chỉ SP Này',
+                        cancelText: 'Xuất Tất Cả',
+                        icon: '📊'
+                    })
+                    : confirm(`Bạn có muốn xuất riêng định lượng BOM của sản phẩm đang chọn không?\n(Bấm OK để chỉ xuất sản phẩm này, hoặc bấm Cancel để xuất TOÀN BỘ định lượng BOM tất cả sản phẩm)`);
+                if (exportSingle) {
                     url += `?product_id=${prodId}`;
                 }
             }
@@ -4168,7 +4191,17 @@
         }
 
         async function removeBOMItem(ingId) {
-            if (!confirm('Xóa thành phần này khỏi BOM?')) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xóa Thành Phần BOM',
+                    message: 'Xóa thành phần này khỏi BOM?',
+                    type: 'danger',
+                    confirmText: 'Xóa',
+                    cancelText: 'Hủy bỏ',
+                    icon: '🗑️'
+                })
+                : confirm('Xóa thành phần này khỏi BOM?');
+            if (!confirmed) return;
             const targetIds = [...selectedBOMProductIds];
             if (targetIds.length === 0) return;
 
@@ -4674,14 +4707,32 @@
 
         async function submitBulkUpdateOrderStaff() {
             const count = selectedOrderCodes.size;
-            if (count === 0) return alert('Vui lòng chọn ít nhất 1 hóa đơn để cập nhật!');
+            if (count === 0) {
+                if (window.showToast) window.showToast('Vui lòng chọn ít nhất 1 hóa đơn để cập nhật!', 'warning');
+                else alert('Vui lòng chọn ít nhất 1 hóa đơn để cập nhật!');
+                return;
+            }
 
             const sel = document.getElementById('orders-bulk-staff-select');
             const staffId = parseInt(sel?.value);
-            if (!staffId) return alert('Vui lòng chọn thu ngân mới từ danh sách!');
+            if (!staffId) {
+                if (window.showToast) window.showToast('Vui lòng chọn thu ngân mới từ danh sách!', 'warning');
+                else alert('Vui lòng chọn thu ngân mới từ danh sách!');
+                return;
+            }
 
             const staffName = sel.options[sel.selectedIndex]?.text || '';
-            if (!confirm(`Bạn có chắc chắn muốn chuyển ${count} hóa đơn đã chọn sang thu ngân "${staffName}"?`)) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Chuyển Thu Ngân Hóa Đơn',
+                    message: `Bạn có chắc chắn muốn chuyển ${count} hóa đơn đã chọn sang thu ngân "${staffName}"?`,
+                    type: 'primary',
+                    confirmText: 'Chuyển Thu Ngân',
+                    cancelText: 'Hủy bỏ',
+                    icon: '👤'
+                })
+                : confirm(`Bạn có chắc chắn muốn chuyển ${count} hóa đơn đã chọn sang thu ngân "${staffName}"?`);
+            if (!confirmed) return;
 
             try {
                 const res = await fetch('/api/orders/bulk-update-staff', {
@@ -6306,7 +6357,17 @@
                 return;
             }
             const name = multiTemplates.presets[curKey] ? multiTemplates.presets[curKey].name : curKey;
-            if (!confirm(`Bạn có chắc muốn xóa mẫu "${name}"?`)) return;
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xóa Mẫu In',
+                    message: `Bạn có chắc muốn xóa mẫu "${name}"?`,
+                    type: 'danger',
+                    confirmText: 'Xóa Mẫu',
+                    cancelText: 'Hủy bỏ',
+                    icon: '🗑️'
+                })
+                : confirm(`Bạn có chắc muốn xóa mẫu "${name}"?`);
+            if (!confirmed) return;
 
             const docType = multiTemplates.active_doc_type || 'pos_retail';
             delete multiTemplates.presets[curKey];
@@ -6321,7 +6382,8 @@
             renderPresetSelect(docType);
             const nextKey = multiTemplates.active_preset;
             if (nextKey) switchPreset(nextKey);
-            alert(`Đã xóa mẫu "${name}" thành công!`);
+            if (window.showToast) window.showToast(`Đã xóa mẫu "${name}" thành công!`, 'success');
+            else alert(`Đã xóa mẫu "${name}" thành công!`);
         }
 
         async function renameCurrentPreset() {

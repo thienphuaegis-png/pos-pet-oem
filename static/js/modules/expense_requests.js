@@ -502,7 +502,17 @@
 
     // --- Hủy yêu cầu ---
     window.cancelExpenseRequest = async function(id, code) {
-        if (!confirm(`Bạn có chắc muốn hủy yêu cầu chi ${code}?`)) return;
+        const confirmed = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Hủy Yêu Cầu Chi',
+                message: `Bạn có chắc muốn hủy yêu cầu chi ${code}?`,
+                type: 'warning',
+                confirmText: 'Hủy Yêu Cầu',
+                cancelText: 'Quay lại',
+                icon: '⚠️'
+            })
+            : confirm(`Bạn có chắc muốn hủy yêu cầu chi ${code}?`);
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`/api/expense-requests/${id}/cancel`, {

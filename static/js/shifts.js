@@ -282,7 +282,17 @@ async function submitCloseShift() {
   const noteInput = document.getElementById('shift-close-note');
 
   if (!cashInput || !cashInput.value.trim()) {
-    if (!confirm('Bạn chưa nhập tiền mặt thực tế kiểm đếm (mặc định = 0 đ). Tiếp tục?')) {
+    const ok = typeof window.showConfirmModal === 'function'
+      ? await window.showConfirmModal({
+          title: 'Kiểm Đếm Tiền Mặt',
+          message: 'Bạn chưa nhập tiền mặt thực tế kiểm đếm (mặc định = 0 đ). Bạn có muốn tiếp tục?',
+          type: 'warning',
+          confirmText: 'Tiếp tục',
+          cancelText: 'Quay lại',
+          icon: '💵'
+        })
+      : confirm('Bạn chưa nhập tiền mặt thực tế kiểm đếm (mặc định = 0 đ). Tiếp tục?');
+    if (!ok) {
       cashInput?.focus();
       return;
     }
@@ -315,22 +325,34 @@ async function submitCloseShift() {
       const diff = data.difference || 0;
       const sign = diff >= 0 ? '+' : '';
       const diffIcon = diff === 0 ? '✅' : diff > 0 ? '⬆' : '⬇';
-      const msg = `Kết ca hoàn tất!\n` +
-        `• Két lý thuyết: ${(data.expected_cash||0).toLocaleString('vi-VN')} đ\n` +
+      const msg = `• Két lý thuyết: ${(data.expected_cash||0).toLocaleString('vi-VN')} đ\n` +
         `• Thực tế đếm:   ${closingAmount.toLocaleString('vi-VN')} đ\n` +
-        `• Chênh lệch:    ${diffIcon} ${sign}${diff.toLocaleString('vi-VN')} đ\n\n` +
-        `Bạn có muốn in phiếu kết ca (Z-Report) không?`;
+        `• Chênh lệch:    ${diffIcon} ${sign}${diff.toLocaleString('vi-VN')} đ`;
 
-      if (confirm(msg)) {
+      const wantPrint = typeof window.showConfirmModal === 'function'
+        ? await window.showConfirmModal({
+            title: 'Kết Ca Thành Công',
+            message: msg,
+            subMessage: 'Bạn có muốn in phiếu kết ca (Z-Report) ngay bây giờ không?',
+            type: 'success',
+            confirmText: 'In Phiếu Z-Report',
+            cancelText: 'Để sau',
+            icon: '🖨️'
+          })
+        : confirm(`Kết ca hoàn tất!\n${msg}\n\nBạn có muốn in phiếu kết ca (Z-Report) không?`);
+
+      if (wantPrint) {
         printShiftZReport(summaryResult);
       } else if (typeof showToast === 'function') {
         showToast('✅ Kết ca hoàn tất', 'success');
       }
     } else {
-      alert('❌ ' + (data.detail || 'Lỗi kết ca'));
+      if (typeof showToast === 'function') showToast('❌ ' + (data.detail || 'Lỗi kết ca'), 'error');
+      else alert('❌ ' + (data.detail || 'Lỗi kết ca'));
     }
   } catch (e) {
-    alert('❌ Không kết nối được server');
+    if (typeof showToast === 'function') showToast('❌ Không kết nối được server', 'error');
+    else alert('❌ Không kết nối được server');
   }
 }
 
@@ -516,13 +538,30 @@ async function loadShiftsHistory() {
 }
 
 async function approveShift(shiftId) {
-  if (!confirm('Xác nhận duyệt ca này?')) return;
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal({
+        title: 'Duyệt Ca Bán Hàng',
+        message: 'Bạn có chắc chắn muốn duyệt ca bán hàng này?',
+        type: 'primary',
+        confirmText: 'Duyệt Ca',
+        cancelText: 'Hủy bỏ',
+        icon: '✅'
+      })
+    : confirm('Xác nhận duyệt ca này?');
+  if (!confirmed) return;
   try {
     const res = await fetch(`/api/shifts/${shiftId}/approve`, { method: 'POST' });
     const data = await res.json();
-    if (res.ok) { loadShiftsHistory(); } else { alert('❌ ' + (data.detail || 'Lỗi duyệt ca')); }
+    if (res.ok) {
+      if (typeof showToast === 'function') showToast('✅ Đã duyệt ca thành công!', 'success');
+      loadShiftsHistory();
+    } else {
+      if (typeof showToast === 'function') showToast('❌ ' + (data.detail || 'Lỗi duyệt ca'), 'error');
+      else alert('❌ ' + (data.detail || 'Lỗi duyệt ca'));
+    }
   } catch (e) {
-    alert('❌ Không kết nối được server');
+    if (typeof showToast === 'function') showToast('❌ Không kết nối được server', 'error');
+    else alert('❌ Không kết nối được server');
   }
 }
 

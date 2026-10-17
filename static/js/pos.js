@@ -1892,11 +1892,22 @@ async function submitPOSOrder() {
 
     if (debtAmount > 0) {
         if (!tab.customer || tab.customer.id === 1 || customerId === 1) {
-            alert("⚠️ Khách lẻ không thể ghi nợ!\nVui lòng chọn hoặc thêm khách hàng để lưu công nợ cho hóa đơn này.");
+            if (window.showToast) window.showToast("⚠️ Khách lẻ không thể ghi nợ! Vui lòng chọn khách hàng để lưu công nợ.", "warning");
+            else alert("⚠️ Khách lẻ không thể ghi nợ!\nVui lòng chọn hoặc thêm khách hàng để lưu công nợ cho hóa đơn này.");
             return;
         }
         const custName = tab.customer.name || 'Khách hàng';
-        const ok = confirm(`Khách [${custName}] thanh toán ${formatMoney(paidAmount)}, còn nợ lại ${formatMoney(debtAmount)}.\n\nBạn có chắc chắn muốn ghi nợ hóa đơn này không?`);
+        const ok = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Xác Nhận Ghi Nợ Hóa Đơn',
+                message: `Khách [${custName}] thanh toán ${formatMoney(paidAmount)}, còn nợ lại ${formatMoney(debtAmount)}.`,
+                subMessage: 'Bạn có chắc chắn muốn ghi nợ cho hóa đơn này không?',
+                type: 'warning',
+                confirmText: 'Ghi Nợ & Thanh Toán',
+                cancelText: 'Quay lại',
+                icon: '📝'
+            })
+            : confirm(`Khách [${custName}] thanh toán ${formatMoney(paidAmount)}, còn nợ lại ${formatMoney(debtAmount)}.\n\nBạn có chắc chắn muốn ghi nợ hóa đơn này không?`);
         if (!ok) {
             return;
         }
