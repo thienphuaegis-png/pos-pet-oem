@@ -5059,9 +5059,6 @@
             const btn = document.getElementById('btn-trigger-apply-update');
             if (!banner || !msg) return;
 
-            // Luôn cho phép nút Cập Nhật Ngay hiển thị để chủ shop có thể chủ động bấm sync bất cứ lúc nào
-            if (btn) btn.classList.remove('hidden');
-
             try {
                 const headers = {};
                 if (typeof Auth !== 'undefined' && Auth.getToken()) {
@@ -5075,17 +5072,57 @@
                     banner.className = 'bg-emerald-50 border-b border-emerald-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
                     icon.innerText = '🚀';
                     msg.innerHTML = `<strong class="text-emerald-800">Đã có bản cập nhật mới trên GitHub (commit ${data.remote_commit})!</strong>`;
-                    if (btn) btn.innerText = '⚡ Cập Nhật Ngay';
+                    if (btn) {
+                        btn.innerText = '⚡ Cập Nhật Ngay';
+                        btn.classList.remove('hidden');
+                    }
                 } else {
                     banner.className = 'bg-slate-50 border-b border-slate-200 p-3 px-4 flex flex-wrap items-center justify-between gap-2';
                     icon.innerText = '✓';
                     msg.innerHTML = `<span class="text-slate-600 font-medium">Phiên bản hiện tại: <strong class="font-mono text-slate-800">${data.local_commit || 'mới nhất'}</strong></span>`;
-                    if (btn) btn.innerText = '🔄 Đồng Bộ Lại';
+                    if (btn) {
+                        btn.innerText = '🔄 Đồng Bộ Lại';
+                        btn.classList.add('hidden');
+                    }
                 }
             } catch(e) {
                 if (msg) msg.innerText = 'Máy chủ đang ở chế độ Offline / Sẵn sàng đồng bộ.';
-                if (btn) btn.innerText = '⚡ Cập Nhật Ngay';
+                if (btn) {
+                    btn.innerText = '⚡ Cập Nhật Ngay';
+                    btn.classList.add('hidden');
+                }
             }
+            showLastUpdateResult();
+        }
+
+        const UPDATE_RESULT_TEXT = {
+            OK: ['✅', 'Cập nhật thành công'],
+            NO_CHANGE: ['✓', 'Đã là bản mới nhất'],
+            ROLLED_BACK: ['↩️', 'Bản mới lỗi — đã TỰ QUAY VỀ bản cũ, dữ liệu giữ nguyên'],
+            ROLLBACK_FAILED: ['🛑', 'Bản cũ cũng không lên — cần truy cập máy chủ qua Tailscale'],
+            FAILED_PULL: ['⚠️', 'Không tải được bản mới (mạng/khóa GitHub) — vẫn chạy bản cũ'],
+            FAILED_BACKUP: ['⚠️', 'Sao lưu thất bại — đã dừng, không cập nhật'],
+            FAILED_PRECHECK: ['⚠️', 'Máy chủ thiếu điều kiện cập nhật'],
+        };
+
+        async function fetchUpdateStatus() {
+            const headers = {};
+            if (typeof Auth !== 'undefined' && Auth.getToken()) headers['Authorization'] = `Bearer ${Auth.getToken()}`;
+            const res = await fetch('/api/system/update-status', { headers, cache: 'no-store' });
+            if (!res.ok) throw new Error('status ' + res.status);
+            return res.json();
+        }
+
+        async function showLastUpdateResult() {
+            const el = document.getElementById('modal-v-last-update');
+            if (!el) return;
+            try {
+                const d = await fetchUpdateStatus();
+                if (!d.last) { el.textContent = ''; return; }
+                const [icon, text] = UPDATE_RESULT_TEXT[d.last.result] || ['•', d.last.result];
+                el.textContent = `${icon} Lần cập nhật cuối (${d.last.at || ''}): ${text}`;
+                el.title = d.log_tail || '';
+            } catch (e) { el.textContent = ''; }
         }
 
         async function triggerServerUpdate() {
@@ -5130,18 +5167,24 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Cập nhật thất bại');
 
-                alert(`🚀 ${data.message}\nTrang web sẽ tự động kết nối lại sau 6 giây.`);
-                
-                // Đếm ngược và tự động reload trang web
-                let seconds = 6;
-                const interval = setInterval(() => {
-                    seconds--;
-                    if (msg) msg.innerHTML = `<span class="text-emerald-700 font-bold">Khởi động lại thành công! Tự động tải lại trang sau ${seconds}s...</span>`;
-                    if (seconds <= 0) {
-                        clearInterval(interval);
-                        window.location.reload();
-                    }
-                }, 1000);
+                // Poll /api/system/update-status qua fetchUpdateStatus()
+                if (msg) msg.innerHTML = '<span class="text-amber-800 font-bold animate-pulse">Máy chủ đang cập nhật (1-3 phút), trang sẽ tự báo kết quả...</span>';
+                const started = Date.now();
+                await new Promise(r => setTimeout(r, 5000));
+                while (Date.now() - started < 6 * 60 * 1000) {
+                    try {
+                        const d = await fetchUpdateStatus();
+                        if (!d.in_progress && d.last) {
+                            const [icon, text] = UPDATE_RESULT_TEXT[d.last.result] || ['•', d.last.result];
+                            alert(`${icon} ${text}\n${d.last.message || ''}`);
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (e) { /* server đang tắt — đợi tiếp */ }
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+                alert('Quá 6 phút chưa thấy máy chủ phản hồi. Kiểm tra máy chủ qua Tailscale.');
+                if (btn) btn.disabled = false;
             } catch(err) {
                 alert('Lỗi cập nhật: ' + err.message);
                 if (btn) btn.disabled = false;
