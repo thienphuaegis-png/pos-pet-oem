@@ -91,20 +91,27 @@ REM --- 3/5 Tai code moi ---
 echo [3/5] Tai ban cap nhat tu GitHub...
 for /f %%h in ('"%GIT%" rev-parse HEAD') do set "OLD=%%h"
 REM Chon cach xac thuc theo thu co san tren may tiem:
-REM   khoa_tiem     = SSH deploy key (cai bang USB)
-REM   khoa_tiem.txt = token HTTPS (cai bang file moi tu Zalo)
+REM   deploy\id_pos_shop = SSH deploy key mac dinh
+REM   deploy\khoa_tiem   = SSH deploy key bo sung (USB)
+REM   deploy\khoa_tiem.txt = token HTTPS (cai bang file moi tu Zalo)
 REM ssh nuot dau \ nen phai doi sang / truoc khi dua vao GIT_SSH_COMMAND.
-if exist "%ROOT%\deploy\khoa_tiem" (
-    set "KEYPATH=%ROOT%\deploy\khoa_tiem"
-    set "KEYPATH=!KEYPATH:\=/!"
+set "SSHKEY="
+if exist "%ROOT%\deploy\id_pos_shop" set "SSHKEY=%ROOT%\deploy\id_pos_shop"
+if exist "%ROOT%\deploy\khoa_tiem" set "SSHKEY=%ROOT%\deploy\khoa_tiem"
+
+if defined SSHKEY (
+    set "KEYPATH=!SSHKEY:\=/!"
     set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 )
+
 set "PULLURL="
 if exist "%ROOT%\deploy\khoa_tiem.txt" (
     set /p TOKEN=<"%ROOT%\deploy\khoa_tiem.txt"
     for /f "delims=" %%u in ('"%GIT%" config --get remote.origin.url') do set "ORIGINURL=%%u"
-    REM Ghep token vao URL ngay luc pull, khong luu vao config
-    set "PULLURL=!ORIGINURL:https://=https://!TOKEN!@!"
+    REM Chi ghep token neu origin la https
+    if not "!ORIGINURL:https://=!"=="!ORIGINURL!" (
+        set "PULLURL=!ORIGINURL:https://=https://!TOKEN!@!"
+    )
 )
 
 if defined PULLURL (
