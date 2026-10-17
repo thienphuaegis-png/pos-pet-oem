@@ -8603,11 +8603,6 @@
             }
         });
 
-        async function toggleOEMOrderExpand(orderId, event) {
-            viewOEMOrderDetail(orderId);
-        }
-        window.toggleOEMOrderExpand = toggleOEMOrderExpand;
-
         function renderOEMOrdersTable(ordersToRender) {
             const tbody = document.getElementById('table-oem-orders');
             if (!tbody) return;
@@ -8686,7 +8681,7 @@
                                     <button type="button" onclick="toggleOEMActionMenu(${o.id}, event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
                                         ⋮
                                     </button>
-                                    <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
+                                    <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
                                         <div class="py-0.5">
                                             <button type="button" onclick="closeAllOEMActionMenus(); viewOEMOrderDetail(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                 <span>ℹ️</span> <span>Chi tiết</span>

@@ -1100,7 +1100,7 @@
                                         <button type="button" onclick="togglePurchaseActionMenu('${escapeHtml(p.code)}', event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
                                             ⋮
                                         </button>
-                                        <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-38 py-1 text-left text-xs divide-y divide-slate-100">
+                                        <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
                                             <div class="py-0.5">
                                                 <button type="button" onclick="closeAllPurchaseActionMenus(); openReceiveModal('${escapeHtml(p.code)}', true)" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                     <span>👁️</span> <span>Chi tiết</span>
@@ -1180,8 +1180,17 @@
                 }).join('');
 
                 const btnConfirm = document.getElementById('btn-confirm-receive');
+                const btnPayDebt = document.getElementById('btn-pay-purchase-debt');
                 const actionBox = document.getElementById('rec-action-box');
                 const footerNote = document.getElementById('rec-footer-note');
+
+                if (btnPayDebt) {
+                    if ((data.debt_amount || 0) > 0 && data.status !== 'cancelled') {
+                        btnPayDebt.classList.remove('hidden');
+                    } else {
+                        btnPayDebt.classList.add('hidden');
+                    }
+                }
 
                 if (isReceived) {
                     btnConfirm.classList.add('hidden');
@@ -1564,7 +1573,11 @@
                 }
 
                 alert(data.message || "Đã thanh toán thành công!");
+                const paidCode = currentPayingPurchaseCode; // closePayPurchaseModal() nulls it
                 closePayPurchaseModal();
+                if (currentViewingPurchase && currentViewingPurchase.code === paidCode) {
+                    openReceiveModal(paidCode, true);
+                }
                 loadPurchasesList();
             } catch (err) {
                 console.error("submitPayPurchaseDebt err:", err);

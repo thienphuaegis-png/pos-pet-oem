@@ -6333,6 +6333,9 @@
                             <button onclick="printPurchaseChecklistCurrent()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
                                 <span>🖨️ In Phiếu Kiểm Cầm Tay</span>
                             </button>
+                            <button id="btn-pay-purchase-debt" onclick="openPayPurchaseModal(currentViewingPurchase.code, currentViewingPurchase.debt_amount, currentViewingPurchase.fund_source || 'PERSONAL')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
+                                <span>💳 Chi Trả Nợ</span>
+                            </button>
                             <button onclick="closeReceiveModal()" class="px-4 py-2 border rounded font-bold text-gray-600 hover:bg-gray-100 text-xs">
                                 Đóng
                             </button>
@@ -10945,8 +10948,8 @@
     <script src="/static/js/app.js?v=20261013_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261016_01"></script>
     <script src="/static/js/modules/spa.js?v=20261016_01"></script>
-    <script src="/static/js/modules/purchases.js?v=20261016_01"></script>
-    <script src="/static/js/modules/productions.js?v=20261016_01"></script>
+    <script src="/static/js/modules/purchases.js?v=20261017_01"></script>
+    <script src="/static/js/modules/productions.js?v=20261017_01"></script>
     <script src="/static/js/modules/cashflow.js?v=20261016_01"></script>
     <script src="/static/js/modules/hotel.js?v=20261016_01"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
