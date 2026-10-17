@@ -88,17 +88,47 @@ function switchReportsSubTab(subTabId) {
     }
 }
 
+function renderReportsSkeleton() {
+    // KPI skeletons
+    const kpiIds = ['rep-kpi-revenue', 'rep-kpi-paid', 'rep-kpi-debt', 'rep-kpi-aov'];
+    kpiIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="inline-block h-6 w-28 bg-slate-200 animate-pulse rounded"></span>';
+    });
+
+    // Table skeletons
+    if (typeof renderTableSkeleton === 'function') {
+        renderTableSkeleton('table-rep-payments', 3, 5);
+        renderTableSkeleton('rep-table-staff', 3, 6);
+        renderTableSkeleton('rep-table-products', 5, 7);
+    }
+}
+
 async function loadReportsAnalytics() {
     const fromVal = document.getElementById('rep-filter-from')?.value || '';
     const toVal = document.getElementById('rep-filter-to')?.value || '';
 
     const btnRefresh = document.getElementById('btn-rep-refresh');
     if (btnRefresh) btnRefresh.classList.add('animate-spin');
+    if (typeof startPageLoader === 'function') startPageLoader();
+
+    // Hiển thị skeleton ngay lập tức
+    renderReportsSkeleton();
 
     try {
         const url = `/api/reports/analytics?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Lỗi khi tải báo cáo");
+        const headers = { 'Accept': 'application/json' };
+        if (typeof Auth !== 'undefined' && Auth.getToken()) {
+            headers['Authorization'] = `Bearer ${Auth.getToken()}`;
+        }
+
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+            if (res.status === 401 && typeof showLoginOverlay === 'function') {
+                showLoginOverlay();
+            }
+            throw new Error(`Lỗi khi tải báo cáo (${res.status})`);
+        }
         const data = await res.json();
         currentReportsData = data;
 
@@ -112,8 +142,10 @@ async function loadReportsAnalytics() {
 
     } catch (e) {
         console.error("loadReportsAnalytics error:", e);
+        if (window.showToast) window.showToast(e.message || "Không thể tải dữ liệu báo cáo", "error");
     } finally {
         if (btnRefresh) btnRefresh.classList.remove('animate-spin');
+        if (typeof stopPageLoader === 'function') stopPageLoader();
     }
 }
 

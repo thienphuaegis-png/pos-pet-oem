@@ -299,6 +299,7 @@
         function closeContactModal() {
             document.getElementById('modal-contact').classList.add('hidden');
         }
+        window.closeContactModal = closeContactModal;
 
         async function submitContactForm() {
             const id = document.getElementById('contact-form-id').value;
@@ -464,6 +465,7 @@
         function closePayDebtModal() {
             document.getElementById('modal-pay-debt').classList.add('hidden');
         }
+        window.closePayDebtModal = closePayDebtModal;
 
         async function submitPayDebt() {
             const id = document.getElementById('pay-debt-contact-id').value;
@@ -631,6 +633,7 @@
             const modal = document.getElementById('modal-contacts-import');
             if (modal) modal.classList.add('hidden');
         }
+        window.closeImportContactsModal = closeImportContactsModal;
 
         function downloadContactTemplate() {
             const type = (document.getElementById('import-contact-type') || document.getElementById('import-contacts-type'))?.value || 'customer';
@@ -687,3 +690,4 @@
         function closeContactDetailModal() {
             document.getElementById('modal-contact-detail').classList.add('hidden');
         }
+        window.closeContactDetailModal = closeContactDetailModal;

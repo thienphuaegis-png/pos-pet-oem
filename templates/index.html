@@ -933,7 +933,6 @@
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
                         </span>
                         <span class="sidebar-text truncate">Tác Nhân AI</span>
-                        <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-purple-100 text-purple-700 border border-purple-200">COPILOT</span>
                     </button>
                     <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="settings" data-role="owner" data-tooltip="Cài Đặt Hệ Thống">
                         <span class="sidebar-icon bg-slate-200 text-slate-700">
@@ -4409,7 +4408,7 @@
             </div>
 
             <!-- MODAL: TẠO ĐƠN ĐẶT GIA CÔNG OEM MỚI -->
-            <div id="modal-create-oem" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-create-oem" onclick="if(event.target === this) closeModalCreateOEM()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-4 bg-slate-50 rounded-t-xl">
                         <div>
@@ -4599,7 +4598,7 @@
             </div>
 
             <!-- MODAL: NHẬN HÀNG GIA CÔNG & QUYẾT TOÁN THỰC NHẬN -->
-            <div id="modal-receive-oem" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-receive-oem" onclick="if(event.target === this) closeModalReceiveOEM()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-4 bg-amber-50 rounded-t-xl">
                         <div>
@@ -4694,7 +4693,7 @@
             </div>
 
             <!-- MODAL: CHI TIẾT ĐƠN GIA CÔNG OEM -->
-            <div id="modal-detail-oem" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-detail-oem" onclick="if(event.target === this) closeModalDetailOEM()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-4 bg-slate-50 rounded-t-xl">
                         <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
@@ -4727,7 +4726,7 @@
             </div>
 
             <!-- MODAL: QUẢN LÝ GÁN KHO CHO NHÀ MÁY GIA CÔNG -->
-            <div id="modal-manage-oem-factories" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-manage-oem-factories" onclick="if(event.target === this) closeModalManageOEMFactories()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-4 bg-amber-50 rounded-t-xl">
                         <div>
@@ -5080,7 +5079,7 @@
                 </div>
 
                 <!-- MODAL POPUP: CHỌN TÀI KHOẢN SỔ QUỸ -->
-                <div id="modal-cashbook-acc-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+                <div id="modal-cashbook-acc-picker" onclick="if(event.target === this) closeCashbookAccPickerModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
                     <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
                         <div class="flex justify-between items-center p-3 bg-slate-900 text-white rounded-t-xl">
                             <h4 class="font-bold flex items-center gap-1.5 text-white">
@@ -5334,7 +5333,7 @@
             </div>
 
             <!-- MODAL: XEM CÁC ĐƠN HÀNG CÒN NỢ CỦA NCC -->
-            <div id="modal-cfd-supplier-orders" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-cfd-supplier-orders" onclick="if(event.target === this) closeModalCFDSupplierOrders()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-3.5 bg-slate-50 rounded-t-xl">
                         <div>
@@ -5378,8 +5377,8 @@
                 </div>
             </div>
 
-            <!-- MODAL: TRẢ NỢ CHO TỪNG ĐƠN HÀNG CỤ THỂ -->
-            <div id="modal-cfd-pay-order" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <!-- MODAL: THANH TOÁN 1 ĐƠN HÀNG CỤ THỂ -->
+            <div id="modal-cfd-pay-order" onclick="if(event.target === this) closeModalCFDPayOrder()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-3.5 bg-blue-50 rounded-t-xl">
                         <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
@@ -5446,7 +5445,7 @@
             </div>
 
             <!-- MODAL: LẬP PHIẾU TRẢ NỢ NCC -->
-            <div id="modal-cfd-pay-supplier" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-cfd-pay-supplier" onclick="if(event.target === this) closeModalPaySupplierDebt()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-3.5 bg-amber-50 rounded-t-xl">
                         <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
@@ -5543,7 +5542,7 @@
             </div>
 
             <!-- MODAL POPUP: CHỌN NHÀ CUNG CẤP CHI TRẢ NỢ -->
-            <div id="modal-cfd-supp-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+            <div id="modal-cfd-supp-picker" onclick="if(event.target === this) closeCFDPaySuppPickerModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
                     <div class="flex justify-between items-center p-3 bg-amber-900 text-white rounded-t-xl">
                         <h4 class="font-bold flex items-center gap-1.5 text-white">
@@ -5564,7 +5563,7 @@
             </div>
 
             <!-- MODAL: LẬP KẾ HOẠCH HẸN TRẢ NỢ NCC -->
-            <div id="modal-cfd-debt-plan" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+            <div id="modal-cfd-debt-plan" onclick="if(event.target === this) closeModalCreateDebtPlan()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200">
                     <div class="flex justify-between items-center p-3.5 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-t-xl">
                         <div>
@@ -5680,7 +5679,7 @@
             </div>
 
             <!-- MODAL POPUP: CHỌN ĐƠN NỢ LẺ CỦA NCC -->
-            <div id="modal-plan-order-picker" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+            <div id="modal-plan-order-picker" onclick="if(event.target === this) closePlanOrderPickerModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-xs overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
                     <div class="flex justify-between items-center p-3 bg-purple-900 text-white rounded-t-xl">
                         <h4 class="font-bold flex items-center gap-1.5 text-white">
@@ -5701,7 +5700,7 @@
             </div>
 
             <!-- MODAL: SỬA NHANH CÔNG NỢ ĐẦU KỲ NCC -->
-            <div id="modal-quick-edit-debt" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-quick-edit-debt" onclick="if(event.target === this) closeQuickEditDebtModal()" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col text-xs">
                     <div class="flex justify-between items-center border-b p-3.5 bg-sky-50 rounded-t-xl">
                         <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
@@ -6029,7 +6028,7 @@
 
             
             <!-- MODAL: TẠO / SỬA ĐƠN ĐẶT HÀNG MUA HÀNG -->
-            <div id="modal-purchase-order" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-purchase-order" onclick="if(event.target === this) closePurchaseModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col text-xs overflow-hidden">
                     <div class="flex justify-between items-center border-b p-4 bg-slate-800 text-white rounded-t-xl shrink-0">
                         <div>
@@ -6209,7 +6208,7 @@
             </div>
 
             <!-- MODAL: GÁN NHANH SẢN PHẨM & NGUYÊN LIỆU CHO NHÀ CUNG CẤP -->
-            <div id="modal-quick-assign-supplier" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
+            <div id="modal-quick-assign-supplier" onclick="if(event.target === this) closeQuickAssignSupplierModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[60] p-4 backdrop-blur-xs">
                 <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden border border-slate-200">
                     <div class="p-3.5 bg-gradient-to-r from-slate-900 to-sky-950 text-white flex justify-between items-center shrink-0">
                         <div>
@@ -6259,7 +6258,7 @@
             </div>
 
             <!-- MODAL: CHI TIẾT & NHẬN HÀNG PHIẾU NHẬP -->
-            <div id="modal-receive-purchase" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-receive-purchase" onclick="if(event.target === this) closeReceiveModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                     <div class="p-4 bg-slate-800 text-white flex justify-between items-center">
                         <div>
@@ -6348,7 +6347,7 @@
             </div>
 
             <!-- MODAL: LẬP PHIẾU CHI THANH TOÁN ĐƠN NHẬP -->
-            <div id="modal-pay-purchase" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-pay-purchase" onclick="if(event.target === this) closePayPurchaseModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden text-xs">
                     <div class="p-3.5 bg-slate-800 text-white flex justify-between items-center">
                         <h3 class="font-bold text-sm flex items-center gap-1.5">
@@ -6386,7 +6385,7 @@
             </div>
 
             <!-- MODAL: CHI TIẾT LỆNH SẢN XUẤT -->
-            <div id="modal-production-detail" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+            <div id="modal-production-detail" onclick="if(event.target === this) closeProdDetailModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
                     <div class="p-4 bg-slate-800 text-white flex justify-between items-center">
                         <div>
@@ -8250,7 +8249,6 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <h2 class="text-base font-bold text-slate-900">Tác Nhân AI Bóc Tách Chứng Từ</h2>
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">VISION COPILOT</span>
                             </div>
                             <p class="text-xs text-slate-500">Kéo thả ảnh hóa đơn, bill chuyển khoản, tin nhắn báo giá để AI tự động nhận diện và tạo đơn nháp</p>
                         </div>
@@ -9248,7 +9246,7 @@
     </div>
 
     <!-- MODAL: THÊM / SỬA ĐỐI TÁC -->
-    <div id="modal-contact" class="hidden fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+    <div id="modal-contact" onclick="if(event.target === this) closeContactModal()" class="hidden fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-scale-in">
             <!-- Modal Header -->
             <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
@@ -9345,8 +9343,8 @@
         </div>
     </div>
 
-    <!-- MODAL: THANH TOÁN CÔNG NỢ ĐỐI TÁC -->
-    <div id="modal-pay-debt" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <!-- MODAL: THANH TOÁN CÔNG NỢ -->
+    <div id="modal-pay-debt" onclick="if(event.target === this) closePayDebtModal()" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg p-6 max-w-sm w-full space-y-4 shadow-xl">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 id="modal-pay-debt-title" class="text-base font-bold text-slate-800">Thanh Toán Công Nợ</h3>
@@ -9400,7 +9398,7 @@
     </div>
 
     <!-- MODAL: CHI TIẾT ĐỐI TÁC & LỊCH SỬ GIAO DỊCH -->
-    <div id="modal-contact-detail" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div id="modal-contact-detail" onclick="if(event.target === this) closeContactDetailModal()" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg p-6 max-w-2xl w-full space-y-4 shadow-xl max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 id="modal-contact-detail-name" class="text-base font-bold text-slate-800">Chi Tiết Đối Tác</h3>
@@ -9469,7 +9467,7 @@
     </div>
 
     <!-- MODAL: IMPORT EXCEL ĐỐI TÁC -->
-    <div id="modal-contacts-import" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div id="modal-contacts-import" onclick="if(event.target === this) closeImportContactsModal()" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg p-6 max-w-md w-full space-y-4 shadow-xl">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 class="text-base font-bold text-slate-800">📥 Import Danh Bạ Từ File Excel</h3>
@@ -12201,7 +12199,7 @@
     </div>
 
     <!-- MODAL: LẬP PHIẾU THU / CHI THỦ CÔNG -->
-    <div id="modal-create-cashbook" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div id="modal-create-cashbook" onclick="if(event.target === this) closeCreateCashModal()" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
             <div class="flex justify-between items-center border-b pb-3">
                 <div class="flex items-center gap-2">

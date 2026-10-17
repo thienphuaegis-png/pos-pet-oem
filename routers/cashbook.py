@@ -681,7 +681,8 @@ def report_summary():
 @router.get("/api/reports/analytics")
 def get_reports_analytics(
     from_date: Optional[str] = None,
-    to_date: Optional[str] = None
+    to_date: Optional[str] = None,
+    user=Depends(get_current_user)
 ):
     """
     Truy vấn báo cáo phân tích kinh doanh đa chiều:
@@ -918,14 +919,15 @@ def get_reports_analytics(
 @router.get("/api/reports/export-excel")
 def export_reports_excel(
     from_date: Optional[str] = None,
-    to_date: Optional[str] = None
+    to_date: Optional[str] = None,
+    user=Depends(get_current_user)
 ):
     """Xuất file Excel báo cáo kinh doanh tổng hợp nhiều bảng định dạng chuẩn."""
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from io import BytesIO
 
-    data = get_reports_analytics(from_date, to_date)
+    data = get_reports_analytics(from_date, to_date, user)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "BaoCaoKinhDoanh"

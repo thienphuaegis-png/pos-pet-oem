@@ -6,11 +6,14 @@ from dependencies import get_current_user
 
 init_db()
 
-# Bypass auth for test
-app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
-client = TestClient(app)
+@pytest.fixture(autouse=True)
+def setup_auth():
+    app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 def test_reports_analytics_api_basic():
+    client = TestClient(app)
     # 1. Gọi API analytics mặc định (hôm nay)
     res = client.get("/api/reports/analytics")
     assert res.status_code == 200, res.text
@@ -30,6 +33,7 @@ def test_reports_analytics_api_basic():
         assert field in summary
 
 def test_reports_analytics_api_with_date_range():
+    client = TestClient(app)
     # 2. Gọi API với khoảng ngày tùy chọn
     res = client.get("/api/reports/analytics?from_date=2026-09-01&to_date=2026-10-31")
     assert res.status_code == 200, res.text
@@ -40,6 +44,7 @@ def test_reports_analytics_api_with_date_range():
     assert isinstance(data["top_products"], list)
 
 def test_reports_export_excel_api():
+    client = TestClient(app)
     # 3. Gọi API xuất file Excel báo cáo kinh doanh
     res = client.get("/api/reports/export-excel?from_date=2026-10-01&to_date=2026-10-07")
     assert res.status_code == 200

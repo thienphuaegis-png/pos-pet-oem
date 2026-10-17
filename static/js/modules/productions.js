@@ -396,6 +396,7 @@
         function closeProdDetailModal() {
             document.getElementById('modal-production-detail').classList.add('hidden');
         }
+        window.closeProdDetailModal = closeProdDetailModal;
 
         // So quy & Quan Ly Da Tai Khoan
         window.allCashbookData = [];
@@ -560,6 +561,7 @@
         function closeCashbookAccPickerModal() {
             document.getElementById('modal-cashbook-acc-picker')?.classList.add('hidden');
         }
+        window.closeCashbookAccPickerModal = closeCashbookAccPickerModal;
 
         function filterCashbookAccPopupList() {
             const q = (document.getElementById('cashbook-acc-search-input')?.value || '').toLowerCase().trim();
@@ -2509,8 +2511,9 @@
         window.deleteCashCategory = deleteCashCategory;
 
         function closeCreateCashModal() {
-            document.getElementById('modal-create-cashbook')?.classList.add('hidden');
+            document.getElementById('modal-create-cashbook').classList.add('hidden');
         }
+        window.closeCreateCashModal = closeCreateCashModal;
 
         async function submitCreateCashbook() {
             const type = document.getElementById('cash-type-val').value;
@@ -9830,6 +9833,7 @@
         function closeModalManageOEMFactories() {
             document.getElementById('modal-manage-oem-factories')?.classList.add('hidden');
         }
+        window.closeModalManageOEMFactories = closeModalManageOEMFactories;
 
         async function renderManageFactoriesTable() {
             const tbody = document.getElementById('oem-factories-list-table');
@@ -10003,6 +10007,7 @@
         function closeModalReceiveOEM() {
             document.getElementById('modal-receive-oem')?.classList.add('hidden');
         }
+        window.closeModalReceiveOEM = closeModalReceiveOEM;
 
         async function recalcReceiveOEMMath() {
             if (!currentReceivingOrder) return;

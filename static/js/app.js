@@ -5311,14 +5311,39 @@
 
                 // C. Đóng các modal lớn đang hiển thị theo thứ tự ưu tiên
                 const activeModals = [
+                    // Hộp thoại xác nhận / Top dialogs
                     'modal-order-view',
                     'modal-pos-shortcuts-help',
                     'modal-app-version',
                     'modal-edit-topup-tx',
-                    'modal-detail-oem',
-                    'modal-create-oem',
+                    // Nhập hàng
+                    'modal-pay-purchase',
+                    'modal-receive-purchase',
+                    'modal-quick-assign-supplier',
+                    'modal-purchase-order',
+                    'modal-production-detail',
+                    // OEM
                     'modal-manage-oem-factories',
                     'modal-receive-oem',
+                    'modal-detail-oem',
+                    'modal-create-oem',
+                    // Khách hàng & Công nợ
+                    'modal-pay-debt',
+                    'modal-contact-detail',
+                    'modal-contacts-import',
+                    'modal-contact',
+                    // Dòng tiền & Nợ NCC
+                    'modal-cashbook-acc-picker',
+                    'modal-plan-order-picker',
+                    'modal-cfd-supp-picker',
+                    'modal-quick-edit-debt',
+                    'modal-cfd-pay-order',
+                    'modal-cfd-pay-supplier',
+                    'modal-cfd-debt-plan',
+                    'modal-cfd-supplier-orders',
+                    'modal-create-cashbook',
+                    'modal-cash-counter',
+                    // Kho bãi & Khác
                     'modal-product',
                     'modal-write-off',
                     'modal-inventory-check',
@@ -5326,12 +5351,8 @@
                     'modal-audit-detail',
                     'modal-create-service-ticket',
                     'modal-quick-add-pet',
-                    'modal-pay-debt',
-                    'modal-create-cashbook',
-                    'modal-cash-counter',
                     'modal-import-bom',
                     'modal-clone-bom',
-                    'modal-quick-assign-supplier',
                     'modal-pos-wallet-history'
                 ];
 

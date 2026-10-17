@@ -289,8 +289,9 @@
         }
 
         function closeModalCFDSupplierOrders() {
-            document.getElementById('modal-cfd-supplier-orders')?.classList.add('hidden');
+            document.getElementById('modal-cfd-supplier-orders').classList.add('hidden');
         }
+        window.closeModalCFDSupplierOrders = closeModalCFDSupplierOrders;
 
         // ==========================================
         // THANH TOÁN TỪNG ĐƠN HÀNG CỤ THỂ
@@ -325,6 +326,7 @@
         function closeModalCFDPayOrder() {
             document.getElementById('modal-cfd-pay-order')?.classList.add('hidden');
         }
+        window.closeModalCFDPayOrder = closeModalCFDPayOrder;
 
         function setCFDPayFullOrderDebt() {
             document.getElementById('cfd-pay-order-amount').value = currentSingleOrderMaxDebt;
@@ -415,6 +417,7 @@
         function closeCFDPaySuppPickerModal() {
             document.getElementById('modal-cfd-supp-picker')?.classList.add('hidden');
         }
+        window.closeCFDPaySuppPickerModal = closeCFDPaySuppPickerModal;
 
         function filterCFDPaySuppList() {
             const q = (document.getElementById('cfd-supp-search-input')?.value || '').toLowerCase().trim();
@@ -532,6 +535,7 @@
         function closeModalPaySupplierDebt() {
             document.getElementById('modal-cfd-pay-supplier')?.classList.add('hidden');
         }
+        window.closeModalPaySupplierDebt = closeModalPaySupplierDebt;
 
         function onCFDPaySupplierChange() {
             // Đã tích hợp qua selectCFDPaySupplier
@@ -676,6 +680,7 @@
             const modal = document.getElementById('modal-quick-edit-debt');
             if (modal) modal.classList.add('hidden');
         }
+        window.closeQuickEditDebtModal = closeQuickEditDebtModal;
 
         async function submitQuickEditDebt() {
             const supplierId = document.getElementById('qed-supp-id').value;
@@ -763,6 +768,7 @@
         function closeModalCreateDebtPlan() {
             document.getElementById('modal-cfd-debt-plan')?.classList.add('hidden');
         }
+        window.closeModalCreateDebtPlan = closeModalCreateDebtPlan;
 
         function togglePlanTypeView(type) {
             const orderBox = document.getElementById('plan-order-container');
@@ -808,6 +814,7 @@
         function closePlanOrderPickerModal() {
             document.getElementById('modal-plan-order-picker')?.classList.add('hidden');
         }
+        window.closePlanOrderPickerModal = closePlanOrderPickerModal;
 
         function filterPlanOrdersList() {
             const q = (document.getElementById('plan-order-search-input')?.value || '').toLowerCase().trim();

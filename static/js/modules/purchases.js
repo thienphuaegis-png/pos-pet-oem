@@ -436,6 +436,7 @@
             editingPurchaseCode = null;
             resetPurchaseForm();
         }
+        window.closePurchaseModal = closePurchaseModal;
 
         async function openEditPurchaseModal(code) {
             try {
@@ -1214,6 +1215,7 @@
             document.getElementById('modal-receive-purchase').classList.add('hidden');
             currentViewingPurchase = null;
         }
+        window.closeReceiveModal = closeReceiveModal;
 
         async function submitConfirmReceive() {
             if (!currentViewingPurchase) return;
@@ -1541,6 +1543,7 @@
             const modal = document.getElementById('modal-pay-purchase');
             if (modal) modal.classList.add('hidden');
         }
+        window.closePayPurchaseModal = closePayPurchaseModal;
 
         async function submitPayPurchaseDebt() {
             if (!currentPayingPurchaseCode) return;

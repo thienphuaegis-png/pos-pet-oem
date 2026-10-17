@@ -697,6 +697,13 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)')
 
+    # Composite indexes tối ưu hóa Báo Cáo Tổng Hợp (Reports Analytics)
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_created_at_staff ON orders(created_at, staff_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_prod ON order_items(order_id, product_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_order_payments_order_method ON order_payments(order_id, method)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_hotel_bookings_created_at ON hotel_bookings(created_at)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_created_status ON pet_service_tickets(created_at, payment_status, status)')
+
     # Doi tra hang
     cur.execute('''
     CREATE TABLE IF NOT EXISTS order_returns (
