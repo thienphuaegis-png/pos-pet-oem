@@ -8831,6 +8831,9 @@
             today.setDate(today.getDate() + 5);
             document.getElementById('oem-create-date').value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr(today) : new Intl.DateTimeFormat('en-CA').format(today);
 
+            // Reset target type mặc định về 'product'
+            setOEMTargetType('product');
+
             setOEMDiscountType('percent');
             document.getElementById('oem-create-discount').value = '0';
             document.getElementById('oem-create-vat').value = '0';
@@ -9051,9 +9054,14 @@
             });
 
             const q = (input?.value || '').toLowerCase().trim();
-            const sourceList = (currentFactoryProducts && currentFactoryProducts.length > 0)
-                ? currentFactoryProducts
-                : (allProducts || []);
+            let sourceList = [];
+            if (currentOEMTargetType === 'ingredient') {
+                sourceList = (allCostIngredients || []).filter(i => i.type === 'IS_PHYSICAL');
+            } else {
+                sourceList = (currentFactoryProducts && currentFactoryProducts.length > 0)
+                    ? currentFactoryProducts
+                    : (allProducts || []);
+            }
 
             const filtered = sourceList.filter(p => 
                 p.name.toLowerCase().includes(q) || 
@@ -9142,7 +9150,12 @@
         window.filterOEMQuickSearchDropdown = filterOEMQuickSearchDropdown;
 
         function quickAddOEMProduct(productId) {
-            const p = (currentFactoryProducts.length > 0 ? currentFactoryProducts : allProducts).find(x => x.id === productId);
+            let p = null;
+            if (currentOEMTargetType === 'ingredient') {
+                p = (allCostIngredients || []).find(x => x.id === productId);
+            } else {
+                p = (currentFactoryProducts.length > 0 ? currentFactoryProducts : allProducts).find(x => x.id === productId);
+            }
             if (!p) return;
 
             const itemsBody = document.getElementById('oem-create-items-body');
@@ -9280,6 +9293,40 @@
         }
         window.removeOEMProductRow = removeOEMProductRow;
 
+        let currentOEMTargetType = 'product';
+
+        function setOEMTargetType(type) {
+            currentOEMTargetType = type;
+            const hidden = document.getElementById('oem-create-target-type');
+            if (hidden) hidden.value = type;
+
+            const btnProd = document.getElementById('btn-oem-target-product');
+            const btnIng = document.getElementById('btn-oem-target-ingredient');
+
+            if (type === 'ingredient') {
+                if (btnIng) {
+                    btnIng.className = 'px-3 py-1 font-bold rounded-md bg-amber-600 text-white shadow-xs transition';
+                }
+                if (btnProd) {
+                    btnProd.className = 'px-3 py-1 font-bold rounded-md text-slate-700 hover:text-slate-900 transition';
+                }
+            } else {
+                if (btnProd) {
+                    btnProd.className = 'px-3 py-1 font-bold rounded-md bg-amber-600 text-white shadow-xs transition';
+                }
+                if (btnIng) {
+                    btnIng.className = 'px-3 py-1 font-bold rounded-md text-slate-700 hover:text-slate-900 transition';
+                }
+            }
+
+            // Xóa danh sách sản phẩm/nguyên liệu cũ đang chọn khi đổi mode
+            const tbody = document.getElementById('table-oem-items-body');
+            if (tbody) tbody.innerHTML = '';
+            filterOEMQuickSearchDropdown();
+            recalcCreateOEMMath();
+        }
+        window.setOEMTargetType = setOEMTargetType;
+
         function setOEMDiscountType(type) {
             const hidden = document.getElementById('oem-create-discount-type');
             const btnPct = document.getElementById('btn-oem-discount-type-pct');
@@ -9331,7 +9378,11 @@
 
                 if (totalCell) totalCell.innerText = formatMoney(rowTotal);
                 if (prodId && qty > 0) {
-                    selectedItems.push({ product_id: prodId, quantity: qty });
+                    if (currentOEMTargetType === 'ingredient') {
+                        selectedItems.push({ ingredient_id: prodId, item_type: 'ingredient', quantity: qty });
+                    } else {
+                        selectedItems.push({ product_id: prodId, item_type: 'product', quantity: qty });
+                    }
                 }
             });
 
@@ -9475,20 +9526,31 @@
                 const qty = parseFloat(r.querySelector('.oem-prod-qty')?.value) || 0;
                 const price = parseFloat(r.querySelector('.oem-prod-price')?.value) || 0;
                 if (prodId && qty > 0) {
-                    items.push({
-                        product_id: prodId,
-                        ordered_qty: qty,
-                        unit_price: price
-                    });
+                    if (currentOEMTargetType === 'ingredient') {
+                        items.push({
+                            item_type: 'ingredient',
+                            ingredient_id: prodId,
+                            ordered_qty: qty,
+                            unit_price: price
+                        });
+                    } else {
+                        items.push({
+                            item_type: 'product',
+                            product_id: prodId,
+                            ordered_qty: qty,
+                            unit_price: price
+                        });
+                    }
                 }
             });
 
             if (items.length === 0) {
-                return alert('Vui lòng chọn ít nhất 1 sản phẩm cần đặt gia công!');
+                return alert('Vui lòng chọn ít nhất 1 sản phẩm hoặc nguyên liệu cần đặt gia công!');
             }
 
             const payload = {
                 partner_id: partnerId,
+                target_type: currentOEMTargetType || 'product',
                 oem_warehouse_id: oemWhId,
                 dest_warehouse_id: destWhId,
                 expected_delivery_date: expectedDate,

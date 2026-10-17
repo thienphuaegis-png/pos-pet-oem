@@ -7,7 +7,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from pydantic import BaseModel
 from database import get_db
-from schemas import BOMSetRequest
+from schemas import BOMSetRequest, IngredientBOMSetRequest
 from logger_config import get_module_logger
 
 logger = get_module_logger("bom")
@@ -183,6 +183,53 @@ def get_product_bom(product_id: int):
     result = calculate_product_cost_internal(product_id, conn)
     conn.close()
     return result
+
+@router.get("/api/ingredients/{ingredient_id}/bom")
+def get_ingredient_bom(ingredient_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            ib.child_ingredient_id,
+            ib.quantity,
+            i.code as child_code,
+            i.name as child_name,
+            i.unit as child_unit,
+            i.type as child_type,
+            COALESCE((
+                SELECT ph.purchase_price 
+                FROM price_history ph 
+                WHERE ph.ingredient_id = i.id 
+                ORDER BY ph.effective_date DESC, ph.id DESC 
+                LIMIT 1
+            ), 0) as latest_cost
+        FROM ingredient_bom ib
+        JOIN ingredients i ON ib.child_ingredient_id = i.id
+        WHERE ib.parent_ingredient_id = ?
+        ORDER BY i.name ASC
+    """, (ingredient_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return {"parent_ingredient_id": ingredient_id, "items": rows}
+
+@router.post("/api/ingredients/{ingredient_id}/bom")
+def set_ingredient_bom(ingredient_id: int, req: IngredientBOMSetRequest):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM ingredient_bom WHERE parent_ingredient_id = ?", (ingredient_id,))
+        for it in req.items:
+            if it.quantity > 0:
+                cur.execute(
+                    "INSERT INTO ingredient_bom (parent_ingredient_id, child_ingredient_id, quantity) VALUES (?, ?, ?)",
+                    (ingredient_id, it.child_ingredient_id, it.quantity)
+                )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"success": True, "parent_ingredient_id": ingredient_id}
 
 @router.post("/api/products/{product_id}/bom")
 def set_product_bom(product_id: int, req: BOMSetRequest):

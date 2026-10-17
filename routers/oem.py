@@ -9,7 +9,9 @@ from pydantic import BaseModel
 from dependencies import require_permission, require_any_permission
 
 class OEMStockCheckItem(BaseModel):
-    product_id: int
+    item_type: Optional[str] = "product"  # 'product' hoac 'ingredient'
+    product_id: Optional[int] = None
+    ingredient_id: Optional[int] = None
     quantity: float
 
 class OEMStockCheckRequest(BaseModel):
@@ -163,13 +165,29 @@ def calculate_bom_stock(req: OEMStockCheckRequest):
     for item in req.items:
         if item.quantity <= 0:
             continue
-        cur.execute("""
-            SELECT pb.ingredient_id, pb.quantity, i.code, i.name, i.unit
-            FROM product_bom pb
-            JOIN ingredients i ON pb.ingredient_id = i.id
-            WHERE pb.product_id = ?
-        """, (item.product_id,))
-        for row in cur.fetchall():
+        
+        # Nếu là sản phẩm hoàn thiện
+        if item.item_type != "ingredient" and item.product_id:
+            cur.execute("""
+                SELECT pb.ingredient_id, pb.quantity, i.code, i.name, i.unit
+                FROM product_bom pb
+                JOIN ingredients i ON pb.ingredient_id = i.id
+                WHERE pb.product_id = ?
+            """, (item.product_id,))
+            rows = cur.fetchall()
+        # Nếu là nguyên liệu gia công từ phôi
+        elif item.item_type == "ingredient" and item.ingredient_id:
+            cur.execute("""
+                SELECT ib.child_ingredient_id as ingredient_id, ib.quantity, i.code, i.name, i.unit
+                FROM ingredient_bom ib
+                JOIN ingredients i ON ib.child_ingredient_id = i.id
+                WHERE ib.parent_ingredient_id = ?
+            """, (item.ingredient_id,))
+            rows = cur.fetchall()
+        else:
+            rows = []
+
+        for row in rows:
             ing_id = row["ingredient_id"]
             qty = row["quantity"] * item.quantity
             if ing_id not in needed_materials:
@@ -254,45 +272,73 @@ def get_oem_order_detail(order_id: int):
     
     order = dict(order_row)
     
-    # Lấy danh sách sản phẩm trong đơn
+    # Lấy danh sách sản phẩm/nguyên liệu trong đơn
     cur.execute("""
         SELECT 
             oi.*,
-            p.code as product_code,
-            p.name as product_name,
-            p.unit as product_unit,
-            (SELECT COUNT(*) FROM product_bom WHERE product_id = p.id) as bom_count
+            COALESCE(p.code, ing.code, '') as product_code,
+            COALESCE(p.name, ing.name, '') as product_name,
+            COALESCE(p.unit, ing.unit, '') as product_unit,
+            CASE 
+                WHEN oi.item_type = 'ingredient' THEN (SELECT COUNT(*) FROM ingredient_bom ib WHERE ib.parent_ingredient_id = oi.ingredient_id)
+                ELSE (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = oi.product_id)
+            END as bom_count
         FROM oem_order_items oi
-        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN products p ON oi.product_id = p.id AND (oi.item_type IS NULL OR oi.item_type = 'product')
+        LEFT JOIN ingredients ing ON oi.ingredient_id = ing.id AND oi.item_type = 'ingredient'
         WHERE oi.order_id = ?
     """, (order_id,))
     items = [dict(r) for r in cur.fetchall()]
     
-    # Lấy bảng BOM nguyên liệu cần dùng (tem, chai, nắp...) và tồn kho hiện tại ở kho xưởng
+    # Lấy bảng BOM nguyên liệu cần dùng (tem, chai, phôi...) và tồn kho hiện tại ở kho xưởng
     materials_needed = []
     for it in items:
-        prod_id = it["product_id"]
         qty = it["received_qty"] if it["received_qty"] > 0 else it["ordered_qty"]
+        is_ing = (it.get("item_type") == "ingredient")
         
-        cur.execute("""
-            SELECT 
-                pb.quantity as bom_qty,
-                i.id as ingredient_id,
-                i.code as ingredient_code,
-                i.name as ingredient_name,
-                i.unit as ingredient_unit,
-                i.type as ingredient_type,
-                COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_latest_cost,
-                COALESCE(inv.quantity, 0) as current_stock_at_oem
-            FROM product_bom pb
-            JOIN ingredients i ON pb.ingredient_id = i.id
-            LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = ?
-            WHERE pb.product_id = ?
-        """, (order["oem_warehouse_id"], prod_id))
+        if not is_ing and it.get("product_id"):
+            prod_id = it["product_id"]
+            cur.execute("""
+                SELECT 
+                    pb.quantity as bom_qty,
+                    i.id as ingredient_id,
+                    i.code as ingredient_code,
+                    i.name as ingredient_name,
+                    i.unit as ingredient_unit,
+                    i.type as ingredient_type,
+                    COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_latest_cost,
+                    COALESCE(inv.quantity, 0) as current_stock_at_oem
+                FROM product_bom pb
+                JOIN ingredients i ON pb.ingredient_id = i.id
+                LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = ?
+                WHERE pb.product_id = ?
+            """, (order["oem_warehouse_id"], prod_id))
+            bom_rows = cur.fetchall()
+        elif is_ing and it.get("ingredient_id"):
+            ing_id = it["ingredient_id"]
+            cur.execute("""
+                SELECT 
+                    ib.quantity as bom_qty,
+                    i.id as ingredient_id,
+                    i.code as ingredient_code,
+                    i.name as ingredient_name,
+                    i.unit as ingredient_unit,
+                    i.type as ingredient_type,
+                    COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_latest_cost,
+                    COALESCE(inv.quantity, 0) as current_stock_at_oem
+                FROM ingredient_bom ib
+                JOIN ingredients i ON ib.child_ingredient_id = i.id
+                LEFT JOIN inventory inv ON inv.ingredient_id = i.id AND inv.warehouse_id = ?
+                WHERE ib.parent_ingredient_id = ?
+            """, (order["oem_warehouse_id"], ing_id))
+            bom_rows = cur.fetchall()
+        else:
+            bom_rows = []
         
-        for bom in cur.fetchall():
+        for bom in bom_rows:
             materials_needed.append({
-                "product_id": prod_id,
+                "product_id": it.get("product_id"),
+                "ingredient_parent_id": it.get("ingredient_id"),
                 "product_name": it["product_name"],
                 "ingredient_id": bom["ingredient_id"],
                 "ingredient_code": bom["ingredient_code"],
@@ -342,14 +388,14 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
         
         cur.execute("""
             INSERT INTO oem_orders (
-                code, partner_id, oem_warehouse_id, dest_warehouse_id,
+                code, partner_id, target_type, oem_warehouse_id, dest_warehouse_id,
                 status, expected_delivery_date, fund_source,
                 vat_percent, discount_percent, deposit_amount, deposit_date,
                 total_raw_amount, total_final_amount, remaining_payment,
                 payment_status, note, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            code, req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
+            code, req.partner_id, getattr(req, "target_type", "product") or "product", req.oem_warehouse_id, req.dest_warehouse_id,
             status, req.expected_delivery_date, req.fund_source,
             req.vat_percent, discount_pct, req.deposit_amount, deposit_date,
             total_raw, total_final, remaining,
@@ -360,20 +406,27 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
         for it in req.items:
             # Đơn giá ròng dự kiến
             net_cost = it.unit_price * discount_factor * vat_factor
+            item_type = getattr(it, "item_type", "product") or ("ingredient" if it.ingredient_id else "product")
             cur.execute("""
                 INSERT INTO oem_order_items (
-                    order_id, product_id, ordered_qty, received_qty,
+                    order_id, item_type, product_id, ingredient_id, ordered_qty, received_qty,
                     unit_price, final_unit_cost, full_cost_per_unit
-                ) VALUES (?, ?, ?, 0, ?, ?, 0)
-            """, (order_id, it.product_id, it.ordered_qty, it.unit_price, net_cost))
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0)
+            """, (order_id, item_type, it.product_id, it.ingredient_id, it.ordered_qty, it.unit_price, net_cost))
 
             # Ghi nhớ đơn giá gia công vào quan hệ nhà máy nếu có giá > 0
-            if it.unit_price > 0:
+            if it.unit_price > 0 and it.product_id:
                 cur.execute("""
                     UPDATE supplier_items 
                     SET default_cost = ? 
                     WHERE supplier_id = ? AND item_type = 'product' AND product_id = ?
                 """, (it.unit_price, req.partner_id, it.product_id))
+            elif it.unit_price > 0 and it.ingredient_id:
+                cur.execute("""
+                    UPDATE supplier_items 
+                    SET default_cost = ? 
+                    WHERE supplier_id = ? AND item_type = 'ingredient' AND ingredient_id = ?
+                """, (it.unit_price, req.partner_id, it.ingredient_id))
             
         # Nếu có cọc đợt 1 ngay, ghi nhận vào Sổ Quỹ (cashbook)
         if req.deposit_amount > 0:
@@ -633,111 +686,190 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_
         total_final = total_raw * discount_factor * vat_factor
         remaining = max(0.0, total_final - order["deposit_amount"])
         
-        # Xử lý từng sản phẩm: trừ kho NVL tại xưởng, tính giá vốn gộp, nhập kho thành phẩm
+        # Xử lý từng sản phẩm/nguyên liệu: trừ kho NVL/phôi tại xưởng, tính giá vốn gộp, nhập kho
         for it in items:
-            prod_id = it["product_id"]
             rec_qty = it["received_qty"]
             if rec_qty <= 0:
                 continue
                 
             net_proc_cost = it["unit_price"] * discount_factor * vat_factor
-            
-            # Tính tổng chi phí tem, chai, nắp từ BOM
-            cur.execute("""
-                SELECT 
-                    pb.ingredient_id,
-                    pb.quantity as bom_qty,
-                    i.name as ingredient_name,
-                    i.type as ingredient_type,
-                    COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_cost
-                FROM product_bom pb
-                JOIN ingredients i ON pb.ingredient_id = i.id
-                WHERE pb.product_id = ?
-            """, (prod_id,))
-            bom_rows = cur.fetchall()
-            
             material_cost_per_unit = 0.0
-            for b in bom_rows:
-                ing_id = b["ingredient_id"]
-                bom_qty = b["bom_qty"]
-                ing_cost = b["ingredient_cost"]
-                total_deduct_qty = bom_qty * rec_qty
-                
-                # Nếu là nguyên liệu vật lý (IS_PHYSICAL) thì trừ tồn kho tại kho xưởng
-                if b["ingredient_type"] == "IS_PHYSICAL":
-                    material_cost_per_unit += bom_qty * ing_cost
-                    
-                    # Lấy tồn kho hiện tại
-                    cur.execute("""
-                        SELECT quantity FROM inventory 
-                        WHERE ingredient_id = ? AND warehouse_id = ?
-                    """, (ing_id, order["oem_warehouse_id"]))
-                    inv_row = cur.fetchone()
-                    cur_stock = inv_row[0] if inv_row else 0.0
-                    new_stock = cur_stock - total_deduct_qty
-                    
-                    if inv_row:
-                        cur.execute("""
-                            UPDATE inventory 
-                            SET quantity = ?, updated_at = CURRENT_TIMESTAMP
-                            WHERE ingredient_id = ? AND warehouse_id = ?
-                        """, (new_stock, ing_id, order["oem_warehouse_id"]))
-                    else:
-                        cur.execute("""
-                            INSERT INTO inventory (ingredient_id, warehouse_id, quantity)
-                            VALUES (?, ?, ?)
-                        """, (ing_id, order["oem_warehouse_id"], new_stock))
+
+            # ── Nhánh A: Gia công ra Nguyên Vật Liệu (item_type == 'ingredient') ──
+            if it.get("item_type") == "ingredient" and it.get("ingredient_id"):
+                ing_id = it["ingredient_id"]
+                cur.execute("""
+                    SELECT 
+                        ib.child_ingredient_id as ingredient_id,
+                        ib.quantity as bom_qty,
+                        i.name as ingredient_name,
+                        i.type as ingredient_type,
+                        COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_cost
+                    FROM ingredient_bom ib
+                    JOIN ingredients i ON ib.child_ingredient_id = i.id
+                    WHERE ib.parent_ingredient_id = ?
+                """, (ing_id,))
+                bom_rows = cur.fetchall()
+
+                for b in bom_rows:
+                    b_ing_id = b["ingredient_id"]
+                    bom_qty = b["bom_qty"]
+                    ing_cost = b["ingredient_cost"]
+                    total_deduct_qty = bom_qty * rec_qty
+
+                    if b["ingredient_type"] == "IS_PHYSICAL":
+                        material_cost_per_unit += bom_qty * ing_cost
                         
-                    # Ghi log xuất kho nguyên liệu gia công
-                    cur.execute("""
-                        INSERT INTO inventory_logs (
-                            item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note
-                        ) VALUES ('ingredient', ?, ?, 'EXPORT', ?, ?, ?)
-                    """, (ing_id, order["oem_warehouse_id"], total_deduct_qty, new_stock, f"Xuất gia công OEM đơn {order['code']}"))
-                    
-            full_unit_cost = net_proc_cost + material_cost_per_unit
-            
-            # Cập nhật chi phí ròng và giá vốn chuẩn vào item
-            cur.execute("""
-                UPDATE oem_order_items
-                SET final_unit_cost = ?, full_cost_per_unit = ?
-                WHERE id = ?
-            """, (net_proc_cost, full_unit_cost, it["id"]))
-            
-            # Tăng tồn kho thành phẩm tại kho đích (Kho Tổng)
-            cur.execute("""
-                SELECT quantity FROM product_inventory 
-                WHERE product_id = ? AND warehouse_id = ?
-            """, (prod_id, order["dest_warehouse_id"]))
-            p_inv = cur.fetchone()
-            cur_p_stock = p_inv[0] if p_inv else 0.0
-            new_p_stock = cur_p_stock + rec_qty
-            
-            if p_inv:
+                        # Trừ tồn kho phôi tại kho xưởng
+                        cur.execute("SELECT quantity FROM inventory WHERE ingredient_id = ? AND warehouse_id = ?", (b_ing_id, order["oem_warehouse_id"]))
+                        inv_row = cur.fetchone()
+                        cur_stock = inv_row[0] if inv_row else 0.0
+                        new_stock = cur_stock - total_deduct_qty
+                        
+                        if inv_row:
+                            cur.execute("UPDATE inventory SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE ingredient_id = ? AND warehouse_id = ?", (new_stock, b_ing_id, order["oem_warehouse_id"]))
+                        else:
+                            cur.execute("INSERT INTO inventory (ingredient_id, warehouse_id, quantity) VALUES (?, ?, ?)", (b_ing_id, order["oem_warehouse_id"], new_stock))
+                            
+                        # Ghi log xuất kho phôi
+                        cur.execute("""
+                            INSERT INTO inventory_logs (
+                                item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note
+                            ) VALUES ('ingredient', ?, ?, 'EXPORT', ?, ?, ?)
+                        """, (b_ing_id, order["oem_warehouse_id"], total_deduct_qty, new_stock, f"Xuất phôi gia công OEM đơn {order['code']}"))
+
+                full_unit_cost = net_proc_cost + material_cost_per_unit
+
+                # Cập nhật chi phí ròng và giá vốn chuẩn vào item
                 cur.execute("""
-                    UPDATE product_inventory 
-                    SET quantity = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND warehouse_id = ?
-                """, (new_p_stock, prod_id, order["dest_warehouse_id"]))
+                    UPDATE oem_order_items
+                    SET final_unit_cost = ?, full_cost_per_unit = ?
+                    WHERE id = ?
+                """, (net_proc_cost, full_unit_cost, it["id"]))
+
+                # Tăng tồn kho NGUYÊN LIỆU tại kho đích (bảng inventory)
+                cur.execute("SELECT quantity FROM inventory WHERE ingredient_id = ? AND warehouse_id = ?", (ing_id, order["dest_warehouse_id"]))
+                ing_inv = cur.fetchone()
+                cur_ing_stock = ing_inv[0] if ing_inv else 0.0
+                new_ing_stock = cur_ing_stock + rec_qty
+
+                if ing_inv:
+                    cur.execute("UPDATE inventory SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE ingredient_id = ? AND warehouse_id = ?", (new_ing_stock, ing_id, order["dest_warehouse_id"]))
+                else:
+                    cur.execute("INSERT INTO inventory (ingredient_id, warehouse_id, quantity) VALUES (?, ?, ?)", (ing_id, order["dest_warehouse_id"], new_ing_stock))
+
+                # Ghi log nhập kho nguyên liệu thành phẩm
+                cur.execute("""
+                    INSERT INTO inventory_logs (
+                        item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note
+                    ) VALUES ('ingredient', ?, ?, 'IMPORT', ?, ?, ?)
+                """, (ing_id, order["dest_warehouse_id"], rec_qty, new_ing_stock, f"Nhập kho nguyên liệu gia công OEM đơn {order['code']}"))
+
+                # Cập nhật giá vốn hoàn thiện vào price_history
+                cur.execute("""
+                    INSERT INTO price_history (ingredient_id, purchase_price, effective_date, note)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, ?)
+                """, (ing_id, full_unit_cost, f"Giá vốn OEM đơn {order['code']}"))
+
+            # ── Nhánh B: Gia công ra Sản Phẩm hoàn thiện (mặc định) ──
             else:
+                prod_id = it["product_id"]
+                # Tính tổng chi phí tem, chai, nắp từ BOM
                 cur.execute("""
-                    INSERT INTO product_inventory (product_id, warehouse_id, quantity)
-                    VALUES (?, ?, ?)
-                """, (prod_id, order["dest_warehouse_id"], new_p_stock))
+                    SELECT 
+                        pb.ingredient_id,
+                        pb.quantity as bom_qty,
+                        i.name as ingredient_name,
+                        i.type as ingredient_type,
+                        COALESCE((SELECT ph.purchase_price FROM price_history ph WHERE ph.ingredient_id = i.id ORDER BY ph.effective_date DESC, ph.id DESC LIMIT 1), 0) as ingredient_cost
+                    FROM product_bom pb
+                    JOIN ingredients i ON pb.ingredient_id = i.id
+                    WHERE pb.product_id = ?
+                """, (prod_id,))
+                bom_rows = cur.fetchall()
                 
-            # Cập nhật giá vốn cost_price và tổng stock của sản phẩm
-            cur.execute("""
-                UPDATE products
-                SET cost_price = ?, stock = stock + ?
-                WHERE id = ?
-            """, (full_unit_cost, rec_qty, prod_id))
-            
-            # Ghi log nhập kho thành phẩm
-            cur.execute("""
-                INSERT INTO inventory_logs (
-                    item_type, product_id, warehouse_id, change_type, quantity, balance_after, note
-                ) VALUES ('product', ?, ?, 'IMPORT', ?, ?, ?)
-            """, (prod_id, order["dest_warehouse_id"], rec_qty, new_p_stock, f"Nhập kho thành phẩm từ OEM {order['code']}"))
+                material_cost_per_unit = 0.0
+                for b in bom_rows:
+                    ing_id = b["ingredient_id"]
+                    bom_qty = b["bom_qty"]
+                    ing_cost = b["ingredient_cost"]
+                    total_deduct_qty = bom_qty * rec_qty
+                    
+                    # Nếu là nguyên liệu vật lý (IS_PHYSICAL) thì trừ tồn kho tại kho xưởng
+                    if b["ingredient_type"] == "IS_PHYSICAL":
+                        material_cost_per_unit += bom_qty * ing_cost
+                        
+                        # Lấy tồn kho hiện tại
+                        cur.execute("""
+                            SELECT quantity FROM inventory 
+                            WHERE ingredient_id = ? AND warehouse_id = ?
+                        """, (ing_id, order["oem_warehouse_id"]))
+                        inv_row = cur.fetchone()
+                        cur_stock = inv_row[0] if inv_row else 0.0
+                        new_stock = cur_stock - total_deduct_qty
+                        
+                        if inv_row:
+                            cur.execute("""
+                                UPDATE inventory 
+                                SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+                                WHERE ingredient_id = ? AND warehouse_id = ?
+                            """, (new_stock, ing_id, order["oem_warehouse_id"]))
+                        else:
+                            cur.execute("""
+                                INSERT INTO inventory (ingredient_id, warehouse_id, quantity)
+                                VALUES (?, ?, ?)
+                            """, (ing_id, order["oem_warehouse_id"], new_stock))
+                            
+                        # Ghi log xuất kho nguyên liệu gia công
+                        cur.execute("""
+                            INSERT INTO inventory_logs (
+                                item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note
+                            ) VALUES ('ingredient', ?, ?, 'EXPORT', ?, ?, ?)
+                        """, (ing_id, order["oem_warehouse_id"], total_deduct_qty, new_stock, f"Xuất gia công OEM đơn {order['code']}"))
+                        
+                full_unit_cost = net_proc_cost + material_cost_per_unit
+                
+                # Cập nhật chi phí ròng và giá vốn chuẩn vào item
+                cur.execute("""
+                    UPDATE oem_order_items
+                    SET final_unit_cost = ?, full_cost_per_unit = ?
+                    WHERE id = ?
+                """, (net_proc_cost, full_unit_cost, it["id"]))
+                
+                # Tăng tồn kho thành phẩm tại kho đích (Kho Tổng)
+                cur.execute("""
+                    SELECT quantity FROM product_inventory 
+                    WHERE product_id = ? AND warehouse_id = ?
+                """, (prod_id, order["dest_warehouse_id"]))
+                p_inv = cur.fetchone()
+                cur_p_stock = p_inv[0] if p_inv else 0.0
+                new_p_stock = cur_p_stock + rec_qty
+                
+                if p_inv:
+                    cur.execute("""
+                        UPDATE product_inventory 
+                        SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE product_id = ? AND warehouse_id = ?
+                    """, (new_p_stock, prod_id, order["dest_warehouse_id"]))
+                else:
+                    cur.execute("""
+                        INSERT INTO product_inventory (product_id, warehouse_id, quantity)
+                        VALUES (?, ?, ?)
+                    """, (prod_id, order["dest_warehouse_id"], new_p_stock))
+                    
+                # Cập nhật giá vốn cost_price và tổng stock của sản phẩm
+                cur.execute("""
+                    UPDATE products
+                    SET cost_price = ?, stock = stock + ?
+                    WHERE id = ?
+                """, (full_unit_cost, rec_qty, prod_id))
+                
+                # Ghi log nhập kho thành phẩm
+                cur.execute("""
+                    INSERT INTO inventory_logs (
+                        item_type, product_id, warehouse_id, change_type, quantity, balance_after, note
+                    ) VALUES ('product', ?, ?, 'IMPORT', ?, ?, ?)
+                """, (prod_id, order["dest_warehouse_id"], rec_qty, new_p_stock, f"Nhập kho thành phẩm từ OEM {order['code']}"))
             
         # Xử lý thanh toán số tiền còn lại (nếu có yêu cầu trả ngay)
         pay_fund = req.payment_fund_source or order["fund_source"] or "COMPANY"

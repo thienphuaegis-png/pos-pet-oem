@@ -193,6 +193,13 @@ class BOMItemIn(BaseModel):
 class BOMSetRequest(BaseModel):
     items: List[BOMItemIn]
 
+class IngredientBOMItemIn(BaseModel):
+    child_ingredient_id: int
+    quantity: float
+
+class IngredientBOMSetRequest(BaseModel):
+    items: List[IngredientBOMItemIn]
+
 class ProductionItemIn(BaseModel):
     product_id: int
     quantity: float
@@ -412,12 +419,15 @@ class ComboUpdate(BaseModel):
 
 # --- OEM Orders ---
 class OEMOrderItemIn(BaseModel):
-    product_id: int
+    item_type: Optional[str] = "product"  # 'product' hoac 'ingredient'
+    product_id: Optional[int] = None
+    ingredient_id: Optional[int] = None
     ordered_qty: float = Field(gt=0, description="Số lượng đặt")
     unit_price: float = Field(ge=0, description="Đơn giá gia công niêm yết")
 
 class OEMOrderCreate(BaseModel):
     partner_id: int
+    target_type: Optional[str] = "product"  # 'product' hoac 'ingredient'
     oem_warehouse_id: int = 1
     dest_warehouse_id: int = 1
     expected_delivery_date: Optional[str] = None
@@ -432,6 +442,7 @@ class OEMOrderCreate(BaseModel):
 
 class OEMOrderUpdate(BaseModel):
     partner_id: int
+    target_type: Optional[str] = "product"
     oem_warehouse_id: int = 1
     dest_warehouse_id: int = 1
     expected_delivery_date: Optional[str] = None

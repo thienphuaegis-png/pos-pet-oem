@@ -1400,6 +1400,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
         partner_id INTEGER NOT NULL,
+        target_type TEXT DEFAULT 'product', -- 'product' hoac 'ingredient'
         oem_warehouse_id INTEGER DEFAULT 1,
         dest_warehouse_id INTEGER DEFAULT 1,
         status TEXT DEFAULT 'DRAFT',
@@ -1423,15 +1424,32 @@ def init_db():
     CREATE TABLE IF NOT EXISTS oem_order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
+        item_type TEXT DEFAULT 'product', -- 'product' hoac 'ingredient'
+        product_id INTEGER,
+        ingredient_id INTEGER,
         ordered_qty REAL NOT NULL DEFAULT 0,
         received_qty REAL NOT NULL DEFAULT 0,
         unit_price REAL NOT NULL DEFAULT 0,
         final_unit_cost REAL NOT NULL DEFAULT 0,
         full_cost_per_unit REAL NOT NULL DEFAULT 0,
         FOREIGN KEY(order_id) REFERENCES oem_orders(id) ON DELETE CASCADE,
-        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT,
+        FOREIGN KEY(ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT
     )''')
+
+    # 13.1. Định lượng phôi cho nguyên liệu gia công (BOM nguyên liệu)
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS ingredient_bom (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_ingredient_id INTEGER NOT NULL,
+        child_ingredient_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(parent_ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
+        FOREIGN KEY(child_ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT,
+        UNIQUE(parent_ingredient_id, child_ingredient_id)
+    )''')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_ingredient_bom_parent ON ingredient_bom(parent_ingredient_id)')
 
     # 14. Gói Topup Ví Spa định sẵn
     cur.execute('''
@@ -1741,13 +1759,45 @@ def init_db():
         "ALTER TABLE oem_orders ADD COLUMN created_by TEXT",
         "ALTER TABLE oem_orders ADD COLUMN updated_by TEXT",
         "ALTER TABLE oem_orders ADD COLUMN updated_at DATETIME",
+        "ALTER TABLE oem_orders ADD COLUMN target_type TEXT DEFAULT 'product'",
+        "ALTER TABLE oem_order_items ADD COLUMN item_type TEXT DEFAULT 'product'",
+        "ALTER TABLE oem_order_items ADD COLUMN ingredient_id INTEGER",
     ]:
         try:
             cur.execute(_col)
         except Exception:
             pass
 
-    # ── Seed admin ──
+    # Nới lỏng ràng buộc NOT NULL của product_id trong oem_order_items nếu cần
+    cur.execute("PRAGMA table_info(oem_order_items)")
+    for col in cur.fetchall():
+        if col[1] == "product_id" and col[3] == 1: # notnull == 1
+            # Cần recreate bảng để cho phép product_id NULL
+            cur.execute("""
+                CREATE TABLE oem_order_items_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id INTEGER NOT NULL,
+                    item_type TEXT DEFAULT 'product',
+                    product_id INTEGER,
+                    ingredient_id INTEGER,
+                    ordered_qty REAL NOT NULL DEFAULT 0,
+                    received_qty REAL NOT NULL DEFAULT 0,
+                    unit_price REAL NOT NULL DEFAULT 0,
+                    final_unit_cost REAL NOT NULL DEFAULT 0,
+                    full_cost_per_unit REAL NOT NULL DEFAULT 0,
+                    FOREIGN KEY(order_id) REFERENCES oem_orders(id) ON DELETE CASCADE,
+                    FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT,
+                    FOREIGN KEY(ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT
+                )
+            """)
+            cur.execute("""
+                INSERT INTO oem_order_items_new (id, order_id, item_type, product_id, ingredient_id, ordered_qty, received_qty, unit_price, final_unit_cost, full_cost_per_unit)
+                SELECT id, order_id, COALESCE(item_type, 'product'), product_id, ingredient_id, ordered_qty, received_qty, unit_price, final_unit_cost, full_cost_per_unit
+                FROM oem_order_items
+            """)
+            cur.execute("DROP TABLE oem_order_items")
+            cur.execute("ALTER TABLE oem_order_items_new RENAME TO oem_order_items")
+            break
     from passlib.context import CryptContext
     _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

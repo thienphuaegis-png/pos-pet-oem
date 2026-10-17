@@ -4421,6 +4421,24 @@
                     </div>
 
                     <div class="p-4 overflow-y-auto space-y-4 flex-1">
+                        <!-- Bộ chọn loại hình gia công OEM: Thành Phẩm vs Nguyên Liệu -->
+                        <div class="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200">
+                            <span class="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+                                <span>🎯 Mục tiêu gia công:</span>
+                            </span>
+                            <div class="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-100 text-xs">
+                                <button type="button" id="btn-oem-target-product" onclick="setOEMTargetType('product')" 
+                                        class="px-3 py-1 font-bold rounded-md bg-amber-600 text-white shadow-xs transition">
+                                    📦 Thành Phẩm Bán Lẻ
+                                </button>
+                                <button type="button" id="btn-oem-target-ingredient" onclick="setOEMTargetType('ingredient')" 
+                                        class="px-3 py-1 font-bold rounded-md text-slate-700 hover:text-slate-900 transition">
+                                    🧪 Nguyên Liệu / Phôi In
+                                </button>
+                            </div>
+                            <input type="hidden" id="oem-create-target-type" value="product">
+                        </div>
+
                         <!-- Thông tin chung -->
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border">
                             <!-- Nhà máy gia công với Popup Tìm Kiếm & Tự nhận diện kho -->
