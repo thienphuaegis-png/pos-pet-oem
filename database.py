@@ -702,7 +702,7 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_prod ON order_items(order_id, product_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_payments_order_method ON order_payments(order_id, method)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_hotel_bookings_created_at ON hotel_bookings(created_at)')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_created_status ON pet_service_tickets(created_at, payment_status, status)')
+    # Index idx_pet_service_tickets_created_status duoc tao sau khi pet_service_tickets da migration du cot payment_status
 
     # Doi tra hang
     cur.execute('''
@@ -1390,9 +1390,12 @@ def init_db():
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_change_reason TEXT DEFAULT ''")
     if 'service_changed_at' not in ticket_cols:
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN service_changed_at TEXT DEFAULT ''")
+    if 'payment_status' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN payment_status TEXT DEFAULT 'unpaid'")
 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_cust ON pet_service_tickets(customer_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_created ON pet_service_tickets(created_at DESC)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pet_service_tickets_created_status ON pet_service_tickets(created_at, payment_status, status)")
 
     # 13. Phân hệ Gia Công OEM
     cur.execute('''
