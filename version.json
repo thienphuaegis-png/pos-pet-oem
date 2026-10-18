@@ -11,8 +11,8 @@
       "title": "Bản phát hành v3.6.5 (2026.10.17)",
       "is_new": true,
       "items": [
-        "docs: update PROJECT_STATE.md and add CHECKPOINT_2026_10_17.md",
-        "feat(marketplace): add server-side pagination, independent accurate kpi, and unify confirm modals"
+        "Cập nhật tài liệu tiến độ dự án và kiểm tra hệ thống",
+        "Tối ưu phân trang máy chủ sàn TMĐT, chuẩn hóa KPI độc lập và hộp thoại xác nhận"
       ]
     },
     {
@@ -21,21 +21,19 @@
       "title": "Bản phát hành v3.6.4 (2026.10.17)",
       "is_new": false,
       "items": [
-        "fix(ui): resolve gantt timezone shift, purge utc date remnants, and bump cache version",
-        "fix(ui): unify table colspans, vn datetime handling, and currency formatting",
-        "fix(oem): replace raw select droplist with multi-select fuzzy modal for factory product assignment",
-        "docs: add remaining bugfix plan and update project state",
-        "fix(core): return price cap excludes shipping/wallet, inventory adjust validation, safe sqlite backup before reset/clear",
-        "fix(core): patch logic and security bugs in settings, returns, bom, inventory, topup, auth",
-        "fix(security): lock destructive and bulk-delete endpoints with rbac and auto-backup",
-        "build: rebuild POS_Mastercare.exe after api auth lockdown",
-        "merge: api auth lockdown and security hardening (Tasks 1-13)",
-        "docs: update PROJECT_STATE.md with 2026-10-16 API auth lockdown verification",
-        "docs: add api auth lockdown implementation plan",
-        "chore(marketplace): remove bookmarklet (cannot authenticate cross-site)",
-        "fix(auth): route excel downloads and print pages through authenticated fetch",
-        "feat(auth): add downloadWithAuth/openWithAuth helpers",
-        "fix(security): stop httpx from logging telegram bot token URLs"
+        "Sửa múi giờ biểu đồ Gantt, đồng bộ định dạng ngày giờ Việt Nam",
+        "Chuẩn hóa số cột bảng dữ liệu, định dạng tiền tệ và ngày giờ VN",
+        "Thay đổi danh sách chọn đơn giản thành modal tìm kiếm gán sản phẩm cho xưởng",
+        "Cập nhật kế hoạch khắc phục lỗi và trạng thái dự án",
+        "Giới hạn giá trả hàng loại trừ phí ship/ví, kiểm tra tồn kho và sao lưu DB an toàn",
+        "Khắc phục các lỗi nghiệp vụ và bảo mật tại cài đặt, trả hàng, định lượng và ví",
+        "Khóa bảo mật các endpoint xóa hàng loạt bằng phân quyền và tự động sao lưu",
+        "Đóng gói lại POS_Mastercare.exe sau khi hoàn thiện bảo mật API",
+        "Hoàn tất khóa bảo mật API và phân quyền chặt chẽ",
+        "Gỡ bỏ bookmarklet sàn TMĐT để đảm bảo an toàn phiên làm việc",
+        "Tải file Excel và trang in ấn qua cơ chế xác thực an toàn",
+        "Bổ sung hàm hỗ trợ tải file và mở trang có xác thực người dùng",
+        "Ẩn URL chứa token bot Telegram trong nhật ký hệ thống"
       ]
     },
     {

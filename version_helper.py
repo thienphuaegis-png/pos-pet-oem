@@ -223,27 +223,91 @@ def get_app_version_info():
             recent_items = []
             prefix_map = {
                 "feat(ux)": "✨ Trải Nghiệm:",
-                "fix(spa)": "💆 Spa:",
+                "fix(ux)": "✨ Trải Nghiệm:",
+                "feat(ui)": "🎨 Giao Diện:",
                 "fix(ui)": "🎨 Giao Diện:",
-                "feat(system)": "🚀 Hệ Thống:",
-                "feat(version)": "🏷️ Phiên Bản:",
                 "feat(oem)": "🏭 Gia Công OEM:",
-                "feat(bom)": "📦 Định Lượng BOM:",
+                "fix(oem)": "🏭 Gia Công OEM:",
+                "feat(purchases-oem)": "📦 Nhập Hàng & OEM:",
+                "fix(purchases-oem)": "📦 Nhập Hàng & OEM:",
+                "feat(purchases)": "📥 Nhập Hàng:",
                 "fix(purchases)": "📥 Nhập Hàng:",
+                "feat(deploy)": "🚀 Cập Nhật & Máy Chủ:",
+                "fix(deploy)": "🚀 Cập Nhật & Máy Chủ:",
+                "feat(update-ui)": "🔄 Giao Diện Cập Nhật:",
+                "feat(update)": "🔄 Cập Nhật Hệ Thống:",
+                "fix(update)": "🔄 Cập Nhật Hệ Thống:",
+                "feat(database)": "💾 Cơ Sở Dữ Liệu:",
+                "fix(database)": "💾 Cơ Sở Dữ Liệu:",
+                "feat(db)": "💾 Cơ Sở Dữ Liệu:",
+                "fix(db)": "💾 Cơ Sở Dữ Liệu:",
+                "build(exe)": "⚙️ Đóng Gói Ứng Dụng (EXE):",
+                "build": "⚙️ Đóng Gói Ứng Dụng:",
+                "docs(project-map)": "🗺️ Bản Đồ Dự Án:",
+                "docs": "📝 Tài Liệu:",
+                "feat(spa)": "💆 Dịch Vụ Spa:",
+                "fix(spa)": "💆 Dịch Vụ Spa:",
+                "feat(system)": "🚀 Hệ Thống:",
+                "fix(system)": "🚀 Hệ Thống:",
+                "feat(version)": "🏷️ Phiên Bản:",
+                "fix(version)": "🏷️ Phiên Bản:",
+                "feat(bom)": "📦 Định Lượng BOM:",
+                "fix(bom)": "📦 Định Lượng BOM:",
                 "feat(topup)": "💳 Nạp Ví Spa:",
-                "feat(inventory)": "⚖️ Kiểm Kê Kho:"
+                "fix(topup)": "💳 Nạp Ví Spa:",
+                "feat(inventory)": "⚖️ Kiểm Kê Kho:",
+                "fix(inventory)": "⚖️ Kiểm Kê Kho:",
+                "feat(marketplace)": "🛍️ Sàn TMĐT:",
+                "fix(marketplace)": "🛍️ Sàn TMĐT:",
+                "feat": "✨ Tính Năng Mới:",
+                "fix": "🛠️ Sửa Lỗi:"
             }
+
+            term_translations = [
+                ("support ingredient subcontracting, material bom, and full unit cost accounting in oem workflow", "hỗ trợ gia công nguyên liệu, định lượng phôi và hạch toán giá vốn hoàn thiện"),
+                ("ensure payment_status migration on pet_service_tickets before creating composite index", "bổ sung cột payment_status cho vé spa trước khi tạo chỉ mục composite"),
+                ("kill process tree, pass working directory to wscript, and capture startup errors in CAP_NHAT.bat", "tắt sạch cây tiến trình cũ, truyền thư mục làm việc và bắt lỗi khởi động máy chủ"),
+                ("support id_pos_shop ssh key in CAP_NHAT.bat, deduplicate openAppVersionModal, show force re-sync button", "hỗ trợ khóa SSH tiệm trong script cập nhật, gộp modal phiên bản và hiển thị nút ép đồng bộ"),
+                ("rebuild POS_Mastercare.exe with reports composite indexes and bearer auth", "build lại POS_Mastercare.exe tích hợp chỉ mục báo cáo và xác thực"),
+                ("rebuild POS_Mastercare.exe with remote update support", "build lại POS_Mastercare.exe hỗ trợ tự động cập nhật từ xa"),
+                ("universal modal escape/backdrop click, optimize reports analytics with composite indexes and skeleton, remove copilot label", "hỗ trợ phím ESC/click ngoài đóng 17 popup, tối ưu báo cáo đa chiều và bỏ nhãn Copilot"),
+                ("pay-debt button in PO detail modal, refresh modal after payment, menus open upward, bust JS cache", "nút chi trả nợ trong chi tiết phiếu nhập, menu mở ngược chống che khuất"),
+                ("optimize 6-col table layout, click row to open detail modal, remove pay debt button", "tối ưu bảng 6 cột chuẩn, bấm dòng mở chi tiết đơn"),
+                ("add remote-update-auto-rollback to System Mapping", "bổ sung cơ chế tự động quay về bản cũ khi cập nhật lỗi"),
+                ("show update button only when needed, poll and report result", "hiển thị nút cập nhật linh hoạt, tự động báo kết quả"),
+                ("detached remote updater with lock and status endpoint", "chạy cập nhật ngầm độc lập kèm khóa chống xung đột"),
+                ("auto-rollback code + DB when update fails", "tự động khôi phục code và dữ liệu nếu cập nhật thất bại")
+            ]
 
             for line in log_out.splitlines():
                 parts = line.split("|", 2)
                 if len(parts) == 3:
                     c_hash, c_date, c_msg = parts[0].strip(), parts[1].strip(), parts[2].strip()
-                    # Dịch nhẹ prefix sang tiếng Việt dễ đọc
-                    formatted_msg = c_msg
+                    
+                    matched_prefix = None
+                    core_msg = c_msg
                     for k, v in prefix_map.items():
-                        if c_msg.lower().startswith(k):
-                            formatted_msg = f"{v} {c_msg[len(k):].strip()}"
+                        if c_msg.lower().startswith(k.lower()):
+                            matched_prefix = v
+                            # Cắt bỏ prefix gốc (bao gồm cả dấu hai chấm nếu có)
+                            remainder = c_msg[len(k):].strip()
+                            if remainder.startswith(":"):
+                                remainder = remainder[1:].strip()
+                            core_msg = remainder
                             break
+                    
+                    # Dịch nội dung chi tiết sang tiếng Việt thuần
+                    lower_core = core_msg.lower()
+                    for en_term, vi_term in term_translations:
+                        if en_term.lower() in lower_core:
+                            core_msg = vi_term
+                            break
+                    
+                    if matched_prefix:
+                        formatted_msg = f"{matched_prefix} {core_msg}"
+                    else:
+                        formatted_msg = core_msg
+
                     recent_items.append(f"[{c_hash}] {formatted_msg} ({c_date})")
 
             # Đặt nhóm commit gần nhất lên đầu changelog
