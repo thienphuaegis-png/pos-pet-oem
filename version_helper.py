@@ -222,6 +222,8 @@ def get_app_version_info():
         if log_out:
             recent_items = []
             prefix_map = {
+                "fix(version-ui)": "🏷️ Phiên Bản & Giao Diện:",
+                "feat(version-ui)": "🏷️ Phiên Bản & Giao Diện:",
                 "feat(ux)": "✨ Trải Nghiệm:",
                 "fix(ux)": "✨ Trải Nghiệm:",
                 "feat(ui)": "🎨 Giao Diện:",
@@ -264,6 +266,7 @@ def get_app_version_info():
             }
 
             term_translations = [
+                ("translate all git commits and changelog to friendly vietnamese and badge commit hash", "chuyển ngữ commit và nhật ký sang tiếng Việt thân thiện, gắn badge commit"),
                 ("translate changelog entries and git commits into clear vietnamese", "chuyển ngữ toàn bộ nhật ký cập nhật và commit Git sang tiếng Việt"),
                 ("support ingredient subcontracting, material bom, and full unit cost accounting in oem workflow", "hỗ trợ gia công nguyên liệu, định lượng phôi và hạch toán giá vốn hoàn thiện"),
                 ("ensure payment_status migration on pet_service_tickets before creating composite index", "bổ sung cột payment_status cho vé spa trước khi tạo chỉ mục composite"),
