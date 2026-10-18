@@ -5181,12 +5181,23 @@
                             </div>
                             <div class="text-[11px] font-semibold text-slate-700">${log.title}</div>
                             <ul class="space-y-1.5 pl-1">
-                                ${(log.items || []).map(it => `
-                                    <li class="flex items-start gap-1.5 text-slate-600 text-xs">
-                                        <span class="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
-                                        <span class="leading-relaxed">${it}</span>
-                                    </li>
-                                `).join('')}
+                                ${(log.items || []).map(it => {
+                                                    // Định dạng nếu là dòng commit có mã hash: [a1b2c3d] Tiêu đề (Ngày giờ)
+                                                    let contentHtml = it;
+                                                    const m = it.match(/^\[([a-f0-9]{7,8})\]\s*(.+?)(?:\s*\(([\d\.\:\s]+)\))?$/i);
+                                                    if (m) {
+                                                        const hash = m[1];
+                                                        const text = m[2];
+                                                        const time = m[3] ? `<span class="text-slate-400 font-mono text-[10px] ml-1">(${m[3]})</span>` : '';
+                                                        contentHtml = `<span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded text-[10px] border border-indigo-200/60 mr-1">[${hash}]</span><span class="font-medium text-slate-700">${text}</span>${time}`;
+                                                    }
+                                                    return `
+                                                    <li class="flex items-start gap-1.5 text-slate-600 text-xs">
+                                                        <span class="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+                                                        <span class="leading-relaxed">${contentHtml}</span>
+                                                    </li>
+                                                    `;
+                                                }).join('')}
                             </ul>
                         </div>
                     `).join('');

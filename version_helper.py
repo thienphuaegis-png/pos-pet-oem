@@ -264,6 +264,7 @@ def get_app_version_info():
             }
 
             term_translations = [
+                ("translate changelog entries and git commits into clear vietnamese", "chuyển ngữ toàn bộ nhật ký cập nhật và commit Git sang tiếng Việt"),
                 ("support ingredient subcontracting, material bom, and full unit cost accounting in oem workflow", "hỗ trợ gia công nguyên liệu, định lượng phôi và hạch toán giá vốn hoàn thiện"),
                 ("ensure payment_status migration on pet_service_tickets before creating composite index", "bổ sung cột payment_status cho vé spa trước khi tạo chỉ mục composite"),
                 ("kill process tree, pass working directory to wscript, and capture startup errors in CAP_NHAT.bat", "tắt sạch cây tiến trình cũ, truyền thư mục làm việc và bắt lỗi khởi động máy chủ"),
@@ -286,12 +287,13 @@ def get_app_version_info():
                     
                     matched_prefix = None
                     core_msg = c_msg
-                    for k, v in prefix_map.items():
+                    for k in sorted(prefix_map.keys(), key=len, reverse=True):
+                        v = prefix_map[k]
                         if c_msg.lower().startswith(k.lower()):
                             matched_prefix = v
                             # Cắt bỏ prefix gốc (bao gồm cả dấu hai chấm nếu có)
                             remainder = c_msg[len(k):].strip()
-                            if remainder.startswith(":"):
+                            while remainder.startswith(":") or remainder.startswith(" "):
                                 remainder = remainder[1:].strip()
                             core_msg = remainder
                             break
