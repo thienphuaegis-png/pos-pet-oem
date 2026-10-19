@@ -8,6 +8,8 @@
     let currentRequestStats = null;
     let selectedImageBase64 = null;
     let currentApprovingId = null;
+    let selectedExpenseRequestIds = new Set();
+    let isBatchApproving = false;
 
     // --- Chuyển đổi Sub-tab Sổ Quỹ ---
     window.switchCashbookSubTab = function(sub) {
@@ -63,6 +65,11 @@
             currentRequests = data.items || [];
             currentRequestStats = data.stats || {};
 
+            // Dọn dẹp các ID không còn tồn tại hoặc không còn pending trong kết quả mới
+            const pendingIds = new Set(currentRequests.filter(r => r.status === 'pending').map(r => r.id));
+            selectedExpenseRequestIds = new Set([...selectedExpenseRequestIds].filter(id => pendingIds.has(id)));
+            updateBatchActionBar();
+
             renderExpenseStats(currentRequestStats);
             renderExpenseRequestsTable(currentRequests);
         } catch (err) {
@@ -104,11 +111,34 @@
         if (!tbody) return;
 
         if (!items || items.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-xs text-slate-400 italic">Chưa có yêu cầu chi nào phù hợp bộ lọc.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="13" class="p-8 text-center text-xs text-slate-400 italic">Chưa có yêu cầu chi nào phù hợp bộ lọc.</td></tr>`;
+            const chkAll = document.getElementById('check-all-exp-requests');
+            if (chkAll) { chkAll.checked = false; chkAll.indeterminate = false; }
             return;
         }
 
+        const pendingItems = items.filter(r => r.status === 'pending');
+        const chkAll = document.getElementById('check-all-exp-requests');
+        if (chkAll) {
+            if (pendingItems.length === 0) {
+                chkAll.checked = false;
+                chkAll.disabled = true;
+                chkAll.indeterminate = false;
+            } else {
+                chkAll.disabled = false;
+                const selectedPendingCount = pendingItems.filter(r => selectedExpenseRequestIds.has(r.id)).length;
+                chkAll.checked = selectedPendingCount === pendingItems.length && pendingItems.length > 0;
+                chkAll.indeterminate = selectedPendingCount > 0 && selectedPendingCount < pendingItems.length;
+            }
+        }
+
         tbody.innerHTML = items.map(item => {
+            const isPending = item.status === 'pending';
+            const isChecked = selectedExpenseRequestIds.has(item.id);
+            const checkboxHtml = isPending
+                ? `<input type="checkbox" class="exp-row-checkbox w-4 h-4 rounded text-indigo-600 focus:ring-indigo-400 cursor-pointer" value="${item.id}" ${isChecked ? 'checked' : ''} onchange="toggleSelectExpenseRequest(${item.id}, this)">`
+                : `<span class="text-slate-300">-</span>`;
+
             const isReimb = item.type === 'reimbursement';
             const typeBadge = isReimb
                 ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">NV Chi Hộ</span>`
@@ -163,7 +193,8 @@
             const dueDate = item.due_date ? `<div class="text-[10px] text-amber-600">Hạn: ${formatDate(item.due_date)}</div>` : '';
 
             return `
-                <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition text-xs">
+                <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition text-xs ${isChecked ? 'bg-indigo-50/40' : ''}">
+                    <td class="p-2.5 text-center">${checkboxHtml}</td>
                     <td class="p-2.5 font-mono font-bold text-slate-900">${item.code}</td>
                     <td class="p-2.5">${typeBadge}</td>
                     <td class="p-2.5 font-semibold text-slate-800">
@@ -185,6 +216,56 @@
                 </tr>
             `;
         }).join('');
+    }
+
+    // --- Xử lý Checkbox & Batch Selection ---
+    window.toggleSelectExpenseRequest = function(id, el) {
+        if (el.checked) {
+            selectedExpenseRequestIds.add(id);
+        } else {
+            selectedExpenseRequestIds.delete(id);
+        }
+        updateBatchActionBar();
+        renderExpenseRequestsTable(currentRequests);
+    };
+
+    window.toggleSelectAllExpenseRequests = function(el) {
+        const pendingItems = currentRequests.filter(r => r.status === 'pending');
+        if (el.checked) {
+            pendingItems.forEach(r => selectedExpenseRequestIds.add(r.id));
+        } else {
+            pendingItems.forEach(r => selectedExpenseRequestIds.delete(r.id));
+        }
+        updateBatchActionBar();
+        renderExpenseRequestsTable(currentRequests);
+    };
+
+    window.clearSelectedExpenseRequests = function() {
+        selectedExpenseRequestIds.clear();
+        updateBatchActionBar();
+        renderExpenseRequestsTable(currentRequests);
+    };
+
+    function updateBatchActionBar() {
+        const bar = document.getElementById('bar-batch-approve-expenses');
+        const badgeCount = document.getElementById('badge-batch-selected-count');
+        const textCount = document.getElementById('text-batch-selected-count');
+        const textAmount = document.getElementById('text-batch-selected-amount');
+        if (!bar) return;
+
+        const count = selectedExpenseRequestIds.size;
+        if (count > 0) {
+            bar.classList.remove('hidden');
+            if (badgeCount) badgeCount.innerText = count;
+            if (textCount) textCount.innerText = count;
+
+            // Tính tổng tiền các phiếu đã chọn
+            const selectedItems = currentRequests.filter(r => selectedExpenseRequestIds.has(r.id));
+            const total = selectedItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+            if (textAmount) textAmount.innerText = formatVND(total);
+        } else {
+            bar.classList.add('hidden');
+        }
     }
 
     function escapeHtml(str) {
@@ -425,20 +506,100 @@
         }
     };
 
-    // --- Modal Duyệt Chi ---
+    // --- Modal Duyệt Chi (Đơn lẻ & Gộp) ---
     window.openApproveExpenseModal = async function(id, code, empName, amount) {
         currentApprovingId = id;
+        isBatchApproving = false;
         const modal = document.getElementById('modal-approve-expense-request');
         if (!modal) return;
 
+        const isBatchInput = document.getElementById('exp-appr-is-batch');
+        if (isBatchInput) isBatchInput.value = '0';
+
+        const codeLabel = document.getElementById('exp-appr-code-label');
+        if (codeLabel) codeLabel.innerText = "Mã yêu cầu:";
         document.getElementById('exp-appr-code').innerText = code;
+
+        const empLabel = document.getElementById('exp-appr-emp-label');
+        if (empLabel) empLabel.innerText = "Người nhận hoàn tiền:";
         document.getElementById('exp-appr-emp').innerText = empName;
+
+        const amountLabel = document.getElementById('exp-appr-amount-label');
+        if (amountLabel) amountLabel.innerText = "Số tiền hoàn:";
         document.getElementById('exp-appr-amount').innerText = formatVND(amount);
+
+        const batchBox = document.getElementById('exp-appr-batch-items-box');
+        if (batchBox) batchBox.classList.add('hidden');
 
         const noteInput = document.getElementById('exp-appr-note');
         if (noteInput) noteInput.value = `Hoàn ứng chi hộ cho ${empName}`;
 
-        // Tải danh sách tài khoản thanh toán
+        await loadPaymentAccountsSelect();
+        modal.classList.remove('hidden');
+    };
+
+    window.openBatchApproveModal = async function() {
+        const count = selectedExpenseRequestIds.size;
+        if (count === 0) {
+            if (window.showToast) window.showToast("Vui lòng chọn ít nhất 1 phiếu để duyệt", "warning");
+            return;
+        }
+
+        const modal = document.getElementById('modal-approve-expense-request');
+        if (!modal) return;
+
+        currentApprovingId = null;
+        isBatchApproving = true;
+
+        const isBatchInput = document.getElementById('exp-appr-is-batch');
+        if (isBatchInput) isBatchInput.value = '1';
+
+        const selectedItems = currentRequests.filter(r => selectedExpenseRequestIds.has(r.id));
+        const totalAmount = selectedItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        const empNames = [...new Set(selectedItems.map(r => r.employee_name).filter(Boolean))];
+        const codes = selectedItems.map(r => r.code);
+
+        const codeLabel = document.getElementById('exp-appr-code-label');
+        if (codeLabel) codeLabel.innerText = "Số lượng phiếu gộp:";
+        document.getElementById('exp-appr-code').innerText = `${count} phiếu (${codes.join(', ')})`;
+
+        const empLabel = document.getElementById('exp-appr-emp-label');
+        if (empLabel) empLabel.innerText = "Người nhận hoàn tiền:";
+        document.getElementById('exp-appr-emp').innerText = empNames.join(', ') || 'Nhiều nhân viên';
+
+        const amountLabel = document.getElementById('exp-appr-amount-label');
+        if (amountLabel) amountLabel.innerText = "Tổng tiền gộp:";
+        document.getElementById('exp-appr-amount').innerText = formatVND(totalAmount);
+
+        // Hiển thị danh sách các phiếu gộp
+        const batchBox = document.getElementById('exp-appr-batch-items-box');
+        const batchList = document.getElementById('exp-appr-batch-items-list');
+        const batchCount = document.getElementById('exp-appr-batch-items-count');
+        if (batchBox && batchList) {
+            batchBox.classList.remove('hidden');
+            if (batchCount) batchCount.innerText = `${count} phiếu`;
+            batchList.innerHTML = selectedItems.map(it => `
+                <div class="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
+                    <div>
+                        <span class="font-mono font-bold text-slate-800">${it.code}</span>
+                        <span class="text-slate-500 ml-1.5">${escapeHtml(it.employee_name)}</span>
+                        <span class="text-slate-400 text-[10px] block">${escapeHtml(it.category || '')}: ${escapeHtml(it.note || '-')}</span>
+                    </div>
+                    <span class="font-bold text-rose-600">${formatVND(it.amount)}</span>
+                </div>
+            `).join('');
+        }
+
+        const noteInput = document.getElementById('exp-appr-note');
+        if (noteInput) {
+            noteInput.value = `Hoàn ứng gộp ${count} phiếu cho ${empNames.join(', ')}`.trim();
+        }
+
+        await loadPaymentAccountsSelect();
+        modal.classList.remove('hidden');
+    };
+
+    async function loadPaymentAccountsSelect() {
         const selectAcc = document.getElementById('exp-appr-account-select');
         if (selectAcc) {
             selectAcc.innerHTML = `<option value="">Đang tải tài khoản...</option>`;
@@ -454,18 +615,17 @@
                 console.error(e);
             }
         }
-
-        modal.classList.remove('hidden');
-    };
+    }
 
     window.closeApproveExpenseModal = function() {
         currentApprovingId = null;
+        isBatchApproving = false;
         const modal = document.getElementById('modal-approve-expense-request');
         if (modal) modal.classList.add('hidden');
     };
 
     window.submitApproveExpenseRequest = async function() {
-        if (!currentApprovingId) return;
+        const isBatch = isBatchApproving || document.getElementById('exp-appr-is-batch')?.value === '1';
         const accId = parseInt(document.getElementById('exp-appr-account-select')?.value || 0);
         const note = document.getElementById('exp-appr-note')?.value?.trim();
 
@@ -473,6 +633,47 @@
             if (window.showToast) window.showToast("Vui lòng chọn tài khoản/quỹ xuất tiền", "warning");
             return;
         }
+
+        if (isBatch) {
+            const requestIds = Array.from(selectedExpenseRequestIds);
+            if (requestIds.length === 0) {
+                if (window.showToast) window.showToast("Không có phiếu nào được chọn", "warning");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/expense-requests/batch-approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_ids: requestIds,
+                        account_id: accId,
+                        note: note
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Không thể duyệt gộp các yêu cầu chi");
+
+                if (window.showToast) {
+                    window.showToast(`Duyệt gộp thành công ${data.approved_count} phiếu! Đã tạo phiếu chi ${data.cashbook_code} (${formatVND(data.total_amount)}) vào Sổ Quỹ.`, "success");
+                }
+                clearSelectedExpenseRequests();
+                closeApproveExpenseModal();
+                loadExpenseRequests();
+
+                // Làm mới Sổ Quỹ nếu hàm tồn tại
+                if (typeof window.loadCashbook === 'function') {
+                    window.loadCashbook();
+                }
+            } catch (err) {
+                if (window.showToast) window.showToast("Lỗi: " + err.message, "error");
+            }
+            return;
+        }
+
+        // Trường hợp duyệt đơn lẻ 1 phiếu
+        if (!currentApprovingId) return;
 
         try {
             const res = await fetch(`/api/expense-requests/${currentApprovingId}/approve`, {

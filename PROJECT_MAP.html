@@ -683,6 +683,8 @@
       { id: 'module-toggle-marketplace', cat: 'SYS', title: 'Bật/Tắt Module Bán Hàng Sàn TMĐT & Header Cột Nhân Viên Ma Trận Quyền', done: true, note: 'module_marketplace trong MODULE_KEYS/DEFAULT_MODULES, data-module trên tab sidebar; thêm header cột role staff bị thiếu' },
       { id: 'exe-cache-bust-git-root-fix', cat: 'SYS', title: 'Sửa Cache-Bust JS Khi Chạy Exe (git đọc sai thư mục _MEIPASS)', done: true, note: 'version_helper ROOT = thư mục exe khi frozen để commit hash đổi theo git pull, ?v= đổi, trình duyệt tự tải JS mới' },
       { id: 'verify-server-tailscale-and-toggle', cat: 'SYS', title: 'Verify Trên Máy Chủ: CAP_NHAT + Toggle Sàn TMĐT + Link Funnel Từ 4G', done: false, note: 'Chạy CAP_NHAT.bat, Ctrl+F5, chạy CAI_TAILSCALE.bat, test link *.ts.net, đặt mật khẩu mạnh' },
+      // CẬP NHẬT 2026-10-19
+      { id: 'pos-search-auto-suggestions-10-items', cat: 'POS', title: 'Gợi Ý Tự Động 10 Hàng Hóa & 10 Khách Hàng Khi Nhấn Vào Ô Tìm Kiếm POS', done: true, note: 'Bắt sự kiện focus/click trên ô tìm kiếm hàng hóa (F3) và khách hàng (F4); tự động hiển thị dropdown 10 mục đầu tiên khi ô input đang rỗng; giữ nguyên tìm kiếm fuzzy khi gõ từ khóa.' },
       // CẬP NHẬT 2026-10-17
       { id: 'remote-update-auto-rollback', cat: 'SYS', title: 'Cập Nhật Máy Chủ Từ Xa & Tự Động Rollback Toàn Vẹn Code + DB Khi Lỗi', done: true, note: 'Nút web gọi POST /api/system/apply-update spawn tách rời deploy/CAP_NHAT.bat /auto có lock chống spam; script tắt server trước khi backup WAL-safe bằng sqlite3.backup; ghi nhớ commit hash cũ và tự động reset --hard + restore DB nếu init_db hoặc ping 45s fail; poll GET /api/system/update-status báo kết quả lên UI.' },
 

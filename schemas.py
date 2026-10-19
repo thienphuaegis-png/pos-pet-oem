@@ -315,6 +315,11 @@ class ExpenseRequestApprove(BaseModel):
     account_id: int
     note: Optional[str] = None
 
+class ExpenseRequestBatchApprove(BaseModel):
+    request_ids: List[int]
+    account_id: int
+    note: Optional[str] = None
+
 # --- Settings & Templates ---
 class CompanySettingsUpdate(BaseModel):
     app_name: Optional[str] = "⚡ POS Offline"

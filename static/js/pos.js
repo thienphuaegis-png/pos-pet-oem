@@ -386,10 +386,12 @@ function setupShortcuts() {
         }
     });
 
-    // Xử lý quét barcode khi nhấn Enter ở ô tìm kiếm
+    // Xử lý tìm kiếm & gợi ý khi click/focus hoặc gõ phím
     const searchInput = document.getElementById('pos-search-input');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => filterProductSearch(e.target.value));
+        searchInput.addEventListener('focus', (e) => filterProductSearch(e.target.value));
+        searchInput.addEventListener('click', (e) => filterProductSearch(e.target.value));
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -401,6 +403,8 @@ function setupShortcuts() {
     const custSearch = document.getElementById('pos-customer-search');
     if (custSearch) {
         custSearch.addEventListener('input', (e) => filterCustomerSearch(e.target.value));
+        custSearch.addEventListener('focus', (e) => filterCustomerSearch(e.target.value));
+        custSearch.addEventListener('click', (e) => filterCustomerSearch(e.target.value));
     }
 
     const orderNoteInput = document.getElementById('pos-order-note');
@@ -552,25 +556,37 @@ function filterProductSearch(val) {
     const dropdown = document.getElementById('pos-search-dropdown');
     if (!dropdown) return;
     const q = (val || '').trim();
-    if (!q) {
-        dropdown.classList.add('hidden');
-        return;
-    }
 
-    const matches = posProducts.filter(p => {
-        if (p.type === 'material') return false;
-        const text = `${p.name} ${p.code || ''}`;
-        return fuzzyMatch(q, text);
-    }).slice(0, 10);
+    let matches = [];
+    const isSuggestion = !q;
+
+    if (isSuggestion) {
+        matches = (posProducts || []).filter(p => p && p.type !== 'material').slice(0, 10);
+    } else {
+        matches = (posProducts || []).filter(p => {
+            if (!p || p.type === 'material') return false;
+            const text = `${p.name || ''} ${p.code || ''}`;
+            return fuzzyMatch(q, text);
+        }).slice(0, 10);
+    }
 
     const total = matches.length;
     if (total === 0) {
-        dropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy hàng hóa phù hợp</div>';
+        dropdown.innerHTML = isSuggestion
+            ? '<div class="p-3 text-center text-xs text-slate-400 italic">Chưa có hàng hóa nào</div>'
+            : '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy hàng hóa phù hợp</div>';
         dropdown.classList.remove('hidden');
         return;
     }
 
-    dropdown.innerHTML = matches.map(p => {
+    const header = isSuggestion ? `
+        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span class="flex items-center gap-1">✨ 10 mặt hàng gợi ý</span>
+            <span class="text-[10px] text-slate-400 font-normal">Gõ từ khóa để tìm thêm</span>
+        </div>
+    ` : '';
+
+    dropdown.innerHTML = header + matches.map(p => {
         const clickHandler = `addProductToActiveCart(${p.id})`;
         const isCombo = p.type === 'combo';
         const typeLabel = isCombo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
@@ -1080,23 +1096,35 @@ function filterCustomerSearch(val) {
     const dropdown = document.getElementById('pos-customer-dropdown');
     if (!dropdown) return;
     const q = (val || '').trim();
-    if (!q) {
-        dropdown.classList.add('hidden');
-        return;
+
+    let matches = [];
+    const isSuggestion = !q;
+
+    if (isSuggestion) {
+        matches = (posContacts || []).filter(c => c && c.name).slice(0, 10);
+    } else {
+        matches = (posContacts || []).filter(c => {
+            const text = `${c.name || ''} ${c.phone || ''}`;
+            return fuzzyMatch(q, text);
+        }).slice(0, 10);
     }
 
-    const matches = posContacts.filter(c => {
-        const text = `${c.name} ${c.phone || ''}`;
-        return fuzzyMatch(q, text);
-    }).slice(0, 10);
-
     if (matches.length === 0) {
-        dropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy khách hàng nào</div>';
+        dropdown.innerHTML = isSuggestion
+            ? '<div class="p-3 text-center text-xs text-slate-400 italic">Chưa có khách hàng nào</div>'
+            : '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy khách hàng nào</div>';
         dropdown.classList.remove('hidden');
         return;
     }
 
-    dropdown.innerHTML = matches.map(c => `
+    const header = isSuggestion ? `
+        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <span class="flex items-center gap-1">✨ 10 khách hàng gợi ý</span>
+            <span class="text-[10px] text-slate-400 font-normal">Gõ tên/SĐT để tìm thêm</span>
+        </div>
+    ` : '';
+
+    dropdown.innerHTML = header + matches.map(c => `
         <div onclick="selectCustomerForActiveTab(${c.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
             <div>
                 <div class="flex items-center gap-1.5">

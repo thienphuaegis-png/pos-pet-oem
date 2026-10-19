@@ -259,20 +259,24 @@
             const btnServices = document.getElementById('btn-pet-sub-services');
             const btnPricing = document.getElementById('btn-pet-sub-pricing');
             const btnStaff = document.getElementById('btn-pet-sub-staff');
+            const btnGallery = document.getElementById('btn-pet-sub-gallery');
             const viewServices = document.getElementById('pet-sub-view-services');
             const viewPricing = document.getElementById('pet-sub-view-pricing');
             const viewStaff = document.getElementById('pet-sub-view-staff');
+            const viewGallery = document.getElementById('pet-sub-view-gallery');
 
-            const inactiveClass = 'px-4 py-2 font-bold bg-white text-slate-700 border-y border-r hover:bg-gray-50';
-            const activeClass = 'px-4 py-2 font-bold bg-slate-800 text-white';
+            const inactiveClass = 'px-3.5 py-1.5 font-semibold text-slate-600 hover:text-slate-900 rounded-md flex items-center gap-1.5 transition';
+            const activeClass = 'px-3.5 py-1.5 font-bold rounded-md bg-white text-slate-900 shadow-xs flex items-center gap-1.5 transition';
 
-            if (btnServices) btnServices.className = (sub === 'services' ? activeClass + ' rounded-l-md' : 'px-4 py-2 font-bold bg-white text-slate-700 border hover:bg-gray-50 rounded-l-md');
+            if (btnServices) btnServices.className = (sub === 'services' ? activeClass : inactiveClass);
             if (btnPricing) btnPricing.className = (sub === 'pricing' ? activeClass : inactiveClass);
-            if (btnStaff) btnStaff.className = (sub === 'staff' ? activeClass + ' rounded-r-md' : inactiveClass + ' rounded-r-md');
+            if (btnStaff) btnStaff.className = (sub === 'staff' ? activeClass : inactiveClass);
+            if (btnGallery) btnGallery.className = (sub === 'gallery' ? activeClass : inactiveClass);
 
             if (viewServices) viewServices.classList.toggle('hidden', sub !== 'services');
             if (viewPricing) viewPricing.classList.toggle('hidden', sub !== 'pricing');
             if (viewStaff) viewStaff.classList.toggle('hidden', sub !== 'staff');
+            if (viewGallery) viewGallery.classList.toggle('hidden', sub !== 'gallery');
 
             if (sub === 'services') {
                 loadPetServicesList();
@@ -281,6 +285,8 @@
                 loadPetPricingList();
             } else if (sub === 'staff') {
                 loadSpaStaffList();
+            } else if (sub === 'gallery') {
+                loadGroomingGalleryList();
             }
         }
         window.switchPetSubTab = switchPetSubTab;
@@ -1408,6 +1414,46 @@
         }
         window.onSpaSpreadsheetSurchargeChange = onSpaSpreadsheetSurchargeChange;
 
+        async function onSpaSpreadsheetPaymentStatusChange(ticketId, selectEl) {
+            const newStatus = selectEl.value;
+            const ticket = (allPetServiceTickets || []).find(t => t.id == ticketId);
+            if (newStatus === 'paid') {
+                const ticketNum = ticket ? `#${ticket.ticket_number || ticket.id}` : `#${ticketId}`;
+                const due = ticket ? Math.max(0, (ticket.price || 0) - (ticket.deposit_amount || 0)) : 0;
+                const confirmMsg = `Xác nhận thu tiền phiếu ${ticketNum} (Số tiền: ${formatMoney(due)})?`;
+                const ok = window.customConfirm ? await window.customConfirm(confirmMsg) : confirm(confirmMsg);
+                if (!ok) {
+                    selectEl.value = 'unpaid';
+                    return;
+                }
+                try {
+                    const res = await fetch(`/api/pet-services/${ticketId}/pay`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            payment_method: ticket?.payment_method || 'cash'
+                        })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert('Lỗi thanh toán: ' + (err.detail || 'Không thể thanh toán'));
+                        selectEl.value = 'unpaid';
+                        return;
+                    }
+                    if (ticket) ticket.payment_status = 'paid';
+                    selectEl.className = 'border p-1 rounded text-xs font-bold text-emerald-700 bg-emerald-50';
+                    if (typeof showToast === 'function') showToast('Đã thu tiền & ghi sổ quỹ thành công!', 'success');
+                } catch (e) {
+                    alert('Lỗi kết nối: ' + e.message);
+                    selectEl.value = 'unpaid';
+                }
+            } else {
+                markTicketDirty(ticketId, 'payment_status', 'unpaid', selectEl);
+                selectEl.className = 'border p-1 rounded text-xs font-bold text-amber-700 bg-amber-50';
+            }
+        }
+        window.onSpaSpreadsheetPaymentStatusChange = onSpaSpreadsheetPaymentStatusChange;
+
         function onProgSurchargeCheckboxChanged(key) {
             const teethP = getSvcSurchargePrice('teeth');
             const artP = getSvcSurchargePrice('art');
@@ -1756,7 +1802,7 @@
                         </td>
                         <!-- 11. Thanh toán (Editable) -->
                         <td class="p-2 text-center">
-                            <select class="border p-1 rounded text-xs font-bold ${t.payment_status === 'paid' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}" onchange="markTicketDirty(${t.id}, 'payment_status', this.value, this)">
+                            <select class="border p-1 rounded text-xs font-bold ${t.payment_status === 'paid' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}" onchange="onSpaSpreadsheetPaymentStatusChange(${t.id}, this)">
                                 <option value="unpaid" ${t.payment_status !== 'paid' ? 'selected' : ''}>Chưa TT</option>
                                 <option value="paid" ${t.payment_status === 'paid' ? 'selected' : ''}>Đã TT</option>
                             </select>
@@ -1887,13 +1933,14 @@
                     <!-- 10. Tổng tiền & Thực thu tách bạch -->
                     <td class="p-3 text-right">
                         <div class="font-mono font-black text-sky-700 text-sm">${formatMoney(t.price || 0)}</div>
-                        ${(t.tip_amount || t.deposit_amount) ? `
+                        ${(t.tip_amount || t.deposit_amount || t.spa_wallet_deduction) ? `
                             <div class="text-[10px] text-gray-500 font-mono mt-0.5">
                                 ${t.tip_amount ? `<span class="text-emerald-700 font-bold">+${formatMoney(t.tip_amount)} tip</span> ` : ''}
-                                ${t.deposit_amount ? `<span class="text-sky-700 font-bold">-${formatMoney(t.deposit_amount)} cọc</span>` : ''}
+                                ${t.deposit_amount ? `<span class="text-sky-700 font-bold">-${formatMoney(t.deposit_amount)} cọc</span> ` : ''}
+                                ${t.spa_wallet_deduction ? `<span class="text-purple-700 font-bold">-${formatMoney(t.spa_wallet_deduction)} ví</span>` : ''}
                             </div>
-                            <div class="text-[11.5px] font-black text-slate-800 font-mono mt-0.5" title="Thực thu tại quầy (Dịch vụ + Tip - Cọc)">
-                                👉 ${formatMoney(Math.max(0, (t.price || 0) + (t.tip_amount || 0) - (t.deposit_amount || 0)))}
+                            <div class="text-[11.5px] font-black text-slate-800 font-mono mt-0.5" title="Thực thu tiền mặt/chuyển khoản ngoài (Tổng - Cọc - Ví)">
+                                👉 ${formatMoney(Math.max(0, (t.price || 0) - (t.deposit_amount || 0) - (t.spa_wallet_deduction || 0)))}
                             </div>
                         ` : ''}
                     </td>
@@ -2222,7 +2269,7 @@
             const revBadge = document.getElementById('spa-inv-total-revenue');
             if (countBadge) countBadge.textContent = `${filtered.length} hóa đơn`;
             if (revBadge) {
-                const totalRev = filtered.reduce((sum, t) => sum + (Number(t.price) || 0) + (Number(t.tip_amount) || 0), 0);
+                const totalRev = filtered.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
                 revBadge.textContent = formatMoney(totalRev);
             }
 
@@ -2275,7 +2322,8 @@
                     ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Đã TT</span>'
                     : '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Chưa TT</span>';
 
-                const totalActual = (Number(t.price) || 0) + (Number(t.tip_amount) || 0) - (Number(t.deposit_amount) || 0);
+                const walletDed = Number(t.spa_wallet_deduction || 0);
+                const totalActual = Math.max(0, (Number(t.price) || 0) - walletDed - (Number(t.deposit_amount) || 0));
 
                 return `
                 <tr class="hover:bg-pink-50/20 transition text-[12px] border-b border-slate-100">
@@ -2307,7 +2355,10 @@
                     <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(t.price || 0)}</td>
                     <td class="p-3 text-right font-mono text-emerald-700 text-xs">${t.tip_amount ? `+${formatMoney(t.tip_amount)}` : '-'}</td>
                     <td class="p-3 text-right font-mono text-amber-700 text-xs">${t.deposit_amount ? `-${formatMoney(t.deposit_amount)}` : '-'}</td>
-                    <td class="p-3 text-right font-mono font-black text-purple-700 text-sm">${formatMoney(totalActual)}</td>
+                    <td class="p-3 text-right font-mono font-black text-purple-700 text-sm">
+                        <div>${formatMoney(totalActual)}</div>
+                        ${walletDed > 0 ? `<div class="text-[10px] text-purple-700 font-bold font-mono">Ví: -${formatMoney(walletDed)}</div>` : ''}
+                    </td>
                     <td class="p-3 text-center">
                         <div class="flex flex-col items-center gap-1">
                             ${statusBadge}
@@ -3056,9 +3107,89 @@
                 dyeSelect.innerHTML = html;
                 if (curDye) dyeSelect.value = curDye;
             }
+
+            // 3. Render các Button Phụ Thu từ Bảng Giá người dùng tạo (nhóm Trị Liệu & Phụ Thu)
+            renderQuickSurchargeButtons(serviceMap);
+            renderBatchBulkSurchargeButtons();
         }
 
         window.populateServicePackageDropdowns = populateServicePackageDropdowns;
+
+        function renderQuickSurchargeButtons(serviceMapInput = null) {
+            const container = document.getElementById('svc-quick-surcharges-container');
+            if (!container) return;
+
+            let surchargeNames = new Set();
+            if (Array.isArray(allPetPricingData)) {
+                allPetPricingData.forEach(item => {
+                    const cLow = (item.category || '').toLowerCase();
+                    if (cLow.includes('phụ thu') || cLow.includes('trị liệu')) {
+                        const sName = (item.service_name || '').trim();
+                        if (sName) surchargeNames.add(sName);
+                    }
+                });
+            }
+
+            // Fallback nếu Bảng Giá chưa có dòng nào thuộc nhóm phụ thu
+            if (surchargeNames.size === 0) {
+                ['Gỡ rối lông', 'Tắm nấm / Viêm da', 'Đánh răng', 'Cắt tạo kiểu NT', 'Đưa đón tận nơi'].forEach(s => surchargeNames.add(s));
+            }
+
+            const namesList = Array.from(surchargeNames);
+            container.innerHTML = namesList.map(name => `
+                <button type="button" onclick="quickAddSvcExtraService('${escapeSpaHtml(name)}')"
+                    class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                    <span>➕</span>
+                    <span>${escapeSpaHtml(name)}</span>
+                </button>
+            `).join('');
+        }
+        window.renderQuickSurchargeButtons = renderQuickSurchargeButtons;
+
+        let batchBulkSelectedSurcharges = new Set();
+
+        function renderBatchBulkSurchargeButtons() {
+            const container = document.getElementById('batch-bulk-surcharges-container');
+            if (!container) return;
+
+            let surchargeNames = new Set();
+            if (Array.isArray(allPetPricingData)) {
+                allPetPricingData.forEach(item => {
+                    const cLow = (item.category || '').toLowerCase();
+                    if (cLow.includes('phụ thu') || cLow.includes('trị liệu')) {
+                        const sName = (item.service_name || '').trim();
+                        if (sName) surchargeNames.add(sName);
+                    }
+                });
+            }
+
+            if (surchargeNames.size === 0) {
+                ['Gỡ rối lông', 'Tắm nấm / Viêm da', 'Đánh răng', 'Cắt tạo kiểu NT', 'Đưa đón tận nơi'].forEach(s => surchargeNames.add(s));
+            }
+
+            const namesList = Array.from(surchargeNames);
+            container.innerHTML = namesList.map(name => {
+                const isSel = batchBulkSelectedSurcharges.has(name);
+                return `
+                    <button type="button" onclick="toggleBatchBulkSurcharge(this, '${escapeSpaHtml(name)}')"
+                        class="batch-bulk-surch-btn px-2 py-0.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer select-none ${isSel ? 'bg-amber-500 text-white border border-amber-600 shadow-xs' : 'bg-white hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-300'}">
+                        <span>${isSel ? '✓' : '➕'}</span>
+                        <span>${escapeSpaHtml(name)}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+        window.renderBatchBulkSurchargeButtons = renderBatchBulkSurchargeButtons;
+
+        function toggleBatchBulkSurcharge(btn, sName) {
+            if (batchBulkSelectedSurcharges.has(sName)) {
+                batchBulkSelectedSurcharges.delete(sName);
+            } else {
+                batchBulkSelectedSurcharges.add(sName);
+            }
+            renderBatchBulkSurchargeButtons();
+        }
+        window.toggleBatchBulkSurcharge = toggleBatchBulkSurcharge;
 
         async function loadPetPricingList() {
             const tbody = document.getElementById('table-pet-pricing');
@@ -3133,10 +3264,10 @@
             `}).join('');
         }
 
-        function openAddPetPricingModal() {
-            document.getElementById('pet-pricing-modal-title').textContent = 'Thêm Mức Giá Dịch Vụ Theo Cân Nặng';
+        function openCreatePetPricingModal() {
+            document.getElementById('pet-pricing-modal-title').textContent = 'Thêm Mức Giá Dịch Vụ Mới';
             document.getElementById('pet-pricing-edit-id').value = '';
-            document.getElementById('pet-pricing-input-cat').value = '';
+            document.getElementById('pet-pricing-input-cat').value = 'Trị Liệu & Phụ Thu';
             document.getElementById('pet-pricing-input-name').value = '';
             document.getElementById('pet-pricing-input-min').value = '0';
             document.getElementById('pet-pricing-input-max').value = '999';
@@ -3153,7 +3284,7 @@
             document.getElementById('pet-pricing-input-name').value = item.service_name;
             document.getElementById('pet-pricing-input-min').value = item.min_weight;
             document.getElementById('pet-pricing-input-max').value = item.max_weight;
-            document.getElementById('pet-pricing-input-price').value = item.price;
+            document.getElementById('pet-pricing-input-price').value = item.price ? Number(item.price).toLocaleString('vi-VN') : '';
             document.getElementById('modal-pet-pricing-form').classList.remove('hidden');
         }
 
@@ -3167,7 +3298,7 @@
             const serviceName = document.getElementById('pet-pricing-input-name').value.trim();
             const minWeight = parseFloat(document.getElementById('pet-pricing-input-min').value) || 0;
             const maxWeight = parseFloat(document.getElementById('pet-pricing-input-max').value) || 0;
-            const price = parseFloat(document.getElementById('pet-pricing-input-price').value) || 0;
+            const price = parseMoneyInput(document.getElementById('pet-pricing-input-price').value) || 0;
 
             if (!serviceName) { alert('Vui lòng nhập tên dịch vụ!'); return; }
             if (price <= 0) { alert('Vui lòng nhập giá dịch vụ!'); return; }
@@ -3212,6 +3343,16 @@
                 else alert('Lỗi xóa mức giá');
             }
         }
+
+        window.openAddPetPricingModal = openCreatePetPricingModal;
+        window.openCreatePetPricingModal = openCreatePetPricingModal;
+        window.openEditPetPricingModal = openEditPetPricingModal;
+        window.closePetPricingModal = closePetPricingModal;
+        window.savePetPricingItem = savePetPricingItem;
+        window.deletePetPricingItem = deletePetPricingItem;
+        window.filterPetPricingCategory = filterPetPricingCategory;
+        window.renderPetPricingTable = renderPetPricingTable;
+        window.loadPetPricingList = loadPetPricingList;
 
         // ==========================================
         // QUẢN LÝ NHÂN VIÊN SPA (SPA STAFF)
@@ -3329,6 +3470,13 @@
             }
         }
 
+        window.openSpaStaffModal = openSpaStaffModal;
+        window.closeSpaStaffModal = closeSpaStaffModal;
+        window.editSpaStaff = editSpaStaff;
+        window.submitSpaStaffForm = submitSpaStaffForm;
+        window.deleteSpaStaff = deleteSpaStaff;
+        window.loadSpaStaffList = loadSpaStaffList;
+
         // ==========================================
         // TẠO PHIẾU TIẾP NHẬN DỊCH VỤ SPA THÔNG MINH
         // ==========================================
@@ -3344,6 +3492,17 @@
                 } catch(e){}
             }
             populateServicePackageDropdowns();
+            renderQuickSurchargeButtons();
+
+            // Đảm bảo nạp sẵn danh sách khách hàng nếu chưa có
+            if (!window.allContacts || window.allContacts.length === 0) {
+                fetch('/api/contacts').then(r => r.json()).then(data => {
+                    if (Array.isArray(data)) {
+                        window.allContacts = data;
+                        if (typeof allContacts !== 'undefined') allContacts = data;
+                    }
+                }).catch(e => console.warn('Lỗi tải contacts:', e));
+            }
 
             // Đảm bảo có danh sách thợ
             try {
@@ -3384,6 +3543,16 @@
             // Set default single mode
             setSvcIntakeMode('single');
 
+            // Tính & hiển thị Số Thứ Tự (STT) của phiếu đang tạo (random 5-10 nếu ngày mới chưa có phiếu)
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayTickets = (allPetServiceTickets || []).filter(t => (t.ticket_date === todayStr || (t.created_at && t.created_at.startsWith(todayStr))));
+            const maxNum = todayTickets.reduce((max, t) => Math.max(max, Number(t.ticket_number) || 0), 0);
+            const currentTicketStt = maxNum > 0 ? (maxNum + 1) : Math.floor(Math.random() * 6) + 5;
+            const badgeHeader = document.getElementById('svc-next-stt-header-badge');
+            if (badgeHeader) badgeHeader.textContent = `#${currentTicketStt}`;
+            const valFooter = document.getElementById('svc-next-stt-footer-val');
+            if (valFooter) valFooter.textContent = `#${currentTicketStt}`;
+
             document.getElementById('svc-pet-id').innerHTML = '<option value="">-- Chọn khách trước --</option>';
             document.getElementById('svc-pet-name').value = '';
             document.getElementById('svc-pet-breed').value = 'Poodle';
@@ -3395,16 +3564,13 @@
             document.getElementById('svc-primary-package').value = '';
             document.getElementById('svc-dye-package').value = '';
 
-            // Reset phụ thu checkbox & hiển thị tiền
-            ['svc-cb-teeth', 'svc-cb-art', 'svc-cb-surch', 'svc-cb-ship', 'svc-cb-tip', 'svc-cb-other'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.checked = false;
-            });
-            ['svc-tip-amount', 'svc-other-surch-amount'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            updateSvcSurchargeTags();
+            // Reset phụ thu động & tip, cọc
+            currentSvcExtraServices = [];
+            renderSvcExtraServices();
+            const tipEl = document.getElementById('svc-tip-amount');
+            if (tipEl) tipEl.value = '';
+            const depEl = document.getElementById('svc-deposit-amount');
+            if (depEl) depEl.value = '';
 
             currentSvcRetailProducts = [];
             renderSvcRetailItems();
@@ -3529,6 +3695,7 @@
                 }
                 // Cập nhật thanh chọn bé và nạp các dòng tương ứng
                 renderBatchPetSelector();
+                renderBatchBulkSurchargeButtons();
             }
         }
         window.setSvcIntakeMode = setSvcIntakeMode;
@@ -3907,6 +4074,106 @@
         }
         window.renderSvcRetailItems = renderSvcRetailItems;
 
+        // ==========================================
+        // DỊCH VỤ PHỤ THU & TRỊ LIỆU ĐỘNG (TỰ ĐIỀN GIÁ THEO KG / MỨC ĐỘ)
+        // ==========================================
+        let currentSvcExtraServices = [];
+
+        function renderSvcExtraServices() {
+            const listEl = document.getElementById('svc-extra-services-list');
+            const badgeEl = document.getElementById('svc-extra-services-count-badge');
+            if (badgeEl) badgeEl.textContent = `${currentSvcExtraServices.length} mục`;
+            if (!listEl) return;
+
+            if (currentSvcExtraServices.length === 0) {
+                listEl.innerHTML = '<div class="text-[10px] text-slate-400 italic text-center py-1.5">Chưa có phụ thu nào (bấm gợi ý ở trên hoặc thêm dòng)</div>';
+                return;
+            }
+
+            listEl.innerHTML = currentSvcExtraServices.map((item, idx) => `
+                <div class="flex items-center gap-1.5 bg-amber-50/70 p-1 rounded border border-amber-200 text-xs">
+                    <input type="text" value="${escapeSpaHtml(item.name || '')}" placeholder="Tên phụ thu (gỡ rối, viêm da...)"
+                        oninput="updateSvcExtraService(${idx}, 'name', this.value)"
+                        class="flex-1 min-w-0 border p-1 rounded text-xs bg-white font-medium text-slate-800">
+                    <input type="text" value="${item.price ? Number(item.price).toLocaleString('vi-VN') : ''}" placeholder="0"
+                        oninput="onMoneyInputChange(this); updateSvcExtraService(${idx}, 'price', parseMoneyInput(this.value))"
+                        class="w-24 border p-1 rounded text-xs text-right font-mono font-bold text-amber-900 bg-white">
+                    <span class="text-[10px] text-slate-500 font-bold">đ</span>
+                    <button type="button" onclick="removeSvcExtraService(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded text-xs" title="Xóa dòng phụ thu">✕</button>
+                </div>
+            `).join('');
+        }
+        window.renderSvcExtraServices = renderSvcExtraServices;
+
+        function addSvcExtraService(name = '', price = 0) {
+            currentSvcExtraServices.push({
+                id: Date.now() + Math.random(),
+                name: name,
+                price: Number(price) || 0
+            });
+            renderSvcExtraServices();
+            autoCalculateServicePrice();
+        }
+        window.addSvcExtraService = addSvcExtraService;
+
+        function removeSvcExtraService(idx) {
+            if (idx >= 0 && idx < currentSvcExtraServices.length) {
+                currentSvcExtraServices.splice(idx, 1);
+                renderSvcExtraServices();
+                autoCalculateServicePrice();
+            }
+        }
+        window.removeSvcExtraService = removeSvcExtraService;
+
+        function updateSvcExtraService(idx, field, val) {
+            if (currentSvcExtraServices[idx]) {
+                currentSvcExtraServices[idx][field] = val;
+                autoCalculateServicePrice();
+            }
+        }
+        window.updateSvcExtraService = updateSvcExtraService;
+
+        function quickAddSvcExtraService(name) {
+            const weightInput = document.getElementById('svc-pet-weight')?.value || '';
+            const weight = parseWeightFloat(weightInput);
+            let suggestedPrice = 40000;
+            const searchLower = name.trim().toLowerCase();
+
+            if (Array.isArray(allPetPricingData)) {
+                // 1. Dò theo cân nặng trong nhóm Trị Liệu & Phụ Thu
+                let match = null;
+                if (weight > 0) {
+                    match = allPetPricingData.find(x => {
+                        const cLow = (x.category || '').toLowerCase();
+                        return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                            x.service_name && x.service_name.trim().toLowerCase() === searchLower &&
+                            (x.min_weight === 0 ? weight >= x.min_weight : weight > x.min_weight) && weight <= x.max_weight;
+                    });
+                }
+                // 2. Dò theo tên dịch vụ khớp chính xác
+                if (!match) {
+                    match = allPetPricingData.find(x => {
+                        const cLow = (x.category || '').toLowerCase();
+                        return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                            x.service_name && x.service_name.trim().toLowerCase() === searchLower;
+                    });
+                }
+                if (match && match.price > 0) {
+                    suggestedPrice = match.price;
+                } else {
+                    // Fallback theo từ khóa nếu chưa tạo trong bảng giá
+                    if (searchLower.includes('đánh răng')) suggestedPrice = 30000;
+                    else if (searchLower.includes('tạo kiểu') || searchLower.includes('cắt nt')) suggestedPrice = 50000;
+                    else if (searchLower.includes('gỡ rối')) suggestedPrice = 40000;
+                    else if (searchLower.includes('đưa đón')) suggestedPrice = 50000;
+                    else if (searchLower.includes('viêm da') || searchLower.includes('nấm')) suggestedPrice = 60000;
+                }
+            }
+
+            addSvcExtraService(name, suggestedPrice);
+        }
+        window.quickAddSvcExtraService = quickAddSvcExtraService;
+
         function getSvcSurchargePrice(key) {
             let defaultPrice = 30000;
             let searchName = '';
@@ -3933,21 +4200,7 @@
             return defaultPrice;
         }
 
-        function updateSvcSurchargeTags() {
-            const teethP = getSvcSurchargePrice('teeth');
-            const artP = getSvcSurchargePrice('art');
-            const surchP = getSvcSurchargePrice('surch');
-            const shipP = getSvcSurchargePrice('ship');
-
-            const tEl = document.getElementById('svc-cb-teeth-price-tag');
-            if (tEl) tEl.textContent = formatMoneyString(teethP) + ' đ';
-            const aEl = document.getElementById('svc-cb-art-price-tag');
-            if (aEl) aEl.textContent = formatMoneyString(artP) + ' đ';
-            const sEl = document.getElementById('svc-cb-surch-price-tag');
-            if (sEl) sEl.textContent = formatMoneyString(surchP) + ' đ';
-            const shEl = document.getElementById('svc-cb-ship-price-tag');
-            if (shEl) shEl.textContent = formatMoneyString(shipP) + ' đ';
-        }
+        function updateSvcSurchargeTags() {}
         window.updateSvcSurchargeTags = updateSvcSurchargeTags;
 
         function onSvcSurchargeCheckboxChanged() {
@@ -4022,33 +4275,68 @@
             }
         }
 
-        // Dropdown popup tìm khách hàng theo tên + SĐT, khớp không cần liên tục
-        function onSvcCustomerSearchInput(rawQuery) {
+        // Dropdown popup tìm khách hàng theo tên + SĐT, khớp linh hoạt, tự phục hồi nạp API nếu cache rỗng
+        async function onSvcCustomerSearchInput(rawQuery) {
             const dropdown = document.getElementById('svc-customer-dropdown');
             if (!dropdown) return;
-            const custs = (allContacts || []).filter(c => c.type === 'customer');
+
+            let source = (typeof allContacts !== 'undefined' && Array.isArray(allContacts) && allContacts.length > 0)
+                ? allContacts
+                : (window.allContacts || []);
+
+            if (source.length === 0) {
+                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400 flex items-center gap-1.5"><span>⏳</span><span>Đang tải danh bạ khách hàng...</span></div>';
+                dropdown.classList.remove('hidden');
+                try {
+                    const r = await fetch('/api/contacts');
+                    if (r.ok) {
+                        const data = await r.json();
+                        if (Array.isArray(data)) {
+                            window.allContacts = data;
+                            if (typeof allContacts !== 'undefined') allContacts = data;
+                            source = data;
+                        }
+                    }
+                } catch (e) {
+                    dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-rose-500">Lỗi kết nối máy chủ</div>';
+                    return;
+                }
+            }
+
+            const custs = source.filter(c => c.type === 'customer' || !c.type);
             const tokens = (rawQuery || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
 
-            const norm = s => (s || '').toString().toLowerCase();
-            const matched = tokens.length === 0 ? custs : custs.filter(c => {
-                const haystack = norm(c.name) + ' ' + norm(c.phone);
-                return tokens.every(tok => haystack.includes(tok));
+            const removeVnAccents = (str) => {
+                return (str || '').toString().toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd');
+            };
+
+            const matched = tokens.length === 0 ? custs.slice(0, 20) : custs.filter(c => {
+                const normName = (c.name || '').toLowerCase();
+                const normPhone = (c.phone || '').toLowerCase();
+                const cleanName = removeVnAccents(normName);
+                const haystack = normName + ' ' + normPhone + ' ' + cleanName;
+                return tokens.every(tok => {
+                    const cleanTok = removeVnAccents(tok);
+                    return haystack.includes(tok) || haystack.includes(cleanTok);
+                });
             });
 
             if (matched.length === 0) {
-                dropdown.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400">Không tìm thấy khách phù hợp</div>';
+                dropdown.innerHTML = '<div class="px-3 py-2.5 text-xs text-slate-400 italic">Không tìm thấy khách hàng nào phù hợp</div>';
             } else {
                 dropdown.innerHTML = matched.slice(0, 30).map(c => `
-                    <div class="px-3 py-2 text-xs hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center"
+                    <div class="px-3 py-2 text-xs hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition"
                         onmousedown="selectSvcCustomer(${c.id})">
                         <div>
-                            <div class="font-semibold text-slate-700 flex items-center gap-1.5">
-                                <span>${c.name}</span>
+                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                <span>${escapeSpaHtml(c.name)}</span>
                                 ${c.is_flagged ? '<span class="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded-full">Lưu ý</span>' : ''}
                             </div>
-                            <div class="text-slate-400">${c.phone || 'Chưa có SĐT'}</div>
+                            <div class="text-[11px] text-slate-500 font-mono">${c.phone || 'Chưa có SĐT'}</div>
                         </div>
-                        <div class="text-right text-[11px] text-slate-500 font-mono">
+                        <div class="text-right text-[11px] text-purple-700 font-medium">
                             ${c.pets_count ? `🐾 ${c.pets_count} bé` : ''}
                         </div>
                     </div>
@@ -4190,14 +4478,13 @@
                 instantBase += findSpaPricingClientSide(dyePkg, weight);
             }
 
-            // Phụ thu Cột 2
-            let extraTeeth = document.getElementById('svc-cb-teeth')?.checked ? getSvcSurchargePrice('teeth') : 0;
-            let extraArt = document.getElementById('svc-cb-art')?.checked ? getSvcSurchargePrice('art') : 0;
-            let extraSurch = document.getElementById('svc-cb-surch')?.checked ? getSvcSurchargePrice('surch') : 0;
-            let extraShip = document.getElementById('svc-cb-ship')?.checked ? getSvcSurchargePrice('ship') : 0;
-            let extraTip = document.getElementById('svc-cb-tip')?.checked ? parseMoneyInput(document.getElementById('svc-tip-amount')?.value) : 0;
-            let extraOther = document.getElementById('svc-cb-other')?.checked ? parseMoneyInput(document.getElementById('svc-other-surch-amount')?.value) : 0;
-            const totalSurcharges = extraTeeth + extraArt + extraSurch + extraShip + extraTip + extraOther;
+            // Phụ thu Cột 2: Lấy từ mảng currentSvcExtraServices động
+            let extraServicesTotal = 0;
+            if (Array.isArray(currentSvcExtraServices)) {
+                extraServicesTotal = currentSvcExtraServices.reduce((acc, it) => acc + (Number(it.price) || 0), 0);
+            }
+            let extraTip = parseMoneyInput(document.getElementById('svc-tip-amount')?.value) || 0;
+            const totalSurcharges = extraServicesTotal + extraTip;
 
             // Tiền hàng hóa bán kèm
             let totalRetail = 0;
@@ -4500,12 +4787,12 @@
             const paymentMethod = paymentStatus === 'paid' ? (document.getElementById('svc-payment-method')?.value || 'cash') : null;
             const sendToHotel = document.getElementById('svc-send-to-hotel')?.checked ? 1 : 0;
 
-            const extraTeeth = document.getElementById('svc-cb-teeth')?.checked ? getSvcSurchargePrice('teeth') : 0;
-            const extraArt = document.getElementById('svc-cb-art')?.checked ? getSvcSurchargePrice('art') : 0;
-            const extraSurch = document.getElementById('svc-cb-surch')?.checked ? getSvcSurchargePrice('surch') : 0;
-            const extraShip = document.getElementById('svc-cb-ship')?.checked ? getSvcSurchargePrice('ship') : 0;
-            const extraTip = document.getElementById('svc-cb-tip')?.checked ? parseMoneyInput(document.getElementById('svc-tip-amount')?.value) : 0;
-            const extraOther = document.getElementById('svc-cb-other')?.checked ? parseMoneyInput(document.getElementById('svc-other-surch-amount')?.value) : 0;
+            let extraServicesTotal = 0;
+            if (Array.isArray(currentSvcExtraServices)) {
+                extraServicesTotal = currentSvcExtraServices.reduce((acc, it) => acc + (Number(it.price) || 0), 0);
+            }
+            const extraTip = parseMoneyInput(document.getElementById('svc-tip-amount')?.value) || 0;
+            const depositAmount = parseMoneyInput(document.getElementById('svc-deposit-amount')?.value) || 0;
 
             if (!custId) { alert('Vui lòng chọn hoặc thêm khách hàng!'); return; }
             if (!petName) { alert('Vui lòng nhập tên của bé!'); return; }
@@ -4553,16 +4840,27 @@
                     original_price: dyePrice
                 });
             }
-            if (extraTeeth > 0) lineItems.push({ name: 'Đánh răng thú cưng', quantity: 1, price: extraTeeth, original_price: extraTeeth });
-            if (extraArt > 0) lineItems.push({ name: 'Cắt tạo kiểu nghệ thuật', quantity: 1, price: extraArt, original_price: extraArt });
-            if (extraSurch > 0) lineItems.push({ name: 'Phụ thu gỡ rối / dịch vụ thêm', quantity: 1, price: extraSurch, original_price: extraSurch });
-            if (extraShip > 0) lineItems.push({ name: 'Cước vận chuyển đưa đón', quantity: 1, price: extraShip, original_price: extraShip });
-            if (extraTip > 0) lineItems.push({ name: 'Tiền tip thợ', quantity: 1, price: extraTip, original_price: extraTip });
-            if (extraOther > 0) lineItems.push({ name: 'Phụ thu khác', quantity: 1, price: extraOther, original_price: extraOther });
+
+            // Dịch vụ phụ thu động (tự điền tên & giá)
+            if (Array.isArray(currentSvcExtraServices)) {
+                for (const es of currentSvcExtraServices) {
+                    if (es.name && (Number(es.price) || 0) > 0) {
+                        lineItems.push({
+                            name: es.name,
+                            quantity: 1,
+                            price: Number(es.price) || 0,
+                            original_price: Number(es.price) || 0,
+                            is_surcharge: true
+                        });
+                    }
+                }
+            }
+            if (extraTip > 0) lineItems.push({ name: 'Tiền tip thợ', quantity: 1, price: extraTip, original_price: extraTip, is_tip: true });
 
             if (Array.isArray(currentSvcRetailProducts)) {
                 for (const rp of currentSvcRetailProducts) {
                     lineItems.push({
+                        product_id: rp.id,
                         name: rp.name,
                         quantity: rp.quantity || 1,
                         price: rp.price || 0,
@@ -4594,11 +4892,12 @@
                 staff_worker_2: '',
                 staff_cutter: '',
                 staff_dyer: '',
-                teeth_cleaning: extraTeeth,
-                art_cutting_fee: extraArt,
-                surcharge: extraSurch + extraOther,
-                shipping_fee: extraShip,
+                teeth_cleaning: 0,
+                art_cutting_fee: 0,
+                surcharge: extraServicesTotal,
+                shipping_fee: 0,
                 tip_amount: extraTip,
+                deposit_amount: depositAmount,
                 return_method: '',
                 dye_package: dyePkg,
                 send_to_hotel: sendToHotel
@@ -4629,7 +4928,7 @@
                 await loadPetServicesKPI();
 
                 if (andPrint && result.id) {
-                    printPetServiceTicketDirectly(result.id);
+                    printPetServiceTicketDirectly(result.id, paymentStatus === 'paid' ? 'invoice' : 'intake');
                 } else {
                     alert(`✅ Đã lập thành công Phiếu Tiếp Nhận Spa #${result.ticket_number || ''} (${result.code})!`);
                 }
@@ -4758,14 +5057,10 @@
         function applyBulkPackageToBatchPets(onlyChecked = false) {
             const bulkPkg = document.getElementById('batch-bulk-primary-package')?.value || '';
             const bulkShaving = document.getElementById('batch-bulk-shaving')?.value || '';
+            const hasSurcharges = batchBulkSelectedSurcharges.size > 0;
 
-            const bulkCbTeeth = document.getElementById('batch-bulk-cb-teeth')?.checked || false;
-            const bulkCbArt = document.getElementById('batch-bulk-cb-art')?.checked || false;
-            const bulkCbSurch = document.getElementById('batch-bulk-cb-surch')?.checked || false;
-            const bulkCbShip = document.getElementById('batch-bulk-cb-ship')?.checked || false;
-
-            if (!bulkPkg && !bulkShaving && !bulkCbTeeth && !bulkCbArt && !bulkCbSurch && !bulkCbShip) {
-                alert('Vui lòng chọn gói dịch vụ chung, kiểu cạo bàn hoặc tích phụ thu mẫu!');
+            if (!bulkPkg && !bulkShaving && !hasSurcharges) {
+                alert('Vui lòng chọn gói dịch vụ chung, kiểu cạo bàn hoặc chọn ít nhất 1 phụ thu mẫu!');
                 return;
             }
 
@@ -4796,29 +5091,42 @@
                     if (sSel) sSel.value = bulkShaving;
                 }
 
-                if (bulkCbTeeth) {
-                    const cb = tr.querySelector('.batch-cb-teeth');
-                    const inp = tr.querySelector('.batch-pet-teeth');
-                    if (cb) cb.checked = true;
-                    if (inp) inp.value = formatMoneyString(getSvcSurchargePrice('teeth'));
-                }
-                if (bulkCbArt) {
-                    const cb = tr.querySelector('.batch-cb-art');
-                    const inp = tr.querySelector('.batch-pet-art');
-                    if (cb) cb.checked = true;
-                    if (inp) inp.value = formatMoneyString(getSvcSurchargePrice('art'));
-                }
-                if (bulkCbSurch) {
-                    const cb = tr.querySelector('.batch-cb-surch');
-                    const inp = tr.querySelector('.batch-pet-surcharges');
-                    if (cb) cb.checked = true;
-                    if (inp) inp.value = formatMoneyString(getSvcSurchargePrice('surch'));
-                }
-                if (bulkCbShip) {
-                    const cb = tr.querySelector('.batch-cb-ship');
-                    const inp = tr.querySelector('.batch-pet-ship');
-                    if (cb) cb.checked = true;
-                    if (inp) inp.value = formatMoneyString(getSvcSurchargePrice('ship'));
+                if (hasSurcharges) {
+                    const weightVal = tr.querySelector('.batch-pet-weight')?.value;
+                    const weight = parseWeightFloat(weightVal);
+                    const noteEl = tr.querySelector('.batch-pet-surch-note');
+                    const amtEl = tr.querySelector('.batch-pet-surch-amt');
+
+                    let totalSurch = 0;
+                    const namesArray = Array.from(batchBulkSelectedSurcharges);
+
+                    namesArray.forEach(sName => {
+                        const searchLower = sName.trim().toLowerCase();
+                        let sPrice = 40000;
+                        if (Array.isArray(allPetPricingData)) {
+                            let match = null;
+                            if (weight > 0) {
+                                match = allPetPricingData.find(x => {
+                                    const cLow = (x.category || '').toLowerCase();
+                                    return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                                        x.service_name && x.service_name.trim().toLowerCase() === searchLower &&
+                                        (x.min_weight === 0 ? weight >= x.min_weight : weight > x.min_weight) && weight <= x.max_weight;
+                                });
+                            }
+                            if (!match) {
+                                match = allPetPricingData.find(x => {
+                                    const cLow = (x.category || '').toLowerCase();
+                                    return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                                        x.service_name && x.service_name.trim().toLowerCase() === searchLower;
+                                });
+                            }
+                            if (match && match.price > 0) sPrice = match.price;
+                        }
+                        totalSurch += sPrice;
+                    });
+
+                    if (noteEl) noteEl.value = namesArray.join(', ');
+                    if (amtEl) amtEl.value = formatMoneyString(totalSurch);
                 }
 
                 calcBatchRowTotal(tr);
@@ -4826,6 +5134,9 @@
             });
 
             calcBatchGrandTotal();
+            if (typeof showToast === 'function') {
+                showToast(`Đã áp dụng thiết lập cho ${rows.length} bé!`, 'success');
+            }
         }
         window.applyBulkPackageToBatchPets = applyBulkPackageToBatchPets;
         window.applyBulkPackageToAllBatchPets = () => applyBulkPackageToBatchPets(false);
@@ -4884,6 +5195,27 @@
             const initialGender = petData && petData.gender ? petData.gender : 'unknown';
             const initialColor = petData && petData.color ? petData.color : '';
 
+            let surchNames = [];
+            (allPetPricingData || []).forEach(x => {
+                const cLow = (x.category || '').toLowerCase();
+                if (cLow.includes('phụ thu') || cLow.includes('trị liệu')) {
+                    const sName = (x.service_name || '').trim();
+                    if (sName && !surchNames.includes(sName)) {
+                        surchNames.push(sName);
+                    }
+                }
+            });
+            if (surchNames.length === 0) {
+                surchNames = ['Gỡ rối lông', 'Tắm nấm / Viêm da', 'Đánh răng', 'Cắt tạo kiểu NT', 'Đưa đón tận nơi'];
+            }
+
+            let rowSurchButtons = surchNames.map(name => `
+                <button type="button" onclick="setBatchRowSurcharge(this, '${escapeSpaHtml(name)}')"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                    + ${escapeSpaHtml(name)}
+                </button>
+            `).join('');
+
             tr.innerHTML = `
                 <td class="p-2 text-center">
                     <div class="flex items-center justify-center gap-1">
@@ -4917,27 +5249,21 @@
                         <option value="Cạo bàn cao">Cạo cao</option>
                     </select>
                 </td>
-                <td class="p-2 text-center bg-purple-50/40">
-                    <input type="checkbox" class="batch-cb-teeth w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'teeth')" title="Phụ thu đánh răng">
-                    <input type="hidden" class="batch-pet-teeth" value="">
-                </td>
-                <td class="p-2 text-center bg-purple-50/40">
-                    <input type="checkbox" class="batch-cb-art w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'art')" title="Phụ thu cắt tạo kiểu nghệ thuật">
-                    <input type="hidden" class="batch-pet-art" value="">
-                </td>
-                <td class="p-2 text-center bg-purple-50/40">
-                    <input type="checkbox" class="batch-cb-surch w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'surch')" title="Phụ thu gỡ rối lông">
-                    <input type="hidden" class="batch-pet-surcharges" value="">
-                </td>
                 <td class="p-2 text-center">
                     <select class="w-full border p-1 rounded text-xs text-slate-700 batch-pet-dye" onchange="calcBatchRowTotal(this.closest('tr'))">
                         ${dyeOpts}
                     </select>
                 </td>
-                <td class="p-2 text-center bg-purple-50/40">
-                    <input type="checkbox" class="batch-cb-ship w-4 h-4 text-purple-600 rounded cursor-pointer" onchange="onBatchRowCheckboxFeeChanged(this, 'ship')" title="Phụ thu đưa đón tận nơi">
-                    <input type="hidden" class="batch-pet-ship" value="">
-                    <input type="hidden" class="batch-pet-tip" value="">
+                <td class="p-2 bg-amber-50/40 min-w-[240px]">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-1">
+                            <input type="text" class="w-full border p-1 rounded text-xs text-slate-800 bg-white batch-pet-surch-note font-medium" placeholder="Tên phụ thu (gỡ rối, viêm da...)">
+                            <input type="text" class="w-20 border p-1 rounded text-xs text-right font-bold font-mono text-amber-900 bg-white shrink-0 batch-pet-surch-amt" placeholder="0 đ" oninput="onMoneyInputChange(this); calcBatchRowTotal(this.closest('tr'))">
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            ${rowSurchButtons}
+                        </div>
+                    </div>
                 </td>
                 <td class="p-2 text-right">
                     <span class="font-mono font-bold text-xs text-rose-700 batch-pet-total">0 đ</span>
@@ -4959,6 +5285,70 @@
             calcBatchGrandTotal();
         }
         window.addBatchPetRow = addBatchPetRow;
+
+        function setBatchRowSurcharge(btn, sName) {
+            const tr = btn.closest('tr');
+            if (!tr) return;
+            const noteEl = tr.querySelector('.batch-pet-surch-note');
+            const amtEl = tr.querySelector('.batch-pet-surch-amt');
+            if (!noteEl || !amtEl) return;
+
+            const weightVal = tr.querySelector('.batch-pet-weight')?.value;
+            const weight = parseWeightFloat(weightVal);
+            const searchLower = sName.trim().toLowerCase();
+
+            let sPrice = 40000;
+            if (Array.isArray(allPetPricingData)) {
+                let match = null;
+                if (weight > 0) {
+                    match = allPetPricingData.find(x => {
+                        const cLow = (x.category || '').toLowerCase();
+                        return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                            x.service_name && x.service_name.trim().toLowerCase() === searchLower &&
+                            (x.min_weight === 0 ? weight >= x.min_weight : weight > x.min_weight) && weight <= x.max_weight;
+                    });
+                }
+                if (!match) {
+                    match = allPetPricingData.find(x => {
+                        const cLow = (x.category || '').toLowerCase();
+                        return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                            x.service_name && x.service_name.trim().toLowerCase() === searchLower;
+                    });
+                }
+                if (match && match.price > 0) {
+                    sPrice = match.price;
+                } else {
+                    if (searchLower.includes('đánh răng')) sPrice = 30000;
+                    else if (searchLower.includes('tạo kiểu') || searchLower.includes('cắt nt')) sPrice = 50000;
+                    else if (searchLower.includes('gỡ rối')) sPrice = 40000;
+                    else if (searchLower.includes('đưa đón')) sPrice = 50000;
+                    else if (searchLower.includes('viêm da') || searchLower.includes('nấm')) sPrice = 60000;
+                }
+            }
+
+            const curNote = noteEl.value.trim();
+            const curAmt = parseMoneyInput(amtEl.value) || 0;
+
+            if (!curNote) {
+                noteEl.value = sName;
+                amtEl.value = formatMoneyString(sPrice);
+            } else {
+                let notesList = curNote.split(',').map(s => s.trim()).filter(Boolean);
+                const idx = notesList.findIndex(n => n.toLowerCase() === searchLower);
+                if (idx >= 0) {
+                    notesList.splice(idx, 1);
+                    noteEl.value = notesList.join(', ');
+                    amtEl.value = formatMoneyString(Math.max(0, curAmt - sPrice));
+                } else {
+                    notesList.push(sName);
+                    noteEl.value = notesList.join(', ');
+                    amtEl.value = formatMoneyString(curAmt + sPrice);
+                }
+            }
+
+            calcBatchRowTotal(tr);
+        }
+        window.setBatchRowSurcharge = setBatchRowSurcharge;
 
         function removeBatchPetRow(btn) {
             const tr = btn.closest('tr');
@@ -5016,6 +5406,39 @@
         }
         window.onBatchRowPetChanged = onBatchRowPetChanged;
 
+        function onBatchQuickSurchPreset(sel) {
+            const tr = sel.closest('tr');
+            if (!tr) return;
+            const val = sel.value;
+            if (!val) return;
+            const noteEl = tr.querySelector('.batch-pet-surch-note');
+            if (noteEl) noteEl.value = val;
+            const amtEl = tr.querySelector('.batch-pet-surch-amt');
+            const weightVal = tr.querySelector('.batch-pet-weight')?.value;
+            const weight = parseWeightFloat(weightVal);
+            let price = 40000;
+            if (val.includes('Đánh răng')) price = 30000;
+            else if (val.includes('Cắt nghệ thuật')) price = 50000;
+            else if (val.includes('Viêm da')) price = 60000;
+            else if (val.includes('Đưa đón')) price = 50000;
+            else if (val.includes('Gỡ rối')) price = 40000;
+
+            if (Array.isArray(allPetPricingData) && weight > 0) {
+                const match = allPetPricingData.find(x => {
+                    const cLow = (x.category || '').toLowerCase();
+                    return (cLow.includes('phụ thu') || cLow.includes('trị liệu')) &&
+                        x.service_name && val.toLowerCase().includes(x.service_name.toLowerCase()) &&
+                        (x.min_weight === 0 ? weight >= x.min_weight : weight > x.min_weight) && weight <= x.max_weight;
+                });
+                if (match && match.price > 0) price = match.price;
+            }
+
+            if (amtEl) amtEl.value = formatMoneyString(price);
+            sel.value = '';
+            calcBatchRowTotal(tr);
+        }
+        window.onBatchQuickSurchPreset = onBatchQuickSurchPreset;
+
         function calcBatchRowTotal(tr) {
             if (!tr) return;
             const weightVal = tr.querySelector('.batch-pet-weight')?.value;
@@ -5023,11 +5446,7 @@
             const primaryPkg = tr.querySelector('.batch-pet-primary')?.value || '';
             const dyePkg = tr.querySelector('.batch-pet-dye')?.value || '';
 
-            const teeth = parseMoneyInput(tr.querySelector('.batch-pet-teeth')?.value);
-            const art = parseMoneyInput(tr.querySelector('.batch-pet-art')?.value);
-            const surcharges = parseMoneyInput(tr.querySelector('.batch-pet-surcharges')?.value);
-            const ship = parseMoneyInput(tr.querySelector('.batch-pet-ship')?.value);
-            const tip = parseMoneyInput(tr.querySelector('.batch-pet-tip')?.value);
+            const surcharge = parseMoneyInput(tr.querySelector('.batch-pet-surch-amt')?.value) || 0;
 
             let price = 0;
             if (primaryPkg && Array.isArray(allPetPricingData)) {
@@ -5049,7 +5468,7 @@
                 if (matchDye) price += (matchDye.price || 0);
             }
 
-            const rowTotal = price + teeth + art + surcharges + ship + tip;
+            const rowTotal = price + surcharge;
             const totalDisplay = tr.querySelector('.batch-pet-total');
             const totalInput = tr.querySelector('.batch-pet-total-val');
             if (totalDisplay) totalDisplay.textContent = formatMoneyString(rowTotal) + ' đ';
@@ -5116,11 +5535,8 @@
                 const primaryPkg = tr.querySelector('.batch-pet-primary')?.value || '';
                 const dyePkg = tr.querySelector('.batch-pet-dye')?.value || '';
 
-                const teeth = parseMoneyInput(tr.querySelector('.batch-pet-teeth')?.value);
-                const art = parseMoneyInput(tr.querySelector('.batch-pet-art')?.value);
-                const surcharge = parseMoneyInput(tr.querySelector('.batch-pet-surcharges')?.value);
-                const ship = parseMoneyInput(tr.querySelector('.batch-pet-ship')?.value);
-                const tip = parseMoneyInput(tr.querySelector('.batch-pet-tip')?.value);
+                const surcharge = parseMoneyInput(tr.querySelector('.batch-pet-surch-amt')?.value) || 0;
+                const surchargeNote = tr.querySelector('.batch-pet-surch-note')?.value.trim() || 'Phụ thu dịch vụ';
 
                 const rowTotal = parseFloat(tr.querySelector('.batch-pet-total-val')?.value) || 0;
                 const notes = tr.querySelector('.batch-pet-notes')?.value.trim() || '';
@@ -5143,18 +5559,16 @@
                 const serviceType = serviceTypes.join(' + ') || 'Dịch vụ Spa';
 
                 const lineItems = [];
-                const basePrice = rowTotal - teeth - art - surcharge - ship - tip;
+                const basePrice = Math.max(0, rowTotal - surcharge);
                 if (primaryPkg) {
                     lineItems.push({ name: primaryPkg, quantity: 1, price: basePrice, original_price: basePrice });
                 }
                 if (dyePkg) {
                     lineItems.push({ name: dyePkg, quantity: 1, price: 0, original_price: 0 });
                 }
-                if (teeth > 0) lineItems.push({ name: 'Đánh răng', quantity: 1, price: teeth, original_price: teeth });
-                if (art > 0) lineItems.push({ name: 'Cắt tạo kiểu nghệ thuật', quantity: 1, price: art, original_price: art });
-                if (surcharge > 0) lineItems.push({ name: 'Phụ thu gỡ rối / dịch vụ thêm', quantity: 1, price: surcharge, original_price: surcharge });
-                if (ship > 0) lineItems.push({ name: 'Cước đưa đón', quantity: 1, price: ship, original_price: ship });
-                if (tip > 0) lineItems.push({ name: 'Tiền tip thợ', quantity: 1, price: tip, original_price: tip });
+                if (surcharge > 0) {
+                    lineItems.push({ name: surchargeNote, quantity: 1, price: surcharge, original_price: surcharge, is_surcharge: true });
+                }
 
                 tickets.push({
                     customer_id: custId,
@@ -5168,11 +5582,11 @@
                     shaving_feet: shavingFeet,
                     service_type: serviceType,
                     dye_package: dyePkg,
-                    teeth_cleaning: teeth,
-                    art_cutting_fee: art,
+                    teeth_cleaning: 0,
+                    art_cutting_fee: 0,
                     surcharge: surcharge,
-                    shipping_fee: ship,
-                    tip_amount: tip,
+                    shipping_fee: 0,
+                    tip_amount: 0,
                     price: rowTotal,
                     note: notes,
                     customer_request: notes,
@@ -5350,6 +5764,8 @@
                 totalFinal += subtotal;
                 if (it.is_retail) {
                     totalProducts += subtotal;
+                } else if (it.is_tip || it.name === 'Tiền tip thợ') {
+                    // Tip tách riêng, không tính vào totalService để tránh nhân đôi tip
                 } else {
                     totalService += subtotal;
                 }
@@ -5387,7 +5803,7 @@
 
             const servicePrice = Number(ticket.price || totalFinal || 0);
             if (totalService === 0 && totalProducts === 0) {
-                totalService = servicePrice;
+                totalService = Math.max(0, servicePrice - tipAmount);
             }
             const hasAnyDiscount = totalOriginal > servicePrice;
             const totalDiscount = Math.max(0, totalOriginal - servicePrice);
@@ -5731,7 +6147,11 @@
 
                             <!-- TỔNG CẦN THANH TOÁN (TIỀN MẶT / CK) -->
                             <div style="display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 900; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 4px 0; margin-top: 3px;">
-                                <span>${walletDeduction > 0 ? 'PHẢI THU (TIỀN MẶT / CK):' : (depositAmount > 0 ? 'CÒN LẠI KHI NHẬN BÉ:' : 'TỔNG TẠM TÍNH:')}</span>
+                                <span>${
+                                    ticket.payment_status === 'paid'
+                                        ? (cashPayable > 0 ? (walletDeduction > 0 ? 'ĐÃ THU TM/CK:' : 'ĐÃ THANH TOÁN:') : 'ĐÃ THANH TOÁN ĐỦ:')
+                                        : (walletDeduction > 0 ? 'PHẢI THU (TIỀN MẶT / CK):' : (depositAmount > 0 ? 'CÒN LẠI KHI NHẬN BÉ:' : 'TỔNG TẠM TÍNH:'))
+                                }</span>
                                 <span style="font-family: monospace;">${formatMoney(cashPayable)}</span>
                             </div>
 
@@ -6540,5 +6960,221 @@
         window.setQuickInput = setQuickInput;
         window.appendQuickInput = appendQuickInput;
         window.escapeSpaHtml = escapeSpaHtml;
+
+        // ==========================================
+        // THƯ VIỆN HÌNH MẪU CẮT LÔNG THÚ CƯNG
+        // ==========================================
+        let allGroomingGallery = [];
+
+        async function loadGroomingGalleryList() {
+            const grid = document.getElementById('grooming-gallery-grid');
+            if (!grid) return;
+            try {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400">Đang tải thư viện mẫu cắt...</div>';
+                const res = await fetch('/api/pet-services/gallery');
+                if (!res.ok) throw new Error('Không thể tải thư viện');
+                allGroomingGallery = await res.json();
+                renderGroomingGalleryGrid();
+            } catch (e) {
+                grid.innerHTML = `<div class="col-span-full py-8 text-center text-rose-500">Lỗi tải thư viện: ${e.message}</div>`;
+            }
+        }
+        window.loadGroomingGalleryList = loadGroomingGalleryList;
+
+        function renderGroomingGalleryGrid() {
+            const grid = document.getElementById('grooming-gallery-grid');
+            if (!grid) return;
+            if (!allGroomingGallery || allGroomingGallery.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-pink-300 p-6 space-y-2">
+                        <span class="text-3xl">🐾</span>
+                        <div class="font-bold text-slate-700 text-sm">Chưa có hình mẫu cắt tỉa nào</div>
+                        <p class="text-xs text-slate-400">Bấm nút "➕ Thêm Mẫu Cắt Mới" ở góc trên để thêm các kiểu cắt đẹp cho shop</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = allGroomingGallery.map(item => `
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col group">
+                    <div class="h-44 bg-slate-100 overflow-hidden relative">
+                        ${item.image_data ? `
+                            <img src="${item.image_data}" alt="${escapeSpaHtml(item.title)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        ` : `
+                            <div class="w-full h-full flex items-center justify-center text-4xl text-slate-300">🐕</div>
+                        `}
+                        ${item.breed ? `
+                            <span class="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur-xs">
+                                ${escapeSpaHtml(item.breed)}
+                            </span>
+                        ` : ''}
+                    </div>
+                    <div class="p-2.5 flex-1 flex flex-col justify-between space-y-1">
+                        <div>
+                            <div class="font-black text-slate-900 text-xs truncate" title="${escapeSpaHtml(item.title)}">${escapeSpaHtml(item.title)}</div>
+                            ${item.description ? `<p class="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-snug">${escapeSpaHtml(item.description)}</p>` : ''}
+                        </div>
+                        <div class="pt-1.5 flex justify-between items-center border-t border-slate-100">
+                            <button type="button" onclick="deleteGroomingStyle(${item.id})" class="text-rose-500 hover:text-rose-700 text-[11px] font-bold cursor-pointer" title="Xóa mẫu này">🗑️ Xóa</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        window.renderGroomingGalleryGrid = renderGroomingGalleryGrid;
+
+        function openAddGroomingModal() {
+            document.getElementById('grooming-add-title').value = '';
+            document.getElementById('grooming-add-breed').value = '';
+            document.getElementById('grooming-add-desc').value = '';
+            document.getElementById('grooming-add-file').value = '';
+            document.getElementById('grooming-add-img-data').value = '';
+            const previewWrap = document.getElementById('grooming-add-preview-wrap');
+            if (previewWrap) previewWrap.classList.add('hidden');
+            const modal = document.getElementById('modal-add-grooming-style');
+            if (modal) modal.classList.remove('hidden');
+        }
+        window.openAddGroomingModal = openAddGroomingModal;
+
+        function closeAddGroomingModal() {
+            const modal = document.getElementById('modal-add-grooming-style');
+            if (modal) modal.classList.add('hidden');
+        }
+        window.closeAddGroomingModal = closeAddGroomingModal;
+
+        function previewGroomingUpload(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const b64 = e.target.result;
+                const img = document.getElementById('grooming-add-preview-img');
+                const wrap = document.getElementById('grooming-add-preview-wrap');
+                const hiddenInput = document.getElementById('grooming-add-img-data');
+                if (img) img.src = b64;
+                if (wrap) wrap.classList.remove('hidden');
+                if (hiddenInput) hiddenInput.value = b64;
+            };
+            reader.readAsDataURL(file);
+        }
+        window.previewGroomingUpload = previewGroomingUpload;
+
+        async function submitAddGroomingStyle() {
+            const title = document.getElementById('grooming-add-title')?.value.trim();
+            const breed = document.getElementById('grooming-add-breed')?.value.trim();
+            const desc = document.getElementById('grooming-add-desc')?.value.trim();
+            const imgData = document.getElementById('grooming-add-img-data')?.value.trim();
+
+            if (!title) {
+                alert('Vui lòng nhập tên kiểu cắt!');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/pet-services/gallery', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: title,
+                        breed: breed,
+                        description: desc,
+                        image_data: imgData
+                    })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Lỗi lưu mẫu cắt: ' + (err.detail || ''));
+                    return;
+                }
+                closeAddGroomingModal();
+                await loadGroomingGalleryList();
+                if (typeof showToast === 'function') showToast('Đã thêm mẫu cắt mới vào thư viện!', 'success');
+            } catch (e) {
+                alert('Lỗi kết nối: ' + e.message);
+            }
+        }
+        window.submitAddGroomingStyle = submitAddGroomingStyle;
+
+        async function deleteGroomingStyle(id) {
+            const ok = confirm('Bạn có chắc muốn xóa mẫu cắt này khỏi thư viện?');
+            if (!ok) return;
+            try {
+                const res = await fetch(`/api/pet-services/gallery/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    await loadGroomingGalleryList();
+                    if (typeof showToast === 'function') showToast('Đã xóa mẫu cắt', 'success');
+                }
+            } catch (e) {
+                alert('Lỗi: ' + e.message);
+            }
+        }
+        window.deleteGroomingStyle = deleteGroomingStyle;
+
+        async function openGroomingGalleryPicker() {
+            const modal = document.getElementById('modal-grooming-gallery-picker');
+            const grid = document.getElementById('grooming-picker-grid');
+            if (!modal || !grid) return;
+
+            modal.classList.remove('hidden');
+            grid.innerHTML = '<div class="col-span-full py-8 text-center text-slate-400">Đang tải thư viện mẫu cắt...</div>';
+
+            try {
+                if (!allGroomingGallery || allGroomingGallery.length === 0) {
+                    const res = await fetch('/api/pet-services/gallery');
+                    allGroomingGallery = await res.json();
+                }
+                if (!allGroomingGallery || allGroomingGallery.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full py-10 text-center text-slate-400">
+                            <div>Chưa có mẫu cắt nào trong thư viện.</div>
+                            <div class="text-[11px] text-pink-600 mt-2 cursor-pointer font-bold inline-block bg-pink-50 px-3 py-1 rounded-lg border border-pink-200" onclick="closeGroomingGalleryPicker(); switchPetSubTab('gallery'); openAddGroomingModal();">
+                                ➕ Mở Thư Viện Thêm Mẫu Mới
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = allGroomingGallery.map(item => `
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:border-pink-500 hover:shadow-md transition cursor-pointer flex flex-col group" onclick="selectGroomingStyleForIntake('${escapeSpaHtml(item.title)}')">
+                        <div class="h-56 bg-slate-100 overflow-hidden relative">
+                            ${item.image_data ? `
+                                <img src="${item.image_data}" alt="${escapeSpaHtml(item.title)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
+                            ` : `
+                                <div class="w-full h-full flex items-center justify-center text-3xl text-slate-300">🐕</div>
+                            `}
+                            ${item.breed ? `<span class="absolute top-1.5 left-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">${escapeSpaHtml(item.breed)}</span>` : ''}
+                        </div>
+                        <div class="p-2 space-y-1">
+                            <div class="font-black text-slate-900 text-xs truncate">${escapeSpaHtml(item.title)}</div>
+                            ${item.description ? `<p class="text-[10px] text-slate-500 line-clamp-1">${escapeSpaHtml(item.description)}</p>` : ''}
+                            <button type="button" class="w-full mt-1 bg-pink-50 group-hover:bg-pink-600 group-hover:text-white text-pink-700 text-[10px] font-bold py-1 rounded transition">
+                                👉 Chọn mẫu này
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                grid.innerHTML = `<div class="col-span-full py-6 text-center text-rose-500">Lỗi: ${e.message}</div>`;
+            }
+        }
+        window.openGroomingGalleryPicker = openGroomingGalleryPicker;
+
+        function closeGroomingGalleryPicker() {
+            const modal = document.getElementById('modal-grooming-gallery-picker');
+            if (modal) modal.classList.add('hidden');
+        }
+        window.closeGroomingGalleryPicker = closeGroomingGalleryPicker;
+
+        function selectGroomingStyleForIntake(title) {
+            const reqInput = document.getElementById('svc-customer-request');
+            if (reqInput) {
+                const cur = reqInput.value.trim();
+                reqInput.value = cur ? `${cur}, Mẫu: ${title}` : `Mẫu cắt: ${title}`;
+            }
+            closeGroomingGalleryPicker();
+            if (typeof showToast === 'function') showToast(`Đã chọn mẫu cắt "${title}"`, 'success');
+        }
+        window.selectGroomingStyleForIntake = selectGroomingStyleForIntake;
 
 

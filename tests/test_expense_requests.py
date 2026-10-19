@@ -2,7 +2,10 @@ import pytest
 import sqlite3
 from database import get_db, init_db
 from schemas import ExpenseRequestCreate, ExpenseRequestApprove
-from tests.auth_helpers import owner_auth_headers
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests"))
+from auth_helpers import owner_auth_headers
 
 def test_database_table_expense_requests_exists():
     init_db()
@@ -140,11 +143,17 @@ def test_frontend_subtab_and_module_exist():
     assert 'id="btn-subtab-cashbook-requests"' in content
     assert 'id="cashbook-subtab-actual"' in content
     assert 'id="cashbook-subtab-requests"' in content
+    assert 'id="bar-batch-approve-expenses"' in content
+    assert 'id="check-all-exp-requests"' in content
     assert 'switchCashbookSubTab' in content
     assert 'static/js/modules/expense_requests.js' in content
 
     js_file = Path("static/js/modules/expense_requests.js")
     assert js_file.exists()
+    js_content = js_file.read_text(encoding="utf-8")
+    assert "openBatchApproveModal" in js_content
+    assert "toggleSelectAllExpenseRequests" in js_content
+    assert "batch-approve" in js_content
 
 def test_expense_request_with_image_and_stats():
     from starlette.testclient import TestClient

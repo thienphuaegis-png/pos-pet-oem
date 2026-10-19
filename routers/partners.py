@@ -1104,12 +1104,23 @@ class PetServiceTicketBulkItem(BaseModel):
 class PetServiceTicketBulkUpdate(BaseModel):
     tickets: List[PetServiceTicketBulkItem]
 
+class PetServicePayRequest(BaseModel):
+    payment_method: str = "cash"
+    account_id: Optional[int] = None
+    note: Optional[str] = None
+
 class SpaStaffCreate(BaseModel):
     staff_code: Optional[str] = ""
     name: str
     phone: Optional[str] = ""
     role: Optional[str] = "Thợ Spa"
     is_active: Optional[int] = 1
+
+class GroomingGalleryItem(BaseModel):
+    title: str
+    breed: Optional[str] = ""
+    description: Optional[str] = ""
+    image_data: Optional[str] = ""
 
 service_router = APIRouter(prefix="/api/pet-services", tags=["PetServices"])
 
@@ -1192,6 +1203,62 @@ def delete_pet_service_pricing(pricing_id: int):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM pet_service_pricing WHERE id = ?", (pricing_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+@service_router.get("/gallery")
+def list_grooming_gallery(breed: Optional[str] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS grooming_gallery (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            breed TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            image_data TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    if breed:
+        cur.execute("SELECT * FROM grooming_gallery WHERE breed LIKE ? ORDER BY id DESC", (f"%{breed}%",))
+    else:
+        cur.execute("SELECT * FROM grooming_gallery ORDER BY id DESC")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+@service_router.post("/gallery")
+def create_grooming_gallery_item(item: GroomingGalleryItem):
+    if not item.title.strip():
+        raise HTTPException(status_code=400, detail="Vui lòng nhập tên mẫu cắt")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS grooming_gallery (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            breed TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            image_data TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("""
+        INSERT INTO grooming_gallery (title, breed, description, image_data)
+        VALUES (?, ?, ?, ?)
+    """, (item.title.strip(), item.breed or "", item.description or "", item.image_data or ""))
+    new_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "id": new_id, "title": item.title}
+
+@service_router.delete("/gallery/{item_id}")
+def delete_grooming_gallery_item(item_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM grooming_gallery WHERE id = ?", (item_id,))
     conn.commit()
     conn.close()
     return {"status": "ok"}
@@ -1306,6 +1373,226 @@ def get_single_pet_service(id_or_code: str):
         raise HTTPException(status_code=404, detail="Không tìm thấy phiếu dịch vụ")
     return dict(row)
 
+def deduct_retail_products_stock(cur, items: list, ticket_code: str, warehouse_id: int = 1):
+    if not items:
+        return
+    for it in items:
+        if not it.get("is_retail"):
+            continue
+        prod_id = it.get("product_id")
+        if not prod_id and it.get("name"):
+            cur.execute("SELECT id FROM products WHERE name = ? LIMIT 1", (it.get("name"),))
+            r = cur.fetchone()
+            if r:
+                prod_id = r["id"]
+        if not prod_id:
+            continue
+        qty = float(it.get("quantity") or 1)
+        cur.execute("SELECT id, type, stock FROM products WHERE id = ?", (prod_id,))
+        p_row = cur.fetchone()
+        if not p_row or p_row["type"] == "service":
+            continue
+
+        cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (qty, prod_id))
+        cur.execute("""
+            INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+        """, (warehouse_id, prod_id, -qty, qty))
+
+        cur.execute("SELECT stock FROM products WHERE id = ?", (prod_id,))
+        p_bal = cur.fetchone()
+        p_balance = p_bal["stock"] if p_bal else 0
+        cur.execute("""
+            INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, order_code, note)
+            VALUES ('product', ?, ?, 'SALE', ?, ?, ?, ?)
+        """, (prod_id, warehouse_id, -qty, p_balance, ticket_code, f"Bán kèm phiếu Spa {ticket_code}"))
+
+        cur.execute("""
+            SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+            FROM product_bom b
+            JOIN ingredients i ON b.ingredient_id = i.id
+            WHERE b.product_id = ?
+        """, (prod_id,))
+        bom_rows = cur.fetchall()
+        for bom in bom_rows:
+            if bom["ingredient_type"] == "SERVICE":
+                continue
+            consumed = bom["quantity"] * qty
+            cur.execute("""
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity - ?, updated_at = CURRENT_TIMESTAMP
+            """, (warehouse_id, bom["ingredient_id"], -consumed, consumed))
+            cur.execute("SELECT quantity FROM inventory WHERE warehouse_id = ? AND ingredient_id = ?", (warehouse_id, bom["ingredient_id"]))
+            bal_row = cur.fetchone()
+            balance_after = bal_row["quantity"] if bal_row else 0
+            cur.execute("""
+                INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, order_code, note)
+                VALUES ('ingredient', ?, ?, 'SALE', ?, ?, ?, ?)
+            """, (bom["ingredient_id"], warehouse_id, -consumed, balance_after, ticket_code, f"Bán kèm phiếu Spa {ticket_code}"))
+
+def restore_retail_products_stock(cur, items: list, ticket_code: str, warehouse_id: int = 1):
+    if not items:
+        return
+    for it in items:
+        if not it.get("is_retail"):
+            continue
+        prod_id = it.get("product_id")
+        if not prod_id and it.get("name"):
+            cur.execute("SELECT id FROM products WHERE name = ? LIMIT 1", (it.get("name"),))
+            r = cur.fetchone()
+            if r:
+                prod_id = r["id"]
+        if not prod_id:
+            continue
+        qty = float(it.get("quantity") or 1)
+        cur.execute("SELECT id, type, stock FROM products WHERE id = ?", (prod_id,))
+        p_row = cur.fetchone()
+        if not p_row or p_row["type"] == "service":
+            continue
+
+        cur.execute("UPDATE products SET stock = stock + ? WHERE id = ? AND type != 'service'", (qty, prod_id))
+        cur.execute("""
+            INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
+                quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+        """, (warehouse_id, prod_id, qty, qty))
+
+        cur.execute("""
+            SELECT b.ingredient_id, b.quantity, i.type as ingredient_type
+            FROM product_bom b
+            JOIN ingredients i ON b.ingredient_id = i.id
+            WHERE b.product_id = ?
+        """, (prod_id,))
+        bom_rows = cur.fetchall()
+        for bom in bom_rows:
+            if bom["ingredient_type"] == "SERVICE":
+                continue
+            consumed = bom["quantity"] * qty
+            cur.execute("""
+                INSERT INTO inventory (warehouse_id, ingredient_id, quantity, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(warehouse_id, ingredient_id) DO UPDATE SET
+                    quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
+            """, (warehouse_id, bom["ingredient_id"], consumed, consumed))
+
+    cur.execute("DELETE FROM inventory_logs WHERE order_code = ?", (ticket_code,))
+
+def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash", account_id: Optional[int] = None, note: Optional[str] = None):
+    cur.execute("SELECT * FROM pet_service_tickets WHERE id = ?", (ticket_id,))
+    ticket = cur.fetchone()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu dịch vụ Spa")
+
+    if ticket["payment_status"] == "paid":
+        return {
+            "status": "ok",
+            "message": "Phiếu đã được thanh toán",
+            "id": ticket_id,
+            "code": ticket["code"],
+            "wallet_deduction": float(ticket["spa_wallet_deduction"] or 0.0),
+            "cash_collected": 0.0
+        }
+
+    import json as json_mod
+    services_list = []
+    if ticket["services_json"]:
+        try:
+            services_list = json_mod.loads(ticket["services_json"])
+        except Exception:
+            services_list = []
+
+    pure_spa_service_total = 0.0
+    retail_product_total = 0.0
+    for it in services_list:
+        sub = (it.get("quantity") or 1) * (it.get("price") or 0.0)
+        if it.get("is_retail"):
+            retail_product_total += sub
+        elif it.get("is_tip") or it.get("name") == "Tiền tip thợ":
+            pass
+        else:
+            pure_spa_service_total += sub
+
+    tip_amount = float(ticket["tip_amount"] or 0.0)
+    deposit_amount = float(ticket["deposit_amount"] or 0.0)
+    price = float(ticket["price"] or 0.0)
+    customer_id = ticket["customer_id"]
+    code = ticket["code"]
+
+    if not services_list:
+        pure_spa_service_total = max(0.0, price - tip_amount)
+
+    remaining_due = max(0.0, price - deposit_amount)
+    wallet_deduction = 0.0
+
+    if payment_method == "wallet":
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (customer_id,))
+        c_row = cur.fetchone()
+        current_wallet = float(c_row["spa_wallet_balance"] or 0.0) if c_row else 0.0
+        if current_wallet <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
+            )
+        # Sửa H: Ví chỉ trừ phần dịch vụ (không trừ tip, không trừ hàng bán kèm)
+        charge_limit = min(pure_spa_service_total, remaining_due)
+        wallet_deduction = min(current_wallet, charge_limit)
+        if wallet_deduction > 0:
+            new_wallet = max(0.0, current_wallet - wallet_deduction)
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, 'spend', ?, ?, ?, ?)
+            """, (customer_id, wallet_deduction, current_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho phiếu {code}"))
+
+        cash_collected = max(0.0, remaining_due - wallet_deduction)
+    else:
+        cash_collected = remaining_due
+
+    if cash_collected > 0:
+        cb_code = generate_cashbook_code(cur, "PT-SPA")
+        note_str = note or f"Thu tiền phiếu Spa {code}"
+        if payment_method == "wallet" and wallet_deduction > 0:
+            note_str += f" (Trừ ví: {wallet_deduction:,.0f} đ, Thu ngoài: {cash_collected:,.0f} đ)"
+
+        if not account_id:
+            acc_type = 'bank' if payment_method in ('transfer', 'card') else 'cash'
+            cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
+            acc_row = cur.fetchone()
+            account_id = acc_row["id"] if acc_row else None
+            if not account_id:
+                cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+                acc_row = cur.fetchone()
+                account_id = acc_row["id"] if acc_row else None
+
+        cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
+        s_row = cur.fetchone()
+        shift_id = s_row["id"] if s_row else None
+
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+            VALUES (?, 'in', 'Thu tiền dịch vụ Spa', ?, ?, 'pet_service', ?, ?, ?, ?)
+        """, (cb_code, cash_collected, customer_id, ticket_id, note_str, account_id, shift_id))
+
+    cur.execute("""
+        UPDATE pet_service_tickets
+        SET payment_status = 'paid', payment_method = ?, spa_wallet_deduction = ?
+        WHERE id = ?
+    """, (payment_method, wallet_deduction, ticket_id))
+
+    return {
+        "status": "ok",
+        "id": ticket_id,
+        "code": code,
+        "wallet_deduction": wallet_deduction,
+        "cash_collected": cash_collected,
+        "remaining_due": 0.0
+    }
+
 @service_router.post("")
 def create_pet_service(ticket: PetServiceCreate):
     conn = get_db()
@@ -1320,13 +1607,13 @@ def create_pet_service(ticket: PetServiceCreate):
                 break
             code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(1000, 9999)}"
 
-        # 1. Tính toán ticket_number reset theo ngày (bắt đầu từ 1 mỗi ngày mới, sau đó +1)
+        # 1. Tính toán ticket_number reset theo ngày (bắt đầu random từ 5 đến 10 nếu ngày mới chưa có phiếu, sau đó +1)
         cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
         row = cur.fetchone()
         if row and row["max_num"] is not None:
             ticket_number = row["max_num"] + 1
         else:
-            ticket_number = 1
+            ticket_number = random.randint(5, 10)
 
         # 2. Xử lý thú cưng: Nếu có pet_id thì update cân nặng; Nếu chưa có pet_id nhưng có pet_name thì tự tạo bé mới cho khách
         actual_pet_id = ticket.pet_id
@@ -1350,7 +1637,6 @@ def create_pet_service(ticket: PetServiceCreate):
         # 3. Thời gian nhận: Tự động lấy giờ bấm bill / tạo phiếu nếu chưa truyền
         received_time = ticket.received_time or now.strftime("%H:%M")
 
-        # Phân tách tiền dịch vụ Spa vs tiền sản phẩm hàng hóa bán kèm từ services_json
         services_list = []
         if ticket.services_json:
             try:
@@ -1359,38 +1645,9 @@ def create_pet_service(ticket: PetServiceCreate):
             except Exception:
                 services_list = []
 
-        spa_service_total = 0.0
-        retail_product_total = 0.0
-        for it in services_list:
-            sub = (it.get("quantity") or 1) * (it.get("price") or 0.0)
-            if it.get("is_retail"):
-                retail_product_total += sub
-            else:
-                spa_service_total += sub
-
-        if not services_list:
-            spa_service_total = ticket.price or 0.0
-
-        wallet_deduction = 0.0
-        if ticket.payment_status == "paid" and ticket.payment_method == "wallet" and (ticket.price or 0.0) > 0:
-            cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (ticket.customer_id,))
-            c_row = cur.fetchone()
-            current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-            if current_wallet <= 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
-                )
-            # Ví Spa: Cấn trừ tối đa số dư ví hiện có (Lựa chọn A: trừ hết ví, phần thiếu thu ngoài)
-            charge_amount = min(spa_service_total, ticket.price or 0.0)
-            wallet_deduction = min(current_wallet, charge_amount)
-            if wallet_deduction > 0:
-                new_wallet = max(0.0, current_wallet - wallet_deduction)
-                cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, ticket.customer_id))
-                cur.execute("""
-                    INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
-                    VALUES (?, 'spend', ?, ?, ?, ?)
-                """, (ticket.customer_id, wallet_deduction, current_wallet, new_wallet, f"Trừ ví làm dịch vụ Spa cho phiếu {code}"))
+        # T7: Trừ kho hàng bán kèm (nếu có sản phẩm bán kèm)
+        if services_list:
+            deduct_retail_products_stock(cur, services_list, code)
 
         cur.execute("""
             INSERT INTO pet_service_tickets (
@@ -1410,7 +1667,7 @@ def create_pet_service(ticket: PetServiceCreate):
             ticket.price or 0.0, ticket.status or "pending", ticket.note or "",
             ticket.weight_at_service, ticket.shaving_feet or "Không cạo bàn",
             ticket.customer_request or "", ticket.accessories or "",
-            ticket.payment_status or "unpaid", ticket.payment_method or "",
+            "unpaid", ticket.payment_method or "",
             ticket.services_json or "[]",
             ticket.call_status or "Chưa gọi", received_time, ticket.arrival_method or "Khách chở tới",
             ticket.checkout_time or "", ticket.return_method or "Khách đón",
@@ -1418,42 +1675,34 @@ def create_pet_service(ticket: PetServiceCreate):
             ticket.staff_cutter or "", ticket.staff_dyer or "",
             ticket.dye_package or "", ticket.surcharge or 0.0, ticket.art_cutting_fee or 0.0,
             ticket.teeth_cleaning or 0.0, ticket.shipping_fee or 0.0, ticket.tip_amount or 0.0, ticket.deposit_amount or 0.0,
-            ticket.send_to_hotel or 0, ticket.batch_code or "", wallet_deduction
+            ticket.send_to_hotel or 0, ticket.batch_code or "", 0.0
         ))
         new_id = cur.lastrowid
 
-        # 4. Ghi nhận Sổ Quỹ cashbook cho phần tiền mặt / chuyển khoản thực thu
-        if ticket.payment_status == "paid":
-            cash_collected = 0.0
-            if ticket.payment_method == "wallet":
-                # Phần sản phẩm hoặc chi phí vượt ví bắt buộc thu tiền mặt/chuyển khoản
-                cash_collected = max(0.0, (ticket.price or 0.0) - wallet_deduction)
-            elif ticket.payment_method in ("cash", "transfer"):
-                cash_collected = ticket.price or 0.0
-
-            if cash_collected > 0:
-                cb_code = generate_cashbook_code(cur, "PT-SPA")
-                note_str = f"Thu tiền phiếu Spa {code}"
-                if ticket.payment_method == "wallet" and wallet_deduction > 0:
-                    note_str += f" (Trừ ví: {wallet_deduction:,.0f} đ, Thu ngoài: {cash_collected:,.0f} đ)"
-
-                acc_type = 'bank' if ticket.payment_method in ('transfer', 'card') else 'cash'
-                cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
+        # 4. Sửa J: Tiền cọc ghi phiếu thu riêng lúc nhận
+        if ticket.deposit_amount and ticket.deposit_amount > 0:
+            cb_dep_code = generate_cashbook_code(cur, "PT-COC")
+            acc_type = 'bank' if ticket.payment_method in ('transfer', 'card') else 'cash'
+            cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
+            acc_row = cur.fetchone()
+            account_id = acc_row["id"] if acc_row else None
+            if not account_id:
+                cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
                 acc_row = cur.fetchone()
                 account_id = acc_row["id"] if acc_row else None
-                if not account_id:
-                    cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                    acc_row = cur.fetchone()
-                    account_id = acc_row["id"] if acc_row else None
 
-                cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
-                s_row = cur.fetchone()
-                shift_id = s_row["id"] if s_row else None
+            cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
+            s_row = cur.fetchone()
+            shift_id = s_row["id"] if s_row else None
 
-                cur.execute("""
+            cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
-                VALUES (?, 'in', 'Thu tien dich vu Spa', ?, ?, 'pet_service', ?, ?, ?, ?)
-                """, (cb_code, cash_collected, ticket.customer_id, new_id, note_str, account_id, shift_id))
+                VALUES (?, 'in', 'Thu tiền cọc Spa', ?, ?, 'pet_service_deposit', ?, ?, ?, ?)
+            """, (cb_dep_code, ticket.deposit_amount, ticket.customer_id, new_id, f"Thu tiền cọc phiếu Spa {code}", account_id, shift_id))
+
+        # 5. Nếu phiếu ở trạng thái Đã Thanh Toán: xử lý thanh toán phần còn lại qua hàm dùng chung
+        if ticket.payment_status == "paid":
+            process_spa_ticket_payment(cur, new_id, payment_method=ticket.payment_method or "cash")
 
         conn.commit()
         return {"status": "ok", "id": new_id, "code": code, "ticket_number": ticket_number, "batch_code": ticket.batch_code or ""}
@@ -1478,33 +1727,45 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
         today_str = now.strftime("%Y-%m-%d")
         batch_code = batch_req.batch_code or f"BATCH{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}"
 
-        # Lấy ticket_number cơ sở cho ngày hôm nay (reset bắt đầu từ 1 nếu chưa có phiếu nào)
+        # Lấy ticket_number cơ sở cho ngày hôm nay (bắt đầu random từ 5 đến 10 nếu chưa có phiếu nào)
         cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
         row = cur.fetchone()
-        base_number = (row["max_num"] + 1) if (row and row["max_num"] is not None) else 1
+        base_number = (row["max_num"] + 1) if (row and row["max_num"] is not None) else random.randint(5, 10)
 
         cur.execute("SELECT id, name, phone FROM contacts WHERE id = ?", (batch_req.customer_id,))
         cust = cur.fetchone()
 
         # Kiểm tra số dư ví Spa trước khi bắt đầu tạo phiếu
-        wallet_batch_total = sum(t.price or 0.0 for t in batch_req.tickets if (t.payment_status == "paid" and t.payment_method == "wallet"))
+        import json as json_mod
         current_wallet = 0.0
+        cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
+        c_row = cur.fetchone()
+        if c_row and c_row["spa_wallet_balance"]:
+            current_wallet = float(c_row["spa_wallet_balance"])
+
+        has_wallet_req = any(t.payment_status == "paid" and t.payment_method == "wallet" for t in batch_req.tickets)
+        if has_wallet_req and current_wallet <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
+            )
+
         wallet_deduction_total = 0.0
         cash_collected_batch = 0.0
-        if wallet_batch_total > 0:
-            cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (batch_req.customer_id,))
-            c_row = cur.fetchone()
-            current_wallet = c_row["spa_wallet_balance"] if (c_row and c_row["spa_wallet_balance"]) else 0.0
-            if current_wallet <= 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Số dư ví Spa không đủ (Số dư ví bằng 0 đ, không thể chọn thanh toán bằng ví)"
-                )
-            # Cấn trừ tối đa số dư ví hiện có (Lựa chọn A)
-            wallet_deduction_total = min(current_wallet, wallet_batch_total)
-            cash_collected_batch = max(0.0, wallet_batch_total - wallet_deduction_total)
-
         created_tickets = []
+
+        acc_type = 'bank' if (batch_req.tickets and batch_req.tickets[0].payment_method in ('transfer', 'card')) else 'cash'
+        cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
+        acc_row = cur.fetchone()
+        account_id = acc_row["id"] if acc_row else None
+        if not account_id:
+            cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+            acc_row = cur.fetchone()
+            account_id = acc_row["id"] if acc_row else None
+
+        cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
+        s_row = cur.fetchone()
+        shift_id = s_row["id"] if s_row else None
 
         for idx, t in enumerate(batch_req.tickets):
             t_number = base_number + idx
@@ -1535,6 +1796,31 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
 
             received_time = t.received_time or now.strftime("%H:%M")
 
+            t_services = []
+            if t.services_json:
+                try:
+                    t_services = json_mod.loads(t.services_json)
+                except Exception:
+                    t_services = []
+
+            # Sửa H/I: Tính tiền dịch vụ thuần (không tính tip và hàng)
+            pure_serv = sum(
+                (it.get("quantity") or 1) * (it.get("price") or 0.0)
+                for it in t_services
+                if not it.get("is_retail") and not it.get("is_tip") and it.get("name") != "Tiền tip thợ"
+            ) if t_services else max(0.0, (t.price or 0.0) - (t.tip_amount or 0.0))
+
+            t_dep = float(t.deposit_amount or 0.0)
+            t_price = float(t.price or 0.0)
+            t_rem = max(0.0, t_price - t_dep)
+
+            this_wallet_ded = 0.0
+            if t.payment_status == "paid" and t.payment_method == "wallet":
+                max_allowable = min(pure_serv, t_rem)
+                this_wallet_ded = min(current_wallet, max_allowable)
+                current_wallet = max(0.0, current_wallet - this_wallet_ded)
+                wallet_deduction_total += this_wallet_ded
+
             cur.execute("""
                 INSERT INTO pet_service_tickets (
                     code, ticket_number, ticket_date, customer_id, pet_id, service_type,
@@ -1544,13 +1830,13 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                     call_status, received_time, arrival_method, checkout_time, return_method,
                     staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer,
                     dye_package, surcharge, art_cutting_fee, teeth_cleaning, shipping_fee, tip_amount, deposit_amount,
-                    send_to_hotel, batch_code
+                    send_to_hotel, batch_code, spa_wallet_deduction
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 t_code, t_number, today_str, batch_req.customer_id, actual_pet_id, t.service_type,
                 t.appointment_time or "", t.has_transport or 0, t.transport_address or "",
-                t.price or 0.0, t.status or "pending", t.note or "",
+                t_price, t.status or "pending", t.note or "",
                 t.weight_at_service, t.shaving_feet or "Không cạo bàn",
                 t.customer_request or "", t.accessories or "",
                 t.payment_status or "unpaid", t.payment_method or "",
@@ -1560,10 +1846,23 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 t.staff_receiver or "", t.staff_worker_1 or "", t.staff_worker_2 or "",
                 t.staff_cutter or "", t.staff_dyer or "",
                 t.dye_package or "", t.surcharge or 0.0, t.art_cutting_fee or 0.0,
-                t.teeth_cleaning or 0.0, t.shipping_fee or 0.0, t.tip_amount or 0.0, t.deposit_amount or 0.0,
-                t.send_to_hotel or 0, batch_code
+                t.teeth_cleaning or 0.0, t.shipping_fee or 0.0, t.tip_amount or 0.0, t_dep,
+                t.send_to_hotel or 0, batch_code, this_wallet_ded
             ))
             t_id = cur.lastrowid
+
+            # Sửa J: Ghi phiếu thu tiền cọc nếu có cọc
+            if t_dep > 0:
+                cb_dep_code = generate_cashbook_code(cur, "PT-COC")
+                cur.execute("""
+                    INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
+                    VALUES (?, 'in', 'Thu tiền cọc Spa', ?, ?, 'pet_service_deposit', ?, ?, ?, ?)
+                """, (cb_dep_code, t_dep, batch_req.customer_id, t_id, f"Thu tiền cọc phiếu Spa {t_code} (Đợt {batch_code})", account_id, shift_id))
+
+            if t.payment_status == "paid":
+                this_cash = max(0.0, t_rem - this_wallet_ded)
+                cash_collected_batch += this_cash
+
             created_tickets.append({
                 "id": t_id,
                 "code": t_code,
@@ -1595,38 +1894,25 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 "shipping_fee": t.shipping_fee or 0.0,
                 "tip_amount": t.tip_amount or 0.0,
                 "deposit_amount": t.deposit_amount or 0.0,
+                "spa_wallet_deduction": this_wallet_ded,
                 "received_time": received_time,
                 "payment_status": t.payment_status or "unpaid",
                 "batch_code": batch_code
             })
 
-        # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví (Lựa chọn A)
+        # Xử lý trừ ví Spa cho đợt tiếp nhận nếu thanh toán bằng ví
         if wallet_deduction_total > 0:
-            new_wallet = max(0.0, current_wallet - wallet_deduction_total)
+            init_wallet = float(c_row["spa_wallet_balance"] or 0.0) if c_row else 0.0
+            new_wallet = max(0.0, init_wallet - wallet_deduction_total)
             cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (new_wallet, batch_req.customer_id))
             cur.execute("""
                 INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
                 VALUES (?, 'spend', ?, ?, ?, ?)
-            """, (batch_req.customer_id, wallet_deduction_total, current_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
+            """, (batch_req.customer_id, wallet_deduction_total, init_wallet, new_wallet, f"Trừ ví dịch vụ Spa cho đợt tiếp nhận {batch_code} ({len(batch_req.tickets)} bé)"))
 
         if cash_collected_batch > 0:
             cb_code = generate_cashbook_code(cur, "PT-SPA")
             first_id = created_tickets[0]["id"] if created_tickets else None
-
-            first_method = batch_req.tickets[0].payment_method if batch_req.tickets else 'cash'
-            acc_type = 'bank' if first_method in ('transfer', 'card') else 'cash'
-            cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
-            acc_row = cur.fetchone()
-            account_id = acc_row["id"] if acc_row else None
-            if not account_id:
-                cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                acc_row = cur.fetchone()
-                account_id = acc_row["id"] if acc_row else None
-
-            cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
-            s_row = cur.fetchone()
-            shift_id = s_row["id"] if s_row else None
-
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
             VALUES (?, 'in', 'Thu tiền dịch vụ Spa', ?, ?, 'pet_service', ?, ?, ?, ?)
@@ -1826,8 +2112,14 @@ def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
                 updates.append("service_changed_at = ?")
                 params.append(t.service_changed_at)
             if t.payment_status is not None:
-                updates.append("payment_status = ?")
-                params.append(t.payment_status)
+                cur.execute("SELECT payment_status, payment_method FROM pet_service_tickets WHERE id = ?", (t.id,))
+                cur_t = cur.fetchone()
+                if cur_t and cur_t["payment_status"] != "paid" and t.payment_status == "paid":
+                    pay_m = t.payment_method or cur_t["payment_method"] or "cash"
+                    process_spa_ticket_payment(cur, t.id, payment_method=pay_m)
+                else:
+                    updates.append("payment_status = ?")
+                    params.append(t.payment_status)
             if t.payment_method is not None:
                 updates.append("payment_method = ?")
                 params.append(t.payment_method)
@@ -1859,11 +2151,77 @@ def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
         "message": f"Đã cập nhật thành công {updated_count} phiếu dịch vụ Spa"
     }
 
+@service_router.post("/{ticket_id}/pay")
+def pay_pet_service(ticket_id: int, req: PetServicePayRequest):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        res = process_spa_ticket_payment(
+            cur,
+            ticket_id,
+            payment_method=req.payment_method or "cash",
+            account_id=req.account_id,
+            note=req.note
+        )
+        conn.commit()
+        return res
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
 @service_router.delete("/{ticket_id}")
 def delete_pet_service(ticket_id: int):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM pet_service_tickets WHERE id = ?", (ticket_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "ok"}
+    try:
+        cur.execute("SELECT * FROM pet_service_tickets WHERE id = ?", (ticket_id,))
+        ticket = cur.fetchone()
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu Spa")
+
+        # 1. Hoàn ví Spa nếu phiếu có trừ ví
+        wallet_deduction = float(ticket["spa_wallet_deduction"] or 0.0)
+        customer_id = ticket["customer_id"]
+        if wallet_deduction > 0 and customer_id:
+            cur.execute("SELECT spa_wallet_balance FROM contacts WHERE id = ?", (customer_id,))
+            c_row = cur.fetchone()
+            bal_before = float(c_row["spa_wallet_balance"] or 0.0) if c_row else 0.0
+            bal_after = bal_before + wallet_deduction
+            cur.execute("UPDATE contacts SET spa_wallet_balance = ? WHERE id = ?", (bal_after, customer_id))
+            cur.execute("""
+                INSERT INTO spa_wallet_transactions (contact_id, type, amount, balance_before, balance_after, note)
+                VALUES (?, 'refund', ?, ?, ?, ?)
+            """, (customer_id, wallet_deduction, bal_before, bal_after, f"Hoàn tiền trừ ví do xóa phiếu Spa {ticket['code']}"))
+
+        # 2. Hoàn tồn kho hàng bán kèm (T7)
+        if ticket["services_json"]:
+            try:
+                import json as json_mod
+                items = json_mod.loads(ticket["services_json"])
+                restore_retail_products_stock(cur, items, ticket["code"])
+            except Exception as e:
+                logger.warning(f"Lỗi hoàn kho khi xóa phiếu Spa {ticket['code']}: {e}")
+
+        # 3. Xóa các phiếu thu liên quan trong sổ quỹ (ref_type = pet_service hoặc pet_service_deposit)
+        cur.execute("""
+            DELETE FROM cashbook 
+            WHERE ref_type IN ('pet_service', 'pet_service_deposit') AND ref_id = ?
+        """, (ticket_id,))
+
+        # 4. Xóa phiếu Spa
+        cur.execute("DELETE FROM pet_service_tickets WHERE id = ?", (ticket_id,))
+        conn.commit()
+        return {"status": "ok", "message": f"Đã xóa phiếu {ticket['code']} thành công"}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

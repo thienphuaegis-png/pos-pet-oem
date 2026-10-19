@@ -3,7 +3,12 @@ from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from datetime import datetime
 from database import get_db, archive_code, is_code_archived
-from schemas import CashbookCreate, CashbookUpdate, CashbookTransferCreate, PaymentAccountCreate, PaymentAccountUpdate, ExpenseRequestCreate, ExpenseRequestApprove, CashbookCategoryCreate, CashbookCategoryUpdate
+from schemas import (
+    CashbookCreate, CashbookUpdate, CashbookTransferCreate,
+    PaymentAccountCreate, PaymentAccountUpdate,
+    ExpenseRequestCreate, ExpenseRequestApprove, ExpenseRequestBatchApprove,
+    CashbookCategoryCreate, CashbookCategoryUpdate
+)
 from logger_config import get_module_logger
 from dependencies import get_current_user, get_optional_user, require_role, require_permission
 
@@ -714,7 +719,7 @@ def get_reports_analytics(
         COALESCE(SUM(debt_amount), 0) as total_debt,
         COALESCE(SUM(commission_amount), 0) as total_commission
     FROM orders
-    WHERE created_at >= ? AND created_at <= ?
+    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
     """, (from_dt_str, to_dt_str))
     stat_row = cur.fetchone()
     order_count = stat_row["order_count"] or 0
@@ -722,30 +727,28 @@ def get_reports_analytics(
     total_paid = stat_row["total_paid"] or 0
     total_debt = stat_row["total_debt"] or 0
     total_comm = stat_row["total_commission"] or 0
-    aov = round(total_rev / order_count) if order_count > 0 else 0
 
     # 2. Timeline xu hướng doanh thu & số đơn (gom theo ngày)
     cur.execute("""
     SELECT 
-        strftime('%d/%m', created_at) as day_label,
-        strftime('%Y-%m-%d', created_at) as raw_date,
+        strftime('%d/%m', datetime(created_at, '+7 hours')) as day_label,
+        strftime('%Y-%m-%d', datetime(created_at, '+7 hours')) as raw_date,
         COUNT(id) as orders,
         COALESCE(SUM(final_amount), 0) as revenue
     FROM orders
-    WHERE created_at >= ? AND created_at <= ?
-    GROUP BY strftime('%Y-%m-%d', created_at)
+    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
+    GROUP BY strftime('%Y-%m-%d', datetime(created_at, '+7 hours'))
     ORDER BY raw_date ASC
     """, (from_dt_str, to_dt_str))
     timeline_rows = [
-        {"label": r["day_label"], "revenue": r["revenue"], "orders": r["orders"]}
+        {"label": r["day_label"], "raw_date": r["raw_date"], "revenue": r["revenue"], "orders": r["orders"]}
         for r in cur.fetchall()
     ]
     # Fallback nếu trong ngày chưa có đơn nào
     if not timeline_rows:
-        timeline_rows = [{"label": datetime.strptime(from_date, "%Y-%m-%d").strftime("%d/%m"), "revenue": 0, "orders": 0}]
+        timeline_rows = [{"label": datetime.strptime(from_date, "%Y-%m-%d").strftime("%d/%m"), "raw_date": from_date, "revenue": 0, "orders": 0}]
 
     # 3. Phân loại theo hình thức thanh toán
-    # Kết hợp từ bảng order_payments và cashbook (có xét spa_wallet_deduction)
     cur.execute("""
     SELECT 
         op.method,
@@ -753,18 +756,18 @@ def get_reports_analytics(
         COALESCE(SUM(op.amount), 0) as amount
     FROM order_payments op
     JOIN orders o ON op.order_id = o.id
-    WHERE o.created_at >= ? AND o.created_at <= ?
+    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
     GROUP BY op.method
     """, (from_dt_str, to_dt_str))
     payment_map = {r["method"]: {"count": r["count"], "amount": r["amount"]} for r in cur.fetchall()}
 
-    # Thêm dòng cấn trừ ví Spa nếu có
+    # Thêm dòng cấn trừ ví Spa từ đơn POS nếu có
     cur.execute("""
     SELECT 
         COUNT(id) as count,
         COALESCE(SUM(spa_wallet_deduction), 0) as amount
     FROM orders
-    WHERE created_at >= ? AND created_at <= ? AND spa_wallet_deduction > 0
+    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ? AND spa_wallet_deduction > 0
     """, (from_dt_str, to_dt_str))
     wallet_row = cur.fetchone()
     if wallet_row and wallet_row["amount"] > 0:
@@ -774,10 +777,181 @@ def get_reports_analytics(
     if not payment_map and total_paid > 0:
         payment_map["cash"] = {"count": order_count, "amount": total_paid}
 
+    # 4. Bóc tách Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
+    cur.execute("""
+    SELECT 
+        COALESCE(p.type, 'product') as item_type,
+        COUNT(oi.id) as line_count,
+        COALESCE(SUM(oi.quantity), 0) as total_qty,
+        COALESCE(SUM(oi.subtotal), 0) as total_subtotal
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    LEFT JOIN products p ON oi.product_id = p.id
+    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+    GROUP BY COALESCE(p.type, 'product')
+    """, (from_dt_str, to_dt_str))
+    g_vs_s_rows = cur.fetchall()
+    goods_rev = 0
+    goods_qty = 0
+    services_rev = 0
+    services_qty = 0
+    for r in g_vs_s_rows:
+        if r["item_type"] == "service":
+            services_rev += r["total_subtotal"]
+            services_qty += r["total_qty"]
+        else:
+            goods_rev += r["total_subtotal"]
+            goods_qty += r["total_qty"]
+
+    # Doanh thu phòng khách sạn
+    hotel_rev = 0
+    hotel_count = 0
+    try:
+        cur.execute("""
+        SELECT COUNT(id) as cnt, COALESCE(SUM(total_amount), 0) as total_hotel
+        FROM hotel_bookings
+        WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
+        """, (from_dt_str, to_dt_str))
+        h_row = cur.fetchone()
+        if h_row:
+            hotel_rev = h_row["total_hotel"] or 0
+            hotel_count = h_row["cnt"] or 0
+    except Exception:
+        pass
+
+    # T8: Bổ sung doanh thu Spa từ pet_service_tickets, tách hàng bán kèm vs dịch vụ
+    spa_goods_rev = 0.0
+    spa_goods_qty = 0
+    spa_services_rev = 0.0
+    spa_services_qty = 0
+    spa_paid = 0.0
+    spa_debt = 0.0
+    spa_daily_map = {}
+    spa_tickets_count = 0
+
+    try:
+        import json as json_mod
+        cur.execute("""
+        SELECT id, code, price, services_json, tip_amount, deposit_amount, spa_wallet_deduction, payment_method, payment_status, ticket_date
+        FROM pet_service_tickets
+        WHERE ticket_date >= ? AND ticket_date <= ?
+          AND (payment_status = 'paid' OR status IN ('completed', 'checked_out', 'done'))
+        """, (from_date, to_date))
+        spa_tickets = cur.fetchall()
+        spa_tickets_count = len(spa_tickets)
+
+        for st in spa_tickets:
+            t_price = float(st["price"] or 0.0)
+            t_tip = float(st["tip_amount"] or 0.0)
+            t_dep = float(st["deposit_amount"] or 0.0)
+            t_wallet = float(st["spa_wallet_deduction"] or 0.0)
+            t_date = st["ticket_date"] or from_date
+
+            parsed_items = []
+            if st["services_json"]:
+                try:
+                    parsed_items = json_mod.loads(st["services_json"])
+                except Exception:
+                    parsed_items = []
+
+            t_goods = 0.0
+            t_goods_qty = 0
+            t_serv = 0.0
+            t_serv_qty = 0
+            t_tip_item = 0.0
+
+            for it in parsed_items:
+                q = it.get("quantity") or 1
+                p = it.get("price") or 0.0
+                sub = q * p
+                if it.get("is_retail"):
+                    t_goods += sub
+                    t_goods_qty += q
+                elif it.get("is_tip") or it.get("name") == "Tiền tip thợ":
+                    t_tip_item += sub
+                else:
+                    t_serv += sub
+                    t_serv_qty += q
+
+            if not parsed_items:
+                t_serv = max(0.0, t_price - t_tip)
+                t_serv_qty = 1
+
+            spa_goods_rev += t_goods
+            spa_goods_qty += t_goods_qty
+            spa_services_rev += t_serv
+            spa_services_qty += t_serv_qty
+
+            shop_ticket_rev = t_goods + t_serv
+
+            if st["payment_status"] == 'paid':
+                spa_paid += shop_ticket_rev
+            else:
+                spa_paid += min(t_dep, shop_ticket_rev)
+                spa_debt += max(0.0, shop_ticket_rev - t_dep)
+
+            if t_date not in spa_daily_map:
+                spa_daily_map[t_date] = {"revenue": 0.0, "orders": 0}
+            spa_daily_map[t_date]["revenue"] += shop_ticket_rev
+            spa_daily_map[t_date]["orders"] += 1
+
+            # Cộng vào payment_map
+            if st["payment_status"] == 'paid':
+                p_method = st["payment_method"] or 'cash'
+                if t_wallet > 0:
+                    payment_map["wallet"] = payment_map.get("wallet", {"count": 0, "amount": 0})
+                    payment_map["wallet"]["count"] += 1
+                    payment_map["wallet"]["amount"] += t_wallet
+                    rem = max(0.0, shop_ticket_rev - t_wallet)
+                    if rem > 0:
+                        c_method = 'bank' if p_method in ('transfer', 'card') else 'cash'
+                        payment_map[c_method] = payment_map.get(c_method, {"count": 0, "amount": 0})
+                        payment_map[c_method]["count"] += 1
+                        payment_map[c_method]["amount"] += rem
+                else:
+                    p_code = 'bank' if p_method in ('transfer', 'card') else ('cash' if p_method == 'cash' else p_method)
+                    payment_map[p_code] = payment_map.get(p_code, {"count": 0, "amount": 0})
+                    payment_map[p_code]["count"] += 1
+                    payment_map[p_code]["amount"] += shop_ticket_rev
+    except Exception as e:
+        logger.warning(f"Lỗi tính doanh thu Spa trong báo cáo: {e}")
+
+    # Bổ sung số liệu Spa vào doanh thu tổng & phân loại
+    goods_rev += spa_goods_rev
+    goods_qty += spa_goods_qty
+    services_rev += spa_services_rev
+    services_qty += spa_services_qty
+
+    total_rev += (spa_goods_rev + spa_services_rev)
+    total_paid += spa_paid
+    total_debt += spa_debt
+    order_count += spa_tickets_count
+    aov = round(total_rev / order_count) if order_count > 0 else 0
+
+    # Ghép timeline Spa
+    timeline_dict = {r["raw_date"]: r for r in timeline_rows}
+    for d_str, s_data in spa_daily_map.items():
+        if d_str in timeline_dict:
+            timeline_dict[d_str]["revenue"] += s_data["revenue"]
+            timeline_dict[d_str]["orders"] += s_data["orders"]
+        else:
+            try:
+                d_label = datetime.strptime(d_str, "%Y-%m-%d").strftime("%d/%m")
+            except Exception:
+                d_label = d_str
+            timeline_dict[d_str] = {
+                "label": d_label,
+                "raw_date": d_str,
+                "revenue": s_data["revenue"],
+                "orders": s_data["orders"]
+            }
+    timeline_rows = sorted(timeline_dict.values(), key=lambda x: x.get("raw_date", ""))
+
     total_pay_sum = sum(p["amount"] for p in payment_map.values()) or 1.0
     method_names = {
         "cash": "Tiền mặt",
         "transfer": "Chuyển khoản (VietQR)",
+        "bank": "Chuyển khoản (VietQR)",
         "card": "Thẻ quẹt POS",
         "wallet": "Cấn trừ Ví Spa",
         "ewallet": "Ví điện tử"
@@ -795,64 +969,6 @@ def get_reports_analytics(
         })
     payments_list.sort(key=lambda x: x["amount"], reverse=True)
 
-    # 4. Bóc tách Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
-    # Dựa vào items của orders trong khoảng ngày
-    cur.execute("""
-    SELECT 
-        COALESCE(p.type, 'product') as item_type,
-        COUNT(oi.id) as line_count,
-        COALESCE(SUM(oi.quantity), 0) as total_qty,
-        COALESCE(SUM(oi.subtotal), 0) as total_subtotal
-    FROM order_items oi
-    JOIN orders o ON oi.order_id = o.id
-    LEFT JOIN products p ON oi.product_id = p.id
-    WHERE o.created_at >= ? AND o.created_at <= ?
-    GROUP BY COALESCE(p.type, 'product')
-    """, (from_dt_str, to_dt_str))
-    g_vs_s_rows = cur.fetchall()
-    goods_rev = 0
-    goods_qty = 0
-    services_rev = 0
-    services_qty = 0
-    for r in g_vs_s_rows:
-        if r["item_type"] == "service":
-            services_rev += r["total_subtotal"]
-            services_qty += r["total_qty"]
-        else:
-            goods_rev += r["total_subtotal"]
-            goods_qty += r["total_qty"]
-
-    # Doanh thu phòng khách sạn (từ pet_service_tickets hoặc hotel_bookings nếu có)
-    hotel_rev = 0
-    hotel_count = 0
-    try:
-        cur.execute("""
-        SELECT COUNT(id) as cnt, COALESCE(SUM(total_amount), 0) as total_hotel
-        FROM hotel_bookings
-        WHERE created_at >= ? AND created_at <= ?
-        """, (from_dt_str, to_dt_str))
-        h_row = cur.fetchone()
-        if h_row:
-            hotel_rev = h_row["total_hotel"] or 0
-            hotel_count = h_row["cnt"] or 0
-    except Exception:
-        pass
-
-    # Bổ sung doanh thu từ pet_service_tickets vào chỉ số services_rev và services_qty
-    try:
-        cur.execute("""
-        SELECT COUNT(id) as cnt, COALESCE(SUM(price), 0) as total_spa
-        FROM pet_service_tickets
-        WHERE created_at >= ? AND created_at <= ?
-          AND (payment_status = 'paid' OR status IN ('completed', 'checked_out', 'done'))
-        """, (from_dt_str, to_dt_str))
-        spa_row = cur.fetchone()
-        if spa_row:
-            services_rev += spa_row["total_spa"] or 0
-            services_qty += spa_row["cnt"] or 0
-    except Exception:
-        pass
-
     # 5. Báo cáo Nhân Viên (Doanh số & Hoa hồng)
     cur.execute("""
     SELECT 
@@ -864,7 +980,7 @@ def get_reports_analytics(
         COALESCE(SUM(o.commission_amount), 0) as commission
     FROM orders o
     LEFT JOIN staff s ON o.staff_id = s.id
-    WHERE o.created_at >= ? AND o.created_at <= ?
+    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
     GROUP BY o.staff_id
     ORDER BY revenue DESC
     """, (from_dt_str, to_dt_str))
@@ -883,7 +999,7 @@ def get_reports_analytics(
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
     LEFT JOIN products p ON oi.product_id = p.id
-    WHERE o.created_at >= ? AND o.created_at <= ?
+    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
     GROUP BY oi.product_id
     ORDER BY revenue DESC, qty_sold DESC
     LIMIT 20
@@ -1236,6 +1352,92 @@ def approve_expense_request(req_id: int, payload: ExpenseRequestApprove, user=De
     updated = dict(cur.fetchone())
     conn.close()
     return updated
+
+@router.post("/api/expense-requests/batch-approve")
+def batch_approve_expense_requests(payload: ExpenseRequestBatchApprove, user=Depends(get_optional_user)):
+    if not payload.request_ids:
+        raise HTTPException(status_code=400, detail="Vui lòng chọn ít nhất 1 yêu cầu để duyệt chi")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Kiểm tra tài khoản thanh toán hợp lệ
+    cur.execute("SELECT id, name FROM payment_accounts WHERE id = ? AND is_active = 1", (payload.account_id,))
+    acc = cur.fetchone()
+    if not acc:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Tài khoản thanh toán không tồn tại hoặc đã bị khóa")
+
+    # Lấy danh sách các yêu cầu được chọn
+    placeholders = ",".join("?" for _ in payload.request_ids)
+    cur.execute(f"SELECT * FROM expense_requests WHERE id IN ({placeholders})", tuple(payload.request_ids))
+    rows = [dict(r) for r in cur.fetchall()]
+
+    if len(rows) != len(payload.request_ids):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Một số yêu cầu không tồn tại trong hệ thống")
+
+    # Kiểm tra tất cả đều ở trạng thái pending
+    non_pending = [r["code"] for r in rows if r["status"] != "pending"]
+    if non_pending:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Các yêu cầu sau không ở trạng thái chờ duyệt: {', '.join(non_pending)}"
+        )
+
+    # Tính tổng tiền và chuẩn bị thông tin phiếu chi
+    total_amount = sum(float(r["amount"]) for r in rows)
+    emp_names = list(dict.fromkeys(r["employee_name"] for r in rows if r.get("employee_name")))
+    codes = [r["code"] for r in rows]
+    types = list(dict.fromkeys(r["type"] for r in rows))
+
+    # Sinh mã phiếu chi: nếu toàn bộ là hoàn ứng thì PC-HO, khác thì PC-DC
+    prefix = "PC-HO" if len(types) == 1 and types[0] == "reimbursement" else "PC-DC"
+    cb_code = generate_cashbook_code(cur, prefix)
+
+    # Hạng mục chi tổng: lấy hạng mục chung nếu giống nhau, hoặc "Chi hoàn ứng nhân viên"
+    cats = list(dict.fromkeys(r["category"] for r in rows if r.get("category")))
+    cb_category = cats[0] if len(cats) == 1 else ("Hoàn ứng chi hộ nhân viên" if prefix == "PC-HO" else "Dự chi giải ngân")
+
+    if payload.note:
+        cb_note = payload.note.strip()
+    else:
+        emp_str = ", ".join(emp_names)
+        cb_note = f"Hoàn ứng gộp {len(rows)} phiếu ({', '.join(codes)}) cho {emp_str}"
+
+    approver_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    cb_created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 1. Tạo 1 Phiếu Chi cashbook gộp duy nhất
+    cur.execute("""
+        INSERT INTO cashbook (
+            code, type, category, amount, account_id, ref_type, ref_id, note, created_by, created_at
+        ) VALUES (?, 'out', ?, ?, ?, 'expense_request_batch', 0, ?, ?, ?)
+    """, (
+        cb_code, cb_category, total_amount, payload.account_id, cb_note, approver_name, cb_created_at
+    ))
+    cb_id = cur.lastrowid
+
+    # 2. Cập nhật toàn bộ các expense_requests sang completed và trỏ về cashbook_id vừa tạo
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute(f"""
+        UPDATE expense_requests
+        SET status = 'completed', cashbook_id = ?, resolved_at = ?
+        WHERE id IN ({placeholders})
+    """, (cb_id, now_str, *payload.request_ids))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "success": True,
+        "cashbook_id": cb_id,
+        "cashbook_code": cb_code,
+        "approved_count": len(rows),
+        "total_amount": total_amount,
+        "note": cb_note
+    }
 
 @router.post("/api/expense-requests/{req_id}/cancel")
 def cancel_expense_request(req_id: int):

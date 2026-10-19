@@ -52,6 +52,7 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+- [ ] **`spa-12-tasks` (ƯU TIÊN)**: Sửa bảng dịch vụ Spa — plan + bằng chứng + 6 câu hỏi chờ chốt tại `docs/plans/2026-10-18-spa-12-tasks.md`. Phase 1 (tiền/kho/báo cáo) làm được ngay, không cần chờ câu hỏi.
 - [ ] `ecomm-sync-shopee-tiktok`: Tự động trừ tồn kho POS & Ghi nhận Sổ Quỹ cho đơn sàn TMĐT (đã hoàn thành thiết kế Data Mapping & Brainstorming).
 - [ ] `verify-server-tailscale-and-toggle`: Nghiệm thu thực tế trên máy chủ tiệm (chạy `CAP_NHAT_1_CHAM.bat`, toggle module, kiểm tra Funnel 4G).
 - [ ] Thu hồi (`/revoke`) token bot Telegram cũ trên `@BotFather` và cấp lại token mới.

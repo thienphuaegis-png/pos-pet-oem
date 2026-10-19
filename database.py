@@ -341,6 +341,16 @@ def init_db():
     )''')
 
     cur.execute('''
+    CREATE TABLE IF NOT EXISTS grooming_gallery (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        breed TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        image_data TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
@@ -701,7 +711,7 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_orders_created_at_staff ON orders(created_at, staff_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_items_order_prod ON order_items(order_id, product_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_order_payments_order_method ON order_payments(order_id, method)')
-    cur.execute('CREATE INDEX IF NOT EXISTS idx_hotel_bookings_created_at ON hotel_bookings(created_at)')
+    # Index idx_hotel_bookings_created_at duoc tao sau khi bang hotel_bookings duoc tao
     # Index idx_pet_service_tickets_created_status duoc tao sau khi pet_service_tickets da migration du cot payment_status
 
     # Doi tra hang
@@ -1685,6 +1695,7 @@ def init_db():
         order_id INTEGER REFERENCES orders(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_hotel_bookings_created_at ON hotel_bookings(created_at)')
 
     # Migration thêm cột mới cho hotel_rooms, hotel_bookings và pet_service_tickets nếu bảng đã tồn tại
     for _col in [

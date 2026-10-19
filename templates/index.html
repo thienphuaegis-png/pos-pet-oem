@@ -1024,6 +1024,8 @@
                 <input type="text" id="pos-search-input" 
                        placeholder="Tìm hàng hóa (F3)..." 
                        autocomplete="off"
+                       onfocus="filterProductSearch(this.value)"
+                       onclick="filterProductSearch(this.value)"
                        oninput="filterProductSearch(this.value)"
                        onkeydown="if(event.key === 'Enter'){ event.preventDefault(); handleBarcodeOrSelectFirst(this.value); }"
                        class="w-full pl-9 pr-9 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-sky-600 focus:bg-white transition text-slate-900 placeholder:text-slate-400">
@@ -1136,6 +1138,8 @@
                         <input type="text" id="pos-customer-search" 
                                placeholder="Tìm khách hàng (F4)..." 
                                autocomplete="off"
+                               onfocus="filterCustomerSearch(this.value)"
+                               onclick="filterCustomerSearch(this.value)"
                                oninput="filterCustomerSearch(this.value)"
                                class="w-full text-xs pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-600 focus:bg-white">
                         <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -1493,8 +1497,8 @@
                             </div>
                             <input type="text" id="search-spa-invoices" placeholder="Tìm mã vé, khách, SĐT, tên bé..." class="tui-input text-xs w-56" oninput="filterSpaInvoicesList()">
                             <select id="select-spa-invoice-status-filter" onchange="filterSpaInvoicesList()" class="tui-input text-xs w-auto bg-white font-medium text-slate-700">
-                                <option value="checked_out">Đã Về (Lịch sử)</option>
                                 <option value="all">Tất cả trạng thái</option>
+                                <option value="checked_out">Đã Về (Lịch sử)</option>
                                 <option value="completed">Đã xong</option>
                                 <option value="in_progress">Đang làm</option>
                                 <option value="pending">Chờ làm</option>
@@ -3192,6 +3196,10 @@
                                 <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                 <span>Nhân Viên Spa</span>
                             </button>
+                            <button onclick="switchPetSubTab('gallery')" id="btn-pet-sub-gallery" class="px-3.5 py-1.5 font-semibold text-slate-600 hover:text-slate-900 rounded-md flex items-center gap-1.5 transition">
+                                <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                <span>Thư Viện Mẫu Cắt</span>
+                            </button>
                         </div>
                     </div>
 
@@ -3459,6 +3467,25 @@
                                     <tr><td colspan="6" class="p-6 text-center text-gray-400">Đang tải danh sách nhân viên Spa...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- VIEW SUB 4: THƯ VIỆN HÌNH MẪU CẮT LÔNG -->
+                    <div id="pet-sub-view-gallery" class="hidden space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-3 bg-pink-50/60 p-3 rounded-lg border border-pink-200">
+                            <div>
+                                <span class="font-bold text-xs text-pink-900 flex items-center gap-1.5">
+                                    <span>📸</span>
+                                    <span>Thư Viện Hình Mẫu Cắt Lông Thú Cưng</span>
+                                </span>
+                                <p class="text-[11px] text-slate-500">Bộ sưu tập hình mẫu cắt tỉa cún, mèo để khách hàng xem tham khảo và thợ spa làm theo</p>
+                            </div>
+                            <button onclick="openAddGroomingModal()" class="bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1 cursor-pointer">
+                                <span>➕ Thêm Mẫu Cắt Mới</span>
+                            </button>
+                        </div>
+                        <div id="grooming-gallery-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <!-- Render dynamic cards -->
                         </div>
                     </div>
                 </div>
@@ -5214,11 +5241,30 @@
                         </button>
                     </div>
 
+                    <!-- Thanh thao tác hàng loạt (Batch Action Bar) khi tick chọn nhiều phiếu -->
+                    <div id="bar-batch-approve-expenses" class="hidden bg-indigo-50 border border-indigo-200 p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-xs animate-in fade-in">
+                        <div class="flex items-center gap-2.5 text-xs text-indigo-900 font-semibold">
+                            <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[11px]" id="badge-batch-selected-count">0</span>
+                            <span>Đã chọn <strong id="text-batch-selected-count" class="text-indigo-800">0</strong> phiếu yêu cầu | Tổng tiền gộp: <strong id="text-batch-selected-amount" class="text-rose-600 font-bold text-sm">0 đ</strong></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="clearSelectedExpenseRequests()" class="px-3 py-1.5 text-slate-600 hover:text-slate-800 text-xs font-semibold rounded-lg hover:bg-white/80 border border-slate-200 transition">
+                                Bỏ chọn
+                            </button>
+                            <button type="button" onclick="openBatchApproveModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                                <span>⚡</span> <span>Duyệt & Xuất Quỹ Gộp</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Bảng danh sách yêu cầu chi -->
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-x-auto w-full">
-                        <table class="w-full min-w-[1200px] text-left border-collapse text-xs">
+                        <table class="w-full min-w-[1240px] text-left border-collapse text-xs">
                             <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase">
                                 <tr>
+                                    <th class="p-2.5 w-10 text-center">
+                                        <input type="checkbox" id="check-all-exp-requests" onchange="toggleSelectAllExpenseRequests(this)" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-400 cursor-pointer" title="Chọn tất cả phiếu chờ duyệt">
+                                    </th>
                                     <th class="p-2.5">Mã YC</th>
                                     <th class="p-2.5">Loại</th>
                                     <th class="p-2.5">Người đề xuất / NV</th>
@@ -9537,8 +9583,15 @@
                     </div>
                 </div>
 
-                <!-- Chuyển chế độ 1 bé vs Nhiều bé -->
-                <div class="flex items-center gap-2">
+                <!-- Chuyển chế độ 1 bé vs Nhiều bé & Button Số Phiếu -->
+                <div class="flex items-center gap-2.5">
+                    <!-- Nút Số Phiếu thiết kế to rõ, phong cách tiệp màu chữ tên phiếu -->
+                    <div class="px-3.5 py-1.5 rounded-xl bg-purple-100/80 text-purple-950 border-2 border-purple-300 shadow-sm flex items-center gap-2 select-none">
+                        <span class="text-base">🎫</span>
+                        <span class="text-xs font-black uppercase tracking-wide text-purple-900">Số Phiếu:</span>
+                        <span id="svc-next-stt-header-badge" class="font-mono font-black text-xl text-purple-950 bg-white px-3 py-0.5 rounded-lg border border-purple-300 shadow-xs">#--</span>
+                    </div>
+
                     <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200">
                         <button type="button" id="btn-mode-single-pet" onclick="setSvcIntakeMode('single')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-800 shadow-sm border border-purple-200">
                             🐾 1 Bé Đơn Lẻ (3 Cột)
@@ -9562,7 +9615,7 @@
                         <input type="text" id="svc-customer-search" autocomplete="off"
                             oninput="onSvcCustomerSearchInput(this.value)"
                             onfocus="onSvcCustomerSearchInput(this.value)"
-                            onblur="setTimeout(()=>{const d=document.getElementById('svc-customer-dropdown'); if(d) d.classList.add('hidden');}, 150)"
+                            onblur="setTimeout(()=>{const d=document.getElementById('svc-customer-dropdown'); if(d) d.classList.add('hidden');}, 250)"
                             placeholder="🔍 Gõ tên hoặc SĐT khách (vd: Mai 010)..."
                             class="w-full border border-purple-200 p-2 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-purple-500">
                         <input type="hidden" id="svc-customer-id" value="">
@@ -9719,6 +9772,12 @@
 
                     <!-- Yêu cầu khách & ghi chú thợ -->
                     <div class="space-y-1.5">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <label class="text-[11px] font-bold text-slate-700">Yêu Cầu & Kiểu Cắt:</label>
+                            <button type="button" onclick="openGroomingGalleryPicker()" class="text-pink-600 hover:text-pink-800 font-bold text-[10px] flex items-center gap-1 bg-pink-50 hover:bg-pink-100 px-2 py-0.5 rounded border border-pink-200 transition cursor-pointer" title="Mở thư viện xem và chọn kiểu cắt lông mẫu">
+                                <span>📸</span><span>Chọn mẫu từ thư viện</span>
+                            </button>
+                        </div>
                         <input type="text" id="svc-customer-request" placeholder="📝 Yêu cầu khách: Cắt tròn, tai ngắn..." class="w-full border p-1.5 rounded-lg text-xs bg-white">
                         <div class="flex gap-2">
                             <input type="text" id="svc-accessories" placeholder="🎒 Phụ kiện: Vòng cổ, dây dắt..." class="w-1/2 border p-1.5 rounded-lg text-xs bg-white">
@@ -9750,65 +9809,48 @@
 
                 <!-- CỘT 2: PHỤ THU & TÀI CHÍNH THANH TOÁN (4 CỘT GRID) -->
                 <div class="lg:col-span-4 flex flex-col gap-2.5 bg-amber-50/50 p-3 rounded-xl border border-amber-200">
-                    <div class="border-b pb-1.5">
+                    <div class="border-b pb-1.5 flex justify-between items-center">
                         <span class="font-black text-amber-900 text-xs flex items-center gap-1.5">
                             <span class="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px]">2</span>
                             <span>Phụ Thu & Tài Chính Thanh Toán</span>
                         </span>
+                        <span id="svc-extra-services-count-badge" class="text-[10px] text-amber-800 font-bold bg-amber-100 px-1.5 py-0.5 rounded-full">0 mục</span>
                     </div>
 
-                    <!-- DANH SÁCH CHECKBOX PHỤ THU (GIÁ THIẾT LẬP TRONG DỊCH VỤ) -->
-                    <div class="space-y-1 bg-white p-2.5 rounded-lg border border-amber-200">
-                        <div class="font-bold text-slate-800 text-[11px] mb-1">Các Khoản Phụ Thu (Tích Chọn):</div>
-                        
-                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
-                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
-                                <input type="checkbox" id="svc-cb-teeth" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🦷 Đánh răng</span>
+                    <!-- DANH SÁCH DỊCH VỤ PHỤ THU ĐỘNG (MAP TRỰC TIẾP TỪ BẢNG GIÁ) -->
+                    <div class="space-y-1.5 bg-white p-2.5 rounded-lg border border-amber-200">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-slate-800 text-[11px] flex items-center gap-1">
+                                <span>🌀</span>
+                                <span>Dịch Vụ Phụ Thu & Trị Liệu:</span>
                             </span>
-                            <span id="svc-cb-teeth-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">30.000 đ</span>
-                        </label>
-
-                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
-                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
-                                <input type="checkbox" id="svc-cb-art" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>✂️ Cắt nghệ thuật</span>
-                            </span>
-                            <span id="svc-cb-art-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">50.000 đ</span>
-                        </label>
-
-                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
-                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
-                                <input type="checkbox" id="svc-cb-surch" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🌀 Phụ thu gỡ rối</span>
-                            </span>
-                            <span id="svc-cb-surch-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">40.000 đ</span>
-                        </label>
-
-                        <label class="flex items-center justify-between text-xs cursor-pointer hover:bg-amber-50 p-1 rounded select-none">
-                            <span class="flex items-center gap-1.5 font-medium text-slate-800">
-                                <input type="checkbox" id="svc-cb-ship" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🚗 Đưa đón tận nơi</span>
-                            </span>
-                            <span id="svc-cb-ship-price-tag" class="font-mono font-bold text-purple-700 text-[11px]">50.000 đ</span>
-                        </label>
-
-                        <!-- Tip thợ: Checkbox + ô nhập tiền tùy tâm -->
-                        <div class="flex items-center justify-between text-xs p-1 rounded hover:bg-amber-50">
-                            <label class="flex items-center gap-1.5 font-medium text-slate-800 cursor-pointer select-none">
-                                <input type="checkbox" id="svc-cb-tip" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🎁 Tip thợ</span>
-                            </label>
-                            <input type="text" id="svc-tip-amount" oninput="onMoneyInputChange(this); onSvcSurchargeCheckboxChanged();" placeholder="0" class="w-20 border p-0.5 rounded text-xs text-right font-mono font-bold text-slate-700 bg-white">
+                            <button type="button" onclick="addSvcExtraService('', 0)" class="text-amber-800 hover:text-amber-950 font-bold text-[10px] flex items-center gap-1 bg-amber-100/70 hover:bg-amber-200 px-2 py-0.5 rounded border border-amber-300 transition cursor-pointer">
+                                <span>➕</span><span>Tự thêm dòng</span>
+                            </button>
                         </div>
 
-                        <!-- Phụ thu khác: Checkbox + ô nhập tiền -->
-                        <div class="flex items-center justify-between text-xs p-1 rounded hover:bg-amber-50">
-                            <label class="flex items-center gap-1.5 font-medium text-slate-800 cursor-pointer select-none">
-                                <input type="checkbox" id="svc-cb-other" onchange="onSvcSurchargeCheckboxChanged()" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🏷️ Phụ thu khác</span>
-                            </label>
-                            <input type="text" id="svc-other-surch-amount" oninput="onMoneyInputChange(this); onSvcSurchargeCheckboxChanged();" placeholder="0" class="w-20 border p-0.5 rounded text-xs text-right font-mono font-bold text-slate-700 bg-white">
+                        <!-- Các Button Phụ Thu Render Tự Động Từ Bảng Giá Người Dùng Tạo -->
+                        <div id="svc-quick-surcharges-container" class="flex flex-wrap gap-1.5 pb-1">
+                            <!-- Nút động sinh ra từ renderQuickSurchargeButtons() -->
+                        </div>
+
+                        <!-- Danh sách dòng phụ thu đã chọn (có thể sửa giá) -->
+                        <div id="svc-extra-services-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">
+                            <div class="text-[10px] text-slate-400 italic text-center py-2 bg-slate-50 rounded border border-dashed border-slate-200">
+                                Bấm các nút phụ thu ở trên để thêm nhanh (tự áp giá theo số kg của bé)
+                            </div>
+                        </div>
+
+                        <!-- Tip thợ & Tiền cọc -->
+                        <div class="pt-1.5 border-t border-slate-100 grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10.5px] font-bold text-slate-700 mb-0.5">🎁 Tip Thợ:</label>
+                                <input type="text" id="svc-tip-amount" oninput="onMoneyInputChange(this); autoCalculateServicePrice();" placeholder="0" class="w-full border p-1 rounded text-xs text-right font-mono font-bold text-emerald-700 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10.5px] font-bold text-slate-700 mb-0.5">💳 Đặt Cọc Trước:</label>
+                                <input type="text" id="svc-deposit-amount" oninput="onMoneyInputChange(this); autoCalculateServicePrice();" placeholder="0" class="w-full border p-1 rounded text-xs text-right font-mono font-bold text-amber-800 bg-white">
+                            </div>
                         </div>
                     </div>
 
@@ -9950,25 +9992,12 @@
                                 <option value="Cạo bàn cao">Cạo bàn cao</option>
                             </select>
                         </div>
-                        <!-- Checkbox phụ thu hàng loạt -->
-                        <div class="flex items-center gap-2 border-l border-amber-300/80 pl-2">
-                            <span class="text-[11px] text-slate-700 font-bold">Phụ thu:</span>
-                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
-                                <input type="checkbox" id="batch-bulk-cb-teeth" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🦷 Răng</span>
-                            </label>
-                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
-                                <input type="checkbox" id="batch-bulk-cb-art" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>✂️ Cắt NT</span>
-                            </label>
-                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
-                                <input type="checkbox" id="batch-bulk-cb-surch" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🌀 Gỡ rối</span>
-                            </label>
-                            <label class="inline-flex items-center gap-1 text-[11px] text-slate-800 font-medium cursor-pointer select-none">
-                                <input type="checkbox" id="batch-bulk-cb-ship" class="w-3.5 h-3.5 text-purple-600 rounded">
-                                <span>🚗 Ship</span>
-                            </label>
+                        <!-- Button phụ thu hàng loạt sinh động từ Bảng Giá -->
+                        <div class="flex items-center gap-1.5 border-l border-amber-300/80 pl-2.5 flex-wrap">
+                            <span class="text-[11px] text-slate-700 font-bold">Phụ thu mẫu:</span>
+                            <div id="batch-bulk-surcharges-container" class="flex items-center gap-1 flex-wrap">
+                                <!-- Render dynamic buttons from Trị Liệu & Phụ Thu -->
+                            </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
@@ -9996,11 +10025,8 @@
                                     <th class="p-2 w-16 text-center bg-slate-100">Kg (*)</th>
                                     <th class="p-2 min-w-[150px] bg-slate-100">Gói Dịch Vụ (*)</th>
                                     <th class="p-2 w-24 text-center bg-slate-100">Cạo Bàn</th>
-                                    <th class="p-2 w-20 text-center bg-purple-50/80 text-purple-900 border-x border-purple-100" title="Phụ thu đánh răng">🦷 Răng</th>
-                                    <th class="p-2 w-20 text-center bg-purple-50/80 text-purple-900 border-r border-purple-100" title="Phụ thu cắt tạo kiểu nghệ thuật">✂️ Cắt NT</th>
-                                    <th class="p-2 w-20 text-center bg-purple-50/80 text-purple-900 border-r border-purple-100" title="Phụ thu gỡ rối lông">🌀 Gỡ Rối</th>
-                                    <th class="p-2 min-w-[120px] text-center bg-slate-100">🎨 Nhuộm Lông</th>
-                                    <th class="p-2 w-20 text-center bg-purple-50/80 text-purple-900 border-x border-purple-100" title="Phụ thu đưa đón tận nơi">🚚 Ship</th>
+                                    <th class="p-2 min-w-[100px] text-center bg-slate-100">🎨 Nhuộm Lông</th>
+                                    <th class="p-2 min-w-[240px] text-center bg-amber-50/80 text-amber-900 border-x border-amber-200" title="Phụ thu & dịch vụ thêm tự điền giá">🌀 Phụ Thu / Dịch Vụ Thêm (đ)</th>
                                     <th class="p-2 w-28 text-right bg-slate-100">Thành Tiền (đ)</th>
                                     <th class="p-2 min-w-[150px] bg-slate-100">Yêu Cầu / Ghi Chú</th>
                                     <th class="p-2 w-10 text-center bg-slate-100">Xóa</th>
@@ -10040,8 +10066,9 @@
 
             <!-- FOOTER HÀNH ĐỘNG -->
             <div class="flex justify-between items-center pt-2.5 border-t">
-                <div class="text-[11px] text-slate-500 font-medium">
-                    Hệ thống tự động cấp số phiếu theo quy tắc nghiệp vụ
+                <div id="svc-footer-stt-text" class="text-xs text-purple-950 font-black flex items-center gap-2">
+                    <span class="text-purple-700">🎫 Số thứ tự phiếu:</span>
+                    <span id="svc-next-stt-footer-val" class="bg-purple-100 text-purple-950 border border-purple-300 px-3 py-1 rounded-lg font-black font-mono text-sm shadow-2xs">#--</span>
                 </div>
                 <div class="flex gap-2">
                     <button type="button" onclick="closeCreateServiceTicketModal()" class="px-3.5 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
@@ -10070,6 +10097,72 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- MODAL: THÊM MẪU CẮT LÔNG VÀO THƯ VIỆN -->
+    <div id="modal-add-grooming-style" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-3.5">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-base font-black text-pink-900 flex items-center gap-1.5">
+                    <span>📸</span>
+                    <span>Thêm Mẫu Cắt Lông Thú Cưng Mới</span>
+                </h3>
+                <button type="button" onclick="closeAddGroomingModal()" class="text-gray-400 hover:text-red-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-2.5 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Tên Kiểu Cắt (*):</label>
+                    <input type="text" id="grooming-add-title" placeholder="VD: Poodle mặt tròn Teddy, Bo chân bông..." class="w-full border p-2 rounded-lg font-bold text-slate-800">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Giống Phù Hợp:</label>
+                        <input type="text" id="grooming-add-breed" placeholder="VD: Poodle, Bichon, Phốc sóc..." class="w-full border p-2 rounded-lg font-medium text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Hình Ảnh Mẫu (*):</label>
+                        <input type="file" id="grooming-add-file" accept="image/*" onchange="previewGroomingUpload(this)" class="w-full text-[11px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-pink-100 file:text-pink-800 file:font-bold">
+                    </div>
+                </div>
+                <!-- Preview ảnh -->
+                <div id="grooming-add-preview-wrap" class="hidden text-center p-2 bg-slate-50 rounded-lg border border-slate-200">
+                    <img id="grooming-add-preview-img" class="max-h-48 mx-auto rounded-lg shadow-sm object-cover" src="" alt="Preview">
+                    <input type="hidden" id="grooming-add-img-data" value="">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Mô Tả & Lưu Ý Cắt:</label>
+                    <textarea id="grooming-add-desc" rows="2" placeholder="Ghi chú kỹ thuật: tai ngắn ngang cằm, mặt cắt tròn xoe..." class="w-full border p-2 rounded-lg text-slate-700"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t">
+                <button type="button" onclick="closeAddGroomingModal()" class="px-3.5 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                <button type="button" onclick="submitAddGroomingStyle()" class="px-4 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1 cursor-pointer">
+                    <span>💾 Lưu Mẫu Cắt</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHỌN MẪU CẮT TỪ THƯ VIỆN KHI LẬP PHIẾU SPA -->
+    <div id="modal-grooming-gallery-picker" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4">
+        <div class="bg-white rounded-2xl p-5 max-w-6xl w-[94vw] shadow-2xl max-h-[92vh] flex flex-col space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <div>
+                    <h3 class="text-base font-black text-pink-900 flex items-center gap-1.5">
+                        <span>📸</span>
+                        <span>Chọn Kiểu Cắt Lông Từ Thư Viện</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-500">Bấm vào kiểu cắt mong muốn để tự động đưa vào yêu cầu của phiếu tiếp nhận</p>
+                </div>
+                <button type="button" onclick="closeGroomingGalleryPicker()" class="text-gray-400 hover:text-red-600 text-2xl font-bold leading-none p-1">&times;</button>
+            </div>
+            <div id="grooming-picker-grid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
+                <!-- Render cards -->
+            </div>
+            <div class="flex justify-end pt-2 border-t">
+                <button type="button" onclick="closeGroomingGalleryPicker()" class="px-4 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Đóng</button>
+            </div>
         </div>
     </div>
 
@@ -10577,10 +10670,10 @@
 
     <!-- MODAL: THÊM/SỬA BẢNG GIÁ DỊCH VỤ THEO CÂN NẶNG -->
     <div id="modal-pet-pricing-form" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl p-5 max-w-md w-full space-y-3.5 shadow-2xl">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="text-base font-bold text-slate-800" id="pet-pricing-modal-title">Thêm Mức Giá Dịch Vụ</h3>
-                <button type="button" onclick="closePetPricingModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg">&times;</button>
+        <div class="bg-white rounded-2xl p-6 max-w-xl w-full space-y-4 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-base font-black text-slate-800" id="pet-pricing-modal-title">Thêm Mức Giá Dịch Vụ</h3>
+                <button type="button" onclick="closePetPricingModal()" class="text-gray-400 hover:text-red-600 font-bold text-xl">&times;</button>
             </div>
             <input type="hidden" id="pet-pricing-edit-id">
             <div class="space-y-3 text-xs">
@@ -10618,8 +10711,11 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">Đơn Giá (đ) (*):</label>
-                    <input type="number" id="pet-pricing-input-price" step="1000" placeholder="0" class="border p-2 rounded w-full bg-white font-bold text-emerald-700">
+                    <label class="block font-bold text-slate-700 mb-1">Đơn Giá (VNĐ) (*):</label>
+                    <div class="relative">
+                        <input type="text" id="pet-pricing-input-price" oninput="onMoneyInputChange(this)" placeholder="0" class="border-2 border-emerald-300 p-2 rounded-lg w-full bg-white font-mono font-black text-sm text-emerald-800 text-right pr-8 focus:ring-2 focus:ring-emerald-500">
+                        <span class="absolute right-3 top-2.5 font-bold text-slate-400 text-xs">đ</span>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-end gap-2 pt-2 border-t">
@@ -11116,19 +11212,29 @@
             </div>
 
             <div class="p-4 space-y-3.5">
+                <input type="hidden" id="exp-appr-is-batch" value="0">
                 <div class="bg-emerald-50/80 p-3 rounded-lg border border-emerald-200 space-y-1">
                     <div class="flex justify-between">
-                        <span class="text-slate-500">Mã yêu cầu:</span>
+                        <span class="text-slate-500" id="exp-appr-code-label">Mã yêu cầu:</span>
                         <span id="exp-appr-code" class="font-mono font-bold text-slate-800"></span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-slate-500">Người nhận hoàn tiền:</span>
+                        <span class="text-slate-500" id="exp-appr-emp-label">Người nhận hoàn tiền:</span>
                         <span id="exp-appr-emp" class="font-bold text-slate-800"></span>
                     </div>
                     <div class="flex justify-between items-center pt-1 border-t border-emerald-200/60">
-                        <span class="text-slate-700 font-bold">Số tiền hoàn:</span>
+                        <span class="text-slate-700 font-bold" id="exp-appr-amount-label">Số tiền hoàn:</span>
                         <span id="exp-appr-amount" class="text-base font-black text-rose-600"></span>
                     </div>
+                </div>
+
+                <!-- Danh sách phiếu gộp (chỉ hiện khi duyệt nhiều) -->
+                <div id="exp-appr-batch-items-box" class="hidden space-y-1">
+                    <div class="text-[11px] font-bold text-slate-700 flex justify-between">
+                        <span>Chi tiết các phiếu được gộp:</span>
+                        <span id="exp-appr-batch-items-count" class="text-indigo-600 font-semibold"></span>
+                    </div>
+                    <div id="exp-appr-batch-items-list" class="max-h-36 overflow-y-auto space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-200 text-[11px]"></div>
                 </div>
 
                 <div>

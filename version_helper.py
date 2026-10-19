@@ -222,6 +222,8 @@ def get_app_version_info():
         if log_out:
             recent_items = []
             prefix_map = {
+                "feat(expense)": "💵 Hoàn Ứng & Dự Chi:",
+                "fix(expense)": "💵 Hoàn Ứng & Dự Chi:",
                 "fix(version-ui)": "🏷️ Phiên Bản & Giao Diện:",
                 "feat(version-ui)": "🏷️ Phiên Bản & Giao Diện:",
                 "feat(ux)": "✨ Trải Nghiệm:",
@@ -266,6 +268,8 @@ def get_app_version_info():
             }
 
             term_translations = [
+                ("auto suggest 10 products and 10 customers on pos search input click", "tự động gợi ý 10 hàng hóa và 10 khách hàng khi click ô tìm kiếm POS"),
+                ("batch approve expense requests with single consolidated cashbook entry and ui checkboxes", "cho phép tick chọn duyệt chi gộp nhiều phiếu yêu cầu tạo 1 phiếu chi tổng vào Sổ Quỹ"),
                 ("translate all git commits and changelog to friendly vietnamese and badge commit hash", "chuyển ngữ commit và nhật ký sang tiếng Việt thân thiện, gắn badge commit"),
                 ("translate changelog entries and git commits into clear vietnamese", "chuyển ngữ toàn bộ nhật ký cập nhật và commit Git sang tiếng Việt"),
                 ("support ingredient subcontracting, material bom, and full unit cost accounting in oem workflow", "hỗ trợ gia công nguyên liệu, định lượng phôi và hạch toán giá vốn hoàn thiện"),
