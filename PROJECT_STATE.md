@@ -44,7 +44,7 @@
 
 ---
 
-## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+# 4. Việc Kế Tiếp (Next Priority Tasks) 📌
 - [x] Bổ sung Nút "Lưu Đơn Nháp (DRAFT)" cho Phân Hệ OEM (`tests/test_oem_draft_mode.py` pass).
 - [x] Chức Năng AI Tự Động Tạo Đơn Nháp 1-Chạm (`tests/test_ai_quick_create_draft.py` pass).
 - [x] Phân Hệ "Phiếu Yêu Cầu Nhập Hàng" Bảo Mật Ẩn Danh NCC (`tests/test_purchase_request_masking.py` pass).
@@ -59,3 +59,9 @@
 - [x] Bổ Sung Nút 1-Chạm Chốt Đơn Đặt Hàng OEM Từ Bản Nháp (Đổi Nút "Nhận Hàng" Thành "Chốt Đơn" Cho Đơn DRAFT, `tests/test_oem_draft_confirm_to_order.py` pass).
 - [x] Đồng Bộ Cơ Chế 1-Chạm Chốt Đơn Đặt Hàng Cho Đơn Nhập Hàng NCC (PO) Bản Nháp (`tests/test_purchase_draft_confirm_to_order.py` pass).
 - [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).
+
+## 5. Phiên Bản & Bản Build Hiện Tại
+- Bản build EXE: `POS_Mastercare.exe` (31 MB)
+- Phiên bản: `v3.6.28` (Build date: `2026.10.23`)
+- Nhánh Git: `main` (Đồng bộ sạch sẽ với `origin/main`)
+- Bản đồ dự án tương tác: `PROJECT_MAP.html` (Đã cập nhật trọn bộ 6 tính năng đợt 23/10/2026 kèm tính năng Export Markdown).
