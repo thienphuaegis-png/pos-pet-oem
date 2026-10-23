@@ -928,6 +928,12 @@
                         </span>
                         <span class="sidebar-text truncate">Ca Làm Việc</span>
                     </button>
+                    <button onclick="switchTab('hrm')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="hrm" data-role="owner,accountant" data-tooltip="Chấm Công & Lương">
+                        <span class="sidebar-icon bg-emerald-100 text-emerald-800">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Chấm Công & Lương</span>
+                    </button>
                     <button onclick="switchTab('guide')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="guide" data-tooltip="Hướng Dẫn Nghiệp Vụ">
                         <span class="sidebar-icon bg-indigo-100 text-indigo-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
@@ -6261,6 +6267,161 @@
                 </div>
             </div>
 
+            <!-- TAB: CHẤM CÔNG & LƯƠNG (HRM) -->
+            <div id="tab-hrm" class="hidden space-y-4">
+                <!-- Thanh Header & Sub-tabs -->
+                <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">💼</span>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-800">Quản Lý Chấm Công & Bảng Lương</h2>
+                            <p class="text-[11px] text-slate-500">Khối làm việc, log vân tay, tính lương 4 tầng và xuất phiếu lương</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="month" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-emerald-500">
+                        <div class="flex bg-slate-100 p-1 rounded-lg gap-1 text-xs font-semibold">
+                            <button id="btn-hrm-tab-payroll" onclick="switchHrmSubTab('payroll')" class="px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer">Bảng Lương</button>
+                            <button id="btn-hrm-tab-attendance" onclick="switchHrmSubTab('attendance')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Chấm Công</button>
+                            <button id="btn-hrm-tab-overtime" onclick="switchHrmSubTab('overtime')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tăng Ca</button>
+                            <button id="btn-hrm-tab-advances" onclick="switchHrmSubTab('advances')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tạm Ứng</button>
+                            <button id="btn-hrm-tab-config" onclick="switchHrmSubTab('config')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Cài Đặt</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 1: BẢNG LƯƠNG -->
+                <div id="hrm-subtab-payroll" class="space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span id="hrm-payroll-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">TẠM TÍNH</span>
+                            <span id="hrm-payroll-lock-info" class="text-xs text-slate-500"></span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button id="btn-hrm-calc" onclick="calculateHrmPayroll()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">⚡ Tính Lương</button>
+                            <button id="btn-hrm-lock" onclick="lockHrmPayroll()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">🔒 Chốt Lương</button>
+                            <button id="btn-hrm-unlock" onclick="unlockHrmPayroll()" class="hidden bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">🔓 Mở Khóa</button>
+                            <button id="btn-hrm-pay" onclick="openHrmPayModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">💰 Trả Lương</button>
+                            <button onclick="exportHrmPayroll()" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">📥 Xuất Excel</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-2.5">Mã NV</th>
+                                    <th class="p-2.5">Họ và Tên</th>
+                                    <th class="p-2.5">Khối</th>
+                                    <th class="p-2.5 text-center">Công chuẩn</th>
+                                    <th class="p-2.5 text-center">Công CT</th>
+                                    <th class="p-2.5 text-center">Công TV</th>
+                                    <th class="p-2.5 text-right">Lương CB</th>
+                                    <th class="p-2.5 text-right">Lương công</th>
+                                    <th class="p-2.5 text-right">Phụ cấp</th>
+                                    <th class="p-2.5 text-right">Lễ</th>
+                                    <th class="p-2.5 text-right">Hoa hồng bán</th>
+                                    <th class="p-2.5 text-right">Hoa hồng Spa</th>
+                                    <th class="p-2.5 text-right">Tip</th>
+                                    <th class="p-2.5 text-right">Chuyên cần</th>
+                                    <th class="p-2.5 text-right">Thưởng SN</th>
+                                    <th class="p-2.5 text-right">Tăng ca</th>
+                                    <th class="p-2.5 text-right text-rose-600">Phạt</th>
+                                    <th class="p-2.5 text-right text-rose-600">Tạm ứng</th>
+                                    <th class="p-2.5 text-right font-black text-emerald-700">Thực Lãnh</th>
+                                    <th class="p-2.5 text-center">Trạng Thái Chi</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-hrm-payroll" class="divide-y divide-slate-100"></tbody>
+                            <tfoot id="table-hrm-payroll-foot" class="bg-slate-100 font-bold sticky bottom-0 border-t"></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 2: CHẤM CÔNG (LƯỚI THÁNG) -->
+                <div id="hrm-subtab-attendance" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-3 text-xs text-slate-600">
+                            <span><b class="text-emerald-600">X:</b> 1 công</span>
+                            <span><b class="text-sky-600">X/2:</b> 0.5 công</span>
+                            <span><b class="text-amber-600">TV:</b> Thử việc (85%)</span>
+                            <span><b class="text-slate-400">OFF:</b> Nghỉ phép</span>
+                            <span><b class="text-purple-600">L:</b> Ngày lễ</span>
+                            <span><b class="text-rose-600 font-mono">Đỏ:</b> Có vi phạm/phạt</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="hrm-file-import" accept=".xlsx,.xlsm" class="hidden" onchange="uploadAttendanceExcel(this)">
+                            <button onclick="document.getElementById('hrm-file-import').click()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">📤 Import File Vân Tay (.xlsx)</button>
+                        </div>
+                    </div>
+                    <div id="hrm-attendance-matrix-container" class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead id="table-hrm-att-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200"></thead>
+                            <tbody id="table-hrm-att-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 3: TĂNG CA -->
+                <div id="hrm-subtab-overtime" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex justify-between items-center">
+                        <span class="text-xs text-slate-600">Duyệt giờ tăng ca ngoài giờ (hệ số 150%)</span>
+                        <button onclick="openHrmOvertimeModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">➕ Thêm Giờ Tăng Ca</button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 font-bold border-b">
+                                <tr>
+                                    <th class="p-2.5">Ngày</th>
+                                    <th class="p-2.5">Nhân Viên</th>
+                                    <th class="p-2.5 text-center">Số Giờ OT</th>
+                                    <th class="p-2.5">Ghi Chú</th>
+                                    <th class="p-2.5">Người Duyệt</th>
+                                    <th class="p-2.5 text-center">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-hrm-overtime" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 4: TẠM ỨNG -->
+                <div id="hrm-subtab-advances" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex justify-between items-center">
+                        <span class="text-xs text-slate-600">Quản lý tạm ứng lương (tự trừ vào bảng lương của tháng ứng)</span>
+                        <button onclick="openHrmAdvanceModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer">➕ Thêm Khoản Tạm Ứng</button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 font-bold border-b">
+                                <tr>
+                                    <th class="p-2.5">Ngày Ứng</th>
+                                    <th class="p-2.5">Nhân Viên</th>
+                                    <th class="p-2.5 text-right">Số Tiền</th>
+                                    <th class="p-2.5">Phiếu Chi Sổ Quỹ</th>
+                                    <th class="p-2.5">Ghi Chú</th>
+                                    <th class="p-2.5">Người Tạo</th>
+                                    <th class="p-2.5 text-center">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-hrm-advances" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUBTAB 5: CÀI ĐẶT & KHỐI -->
+                <div id="hrm-subtab-config" class="hidden space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
+                        <h3 class="text-xs font-bold uppercase text-slate-700">Khối Làm Việc & Ca Chuẩn</h3>
+                        <div id="hrm-blocks-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
+                        <h3 class="text-xs font-bold uppercase text-slate-700">Quy Tắc Hoa Hồng Dịch Vụ Spa</h3>
+                        <div id="hrm-spa-rules-list"></div>
+                    </div>
+                </div>
+            </div>
+
             
             <!-- MODAL: TẠO / SỬA ĐƠN ĐẶT HÀNG MUA HÀNG -->
             <div id="modal-purchase-order" onclick="if(event.target === this) closePurchaseModal()" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
@@ -11572,6 +11733,7 @@
     <script src="/static/js/pos.js?v=20261021_07"></script>
     <script src="/static/js/modules/marketplace.js?v=20261016_01"></script>
     <script src="/static/js/clientlog.js?v=20261021_01"></script>
+    <script src="/static/js/modules/hrm.js?v=20261023_01"></script>
 
     <!-- MODAL: XEM ẢNH BILL CHỨNG TỪ -->
     <div id="modal-view-expense-bill" onclick="if(event.target === this) closeExpenseBillModal()" class="hidden fixed inset-0 bg-black/80 items-center justify-center z-[75] p-3 backdrop-blur-sm flex">

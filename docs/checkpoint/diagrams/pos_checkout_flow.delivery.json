@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "595583cb-67d7-4332-b7e4-1c82b7af41b2",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.candidate.json",
+  "output": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.html",
+  "specification": {
+    "sha256": "71ba472e1782406220a3bdeae8472fa2b00f66bb5ba70b1b2c39c64f2110f6c6",
+    "bytes": 4837
+  },
+  "artifact": {
+    "sha256": "f63e369588ae97b3c1bc36dc5ea5b558aeba53eafaef6b56252b06f09f6eb5a0",
+    "bytes": 823402
+  }
+}

@@ -4353,6 +4353,8 @@
                 }
             } else if (tabId === 'shifts') {
                 if (typeof loadShiftsHistory === 'function') loadShiftsHistory();
+            } else if (tabId === 'hrm') {
+                if (typeof initHrmTab === 'function') initHrmTab();
             } else if (tabId === 'purchases') {
                 renderTableSkeleton('table-purchases-history', 5, 10);
                 initPurchases();

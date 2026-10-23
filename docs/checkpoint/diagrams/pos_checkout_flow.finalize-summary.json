@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.candidate.json",
+    "sha256": "71ba472e1782406220a3bdeae8472fa2b00f66bb5ba70b1b2c39c64f2110f6c6",
+    "bytes": 4837
+  },
+  "artifact": {
+    "path": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.html",
+    "sha256": "f63e369588ae97b3c1bc36dc5ea5b558aeba53eafaef6b56252b06f09f6eb5a0",
+    "bytes": 823402
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.finalize.json",
+    "summaryReceipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.finalize-summary.json",
+    "browserCheckReceipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\docs\\checkpoint\\diagrams\\pos_checkout_flow.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-22T14:03:50.079Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5524,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

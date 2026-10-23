@@ -102,6 +102,7 @@ from routers.topup import router as topup_router
 from routers.hotel import router as hotel_router
 from routers.ai_assistant import router as ai_assistant_router
 from routers.marketplace import router as marketplace_router
+from routers.hrm import router as hrm_router
 
 app = FastAPI(title="POS KiotViet Offline")
 
@@ -467,7 +468,7 @@ for _r in (
     products_router, pos_router, inventory_router, bom_router, partners_router,
     pets_router, service_router, purchases_router, production_router, cashbook_router,
     price_lists_router, router_segments, promotions_router, oem_router, topup_router,
-    hotel_router, ai_assistant_router, marketplace_router,
+    hotel_router, ai_assistant_router, marketplace_router, hrm_router,
 ):
     app.include_router(_r, dependencies=_LOGIN_REQUIRED)
  

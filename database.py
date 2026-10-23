@@ -2058,6 +2058,10 @@ def init_db():
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_staff_reminders_staff ON staff_reminders(staff_id, is_done)")
 
+    # HRM: chấm công, tăng ca, tạm ứng, bảng lương, hoa hồng spa (services/hrm_schema.py)
+    from services.hrm_schema import ensure_hrm_schema
+    ensure_hrm_schema(cur)
+
     # Nạp các mã chứng từ hiện hữu vào archived_codes nếu chưa có
     try:
         cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'order' FROM orders WHERE code IS NOT NULL")

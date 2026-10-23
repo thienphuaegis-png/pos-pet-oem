@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Luồng Bán Hàng & Hạch Toán Đa Tầng POS Mastercare",
+    "output": "docs/checkpoint/diagrams/pos_checkout_flow.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "ui", "type": "frontend", "label": "Thu Ngân / UI", "sublabel": "Cart & Checkout" },
+    { "id": "pos", "type": "backend", "label": "POS Router", "sublabel": "routers/pos.py" },
+    { "id": "auth", "type": "security", "label": "Phân Quyền", "sublabel": "pos.sell & Ca làm" },
+    { "id": "wallet", "type": "database", "label": "Ví Dịch Vụ Spa", "sublabel": "contacts.spa_wallet" },
+    { "id": "inv", "type": "database", "label": "Tồn Kho & BOM", "sublabel": "products / BOM" },
+    { "id": "cashbook", "type": "database", "label": "Sổ Quỹ & Công Nợ", "sublabel": "PT-BH & Debt FIFO" },
+    { "id": "loyalty", "type": "backend", "label": "Tích Điểm Loyalty", "sublabel": "Auto-Tier Upgrade" }
+  ],
+  "segments": [
+    { "from": 155, "to": 232, "label": "1. Khởi tạo & Kiểm quyền" },
+    { "from": 238, "to": 350, "label": "2. Khấu trừ Ví & Xuất kho" },
+    { "from": 356, "to": 516, "label": "3. Hạch toán Quỹ & Thăng hạng" }
+  ],
+  "messages": [
+    { "id": "m1", "from": "ui", "to": "pos", "y": 165, "label": "POST /api/orders (items, voucher, payments)", "variant": "emphasis" },
+    { "id": "m2", "from": "pos", "to": "auth", "y": 193, "label": "verify require_permission('pos.sell')", "variant": "security" },
+    { "id": "m3", "from": "auth", "to": "pos", "y": 221, "label": "quyền hợp lệ & kiểm tra ca mở", "variant": "return" },
+    { "id": "m4", "from": "pos", "to": "wallet", "y": 250, "label": "tính T_spa & trừ ví: U = min(B, T_spa)", "variant": "emphasis" },
+    { "id": "m5", "from": "wallet", "to": "pos", "y": 278, "label": "ghi nhận spa_wallet_transactions", "variant": "return" },
+    { "id": "m6", "from": "pos", "to": "inv", "y": 306, "label": "trừ stock thành phẩm & BOM nguyên liệu", "variant": "emphasis" },
+    { "id": "m7", "from": "inv", "to": "pos", "y": 335, "label": "ghi log inventory_logs (SALE / COMBO)", "variant": "return" },
+    { "id": "m8", "from": "pos", "to": "cashbook", "y": 364, "label": "ghi nợ contacts.debt nếu còn thiếu", "variant": "default" },
+    { "id": "m9", "from": "pos", "to": "cashbook", "y": 393, "label": "sinh mã PT-BH & ghi sổ quỹ theo tài khoản", "variant": "emphasis" },
+    { "id": "m10", "from": "cashbook", "to": "pos", "y": 422, "label": "lưu order_payments & cashbook hoàn tất", "variant": "return" },
+    { "id": "m11", "from": "pos", "to": "loyalty", "y": 450, "label": "tính points = paid // exchange_rate", "variant": "default" },
+    { "id": "m12", "from": "loyalty", "to": "pos", "y": 478, "label": "xét thăng hạng customer_segments", "variant": "return" },
+    { "id": "m13", "from": "pos", "to": "ui", "y": 506, "label": "200 OK (order_code, in hóa đơn K80/A4)", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "ui", "from": 160, "to": 512, "type": "frontend" },
+    { "participant": "pos", "from": 165, "to": 506, "type": "backend" },
+    { "participant": "auth", "from": 190, "to": 226, "type": "security" },
+    { "participant": "wallet", "from": 246, "to": 282, "type": "database" },
+    { "participant": "inv", "from": 302, "to": 340, "type": "database" },
+    { "participant": "cashbook", "from": 360, "to": 426, "type": "database" },
+    { "participant": "loyalty", "from": 446, "to": 482, "type": "backend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Bảo Toàn Tồn Kho",
+      "items": [
+        "Hỗ trợ cấu trúc đa tầng: Trừ stock sản phẩm trực tiếp hoặc phân rã Combo",
+        "Tự động tính định lượng BOM và khấu trừ nguyên liệu cấp 2",
+        "Ghi vết lịch sử xuất kho chi tiết kèm order_code đối soát"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Tách Quỹ & Ví Nghiêm Ngặt",
+      "items": [
+        "Ví Spa chỉ được thanh toán cho dịch vụ Spa (không áp dụng lưu trú Hotel)",
+        "Tiền mặt vào két, chuyển khoản/thẻ vào đúng tài khoản ngân hàng",
+        "Khách lẻ không được ghi nợ; khách quen ghi nhận công nợ FIFO"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Loyalty Tự Động",
+      "items": [
+        "Điểm thưởng tự động cộng dồn theo tỷ lệ quy đổi trong Settings",
+        "Tự động so khớp min_points để nâng cấp phân hạng khách hàng ngay khi thanh toán",
+        "Trả kết quả kèm tier_upgraded để hiển thị chúc mừng trên bill"
+      ]
+    }
+  ]
+}

@@ -181,7 +181,8 @@ const PERM_LABEL = {
   "shifts.approve": "Duyệt Ca Làm Việc",
   "shifts.bypass": "Bán hàng không cần mở ca",
   "settings.access": "Truy cập Cài Đặt",
-  "spa.pick_date": "Chọn ngày xem lịch Spa"
+  "spa.pick_date": "Chọn ngày xem lịch Spa",
+  "payroll.manage": "Quản lý Chấm công & Lương"
 };
 const MODULE_LABEL = {
   module_hotel: "Khách Sạn Thú Cưng",

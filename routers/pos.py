@@ -307,6 +307,11 @@ def bulk_update_order_staff(req: BulkUpdateStaffReq, user=Depends(require_permis
         placeholders = ",".join("?" for _ in req.order_codes)
         cur.execute(f"UPDATE orders SET staff_id = ? WHERE code IN ({placeholders})", [req.new_staff_id] + req.order_codes)
         updated_count = cur.rowcount
+        from services.commission import calc_order_commission
+        cur.execute(f"SELECT id, total_amount, discount FROM orders WHERE code IN ({placeholders})", req.order_codes)
+        for o in cur.fetchall():
+            cur.execute("UPDATE orders SET commission_amount = ? WHERE id = ?",
+                        (calc_order_commission(cur, req.new_staff_id, o["total_amount"], o["discount"]), o["id"]))
         conn.commit()
     except HTTPException:
         conn.close()
@@ -1127,11 +1132,6 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         actual_paid = min(req.paid_amount, final_amount) if req.paid_amount > 0 else 0.0
         debt_amount = max(0.0, final_amount - actual_paid)
         
-        cur.execute("SELECT commission_rate FROM staff WHERE id = ?", (req.staff_id,))
-        staff_row = cur.fetchone()
-        comm_rate = staff_row["commission_rate"] if staff_row else 0
-        commission_amount = (final_amount * comm_rate) / 100.0
-
         base_code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
         code = base_code
         seq = 1
@@ -1163,6 +1163,9 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 effective_staff_id = user["id"]
         if not effective_staff_id:
             effective_staff_id = 1
+
+        from services.commission import calc_order_commission
+        commission_amount = calc_order_commission(cur, effective_staff_id, total_amount, req.discount)
 
         warehouse_id = req.warehouse_id or 1
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
@@ -1741,13 +1744,15 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         new_debt = max(0, final_amount - actual_new_paid)
 
         new_vat_amount = vat_amount if req.items is not None else (order["vat_amount"] or 0.0)
+        from services.commission import calc_order_commission
+        new_commission = calc_order_commission(cur, new_staff_id, total_amount, new_discount)
         updater_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
         UPDATE orders 
-        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, vat_amount = ?, updated_by = ?, updated_at = ?
+        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, vat_amount = ?, commission_amount = ?, updated_by = ?, updated_at = ?
         WHERE id = ?
-        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, new_vat_amount, updater_name, now_vn, order_id))
+        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, new_vat_amount, new_commission, updater_name, now_vn, order_id))
 
         if old_customer_id == new_customer_id:
             diff_debt = new_debt - old_debt

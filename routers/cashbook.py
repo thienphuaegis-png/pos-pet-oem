@@ -462,6 +462,8 @@ def delete_cashbook_voucher(
             cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (tx_id,))
 
     cur.execute("UPDATE expense_requests SET status = 'pending', cashbook_id = NULL WHERE cashbook_id = ?", (voucher_id,))
+    from services.payroll_service import on_cashbook_deleted
+    on_cashbook_deleted(cur, voucher_id)
     cur.execute("DELETE FROM cashbook WHERE id = ?", (voucher_id,))
     conn.commit()
     conn.close()
@@ -667,9 +669,9 @@ def report_summary():
     # No NCC
     cur.execute("SELECT COALESCE(SUM(debt), 0) FROM contacts WHERE type = 'supplier'")
     supplier_debt = cur.fetchone()[0]
-    # Tong hoa hong nhan vien
-    cur.execute("SELECT COALESCE(SUM(commission_amount), 0) FROM orders")
-    total_comm = cur.fetchone()[0]
+    # Tong hoa hong nhan vien (doanh thu thuần, bỏ đơn nháp, trừ hàng trả)
+    from services.commission import sales_commission_by_staff
+    total_comm = sum(v["commission"] for v in sales_commission_by_staff(cur, "2000-01-01 00:00:00", "2100-12-31 23:59:59").values())
 
     conn.close()
     return {
@@ -726,7 +728,9 @@ def get_reports_analytics(
     total_rev = stat_row["total_revenue"] or 0
     total_paid = stat_row["total_paid"] or 0
     total_debt = stat_row["total_debt"] or 0
-    total_comm = stat_row["total_commission"] or 0
+    from services.commission import sales_commission_by_staff
+    comm_by_staff = sales_commission_by_staff(cur, from_dt_str, to_dt_str)
+    total_comm = sum(v["commission"] for v in comm_by_staff.values())
 
     # 2. Timeline xu hướng doanh thu & số đơn (gom theo ngày)
     cur.execute("""
@@ -986,6 +990,8 @@ def get_reports_analytics(
     ORDER BY revenue DESC
     """, (from_dt_str, to_dt_str))
     staff_rows = [dict(r) for r in cur.fetchall()]
+    for s in staff_rows:
+        s["commission"] = comm_by_staff.get(s["staff_id"], {}).get("commission", 0)
 
     # 6. Top Mặt Hàng & Dịch Vụ Bán Chạy Nhất (Top 20)
     cur.execute("""

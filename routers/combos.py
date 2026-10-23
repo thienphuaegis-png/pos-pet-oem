@@ -396,11 +396,9 @@ def sell_combo(
         final_amount = max(0.0, total_amount - discount)
         debt_amount = max(0.0, final_amount - paid_amount)
 
-        # Staff commission
-        cur.execute("SELECT commission_rate FROM staff WHERE id = ?", (staff_id,))
-        staff_row = cur.fetchone()
-        comm_rate = staff_row["commission_rate"] if staff_row else 0
-        commission_amount = (final_amount * comm_rate) / 100.0
+        # Staff commission (doanh thu thuần = tiền hàng - giảm giá)
+        from services.commission import calc_order_commission
+        commission_amount = calc_order_commission(cur, staff_id, total_amount, discount)
 
         warehouse_id = 1
 
