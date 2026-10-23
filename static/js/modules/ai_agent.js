@@ -601,60 +601,104 @@
                 }
 
                 if (col2KpiGrid) {
+                    const pendingReqs = data.warehouse_kpi?.pending_purchase_requests || [];
+                    const pendingCount = data.warehouse_kpi?.pending_request_count || pendingReqs.length;
+
                     col2KpiGrid.innerHTML = `
-                        <div onclick="openLowStockModal()" class="bg-white p-2.5 rounded-lg border border-rose-200 bg-rose-50/30 cursor-pointer hover:border-rose-400 transition group shadow-2xs">
+                        <div onclick="openLowStockModal()" class="bg-white p-2 rounded-lg border border-rose-200 bg-rose-50/30 cursor-pointer hover:border-rose-400 transition group shadow-2xs">
                             <div class="text-[10px] text-rose-700 font-bold flex items-center justify-between">
-                                <span>Hàng Sắp Hết (Cần Đặt)</span>
+                                <span>Hàng Sắp Hết</span>
                                 <span class="group-hover:scale-110 transition-transform">🚨</span>
                             </div>
-                            <div class="text-sm font-black text-rose-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} mặt hàng</div>
-                            <div class="text-[9px] text-rose-500 mt-0.5">Tồn kho &le; định mức tối thiểu</div>
+                            <div class="text-sm font-black text-rose-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} món</div>
+                            <div class="text-[9px] text-rose-500 mt-0.5">Cần đặt NCC</div>
                         </div>
-                        <div onclick="if(typeof switchTab==='function') switchTab('purchases')" class="bg-white p-2.5 rounded-lg border border-purple-200 bg-purple-50/30 cursor-pointer hover:border-purple-400 transition group shadow-2xs">
-                            <div class="text-[10px] text-purple-700 font-bold flex items-center justify-between">
-                                <span>Đơn Đang Chờ Về</span>
-                                <span class="group-hover:scale-110 transition-transform">📦</span>
+                        <div onclick="if(typeof switchTab==='function') switchTab('purchase-requests')" class="bg-white p-2 rounded-lg border border-amber-200 bg-amber-50/30 cursor-pointer hover:border-amber-400 transition group shadow-2xs">
+                            <div class="text-[10px] text-amber-700 font-bold flex items-center justify-between">
+                                <span>Yêu Cầu Chờ Duyệt</span>
+                                <span class="group-hover:scale-110 transition-transform">📋</span>
                             </div>
-                            <div class="text-sm font-black text-purple-700 font-mono mt-0.5">${data.warehouse_kpi?.incoming_count || 0} đơn / lô</div>
-                            <div class="text-[9px] text-purple-600 mt-0.5">PN nhập NCC & Đơn OEM</div>
+                            <div class="text-sm font-black text-amber-600 font-mono mt-0.5">${pendingCount} phiếu</div>
+                            <div class="text-[9px] text-amber-600 mt-0.5">Từ CH & Spa</div>
                         </div>
                     `;
                 }
 
-                if (col2ListTitle) col2ListTitle.textContent = "🚚 Lô Hàng Đang Về & Dự Kiến Giao";
-                if (col2ListSub) col2ListSub.textContent = "(Bấm vào để nhận hàng ngay)";
+                if (col2ListTitle) col2ListTitle.textContent = "🚚 Hàng Đang Về & Yêu Cầu Cần Duyệt";
+                if (col2ListSub) col2ListSub.textContent = "(Bấm để xử lý ngay)";
 
                 if (col2ListContent) {
                     const shipments = data.warehouse_kpi?.incoming_shipments || [];
-                    if (shipments.length === 0) {
-                        col2ListContent.innerHTML = `<div class="text-slate-400 py-3 text-center italic text-xs">Hiện không có đơn hàng nào đang chờ về kho.</div>`;
-                    } else {
-                        col2ListContent.innerHTML = shipments.map(s => {
-                            const isPurchase = s.shipment_type === 'purchase';
-                            const clickFn = isPurchase 
-                                ? `if(typeof openReceiveModal==='function') openReceiveModal('${s.code}', false);`
-                                : `if(typeof openModalReceiveOEM==='function') openModalReceiveOEM(${s.id});`;
-                            const badge = isPurchase 
-                                ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">📥 Nhập NCC</span>`
-                                : `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 shrink-0">🏭 Đơn OEM</span>`;
+                    const pendingReqs = data.warehouse_kpi?.pending_purchase_requests || [];
 
-                            return `
-                                <div onclick="${clickFn}" class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-0.5 group">
-                                    <div class="flex justify-between items-center font-bold text-slate-800">
-                                        <div class="flex items-center gap-1.5 truncate mr-2">
-                                            ${badge}
-                                            <span class="truncate group-hover:text-purple-700">${s.code}: ${s.partner_name}</span>
-                                        </div>
-                                        <span class="text-purple-700 font-mono text-[10px] shrink-0 font-bold">${s.expected_date}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center text-[10px] text-slate-500">
-                                        <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
-                                        <span class="font-bold text-slate-700 font-mono">${typeof formatMoney === 'function' ? formatMoney(s.amount) : s.amount}</span>
-                                    </div>
+                    let html = '';
+                    // 1. Render các Phiếu Yêu Cầu Cần Duyệt Trước Tiên
+                    if (pendingReqs.length > 0) {
+                        html += `
+                            <div class="space-y-1 pb-1">
+                                <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                                    <span>🔔</span> Phiếu Yêu Cầu Chờ Lên PO (${pendingReqs.length})
                                 </div>
-                            `;
-                        }).join('');
+                                ${pendingReqs.map(pr => `
+                                    <div class="p-2 rounded-lg bg-amber-50/60 border border-amber-200 hover:border-amber-400 transition flex items-center justify-between gap-2">
+                                        <div class="truncate">
+                                            <div class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                                <span class="font-mono text-amber-800">${pr.code}</span>
+                                                <span class="text-[9px] bg-white border border-amber-300 text-amber-700 px-1 rounded font-bold">${pr.dept_label}</span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                                ${pr.created_by} &bull; <b class="text-slate-700">${pr.item_count} món</b> (SL: ${pr.total_qty})
+                                            </div>
+                                        </div>
+                                        <button type="button" onclick="quickConvertRequestToPO(${pr.id}, '${pr.code}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] shadow-2xs shrink-0 flex items-center gap-1">
+                                            <span>⚡</span> Lên PO
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
                     }
+
+                    // 2. Render các Đơn hàng đang trên đường về
+                    if (shipments.length > 0) {
+                        html += `
+                            <div class="space-y-1 pt-1">
+                                <div class="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                                    <span>🚚</span> Lô Hàng Đang Về Kho (${shipments.length})
+                                </div>
+                                ${shipments.map(s => {
+                                    const isPurchase = s.shipment_type === 'purchase';
+                                    const clickFn = isPurchase 
+                                        ? `if(typeof openReceiveModal==='function') openReceiveModal('${s.code}', false);`
+                                        : `if(typeof openModalReceiveOEM==='function') openModalReceiveOEM(${s.id});`;
+                                    const badge = isPurchase 
+                                        ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">📥 Nhập NCC</span>`
+                                        : `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 shrink-0">🏭 Đơn OEM</span>`;
+
+                                    return `
+                                        <div onclick="${clickFn}" class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-0.5 group">
+                                            <div class="flex justify-between items-center font-bold text-slate-800">
+                                                <div class="flex items-center gap-1.5 truncate mr-2">
+                                                    ${badge}
+                                                    <span class="truncate group-hover:text-purple-700">${s.code}: ${s.partner_name}</span>
+                                                </div>
+                                                <span class="text-purple-700 font-mono text-[10px] shrink-0 font-bold">${s.expected_date}</span>
+                                            </div>
+                                            <div class="flex justify-between items-center text-[10px] text-slate-500">
+                                                <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
+                                                <span class="font-bold text-slate-700 font-mono">${typeof formatMoney === 'function' ? formatMoney(s.amount) : s.amount}</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+
+                    if (!html) {
+                        html = `<div class="text-slate-400 py-3 text-center italic text-xs">Hiện kho không có yêu cầu nhập hàng hay đơn hàng đang chờ về.</div>`;
+                    }
+                    col2ListContent.innerHTML = html;
                 }
 
                 if (col2FooterBox) {
@@ -1120,9 +1164,20 @@
     };
 
     window.batchCreateDraftsAll = async function() {
-        if (!confirm('🚀 Bạn có muốn tự động tạo / gộp đơn nháp cho TOÀN BỘ các Nhà Cung Cấp & Xưởng có hàng chạm đáy tồn?')) {
-            return;
+        let confirmed = false;
+        if (typeof window.showConfirmModal === 'function') {
+            confirmed = await window.showConfirmModal({
+                title: "Tạo Nháp Toàn Bộ NCC",
+                message: "Bạn có muốn tự động tạo / gộp đơn nháp cho <b>TOÀN BỘ</b> các Nhà Cung Cấp & Xưởng có hàng chạm đáy tồn?",
+                confirmText: "Tạo Tất Cả",
+                cancelText: "Hủy bỏ",
+                icon: "🚀"
+            });
+        } else {
+            confirmed = confirm('Bạn có muốn tự động tạo / gộp đơn nháp cho TOÀN BỘ các Nhà Cung Cấp & Xưởng có hàng chạm đáy tồn?');
         }
+
+        if (!confirmed) return;
 
         try {
             const res = await fetch('/api/ai/batch-create-drafts', {

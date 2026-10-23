@@ -52,4 +52,8 @@
 - [x] Tạo Nháp Hàng Loạt Theo NCC & Cập Nhật Tồn Dự Kiến Ngay Sau Khi Lập Đơn (`tests/test_ai_batch_drafts_and_projected_stock.py` pass).
 - [x] Tab "Yêu Cầu Đặt Hàng" (Purchase Requisition) Dành Riêng Cho Nhân Viên Cửa Hàng & Spa (`purchase_requests.js`, UI 2 cột).
 - [x] Định Dạng Tiền Tệ Real-time Có Dấu Chấm Phân Cách Cho Modal Thanh Toán Nợ NCC & Hẹn Trả Nợ (`#cfd-pay-amount`, `#plan-amount`, `#cfd-pay-order-amount`).
+- [x] Sửa Lỗi Nhân Bản Dòng Đơn PO Khi Chuyển Từ Phiếu Yêu Cầu (`tests/test_fix_duplicate_po_lines_and_ai_hub.py` pass).
+- [x] Đẩy Trực Tiếp Phiếu Yêu Cầu Nhập Hàng Chờ Duyệt Ra Màn Hình Tác Nhân AI Hub Kèm Nút 1-Chạm Lên PO.
+- [x] Đồng Bộ Popup Xác Nhận Bằng Modal POS Chuẩn Thay Vì confirm() Trình Duyệt.
+- [x] Thu Gọn Widget Bóc Tách Chứng Từ AI (Compact Slim Card) Nhường Không Gian Cho Trung Tâm Nghiệp Vụ.
 - [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).

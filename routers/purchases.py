@@ -1158,9 +1158,9 @@ def get_masked_catalog_for_requisition():
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT p.id, p.code, p.name, p.unit, p.stock, p.category, si.supplier_id
+            SELECT p.id, p.code, p.name, p.unit, p.stock, p.category,
+                   (SELECT supplier_id FROM supplier_items WHERE product_id = p.id AND item_type = 'product' AND supplier_id IS NOT NULL ORDER BY id DESC LIMIT 1) as supplier_id
             FROM products p
-            LEFT JOIN supplier_items si ON p.id = si.product_id
             WHERE p.is_active = 1 AND p.type = 'product'
             ORDER BY p.name ASC
         """)
@@ -1342,11 +1342,21 @@ def convert_request_to_po(request_id: int, user: dict = Depends(require_permissi
             raise HTTPException(status_code=400, detail=f"Phiếu yêu cầu đã được chuyển đổi sang PO: {pr['converted_purchase_code']}")
 
         cur.execute("""
-            SELECT pri.product_id, pri.quantity, p.name as product_name, p.unit, p.cost_price, si.supplier_id
+            SELECT pri.product_id, pri.quantity, p.name as product_name, p.unit,
+                   COALESCE(
+                       (SELECT default_cost FROM supplier_items WHERE product_id = p.id AND item_type = 'product' AND default_cost > 0 ORDER BY id DESC LIMIT 1),
+                       (SELECT cost_price FROM purchase_items WHERE product_id = p.id AND cost_price > 0 ORDER BY id DESC LIMIT 1),
+                       p.cost_price,
+                       0.0
+                   ) as cost_price,
+                   COALESCE(
+                       (SELECT supplier_id FROM supplier_items WHERE product_id = p.id AND item_type = 'product' AND supplier_id IS NOT NULL ORDER BY id DESC LIMIT 1),
+                       (SELECT p_sub.supplier_id FROM purchase_items pi_sub JOIN purchases p_sub ON pi_sub.purchase_id = p_sub.id WHERE pi_sub.product_id = p.id AND p_sub.supplier_id IS NOT NULL ORDER BY p_sub.id DESC LIMIT 1)
+                   ) as supplier_id
             FROM purchase_request_items pri
             JOIN products p ON pri.product_id = p.id
-            LEFT JOIN supplier_items si ON p.id = si.product_id
             WHERE pri.request_id = ?
+            ORDER BY pri.id ASC
         """, (request_id,))
         items = cur.fetchall()
         if not items:

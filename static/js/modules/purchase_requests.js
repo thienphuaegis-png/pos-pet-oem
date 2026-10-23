@@ -328,9 +328,20 @@
     };
 
     window.quickConvertRequestToPO = async function(requestId, code) {
-        if (!confirm(`⚡ Bạn có muốn chuyển phiếu yêu cầu ${code} thành đơn nhập hàng PO thật dạng nháp?`)) {
-            return;
+        let confirmed = false;
+        if (typeof window.showConfirmModal === 'function') {
+            confirmed = await window.showConfirmModal({
+                title: "Duyệt Yêu Cầu & Lên PO",
+                message: `Bạn có muốn chuyển phiếu yêu cầu <b>${code}</b> thành đơn nhập hàng PO thật dạng nháp?`,
+                confirmText: "Lên PO Thật",
+                cancelText: "Hủy bỏ",
+                icon: "⚡"
+            });
+        } else {
+            confirmed = confirm(`Bạn có muốn chuyển phiếu yêu cầu ${code} thành đơn nhập hàng PO thật dạng nháp?`);
         }
+
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`/api/purchase-requests/${requestId}/convert-to-po`, {

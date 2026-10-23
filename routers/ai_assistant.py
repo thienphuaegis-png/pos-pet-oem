@@ -1095,6 +1095,32 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
     debt_oem = float(cur.fetchone()[0] or 0.0)
     total_payable = debt_purchases + debt_oem
 
+    # 7b. Phiếu yêu cầu nhập hàng chờ duyệt (Purchase Requisitions Pending)
+    pending_purchase_requests = []
+    cur.execute("""
+        SELECT pr.id, pr.code, pr.department, pr.priority, pr.created_by, pr.created_at, pr.note,
+               COUNT(pri.id) as item_count, COALESCE(SUM(pri.quantity), 0) as total_qty
+        FROM purchase_requests pr
+        LEFT JOIN purchase_request_items pri ON pr.id = pri.request_id
+        WHERE pr.status = 'pending'
+        GROUP BY pr.id
+        ORDER BY pr.id DESC
+        LIMIT 10
+    """)
+    for r in cur.fetchall():
+        pending_purchase_requests.append({
+            "id": r["id"],
+            "code": r["code"],
+            "department": r["department"],
+            "dept_label": "💆 Spa" if r["department"] == 'spa' else "🏪 Cửa hàng",
+            "priority": r["priority"],
+            "created_by": r["created_by"] or "Nhân viên",
+            "created_at": str(r["created_at"] or "")[:16],
+            "note": r["note"] or "",
+            "item_count": r["item_count"] or 0,
+            "total_qty": float(r["total_qty"] or 0)
+        })
+
     # 8. Dữ liệu cho KẾ TOÁN
     cur.execute("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM expense_requests WHERE status = 'pending'")
     exp_row = cur.fetchone()
@@ -1155,11 +1181,13 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
         "warehouse_kpi": {
             "low_stock_count": low_stock_count,
             "incoming_count": incoming_count,
+            "pending_request_count": len(pending_purchase_requests),
             "debt_to_suppliers": debt_purchases,
             "debt_to_oem": debt_oem,
             "total_payable": total_payable,
             "low_stock_products": low_stock_products,
-            "incoming_shipments": incoming_shipments
+            "incoming_shipments": incoming_shipments,
+            "pending_purchase_requests": pending_purchase_requests
         },
         "accountant_kpi": {
             "receivable_count": unpaid_count,
