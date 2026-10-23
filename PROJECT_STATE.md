@@ -57,4 +57,5 @@
 - [x] Đồng Bộ Popup Xác Nhận Bằng Modal POS Chuẩn Thay Vì confirm() Trình Duyệt.
 - [x] Thu Gọn Widget Bóc Tách Chứng Từ AI (Compact Slim Card) Nhường Không Gian Cho Trung Tâm Nghiệp Vụ.
 - [x] Bổ Sung Nút 1-Chạm Chốt Đơn Đặt Hàng OEM Từ Bản Nháp (Đổi Nút "Nhận Hàng" Thành "Chốt Đơn" Cho Đơn DRAFT, `tests/test_oem_draft_confirm_to_order.py` pass).
+- [x] Đồng Bộ Cơ Chế 1-Chạm Chốt Đơn Đặt Hàng Cho Đơn Nhập Hàng NCC (PO) Bản Nháp (`tests/test_purchase_draft_confirm_to_order.py` pass).
 - [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).

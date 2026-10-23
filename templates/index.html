@@ -6571,10 +6571,13 @@
                             <button id="btn-pay-purchase-debt" onclick="openPayPurchaseModal(currentViewingPurchase.code, currentViewingPurchase.debt_amount, currentViewingPurchase.fund_source || 'PERSONAL')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
                                 <span>💳 Chi Trả Nợ</span>
                             </button>
-                            <button onclick="closeReceiveModal()" class="px-4 py-2 border rounded font-bold text-gray-600 hover:bg-gray-100 text-xs">
+                            <button type="button" onclick="closeReceiveModal()" class="px-4 py-2 border rounded font-medium text-gray-600 hover:bg-gray-100 text-xs">
                                 Đóng
                             </button>
-                            <button id="btn-confirm-receive" onclick="submitConfirmReceive()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
+                            <button id="btn-confirm-po-draft" type="button" onclick="confirmPurchaseFromReceiveModal()" class="hidden px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
+                                <span>🚀 CHỐT ĐẶT HÀNG CHÍNH THỨC</span>
+                            </button>
+                            <button id="btn-confirm-receive" onclick="submitConfirmReceive()" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold shadow text-xs flex items-center gap-1">
                                 <span>📥 XÁC NHẬN NHẬN HÀNG VÀO KHO</span>
                             </button>
                         </div>

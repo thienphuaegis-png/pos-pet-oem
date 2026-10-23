@@ -912,6 +912,35 @@ def print_purchase_checklist(code: str):
 """
     return HTMLResponse(content=html)
 
+@router.post("/api/purchases/{code}/confirm")
+def confirm_purchase_order(code: str, user=Depends(require_permission("purchases.manage"))):
+    """1-chạm xác nhận đơn nháp NCC (draft) thành đơn đặt hàng chính thức (pending - Chờ nhận hàng)."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đơn nhập hàng")
+        if p["status"] != "draft":
+            raise HTTPException(status_code=400, detail=f"Đơn hàng đang ở trạng thái {p['status']}, không phải bản nháp")
+
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        cur.execute("""
+            UPDATE purchases
+            SET status = 'pending', updated_by = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (user_name, p["id"]))
+        conn.commit()
+        return {"status": "ok", "purchase_code": code, "new_status": "pending", "message": "Đã chuyển đơn nháp sang Đơn Đặt Hàng chính thức (Chờ Nhận Hàng)"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
 @router.delete("/api/purchases/{code}")
 def delete_purchase(code: str, user=Depends(get_current_user)):
     """

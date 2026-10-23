@@ -1072,9 +1072,15 @@
                         : '';
 
                     let primaryActionBtn = '';
-                    if (p.status === 'pending' || p.status === 'draft') {
+                    if (p.status === 'draft') {
                         primaryActionBtn = `
-                            <button type="button" onclick="openReceiveModal('${escapeHtml(p.code)}', false)" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition" title="Kiểm đếm và xác nhận nhập kho thực tế">
+                            <button type="button" onclick="confirmPurchaseDraftToOrder('${escapeHtml(p.code)}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition flex items-center gap-1" title="Chốt đơn nháp thành Đơn Đặt Hàng chính thức">
+                                <span>🚀</span> Chốt Đơn
+                            </button>
+                        `;
+                    } else if (p.status === 'pending') {
+                        primaryActionBtn = `
+                            <button type="button" onclick="openReceiveModal('${escapeHtml(p.code)}', false)" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-2xs transition" title="Kiểm đếm và xác nhận nhập kho thực tế">
                                 Nhận hàng
                             </button>
                         `;
@@ -1134,6 +1140,10 @@
                                         </button>
                                         <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
                                             <div class="py-0.5">
+                                                ${p.status === 'draft' ? `
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); confirmPurchaseDraftToOrder('${escapeHtml(p.code)}')" class="w-full px-3 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-bold">
+                                                    <span>🚀</span> <span>Chốt Đặt Hàng</span>
+                                                </button>` : ''}
                                                 <button type="button" onclick="closeAllPurchaseActionMenus(); openReceiveModal('${escapeHtml(p.code)}', true)" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                     <span>👁️</span> <span>Chi tiết</span>
                                                 </button>
@@ -1162,6 +1172,38 @@
             }
         }
 
+        async function confirmPurchaseDraftToOrder(code) {
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: "Chốt Đặt Hàng Nhà Cung Cấp",
+                    message: `Bạn có muốn chuyển đơn nháp <b>${code}</b> thành Đơn Đặt Hàng chính thức (Chờ Nhận Hàng)?`,
+                    confirmText: "Chốt Đặt Hàng",
+                    cancelText: "Hủy bỏ",
+                    icon: "🚀"
+                });
+            } else {
+                confirmed = confirm(`Bạn có muốn chuyển đơn nháp ${code} thành đơn đặt hàng chính thức?`);
+            }
+
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/purchases/${code}/confirm`, {
+                    method: 'POST'
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Lỗi chuyển đổi đơn nhập hàng');
+                }
+                alert(`✅ Đã chốt đơn nhập hàng ${code} thành công! Trạng thái: Chờ Nhận Hàng.`);
+                loadPurchasesList();
+            } catch (e) {
+                alert(`❌ Lỗi: ${e.message}`);
+            }
+        }
+        window.confirmPurchaseDraftToOrder = confirmPurchaseDraftToOrder;
+
         async function openReceiveModal(code, readonly = false) {
             try {
                 const res = await fetch(`/api/purchases/${code}`);
@@ -1181,6 +1223,8 @@
                     statusBadgeEl.innerHTML = '<span class="text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">Đã Nhập Kho (' + (data.received_date || '') + ')</span>';
                 } else if (data.status === 'cancelled') {
                     statusBadgeEl.innerHTML = '<span class="text-rose-600 bg-rose-100 px-2 py-0.5 rounded">Đã Hủy</span>';
+                } else if (data.status === 'draft') {
+                    statusBadgeEl.innerHTML = '<span class="text-slate-600 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded font-bold">Bản Nháp (Chưa Chốt Đặt)</span>';
                 } else {
                     statusBadgeEl.innerHTML = '<span class="text-amber-600 bg-amber-100 px-2 py-0.5 rounded">Chờ Nhận Hàng</span>';
                 }
@@ -1212,26 +1256,34 @@
                 }).join('');
 
                 const btnConfirm = document.getElementById('btn-confirm-receive');
+                const btnConfirmDraft = document.getElementById('btn-confirm-po-draft');
                 const btnPayDebt = document.getElementById('btn-pay-purchase-debt');
                 const actionBox = document.getElementById('rec-action-box');
                 const footerNote = document.getElementById('rec-footer-note');
 
                 if (btnPayDebt) {
-                    if ((data.debt_amount || 0) > 0 && data.status !== 'cancelled') {
+                    if ((data.debt_amount || 0) > 0 && data.status !== 'cancelled' && data.status !== 'draft') {
                         btnPayDebt.classList.remove('hidden');
                     } else {
                         btnPayDebt.classList.add('hidden');
                     }
                 }
 
-                if (isReceived) {
-                    btnConfirm.classList.add('hidden');
-                    actionBox.classList.add('hidden');
-                    footerNote.textContent = 'Phiếu này đã hoàn tất nhận hàng và cập nhật tồn kho.';
+                if (data.status === 'draft') {
+                    if (btnConfirmDraft) btnConfirmDraft.classList.remove('hidden');
+                    if (btnConfirm) btnConfirm.classList.add('hidden');
+                    if (actionBox) actionBox.classList.add('hidden');
+                    if (footerNote) footerNote.textContent = 'Đơn này đang là BẢN NHÁP. Bấm nút Chốt Đặt Hàng để gửi NCC và chuyển sang Chờ Nhận Hàng.';
+                } else if (isReceived) {
+                    if (btnConfirmDraft) btnConfirmDraft.classList.add('hidden');
+                    if (btnConfirm) btnConfirm.classList.add('hidden');
+                    if (actionBox) actionBox.classList.add('hidden');
+                    if (footerNote) footerNote.textContent = 'Phiếu này đã hoàn tất nhận hàng và cập nhật tồn kho.';
                 } else {
-                    btnConfirm.classList.remove('hidden');
-                    actionBox.classList.remove('hidden');
-                    footerNote.textContent = 'Hệ thống sẽ cộng dồn tồn kho và ghi nhận thẻ kho ngay khi bấm nhận hàng.';
+                    if (btnConfirmDraft) btnConfirmDraft.classList.add('hidden');
+                    if (btnConfirm) btnConfirm.classList.remove('hidden');
+                    if (actionBox) actionBox.classList.remove('hidden');
+                    if (footerNote) footerNote.textContent = 'Hệ thống sẽ cộng dồn tồn kho và ghi nhận thẻ kho ngay khi bấm nhận hàng.';
                     document.getElementById('rec-note-input').value = '';
                 }
 
@@ -1247,6 +1299,14 @@
             currentViewingPurchase = null;
         }
         window.closeReceiveModal = closeReceiveModal;
+
+        async function confirmPurchaseFromReceiveModal() {
+            if (!currentViewingPurchase) return;
+            const code = currentViewingPurchase.code;
+            closeReceiveModal();
+            await confirmPurchaseDraftToOrder(code);
+        }
+        window.confirmPurchaseFromReceiveModal = confirmPurchaseFromReceiveModal;
 
         async function submitConfirmReceive() {
             if (!currentViewingPurchase) return;
