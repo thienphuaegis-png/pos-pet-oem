@@ -453,6 +453,7 @@
             if (subId === 'activity-log') { if (typeof renderActivityLog === 'function') renderActivityLog(); }
             if (subId === 'telegram') { if (typeof loadTelegramSettingsData === 'function') loadTelegramSettingsData(); }
             if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
+            if (subId === 'pet-catalog') { if (typeof loadPetCatalogSettingsUI === 'function') loadPetCatalogSettingsUI(); }
         }
 
         // --- SUB 1: TỒN KHO TỔNG HỢP ---
@@ -3461,6 +3462,9 @@
             document.getElementById('modal-prod-cost').value = '';
             document.getElementById('modal-prod-price').value = '';
             document.getElementById('modal-prod-stock').value = '';
+            const minStockEl = document.getElementById('modal-prod-min-stock');
+            if (minStockEl) minStockEl.value = '5';
+            document.getElementById('modal-prod-stock-group')?.classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
             await loadProdUnits(null);
 
@@ -3492,6 +3496,8 @@
                 document.getElementById('modal-prod-cost').value = p.cost_price ? formatMoneyNumber(p.cost_price) : '';
                 document.getElementById('modal-prod-price').value = p.sell_price ? formatMoneyNumber(p.sell_price) : '';
                 document.getElementById('modal-prod-stock-group').classList.add('hidden');
+                const minStockEl = document.getElementById('modal-prod-min-stock');
+                if (minStockEl) minStockEl.value = (p.min_stock != null) ? p.min_stock : 5;
                 
                 // Nạp thành phần combo nếu là combo
                 if (isCombo) {
@@ -3771,6 +3777,7 @@
             const cost_price = canViewCost ? (parseMoneyInput(document.getElementById('modal-prod-cost').value)) : null;
             const sell_price = parseMoneyInput(document.getElementById('modal-prod-price').value);
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
+            const min_stock = parseFloat(document.getElementById('modal-prod-min-stock')?.value) || 5.0;
             const supplier_ids = [...selectedProdSupplierIds];
 
             if (!name) {
@@ -3869,14 +3876,14 @@
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock })
                     });
                 } else {
                     // Create
                     res = await fetch('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock })
                     });
                 }
 
@@ -4385,6 +4392,10 @@
             } else if (tabId === 'guide') {
                 if (subTabId) switchGuideSubTab(subTabId);
                 else switchGuideSubTab('pos');
+            } else if (tabId === 'ai-agent') {
+                if (typeof window.syncMyAIBadge === 'function') window.syncMyAIBadge();
+            } else if (tabId === 'purchase-requests') {
+                if (typeof window.initPurchaseRequestsTab === 'function') window.initPurchaseRequestsTab();
             }
             stopPageLoader(220);
         }
@@ -4419,6 +4430,7 @@
             });
         }
         window.switchGuideSubTab = switchGuideSubTab;
+        window.switchTab = switchTab;
 
         function applyAppZoom(delta) {
             let current = parseInt(localStorage.getItem('appZoom') || '100', 10);
@@ -4523,10 +4535,16 @@
                 }
             } catch (_) {}
 
-            await Promise.all([loadProducts(), loadContacts(), loadStaff()]);
-            initPurchases();
-            initProduction();
-            switchTab('pos');
+            try {
+                if (typeof loadContacts === 'function') loadContacts();
+                if (typeof loadStaff === 'function') loadStaff();
+                if (typeof initPurchases === 'function') initPurchases();
+                if (typeof initProduction === 'function') initProduction();
+                if (typeof loadAndSyncPetCatalog === 'function') loadAndSyncPetCatalog();
+            } catch(e) {
+                console.warn('init background modules err:', e);
+            }
+            switchTab('ai-agent');
         }
 
         async function loadProducts() {

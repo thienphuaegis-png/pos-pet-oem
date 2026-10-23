@@ -250,11 +250,43 @@ function fuzzyMatch(query, text) {
 // ----------------------------------------------------
 // KHỞI TẠO DỮ LIỆU
 // ----------------------------------------------------
-async function initPOS() {
+let posIsLoading = false;
+let posDataLoaded = false;
+let posProductActiveIdx = -1;
+let posCustomerActiveIdx = -1;
+let posListenersInitialized = false;
+
+function closeAllPosDropdowns() {
+    document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+    document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+    posProductActiveIdx = -1;
+    posCustomerActiveIdx = -1;
+}
+window.closeAllPosDropdowns = closeAllPosDropdowns;
+
+async function initPOS(force = false) {
+    if (posIsLoading) return;
+    if (typeof Auth !== 'undefined' && typeof Auth.getToken === 'function' && !Auth.getToken()) {
+        return;
+    }
+
     startClock();
     setupShortcuts();
     setupClickOutside();
 
+    if (posDataLoaded && !force) {
+        renderInvoiceTabs();
+        renderActiveTabCart();
+        return;
+    }
+
+    // Nếu đã có sẵn posProducts trước đó, render trước 0ms
+    if (Array.isArray(posProducts) && posProducts.length > 0) {
+        renderInvoiceTabs();
+        renderActiveTabCart();
+    }
+
+    posIsLoading = true;
     try {
         const [prodRes, custRes, staffRes, setRes] = await Promise.all([
             fetch('/api/products?_t=' + Date.now()),
@@ -263,26 +295,38 @@ async function initPOS() {
             fetch('/api/settings?_t=' + Date.now())
         ]);
 
-        posProducts = await prodRes.json();
-        posContacts = await custRes.json();
-        posStaff = await staffRes.json();
-        posSettings = await setRes.json();
+        if (prodRes.ok) {
+            const data = await prodRes.json();
+            if (Array.isArray(data)) posProducts = data;
+        }
+        if (custRes.ok) {
+            const data = await custRes.json();
+            if (Array.isArray(data)) posContacts = data;
+        }
+        if (staffRes.ok) {
+            const data = await staffRes.json();
+            if (Array.isArray(data)) posStaff = data;
+        }
+        if (setRes.ok) {
+            const data = await setRes.json();
+            if (data && typeof data === 'object') posSettings = data;
+        }
 
         // Tải danh sách tài khoản thanh toán cho POS
-        fetch('/api/payment-accounts?_t=' + Date.now()).then(r => r.json()).then(accs => {
+        fetch('/api/payment-accounts?_t=' + Date.now()).then(r => r.ok ? r.json() : []).then(accs => {
             window.posPaymentAccounts = accs || [];
             updatePosPaymentAccountsUI();
         }).catch(err => console.error(err));
 
         // Lưu danh sách bảng giá để POS sử dụng khi chọn khách/bảng giá
-        fetch('/api/price-lists?_t=' + Date.now()).then(r => r.json()).then(pls => {
+        fetch('/api/price-lists?_t=' + Date.now()).then(r => r.ok ? r.json() : []).then(pls => {
             if (Array.isArray(pls)) {
                 window.posPriceLists = pls;
             }
         }).catch(err => console.error(err));
 
         // Tải các quy tắc khuyến mãi đang chạy (bao gồm Mua X Tặng Y)
-        fetch('/api/promotions/active-rules?_t=' + Date.now()).then(r => r.json()).then(rules => {
+        fetch('/api/promotions/active-rules?_t=' + Date.now()).then(r => r.ok ? r.json() : []).then(rules => {
             window.posActivePromoRules = rules || [];
             if (typeof syncBuyXGetYPromotionsInCart === 'function') {
                 syncBuyXGetYPromotionsInCart();
@@ -301,8 +345,12 @@ async function initPOS() {
         await restoreDraftIfAny();
         renderInvoiceTabs();
         renderActiveTabCart();
+        // Chỉ đánh dấu đã tải khi API thật sự OK; 401 (token hết hạn) phải cho nạp lại sau khi đăng nhập
+        posDataLoaded = !!(prodRes.ok && setRes.ok);
     } catch (e) {
         console.error("Lỗi khi tải dữ liệu POS:", e);
+    } finally {
+        posIsLoading = false;
     }
 }
 
@@ -319,7 +367,8 @@ function startClock() {
 function renderStaffOptions() {
     const select = document.getElementById('pos-staff-select');
     if (!select) return;
-    select.innerHTML = posStaff.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const staffList = Array.isArray(posStaff) ? posStaff : [];
+    select.innerHTML = staffList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
 }
 
 async function reloadPOSData() {
@@ -344,7 +393,144 @@ async function reloadPOSData() {
 // ----------------------------------------------------
 // PHÍM TẮT TIỆN ÍCH (F3, F4, F9, F1)
 // ----------------------------------------------------
+// Tự động inject CSS cho dòng đang chọn: Nền xanh đậm chữ trắng nổi bật (chuẩn 2a)
+if (typeof document !== 'undefined' && document.head && typeof document.head.appendChild === 'function' && !document.getElementById('pos-dropdown-nav-style')) {
+    const st = document.createElement('style');
+    st.id = 'pos-dropdown-nav-style';
+    st.textContent = `
+        .pos-product-item.active, .pos-customer-item.active {
+            background-color: #0284c7 !important; /* sky-600 */
+            color: #ffffff !important;
+        }
+        .pos-product-item.active *, .pos-customer-item.active * {
+            color: #ffffff !important;
+        }
+        .pos-product-item.active span, .pos-customer-item.active span {
+            border-color: rgba(255, 255, 255, 0.4) !important;
+        }
+    `;
+    document.head.appendChild(st);
+}
+
+function setProductActiveItem(idx) {
+    const dropdown = document.getElementById('pos-search-dropdown');
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.pos-product-item');
+    if (items.length === 0) return;
+
+    posProductActiveIdx = idx;
+    items.forEach((item, i) => {
+        if (i === posProductActiveIdx) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+window.setProductActiveItem = setProductActiveItem;
+
+function setCustomerActiveItem(idx) {
+    const dropdown = document.getElementById('pos-customer-dropdown');
+    if (!dropdown) return;
+    const items = dropdown.querySelectorAll('.pos-customer-item');
+    if (items.length === 0) return;
+
+    posCustomerActiveIdx = idx;
+    items.forEach((item, i) => {
+        if (i === posCustomerActiveIdx) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+window.setCustomerActiveItem = setCustomerActiveItem;
+
+function handleProductSearchKeydown(e) {
+    const dropdown = document.getElementById('pos-search-dropdown');
+    if (!dropdown) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) {
+            filterProductSearch(e.target.value);
+        }
+        const items = dropdown.querySelectorAll('.pos-product-item');
+        if (items.length === 0) return;
+        const nextIdx = (posProductActiveIdx + 1) % items.length;
+        setProductActiveItem(nextIdx);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) {
+            filterProductSearch(e.target.value);
+        }
+        const items = dropdown.querySelectorAll('.pos-product-item');
+        if (items.length === 0) return;
+        const prevIdx = posProductActiveIdx <= 0 ? items.length - 1 : posProductActiveIdx - 1;
+        setProductActiveItem(prevIdx);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const items = dropdown.querySelectorAll('.pos-product-item');
+        if (!dropdown.classList.contains('hidden') && posProductActiveIdx >= 0 && items[posProductActiveIdx]) {
+            items[posProductActiveIdx].click();
+            closeAllPosDropdowns();
+        } else {
+            handleBarcodeOrSelectFirst(e.target.value);
+            closeAllPosDropdowns();
+        }
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAllPosDropdowns();
+    }
+}
+window.handleProductSearchKeydown = handleProductSearchKeydown;
+
+function handleCustomerSearchKeydown(e) {
+    const dropdown = document.getElementById('pos-customer-dropdown');
+    if (!dropdown) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) {
+            filterCustomerSearch(e.target.value);
+        }
+        const items = dropdown.querySelectorAll('.pos-customer-item');
+        if (items.length === 0) return;
+        const nextIdx = (posCustomerActiveIdx + 1) % items.length;
+        setCustomerActiveItem(nextIdx);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) {
+            filterCustomerSearch(e.target.value);
+        }
+        const items = dropdown.querySelectorAll('.pos-customer-item');
+        if (items.length === 0) return;
+        const prevIdx = posCustomerActiveIdx <= 0 ? items.length - 1 : posCustomerActiveIdx - 1;
+        setCustomerActiveItem(prevIdx);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const items = dropdown.querySelectorAll('.pos-customer-item');
+        if (!dropdown.classList.contains('hidden')) {
+            if (posCustomerActiveIdx >= 0 && items[posCustomerActiveIdx]) {
+                items[posCustomerActiveIdx].click();
+            } else if (items.length > 0) {
+                items[0].click();
+            }
+        }
+        closeAllPosDropdowns();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAllPosDropdowns();
+    }
+}
+window.handleCustomerSearchKeydown = handleCustomerSearchKeydown;
+
 function setupShortcuts() {
+    if (posListenersInitialized) return;
+    posListenersInitialized = true;
+
     document.addEventListener('keydown', (e) => {
         const tabPos = document.getElementById('tab-pos');
         if (!tabPos || tabPos.classList.contains('hidden')) return; // Khóa phím tắt khi không ở tab POS
@@ -361,12 +547,24 @@ function setupShortcuts() {
             }
         } else if (e.key === 'F3') {
             e.preventDefault();
-            document.getElementById('pos-search-input')?.focus();
-            document.getElementById('pos-search-input')?.select();
+            document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+            posCustomerActiveIdx = -1;
+            const pInp = document.getElementById('pos-search-input');
+            if (pInp) {
+                pInp.focus();
+                pInp.select();
+                filterProductSearch(pInp.value);
+            }
         } else if (e.key === 'F4') {
             e.preventDefault();
-            document.getElementById('pos-customer-search')?.focus();
-            document.getElementById('pos-customer-search')?.select();
+            document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+            posProductActiveIdx = -1;
+            const cInp = document.getElementById('pos-customer-search');
+            if (cInp) {
+                cInp.focus();
+                cInp.select();
+                filterCustomerSearch(cInp.value);
+            }
         } else if (e.key === 'F8') {
             e.preventDefault();
             // Toggle hoặc chọn phương thức thanh toán
@@ -390,21 +588,51 @@ function setupShortcuts() {
     const searchInput = document.getElementById('pos-search-input');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => filterProductSearch(e.target.value));
-        searchInput.addEventListener('focus', (e) => filterProductSearch(e.target.value));
-        searchInput.addEventListener('click', (e) => filterProductSearch(e.target.value));
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleBarcodeOrSelectFirst(e.target.value);
-            }
+        searchInput.addEventListener('focus', (e) => {
+            document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+            posCustomerActiveIdx = -1;
+            filterProductSearch(e.target.value);
+        });
+        searchInput.addEventListener('click', (e) => {
+            document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+            posCustomerActiveIdx = -1;
+            filterProductSearch(e.target.value);
+        });
+        searchInput.addEventListener('keydown', handleProductSearchKeydown);
+        searchInput.addEventListener('focusout', () => {
+            setTimeout(() => {
+                const dd = document.getElementById('pos-search-dropdown');
+                if (dd && !dd.contains(document.activeElement)) {
+                    dd.classList.add('hidden');
+                    posProductActiveIdx = -1;
+                }
+            }, 150);
         });
     }
 
     const custSearch = document.getElementById('pos-customer-search');
     if (custSearch) {
         custSearch.addEventListener('input', (e) => filterCustomerSearch(e.target.value));
-        custSearch.addEventListener('focus', (e) => filterCustomerSearch(e.target.value));
-        custSearch.addEventListener('click', (e) => filterCustomerSearch(e.target.value));
+        custSearch.addEventListener('focus', (e) => {
+            document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+            posProductActiveIdx = -1;
+            filterCustomerSearch(e.target.value);
+        });
+        custSearch.addEventListener('click', (e) => {
+            document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+            posProductActiveIdx = -1;
+            filterCustomerSearch(e.target.value);
+        });
+        custSearch.addEventListener('keydown', handleCustomerSearchKeydown);
+        custSearch.addEventListener('focusout', () => {
+            setTimeout(() => {
+                const dd = document.getElementById('pos-customer-dropdown');
+                if (dd && !dd.contains(document.activeElement)) {
+                    dd.classList.add('hidden');
+                    posCustomerActiveIdx = -1;
+                }
+            }, 150);
+        });
     }
 
     const orderNoteInput = document.getElementById('pos-order-note');
@@ -420,9 +648,11 @@ function setupClickOutside() {
     document.addEventListener('pointerdown', (e) => {
         if (!e.target.closest('#pos-search-input') && !e.target.closest('#pos-search-dropdown')) {
             document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+            posProductActiveIdx = -1;
         }
         if (!e.target.closest('#pos-customer-search') && !e.target.closest('#pos-customer-dropdown')) {
             document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+            posCustomerActiveIdx = -1;
         }
     });
 }
@@ -557,6 +787,10 @@ function filterProductSearch(val) {
     if (!dropdown) return;
     const q = (val || '').trim();
 
+    posProductActiveIdx = -1;
+    document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
+    posCustomerActiveIdx = -1;
+
     let matches = [];
     const isSuggestion = !q;
 
@@ -586,13 +820,13 @@ function filterProductSearch(val) {
         </div>
     ` : '';
 
-    dropdown.innerHTML = header + matches.map(p => {
+    dropdown.innerHTML = header + matches.map((p, idx) => {
         const clickHandler = `addProductToActiveCart(${p.id})`;
         const isCombo = p.type === 'combo';
         const typeLabel = isCombo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
         const comboHint = isCombo && p.combo_summary ? `<div class="text-[10px] text-amber-700 italic truncate max-w-xs mt-0.5">📦 Gồm: ${p.combo_summary}</div>` : '';
         return `
-        <div onclick="${clickHandler}" class="p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
+        <div onclick="${clickHandler}" onmouseenter="setProductActiveItem(${idx})" data-product-id="${p.id}" class="pos-product-item p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
             <div>
                 <span class="font-mono text-[11px] text-slate-400 font-bold mr-1.5">[${p.code || '-'}]</span>
                 ${typeLabel}
@@ -660,6 +894,7 @@ async function addProductToActiveCart(productId) {
             price_list_name: hasCustomPrice ? (tab.customer?.price_list_name || null) : null,
             discount_val: 0,
             discount_type: 'vnd',
+            vat_rate: p.vat_rate !== undefined && p.vat_rate !== null ? p.vat_rate : 0,
             quantity: 1,
             base_unit: p.unit || (isCombo ? 'combo' : 'cái'),
             base_price: p.sell_price || 0,
@@ -685,9 +920,9 @@ async function addProductToActiveCart(productId) {
 
 function syncBuyXGetYPromotionsInCart(tab = null) {
     if (!tab) tab = getActiveTab();
-    if (!tab || !tab.cart || !window.posActivePromoRules) return;
+    if (!tab || !tab.cart || !Array.isArray(window.posActivePromoRules)) return;
 
-    const buyGetRules = window.posActivePromoRules.filter(r => r.promo_type === 'buy_x_get_y' || r.buy_qty > 1 || r.gift_product_id);
+    const buyGetRules = window.posActivePromoRules.filter(r => r && (r.promo_type === 'buy_x_get_y' || r.buy_qty > 1 || r.gift_product_id));
     if (buyGetRules.length === 0) return;
 
     // 1. Dọn dẹp các món quà tặng cũ trước khi tính lại (giữ lại quà tặng thủ công)
@@ -722,6 +957,7 @@ function syncBuyXGetYPromotionsInCart(tab = null) {
                     gift_promo_name: rule.promo_name || 'Khuyến mãi Mua X Tặng Y',
                     discount_val: 0,
                     discount_type: 'vnd',
+                    vat_rate: giftProdData.vat_rate || 0,
                     base_unit: giftProdData.unit || 'cái',
                     base_price: giftProdData.sell_price || 0,
                     unit_ratio: 1,
@@ -855,6 +1091,7 @@ function renderActiveTabCart() {
                         <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
                         <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
                             <span class="font-bold text-slate-800 text-xs">${formatMoney(itemPrice)}</span>
+                            ${(item.vat_rate && item.vat_rate > 0) ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200 shrink-0">VAT ${item.vat_rate}%</span>` : ''}
                             ${itemPrice !== itemOriginalPrice ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
                             <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
                         </div>
@@ -971,7 +1208,8 @@ function splitCartItemToGift(idx, qty = 1) {
             unit_ratio: item.unit_ratio || 1,
             units: Array.isArray(item.units) ? item.units : [],
             discount_val: 0,
-            discount_type: 'vnd'
+            discount_type: 'vnd',
+            vat_rate: item.vat_rate || 0
         });
     }
 
@@ -1020,6 +1258,8 @@ function openItemPriceModal(idx) {
     document.getElementById('modal-item-name').innerText = `Chỉnh Sửa Giá: ${item.name}`;
     document.getElementById('modal-item-original-price').value = formatMoney(item.original_price);
     document.getElementById('modal-item-discount-val').value = item.discount_val || 0;
+    const vatInput = document.getElementById('modal-item-vat-rate');
+    if (vatInput) vatInput.value = item.vat_rate !== undefined && item.vat_rate !== null ? item.vat_rate : 0;
 
     updateItemDiscountTypeButtons();
     calculateItemModalPreview();
@@ -1076,8 +1316,10 @@ function saveItemPriceModal() {
     if (!item) return;
 
     const discVal = parseFloat(document.getElementById('modal-item-discount-val').value) || 0;
+    const vatVal = parseFloat(document.getElementById('modal-item-vat-rate')?.value) || 0;
     item.discount_val = discVal;
     item.discount_type = editingItemDiscountType;
+    item.vat_rate = vatVal;
 
     if (editingItemDiscountType === 'pct') {
         item.price = Math.max(0, Math.round(item.original_price * (1 - (discVal / 100))));
@@ -1096,6 +1338,10 @@ function filterCustomerSearch(val) {
     const dropdown = document.getElementById('pos-customer-dropdown');
     if (!dropdown) return;
     const q = (val || '').trim();
+
+    posCustomerActiveIdx = -1;
+    document.getElementById('pos-search-dropdown')?.classList.add('hidden');
+    posProductActiveIdx = -1;
 
     let matches = [];
     const isSuggestion = !q;
@@ -1124,8 +1370,8 @@ function filterCustomerSearch(val) {
         </div>
     ` : '';
 
-    dropdown.innerHTML = header + matches.map(c => `
-        <div onclick="selectCustomerForActiveTab(${c.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
+    dropdown.innerHTML = header + matches.map((c, idx) => `
+        <div onclick="selectCustomerForActiveTab(${c.id})" onmouseenter="setCustomerActiveItem(${idx})" data-customer-id="${c.id}" class="pos-customer-item p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
             <div>
                 <div class="flex items-center gap-1.5">
                     <span class="font-bold text-slate-800">${c.name}</span>
@@ -1370,6 +1616,16 @@ function updateFinancialSummary() {
         const elFinalAmount = document.getElementById('pos-final-amount-display');
         if (elFinalAmount) elFinalAmount.innerText = formatMoney(finalAmount);
 
+        // Tính tiền thuế VAT đa mức theo sản phẩm
+        const totalVat = tab.cart.reduce((s, i) => {
+            const q = Number(i.quantity) || 0;
+            const p = Number(i.price) || 0;
+            const vr = Number(i.vat_rate) || 0;
+            return s + Math.round(q * p * (vr / 100));
+        }, 0);
+        const elVat = document.getElementById('pos-vat-display');
+        if (elVat) elVat.innerText = formatMoney(totalVat);
+
         const mobileTotalPay = document.getElementById('mobile-total-pay-display');
         if (mobileTotalPay) {
             mobileTotalPay.innerText = formatMoney(finalAmount);
@@ -1527,6 +1783,7 @@ function setPaymentMethod(method) {
     const bankBox = document.getElementById('pos-bank-account-box');
     if (method === 'transfer' || method === 'card' || method === 'wallet') {
         if (bankBox) bankBox.classList.remove('hidden');
+        tab.account_id = null; // chọn lại theo loại tài khoản của hình thức mới
         updatePosPaymentAccountsUI();
     } else {
         if (bankBox) bankBox.classList.add('hidden');
@@ -1574,15 +1831,21 @@ function renderSplitPaymentLines() {
     if (autoBox) autoBox.classList.toggle('hidden', lines.length === 0);
 
     const wrap = document.getElementById('pos-split-lines');
-    const bankAccounts = (window.posPaymentAccounts || []).filter(a => a.account_type === 'bank' || a.account_type === 'ewallet');
+    const accountsFor = m => (window.posPaymentAccounts || []).filter(a => m === 'card' ? a.account_type === 'pos_card' : (a.account_type === 'bank' || a.account_type === 'ewallet'));
 
     if (wrap) {
         wrap.innerHTML = lines.map((l, idx) => {
-            const needsAccount = l.method === 'transfer' || l.method === 'card';
+            const needsAccount = l.method === 'transfer' || l.method === 'card' || l.method === 'wallet';
+            if (needsAccount && !l.account_id) {
+                const _list = accountsFor(l.method);
+                const _last = Number(localStorage.getItem('pos_last_pay_acc_' + (l.method === 'card' ? 'card' : 'transfer')) || 0);
+                const _pick = _list.find(a => a.id === _last) || _list[0];
+                if (_pick) l.account_id = _pick.id;
+            }
             const accountSelect = needsAccount ? `
-                <select class="border rounded px-1 py-1 text-[10px] w-24" onchange="tab_splitLines_setAccount(${idx}, this.value)">
+                <select class="border rounded px-1 py-1 text-[10px] w-28" onchange="tab_splitLines_setAccount(${idx}, this.value)">
                     <option value="">-- TK nhận --</option>
-                    ${bankAccounts.map(a => `<option value="${a.id}" ${l.account_id == a.id ? 'selected' : ''}>${a.name}</option>`).join('')}
+                    ${accountsFor(l.method).map(a => `<option value="${a.id}" ${l.account_id == a.id ? 'selected' : ''}>${a.name}</option>`).join('')}
                 </select>` : '';
             return `
             <div class="flex items-center gap-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
@@ -1611,7 +1874,10 @@ function renderSplitPaymentLines() {
 
 function tab_splitLines_setAccount(idx, accId) {
     const tab = getActiveTab();
-    if (tab.splitLines[idx]) tab.splitLines[idx].account_id = accId ? parseInt(accId) : null;
+    if (tab.splitLines[idx]) {
+        tab.splitLines[idx].account_id = accId ? parseInt(accId) : null;
+        if (accId) localStorage.setItem('pos_last_pay_acc_' + (tab.splitLines[idx].method === 'card' ? 'card' : 'transfer'), accId);
+    }
 }
 
 function updatePosPaymentAccountsUI() {
@@ -1621,25 +1887,28 @@ function updatePosPaymentAccountsUI() {
     // Tiền mặt: không đụng account_id (tránh gán TK bank làm backend hiểu là chuyển khoản)
     if (!['transfer', 'card', 'wallet'].includes(tab.payment_method)) return;
     
-    // Chỉ liệt kê tài khoản ngân hàng / ví (không có két tiền mặt)
-    const accounts = window.posPaymentAccounts.filter(a => a.account_type === 'bank' || a.account_type === 'ewallet');
+    // Thẻ -> "Máy POS thẻ"; chuyển khoản / ví điện tử -> ngân hàng + ví (không có két tiền mặt)
+    const isCardMethod = tab.payment_method === 'card';
+    const accounts = window.posPaymentAccounts.filter(a => isCardMethod ? a.account_type === 'pos_card' : (a.account_type === 'bank' || a.account_type === 'ewallet'));
     if (!accounts.some(a => a.id === tab.account_id)) {
-        const firstBank = accounts.find(a => a.account_type === 'bank') || accounts[0];
+        const lastId = Number(localStorage.getItem('pos_last_pay_acc_' + (isCardMethod ? 'card' : 'transfer')) || 0);
+        const firstBank = accounts.find(a => a.id === lastId) || accounts.find(a => a.account_type === 'bank') || accounts[0];
         tab.account_id = firstBank ? firstBank.id : null;
     }
     select.innerHTML = accounts.map(a => {
         const isBank = a.account_type === 'bank';
-        const typeBadge = isBank ? '[NH]' : '[Ví]';
+        const typeBadge = a.account_type === 'pos_card' ? '[Thẻ]' : (isBank ? '[NH]' : '[Ví]');
         const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
         const isSel = tab.account_id === a.id;
-        const detail = a.account_number ? `${a.bank_name || ''} ${a.account_number}`.trim() : '⚠ chưa có số TK';
+        const detail = a.account_type === 'pos_card' ? 'tiền quẹt thẻ' : (a.account_number ? `${a.bank_name || ''} ${a.account_number}`.trim() : '⚠ chưa có số TK');
         return `<option value="${a.id}" ${isSel ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${detail}</option>`;
-    }).join('') || '<option value="">-- Chưa có tài khoản ngân hàng --</option>';
+    }).join('') || `<option value="">-- Chưa có tài khoản cho ${isCardMethod ? 'quẹt thẻ (tạo loại "Máy POS thẻ")' : 'chuyển khoản'} --</option>`;
 }
 
 function onPosBankAccountChange(accId) {
     const tab = getActiveTab();
     tab.account_id = parseInt(accId) || null;
+    if (accId) localStorage.setItem('pos_last_pay_acc_' + (tab.payment_method === 'card' ? 'card' : 'transfer'), accId);
 }
 
 // Trả về thông báo lỗi nếu 1 trong các TK nhận thiếu ngân hàng/số TK, ngược lại null.
@@ -1907,7 +2176,7 @@ async function submitPOSOrder() {
             alert("Chưa có dòng thanh toán nào. Nhập số tiền rồi bấm hình thức thanh toán!");
             return;
         }
-        const missingAcc = splitPayments.find(p => (p.method === 'transfer' || p.method === 'card') && !p.account_id);
+        const missingAcc = splitPayments.find(p => (p.method === 'transfer' || p.method === 'card' || p.method === 'wallet') && !p.account_id);
         if (missingAcc) {
             alert("Vui lòng chọn tài khoản nhận tiền cho dòng " + (SPLIT_METHOD_LABEL[missingAcc.method] || missingAcc.method) + "!");
             return;
@@ -1983,7 +2252,8 @@ async function submitPOSOrder() {
                 quantity: i.quantity,
                 price: i.price,
                 unit: i.unit,
-                unit_ratio: i.unit_ratio || 1
+                unit_ratio: i.unit_ratio || 1,
+                vat_rate: i.vat_rate !== undefined && i.vat_rate !== null ? i.vat_rate : 0
             }))
         };
 
@@ -3668,16 +3938,16 @@ function onPosTopupPayMethodChange(method) {
 
     if (val === 'transfer' || val === 'card') {
         box.classList.remove('hidden');
-        const accounts = window.posPaymentAccounts || [];
+        const accounts = (window.posPaymentAccounts || []).filter(a => val === 'card' ? a.account_type === 'pos_card' : (a.account_type === 'bank' || a.account_type === 'ewallet'));
+        const lastTopupAcc = Number(localStorage.getItem('pos_last_pay_acc_' + (val === 'card' ? 'card' : 'transfer')) || 0);
         accSelect.innerHTML = accounts.map(a => {
-            const isBank = a.account_type === 'bank';
-            const typeBadge = isBank ? '[NH]' : (a.account_type === 'ewallet' ? '[Ví]' : '[Két]');
+            const typeBadge = a.account_type === 'pos_card' ? '[Thẻ]' : (a.account_type === 'ewallet' ? '[Ví]' : '[NH]');
             const ownerBadge = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
-            return `<option value="${a.id}" ${isBank ? 'selected' : ''}>${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
-        }).join('');
-        if (!accSelect.value && accSelect.options.length > 0) {
-            accSelect.selectedIndex = 0;
-        }
+            return `<option value="${a.id}">${typeBadge} ${a.name} (${ownerBadge}) - ${a.account_number || a.code}</option>`;
+        }).join('') || '<option value="">-- Chưa có tài khoản phù hợp --</option>';
+        if (accounts.some(a => a.id === lastTopupAcc)) accSelect.value = String(lastTopupAcc);
+        else if (accSelect.options.length > 0) accSelect.selectedIndex = 0;
+        accSelect.onchange = () => { if (accSelect.value) localStorage.setItem('pos_last_pay_acc_' + (val === 'card' ? 'card' : 'transfer'), accSelect.value); };
     } else {
         box.classList.add('hidden');
         accSelect.innerHTML = '';
@@ -4510,7 +4780,7 @@ function renderMobileCatalog(query = '', category = '') {
         list = list.filter(p => (p.category_name || p.type || '').toLowerCase().includes(catNorm));
     }
     if (query) {
-        list = list.filter(p => matchQuery(p.name, query) || matchQuery(p.code, query) || matchQuery(p.barcode, query));
+        list = list.filter(p => fuzzyMatch(query, `${p.name || ''} ${p.code || ''} ${p.barcode || ''}`));
     }
     if (list.length === 0) {
         grid.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-6">Không tìm thấy sản phẩm phù hợp</div>';

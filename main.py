@@ -28,31 +28,6 @@ if getattr(sys, "frozen", False):
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
-def start_ngrok(target_dir):
-    ngrok_exe = os.path.join(target_dir, "ngrok.exe")
-    if os.path.exists(ngrok_exe):
-        ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "")
-        if ngrok_token:
-            try:
-                subprocess.run([ngrok_exe, "config", "add-authtoken", ngrok_token], cwd=target_dir, capture_output=True)
-            except Exception:
-                pass
-        target = f"http://127.0.0.1:{port}"
-        try:
-            out = subprocess.check_output('tasklist /FI "IMAGENAME eq ngrok.exe"', shell=True).decode('utf-8', errors='ignore')
-            if "ngrok.exe" not in out:
-                subprocess.Popen(
-                    [ngrok_exe, "http", target, "--url=womb-jitters-outfit.ngrok-free.dev"],
-                    cwd=target_dir,
-                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                )
-        except Exception:
-            subprocess.Popen(
-                [ngrok_exe, "http", target, "--url=womb-jitters-outfit.ngrok-free.dev"],
-                cwd=target_dir,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            )
-
 def open_browser():
     time.sleep(2)
     webbrowser.open(f"http://127.0.0.1:{port}")
@@ -93,15 +68,8 @@ def toggle_auto_start_registry(enabled: bool):
     except Exception:
         pass
 
-def kill_ngrok():
-    try:
-        subprocess.run(["taskkill", "/F", "/IM", "ngrok.exe"], capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-    except Exception:
-        pass
-
 if __name__ == "__main__":
     is_production = os.environ.get("POS_PRODUCTION") == "1"
-    start_ngrok(base_dir)
 
     from server import app
     global_server = None
@@ -146,7 +114,7 @@ if __name__ == "__main__":
             webbrowser.open(f"http://127.0.0.1:{port}")
 
         def on_open_online(icon, item):
-            webbrowser.open("https://womb-jitters-outfit.ngrok-free.dev")
+            webbrowser.open("http://pos-server:8998")
 
         def on_toggle_auto_start(icon, item):
             new_val = not item.checked
@@ -156,12 +124,11 @@ if __name__ == "__main__":
             icon.stop()
             if global_server:
                 global_server.should_exit = True
-            kill_ngrok()
             os._exit(0)
 
         menu = pystray.Menu(
             pystray.MenuItem("Bán Hàng POS (127.0.0.1:8998)", on_open_local, default=True),
-            pystray.MenuItem("Link Online (Ngrok)", on_open_online),
+            pystray.MenuItem("Mở POS qua Tailscale (pos-server:8998)", on_open_online),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Tự khởi động cùng Windows", on_toggle_auto_start, checked=lambda item: is_auto_start_enabled()),
             pystray.Menu.SEPARATOR,
@@ -181,5 +148,4 @@ if __name__ == "__main__":
             except (KeyboardInterrupt, SystemExit):
                 if global_server:
                     global_server.should_exit = True
-                kill_ngrok()
                 break

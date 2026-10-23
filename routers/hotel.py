@@ -13,7 +13,7 @@ from schemas import (
     HotelBatchCheckinItem, HotelBatchCheckinRequest,
     HotelCareLogUpdate
 )
-from dependencies import get_current_user, get_optional_user, require_role
+from dependencies import get_current_user, get_optional_user, require_role, resolve_payment_account
 
 router = APIRouter(prefix="/api/hotel", tags=["Hotel"])
 
@@ -732,14 +732,8 @@ def checkout_hotel_guest(booking_id: int, data: HotelBookingCheckout, user=Depen
         # Ghi nhận sổ quỹ cashbook cho số tiền thực thu lúc trả phòng
         payable_cash = max(0.0, float(total_amount) - float(booking["deposit_amount"] or 0) + max(0.0, spa_total - wallet_deduction))
         if payable_cash > 0:
-            acc_type = 'cash' if (data.payment_method or 'cash') == 'cash' else 'bank'
-            cursor.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
-            acc_row = cursor.fetchone()
-            account_id = acc_row["id"] if acc_row else None
-            if not account_id:
-                cursor.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                acc_row = cursor.fetchone()
-                account_id = acc_row["id"] if acc_row else None
+            # Chuyển khoản/thẻ phải chọn tài khoản nhận; tiền mặt vào két
+            account_id = resolve_payment_account(cursor, data.payment_method or 'cash', data.account_id)
 
             shift_id = None
             if user and isinstance(user, dict) and "id" in user:

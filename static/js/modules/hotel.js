@@ -1076,6 +1076,11 @@
         if (totAmtEl) totAmtEl.innerText = (room.current_total_amount || 0).toLocaleString('vi-VN') + ' đ';
 
         currentCheckoutSummary = null;
+        if (window.PayAcc) {
+            const _ms = document.getElementById('co-pay-method');
+            if (_ms) _ms.value = 'cash';
+            PayAcc.bind(_ms, document.getElementById('co-pay-account-wrap'), document.getElementById('co-pay-account'));
+        }
         const walletWrap = document.getElementById('co-spa-wallet-wrapper');
         const walletCheckbox = document.getElementById('co-use-spa-wallet');
         const walletInputBox = document.getElementById('co-wallet-input-box');
@@ -1162,12 +1167,18 @@
         const useSpaWallet = !!(walletCheckbox && walletCheckbox.checked);
         const spaWalletAmount = useSpaWallet ? (parseFloat(walletInput && walletInput.value) || 0) : 0;
 
+        const payMethod = document.getElementById('co-pay-method')?.value || 'cash';
+        const payAccId = window.PayAcc ? PayAcc.value(payMethod, document.getElementById('co-pay-account')) : null;
+        const payErr = window.PayAcc ? PayAcc.validate(payMethod, payAccId) : null;
+        if (payErr) { alert(payErr); return; }
+
         try {
             const res = await fetch(`/api/hotel/checkout/${currentCheckoutBookingId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    payment_method: 'cash',
+                    payment_method: payMethod,
+                    account_id: payAccId,
                     use_spa_wallet: useSpaWallet,
                     spa_wallet_amount: spaWalletAmount
                 })

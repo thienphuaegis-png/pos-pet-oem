@@ -6,9 +6,10 @@ def test_purchases_6col_table_and_no_pay_debt_btn():
     assert 'id="purchase-order-count"' in html, "Thiếu nhãn đếm đơn hàng nhập kho"
     assert 'id="table-purchases-history"' in html
 
-    # Kiểm tra bảng Đơn Nhập Hàng đúng 6 cột trong HTML
+    # Kiểm tra bảng Đơn Nhập Hàng đúng 7 cột trong HTML (có Ngày Tạo)
     th_section = html[html.find('id="purchase-list-view"'):html.find('id="table-purchases-history"')]
-    assert th_section.count('<th ') == 6, f"Bảng Đơn Nhập Hàng phải có đúng 6 cột, hiện có {th_section.count('<th ')}"
+    assert th_section.count('<th ') == 7, f"Bảng Đơn Nhập Hàng phải có đúng 7 cột, hiện có {th_section.count('<th ')}"
+    assert 'Ngày Tạo' in th_section, "Bảng Đơn Nhập Hàng phải có cột Ngày Tạo"
 
     purchases_js = Path("static/js/modules/purchases.js").read_text(encoding="utf-8")
     
@@ -32,9 +33,10 @@ def test_oem_table_click_row_opens_detail_modal():
     html = Path("templates/index.html").read_text(encoding="utf-8")
     assert 'id="table-oem-orders"' in html
 
-    # Kiểm tra bảng OEM đúng 6 cột
+    # Kiểm tra bảng OEM đúng 7 cột (có Ngày Tạo)
     oem_th_section = html[html.find('id="table-oem-orders"') - 1000:html.find('id="table-oem-orders"')]
-    assert oem_th_section.count('<th ') == 6, f"Bảng OEM phải có đúng 6 cột, hiện có {oem_th_section.count('<th ')}"
+    assert oem_th_section.count('<th ') == 7, f"Bảng OEM phải có đúng 7 cột, hiện có {oem_th_section.count('<th ')}"
+    assert 'Ngày Tạo' in oem_th_section, "Bảng OEM phải có cột Ngày Tạo"
 
     prod_js = Path("static/js/modules/productions.js").read_text(encoding="utf-8")
     

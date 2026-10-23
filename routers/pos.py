@@ -5,7 +5,7 @@ from database import get_db, archive_code, is_code_archived
 from schemas import OrderCreate, OrderUpdate, ReturnItemSchema, ExchangeItemSchema, CreateReturnRequest
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
-from dependencies import get_current_user, get_optional_user, require_role, require_permission
+from dependencies import get_current_user, get_optional_user, require_role, require_permission, resolve_payment_account, METHOD_ACCOUNT_TYPES
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -257,18 +257,19 @@ def list_orders(
         if m == "wallet":
             where_clauses.append("o.spa_wallet_deduction > 0")
         else:
+            _types = METHOD_ACCOUNT_TYPES.get(m, (m,))
             where_clauses.append("""
             (
                 o.id IN (SELECT order_id FROM order_payments WHERE method = ?)
                 OR o.id IN (
                     SELECT ref_id FROM cashbook 
                     WHERE ref_type = 'order' AND account_id IN (
-                        SELECT id FROM payment_accounts WHERE account_type = ?
+                        SELECT id FROM payment_accounts WHERE account_type IN ({types_sql})
                     )
                 )
             )
-            """)
-            params.extend([m, m])
+            """.replace("{types_sql}", ",".join("?" * len(_types))))
+            params.extend([m] + list(_types))
 
     where_sql = " AND ".join(where_clauses)
     sql = f"""
@@ -886,6 +887,7 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
         if diff_amount > 0:
             if req.refund_method in ("cash", "transfer", None):
                 cb_code = generate_cashbook_code(cur, "PT-BH")
+                ret_acc_id = resolve_payment_account(cur, req.refund_method or "cash", req.account_id)
                 cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu đổi hàng', ?, ?, 'order_return', ?, ?, ?, ?)
@@ -895,13 +897,14 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
                     orig_order["customer_id"],
                     return_id,
                     f"Thu tiền đổi hàng phiếu {return_code}",
-                    req.account_id,
+                    ret_acc_id,
                     shift_id
                 ))
         elif diff_amount < 0:
             refund_amount = abs(diff_amount)
             if req.refund_method in ("cash", "transfer", None):
                 cb_code = generate_cashbook_code(cur, "PC-TH")
+                ret_acc_id = resolve_payment_account(cur, req.refund_method or "cash", req.account_id)
                 cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'out', 'Chi trả hàng', ?, ?, 'order_return', ?, ?, ?, ?)
@@ -911,7 +914,7 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
                     orig_order["customer_id"],
                     return_id,
                     f"Chi hoàn tiền trả hàng phiếu {return_code}",
-                    req.account_id,
+                    ret_acc_id,
                     shift_id
                 ))
             elif req.refund_method == "debt":
@@ -1081,7 +1084,7 @@ def get_order_return_detail(code: str):
 def list_staff():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM staff ORDER BY id ASC")
+    cur.execute("SELECT id, name, phone, role, commission_rate, is_active, created_at FROM staff ORDER BY id ASC")
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -1163,10 +1166,26 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
         warehouse_id = req.warehouse_id or 1
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+
+        # Multi-VAT cho từng item
+        discount_ratio = (req.discount / total_amount) if (total_amount > 0 and req.discount > 0) else 0.0
+        discount_ratio = min(1.0, discount_ratio)
+        total_vat_amount = 0.0
+        item_vat_data = []
+        for item in req.items:
+            item_vat_rate = float(item.vat_rate or 0.0)
+            item_sub = item.quantity * item.price
+            item_net = item_sub * (1.0 - discount_ratio)
+            item_vat = round(item_net * (item_vat_rate / 100.0), 2) if item_vat_rate > 0 else 0.0
+            total_vat_amount += item_vat
+            item_vat_data.append((item_vat_rate, item_vat))
+
+        vat_amount = round(total_vat_amount, 2)
+
         cur.execute("""
-        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction, warehouse_id, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (code, req.customer_id, effective_staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction, warehouse_id, user_name))
+        INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, commission_amount, note, shift_id, spa_wallet_deduction, warehouse_id, created_by, vat_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (code, req.customer_id, effective_staff_id, total_amount, req.discount, shipping_fee, final_amount, actual_paid, debt_amount, commission_amount, req.note, shift_id, wallet_deduction, warehouse_id, user_name, vat_amount))
         
         order_id = cur.lastrowid
 
@@ -1180,17 +1199,18 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 VALUES (?, ?, 'spend', ?, ?, ?, ?)
             """, (req.customer_id, order_id, wallet_deduction, bal_before, bal_after, f"Trừ ví dịch vụ Spa cho đơn hàng {code}"))
 
-        for item in req.items:
+        for idx, item in enumerate(req.items):
             subtotal = item.quantity * item.price
             # Quy doi don vi ban: quantity/price theo don vi da chon (vd Thung), ton kho tru theo don vi co ban
             ratio = float(item.unit_ratio or 1)
             if ratio <= 0:
                 ratio = 1.0
             base_qty = round(item.quantity * ratio, 4)
+            it_vat_r, it_vat_a = item_vat_data[idx]
             cur.execute("""
-            INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (order_id, item.product_id, item.quantity, item.price, subtotal, item.unit, ratio))
+            INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio, vat_rate, vat_amount)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (order_id, item.product_id, item.quantity, item.price, subtotal, item.unit, ratio, it_vat_r, it_vat_a))
 
             cur.execute("SELECT type FROM products WHERE id = ?", (item.product_id,))
             prod_type = cur.fetchone()
@@ -1300,36 +1320,21 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     p_amt = p.amount
                     if total_split > actual_paid and total_split > 0:
                         p_amt = round(p.amount * (actual_paid / total_split))
+                    p_acc_id = resolve_payment_account(cur, p.method, p.account_id)
                     cur.execute("""
                     INSERT INTO order_payments (order_id, method, amount, account_id)
                     VALUES (?, ?, ?, ?)
-                    """, (order_id, p.method, p_amt, p.account_id))
+                    """, (order_id, p.method, p_amt, p_acc_id))
                     sub_cb_code = generate_cashbook_code(cur, "PT-BH")
                     cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p.account_id, shift_id))
+                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p_acc_id, shift_id))
             else:
                 acc_id = getattr(req, "account_id", None)
                 pay_method = getattr(req, "payment_method", None) or "cash"
-                if not acc_id:
-                    if pay_method in ("transfer", "card", "wallet"):
-                        cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'bank' AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                        row_acc = cur.fetchone()
-                        acc_id = row_acc[0] if row_acc else None
-                    else:
-                        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                        row_acc = cur.fetchone()
-                        acc_id = row_acc[0] if row_acc else None
-                else:
-                    cur.execute("SELECT account_type FROM payment_accounts WHERE id = ?", (acc_id,))
-                    row_chk = cur.fetchone()
-                    if row_chk:
-                        acc_type = row_chk[0]
-                        if acc_type == 'bank' and pay_method == 'cash':
-                            pay_method = 'transfer'
-                        elif acc_type == 'ewallet' and pay_method == 'cash':
-                            pay_method = 'wallet'
+                # Chuyển khoản/thẻ phải chọn tài khoản đúng loại; tiền mặt vào két. Không tự rơi vào tài khoản mặc định.
+                acc_id = resolve_payment_account(cur, pay_method, acc_id)
 
                 cur.execute("""
                 INSERT INTO order_payments (order_id, method, amount, account_id)
@@ -1392,6 +1397,11 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     current_points = cust_points
 
         conn.commit()
+    except HTTPException:
+        # Lỗi nghiệp vụ (400/403/404) giữ nguyên mã và thông báo, không bọc lại
+        conn.rollback()
+        conn.close()
+        raise
     except Exception as e:
         conn.rollback()
         conn.close()
@@ -1665,14 +1675,33 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
             for nitem in req.items:
                 subtotal = nitem.quantity * nitem.price
                 total_amount += subtotal
+
+            eff_discount = new_discount or 0.0
+            discount_ratio = (eff_discount / total_amount) if (total_amount > 0 and eff_discount > 0) else 0.0
+            discount_ratio = min(1.0, discount_ratio)
+            total_vat_amount = 0.0
+            item_vat_data = []
+            for nitem in req.items:
+                item_vat_rate = float(nitem.vat_rate or 0.0)
+                item_sub = nitem.quantity * nitem.price
+                item_net = item_sub * (1.0 - discount_ratio)
+                item_vat = round(item_net * (item_vat_rate / 100.0), 2) if item_vat_rate > 0 else 0.0
+                total_vat_amount += item_vat
+                item_vat_data.append((item_vat_rate, item_vat))
+
+            vat_amount = round(total_vat_amount, 2)
+
+            for idx, nitem in enumerate(req.items):
+                subtotal = nitem.quantity * nitem.price
                 n_ratio = float(nitem.unit_ratio or 1)
                 if n_ratio <= 0:
                     n_ratio = 1.0
                 n_base_qty = round(nitem.quantity * n_ratio, 4)
+                it_vat_r, it_vat_a = item_vat_data[idx]
                 cur.execute("""
-                INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (order_id, nitem.product_id, nitem.quantity, nitem.price, subtotal, nitem.unit, n_ratio))
+                INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit, unit_ratio, vat_rate, vat_amount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (order_id, nitem.product_id, nitem.quantity, nitem.price, subtotal, nitem.unit, n_ratio, it_vat_r, it_vat_a))
 
                 cur.execute("UPDATE products SET stock = stock - ? WHERE id = ? AND type != 'service'", (n_base_qty, nitem.product_id))
                 cur.execute("""
@@ -1711,13 +1740,14 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         actual_new_paid = min(new_paid, final_amount) if new_paid > 0 else 0.0
         new_debt = max(0, final_amount - actual_new_paid)
 
+        new_vat_amount = vat_amount if req.items is not None else (order["vat_amount"] or 0.0)
         updater_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
         UPDATE orders 
-        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, updated_by = ?, updated_at = ?
+        SET customer_id = ?, staff_id = ?, total_amount = ?, discount = ?, shipping_fee = ?, final_amount = ?, paid_amount = ?, debt_amount = ?, note = ?, vat_amount = ?, updated_by = ?, updated_at = ?
         WHERE id = ?
-        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, updater_name, now_vn, order_id))
+        """, (new_customer_id, new_staff_id, total_amount, new_discount, shipping_fee, final_amount, actual_new_paid, new_debt, new_note, new_vat_amount, updater_name, now_vn, order_id))
 
         if old_customer_id == new_customer_id:
             diff_debt = new_debt - old_debt

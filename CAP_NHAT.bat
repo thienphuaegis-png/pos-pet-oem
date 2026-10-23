@@ -13,7 +13,6 @@ echo [1/5] Dang tam dung may chu POS de cap nhat an toan...
 taskkill /F /IM POS_Mastercare.exe >nul 2>&1
 taskkill /F /IM python.exe >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
-taskkill /F /IM ngrok.exe >nul 2>&1
 taskkill /F /IM cloudflared.exe >nul 2>&1
 
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8998" ^| findstr "LISTENING"') do (

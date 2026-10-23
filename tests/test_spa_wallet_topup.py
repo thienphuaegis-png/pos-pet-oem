@@ -297,7 +297,7 @@ def test_recharge_spa_wallet_with_bank_transfer_account():
     assert cb_a["account_id"] != default_cash_acc_id
     assert "chuyển khoản" in cb_a["note"].lower() or "transfer" in cb_a["note"].lower()
 
-    # Case B: Recharge with payment_method='transfer' but without account_id (fallback to bank account)
+    # Case B: chuyển khoản mà KHÔNG chọn tài khoản -> bị từ chối (không tự rơi vào tài khoản mặc định)
     payload_b = {
         "contact_id": cust_id,
         "package_id": pkg_id,
@@ -305,16 +305,12 @@ def test_recharge_spa_wallet_with_bank_transfer_account():
         "note": "Khách CK không chỉ định tài khoản"
     }
     res_b = client.post("/api/topup/recharge", json=payload_b)
-    assert res_b.status_code == 200, res_b.text
-    data_b = res_b.json()
-    assert data_b["balance_after"] == 3000000
+    assert res_b.status_code == 400, res_b.text
+    assert "tài khoản nhận tiền" in res_b.json()["detail"].lower()
 
-    cur.execute("SELECT * FROM cashbook WHERE ref_type = 'topup' AND ref_id = ?", (data_b["transaction_id"],))
-    cb_b = cur.fetchone()
-    assert cb_b is not None
-    # Must be a bank account, not default cash account
-    assert cb_b["account_id"] == bank_acc_id
-    assert cb_b["account_id"] != default_cash_acc_id
+    # Case C: chuyển khoản mà chọn nhầm KÉT TIỀN MẶT -> bị từ chối
+    res_c = client.post("/api/topup/recharge", json={**payload_b, "account_id": default_cash_acc_id})
+    assert res_c.status_code == 400, res_c.text
 
     db.close()
 

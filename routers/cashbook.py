@@ -954,7 +954,8 @@ def get_reports_analytics(
         "bank": "Chuyển khoản (VietQR)",
         "card": "Thẻ quẹt POS",
         "wallet": "Cấn trừ Ví Spa",
-        "ewallet": "Ví điện tử"
+        "ewallet": "Ví điện tử",
+        "pos_card": "Thẻ quẹt POS"
     }
     payments_list = []
     for m_code, val in payment_map.items():

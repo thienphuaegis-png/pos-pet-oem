@@ -431,7 +431,7 @@ def execute_change_payment(order_code: str, new_account_id: int) -> dict:
 
         # Đồng bộ bảng order_payments
         acc_type = acc["account_type"] if "account_type" in acc.keys() else "cash"
-        method_str = "cash" if acc_type == "cash" else "transfer"
+        method_str = "cash" if acc_type == "cash" else ("card" if acc_type == "pos_card" else "transfer")
         cur.execute("""
         UPDATE order_payments 
         SET account_id = ?, method = ?
@@ -489,7 +489,7 @@ def format_payment_change_prompt(order_code: str) -> dict:
     accounts = get_available_payment_accounts()
     buttons = []
     for acc in accounts:
-        icon = "💵" if acc["account_type"] == "cash" else "🏦"
+        icon = "💵" if acc["account_type"] == "cash" else ("💳" if acc["account_type"] == "pos_card" else "🏦")
         buttons.append([{"text": f"{icon} {acc['name']}", "callback_data": f"paychange:{order_code}:{acc['id']}"}])
     buttons.append([{"text": "❌ Hủy thao tác", "callback_data": "dismiss"}])
 

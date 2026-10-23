@@ -298,6 +298,37 @@
         // ==========================================
         let currentSingleOrderMaxDebt = 0;
 
+        async function loadCFDPayOrderAccounts(targetFund) {
+            const accSelect = document.getElementById('cfd-pay-order-account');
+            if (!accSelect) return;
+            try {
+                const res = await fetch('/api/payment-accounts');
+                if (!res.ok) return;
+                const accounts = await res.json();
+                const activeAccs = (accounts || []).filter(a => a.is_active && (a.owner_type || 'COMPANY') === targetFund);
+
+                const matchingAcc = activeAccs.find(a => a.owner_type === targetFund && a.is_default)
+                                 || activeAccs.find(a => a.owner_type === targetFund)
+                                 || activeAccs[0];
+                const selectedId = matchingAcc ? matchingAcc.id : null;
+
+                accSelect.innerHTML = activeAccs.map(a => {
+                    const isSel = (a.id === selectedId);
+                    const ownerLabel = a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân';
+                    const typeLabel = a.account_type === 'bank' ? 'NH' : (a.account_type === 'cash' ? 'Tiền mặt' : (a.account_type === 'pos_card' ? 'Thẻ' : 'Khác'));
+                    return `<option value="${a.id}" ${isSel ? 'selected' : ''}>${a.name} (${a.code}) - [${ownerLabel} • ${typeLabel}]</option>`;
+                }).join('');
+            } catch (e) {
+                console.error("Lỗi nạp danh sách tài khoản thanh toán đơn:", e);
+            }
+        }
+
+        function onCFDPayOrderFundChange() {
+            const fund = document.querySelector('input[name="cfd-pay-order-fund"]:checked')?.value || 'COMPANY';
+            loadCFDPayOrderAccounts(fund);
+        }
+        window.onCFDPayOrderFundChange = onCFDPayOrderFundChange;
+
         function openModalPaySingleOrder(orderType, orderId, orderCode, debtAmount, supplierId, supplierName, hasVat = 0) {
             currentSingleOrderMaxDebt = debtAmount;
             document.getElementById('cfd-pay-order-type').value = orderType;
@@ -306,7 +337,7 @@
             document.getElementById('cfd-pay-order-code').innerText = orderCode;
             document.getElementById('cfd-pay-order-supp-name').innerText = supplierName;
             document.getElementById('cfd-pay-order-debt').innerText = formatMoney(debtAmount);
-            document.getElementById('cfd-pay-order-amount').value = debtAmount;
+            document.getElementById('cfd-pay-order-amount').value = debtAmount > 0 ? debtAmount.toLocaleString('vi-VN') : '';
             document.getElementById('cfd-pay-order-note').value = `Thanh toán nợ đơn ${orderCode} (${supplierName})`;
 
             const radioCompany = document.querySelector('input[name="cfd-pay-order-fund"][value="COMPANY"]');
@@ -320,8 +351,17 @@
                 if (radioCompany) { radioCompany.checked = false; radioCompany.disabled = true; }
             }
 
+            const activeFund = hasVat ? 'COMPANY' : 'PERSONAL';
+            loadCFDPayOrderAccounts(activeFund);
+
+            const dateEl = document.getElementById('cfd-pay-order-date');
+            if (dateEl) {
+                dateEl.value = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
+            }
+
             document.getElementById('modal-cfd-pay-order')?.classList.remove('hidden');
         }
+        window.openModalPaySingleOrder = openModalPaySingleOrder;
 
         function closeModalCFDPayOrder() {
             document.getElementById('modal-cfd-pay-order')?.classList.add('hidden');
@@ -329,20 +369,30 @@
         window.closeModalCFDPayOrder = closeModalCFDPayOrder;
 
         function setCFDPayFullOrderDebt() {
-            document.getElementById('cfd-pay-order-amount').value = currentSingleOrderMaxDebt;
+            document.getElementById('cfd-pay-order-amount').value = currentSingleOrderMaxDebt > 0 ? currentSingleOrderMaxDebt.toLocaleString('vi-VN') : '';
         }
+        window.setCFDPayFullOrderDebt = setCFDPayFullOrderDebt;
 
         async function submitPaySingleOrder() {
             const orderType = document.getElementById('cfd-pay-order-type')?.value;
             const orderId = parseInt(document.getElementById('cfd-pay-order-id')?.value);
             const suppId = parseInt(document.getElementById('cfd-pay-order-supp-id')?.value);
             const suppName = document.getElementById('cfd-pay-order-supp-name')?.innerText || '';
-            const amount = parseFloat(document.getElementById('cfd-pay-order-amount')?.value) || 0;
+            const amountVal = document.getElementById('cfd-pay-order-amount')?.value;
+            const amount = (typeof parseMoneyInput === 'function') ? parseMoneyInput(amountVal) : (parseFloat(String(amountVal).replace(/[^0-9]/g, '')) || 0);
             const fundSource = document.querySelector('input[name="cfd-pay-order-fund"]:checked')?.value || 'COMPANY';
             const note = document.getElementById('cfd-pay-order-note')?.value || '';
+            const accSelect = document.getElementById('cfd-pay-order-account');
+            const accountId = accSelect ? (parseInt(accSelect.value) || null) : null;
+            const paymentDate = document.getElementById('cfd-pay-order-date')?.value || null;
 
             if (amount <= 0) {
                 alert("Vui lòng nhập số tiền thanh toán lớn hơn 0");
+                return;
+            }
+
+            if (!accountId) {
+                alert("Vui lòng chọn tài khoản xuất chi!");
                 return;
             }
 
@@ -355,7 +405,9 @@
                         order_id: orderId,
                         amount: amount,
                         fund_source: fundSource,
-                        note: note
+                        note: note,
+                        account_id: accountId,
+                        payment_date: paymentDate
                     })
                 });
 
@@ -379,6 +431,7 @@
                 alert(`❌ Lỗi: ${e.message}`);
             }
         }
+        window.submitPaySingleOrder = submitPaySingleOrder;
 
         // ==========================================
         // POPUP CHỌN NCC & NGUỒN TIỀN TRẢ NỢ (NHÓM 1 & NHÓM 2)
@@ -552,7 +605,7 @@
             const fundName = (fund === 'COMPANY') ? 'Quỹ Cty' : 'Quỹ Cá Nhân';
 
             const amountInput = document.getElementById('cfd-pay-amount');
-            if (amountInput) amountInput.value = maxDebt > 0 ? maxDebt : '';
+            if (amountInput) amountInput.value = maxDebt > 0 ? maxDebt.toLocaleString('vi-VN') : '';
 
             const hintEl = document.getElementById('cfd-pay-fund-hint');
             if (hintEl) hintEl.innerText = `Tối đa nợ thuộc ${fundName} có thể trả: ${formatMoney(maxDebt)}`;
@@ -570,12 +623,13 @@
             const maxDebt = (fund === 'COMPANY') ? debtCompany : debtPersonal;
 
             const amountInput = document.getElementById('cfd-pay-amount');
-            if (amountInput) amountInput.value = maxDebt;
+            if (amountInput) amountInput.value = maxDebt > 0 ? maxDebt.toLocaleString('vi-VN') : '';
         }
 
         async function submitPaySupplierDebt() {
             const suppId = parseInt(document.getElementById('cfd-pay-supp-select')?.value);
-            const amount = parseFloat(document.getElementById('cfd-pay-amount')?.value) || 0;
+            const amountVal = document.getElementById('cfd-pay-amount')?.value;
+            const amount = (typeof parseMoneyInput === 'function') ? parseMoneyInput(amountVal) : (parseFloat(String(amountVal).replace(/[^0-9]/g, '')) || 0);
             const fundSource = document.getElementById('cfd-pay-fund')?.value || 'COMPANY';
             const note = document.getElementById('cfd-pay-note')?.value || '';
             const paymentDate = document.getElementById('cfd-pay-date')?.value || null;
@@ -743,7 +797,7 @@
             const dateInput = document.getElementById('plan-date');
             if (dateInput) dateInput.value = dateStr;
 
-            document.getElementById('plan-amount').value = dTotal > 0 ? dTotal : '';
+            document.getElementById('plan-amount').value = dTotal > 0 ? dTotal.toLocaleString('vi-VN') : '';
 
             const fundSelect = document.getElementById('plan-fund-source');
             if (fundSelect) {
@@ -833,7 +887,7 @@
             if (dispCode) dispCode.innerText = `Đơn: ${orderCode}`;
             if (dispSub) dispSub.innerText = `Còn nợ: ${formatMoney(debtAmount)} • ${hasVat ? 'Quỹ Cty' : 'Quỹ Cá Nhân'}`;
 
-            document.getElementById('plan-amount').value = debtAmount;
+            document.getElementById('plan-amount').value = debtAmount > 0 ? debtAmount.toLocaleString('vi-VN') : '';
             setPlanFundSource(hasVat ? 'COMPANY' : 'PERSONAL');
 
             closePlanOrderPickerModal();
@@ -889,13 +943,14 @@
             const dTotalText = document.getElementById('plan-debt-total').innerText.replace(/[^0-9]/g, '');
             const dTotal = parseFloat(dTotalText) || 0;
             const amt = Math.round(dTotal * rate);
-            document.getElementById('plan-amount').value = amt;
+            document.getElementById('plan-amount').value = amt > 0 ? amt.toLocaleString('vi-VN') : '';
         }
 
         async function submitCreateDebtPlan() {
             const suppId = parseInt(document.getElementById('plan-supplier-id').value);
             const planType = document.querySelector('input[name="plan_type"]:checked')?.value || 'PARTIAL_DEBT';
-            const amount = parseFloat(document.getElementById('plan-amount').value) || 0;
+            const amountVal = document.getElementById('plan-amount').value;
+            const amount = (typeof parseMoneyInput === 'function') ? parseMoneyInput(amountVal) : (parseFloat(String(amountVal).replace(/[^0-9]/g, '')) || 0);
             const fundSource = document.getElementById('plan-fund-source').value;
             const planDate = document.getElementById('plan-date').value;
             const note = document.getElementById('plan-note').value.trim();
@@ -993,7 +1048,7 @@
                 const fundSelect = document.getElementById('cfd-pay-fund');
                 const noteInput = document.getElementById('cfd-pay-note');
 
-                if (amtInput) amtInput.value = amount;
+                if (amtInput) amtInput.value = amount > 0 ? Number(amount).toLocaleString('vi-VN') : '';
                 if (fundSelect) {
                     fundSelect.value = fundSource;
                     if (typeof onCFDPayFundChange === 'function') onCFDPayFundChange();

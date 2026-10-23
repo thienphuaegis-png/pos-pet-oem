@@ -2,9 +2,10 @@ import pytest
 from starlette.testclient import TestClient
 from server import app
 
-client = TestClient(app)
+from tests.auth_helpers import owner_auth_headers
+client = TestClient(app, headers=owner_auth_headers())
 
-def test_ai_parse_oem_invoice_with_database_context():
+def test_ai_parse_oem_invoice_with_database_context(monkeypatch):
     """
     Test kiểm tra tác nhân AI khi nhận diện văn bản hoặc từ khóa hợp đồng gia công:
     - Mã GC244..GC247
@@ -14,6 +15,10 @@ def test_ai_parse_oem_invoice_with_database_context():
     -> Phải nhận diện partner là Lucky Star (ID 10)
     -> Phải bóc tách được vat_percent, discount_percent, deposit_amount
     """
+    # Đảm bảo test heuristic offline hoạt động độc lập, không phụ thuộc kết nối mạng/quota Gemini ngoài
+    from routers import ai_assistant
+    monkeypatch.setattr(ai_assistant, "get_gemini_config", lambda user=None: {"gemini_api_key": ""})
+
     # Gửi request với prompt_hint mô phỏng nội dung OCR từ ảnh hóa đơn phụ lục 07
     hint_text = """
     MASTER CARE FOR PET_ HĐ VÀ PHỤ LỤC 07 Ngày 13/10/2026

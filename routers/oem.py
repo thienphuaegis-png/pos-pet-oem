@@ -6,7 +6,7 @@ from schemas import (
     OEMOrderCreate, OEMOrderUpdate, OEMOrderDeposit, OEMOrderReceive
 )
 from pydantic import BaseModel
-from dependencies import require_permission, require_any_permission
+from dependencies import require_permission, require_any_permission, get_current_user, check_permission
 
 class OEMStockCheckItem(BaseModel):
     item_type: Optional[str] = "product"  # 'product' hoac 'ingredient'
@@ -376,14 +376,31 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
             discount_val = total_raw * (discount_pct / 100.0)
 
         raw_after_discount = max(0.0, total_raw - discount_val)
-        vat_amount = total_raw * (req.vat_percent / 100.0)
-        total_final = raw_after_discount + vat_amount
-        remaining = max(0.0, total_final - req.deposit_amount)
         discount_factor = (raw_after_discount / total_raw) if total_raw > 0 else 1.0
-        vat_factor = 1.0 + (req.vat_percent / 100.0)
+
+        # Multi-VAT cho từng item
+        has_item_vat = any(getattr(it, "vat_rate", None) is not None for it in req.items)
+        total_vat_amount = 0.0
+        item_vat_data = []
+        for it in req.items:
+            item_vat_rate = it.vat_rate if getattr(it, "vat_rate", None) is not None else (req.vat_percent or 8.0)
+            item_raw = it.ordered_qty * it.unit_price
+            item_vat = round(item_raw * (item_vat_rate / 100.0), 2)
+            total_vat_amount += item_vat
+            # Phương án B: giá vốn gồm thuế = unit_price * discount_factor * (1 + vat_rate / 100)
+            net_cost = it.unit_price * discount_factor * (1.0 + (item_vat_rate / 100.0))
+            item_vat_data.append((item_vat_rate, item_vat, net_cost))
+
+        if not has_item_vat and req.vat_percent > 0:
+            total_vat_amount = round(total_raw * (req.vat_percent / 100.0), 2)
+
+        vat_amount = round(total_vat_amount, 2)
+        total_final = round(raw_after_discount + vat_amount, 2)
+        deposit_val = 0.0 if getattr(req, "is_draft", False) else req.deposit_amount
+        remaining = max(0.0, total_final - deposit_val)
         
-        status = "DEPOSITED" if req.deposit_amount > 0 else "DRAFT"
-        deposit_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if req.deposit_amount > 0 else None
+        status = "DRAFT" if getattr(req, "is_draft", False) or deposit_val <= 0 else "DEPOSITED"
+        deposit_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") if deposit_val > 0 else None
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         
         cur.execute("""
@@ -391,28 +408,27 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
                 code, partner_id, target_type, oem_warehouse_id, dest_warehouse_id,
                 status, expected_delivery_date, fund_source,
                 vat_percent, discount_percent, deposit_amount, deposit_date,
-                total_raw_amount, total_final_amount, remaining_payment,
+                total_raw_amount, vat_amount, total_final_amount, remaining_payment,
                 payment_status, note, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             code, req.partner_id, getattr(req, "target_type", "product") or "product", req.oem_warehouse_id, req.dest_warehouse_id,
             status, req.expected_delivery_date, req.fund_source,
-            req.vat_percent, discount_pct, req.deposit_amount, deposit_date,
-            total_raw, total_final, remaining,
-            "PARTIAL" if req.deposit_amount > 0 else "UNPAID", req.note or "", user_name
+            req.vat_percent, discount_pct, deposit_val, deposit_date,
+            total_raw, vat_amount, total_final, remaining,
+            "PARTIAL" if deposit_val > 0 else "UNPAID", req.note or "", user_name
         ))
         order_id = cur.lastrowid
         
-        for it in req.items:
-            # Đơn giá ròng dự kiến
-            net_cost = it.unit_price * discount_factor * vat_factor
+        for idx, it in enumerate(req.items):
+            item_vat_rate, item_vat_amt, net_cost = item_vat_data[idx]
             item_type = getattr(it, "item_type", "product") or ("ingredient" if it.ingredient_id else "product")
             cur.execute("""
                 INSERT INTO oem_order_items (
                     order_id, item_type, product_id, ingredient_id, ordered_qty, received_qty,
-                    unit_price, final_unit_cost, full_cost_per_unit
-                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0)
-            """, (order_id, item_type, it.product_id, it.ingredient_id, it.ordered_qty, it.unit_price, net_cost))
+                    unit_price, final_unit_cost, full_cost_per_unit, vat_rate, vat_amount
+                ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?)
+            """, (order_id, item_type, it.product_id, it.ingredient_id, it.ordered_qty, it.unit_price, net_cost, item_vat_rate, item_vat_amt))
 
             # Ghi nhớ đơn giá gia công vào quan hệ nhà máy nếu có giá > 0
             if it.unit_price > 0 and it.product_id:
@@ -429,7 +445,7 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
                 """, (it.unit_price, req.partner_id, it.ingredient_id))
             
         # Nếu có cọc đợt 1 ngay, ghi nhận vào Sổ Quỹ (cashbook)
-        if req.deposit_amount > 0:
+        if not getattr(req, "is_draft", False) and deposit_val > 0:
             cb_code = generate_cashbook_code(cur, "PC-OEM")
             cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
             row_acc = cur.fetchone()
@@ -438,12 +454,12 @@ def create_oem_order(req: OEMOrderCreate, user=Depends(require_permission("oem.m
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, fund_source, account_id)
                 VALUES (?, 'out', 'OEM_DEPOSIT', ?, ?, 'oem_order', ?, ?, ?, ?)
             """, (
-                cb_code, req.deposit_amount, req.partner_id, order_id,
+                cb_code, deposit_val, req.partner_id, order_id,
                 f"Cọc 50% đơn gia công OEM {code}", req.fund_source, acc_id
             ))
             
         conn.commit()
-        return {"success": True, "id": order_id, "code": code, "total_final": total_final, "deposit": req.deposit_amount}
+        return {"success": True, "id": order_id, "code": code, "total_final": total_final, "deposit": deposit_val}
     except Exception as e:
         conn.rollback()
         logger.error(f"Lỗi tạo đơn OEM: {e}")
@@ -474,37 +490,52 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
             discount_val = total_raw * (discount_pct / 100.0)
 
         raw_after_discount = max(0.0, total_raw - discount_val)
-        vat_amount = total_raw * (req.vat_percent / 100.0)
-        total_final = raw_after_discount + vat_amount
-        remaining = max(0.0, total_final - (o["deposit_amount"] or 0.0))
         discount_factor = (raw_after_discount / total_raw) if total_raw > 0 else 1.0
-        vat_factor = 1.0 + (req.vat_percent / 100.0)
+
+        # Multi-VAT cho từng item
+        has_item_vat = any(getattr(it, "vat_rate", None) is not None for it in req.items)
+        total_vat_amount = 0.0
+        item_vat_data = []
+        for it in req.items:
+            item_vat_rate = it.vat_rate if getattr(it, "vat_rate", None) is not None else (req.vat_percent or 8.0)
+            item_raw = it.ordered_qty * it.unit_price
+            item_vat = round(item_raw * (item_vat_rate / 100.0), 2)
+            total_vat_amount += item_vat
+            net_cost = it.unit_price * discount_factor * (1.0 + (item_vat_rate / 100.0))
+            item_vat_data.append((item_vat_rate, item_vat, net_cost))
+
+        if not has_item_vat and req.vat_percent > 0:
+            total_vat_amount = round(total_raw * (req.vat_percent / 100.0), 2)
+
+        vat_amount = round(total_vat_amount, 2)
+        total_final = round(raw_after_discount + vat_amount, 2)
+        remaining = max(0.0, total_final - (o["deposit_amount"] or 0.0))
 
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
             UPDATE oem_orders
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
-                total_raw_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
+                total_raw_amount = ?, vat_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
                 fund_source = ?, updated_by = ?, updated_at = ?
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             req.expected_delivery_date, req.vat_percent, discount_pct,
-            total_raw, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id
+            total_raw, vat_amount, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id
         ))
 
         is_received = o["status"] in ("RECEIVED", "COMPLETED")
         cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
-        for it in req.items:
-            net_cost = it.unit_price * discount_factor * vat_factor
+        for idx, it in enumerate(req.items):
+            item_vat_rate, item_vat_amt, net_cost = item_vat_data[idx]
             rec_qty = it.ordered_qty if is_received else 0
             cur.execute("""
                 INSERT INTO oem_order_items (
                     order_id, product_id, ordered_qty, received_qty,
-                    unit_price, final_unit_cost, full_cost_per_unit
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (order_id, it.product_id, it.ordered_qty, rec_qty, it.unit_price, net_cost, net_cost))
+                    unit_price, final_unit_cost, full_cost_per_unit, vat_rate, vat_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (order_id, it.product_id, it.ordered_qty, rec_qty, it.unit_price, net_cost, net_cost, item_vat_rate, item_vat_amt))
 
         conn.commit()
         return {"success": True, "id": order_id, "total_final": total_final}
@@ -518,7 +549,7 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
         conn.close()
 
 @router.delete("/api/oem/orders/{order_id}")
-def delete_oem_order(order_id: int, user=Depends(require_permission("oem.manage"))):
+def delete_oem_order(order_id: int, user=Depends(get_current_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
@@ -529,6 +560,10 @@ def delete_oem_order(order_id: int, user=Depends(require_permission("oem.manage"
 
         order = dict(o)
         status = order.get("status")
+
+        if status != "DRAFT":
+            if user.get("role") not in ("owner", "admin") and not check_permission(user.get("id"), user.get("role", ""), "oem.manage"):
+                raise HTTPException(status_code=403, detail="Chỉ Quản trị viên mới được quyền xóa đơn gia công đã đặt cọc hoặc đã nhận hàng")
 
         # 1. Nếu đơn đã nhận hàng: hoàn tác tồn kho thành phẩm + nguyên liệu xưởng
         if status in ("RECEIVED", "COMPLETED"):
@@ -665,7 +700,6 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_
             raise HTTPException(status_code=400, detail="Đơn hàng này đã được nhận trước đó!")
             
         discount_factor = 1.0 - (order["discount_percent"] / 100.0)
-        vat_factor = 1.0 + (order["vat_percent"] / 100.0)
         
         # Cập nhật số lượng thực nhận cho từng item
         total_raw = 0.0
@@ -680,10 +714,21 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_
         cur.execute("SELECT * FROM oem_order_items WHERE order_id = ?", (order_id,))
         items = [dict(r) for r in cur.fetchall()]
         
+        has_item_vat = any("vat_rate" in it and it["vat_rate"] is not None for it in items)
+        total_vat = 0.0
         for it in items:
-            total_raw += it["received_qty"] * it["unit_price"]
+            item_raw = it["received_qty"] * it["unit_price"]
+            total_raw += item_raw
+            item_vat_rate = it["vat_rate"] if ("vat_rate" in it and it["vat_rate"] is not None) else (order["vat_percent"] or 8.0)
+            item_vat_amt = round(item_raw * (item_vat_rate / 100.0), 2)
+            total_vat += item_vat_amt
+            cur.execute("UPDATE oem_order_items SET vat_rate = ?, vat_amount = ? WHERE id = ?", (item_vat_rate, item_vat_amt, it["id"]))
             
-        total_final = total_raw * discount_factor * vat_factor
+        if not has_item_vat and order["vat_percent"] > 0:
+            total_vat = round(total_raw * (order["vat_percent"] / 100.0), 2)
+
+        raw_after_discount = total_raw * discount_factor
+        total_final = round(raw_after_discount + total_vat, 2)
         remaining = max(0.0, total_final - order["deposit_amount"])
         
         # Xử lý từng sản phẩm/nguyên liệu: trừ kho NVL/phôi tại xưởng, tính giá vốn gộp, nhập kho
@@ -692,7 +737,10 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_
             if rec_qty <= 0:
                 continue
                 
-            net_proc_cost = it["unit_price"] * discount_factor * vat_factor
+            item_vat_rate = it["vat_rate"] if ("vat_rate" in it and it["vat_rate"] is not None) else (order["vat_percent"] or 8.0)
+            item_vat_factor = 1.0 + (item_vat_rate / 100.0)
+            # Phương án B: Giá vốn tính gộp thuế
+            net_proc_cost = it["unit_price"] * discount_factor * item_vat_factor
             material_cost_per_unit = 0.0
 
             # ── Nhánh A: Gia công ra Nguyên Vật Liệu (item_type == 'ingredient') ──
@@ -899,10 +947,10 @@ def receive_oem_order(order_id: int, req: OEMOrderReceive, user=Depends(require_
         # Cập nhật đơn OEM sang trạng thái RECEIVED
         cur.execute("""
             UPDATE oem_orders
-            SET status = 'RECEIVED', total_raw_amount = ?, total_final_amount = ?,
+            SET status = 'RECEIVED', total_raw_amount = ?, vat_amount = ?, total_final_amount = ?,
                 deposit_amount = ?, remaining_payment = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (total_raw, total_final, new_deposit, final_remaining, payment_status, order_id))
+        """, (total_raw, total_vat, total_final, new_deposit, final_remaining, payment_status, order_id))
         
         conn.commit()
         return {
@@ -1321,6 +1369,17 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
     if req.amount > order_debt + 0.01:
         conn.close()
         raise HTTPException(status_code=400, detail=f"Số tiền thanh toán vượt quá nợ còn lại của đơn ({order_debt:,.0f} đ)")
+
+    if req.account_id:
+        cur.execute("SELECT owner_type FROM payment_accounts WHERE id = ? AND is_active = 1", (req.account_id,))
+        acc_row = cur.fetchone()
+        if not acc_row:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Tài khoản chi không tồn tại hoặc đã ngừng hoạt động")
+        if (acc_row["owner_type"] or "COMPANY") != req.fund_source:
+            conn.close()
+            fund_label = "Quỹ Cty" if req.fund_source == "COMPANY" else "Quỹ Cá Nhân"
+            raise HTTPException(status_code=400, detail=f"Tài khoản chi không thuộc {fund_label}")
         
     alloc = req.amount
     new_debt = max(0.0, order_debt - alloc)
@@ -1342,13 +1401,25 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
     cb_code = generate_cashbook_code(cur, cb_prefix)
     fund_text = "Quỹ Cty" if req.fund_source == "COMPANY" else "Quỹ Cá Nhân"
     note = req.note or f"Thanh toán đơn {order_code} ({supp_name}) - {fund_text}"
-    cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
-    row_acc = cur.fetchone()
-    acc_id = row_acc[0] if row_acc else None
-    cur.execute("""
-        INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id)
-        VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?)
-    """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id))
+    
+    acc_id = req.account_id
+    if not acc_id:
+        cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
+        row_acc = cur.fetchone()
+        acc_id = row_acc[0] if row_acc else None
+        
+    user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    if req.payment_date:
+        cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by, created_at)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id, user_name, cb_created_at))
+    else:
+        cur.execute("""
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id, user_name))
     
     conn.commit()
     conn.close()

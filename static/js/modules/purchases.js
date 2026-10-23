@@ -240,7 +240,8 @@
                             unit_ratio: 1,
                             units: ing.units || [],
                             quantity: '',
-                            cost_price: ing.latest_cost || 0
+                            cost_price: ing.latest_cost || 0,
+                            vat_rate: ing.vat_rate !== undefined && ing.vat_rate !== null ? ing.vat_rate : 0
                         });
                     }
                 }
@@ -261,7 +262,8 @@
                             unit_ratio: 1,
                             units: prod.units || [],
                             quantity: '',
-                            cost_price: prod.cost_price || 0
+                            cost_price: prod.cost_price || 0,
+                            vat_rate: prod.vat_rate !== undefined && prod.vat_rate !== null ? prod.vat_rate : 0
                         });
                     }
                 }
@@ -297,6 +299,9 @@
             if (field === 'cost_price') {
                 purchaseCart[idx].cost_price = (val === '' ? '' : (parseFloat(val) || 0));
             }
+            if (field === 'vat_rate') {
+                purchaseCart[idx].vat_rate = (val === '' ? 0 : (parseFloat(val) || 0));
+            }
             renderPurchaseItems(field === 'quantity' && (purchaseCart[idx].unit_ratio || 1) != 1);
         }
 
@@ -322,7 +327,7 @@
             if (!tbody) return;
 
             if (purchaseCart.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Hãy tìm kiếm ở trên để thêm vào phiếu!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Hãy tìm kiếm ở trên để thêm vào phiếu!</td></tr>';
                 calculatePurchaseTotals();
                 return;
             }
@@ -332,6 +337,7 @@
                     const qtyVal = (item.quantity !== '' && item.quantity !== null && item.quantity !== undefined) ? item.quantity : '';
                     const qNum = parseFloat(qtyVal) || 0;
                     const cNum = parseFloat(item.cost_price) || 0;
+                    const vatRateVal = item.vat_rate !== undefined && item.vat_rate !== null ? item.vat_rate : 0;
                     const subtotal = qNum * cNum;
                     const isIng = item.item_type === 'ingredient';
                     const badge = isIng 
@@ -368,6 +374,11 @@
                                 class="border p-1 rounded w-28 text-right font-bold text-rose-600 outline-none focus:border-rose-400" 
                                 oninput="updatePurchaseItemField(${idx}, 'cost_price', this.value)">
                         </td>
+                        <td class="p-2 text-right">
+                            <input type="number" step="any" min="0" max="100" value="${vatRateVal}" 
+                                class="border p-1 rounded w-16 text-right font-bold text-slate-700 outline-none focus:border-sky-500" 
+                                oninput="updatePurchaseItemField(${idx}, 'vat_rate', this.value)">
+                        </td>
                         <td class="p-2 text-right font-bold text-slate-800 font-mono" id="p-subtotal-${idx}">
                             ${formatMoney(subtotal)}
                         </td>
@@ -398,10 +409,25 @@
             const discount = parseFloat(document.getElementById('purchase-discount').value) || 0;
             const shipping = parseFloat(document.getElementById('purchase-shipping').value) || 0;
             const otherFee = parseFloat(document.getElementById('purchase-other-fee').value) || 0;
-            const vatRate = parseFloat(document.getElementById('purchase-vat-rate').value) || 0;
+            const headerVatRate = parseFloat(document.getElementById('purchase-vat-rate')?.value) || 0;
 
             const afterDiscount = Math.max(0, subtotal - discount);
-            const vatAmount = (vatRate > 0) ? Math.round(afterDiscount * (vatRate / 100)) : 0;
+            const discountRatio = subtotal > 0 ? (discount / subtotal) : 0;
+
+            const hasItemVat = purchaseCart.some(it => it.vat_rate !== undefined && it.vat_rate !== null && parseFloat(it.vat_rate) > 0);
+            let vatAmount = 0;
+            if (hasItemVat) {
+                vatAmount = purchaseCart.reduce((sum, it) => {
+                    const q = parseFloat(it.quantity) || 0;
+                    const c = parseFloat(it.cost_price) || 0;
+                    const vr = parseFloat(it.vat_rate) || 0;
+                    const net = (q * c) * (1 - discountRatio);
+                    return sum + Math.round(net * (vr / 100));
+                }, 0);
+            } else if (headerVatRate > 0) {
+                vatAmount = Math.round(afterDiscount * (headerVatRate / 100));
+            }
+
             const total = Math.max(0, afterDiscount + shipping + otherFee + vatAmount);
 
             document.getElementById('p-calc-subtotal').textContent = formatMoney(subtotal);
@@ -492,7 +518,8 @@
                         unit_ratio: item.unit_ratio || 1,
                         units: src?.units || [],
                         quantity: item.quantity,
-                        cost_price: item.cost_price
+                        cost_price: item.cost_price,
+                        vat_rate: item.vat_rate !== undefined && item.vat_rate !== null ? item.vat_rate : (src?.vat_rate ?? 0)
                     };
                 });
 
@@ -592,7 +619,8 @@
                     unit: i.unit,
                     unit_ratio: i.unit_ratio || 1,
                     quantity: parseFloat(i.quantity) || 0,
-                    cost_price: parseFloat(i.cost_price) || 0
+                    cost_price: parseFloat(i.cost_price) || 0,
+                    vat_rate: parseFloat(i.vat_rate) || 0
                 }))
             };
 
@@ -1015,7 +1043,7 @@
                 if (elCount) elCount.innerText = `${list.length} đơn`;
 
                 if (list.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-medium">Không tìm thấy phiếu nhập hàng nào phù hợp</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-medium">Không tìm thấy phiếu nhập hàng nào phù hợp</td></tr>';
                     return;
                 }
 
@@ -1068,6 +1096,9 @@
                         <tr onclick="openReceiveModal('${escapeHtml(p.code)}', true)" class="hover:bg-slate-50/70 transition cursor-pointer border-b border-slate-100">
                             <td class="p-3 font-mono font-bold text-sky-700">
                                 <span>${escapeHtml(p.code)}</span>
+                            </td>
+                            <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                                ${typeof formatDateTime === 'function' ? (formatDateTime(p.created_at) || '—') : (p.created_at || '—')}
                             </td>
                             <td class="p-3">
                                 <div class="font-bold text-slate-900">${escapeHtml(p.supplier_name || 'NCC Mặc định')}</div>
@@ -1533,6 +1564,16 @@
             if (amtInput) amtInput.value = currentDebt;
             if (fundSelect) fundSelect.value = fundSource;
             if (noteInput) noteInput.value = `Chi thanh toán tiền phiếu nhập ${code}`;
+            const accSel = document.getElementById('pay-po-account');
+            if (accSel && window.PayAcc) {
+                PayAcc.load().then(list => {
+                    accSel.innerHTML = '<option value="">-- Tự chọn theo nguồn tiền --</option>' + list
+                        .filter(a => a.account_type !== 'pos_card')
+                        .map(a => `<option value="${a.id}">${a.name} (${a.owner_type === 'COMPANY' ? 'Cty' : 'Cá nhân'})${a.account_type === 'cash' ? ' - Tiền mặt' : (a.account_number ? ' - ' + a.account_number : '')}</option>`).join('');
+                    const last = localStorage.getItem('pos_last_pay_acc_purchase');
+                    if (last && list.some(a => String(a.id) === last)) accSel.value = last;
+                });
+            }
 
             const modal = document.getElementById('modal-pay-purchase');
             if (modal) modal.classList.remove('hidden');
@@ -1565,6 +1606,7 @@
                     body: JSON.stringify({
                         amount: amount,
                         fund_source: fundSelect?.value || 'PERSONAL',
+                        account_id: parseInt(document.getElementById('pay-po-account')?.value) || null,
                         note: (noteInput?.value || '').trim()
                     })
                 });
@@ -1574,6 +1616,8 @@
                     alert("Lỗi: " + (data.detail || "Không thể thực hiện thanh toán"));
                     return;
                 }
+                const _pa = document.getElementById('pay-po-account')?.value;
+                if (_pa) localStorage.setItem('pos_last_pay_acc_purchase', _pa);
 
                 alert(data.message || "Đã thanh toán thành công!");
                 const paidCode = currentPayingPurchaseCode; // closePayPurchaseModal() nulls it

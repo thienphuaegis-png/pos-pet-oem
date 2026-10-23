@@ -1,59 +1,55 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-17 — Đồng Bộ Modal Xác Nhận Chuẩn POS, Phân Trang Server-Side & Chuẩn Hóa KPI Sàn TMĐT
+**Checkpoint:** 2026-10-23 — AI Hub Thích Ứng Vai Trò, Tồn Tối Thiểu min_stock & Lời Nhắc Việc Ca
+**Lịch sử checkpoint:** `docs/checkpoints/CHECKPOINT_2026_10_23.md`
+**Active Plan:** `docs/plans/plan_oem_draft_and_ai_auto_restock.md`
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.4` — Exe: `POS_Mastercare.exe` (31.2 MB) khớp commit `6b9476c`
+**Version:** `v3.6.8` — Exe: `POS_Mastercare.exe` khớp database & code mới nhất
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-17)
-- **Chuẩn Hóa Bảng Đơn Nhập Hàng & Đơn OEM 6 Cột — 1-Click Mở Thẳng Modal Chi Tiết (`purchases-and-oem-6col-click-to-detail`):**
-  - Đơn Nhập Hàng NCC (Purchases): Rút gọn từ 12 cột còn 6 cột chuẩn không cuộn ngang; tích hợp thanh tiến trình thanh toán (Progress bar) % đã trả / còn nợ / mã phiếu chi Sổ Quỹ.
-  - Xóa bỏ triệt để nút `💳 Chi Trả` trên từng dòng bảng nhập hàng để tránh vỡ giao diện và rối loạn nghiệp vụ chi nợ (thanh toán qua Sổ Quỹ hoặc phân hệ công nợ).
-  - Tối ưu tương tác cả OEM và Nhập Hàng: Click trực tiếp vào dòng mở ngay Modal xem chi tiết phiếu đầy đủ thay vì trượt dòng mở rộng (Drawer) cồng kềnh; cột thao tác gồm 1 nút chính nổi bật (`Nhận Hàng` / `In Phiếu` / `Xem Phiếu`) + nút menu `⋮` 3 chấm đổ xuống.
-  - Dropdown lọc thông minh: Thêm `filter-po-supplier` tự động gom danh sách NCC và đếm số đơn từng đối tác.
-- **Tối Ưu Bảng Đơn Hàng OEM Chuẩn Đẹp (`oem-expandable-table-and-factory-filter`):**
-  - Chuyển đổi bảng từ 12 cột cũ sang chuẩn 6 cột (Mã đơn, Đối tác & Kho, Tổng tiền, Đã thanh toán, Trạng thái, Thao tác).
-  - Tích hợp thanh tiến trình % cọc (Progress Bar) màu cam/xanh trực quan; nút chính `Nhận hàng` / `Xem phiếu` kèm menu 3 chấm `⋮` mở 4 chức năng: Chi tiết, In phiếu kiểm, Sửa, Xóa.
-  - Cơ chế dòng mở rộng (Expandable Row): Click dòng trượt mở Drawer hiển thị Người lập, Hạn giao, Sửa cuối, Bảng sản phẩm và Bảng đối chiếu vỏ chai/tem nhãn tại xưởng.
-  - Dropdown lọc nhà máy động `oem-filter-factory` có đếm số đơn từng xưởng, giải quyết dứt điểm tình trạng 10+ xưởng làm rối màn hình.
-- **Đồng Bộ Modal Xác Nhận & UI Toast Toàn Diện (`pos-unify-confirm-modal-and-ui-cleanup`):**
-  - Nâng cấp `window.showConfirmModal`: Hỗ trợ phím ESC, chống click đúp (`disabled`), hiển thị ngắt dòng `whitespace-pre-line`.
-  - Thay thế 100% `confirm()` / `alert()` thô trên toàn bộ mã nguồn (`app.js`, `marketplace.js`, `shifts.js`, `staff.js`, `pos.js`, `expense_requests.js`, `cashflow.js`, `spa.js`, `hotel.js`, `productions.js`).
-- **Phân Trang Server-Side & Chuẩn Hóa KPI Sàn TMĐT (`marketplace-pagination-and-accurate-kpi`):**
-  - `routers/marketplace.py`: Khử N+1 query bằng batch lookup chi tiết món; hỗ trợ `page`, `limit` (20/50/100) và tìm kiếm `q` (mã đơn, người mua, mã vận đơn).
-  - Tách API độc lập `GET /api/marketplace/orders-kpi` tính toán chính xác tổng đơn, doanh thu, phí, sản phẩm bán, tỷ lệ ánh xạ trên toàn bộ CSDL.
-  - `marketplace.js` & `templates/index.html`: Bổ sung thanh phân trang tiêu chuẩn và ô tìm kiếm 0ms cho cả Shopee và TikTok Shop.
-- **Đóng gói & Phân phối:**
-  - Bump phiên bản SemVer lên `v3.6.4` (`version.json`).
-  - Build lại sạch `POS_Mastercare.exe` (31.2 MB).
+## 1. Phiên Hiện Tại ✅ (2026-10-23)
+- **Tác Nhân AI Thích Ứng Vai Trò (Role-Adaptive AI Hub):**
+  - Nhận diện vai trò đăng nhập (`warehouse`, `accountant`, `cashier`, `owner`).
+  - Phân hệ Thủ Kho / OEM (Phụng): Ẩn tiền két/doanh số, hiện hàng sắp hết tồn kho, danh sách lô hàng đang về kèm tên NCC và nút 1-chạm nhập kho.
+- **Tồn tối thiểu (`min_stock`) & Cảnh báo đặt hàng:**
+  - Cột `min_stock` trong `products`, ô nhập trên modal thêm/sửa, popup xem hàng sắp hết `#modal-ai-low-stock`.
+- **Quản lý lời nhắc việc ca (`staff_reminders`):**
+  - CRUD lời nhắc việc trong ca (`POST`, `PATCH /toggle`, `DELETE`), giờ hẹn và ưu tiên.
+- **Chuẩn hóa cây thư mục dự án (Root Guard):**
+  - Chuyển toàn bộ checkpoints vào `docs/checkpoints/`.
+  - Gom toàn bộ 26 plan cũ vào `docs/plans/archive/`.
+  - Chuyển file mẫu Excel vào `data/import_samples/`.
+  - Xóa triệt để các file DB 0-byte rác ở gốc repo.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- **Test Hồi Quy Phân Trang & KPI (`tests/test_marketplace_pagination_and_kpi.py`):** 1/1 passed.
-- **Toàn bộ Test Suite:** 635 passed, 10 skipped, 0 failed.
-- **Kiểm tra tính toàn vẹn Checkpoint (`tests/test_checkpoint_integrity.py`):** 4/4 passed.
+- `tests/test_ai_byok_staff.py`: 1/1 passed.
+- `tests/test_pay_single_order_debt.py`: 3/3 passed.
+- `tests/test_checkpoint_integrity.py`: 4/4 passed.
+- `arch-map`: Sinh sơ đồ Dataflow chuẩn Showcase tại `PROJECT_DATAFLOW.html`.
 
 ---
 
 ## 3. Files Thay Đổi Chính
 | Module / File | Trách nhiệm |
 |---|---|
-| `routers/marketplace.py` | Phân trang server-side, khử N+1 query, API KPI độc lập |
-| `static/js/modules/marketplace.js` | Điều khiển phân trang, tìm kiếm 0ms và cập nhật KPI Shopee/TikTok |
-| `static/js/app.js` & các modules | Nâng cấp showConfirmModal, dọn dẹp confirm()/alert() |
-| `templates/index.html` | Thêm thanh phân trang và ô tìm kiếm đơn sàn Shopee/TikTok |
-| `tests/test_marketplace_pagination_and_kpi.py` | Test case phân trang, batch item loading và KPI sàn |
-| `version.json` & `POS_Mastercare.exe` | Bump v3.6.4 và rebuild bản chạy portable |
+| `docs/checkpoints/` | Lưu trữ toàn bộ các mốc checkpoint lịch sử |
+| `docs/plans/archive/` | Lưu trữ 26 kế hoạch đã hoàn thành |
+| `static/js/clientlog.js` | Hộp đen bắt chi tiết mã lỗi HTTP kèm `detail="..."` |
+| `PROJECT_STATE.md` | Hot-state đồng bộ cho phiên làm việc tiếp theo |
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] **`spa-12-tasks` (ƯU TIÊN)**: Sửa bảng dịch vụ Spa — plan + bằng chứng + 6 câu hỏi chờ chốt tại `docs/plans/2026-10-18-spa-12-tasks.md`. Phase 1 (tiền/kho/báo cáo) làm được ngay, không cần chờ câu hỏi.
-- [ ] `ecomm-sync-shopee-tiktok`: Tự động trừ tồn kho POS & Ghi nhận Sổ Quỹ cho đơn sàn TMĐT (đã hoàn thành thiết kế Data Mapping & Brainstorming).
-- [ ] `verify-server-tailscale-and-toggle`: Nghiệm thu thực tế trên máy chủ tiệm (chạy `CAP_NHAT_1_CHAM.bat`, toggle module, kiểm tra Funnel 4G).
-- [ ] Thu hồi (`/revoke`) token bot Telegram cũ trên `@BotFather` và cấp lại token mới.
-- [ ] Cấp lại Gemini API key mới trên Google AI Studio.
+- [x] Bổ sung Nút "Lưu Đơn Nháp (DRAFT)" cho Phân Hệ OEM (`tests/test_oem_draft_mode.py` pass).
+- [x] Chức Năng AI Tự Động Tạo Đơn Nháp 1-Chạm (`tests/test_ai_quick_create_draft.py` pass).
+- [x] Phân Hệ "Phiếu Yêu Cầu Nhập Hàng" Bảo Mật Ẩn Danh NCC (`tests/test_purchase_request_masking.py` pass).
+- [x] Phân Biệt Đối Tác Xưởng OEM & NCC Nhập Hàng Tự Động (`tests/test_ai_oem_factory_recognition.py` pass).
+- [x] Tạo Nháp Hàng Loạt Theo NCC & Cập Nhật Tồn Dự Kiến Ngay Sau Khi Lập Đơn (`tests/test_ai_batch_drafts_and_projected_stock.py` pass).
+- [x] Tab "Yêu Cầu Đặt Hàng" (Purchase Requisition) Dành Riêng Cho Nhân Viên Cửa Hàng & Spa (`purchase_requests.js`, UI 2 cột).
+- [x] Định Dạng Tiền Tệ Real-time Có Dấu Chấm Phân Cách Cho Modal Thanh Toán Nợ NCC & Hẹn Trả Nợ (`#cfd-pay-amount`, `#plan-amount`, `#cfd-pay-order-amount`).
+- [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).

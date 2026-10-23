@@ -18,6 +18,13 @@ def test_spa_bulk_update_api():
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     ts = int(time.time() * 1000)
 
+    # 0. Lấy tài khoản nhận tiền loại bank (CK bắt buộc phải chọn tài khoản đúng loại)
+    res_acc = client.get("/api/payment-accounts", headers=headers)
+    assert res_acc.status_code == 200
+    bank_acc = next((a for a in res_acc.json() if a["account_type"] in ("bank", "ewallet") and a.get("is_active", 1)), None)
+    assert bank_acc, "Cần ít nhất 1 tài khoản nhận tiền loại bank/ewallet để test"
+    bank_account_id = bank_acc["id"]
+
     # 1. Tạo khách hàng test
     res_cust = client.post("/api/contacts", json={
         "type": "customer",
@@ -80,6 +87,7 @@ def test_spa_bulk_update_api():
                 "price": 320000.0,
                 "payment_status": "paid",
                 "payment_method": "transfer",
+                "account_id": bank_account_id,
                 "customer_request": "Khách dặn đón trước 5h chiều"
             }
         ]
@@ -108,7 +116,7 @@ def test_spa_bulk_update_api():
         assert t1[9] == 1
         assert t1[10] == 40000.0
 
-        c.execute("SELECT status, staff_cutter, teeth_cleaning, price, payment_status, payment_method, customer_request, art_cutting_fee FROM pet_service_tickets WHERE id = ?", (ticket2_id,))
+        c.execute("SELECT status, staff_cutter, teeth_cleaning, price, payment_status, payment_method, customer_request, art_cutting_fee, account_id FROM pet_service_tickets WHERE id = ?", (ticket2_id,))
         t2 = c.fetchone()
         assert t2[0] == "completed"
         assert t2[1] == "Thợ Cắt Lan"
@@ -118,3 +126,4 @@ def test_spa_bulk_update_api():
         assert t2[5] == "transfer"
         assert t2[6] == "Khách dặn đón trước 5h chiều"
         assert t2[7] == 50000.0
+        assert t2[8] == bank_account_id, "Tiền CK phải được ghi nhận đúng tài khoản nhận tiền"

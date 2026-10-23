@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "dataflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "D:\\Projects_Hermes\\pos-offline-petcare2\\.archify\\candidate_dataflow.json",
+    "sha256": "7daa29578de99deaf2ecae7cbbc73eaf67b3d0174420b4dad12ce02a4183b4fb",
+    "bytes": 11254
+  },
+  "artifact": {
+    "path": "D:\\Projects_Hermes\\pos-offline-petcare2\\PROJECT_DATAFLOW.html",
+    "sha256": "5ca858c4db640be0be14d90883ed63413891ddb3fa8058bf1dc5642f208b6e59",
+    "bytes": 851828
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\.archify\\review-1792734249\\project_dataflow.finalize.json",
+    "summaryReceipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\.archify\\review-1792734249\\project_dataflow.finalize-summary.json",
+    "browserCheckReceipt": "D:\\Projects_Hermes\\pos-offline-petcare2\\.archify\\review-1792734249\\project_dataflow.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-22T14:03:50.079Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 10306,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 8,
+      "routesOverSuggestedBends": 2,
+      "routesOverSuggestedStretch": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "f_pur",
+            "from": "ui_purchase",
+            "to": "api_inv",
+            "label": "Phiếu nhập kho",
+            "collectionIndex": 1,
+            "artifactIndex": 2
+          },
+          "right": {
+            "id": "f_pos_cash",
+            "from": "api_pos",
+            "to": "api_cash",
+            "label": "Sinh phiếu thu",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            236,
+            271
+          ]
+        },
+        {
+          "left": {
+            "id": "f_cash",
+            "from": "ui_cash",
+            "to": "api_cash",
+            "label": "Thu chi &amp; ví",
+            "collectionIndex": 2,
+            "artifactIndex": 3
+          },
+          "right": {
+            "id": "f_ai_inv",
+            "from": "api_ai",
+            "to": "api_inv",
+            "label": "Đơn nháp 1-chạm",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "point": [
+            244,
+            385
+          ]
+        },
+        {
+          "left": {
+            "id": "f_crm",
+            "from": "ui_crm",
+            "to": "api_crm",
+            "label": "Hồ sơ spa/pet",
+            "collectionIndex": 3,
+            "artifactIndex": 4
+          },
+          "right": {
+            "id": "f_ai_inv",
+            "from": "api_ai",
+            "to": "api_inv",
+            "label": "Đơn nháp 1-chạm",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "point": [
+            244,
+            499
+          ]
+        },
+        {
+          "left": {
+            "id": "f_ai_inv",
+            "from": "api_ai",
+            "to": "api_inv",
+            "label": "Đơn nháp 1-chạm",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "right": {
+            "id": "f_pos_cash",
+            "from": "api_pos",
+            "to": "api_cash",
+            "label": "Sinh phiếu thu",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            244,
+            332
+          ]
+        },
+        {
+          "left": {
+            "id": "f_fifo",
+            "from": "db_cash",
+            "to": "w_fifo",
+            "label": "Đối soát FIFO",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "right": {
+            "id": "f_sync_ord",
+            "from": "db_orders",
+            "to": "w_sync",
+            "label": "Delta đơn",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "point": [
+            665,
+            376
+          ]
+        },
+        {
+          "left": {
+            "id": "f_fifo",
+            "from": "db_cash",
+            "to": "w_fifo",
+            "label": "Đối soát FIFO",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "right": {
+            "id": "f_sync_stk",
+            "from": "db_stock",
+            "to": "w_sync",
+            "label": "Delta kho",
+            "collectionIndex": 17,
+            "artifactIndex": 18
+          },
+          "point": [
+            610,
+            385
+          ]
+        },
+        {
+          "left": {
+            "id": "f_fifo",
+            "from": "db_cash",
+            "to": "w_fifo",
+            "label": "Đối soát FIFO",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "right": {
+            "id": "f_log",
+            "from": "db_orders",
+            "to": "w_log",
+            "label": "Audit log",
+            "collectionIndex": 18,
+            "artifactIndex": 19
+          },
+          "point": [
+            637.5,
+            385
+          ]
+        },
+        {
+          "left": {
+            "id": "f_sync_stk",
+            "from": "db_stock",
+            "to": "w_sync",
+            "label": "Delta kho",
+            "collectionIndex": 17,
+            "artifactIndex": 18
+          },
+          "right": {
+            "id": "f_log",
+            "from": "db_orders",
+            "to": "w_log",
+            "label": "Audit log",
+            "collectionIndex": 18,
+            "artifactIndex": 19
+          },
+          "point": [
+            637.5,
+            394
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "f_ai_inv",
+            "from": "api_ai",
+            "to": "api_inv",
+            "label": "Đơn nháp 1-chạm",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "bends": 4,
+          "stretch": 1.423,
+          "directCorridorBlockers": [
+            {
+              "id": "api_cash",
+              "label": "Sổ quỹ &amp; Ví",
+              "box": [
+                259,
+                356,
+                112,
+                58
+              ]
+            },
+            {
+              "id": "api_crm",
+              "label": "Hồ sơ Khách",
+              "box": [
+                259,
+                470,
+                112,
+                58
+              ]
+            }
+          ]
+        },
+        {
+          "relationship": {
+            "id": "f_pos_cash",
+            "from": "api_pos",
+            "to": "api_cash",
+            "label": "Sinh phiếu thu",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "bends": 4,
+          "stretch": 1.745,
+          "directCorridorBlockers": [
+            {
+              "id": "api_inv",
+              "label": "Kho &amp; BOM",
+              "box": [
+                259,
+                242,
+                112,
+                58
+              ]
+            }
+          ]
+        }
+      ],
+      "truncated": false
+    },
+    "repair": "Advisory only: this mode places or routes these relationships itself. Report them; do not remove relationships or meaning to reduce crossings."
+  }
+}

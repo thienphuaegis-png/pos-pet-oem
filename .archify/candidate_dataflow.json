@@ -1,0 +1,441 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "S\u01a1 \u0111\u1ed3 Lu\u1ed3ng D\u1eef li\u1ec7u Nghi\u1ec7p v\u1ee5: pos-offline-petcare2",
+    "subtitle": "Ki\u1ebfn tr\u00fac h\u1ec7 th\u1ed1ng, Lu\u1ed3ng d\u1eef li\u1ec7u v\u00e0 Quy t\u1eafc nghi\u1ec7p v\u1ee5 l\u00f5i",
+    "output": "PROJECT_DATAFLOW.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "Giao di\u1ec7n UI"
+    },
+    {
+      "label": "FastAPI Core API"
+    },
+    {
+      "label": "L\u01b0u tr\u1eef SQLite"
+    },
+    {
+      "label": "H\u1eadu k\u1ef3 & Ngo\u1ea1i vi"
+    },
+    {
+      "label": "Cloud & Gi\u00e1m s\u00e1t"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ui_pos",
+      "type": "frontend",
+      "icon": "person",
+      "label": "Thu ng\u00e2n POS",
+      "sublabel": "B\u00e1n l\u1ebb & Spa",
+      "stage": 0,
+      "row": 0,
+      "tag": "Touchpoint"
+    },
+    {
+      "id": "ui_purchase",
+      "type": "frontend",
+      "icon": "briefcase",
+      "label": "Nh\u1eadp kho UI",
+      "sublabel": "NCC & V\u1eadt t\u01b0",
+      "stage": 0,
+      "row": 1,
+      "tag": "Purchasing"
+    },
+    {
+      "id": "ui_cash",
+      "type": "frontend",
+      "icon": "briefcase",
+      "label": "S\u1ed5 qu\u1ef9 UI",
+      "sublabel": "Thu chi & Qu\u1ef9",
+      "stage": 0,
+      "row": 2,
+      "tag": "Finance"
+    },
+    {
+      "id": "ui_crm",
+      "type": "frontend",
+      "icon": "person",
+      "label": "Kh\u00e1ch & Pet UI",
+      "sublabel": "CRM & Spa Care",
+      "stage": 0,
+      "row": 3,
+      "tag": "CRM"
+    },
+    {
+      "id": "ui_ai",
+      "type": "frontend",
+      "icon": "flag",
+      "label": "AI Copilot Hub",
+      "sublabel": "Briefing & OCR",
+      "stage": 0,
+      "row": 4,
+      "tag": "AI Copilot"
+    },
+    {
+      "id": "api_pos",
+      "type": "backend",
+      "icon": "backend",
+      "label": "POS Engine",
+      "sublabel": "routers/pos.py",
+      "stage": 1,
+      "row": 0,
+      "tag": "Sales API"
+    },
+    {
+      "id": "api_inv",
+      "type": "backend",
+      "icon": "backend",
+      "label": "Kho & BOM",
+      "sublabel": "routers/inventory",
+      "stage": 1,
+      "row": 1,
+      "tag": "Stock API"
+    },
+    {
+      "id": "api_cash",
+      "type": "backend",
+      "icon": "backend",
+      "label": "S\u1ed5 qu\u1ef9 & V\u00ed",
+      "sublabel": "routers/cashbook",
+      "stage": 1,
+      "row": 2,
+      "tag": "Cash API"
+    },
+    {
+      "id": "api_crm",
+      "type": "backend",
+      "icon": "backend",
+      "label": "H\u1ed3 s\u01a1 Kh\u00e1ch",
+      "sublabel": "routers/partners",
+      "stage": 1,
+      "row": 3,
+      "tag": "CRM API"
+    },
+    {
+      "id": "api_ai",
+      "type": "backend",
+      "icon": "backend",
+      "label": "AI Engine",
+      "sublabel": "ai_assistant.py",
+      "stage": 1,
+      "row": 4,
+      "tag": "Copilot API"
+    },
+    {
+      "id": "db_orders",
+      "type": "database",
+      "icon": "database",
+      "label": "B\u1ea3ng Orders",
+      "sublabel": "orders & items",
+      "stage": 2,
+      "row": 0,
+      "tag": "SQLite"
+    },
+    {
+      "id": "db_stock",
+      "type": "database",
+      "icon": "database",
+      "label": "B\u1ea3ng Kho & T\u1ed3n",
+      "sublabel": "inventory & logs",
+      "stage": 2,
+      "row": 1,
+      "tag": "SQLite WAL"
+    },
+    {
+      "id": "db_cash",
+      "type": "database",
+      "icon": "database",
+      "label": "B\u1ea3ng S\u1ed5 Qu\u1ef9",
+      "sublabel": "cashbook & debts",
+      "stage": 2,
+      "row": 2,
+      "tag": "SQLite"
+    },
+    {
+      "id": "db_crm",
+      "type": "database",
+      "icon": "database",
+      "label": "B\u1ea3ng Contacts",
+      "sublabel": "partners & pets",
+      "stage": 2,
+      "row": 3,
+      "tag": "SQLite"
+    },
+    {
+      "id": "db_rem",
+      "type": "database",
+      "icon": "database",
+      "label": "B\u1ea3ng Vi\u1ec7c Ca",
+      "sublabel": "staff_reminders",
+      "stage": 2,
+      "row": 4,
+      "tag": "SQLite"
+    },
+    {
+      "id": "w_print",
+      "type": "external",
+      "icon": "frontend",
+      "label": "M\u00e1y In Bill",
+      "sublabel": "ESC/POS & A4",
+      "stage": 3,
+      "row": 0,
+      "tag": "Hardware"
+    },
+    {
+      "id": "w_fifo",
+      "type": "backend",
+      "icon": "clock",
+      "label": "\u0110\u1ed1i So\u00e1t FIFO",
+      "sublabel": "N\u1ee3 NCC & Kh\u00e1ch",
+      "stage": 3,
+      "row": 1,
+      "tag": "Accounting"
+    },
+    {
+      "id": "w_sync",
+      "type": "backend",
+      "icon": "backend",
+      "label": "Sync Worker",
+      "sublabel": "fast_data_sync",
+      "stage": 3,
+      "row": 2,
+      "tag": "Worker"
+    },
+    {
+      "id": "w_log",
+      "type": "security",
+      "icon": "security",
+      "label": "Activity Log",
+      "sublabel": "activity_logger",
+      "stage": 3,
+      "row": 3,
+      "tag": "Audit Log"
+    },
+    {
+      "id": "c_supa",
+      "type": "cloud",
+      "icon": "cloud",
+      "label": "Supabase Cloud",
+      "sublabel": "PostgreSQL",
+      "stage": 4,
+      "row": 0,
+      "tag": "Cloud DB"
+    },
+    {
+      "id": "c_gws",
+      "type": "external",
+      "icon": "database",
+      "label": "Google Sheets",
+      "sublabel": "Drive API Sync",
+      "stage": 4,
+      "row": 1,
+      "tag": "Backup"
+    },
+    {
+      "id": "c_tele",
+      "type": "messagebus",
+      "icon": "flag",
+      "label": "Telegram Bot",
+      "sublabel": "ChatOps Alert",
+      "stage": 4,
+      "row": 2,
+      "tag": "Notifier"
+    }
+  ],
+  "flows": [
+    {
+      "id": "f_pos",
+      "from": "ui_pos",
+      "to": "api_pos",
+      "label": "T\u1ea1o \u0111\u01a1n h\u00e0ng",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_pur",
+      "from": "ui_purchase",
+      "to": "api_inv",
+      "label": "Phi\u1ebfu nh\u1eadp kho",
+      "variant": "default"
+    },
+    {
+      "id": "f_cash",
+      "from": "ui_cash",
+      "to": "api_cash",
+      "label": "Thu chi & v\u00ed",
+      "variant": "default"
+    },
+    {
+      "id": "f_crm",
+      "from": "ui_crm",
+      "to": "api_crm",
+      "label": "H\u1ed3 s\u01a1 spa/pet",
+      "variant": "default"
+    },
+    {
+      "id": "f_ai",
+      "from": "ui_ai",
+      "to": "api_ai",
+      "label": "OCR & Briefing",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_ai_inv",
+      "from": "api_ai",
+      "to": "api_inv",
+      "label": "\u0110\u01a1n nh\u00e1p 1-ch\u1ea1m",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_ai_rem",
+      "from": "api_ai",
+      "to": "db_rem",
+      "label": "Ghi vi\u1ec7c ca",
+      "variant": "default"
+    },
+    {
+      "id": "f_pos_inv",
+      "from": "api_pos",
+      "to": "api_inv",
+      "label": "Tr\u1eeb kho & BOM",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_pos_cash",
+      "from": "api_pos",
+      "to": "api_cash",
+      "label": "Sinh phi\u1ebfu thu",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_inv_cash",
+      "from": "api_inv",
+      "to": "api_cash",
+      "label": "K\u1ebf ho\u1ea1ch n\u1ee3 NCC",
+      "variant": "default"
+    },
+    {
+      "id": "f_pos_db",
+      "from": "api_pos",
+      "to": "db_orders",
+      "label": "L\u01b0u \u0111\u01a1n h\u00e0ng",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_inv_db",
+      "from": "api_inv",
+      "to": "db_stock",
+      "label": "Bi\u1ebfn \u0111\u1ed9ng t\u1ed3n",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_cash_db",
+      "from": "api_cash",
+      "to": "db_cash",
+      "label": "Ghi s\u1ed5 qu\u1ef9",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_crm_db",
+      "from": "api_crm",
+      "to": "db_crm",
+      "label": "L\u01b0u CRM & \u0111i\u1ec3m",
+      "variant": "default"
+    },
+    {
+      "id": "f_print",
+      "from": "db_orders",
+      "to": "w_print",
+      "label": "In bill / A4",
+      "variant": "default"
+    },
+    {
+      "id": "f_fifo",
+      "from": "db_cash",
+      "to": "w_fifo",
+      "label": "\u0110\u1ed1i so\u00e1t FIFO",
+      "variant": "default"
+    },
+    {
+      "id": "f_sync_ord",
+      "from": "db_orders",
+      "to": "w_sync",
+      "label": "Delta \u0111\u01a1n",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_sync_stk",
+      "from": "db_stock",
+      "to": "w_sync",
+      "label": "Delta kho",
+      "variant": "default"
+    },
+    {
+      "id": "f_log",
+      "from": "db_orders",
+      "to": "w_log",
+      "label": "Audit log",
+      "variant": "security"
+    },
+    {
+      "id": "f_supa",
+      "from": "w_sync",
+      "to": "c_supa",
+      "label": "\u0110\u1ed3ng b\u1ed9 Supabase",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f_gws",
+      "from": "w_sync",
+      "to": "c_gws",
+      "label": "Sao l\u01b0u Sheets",
+      "variant": "dashed"
+    },
+    {
+      "id": "f_tele",
+      "from": "w_sync",
+      "to": "c_tele",
+      "label": "B\u00e1o c\u00e1o ca",
+      "variant": "default"
+    },
+    {
+      "id": "f_tele_sec",
+      "from": "w_log",
+      "to": "c_tele",
+      "label": "C\u1ea3nh b\u00e1o b\u1ea3o m\u1eadt",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "B\u00e1n H\u00e0ng & \u0110\u1ecbnh L\u01b0\u1ee3ng BOM",
+      "items": [
+        "POS Engine x\u1eed l\u00fd thanh to\u00e1n \u0111a k\u00eanh (ti\u1ec1n m\u1eb7t, VietQR, th\u1ebb, v\u00ed t\u00edch l\u0169y)",
+        "\u0110\u1ecbnh l\u01b0\u1ee3ng BOM nguy\u00ean li\u1ec7u t\u1ef1 \u0111\u1ed9ng kh\u1ea5u tr\u1eeb theo t\u1eebng d\u1ecbch v\u1ee5 spa/kh\u00e1ch s\u1ea1n",
+        "T\u1ef1 \u0111\u1ed9ng ghi nh\u1eadn n\u1ee3 kh\u00e1ch v\u00e0 xu\u1ea5t l\u1ec7nh in phi\u1ebfu thu/h\u00f3a \u0111\u01a1n A4 chu\u1ea9n"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Qu\u1ea3n Tr\u1ecb Kho & Qu\u1ef9 K\u00e9p",
+      "items": [
+        "T\u00e1ch bi\u1ec7t d\u00f2ng ti\u1ec1n v\u00e0 c\u00f4ng n\u1ee3 NCC theo 2 qu\u1ef9 \u0111\u1ed9c l\u1eadp (C\u00e1 nh\u00e2n & C\u00f4ng ty)",
+        "\u0110\u1ed1i so\u00e1t c\u00f4ng n\u1ee3 g\u1ed1i \u0111\u1ea7u t\u1ef1 \u0111\u1ed9ng theo nguy\u00ean t\u1eafc FIFO (v\u00e0o tr\u01b0\u1edbc tr\u1ea3 tr\u01b0\u1edbc)",
+        "C\u1ea3nh b\u00e1o m\u1ee9c t\u1ed3n t\u1ed1i thi\u1ec3u v\u00e0 t\u1ef1 \u0111\u1ed9ng l\u1eadp phi\u1ebfu nh\u1eadp h\u00e0ng \u0111\u1ec1 xu\u1ea5t"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Offline-First & Gi\u00e1m S\u00e1t",
+      "items": [
+        "Ho\u1ea1t \u0111\u1ed9ng c\u1ee5c b\u1ed9 100% kh\u00f4ng ph\u1ee5 thu\u1ed9c internet qua CSDL SQLite WAL",
+        "Worker n\u1ec1n nh\u1eadn di\u1ec7n bi\u1ebfn \u0111\u1ed9ng \u0111\u1ec3 \u0111\u1ed3ng b\u1ed9 \u0111a \u0111i\u1ec3m l\u00ean Supabase Cloud & Google Sheets",
+        "Telegram ChatOps th\u00f4ng b\u00e1o doanh thu \u0111\u00f3ng ca v\u00e0 c\u1ea3nh b\u00e1o x\u00e2m nh\u1eadp/l\u1ed7i b\u1ea3o m\u1eadt"
+      ]
+    }
+  ]
+}

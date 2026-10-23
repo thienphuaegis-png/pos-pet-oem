@@ -1,4 +1,18 @@
 // pos_mobile.js - Giao diện bán hàng di động chuyên biệt
+// Chưa đăng nhập -> về trang chính để đăng nhập (token dùng chung localStorage). Có token -> gắn Bearer cho mọi /api.
+(function () {
+    const tok = localStorage.getItem('pos_token');
+    if (!tok) { window.location.replace('/'); return; }
+    const _f = window.fetch.bind(window);
+    window.fetch = async (url, opts = {}) => {
+        if (typeof url === 'string' && url.startsWith('/api')) {
+            opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + (localStorage.getItem('pos_token') || tok) };
+        }
+        const r = await _f(url, opts);
+        if (r.status === 401) { localStorage.removeItem('pos_token'); window.location.replace('/'); }
+        return r;
+    };
+})();
 var mobileProducts = [];
 var mobileCustomers = [];
 var mobileCart = {}; // { productId: { product, quantity, customPrice } }
@@ -207,16 +221,20 @@ function focusSearch() {
     document.getElementById('mob-search-input')?.focus();
 }
 
-function setMobilePayMethod(method) {
+async function setMobilePayMethod(method) {
     currentPayMethod = method;
-    const btnCash = document.getElementById('mob-pay-cash');
-    const btnTransfer = document.getElementById('mob-pay-transfer');
-    if (method === 'cash') {
-        btnCash.className = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-sky-600 bg-sky-50 text-sky-700 shadow-xs';
-        btnTransfer.className = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-slate-200 bg-white text-slate-600';
-    } else {
-        btnTransfer.className = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-sky-600 bg-sky-50 text-sky-700 shadow-xs';
-        btnCash.className = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-slate-200 bg-white text-slate-600';
+    const on = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-sky-600 bg-sky-50 text-sky-700 shadow-xs';
+    const off = 'touch-btn py-2 text-center text-xs font-bold rounded-xl border-2 border-slate-200 bg-white text-slate-600';
+    ['cash', 'transfer', 'card'].forEach(m => {
+        const b = document.getElementById('mob-pay-' + m);
+        if (b) b.className = (m === method) ? on : off;
+    });
+    const wrap = document.getElementById('mob-pay-account-wrap');
+    const sel = document.getElementById('mob-pay-account');
+    if (wrap && sel && window.PayAcc) {
+        const need = PayAcc.needsAccount(method);
+        wrap.classList.toggle('hidden', !need);
+        if (need) { await PayAcc.load(); PayAcc.fill(sel, method); }
     }
 }
 
@@ -241,13 +259,18 @@ async function submitMobileOrder() {
     const finalAmount = Math.max(0, subtotal - discount);
 
     const payload = {
-        customer_id: currentCustomer ? currentCustomer.id : null,
+        customer_id: currentCustomer ? currentCustomer.id : 1, // 1 = Khách lẻ mặc định (customer_id bắt buộc)
+        staff_id: (() => { try { return (JSON.parse(localStorage.getItem('pos_user') || '{}').id) || 1; } catch (e) { return 1; } })(),
         paid_amount: finalAmount,
         discount: discount,
         payment_method: currentPayMethod,
+        account_id: window.PayAcc ? PayAcc.value(currentPayMethod, document.getElementById('mob-pay-account')) : null,
         note: "Đơn bán qua POS Mobile",
         items: items
     };
+
+    const _payErr = window.PayAcc ? PayAcc.validate(currentPayMethod, payload.account_id) : null;
+    if (_payErr) { alert(_payErr); return; }
 
     const btn = document.getElementById('btn-submit-mobile-order');
     if (btn) {

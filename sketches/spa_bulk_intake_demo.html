@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo UI Tiếp Nhận Spa Hàng Loạt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 p-3 sm:p-5 text-slate-800">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        
+        <!-- HEADER MOCKUP -->
+        <div class="bg-purple-900 text-white p-4 flex flex-wrap items-center justify-between gap-3 border-b border-purple-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🐾</span>
+                    <h1 class="text-base font-black uppercase tracking-wide">Demo Cải Tiến Giao Diện Nhập Dịch Vụ Spa Hàng Loạt</h1>
+                </div>
+                <p class="text-xs text-purple-200 mt-0.5">So sánh trực quan giữa thiết kế Tinh Gọn (7 cột) vs Hiện Tại (10 cột rối mắt)</p>
+            </div>
+            
+            <!-- NÚT CHUYỂN TAB DEMO -->
+            <div class="flex bg-purple-950/70 p-1 rounded-xl border border-purple-700/60 gap-1 text-xs">
+                <button type="button" onclick="switchVariant('v_chip_toggle')" id="btn-tab-v_chip_toggle" class="px-3 py-1.5 rounded-lg font-bold transition bg-white text-purple-900 shadow-sm">
+                    ✨ Bấm Nút $\to$ Thành Dòng (Bấm ✕ Trả Nút)
+                </button>
+                <button type="button" onclick="switchVariant('v_pos')" id="btn-tab-v_pos" class="px-3 py-1.5 rounded-lg font-medium transition text-purple-200 hover:text-white">
+                    🛒 Bảng Giỏ Hàng POS Phẳng
+                </button>
+                <button type="button" onclick="switchVariant('v0')" id="btn-tab-v0" class="px-3 py-1.5 rounded-lg font-medium transition text-rose-300 hover:text-rose-100">
+                    ⚠️ Hiện Tại (Nút Còn Nguyên)
+                </button>
+            </div>
+        </div>
+
+        <!-- MOCKUP KHÁCH HÀNG & GÓI MẪU (CHUNG CHO MỌI TAB) -->
+        <div class="p-4 bg-purple-50/40 border-b border-purple-100 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-purple-100 shadow-2xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">👤</span>
+                    <div>
+                        <div class="text-xs font-bold text-slate-800">Chị Ngọc Mai <span class="text-purple-700 font-mono font-bold">(0908 123 456)</span></div>
+                        <div class="text-[11px] text-slate-400">Khách quen VIP • Ví Spa: <strong class="text-emerald-700">650.000 đ</strong> • Điểm: 120</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 font-semibold">Đợt này tiếp nhận:</span>
+                    <span class="px-2.5 py-0.5 bg-purple-100 text-purple-800 font-bold rounded-full text-xs">2 bé</span>
+                </div>
+            </div>
+
+            <!-- THANH GÓI MẪU TẬP TRUNG -->
+            <div class="bg-amber-50/90 border border-amber-200 p-2.5 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-amber-950 flex items-center gap-1">⚡ Gán Gói Mẫu:</span>
+                    <select class="border border-amber-300 p-1 rounded-lg bg-white text-xs font-bold text-slate-700">
+                        <option>Tắm Vệ Sinh Cơ Bản</option>
+                        <option>Cắt Tỉa Trọn Gói</option>
+                    </select>
+                    <div class="flex items-center gap-1 flex-wrap border-l border-amber-300 pl-2">
+                        <span class="text-[11px] text-slate-600 font-medium">Phụ thu mẫu:</span>
+                        <span class="px-2 py-0.5 bg-amber-200/80 hover:bg-amber-300 text-amber-900 rounded font-bold text-[10px] cursor-pointer">+ Gỡ rối</span>
+                        <span class="px-2 py-0.5 bg-amber-200/80 hover:bg-amber-300 text-amber-900 rounded font-bold text-[10px] cursor-pointer">+ Tắm nấm</span>
+                        <span class="px-2 py-0.5 bg-amber-200/80 hover:bg-amber-300 text-amber-900 rounded font-bold text-[10px] cursor-pointer">+ Đánh răng</span>
+                    </div>
+                </div>
+                <button type="button" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs shadow-xs">
+                    Áp Dụng Cho Tất Cả Các Bé
+                </button>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- VARIANT POS: CHỌN DỊCH VỤ / PHỤ THU -> TỰ ĐỘNG THÊM DÒNG NHƯ POS -->
+        <!-- =============================================================== -->
+        <div id="variant-v_pos" class="hidden p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-sky-100 text-sky-800 rounded font-bold text-xs uppercase">🔥 Chuẩn Tư Duy Giỏ Hàng POS</span>
+                    <span class="text-xs text-slate-600 font-medium">Bấm chọn dịch vụ hoặc phụ thu nào $\to$ <strong>Tự động thêm 1 dòng vào bảng</strong>! Xóa/Sửa độc lập từng món, không bị nhồi nhét.</span>
+                </div>
+                <button type="button" data-hermes-send="Làm chuẩn tư duy POS này anh ưng ý nhất, triển khai vào code luôn em" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                    👉 Duyệt Mô Hình Này
+                </button>
+            </div>
+
+            <!-- THANH CHỌN BÉ & CHỌN DỊCH VỤ KIỂU POS CART -->
+            <div class="bg-sky-50 border border-sky-200 p-3 rounded-xl space-y-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Chọn Bé mục tiêu -->
+                    <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
+                        <span class="text-xs font-bold text-slate-700">🐾 Thêm cho bé:</span>
+                        <select id="pos-mock-pet-select" class="text-xs font-bold text-purple-800 bg-transparent focus:outline-none">
+                            <option value="Bé Lu (4.2kg)">Bé Lu (Poodle • 4.2 kg)</option>
+                            <option value="Bé Miu (2.8kg)">Bé Miu (Phốc sóc • 2.8 kg)</option>
+                        </select>
+                    </div>
+
+                    <!-- Dropdown tìm/chọn dịch vụ -->
+                    <div class="flex-1 min-w-[240px] flex items-center gap-1.5">
+                        <select id="pos-mock-service-select" class="flex-1 border border-slate-300 p-1.5 rounded-lg text-xs bg-white font-semibold text-slate-800">
+                            <option value="">-- Chọn dịch vụ chính hoặc phụ thu để thêm dòng --</option>
+                            <optgroup label="✨ Gói Dịch Vụ Chính">
+                                <option value="Cắt Tỉa Trọn Gói|250000">Cắt Tỉa Trọn Gói (Tắm + Vệ sinh + Cắt) - 250.000 đ</option>
+                                <option value="Tắm Vệ Sinh|120000">Tắm Vệ Sinh (Sấy chải, vắt tuyến hôi) - 120.000 đ</option>
+                                <option value="Cạo Lông Toàn Thân|180000">Cạo Lông Toàn Thân - 180.000 đ</option>
+                            </optgroup>
+                            <optgroup label="🌀 Trị Liệu & Phụ Thu">
+                                <option value="Gỡ rối lông nhẹ|40000">Gỡ rối lông nhẹ - 40.000 đ</option>
+                                <option value="Tắm nấm / Viêm da|60000">Tắm nấm / Viêm da - 60.000 đ</option>
+                                <option value="Đánh răng thơm miệng|30000">Đánh răng thơm miệng - 30.000 đ</option>
+                                <option value="Cắt tạo kiểu NT|50000">Cắt tạo kiểu NT - 50.000 đ</option>
+                                <option value="Đưa đón tận nơi|50000">Đưa đón tận nơi - 50.000 đ</option>
+                                <option value="Cạo bàn chân sạch|0">Cạo bàn chân sạch - 0 đ</option>
+                                <option value="Nhuộm 2 tai|50000">Nhuộm 2 tai - 50.000 đ</option>
+                            </optgroup>
+                        </select>
+                        <button type="button" onclick="addMockPOSLineFromSelect()" class="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg text-xs shadow-xs shrink-0 flex items-center gap-1">
+                            <span>➕</span><span>Thêm Dòng</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cụm nút bấm nhanh 1 chạm để thêm dòng ngay -->
+                <div class="flex items-center gap-1.5 flex-wrap pt-0.5 border-t border-sky-200/80">
+                    <span class="text-[11px] font-bold text-slate-600">⚡ Chạm nhanh để thêm dòng:</span>
+                    <button type="button" onclick="addMockPOSLine('Cắt Tỉa Trọn Gói', 250000)" class="px-2 py-0.5 bg-white hover:bg-purple-100 border border-purple-200 rounded text-[11px] font-bold text-purple-800">+ Cắt Tỉa (250k)</button>
+                    <button type="button" onclick="addMockPOSLine('Tắm Vệ Sinh', 120000)" class="px-2 py-0.5 bg-white hover:bg-purple-100 border border-purple-200 rounded text-[11px] font-bold text-purple-800">+ Tắm Vệ Sinh (120k)</button>
+                    <button type="button" onclick="addMockPOSLine('Gỡ Rối Lông', 40000)" class="px-2 py-0.5 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-bold text-amber-900">+ Gỡ Rối (40k)</button>
+                    <button type="button" onclick="addMockPOSLine('Tắm Nấm Viêm Da', 60000)" class="px-2 py-0.5 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-bold text-amber-900">+ Tắm Nấm (60k)</button>
+                    <button type="button" onclick="addMockPOSLine('Cạo Bàn Chân', 0)" class="px-2 py-0.5 bg-white hover:bg-slate-200 border border-slate-300 rounded text-[11px] font-bold text-slate-700">+ Cạo Bàn (0k)</button>
+                    <button type="button" onclick="addMockPOSLine('Đánh Răng', 30000)" class="px-2 py-0.5 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-bold text-amber-900">+ Đánh Răng (30k)</button>
+                </div>
+            </div>
+
+            <!-- BẢNG GIỎ HÀNG DỊCH VỤ DẠNG POS -->
+            <div class="border rounded-xl bg-white shadow-2xs overflow-hidden">
+                <table class="w-full border-collapse text-left text-xs" id="table-mock-pos-cart">
+                    <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
+                        <tr>
+                            <th class="p-2 w-10 text-center">STT</th>
+                            <th class="p-2 w-44">Thú Cưng</th>
+                            <th class="p-2 min-w-[220px]">Dịch Vụ / Gói / Phụ Thu</th>
+                            <th class="p-2 w-28 text-right">Đơn Giá (đ)</th>
+                            <th class="p-2 w-14 text-center">SL</th>
+                            <th class="p-2 w-28 text-right">Thành Tiền (đ)</th>
+                            <th class="p-2 min-w-[200px]">Yêu Cầu / Ghi Chú</th>
+                            <th class="p-2 w-12 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-mock-pos-cart" class="divide-y divide-slate-100">
+                        <!-- Dòng 1 -->
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2 text-center font-mono text-slate-400 font-bold">1</td>
+                            <td class="p-2 font-bold text-purple-900">🐾 Bé Lu <span class="text-pink-600 font-mono">(4.2kg)</span></td>
+                            <td class="p-2 font-bold text-slate-800">Cắt Tỉa Trọn Gói (Tắm + Vệ sinh + Cắt)</td>
+                            <td class="p-2 text-right"><input type="text" value="250.000" class="w-24 text-right border rounded p-1 font-mono font-bold" oninput="calcMockCartTotal()"></td>
+                            <td class="p-2 text-center font-mono font-bold">1</td>
+                            <td class="p-2 text-right font-mono font-bold text-rose-700">250.000 đ</td>
+                            <td class="p-2"><input type="text" value="Cắt tai tròn gấu bông; gửi lồng hồng" class="w-full border p-1 rounded text-xs bg-white"></td>
+                            <td class="p-2 text-center"><button type="button" onclick="removeMockPOSLine(this)" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                        </tr>
+                        <!-- Dòng 2 -->
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2 text-center font-mono text-slate-400 font-bold">2</td>
+                            <td class="p-2 font-bold text-purple-900">🐾 Bé Lu <span class="text-pink-600 font-mono">(4.2kg)</span></td>
+                            <td class="p-2 text-amber-900 font-semibold flex items-center gap-1">
+                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Phụ thu</span>
+                                <span>Gỡ rối lông nhẹ</span>
+                            </td>
+                            <td class="p-2 text-right"><input type="text" value="40.000" class="w-24 text-right border rounded p-1 font-mono font-bold" oninput="calcMockCartTotal()"></td>
+                            <td class="p-2 text-center font-mono font-bold">1</td>
+                            <td class="p-2 text-right font-mono font-bold text-rose-700">40.000 đ</td>
+                            <td class="p-2"><input type="text" value="Chải kỹ nách và tai" class="w-full border p-1 rounded text-xs bg-white"></td>
+                            <td class="p-2 text-center"><button type="button" onclick="removeMockPOSLine(this)" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                        </tr>
+                        <!-- Dòng 3 -->
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2 text-center font-mono text-slate-400 font-bold">3</td>
+                            <td class="p-2 font-bold text-purple-900">🐾 Bé Miu <span class="text-pink-600 font-mono">(2.8kg)</span></td>
+                            <td class="p-2 font-bold text-slate-800">Tắm Vệ Sinh (Sấy chải, vắt tuyến hôi)</td>
+                            <td class="p-2 text-right"><input type="text" value="120.000" class="w-24 text-right border rounded p-1 font-mono font-bold" oninput="calcMockCartTotal()"></td>
+                            <td class="p-2 text-center font-mono font-bold">1</td>
+                            <td class="p-2 text-right font-mono font-bold text-rose-700">120.000 đ</td>
+                            <td class="p-2"><input type="text" value="Gửi dây dắt đỏ" class="w-full border p-1 rounded text-xs bg-white"></td>
+                            <td class="p-2 text-center"><button type="button" onclick="removeMockPOSLine(this)" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                        </tr>
+                        <!-- Dòng 4 -->
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2 text-center font-mono text-slate-400 font-bold">4</td>
+                            <td class="p-2 font-bold text-purple-900">🐾 Bé Miu <span class="text-pink-600 font-mono">(2.8kg)</span></td>
+                            <td class="p-2 text-amber-900 font-semibold flex items-center gap-1">
+                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Trị liệu</span>
+                                <span>Tắm trị liệu viêm da nấm</span>
+                            </td>
+                            <td class="p-2 text-right"><input type="text" value="60.000" class="w-24 text-right border rounded p-1 font-mono font-bold" oninput="calcMockCartTotal()"></td>
+                            <td class="p-2 text-center font-mono font-bold">1</td>
+                            <td class="p-2 text-right font-mono font-bold text-rose-700">60.000 đ</td>
+                            <td class="p-2"><input type="text" value="Dầu gội nấm dịu nhẹ" class="w-full border p-1 rounded text-xs bg-white"></td>
+                            <td class="p-2 text-center"><button type="button" onclick="removeMockPOSLine(this)" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1 text-xs">
+                <div class="bg-sky-50 p-2.5 rounded-xl border border-sky-200">
+                    <strong class="text-sky-900 block mb-0.5">🛒 Giống hệt POS bán hàng:</strong>
+                    <span class="text-sky-800">Thêm món nào thì thêm 1 dòng. Thu ngân không cần học giao diện mới, dùng cực kỳ quen tay.</span>
+                </div>
+                <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                    <strong class="text-emerald-900 block mb-0.5">✨ Minh bạch 100%:</strong>
+                    <span class="text-emerald-800">Mỗi dịch vụ, phụ thu là 1 dòng độc lập. Bill in ra từng mục rõ ràng, khách duyệt dễ chịu.</span>
+                </div>
+                <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                    <strong class="text-amber-900 block mb-0.5">🗑️ Xóa/Sửa tức thì:</strong>
+                    <span class="text-amber-800">Bấm icon thùng rác xóa dòng phụ thu nào là tổng tiền tự trừ ngay, không bị kẹt hay vỡ bảng.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- VARIANT CHIP-TOGGLE: BẤM NÚT -> THÀNH DÒNG, MẤT NÚT, BẤM X HIỆN LẠI -->
+        <!-- =============================================================== -->
+        <div id="variant-v_chip_toggle" class="p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold text-xs uppercase">🔥 Ý Tưởng Của Anh: Bấm Nút $\to$ Thành Dòng</span>
+                    <span class="text-xs text-slate-600 font-medium">Bấm vào nút phụ thu nào $\to$ <strong>Nút đó biến mất và chuyển thành 1 dòng có giá tiền + nút [✕]</strong>. Bấm [✕] thì <strong>trả lại nút bấm</strong>!</span>
+                </div>
+                <button type="button" data-hermes-send="Cách bấm nút thành dòng mất nút bấm x trả lại này quá chuẩn rồi, làm luôn em" class="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold shadow-sm transition">
+                    👉 Duyệt Cơ Chế Này
+                </button>
+            </div>
+
+            <div class="border rounded-xl bg-white shadow-2xs overflow-hidden">
+                <table class="w-full border-collapse text-left text-xs">
+                    <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[11px]">
+                        <tr>
+                            <th class="p-2 w-10 text-center">#</th>
+                            <th class="p-2 min-w-[190px]">Thú Cưng & Cân Nặng (*)</th>
+                            <th class="p-2 min-w-[170px]">Gói Dịch Vụ (*)</th>
+                            <th class="p-2 w-36">Cạo Bàn / Nhuộm</th>
+                            <th class="p-2 min-w-[280px] bg-amber-50/70 text-amber-950">🌀 Phụ Thu & Dịch Vụ Thêm (Bấm nút $\to$ Thêm dòng)</th>
+                            <th class="p-2 min-w-[170px]">Yêu Cầu / Ghi Chú</th>
+                            <th class="p-2 w-28 text-right">Thành Tiền</th>
+                            <th class="p-2 w-10 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <!-- Dòng 1: Bé Lu -->
+                        <tr class="hover:bg-slate-50/80 transition toggle-pet-row" data-base-price="250000">
+                            <td class="p-2 text-center">
+                                <input type="checkbox" checked class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span class="font-mono text-slate-400 font-bold ml-0.5">1</span>
+                            </td>
+                            <td class="p-2">
+                                <div class="flex items-center gap-1.5">
+                                    <select class="flex-1 border border-slate-300 p-1.5 rounded-lg text-xs font-bold text-purple-900 bg-white">
+                                        <option>🐾 Bé Lu (Poodle)</option>
+                                    </select>
+                                    <div class="flex items-center border border-pink-300 rounded-lg bg-pink-50/50 px-1.5 py-0.5 shrink-0">
+                                        <input type="text" value="4.2" class="w-8 text-center text-xs font-bold font-mono text-pink-700 bg-transparent focus:outline-none">
+                                        <span class="text-[10px] text-pink-500 font-bold">kg</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-2">
+                                <select class="w-full border border-slate-300 p-1.5 rounded-lg text-xs font-semibold text-slate-800 bg-white">
+                                    <option>Cắt Tỉa Trọn Gói (250k)</option>
+                                    <option>Tắm Vệ Sinh (120k)</option>
+                                </select>
+                            </td>
+                            <td class="p-2">
+                                <select class="w-full border border-slate-300 p-1.5 rounded-lg text-xs text-slate-700 bg-white">
+                                    <option selected>Có cạo bàn</option>
+                                    <option>Không cạo bàn</option>
+                                    <option>Cạo cao</option>
+                                    <option>🎨 Nhuộm 2 tai (+50k)</option>
+                                </select>
+                            </td>
+                            
+                            <!-- CỘT PHỤ THU: NÚT BẤM CHUYỂN THÀNH DÒNG VÀ MẤT NÚT -->
+                            <td class="p-2 bg-amber-50/30">
+                                <div class="space-y-1.5">
+                                    <!-- Danh sách các dòng phụ thu đã chọn (Bấm nút ở dưới thì nhảy lên đây) -->
+                                    <div class="toggle-selected-list space-y-1">
+                                        <!-- Mục mặc định đã chọn mẫu: Gỡ rối lông -->
+                                        <div class="flex items-center justify-between bg-white border border-amber-300 px-2 py-1 rounded-lg text-xs text-amber-950 shadow-2xs toggle-surch-item" data-chip-key="Gỡ rối lông" data-price="40000">
+                                            <span class="font-bold flex items-center gap-1">
+                                                <span class="text-amber-600">⚡</span>
+                                                <span>Gỡ rối lông</span>
+                                            </span>
+                                            <div class="flex items-center gap-1">
+                                                <input type="text" value="40.000" class="w-16 border border-amber-200 rounded px-1.5 py-0.5 text-right font-mono font-bold text-amber-900 bg-amber-50/50 text-xs" oninput="recalcToggleRow(this.closest('.toggle-pet-row'))">
+                                                <span class="text-[10px] text-slate-400 font-semibold">đ</span>
+                                                <button type="button" onclick="cancelDynamicChip(this, 'Gỡ rối lông')" class="w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 font-black text-sm ml-0.5 transition" title="Xóa món này và trả lại nút bấm">&times;</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dàn nút bấm có sẵn: Bấm nút nào -> Ẩn nút đó và thêm 1 dòng ở trên -->
+                                    <div class="toggle-chips-pool flex items-center gap-1 flex-wrap pt-0.5">
+                                        <!-- Nút Gỡ rối đã chọn nên mặc định ẩn (hidden) -->
+                                        <button type="button" data-chip-key="Gỡ rối lông" onclick="pickDynamicChip(this, 'Gỡ rối lông', 40000)" class="hidden px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Gỡ rối (40k)
+                                        </button>
+                                        <button type="button" data-chip-key="Tắm nấm / Viêm da" onclick="pickDynamicChip(this, 'Tắm nấm / Viêm da', 60000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Tắm nấm (60k)
+                                        </button>
+                                        <button type="button" data-chip-key="Đánh răng" onclick="pickDynamicChip(this, 'Đánh răng', 30000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Đánh răng (30k)
+                                        </button>
+                                        <button type="button" data-chip-key="Cắt tạo kiểu NT" onclick="pickDynamicChip(this, 'Cắt tạo kiểu NT', 50000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Cắt NT (50k)
+                                        </button>
+                                        <button type="button" data-chip-key="Đưa đón tận nơi" onclick="pickDynamicChip(this, 'Đưa đón tận nơi', 50000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Đưa đón (50k)
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="p-2">
+                                <input type="text" value="Cắt tai tròn gấu bông; gửi lồng hồng" placeholder="Yêu cầu cắt, sấy, phụ kiện..." class="w-full border border-slate-300 p-1.5 rounded-lg text-xs text-slate-700 bg-white">
+                            </td>
+                            <td class="p-2 text-right">
+                                <span class="font-mono font-bold text-sm text-rose-700 toggle-row-total">290.000 đ</span>
+                            </td>
+                            <td class="p-2 text-center text-rose-500 hover:text-rose-700 cursor-pointer">🗑️</td>
+                        </tr>
+
+                        <!-- Dòng 2: Bé Miu -->
+                        <tr class="hover:bg-slate-50/80 transition toggle-pet-row" data-base-price="120000">
+                            <td class="p-2 text-center">
+                                <input type="checkbox" checked class="w-3.5 h-3.5 text-purple-600 rounded">
+                                <span class="font-mono text-slate-400 font-bold ml-0.5">2</span>
+                            </td>
+                            <td class="p-2">
+                                <div class="flex items-center gap-1.5">
+                                    <select class="flex-1 border border-slate-300 p-1.5 rounded-lg text-xs font-bold text-purple-900 bg-white">
+                                        <option>🐾 Bé Miu (Pomeranian)</option>
+                                    </select>
+                                    <div class="flex items-center border border-pink-300 rounded-lg bg-pink-50/50 px-1.5 py-0.5 shrink-0">
+                                        <input type="text" value="2.8" class="w-8 text-center text-xs font-bold font-mono text-pink-700 bg-transparent focus:outline-none">
+                                        <span class="text-[10px] text-pink-500 font-bold">kg</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-2">
+                                <select class="w-full border border-slate-300 p-1.5 rounded-lg text-xs font-semibold text-slate-800 bg-white">
+                                    <option>Tắm Vệ Sinh (120k)</option>
+                                    <option>Cắt Tỉa Trọn Gói (250k)</option>
+                                </select>
+                            </td>
+                            <td class="p-2">
+                                <select class="w-full border border-slate-300 p-1.5 rounded-lg text-xs text-slate-700 bg-white">
+                                    <option selected>Không cạo bàn</option>
+                                    <option>Có cạo bàn</option>
+                                </select>
+                            </td>
+
+                            <!-- CỘT PHỤ THU: BÉ MIU -->
+                            <td class="p-2 bg-amber-50/30">
+                                <div class="space-y-1.5">
+                                    <div class="toggle-selected-list space-y-1">
+                                        <!-- Mặc định chưa chọn món nào -->
+                                    </div>
+                                    <div class="toggle-chips-pool flex items-center gap-1 flex-wrap pt-0.5">
+                                        <button type="button" data-chip-key="Gỡ rối lông" onclick="pickDynamicChip(this, 'Gỡ rối lông', 40000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Gỡ rối (40k)
+                                        </button>
+                                        <button type="button" data-chip-key="Tắm nấm / Viêm da" onclick="pickDynamicChip(this, 'Tắm nấm / Viêm da', 60000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Tắm nấm (60k)
+                                        </button>
+                                        <button type="button" data-chip-key="Đánh răng" onclick="pickDynamicChip(this, 'Đánh răng', 30000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Đánh răng (30k)
+                                        </button>
+                                        <button type="button" data-chip-key="Cắt tạo kiểu NT" onclick="pickDynamicChip(this, 'Cắt tạo kiểu NT', 50000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Cắt NT (50k)
+                                        </button>
+                                        <button type="button" data-chip-key="Đưa đón tận nơi" onclick="pickDynamicChip(this, 'Đưa đón tận nơi', 50000)" class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                                            + Đưa đón (50k)
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="p-2">
+                                <input type="text" value="Gửi dây dắt đỏ" placeholder="Yêu cầu cắt, sấy, phụ kiện..." class="w-full border border-slate-300 p-1.5 rounded-lg text-xs text-slate-700 bg-white">
+                            </td>
+                            <td class="p-2 text-right">
+                                <span class="font-mono font-bold text-sm text-rose-700 toggle-row-total">120.000 đ</span>
+                            </td>
+                            <td class="p-2 text-center text-rose-500 hover:text-rose-700 cursor-pointer">🗑️</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ƯU ĐIỂM -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1 text-xs">
+                <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-200">
+                    <strong class="text-purple-900 block mb-0.5">🎯 Rõ ràng tuyệt đối:</strong>
+                    <span class="text-purple-800">Món nào đã chọn thì thành 1 dòng có giá tiền + nút [✕]. Món nào chưa chọn thì nằm ở dàn nút bấm dưới!</span>
+                </div>
+                <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                    <strong class="text-emerald-900 block mb-0.5">🔄 Không bao giờ mất nút:</strong>
+                    <span class="text-emerald-800">Lỡ bấm nhầm? Bấm [✕] là dòng đó xóa đi, nút lập tức hiện lại ở dưới ngay, không cần gõ lại từ đầu!</span>
+                </div>
+                <div class="bg-sky-50 p-2.5 rounded-xl border border-sky-200">
+                    <strong class="text-sky-900 block mb-0.5">💰 Tự động tính tiền:</strong>
+                    <span class="text-sky-800">Thêm hay xóa món nào thì tiền của bé đó và tổng tiền đợt này tự nhảy 0ms, sửa giá từng món tùy ý!</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="variant-v2" class="hidden"></div>
+        <!-- (Variant 2 đã gộp vào mô hình POS ở trên) -->
+
+        <!-- =============================================================== -->
+        <!-- VARIANT 0: HIỆN TẠI (10 CỘT LẶP NÚT BẤM RỐI MẮT - ĐỐI CHIẾU) -->
+        <!-- =============================================================== -->
+        <div id="variant-v0" class="hidden p-4 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-xs uppercase">Giao diện cũ hiện tại</span>
+                    <span class="text-xs text-rose-600 font-medium">Bảng 10 cột, 5 nút bấm lặp đi lặp lại ở mọi dòng, 2 ô ghi chú xếp chồng gây vỡ giao diện</span>
+                </div>
+            </div>
+
+            <div class="border rounded-xl bg-white shadow-2xs overflow-x-auto opacity-75">
+                <table class="w-full border-collapse text-left text-xs min-w-[950px]">
+                    <thead class="bg-slate-100 border-b text-slate-700 font-bold uppercase text-[10px]">
+                        <tr>
+                            <th class="p-1.5 text-center">#</th>
+                            <th class="p-1.5">Thú Cưng (*)</th>
+                            <th class="p-1.5 text-center">Kg</th>
+                            <th class="p-1.5">Gói Dịch Vụ (*)</th>
+                            <th class="p-1.5 text-center">Cạo Bàn</th>
+                            <th class="p-1.5 text-center">Nhuộm</th>
+                            <th class="p-1.5 bg-amber-100/50">Phụ Thu / Dịch Vụ Thêm (đ)</th>
+                            <th class="p-1.5 text-right">Thành Tiền</th>
+                            <th class="p-1.5">Yêu Cầu / Ghi Chú</th>
+                            <th class="p-1.5 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="p-1 text-center"><input type="checkbox" checked> 1</td>
+                            <td class="p-1">
+                                <select class="w-full border text-[11px] p-0.5 rounded"><option>Bé Lu</option></select>
+                                <input type="text" class="w-full border text-[10px] mt-0.5 p-0.5 hidden" value="Bé Lu">
+                            </td>
+                            <td class="p-1"><input type="text" value="4.2" class="w-12 border text-center font-bold"></td>
+                            <td class="p-1"><select class="w-full border text-[11px]"><option>Cắt Tỉa Trọn Gói</option></select></td>
+                            <td class="p-1"><select class="w-full border text-[11px]"><option>Có cạo</option></select></td>
+                            <td class="p-1"><select class="w-full border text-[11px]"><option>-- Không --</option></select></td>
+                            <td class="p-1 bg-amber-50/50">
+                                <div class="flex gap-1 mb-1">
+                                    <input type="text" value="Gỡ rối lông" class="w-full border text-[11px] p-0.5">
+                                    <input type="text" value="40.000" class="w-16 border text-[11px] text-right font-bold">
+                                </div>
+                                <div class="flex flex-wrap gap-0.5">
+                                    <span class="px-1 py-0.2 bg-amber-100 border border-amber-300 text-[9px] rounded">+ Gỡ rối</span>
+                                    <span class="px-1 py-0.2 bg-amber-100 border border-amber-300 text-[9px] rounded">+ Tắm nấm</span>
+                                    <span class="px-1 py-0.2 bg-amber-100 border border-amber-300 text-[9px] rounded">+ Đánh răng</span>
+                                    <span class="px-1 py-0.2 bg-amber-100 border border-amber-300 text-[9px] rounded">+ Cắt NT</span>
+                                    <span class="px-1 py-0.2 bg-amber-100 border border-amber-300 text-[9px] rounded">+ Đưa đón</span>
+                                </div>
+                            </td>
+                            <td class="p-1 text-right font-bold text-rose-700">290.000 đ</td>
+                            <td class="p-1 space-y-1">
+                                <input type="text" value="Cắt tai tròn gấu bông" class="w-full border text-[10px] p-0.5">
+                                <input type="text" value="Gửi lồng hồng" class="w-full border text-[9px] p-0.5 text-amber-800">
+                            </td>
+                            <td class="p-1 text-center">🗑️</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FOOTER TỔNG KẾT MOCKUP -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-3">
+                <span class="font-bold text-slate-700">Tổng số: <strong class="text-purple-800 text-sm" id="mock-footer-pet-count">2 bé</strong></span>
+                <span class="text-slate-300">|</span>
+                <span class="font-bold text-slate-700">Tổng tiền đợt này: <strong class="text-rose-700 text-base font-mono" id="mock-footer-total">470.000 đ</strong></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="px-4 py-2 border rounded-xl text-slate-600 bg-white hover:bg-slate-100 font-bold">Hủy</button>
+                <button type="button" class="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-bold shadow-md">
+                    Lưu Hàng Loạt (2 Phiếu)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchVariant(v) {
+            ['v_chip_toggle', 'v_pos', 'v0'].forEach(id => {
+                const el = document.getElementById('variant-' + id);
+                const btn = document.getElementById('btn-tab-' + id);
+                if (id === v) {
+                    if (el) el.classList.remove('hidden');
+                    if (btn) {
+                        btn.classList.add('bg-white', 'text-purple-900', 'font-bold', 'shadow-sm');
+                        btn.classList.remove('text-purple-200', 'text-rose-300');
+                    }
+                } else {
+                    if (el) el.classList.add('hidden');
+                    if (btn) {
+                        btn.classList.remove('bg-white', 'text-purple-900', 'font-bold', 'shadow-sm');
+                        if (id === 'v0') btn.classList.add('text-rose-300');
+                        else btn.classList.add('text-purple-200');
+                    }
+                }
+            });
+        }
+
+        function pickDynamicChip(btn, name, price) {
+            btn.classList.add('hidden');
+            const td = btn.closest('td');
+            const list = td.querySelector('.toggle-selected-list');
+            const row = btn.closest('.toggle-pet-row');
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between bg-white border border-amber-300 px-2 py-1 rounded-lg text-xs text-amber-950 shadow-2xs toggle-surch-item';
+            item.dataset.chipKey = name;
+            item.dataset.price = price;
+            item.innerHTML = `
+                <span class="font-bold flex items-center gap-1">
+                    <span class="text-amber-600">⚡</span>
+                    <span>${name}</span>
+                </span>
+                <div class="flex items-center gap-1">
+                    <input type="text" value="${price.toLocaleString('vi-VN')}" class="w-16 border border-amber-200 rounded px-1.5 py-0.5 text-right font-mono font-bold text-amber-900 bg-amber-50/50 text-xs" oninput="recalcToggleRow(this.closest('.toggle-pet-row'))">
+                    <span class="text-[10px] text-slate-400 font-semibold">đ</span>
+                    <button type="button" onclick="cancelDynamicChip(this, '${name}')" class="w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 font-black text-sm ml-0.5 transition" title="Xóa món này và trả lại nút bấm">&times;</button>
+                </div>
+            `;
+            list.appendChild(item);
+            recalcToggleRow(row);
+        }
+
+        function cancelDynamicChip(btn, name) {
+            const item = btn.closest('.toggle-surch-item');
+            const row = btn.closest('.toggle-pet-row');
+            const pool = row.querySelector('.toggle-chips-pool');
+            if (item) item.remove();
+            const chipBtn = pool.querySelector(`button[data-chip-key="${name}"]`);
+            if (chipBtn) chipBtn.classList.remove('hidden');
+            recalcToggleRow(row);
+        }
+
+        function recalcToggleRow(row) {
+            if (!row) return;
+            const basePrice = parseInt(row.dataset.basePrice) || 0;
+            let surchTotal = 0;
+            row.querySelectorAll('.toggle-surch-item input').forEach(inp => {
+                const val = parseInt(inp.value.replace(/[^\d]/g, '')) || 0;
+                surchTotal += val;
+            });
+            const rowTotal = basePrice + surchTotal;
+            const rowTotalEl = row.querySelector('.toggle-row-total');
+            if (rowTotalEl) rowTotalEl.textContent = rowTotal.toLocaleString('vi-VN') + ' đ';
+
+            // Cập nhật tổng đợt này ở footer
+            let grandTotal = 0;
+            document.querySelectorAll('.toggle-pet-row').forEach(r => {
+                const b = parseInt(r.dataset.basePrice) || 0;
+                let s = 0;
+                r.querySelectorAll('.toggle-surch-item input').forEach(inp => {
+                    s += parseInt(inp.value.replace(/[^\d]/g, '')) || 0;
+                });
+                grandTotal += (b + s);
+            });
+            const footerTotal = document.getElementById('mock-footer-total');
+            if (footerTotal) footerTotal.textContent = grandTotal.toLocaleString('vi-VN') + ' đ';
+        }
+
+        function addMockPOSLineFromSelect() {
+            const selectEl = document.getElementById('pos-mock-service-select');
+            if (!selectEl || !selectEl.value) return;
+            const [name, priceStr] = selectEl.value.split('|');
+            const price = parseInt(priceStr) || 0;
+            addMockPOSLine(name, price);
+            selectEl.value = '';
+        }
+
+        function addMockPOSLine(serviceName, price) {
+            const tbody = document.getElementById('tbody-mock-pos-cart');
+            const petSelect = document.getElementById('pos-mock-pet-select');
+            const petName = petSelect ? petSelect.value : 'Bé cưng';
+            const priceFormatted = price.toLocaleString('vi-VN');
+
+            const isExtra = price < 100000 && price > 0;
+            const badge = isExtra ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded mr-1">Phụ thu</span>' : '';
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition mock-cart-row';
+            tr.innerHTML = `
+                <td class="p-2 text-center font-mono text-slate-400 font-bold mock-cart-stt"></td>
+                <td class="p-2 font-bold text-purple-900">🐾 ${petName}</td>
+                <td class="p-2 font-semibold text-slate-800 flex items-center">${badge} <span>${serviceName}</span></td>
+                <td class="p-2 text-right"><input type="text" value="${priceFormatted}" class="w-24 text-right border rounded p-1 font-mono font-bold mock-cart-price" oninput="calcMockCartTotal()"></td>
+                <td class="p-2 text-center font-mono font-bold">1</td>
+                <td class="p-2 text-right font-mono font-bold text-rose-700 mock-cart-row-total">${priceFormatted} đ</td>
+                <td class="p-2"><input type="text" placeholder="Yêu cầu riêng cho dịch vụ này..." class="w-full border p-1 rounded text-xs bg-white"></td>
+                <td class="p-2 text-center"><button type="button" onclick="removeMockPOSLine(this)" class="text-rose-500 hover:text-rose-700 font-bold">🗑️</button></td>
+            `;
+            tbody.appendChild(tr);
+            calcMockCartTotal();
+        }
+
+        function removeMockPOSLine(btn) {
+            const tr = btn.closest('tr');
+            if (tr) tr.remove();
+            calcMockCartTotal();
+        }
+
+        function calcMockCartTotal() {
+            const rows = document.querySelectorAll('#tbody-mock-pos-cart tr');
+            let total = 0;
+            rows.forEach((tr, idx) => {
+                const sttEl = tr.querySelector('.mock-cart-stt');
+                if (sttEl) sttEl.textContent = idx + 1;
+                const priceInput = tr.querySelector('.mock-cart-price');
+                const rowTotalEl = tr.querySelector('.mock-cart-row-total');
+                if (priceInput) {
+                    const num = parseInt(priceInput.value.replace(/[^\d]/g, '')) || 0;
+                    total += num;
+                    if (rowTotalEl) rowTotalEl.textContent = num.toLocaleString('vi-VN') + ' đ';
+                }
+            });
+            const footerTotal = document.getElementById('mock-footer-total');
+            if (footerTotal) footerTotal.textContent = total.toLocaleString('vi-VN') + ' đ';
+        }
+
+        function onSurchSelectChange(sel) {
+            const tr = sel.closest('tr');
+            if (!tr) return;
+            const priceInput = tr.querySelector('.surch-price-input');
+            const val = sel.value;
+            if (val === 'custom') {
+                priceInput.value = '0 đ';
+                priceInput.focus();
+                priceInput.select();
+            } else if (val === '0') {
+                priceInput.value = '0 đ';
+            } else {
+                const num = parseInt(val) || 0;
+                priceInput.value = num.toLocaleString('vi-VN') + ' đ';
+            }
+        }
+    </script>
+</body>
+</html>

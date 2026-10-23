@@ -30,10 +30,9 @@ pyinstaller --noconfirm --onedir --noconsole ^
     main.py
 
 echo.
-echo Dang chep data va ngrok vao thu muc Portable...
+echo Dang chep data vao thu muc Portable...
 if not exist "dist\POS_Mastercare\data" mkdir "dist\POS_Mastercare\data"
 copy "data\pos.db" "dist\POS_Mastercare\data\pos.db" /Y
-copy "ngrok.exe" "dist\POS_Mastercare\ngrok.exe" /Y
 copy "logo Mastercare.png" "dist\POS_Mastercare\logo Mastercare.png" /Y
 copy "app_icon.ico" "dist\POS_Mastercare\app_icon.ico" /Y
 copy "HUONG_DAN_SU_DUNG.txt" "dist\POS_Mastercare\HUONG_DAN_SU_DUNG.txt" /Y

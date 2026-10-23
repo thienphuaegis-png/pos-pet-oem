@@ -13,7 +13,7 @@
    - Nhấp đúp chuột trái vào icon: Mở ngay trang bán hàng.
    - Bấm chuột phải vào icon sẽ có menu tiện ích:
      + Bán Hàng POS (127.0.0.1:8998)
-     + Link Online (Ngrok)
+     + Mở POS qua Tailscale (pos-server:8998)
      + Tự khởi động cùng Windows (Tick chọn để bật/tắt)
      + Thoát POS Mastercare (Dừng hoàn toàn hệ thống)
 
@@ -25,7 +25,7 @@
 4. TRUY CẬP HỆ THỐNG:
    - Trên máy chủ: http://127.0.0.1:8998
    - Trên điện thoại / iPad / máy khác:
-     https://womb-jitters-outfit.ngrok-free.dev
+     http://pos-server:8998  (hoặc IP Tailscale 100.x.y.z:8998)
 
 5. TẮT MÁY CHỦ:
    - Chuột phải vào icon góc phải chọn "Thoát POS Mastercare".

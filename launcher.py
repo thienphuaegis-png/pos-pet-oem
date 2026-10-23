@@ -1,5 +1,5 @@
 """
-Launcher chạy ngầm máy chủ POS PetCare + Ngrok Tunnel với Icon Logo Shop
+Launcher chạy ngầm máy chủ POS PetCare (truy cập từ xa qua Tailscale).
 """
 import os
 import sys
@@ -11,7 +11,7 @@ import webbrowser
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(ROOT_DIR)
 
-NGROK_URL = "https://womb-jitters-outfit.ngrok-free.dev"
+TAILSCALE_URL = "http://pos-server:8998"
 LOCAL_URL = "http://127.0.0.1:8998"
 
 def is_server_running():
@@ -23,77 +23,26 @@ def is_server_running():
         return False
 
 def main():
-    print("=" * 55)
-    print("  ⚡ POS PETCARE - KHOI DONG HE THONG ONLINE")
-    print("=" * 55)
-    print(f"-> Link Online co dinh: {NGROK_URL}")
-    print()
-
-    # 1. Kiem tra va khoi dong server POS neu chua chay
+    print(f"-> Truy cap tu xa (Tailscale): {TAILSCALE_URL}")
     if not is_server_running():
-        print("[1/2] Dang khoi dong may chu POS noi bo (Port 8998)...")
-        # Tim python
+        print("Dang khoi dong may chu POS noi bo (Port 8998)...")
         py_exe = os.path.join(ROOT_DIR, ".venv", "Scripts", "python.exe")
         if not os.path.exists(py_exe):
             py_exe = sys.executable
-
-        # Chay main.py ngam
         subprocess.Popen(
             [py_exe, "main.py"],
             cwd=ROOT_DIR,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         )
-        
-        # Cho server ready
         for _ in range(15):
             time.sleep(1)
             if is_server_running():
-                print("      -> May chu POS da san sang!")
+                print("  -> May chu POS da san sang!")
                 break
     else:
-        print("[1/2] May chu POS noi bo dang chay san.")
-
-    # 2. Khoi dong Ngrok Tunnel neu chua chay
-    ngrok_exe = os.path.join(ROOT_DIR, "ngrok.exe")
-    if os.path.exists(ngrok_exe):
-        print("[2/2] Dang ket noi duong truyen Ngrok online...")
-        # Dam bao co authtoken tren may moi neu co trong env
-        ngrok_token = os.environ.get("NGROK_AUTHTOKEN", "")
-        if ngrok_token:
-            try:
-                subprocess.run([ngrok_exe, "config", "add-authtoken", ngrok_token], cwd=ROOT_DIR, capture_output=True)
-            except Exception:
-                pass
-
-        try:
-            req = urllib.request.Request(f"{LOCAL_URL}/api/ping")
-            # Kiem tra tien trinh ngrok
-            output = subprocess.check_output('tasklist /FI "IMAGENAME eq ngrok.exe"', shell=True).decode('utf-8', errors='ignore')
-            if "ngrok.exe" not in output:
-                subprocess.Popen(
-                    [ngrok_exe, "http", "8998", f"--url=womb-jitters-outfit.ngrok-free.dev"],
-                    cwd=ROOT_DIR
-                )
-            else:
-                print("      -> Ngrok da dang chay ket noi!")
-        except Exception as e:
-            subprocess.Popen(
-                [ngrok_exe, "http", "8998", f"--url=womb-jitters-outfit.ngrok-free.dev"],
-                cwd=ROOT_DIR
-            )
-    else:
-        print("[2/2] Canh bao: Khong tim thay ngrok.exe trong thu muc!")
-
-    time.sleep(2)
-    print()
-    print("=" * 55)
-    print("  HE THONG DA KHOI CHAY HOAN TAT!")
-    print(f"  -> Mo trinh duyet: {NGROK_URL}")
-    print("=" * 55)
-    
-    # Tu dong mo trinh duyet
+        print("May chu POS noi bo dang chay san.")
     try:
-        webbrowser.open(NGROK_URL)
+        webbrowser.open(LOCAL_URL)
     except Exception:
         pass
 

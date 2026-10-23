@@ -658,10 +658,16 @@
   </div>
 
 <script>
-    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-17)
-    const ROADMAP_VERSION = 'v6.6-2026-10-17-oem-expandable-table-and-action-menu';
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
+    const ROADMAP_VERSION = 'v6.8-2026-10-23-role-adaptive-ai-and-oem-draft-plan';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT (2026-10-17)
+      // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-23)
+      { id: 'ai-role-adaptive-briefing-and-min-stock', cat: 'AI', title: 'Tác Nhân AI Thích Ứng Vai Trò (Thủ Kho / Kế Toán / Thu Ngân) & Cột Tồn Tối Thiểu (min_stock)', done: true, note: 'Cột min_stock trong products; API /api/ai/staff-briefing cá nhân hóa cho Thủ kho (hàng sắp hết, hàng đang về, 1-chạm nhận hàng), Kế toán (công nợ 2 chiều, duyệt chi), Thu ngân (doanh số ca, tiền két).' },
+      { id: 'oem-draft-mode-and-one-click-auto-draft', cat: 'PROD', title: 'Đơn OEM Chức Năng Lưu Nháp (DRAFT) & AI Đề Xuất 1-Chạm Tạo Đơn Nháp (Hàng Nhập & OEM)', done: false, note: 'Nút Lưu Bản Nháp DRAFT cho đơn OEM không xuất cọc; API /api/ai/quick-create-draft tự nhận diện hàng nhập vs OEM để tạo ngay đơn nháp trong 1 giây, mở ra cho người dùng sửa hoặc xóa.' },
+      { id: 'store-purchase-requisition-anonymized-supplier', cat: 'PO', title: 'Phiếu Yêu Cầu Nhập Hàng Cửa Hàng & Bảo Mật Ẩn Danh Nhà Cung Cấp', done: false, note: 'Cửa hàng/spa tạo yêu cầu nhập hàng theo nhóm nguồn cung [NGUON-01] nhưng bảo mật tuyệt đối không thấy tên/SĐT NCC; tự động bắn reminder sang Thủ kho để 1-chạm chuyển thành đơn PO.' },
+      { id: 'ai-staff-byok-and-custom-key', cat: 'SYS', title: 'Tác Nhân AI Cá Nhân Hóa (BYOK): Nhân Viên Tự Thêm API Key Riêng & Điều Phối Quota 2 Lớp', done: true, note: 'Bổ sung ai_api_key, ai_model vào bảng staff; 2 API /api/auth/my-ai-config; get_gemini_config(user) ưu tiên key cá nhân của nhân viên, tự fallback về key của shop nếu để trống; modal quản lý và test key trực tiếp tại tab Tác Nhân AI.' },
+      { id: 'pay-single-order-debt-account-and-date', cat: 'PO', title: 'Chọn Tài Khoản Xuất Chi & Ngày Chi Khi Trả Nợ Đơn Hàng Cụ Thể (PO & OEM)', done: true, note: 'Modal cfd-pay-order bổ sung dropdown tài khoản xuất chi và ngày chi thực tế; tự nạp tài khoản tương ứng với Quỹ Cty / Quỹ Cá Nhân; backend oem.py:1284 ghi nhận chuẩn xác tài khoản, ngày chi và created_by vào Sổ Quỹ.' },
+      // 0. CẬP NHẬT (2026-10-17)
       { id: 'purchases-and-oem-6col-click-to-detail', cat: 'PO', title: 'Chuẩn Hóa Bảng Đơn Nhập Hàng & OEM 6 Cột: 1-Click Mở Ngay Chi Tiết Phiếu & Bỏ Nút Chi Trả', done: true, note: 'Rút gọn bảng Nhập Hàng từ 12 cột còn 6 cột chuẩn OEM, bỏ hoàn toàn nút Chi Trả trên từng dòng; click trực tiếp vào dòng mở modal xem chi tiết phiếu thay vì trượt dòng mở rộng cồng kềnh; dropdown lọc NCC thông minh, thanh tiến trình % thanh toán và menu thao tác ⋮ gọn gàng.' },
       { id: 'oem-expandable-table-and-factory-filter', cat: 'PROD', title: 'Tối Ưu Bảng Đơn Hàng OEM: Thiết Kế Dòng Mở Rộng 6 Cột (Expandable Row) & Dropdown Lọc Nhà Máy Thông Minh', done: true, note: 'Rút gọn từ 12 cột còn 6 cột chuẩn đẹp không cuộn ngang; thêm thanh tiến trình % cọc, menu thao tác 3 chấm ⋮ (Chi tiết, In phiếu kiểm, Sửa, Xóa); bấm vào dòng trượt mở rộng hiển thị người lập, hạn giao, mặt hàng và bảng đối soát vỏ chai/tem nhãn tại xưởng; dropdown lọc xưởng chống rối màn hình khi có 10+ nhà máy.' },
       // 0.1 CẬP NHẬT (2026-10-16)

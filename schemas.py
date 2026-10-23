@@ -8,6 +8,7 @@ class OrderItemIn(BaseModel):
     price: float
     unit: Optional[str] = None       # Đơn vị bán đã chọn (Thùng/Chai)
     unit_ratio: Optional[float] = 1  # Số đơn vị cơ bản trong 1 đơn vị đã chọn
+    vat_rate: Optional[float] = 0.0  # Thuế suất VAT theo từng sản phẩm (0, 5, 8, 10...)
 
 class PaymentSplitIn(BaseModel):
     method: str  # cash, transfer, card, ewallet
@@ -77,6 +78,7 @@ class ProductCreate(BaseModel):
     category: Optional[str] = "Khác"
     warehouse_id: Optional[int] = 1
     supplier_ids: Optional[List[int]] = None
+    min_stock: Optional[float] = 5.0
 
 class ProductUpdate(BaseModel):
     code: Optional[str] = None
@@ -87,6 +89,7 @@ class ProductUpdate(BaseModel):
     unit: str = "cái"
     category: Optional[str] = None
     supplier_ids: Optional[List[int]] = None
+    min_stock: Optional[float] = None
 
 class ProductBulkStatusIn(BaseModel):
     product_ids: List[int]
@@ -222,6 +225,7 @@ class PurchaseItemIn(BaseModel):
     unit_ratio: Optional[float] = 1  # 1 Thùng = 16 Chai -> nhập 2 thùng cộng tồn 32 chai
     quantity: float
     cost_price: float
+    vat_rate: Optional[float] = 0.0  # % Thuế VAT riêng từng món
 
 class PurchaseCreate(BaseModel):
     supplier_id: int
@@ -241,7 +245,7 @@ class PurchaseCreate(BaseModel):
 class PaymentAccountCreate(BaseModel):
     code: str
     name: str
-    account_type: str # cash, bank, ewallet
+    account_type: str # cash, bank, ewallet, pos_card
     owner_type: Optional[str] = "COMPANY" # COMPANY, PERSONAL
     bank_name: Optional[str] = ""
     account_number: Optional[str] = ""
@@ -429,6 +433,7 @@ class OEMOrderItemIn(BaseModel):
     ingredient_id: Optional[int] = None
     ordered_qty: float = Field(gt=0, description="Số lượng đặt")
     unit_price: float = Field(ge=0, description="Đơn giá gia công niêm yết")
+    vat_rate: Optional[float] = 8.0  # % Thuế VAT riêng từng món (mặc định 8% cho OEM)
 
 class OEMOrderCreate(BaseModel):
     partner_id: int
@@ -442,6 +447,7 @@ class OEMOrderCreate(BaseModel):
     discount_amount: Optional[float] = None
     discount_type: Optional[str] = "percent"  # 'percent' hoac 'amount'
     deposit_amount: float = 0.0
+    is_draft: Optional[bool] = False
     note: Optional[str] = ""
     items: List[OEMOrderItemIn]
 
@@ -592,6 +598,7 @@ class HotelBookingCheckout(BaseModel):
     note: Optional[str] = None
     use_spa_wallet: Optional[bool] = False
     spa_wallet_amount: Optional[float] = 0.0
+    account_id: Optional[int] = None  # tài khoản nhận tiền (bắt buộc khi chuyển khoản / thẻ)
 
 class HotelCareLogUpdate(BaseModel):
     daily_care_log: str
@@ -621,6 +628,10 @@ class MarketplaceSkuMapCreate(BaseModel):
     platform_variation: Optional[str] = ""
     product_id: int
 
+class PetCatalogUpdate(BaseModel):
+    colors: list[str]
+    breeds: list[str]
+
 class MarketplaceAIChatRequest(BaseModel):
     prompt: str
     date: Optional[str] = None
@@ -642,4 +653,25 @@ class MarketplaceAutoCookieRequest(BaseModel):
 
 class MarketplaceOrderBulkDeleteRequest(BaseModel):
     order_ids: List[int]
+
+class QuickDraftRequest(BaseModel):
+    product_id: Optional[int] = None
+    partner_id: Optional[int] = None
+
+class BatchQuickDraftRequest(BaseModel):
+    partner_id: Optional[int] = None # None = tat ca doi tac co hang thieu
+
+
+
+class PurchaseRequestItemIn(BaseModel):
+    product_id: int
+    quantity: float = Field(gt=0)
+    note: Optional[str] = ""
+
+class PurchaseRequestCreate(BaseModel):
+    department: str = "store" # 'store' hoac 'spa'
+    priority: str = "normal" # 'low', 'normal', 'urgent'
+    note: Optional[str] = ""
+    items: List[PurchaseRequestItemIn]
+
 

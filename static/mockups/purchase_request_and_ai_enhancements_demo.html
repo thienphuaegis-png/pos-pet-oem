@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Yêu Cầu Nhập Hàng Ẩn Danh & Nâng Cấp Tác Nhân AI Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- HEADER DEMO SWITCHER -->
+        <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">⚡</span>
+                    <h1 class="text-lg font-bold">MOCKUP THIẾT KẾ: YÊU CẦU NHẬP HÀNG & NÂNG CẤP AI HUB</h1>
+                </div>
+                <p class="text-xs text-purple-200 mt-1">
+                    Lời chào to hơn • Lô hàng chỉ hiện tên NCC • Đơn OEM lưu nháp • AI đề xuất đơn nháp 1-chạm • Yêu cầu nhập hàng ẩn danh NCC
+                </p>
+            </div>
+            <div class="flex items-center gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-xl border border-white/20">
+                <button onclick="switchView('warehouse')" id="tab-btn-wh" class="px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition">
+                    📦 1. Màn Hình Thủ Kho (Phụng)
+                </button>
+                <button onclick="switchView('store_request')" id="tab-btn-req" class="px-3 py-1.5 text-purple-200 hover:text-white rounded-lg text-xs font-semibold transition">
+                    📋 2. Màn Tạo Yêu Cầu Nhập (Ẩn Danh NCC)
+                </button>
+                <button onclick="switchView('oem_modal')" id="tab-btn-oem" class="px-3 py-1.5 text-purple-200 hover:text-white rounded-lg text-xs font-semibold transition">
+                    🏭 3. Đơn OEM: Nút Lưu Nháp
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 1: MÀN HÌNH THỦ KHO ĐÃ NÂNG CẤP (LỜI CHÀO TO, LÔ HÀNG HIỆN TÊN NCC, GỢI Ý ĐƠN NHÁP) -->
+        <!-- ========================================================================= -->
+        <div id="view-warehouse" class="space-y-4">
+            <!-- 1. HEADER LỜI CHÀO SIÊU TO & RÕ RÀNG -->
+            <div class="bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 p-5 rounded-2xl border border-purple-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-bold text-2xl shadow-md">
+                        📦
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5 flex-wrap">
+                            <!-- LỜI CHÀO TO HƠN THEO YÊU CẦU -->
+                            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Chào buổi sáng, Phụng!</h2>
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">Thủ Kho / OEM</span>
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">🟢 Đã Mở Ca</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                            🤖 <em>"Hôm nay kho có <strong>108 sản phẩm chạm đáy tồn</strong> cần đặt, <strong>5 đơn hàng đang trên đường về</strong>, nợ xưởng/NCC <strong>358.227.000 đ</strong>, và có <strong>1 yêu cầu nhập hàng mới từ quầy lễ tân</strong> cần duyệt."</em>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                        <span>➕</span> <span>Tạo Nhắc Nhở</span>
+                    </button>
+                    <button class="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold transition">
+                        🔑 Dùng Key Tiệm
+                    </button>
+                </div>
+            </div>
+
+            <!-- BỐ CỤC 3 CỘT: CẢNH BÁO/YÊU CẦU MỚI (4) | ĐƠN VỀ CHỈ HIỆN TÊN NCC & GỢI Ý ĐƠN NHÁP (4) | BÓC TÁCH (4) -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                
+                <!-- CỘT 1: NHẮC VIỆC & YÊU CẦU NHẬP HÀNG TỪ CỬA HÀNG (4 cols) -->
+                <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                            <span>📌</span> <span>Việc Cần Làm & Yêu Cầu Nhập</span>
+                        </h3>
+                        <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded font-mono">2 việc mới</span>
+                    </div>
+
+                    <!-- THẺ CẢNH BÁO YÊU CẦU NHẬP HÀNG MỚI (TỪ BỘ PHẬN KHÁC BẮN SANG) -->
+                    <div class="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl space-y-2 shadow-2xs">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded font-mono">🔔 YÊU CẦU NHẬP HÀNG MỚI</span>
+                            <span class="text-[10px] text-amber-700 font-medium">10 phút trước</span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-900">
+                            Yêu cầu từ: <span class="text-amber-800">Lễ Tân Đôn (Quầy POS)</span>
+                        </div>
+                        <div class="text-[11px] text-slate-600 bg-white/70 p-2 rounded-lg border border-amber-200">
+                            • 10 bịch Thức ăn hạt chó Original 500g<br>
+                            • 5 chai Sữa tắm ghẻ - viêm da 500ml<br>
+                            <em class="text-[10px] text-amber-700">"Kệ quầy bán hết sạch, khách hỏi liên tục"</em>
+                        </div>
+                        <div class="flex gap-2 pt-1">
+                            <button class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-2xs transition flex items-center justify-center gap-1">
+                                <span>⚡ 1-Chạm Tạo Đơn Nhập NCC</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Việc nhắc cá nhân -->
+                    <div class="p-2.5 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1">
+                        <div class="flex items-start justify-between gap-1">
+                            <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 flex-1">
+                                <input type="checkbox" class="w-3.5 h-3.5 rounded text-purple-600">
+                                <span>Kiểm số lượng vỏ chai 500ml xưởng</span>
+                            </label>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600">🟢 Lưu ý</span>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-2 bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 border-dashed rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
+                        <span>➕ Thêm nhắc nhở mới</span>
+                    </button>
+                </div>
+
+                <!-- CỘT 2: ĐƠN VỀ CHỈ HIỆN TÊN NCC & GỢI Ý TẠO ĐƠN NHÁP TỰ ĐỘNG (4 cols) -->
+                <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                            <span>📊</span> <span>Tiến Độ Về & Gợi Ý Nhập</span>
+                        </h3>
+                        <span class="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">Thủ Kho / OEM</span>
+                    </div>
+
+                    <!-- CỤM AI ĐỀ XUẤT TẠO ĐƠN NHÁP CHO CÁC MẶT HÀNG THIẾU (TÍNH NĂNG MỚI ĐƯỢC YÊU CẦU) -->
+                    <div class="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-purple-900 flex items-center gap-1">
+                                <span>🤖</span> AI Gợi Ý Tạo Đơn Nháp Tự Động
+                            </span>
+                            <span class="text-[10px] text-rose-600 font-bold bg-rose-100 px-1.5 py-0.2 rounded">108 SP thiếu</span>
+                        </div>
+                        <p class="text-[10px] text-purple-700 leading-snug">
+                            Hệ thống đã tự gom 108 món thiếu theo từng NCC. Bạn có thể bấm để AI tự điền đơn nháp:
+                        </p>
+                        <!-- Danh sách gợi ý theo từng NCC -->
+                        <div class="space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-purple-200 shadow-2xs">
+                                <div>
+                                    <div class="font-bold text-slate-900 text-[11px]">Chị Trân (Chai lọ)</div>
+                                    <div class="text-[9px] text-rose-500">6 mã chạm đáy tồn kho</div>
+                                </div>
+                                <button class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[10px] font-bold shadow-2xs transition">
+                                    + Tạo Đơn Nháp
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-purple-200 shadow-2xs">
+                                <div>
+                                    <div class="font-bold text-slate-900 text-[11px]">Ngọc Anh (Thức ăn sấy)</div>
+                                    <div class="text-[9px] text-rose-500">12 mã chạm đáy tồn kho</div>
+                                </div>
+                                <button class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-[10px] font-bold shadow-2xs transition">
+                                    + Tạo Đơn Nháp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BẢNG LÔ HÀNG ĐANG VỀ: CHỈ HIỂN THỊ TÊN NHÀ CUNG CẤP (BỎ MÃ ĐƠN THEO YÊU CẦU) -->
+                    <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2 text-xs">
+                        <div class="font-bold text-slate-700 flex items-center justify-between text-[11px]">
+                            <span>🚚 Lô Hàng Đang Về & Ngày Dự Kiến</span>
+                            <span class="text-[10px] text-purple-600">(Bấm để nhận hàng)</span>
+                        </div>
+                        <div class="space-y-1.5 text-[11px]">
+                            
+                            <!-- Dòng 1: CHỈ HIỆN TÊN NCC TO & RÕ, KHÔNG CẦN XEM MÃ HÀNG -->
+                            <div class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-1 group">
+                                <div class="flex justify-between items-center font-bold text-slate-800">
+                                    <span class="text-sm font-bold text-slate-900 group-hover:text-purple-700 flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Nhập NCC</span>
+                                        <span>Chị Trân (Chai lọ)</span>
+                                    </span>
+                                    <span class="text-purple-700 font-mono text-[11px] font-bold">14/10/2026</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-slate-500">
+                                    <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
+                                    <span class="font-bold text-slate-700 font-mono text-xs">30.000.000 đ</span>
+                                </div>
+                            </div>
+
+                            <!-- Dòng 2 -->
+                            <div class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-1 group">
+                                <div class="flex justify-between items-center font-bold text-slate-800">
+                                    <span class="text-sm font-bold text-slate-900 group-hover:text-purple-700 flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Nhập NCC</span>
+                                        <span>Anh Thường (In túi thức ăn)</span>
+                                    </span>
+                                    <span class="text-purple-700 font-mono text-[11px] font-bold">16/10/2026</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-slate-500">
+                                    <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
+                                    <span class="font-bold text-slate-700 font-mono text-xs">1.700.000 đ</span>
+                                </div>
+                            </div>
+
+                            <!-- Dòng 3 -->
+                            <div class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-1 group">
+                                <div class="flex justify-between items-center font-bold text-slate-800">
+                                    <span class="text-sm font-bold text-slate-900 group-hover:text-purple-700 flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Nhập NCC</span>
+                                        <span>Ngọc Anh (Thức ăn sấy)</span>
+                                    </span>
+                                    <span class="text-purple-700 font-mono text-[11px] font-bold">16/10/2026</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-slate-500">
+                                    <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
+                                    <span class="font-bold text-slate-700 font-mono text-xs">11.400.000 đ</span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Box công nợ chân trang -->
+                    <div class="p-2.5 bg-rose-50/80 border border-rose-200 rounded-lg text-xs space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-rose-900">📑 Công nợ NCC & Xưởng còn nợ:</span>
+                            <span class="font-mono font-bold text-rose-700 text-sm">358.227.000 đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT 3: BÓC TÁCH CHỨNG TỪ (4 cols) -->
+                <div class="md:col-span-4 bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-2xs">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                            <span>📸</span> <span>Bóc Tách Chứng Từ AI</span>
+                        </h3>
+                        <span class="text-[10px] text-purple-600 font-mono font-bold">hỗ trợ Ctrl + V</span>
+                    </div>
+
+                    <div class="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/60 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[190px]">
+                        <span class="text-3xl mb-1">📄</span>
+                        <span class="text-xs font-bold text-slate-800">Thả file ảnh hoặc nhấp chọn</span>
+                        <span class="text-[10px] text-slate-500 mt-1">Hoặc dán ảnh qua <kbd class="px-1 py-0.5 rounded bg-white border border-purple-200 font-mono font-bold text-purple-700 text-[10px]">Ctrl + V</kbd></span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 2: MÀN HÌNH "YÊU CẦU NHẬP HÀNG" (CHO BỘ PHẬN KHÁC - ẨN DANH NCC) -->
+        <!-- ========================================================================= -->
+        <div id="view-store-request" class="hidden space-y-4">
+            <div class="bg-amber-500 text-white p-4 rounded-xl flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold flex items-center gap-2">
+                        <span>📋</span> PHIẾU ĐỀ XUẤT YÊU CẦU NHẬP HÀNG (DÀNH CHO BỘ PHẬN CỬA HÀNG / QUẦY BÁN)
+                    </h2>
+                    <p class="text-xs text-amber-100 mt-0.5">
+                        Bộ phận này thấy toàn bộ sản phẩm và được nhóm theo nguồn cung, nhưng <strong>BẢO MẬT TUYỆT ĐỐI KHÔNG HIỆN TÊN VÀ SĐT NHÀ CUNG CẤP</strong>.
+                    </p>
+                </div>
+                <span class="px-3 py-1 bg-white/20 rounded-lg text-xs font-bold font-mono">Bảo mật NCC 🔒</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <!-- KHU VỰC CHỌN SẢN PHẨM NHÓM THEO NGUỒN CUNG ẨN DANH (8 cols) -->
+                <div class="md:col-span-8 bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <input type="text" placeholder="🔍 Tìm tên sản phẩm, mã hàng cần yêu cầu nhập..." class="w-full border p-2 rounded-lg text-xs outline-none focus:border-amber-500">
+                        </div>
+                        <select class="border p-2 rounded-lg text-xs font-bold bg-slate-50">
+                            <option value="">Tất cả nguồn hàng</option>
+                            <option value="group1">Nguồn Cung Ứng #1 (Chai lọ - Bao bì)</option>
+                            <option value="group2">Nguồn Cung Ứng #2 (Thức ăn sấy)</option>
+                            <option value="group3">Nguồn Cung Ứng #3 (Thức ăn hạt & Dinh dưỡng)</option>
+                        </select>
+                    </div>
+
+                    <!-- NHÓM NGUỒN CUNG 1 (ẨN DANH TÊN NCC CHỊ TRÂN) -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                        <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-b">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">📦</span>
+                                <span class="font-bold text-xs text-slate-800">Nhóm Nguồn Hàng #1 (Chai lọ & Phụ kiện)</span>
+                                <span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-mono">Mã nguồn: SUPP-A</span>
+                            </div>
+                            <span class="text-[11px] text-slate-500 font-medium">3 sản phẩm</span>
+                        </div>
+                        <div class="divide-y divide-slate-100 text-xs">
+                            <div class="p-2.5 flex items-center justify-between hover:bg-slate-50">
+                                <div>
+                                    <div class="font-bold text-slate-900">Chai nhựa pet nâu 500ml nắp bật</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">SP-PET500 • Tồn hiện tại: 8 chai</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" value="50" class="w-16 border rounded p-1 text-center font-bold text-amber-700 bg-amber-50">
+                                    <button class="px-2.5 py-1 bg-amber-600 text-white rounded font-bold text-[11px]">+ Thêm</button>
+                                </div>
+                            </div>
+                            <div class="p-2.5 flex items-center justify-between hover:bg-slate-50">
+                                <div>
+                                    <div class="font-bold text-slate-900">Vỏ hũ nhôm 100g sáp dưỡng đệm chân</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">SP-HU100 • Tồn hiện tại: 2 hũ (Hết)</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" value="100" class="w-16 border rounded p-1 text-center font-bold text-amber-700 bg-amber-50">
+                                    <button class="px-2.5 py-1 bg-amber-600 text-white rounded font-bold text-[11px]">+ Thêm</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM NGUỒN CUNG 2 (ẨN DANH TÊN NCC NGỌC ANH) -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                        <div class="bg-slate-100 px-3 py-2 flex justify-between items-center border-b">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">🥩</span>
+                                <span class="font-bold text-xs text-slate-800">Nhóm Nguồn Hàng #2 (Thức Ăn Sấy Thú Cưng)</span>
+                                <span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-mono">Mã nguồn: SUPP-B</span>
+                            </div>
+                            <span class="text-[11px] text-slate-500 font-medium">5 sản phẩm</span>
+                        </div>
+                        <div class="divide-y divide-slate-100 text-xs">
+                            <div class="p-2.5 flex items-center justify-between hover:bg-slate-50">
+                                <div>
+                                    <div class="font-bold text-slate-900">Thức ăn sấy gà 90g (Freeze Dried)</div>
+                                    <div class="text-[10px] text-rose-500 font-mono font-bold">3TSG90 • Tồn hiện tại: 0 gói (Hết hàng!)</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="number" value="30" class="w-16 border rounded p-1 text-center font-bold text-amber-700 bg-amber-50">
+                                    <button class="px-2.5 py-1 bg-amber-600 text-white rounded font-bold text-[11px]">+ Thêm</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PHIẾU YÊU CẦU ĐANG SOẠN (4 cols) -->
+                <div class="md:col-span-4 bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div class="border-b pb-2 flex justify-between items-center">
+                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-800">
+                            📝 Phiếu Yêu Cầu Của Bạn
+                        </h3>
+                        <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">2 món chọn</span>
+                    </div>
+
+                    <div class="space-y-2 text-xs">
+                        <div class="p-2 bg-white rounded-lg border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-slate-800">Chai nhựa pet nâu 500ml</div>
+                                <div class="text-[10px] text-slate-400">SL: 50 chai</div>
+                            </div>
+                            <button class="text-rose-500 font-bold">✕</button>
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-slate-800">Thức ăn sấy gà 90g</div>
+                                <div class="text-[10px] text-slate-400">SL: 30 gói</div>
+                            </div>
+                            <button class="text-rose-500 font-bold">✕</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 text-xs mb-1">Lý do / Mức độ ưu tiên:</label>
+                        <textarea rows="2" placeholder="Ghi chú: Kệ quầy hết sạch, khách đặt trước 5 gói..." class="w-full border p-2 rounded-lg text-xs focus:outline-none focus:border-amber-500"></textarea>
+                    </div>
+
+                    <div class="pt-2 border-t">
+                        <button class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                            <span>🚀 Gửi Yêu Cầu Cho Thủ Kho / Người Đặt</span>
+                        </button>
+                        <p class="text-[10px] text-slate-400 text-center mt-1.5">
+                            Hệ thống sẽ tự động tạo thông báo nhắc nhở gửi thẳng đến Thủ Kho (Phụng).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 3: MODAL ĐƠN OEM: THÊM NÚT LƯU NHÁP (DRAFT) -->
+        <!-- ========================================================================= -->
+        <div id="view-oem-modal" class="hidden max-w-xl mx-auto bg-white rounded-2xl shadow-xl border border-purple-200 p-5 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🏭</span>
+                    <h3 class="font-bold text-sm text-slate-900">Lập Đơn Đặt Hàng Gia Công Xưởng OEM</h3>
+                </div>
+                <span class="text-xs text-slate-400 font-mono">OEM-26102301</span>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Xưởng gia công OEM:</label>
+                        <input type="text" value="Xưởng Phú Nhuận (Gia công đóng gói)" readonly class="w-full border bg-slate-50 p-2 rounded-lg font-bold">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700 block mb-1">Ngày hẹn giao hàng:</label>
+                        <input type="date" value="2026-10-28" class="w-full border p-2 rounded-lg font-bold">
+                    </div>
+                </div>
+
+                <div class="border rounded-lg p-2.5 bg-slate-50 space-y-1">
+                    <div class="font-bold text-slate-700">Mặt hàng gia công:</div>
+                    <div class="flex justify-between font-bold text-slate-900">
+                        <span>Nước Lau Sàn Quế Cam 1L (1.000 chai)</span>
+                        <span class="font-mono text-purple-700">18.288.000 đ</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-amber-900">Tiền đặt cọc đợt 1 (nếu có):</span>
+                        <input type="text" value="5.000.000 đ" class="w-32 border border-amber-300 p-1.5 rounded text-right font-bold text-amber-800 bg-white font-mono">
+                    </div>
+                    <div class="text-[10px] text-amber-700">
+                        💡 Lưu ý: Bấm <strong>"Lưu Đơn & Xuất Cọc"</strong> sẽ tự tạo phiếu chi Sổ Quỹ. Bấm <strong>"Lưu Nháp"</strong> sẽ chỉ lưu thông tin đơn OEM, <strong>CHƯA XUẤT TIỀN CỌC</strong>.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CỤM NÚT LƯU MỚI: CÓ NÚT LƯU NHÁP THEO YÊU CẦU -->
+            <div class="flex items-center justify-between pt-3 border-t">
+                <button class="px-3 py-2 border rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs">Đóng</button>
+                <div class="flex items-center gap-2">
+                    <!-- NÚT 1: LƯU NHÁP (MỚI) -->
+                    <button class="px-4 py-2 bg-slate-100 hover:bg-purple-50 text-purple-700 border border-purple-300 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5">
+                        <span>💾</span> <span>Lưu Bản Nháp (Chưa Xuất Cọc)</span>
+                    </button>
+                    <!-- NÚT 2: LƯU CHÍNH THỨC & XUẤT CỌC -->
+                    <button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                        <span>🚀</span> <span>Lưu Đơn & Xuất Cọc Sổ Quỹ</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT CHUYỂN TAB MOCKUP -->
+    <script>
+        function switchView(v) {
+            document.getElementById('view-warehouse').classList.toggle('hidden', v !== 'warehouse');
+            document.getElementById('view-store-request').classList.toggle('hidden', v !== 'store_request');
+            document.getElementById('view-oem-modal').classList.toggle('hidden', v !== 'oem_modal');
+
+            const btnWh = document.getElementById('tab-btn-wh');
+            const btnReq = document.getElementById('tab-btn-req');
+            const btnOem = document.getElementById('tab-btn-oem');
+
+            [btnWh, btnReq, btnOem].forEach(b => {
+                b.className = "px-3 py-1.5 text-purple-200 hover:text-white rounded-lg text-xs font-semibold transition";
+            });
+
+            if (v === 'warehouse') btnWh.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+            if (v === 'store_request') btnReq.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+            if (v === 'oem_modal') btnOem.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+        }
+    </script>
+</body>
+</html>

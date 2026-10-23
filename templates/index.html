@@ -835,7 +835,7 @@
                 </div>
                 <!-- Navigation Tabs (Flat UI - Inverted Curved Scoop) -->
                 <nav id="sidebar-nav" class="pl-2.5 pt-5 pb-5 pr-0 space-y-1 flex-1">
-                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold mb-1 transition active-tab cursor-pointer" data-tab="pos" data-role="cashier,owner" data-tooltip="Bán Hàng (POS)">
+                    <button onclick="switchTab('pos')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center justify-between text-xs font-semibold mb-1 transition cursor-pointer" data-tab="pos" data-role="cashier,owner" data-tooltip="Bán Hàng (POS)">
                         <span class="flex items-center gap-2.5 min-w-0">
                             <span class="sidebar-icon bg-sky-100 text-sky-600">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
@@ -886,6 +886,12 @@
                         </span>
                         <span class="sidebar-text truncate">Nhập Hàng</span>
                     </button>
+                    <button onclick="switchTab('purchase-requests')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="purchase-requests" data-role="cashier,warehouse,owner,accountant" data-tooltip="Yêu Cầu Đặt Hàng">
+                        <span class="sidebar-icon bg-amber-100 text-amber-700">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Yêu Cầu Đặt Hàng</span>
+                    </button>
                     <button onclick="switchTab('oem')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="oem" data-role="warehouse,owner" data-module="module_oem" data-tooltip="Gia Công OEM">
                         <span class="sidebar-icon bg-cyan-100 text-cyan-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4H2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg>
@@ -928,11 +934,11 @@
                         </span>
                         <span class="sidebar-text truncate">Hướng Dẫn Nghiệp Vụ</span>
                     </button>
-                    <button onclick="switchTab('ai-agent')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="ai-agent" data-role="owner,cashier,accountant,warehouse" data-tooltip="Tác Nhân AI">
+                    <button onclick="switchTab('ai-agent')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition active-tab cursor-pointer" data-tab="ai-agent" data-role="owner,cashier,accountant,warehouse" data-tooltip="Tác Nhân AI">
                         <span class="sidebar-icon bg-purple-100 text-purple-700">
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
                         </span>
-                        <span class="sidebar-text truncate">Tác Nhân AI</span>
+                        <span class="sidebar-text truncate font-bold text-purple-700">Tác Nhân AI</span>
                     </button>
                     <button onclick="switchTab('settings')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="settings" data-role="owner" data-tooltip="Cài Đặt Hệ Thống">
                         <span class="sidebar-icon bg-slate-200 text-slate-700">
@@ -1004,7 +1010,7 @@
             <div id="global-page-loader" class="global-page-loader"></div>
             
             <!-- TAB: BAN HANG (POS) -->
-            <div id="tab-pos" class="h-full w-full flex flex-col overflow-hidden select-none bg-slate-100 relative">
+            <div id="tab-pos" class="hidden h-full w-full flex flex-col overflow-hidden select-none bg-slate-100 relative">
                 <!-- Overlay chan ban hang khi chua mo ca -->
                 <div id="pos-shift-lock-overlay" class="hidden absolute inset-0 z-50 bg-slate-900/90 flex-col items-center justify-center gap-4 text-white" style="display: none !important;">
                     <svg class="w-16 h-16 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1027,7 +1033,6 @@
                        onfocus="filterProductSearch(this.value)"
                        onclick="filterProductSearch(this.value)"
                        oninput="filterProductSearch(this.value)"
-                       onkeydown="if(event.key === 'Enter'){ event.preventDefault(); handleBarcodeOrSelectFirst(this.value); }"
                        class="w-full pl-9 pr-9 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-600 focus:border-sky-600 focus:bg-white transition text-slate-900 placeholder:text-slate-400">
                 <span class="absolute right-2.5 text-slate-400 flex items-center pointer-events-none" title="Quét mã vạch">
                     <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8"/><path d="M12 8v8"/><path d="M17 8v8"/></svg>
@@ -1220,6 +1225,12 @@
                                    oninput="updateShippingFee(this.value)"
                                    class="w-full text-right font-bold text-indigo-700 text-xs border border-slate-200 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white">
                         </div>
+                    </div>
+
+                    <!-- Tiền thuế VAT -->
+                    <div id="pos-vat-row" class="flex justify-between items-center text-slate-500 text-[11px] pt-1">
+                        <span>Tiền thuế VAT:</span>
+                        <span id="pos-vat-display" class="font-medium text-slate-700">0 đ</span>
                     </div>
 
                     <!-- Khách cần trả (Highlight) -->
@@ -3893,6 +3904,20 @@
                             <span id="co-total-amount" class="font-mono font-black text-rose-700 text-base">0 đ</span>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-2 items-end">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Hình thức thu:</label>
+                            <select id="co-pay-method" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white">
+                                <option value="cash">💵 Tiền mặt</option>
+                                <option value="transfer">🏦 Chuyển khoản</option>
+                                <option value="card">💳 Quẹt thẻ</option>
+                            </select>
+                        </div>
+                        <div id="co-pay-account-wrap" class="hidden">
+                            <label class="block font-bold text-sky-700 mb-1">Tài khoản nhận tiền (*):</label>
+                            <select id="co-pay-account" class="w-full border border-sky-300 bg-sky-50/50 rounded-lg p-2 font-semibold text-slate-700"></select>
+                        </div>
+                    </div>
                     <div class="flex justify-end gap-2 pt-2 border-t">
                         <button onclick="window.hotelManager.closeHotelCheckoutModal()" class="px-4 py-2 border rounded-lg text-slate-600 font-bold">Đóng</button>
                         <button onclick="window.hotelManager.submitHotelCheckout()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-xs">
@@ -4219,6 +4244,7 @@
                                 <thead>
                                     <tr class="bg-slate-50/80 text-slate-600 font-bold border-b text-[11px] uppercase">
                                         <th class="p-3 w-44">Mã Đơn</th>
+                                        <th class="p-3 w-36">Ngày Tạo</th>
                                         <th class="p-3">Nhà Cung Cấp & Kho</th>
                                         <th class="p-3 text-right w-36">Tổng Tiền</th>
                                         <th class="p-3 text-right w-56">Đã Thanh Toán</th>
@@ -4228,7 +4254,7 @@
                                 </thead>
                                 <tbody id="table-purchases-history" class="divide-y divide-slate-100">
                                     <tr>
-                                        <td colspan="6" class="p-6 text-center text-slate-400">Đang tải lịch sử phiếu nhập...</td>
+                                        <td colspan="7" class="p-6 text-center text-slate-400">Đang tải lịch sử phiếu nhập...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -4319,6 +4345,131 @@
                                     <tr>
                                         <td colspan="10" class="p-4 text-center text-gray-400">Đang tải phân tích biến động giá...</td>
                                     </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: YÊU CẦU ĐẶT HÀNG (DÀNH CHO NHÂN VIÊN CỬA HÀNG / SPA) -->
+            <div id="tab-purchase-requests" class="hidden space-y-4">
+                <!-- Header -->
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>Phiếu Yêu Cầu Đặt Hàng</span>
+                                <span class="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Requisition</span>
+                            </h2>
+                            <p class="text-xs text-slate-500">Dành cho nhân viên cửa hàng & spa gửi yêu cầu nhập hàng. Danh mục tự động ẩn danh NCC và bảo mật giá vốn.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="loadPurchaseRequestsList()" class="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition">
+                            <span>🔄</span> Làm Mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2 Cột: Cột Trái Tạo Phiếu & Cột Phải Danh Sách Lịch Sử -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <!-- Cột Trái (5 cols): Tạo Phiếu Yêu Cầu Mới -->
+                    <div class="lg:col-span-5 bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-col space-y-3.5">
+                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+                            <span>✍️</span> Lập Phiếu Yêu Cầu Mới
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Bộ phận yêu cầu</label>
+                                <select id="pr-department" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500">
+                                    <option value="store">Quầy Bán Lẻ (Cửa hàng)</option>
+                                    <option value="spa">Khu Vực Spa / Dịch Vụ</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Mức độ ưu tiên</label>
+                                <select id="pr-priority" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-slate-50 focus:bg-white focus:ring-1 focus:ring-amber-500">
+                                    <option value="normal">Bình thường</option>
+                                    <option value="urgent">🔴 Khẩn cấp (Cần gấp)</option>
+                                    <option value="low">Thấp</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Ô tìm kiếm sản phẩm nhanh (Quick Search Masked Catalog) -->
+                        <div class="relative">
+                            <label class="block font-bold text-xs text-slate-700 mb-1">Tìm & Thêm mặt hàng</label>
+                            <div class="relative">
+                                <input type="text" id="pr-search-product" placeholder="Gõ tên hoặc mã sản phẩm..." oninput="onSearchMaskedProduct(this.value)" autocomplete="off" class="w-full border border-slate-300 rounded-lg pl-8 pr-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                <span class="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
+                            </div>
+                            <!-- Dropdown gợi ý tìm kiếm -->
+                            <div id="pr-search-dropdown" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 max-h-56 overflow-y-auto hidden">
+                                <!-- Kết quả tìm kiếm -->
+                            </div>
+                        </div>
+
+                        <!-- Bảng danh sách mặt hàng đã chọn -->
+                        <div class="border border-slate-200 rounded-lg overflow-hidden flex-1 min-h-[160px] max-h-64 overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 sticky top-0 border-b font-semibold text-[11px]">
+                                    <tr>
+                                        <th class="p-2">Mặt Hàng</th>
+                                        <th class="p-2 text-right">Tồn</th>
+                                        <th class="p-2 text-center w-24">SL Đặt</th>
+                                        <th class="p-2 text-center w-8"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pr-selected-tbody" class="divide-y divide-slate-100 font-medium">
+                                    <tr>
+                                        <td colspan="4" class="p-4 text-center text-slate-400">Chưa chọn mặt hàng nào. Vui lòng tìm kiếm ở ô trên.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-xs text-slate-700 mb-1">Ghi chú (Lý do cần đặt / Ghi chú cho thủ kho)</label>
+                            <input type="text" id="pr-note" placeholder="VD: Khách hỏi nhiều / Sắp hết trong 2 ngày..." class="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-800">
+                        </div>
+
+                        <button type="button" onclick="submitNewPurchaseRequest()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition">
+                            <span>🚀</span> Gửi Yêu Cầu Nhập Hàng
+                        </button>
+                    </div>
+
+                    <!-- Cột Phải (7 cols): Lịch Sử Các Phiếu Yêu Cầu -->
+                    <div class="lg:col-span-7 bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-col space-y-3.5">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                                <span>📋</span> Lịch Sử Phiếu Yêu Cầu Nhập Hàng
+                            </h3>
+                            <div class="flex items-center gap-1.5">
+                                <select id="pr-filter-status" onchange="loadPurchaseRequestsList()" class="border border-slate-300 rounded-lg p-1 text-[11px] font-bold text-slate-700 bg-slate-50">
+                                    <option value="">Tất cả trạng thái</option>
+                                    <option value="pending">⏳ Chờ duyệt</option>
+                                    <option value="converted">✅ Đã lên đơn PO</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg overflow-y-auto max-h-[500px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 sticky top-0 border-b font-semibold text-[11px]">
+                                    <tr>
+                                        <th class="p-2.5">Mã Phiếu</th>
+                                        <th class="p-2.5">Bộ Phận / Người Gửi</th>
+                                        <th class="p-2.5 text-center">Số Món / Tổng SL</th>
+                                        <th class="p-2.5 text-center">Trạng Thái</th>
+                                        <th class="p-2.5 text-center">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pr-history-tbody" class="divide-y divide-slate-100 font-medium">
+                                    <!-- Rendered dynamically -->
                                 </tbody>
                             </table>
                         </div>
@@ -4417,6 +4568,7 @@
                                         <thead>
                                             <tr class="bg-slate-50/80 text-slate-600 font-bold border-b text-[11px] uppercase">
                                                 <th class="p-3 w-44">Mã Đơn</th>
+                                                <th class="p-3 w-36">Ngày Tạo</th>
                                                 <th class="p-3">Đối Tác & Kho</th>
                                                 <th class="p-3 text-right w-36">Tổng Tiền</th>
                                                 <th class="p-3 text-right w-56">Đã Thanh Toán</th>
@@ -4426,7 +4578,7 @@
                                         </thead>
                                         <tbody id="table-oem-orders" class="divide-y divide-slate-100">
                                             <tr>
-                                                <td colspan="6" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
+                                                <td colspan="7" class="p-4 text-center text-gray-400">Đang tải danh sách đơn gia công...</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -4568,9 +4720,10 @@
                                     <thead>
                                         <tr class="bg-slate-100 text-slate-700 border-b">
                                             <th class="p-2.5 w-5/12">Sản Phẩm Gia Công</th>
-                                            <th class="p-2.5 w-32 text-right">SL Đặt</th>
-                                            <th class="p-2.5 w-40 text-right">Phí Chiết Rót / Công Xưởng (đ)</th>
-                                            <th class="p-2.5 w-36 text-right">Tiền Công Gia Công</th>
+                                            <th class="p-2.5 w-28 text-right">SL Đặt</th>
+                                            <th class="p-2.5 w-36 text-right">Phí Chiết Rót / Công Xưởng (đ)</th>
+                                            <th class="p-2.5 w-20 text-right">VAT (%)</th>
+                                            <th class="p-2.5 w-32 text-right">Tiền Công Gia Công</th>
                                             <th class="p-2.5 w-12 text-center">Xóa</th>
                                         </tr>
                                     </thead>
@@ -4635,7 +4788,10 @@
 
                     <div class="p-3 border-t bg-slate-50 rounded-b-xl flex justify-end gap-2">
                         <button onclick="closeModalCreateOEM()" class="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100 font-medium">Hủy</button>
-                        <button id="btn-submit-create-oem" onclick="submitCreateOEMOrder()" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold shadow flex items-center gap-1.5">
+                        <button type="button" id="btn-submit-draft-oem" onclick="submitCreateOEMOrder(true)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded font-bold shadow-2xs flex items-center gap-1.5">
+                            💾 Lưu Bản Nháp (DRAFT)
+                        </button>
+                        <button id="btn-submit-create-oem" onclick="submitCreateOEMOrder(false)" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold shadow flex items-center gap-1.5">
                             🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ
                         </button>
                     </div>
@@ -5472,27 +5628,39 @@
                                 <label class="font-bold text-slate-700">Số tiền thanh toán lần này (đ):</label>
                                 <button type="button" onclick="setCFDPayFullOrderDebt()" class="text-[11px] text-blue-600 hover:underline font-bold">Trả hết đơn này</button>
                             </div>
-                            <input type="number" id="cfd-pay-order-amount" class="w-full border p-2 rounded text-sm font-mono font-bold text-slate-800">
+                            <input type="text" inputmode="numeric" id="cfd-pay-order-amount" class="currency-auto-format w-full border p-2 rounded text-sm font-mono font-bold text-slate-800" autocomplete="off" placeholder="Nhập số tiền...">
                         </div>
 
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">Nguồn tiền thanh toán:</label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="border p-2 rounded cursor-pointer flex items-center gap-2 hover:bg-slate-50">
-                                    <input type="radio" name="cfd-pay-order-fund" value="COMPANY" checked>
+                                    <input type="radio" name="cfd-pay-order-fund" value="COMPANY" checked onchange="onCFDPayOrderFundChange()">
                                     <div>
                                         <div class="font-bold text-slate-800">🏢 Quỹ Công Ty</div>
                                         <div class="text-[10px] text-gray-500">Bank cty / hóa đơn VAT</div>
                                     </div>
                                 </label>
                                 <label class="border p-2 rounded cursor-pointer flex items-center gap-2 hover:bg-slate-50">
-                                    <input type="radio" name="cfd-pay-order-fund" value="PERSONAL">
+                                    <input type="radio" name="cfd-pay-order-fund" value="PERSONAL" onchange="onCFDPayOrderFundChange()">
                                     <div>
                                         <div class="font-bold text-slate-800">👤 Quỹ Cá Nhân</div>
                                         <div class="text-[10px] text-gray-500">Tiền túi / quỹ riêng</div>
                                     </div>
                                 </label>
                             </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">🏦 Tài khoản xuất chi (*):</label>
+                            <select id="cfd-pay-order-account" class="border p-2 rounded w-full bg-white font-medium text-slate-700 focus:ring-1 focus:ring-blue-500">
+                                <!-- Loaded dynamically from payment accounts -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">📅 Ngày chi trả thực tế (*):</label>
+                            <input type="date" id="cfd-pay-order-date" class="border p-2 rounded w-full font-bold text-slate-800 bg-white focus:ring-1 focus:ring-blue-500">
                         </div>
 
                         <div>
@@ -5574,7 +5742,7 @@
                                     Trả Hết Nợ Quỹ Này
                                 </button>
                             </div>
-                            <input type="number" id="cfd-pay-amount" step="any" min="1" placeholder="Nhập số tiền..." class="border p-2 rounded w-full font-mono font-bold text-slate-800 text-sm">
+                            <input type="text" inputmode="numeric" id="cfd-pay-amount" placeholder="Nhập số tiền..." class="currency-auto-format border p-2 rounded w-full font-mono font-bold text-slate-800 text-sm" autocomplete="off">
                             <div id="cfd-pay-fund-hint" class="text-[10px] text-gray-500 mt-1">Tối đa có thể trả: 0 đ</div>
                         </div>
 
@@ -5699,7 +5867,7 @@
                                     <button type="button" onclick="setPlanQuickAmount(1)" class="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 font-bold">100% nợ</button>
                                 </div>
                             </div>
-                            <input type="number" id="plan-amount" step="any" min="1" placeholder="Nhập số tiền hẹn trả (đ)..." class="border p-2 rounded w-full font-mono font-black text-rose-600 text-base outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                            <input type="text" inputmode="numeric" id="plan-amount" placeholder="Nhập số tiền hẹn trả (đ)..." class="currency-auto-format border p-2 rounded w-full font-mono font-black text-rose-600 text-base outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" autocomplete="off">
                         </div>
 
                         <!-- Nguồn tiền & Ngày hẹn -->
@@ -6183,15 +6351,16 @@
                                         <th class="p-2.5">Tên Mặt Hàng / Nguyên Liệu</th>
                                         <th class="p-2.5 text-center w-24">Loại</th>
                                         <th class="p-2.5 text-center w-20">ĐVT</th>
-                                        <th class="p-2.5 text-right w-28">Số Lượng</th>
-                                        <th class="p-2.5 text-right w-36">Đơn Giá Nhập (đ)</th>
-                                        <th class="p-2.5 text-right w-36">Thành Tiền</th>
+                                        <th class="p-2.5 text-right w-24">Số Lượng</th>
+                                        <th class="p-2.5 text-right w-32">Đơn Giá Nhập (đ)</th>
+                                        <th class="p-2.5 text-right w-20">VAT (%)</th>
+                                        <th class="p-2.5 text-right w-32">Thành Tiền</th>
                                         <th class="p-2.5 text-center w-14">Xóa</th>
                                     </tr>
                                 </thead>
                                 <tbody id="purchase-items-table">
                                     <tr>
-                                        <td colspan="8" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td>
+                                        <td colspan="9" class="p-4 text-center text-gray-400">Chưa có sản phẩm nào. Vui lòng chọn ở trên để thêm vào phiếu!</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -6434,6 +6603,12 @@
                             <select id="pay-po-fund" class="w-full border border-slate-300 rounded-lg p-2 font-semibold">
                                 <option value="PERSONAL">👤 Cá Nhân (Không VAT)</option>
                                 <option value="COMPANY">🏢 Công Ty (Có VAT)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Chi từ tài khoản:</label>
+                            <select id="pay-po-account" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white">
+                                <option value="">-- Tự chọn theo nguồn tiền --</option>
                             </select>
                         </div>
                         <div>
@@ -7116,6 +7291,10 @@
                                     <option value="wallet">💳 Ví Spa</option>
                                 </select>
                             </div>
+                            <div id="return-modal-account-wrap" class="hidden flex items-center gap-2">
+                                <label for="return-modal-account" class="font-semibold text-sky-700 whitespace-nowrap">Tài khoản (*):</label>
+                                <select id="return-modal-account" class="flex-1 py-1.5 px-2.5 bg-sky-50/50 border border-sky-300 rounded-lg text-xs font-semibold"></select>
+                            </div>
                             <div class="md:col-span-2 flex items-center gap-2">
                                 <label for="return-modal-note" class="font-semibold text-slate-700 whitespace-nowrap">Ghi chú:</label>
                                 <input type="text" id="return-modal-note" placeholder="Lý do đổi / trả, hiện trạng..." class="flex-1 py-1.5 px-2.5 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -7509,9 +7688,18 @@
                             </tbody>
                         </table>
                     </div>
-                    <div id="modal-prod-stock-group">
-                        <label class="block font-bold mb-1">Tồn kho ban đầu (Kho Tổng):</label>
-                        <input id="modal-prod-stock" type="number" class="border p-2 rounded w-full" value="0">
+                    <div class="grid grid-cols-2 gap-2" id="modal-prod-stock-grid">
+                        <div id="modal-prod-stock-group">
+                            <label class="block font-bold mb-1">Tồn kho ban đầu:</label>
+                            <input id="modal-prod-stock" type="number" class="border p-2 rounded w-full font-mono font-bold" value="0">
+                        </div>
+                        <div id="modal-prod-min-stock-group">
+                            <label class="block font-bold mb-1 text-purple-900 flex items-center justify-between">
+                                <span>Tồn tối thiểu:</span>
+                                <span class="text-[10px] text-purple-600 font-normal">Cảnh báo đặt</span>
+                            </label>
+                            <input id="modal-prod-min-stock" type="number" step="any" min="0" class="border border-purple-200 bg-purple-50/30 p-2 rounded w-full font-mono font-bold text-purple-900" placeholder="5" value="5">
+                        </div>
                     </div>
                     <!-- DROPLIST POPUP CHỌN NHIỀU NHÀ CUNG CẤP SẢN PHẨM -->
                     <div class="relative" id="container-prod-suppliers">
@@ -8304,159 +8492,240 @@
 
 
             <!-- TAB: TÁC NHÂN AI COPILOT ĐA NĂNG -->
-            <div id="tab-ai-agent" class="hidden space-y-4">
-                <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+            <div id="tab-ai-agent" class="space-y-4">
+                <!-- 1. HEADER CHÀO CA NHÂN VIÊN & BRIEFING TỔNG HỢP -->
+                <div class="bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 p-4 rounded-xl border border-purple-100 flex flex-wrap items-center justify-between gap-3 shadow-xs">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-lg border border-purple-100 shadow-xs">
-                            🤖
+                        <div class="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                            👤
                         </div>
                         <div>
-                            <div class="flex items-center gap-2">
-                                <h2 class="text-base font-bold text-slate-900">Tác Nhân AI Bóc Tách Chứng Từ</h2>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 class="text-base font-bold text-slate-900" id="ai-staff-greeting">Chào bạn!</h2>
+                                <span id="ai-staff-role" class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">Nhân viên</span>
+                                <span id="ai-shift-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">Đang kiểm tra ca...</span>
                             </div>
-                            <p class="text-xs text-slate-500">Kéo thả ảnh hóa đơn, bill chuyển khoản, tin nhắn báo giá để AI tự động nhận diện và tạo đơn nháp</p>
+                            <p class="text-xs text-slate-600 mt-1" id="ai-staff-briefing-text">
+                                🤖 <em>Đang nạp công việc và tóm tắt đầu ca...</em>
+                            </p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="resetAIAgentWorkspace()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" onclick="openCreateReminderModal()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-xs transition flex items-center gap-1">
+                            <span>➕</span> <span>Tạo Nhắc Nhở</span>
+                        </button>
+                        <button type="button" onclick="openMyAIConfigModal()" class="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs">
+                            <span>🔑</span> <span id="btn-label-my-ai-key">API Key Cá Nhân</span>
+                        </button>
+                        <button type="button" onclick="loadStaffBriefing()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition" title="Làm mới bảng việc">
                             🔄 Làm Mới
                         </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                    <!-- KHU VỰC 1: TẢI ẢNH / DROPZONE (5 cols) -->
-                    <div class="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
-                        <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center justify-between">
-                            <span>📸 Tải Ảnh Hóa Đơn / Bill</span>
-                            <span class="text-slate-400 font-normal italic lowercase">hỗ trợ Ctrl + V</span>
-                        </h3>
+                <!-- 2. BỐ CỤC 3 CỘT: VIỆC & NHẮC NHỞ (4 cols) | BÁO CÁO CA (4 cols) | BÓC TÁCH CHỨNG TỪ (4 cols) -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                    
+                    <!-- CỘT 1: VIỆC CẦN LÀM & NHẮC NHỞ (4 cols) -->
+                    <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                                <span>📌</span> <span>Việc Cần Làm & Nhắc Nhở</span>
+                            </h3>
+                            <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded font-mono" id="ai-reminder-count">0 việc</span>
+                        </div>
+
+                        <div class="space-y-2 text-xs max-h-[380px] overflow-y-auto pr-1" id="ai-reminder-list">
+                            <div class="text-slate-400 text-center py-4 text-xs">Đang nạp danh sách lời nhắc...</div>
+                        </div>
+
+                        <button type="button" onclick="openCreateReminderModal()" class="w-full py-2 bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 border-dashed rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
+                            <span>➕ Thêm nhắc nhở mới</span>
+                        </button>
+                    </div>
+
+                    <!-- CỘT 2: TRUNG TÂM NGHIỆP VỤ THÍCH ỨNG THEO VAI TRÒ (4 cols) -->
+                    <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3" id="ai-col2-card">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                                <span>📊</span> <span id="ai-col2-title">Hiệu Suất & Doanh Số Ca</span>
+                            </h3>
+                            <span class="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200" id="ai-col2-role-badge">Thu Ngân</span>
+                        </div>
+
+                        <!-- 2 KPI Card thích ứng -->
+                        <div class="grid grid-cols-2 gap-2 text-xs" id="ai-col2-kpi-grid">
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Doanh số ca này</div>
+                                <div class="text-sm font-black text-sky-600 font-mono mt-0.5" id="ai-kpi-sales">0 đ</div>
+                                <div class="text-[9px] text-slate-500 mt-0.5" id="ai-kpi-orders-count">0 hóa đơn</div>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                                <div class="text-[10px] text-slate-400 font-medium">Hoa hồng tạm tính</div>
+                                <div class="text-sm font-black text-emerald-600 font-mono mt-0.5" id="ai-kpi-commission">0 đ</div>
+                                <div class="text-[9px] text-slate-500 mt-0.5" id="ai-kpi-commission-rate">Định mức 0%</div>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách chính -->
+                        <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2 text-xs" id="ai-col2-main-list-box">
+                            <div class="font-bold text-slate-700 flex items-center justify-between text-[11px]">
+                                <span id="ai-col2-list-title">Giao Dịch Gần Nhất</span>
+                                <span id="ai-col2-list-subtitle" class="text-[10px] text-slate-400"></span>
+                            </div>
+                            <div class="space-y-1.5 text-[11px]" id="ai-col2-list-content">
+                                <div class="text-slate-400 py-1 italic">Đang tải dữ liệu...</div>
+                            </div>
+                        </div>
+
+                        <!-- Khung chân trang -->
+                        <div class="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg text-xs space-y-1" id="ai-col2-footer-box">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-amber-900" id="ai-col2-footer-label">💵 Tiền mặt trong két:</span>
+                                <span class="font-mono font-bold text-amber-800 text-sm" id="ai-cash-drawer-amount">0 đ</span>
+                            </div>
+                            <div class="text-[10px] text-amber-700" id="ai-cash-drawer-detail">Đầu ca + Thu chi tiền mặt</div>
+                        </div>
+                    </div>
+
+                    <!-- CỘT 3: TÁC NHÂN BÓC TÁCH CHỨNG TỪ (4 cols) -->
+                    <div class="md:col-span-4 bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-2xs">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                                <span>📸</span> <span>Bóc Tách Chứng Từ AI</span>
+                            </h3>
+                            <span class="text-[10px] text-purple-600 font-mono font-bold">hỗ trợ Ctrl + V</span>
+                        </div>
 
                         <!-- Dropzone Empty State -->
                         <div id="ai-agent-dropzone-empty" ondragover="event.preventDefault()" ondrop="onAIAgentDrop(event)" onclick="document.getElementById('ai-agent-file-input').click()" 
-                             class="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/60 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[260px] group">
-                            <span class="text-3xl mb-2 group-hover:scale-110 transition-transform">📋</span>
-                            <span class="text-xs font-bold text-slate-800">Thả file ảnh vào đây hoặc nhấp để chọn</span>
-                            <span class="text-[11px] text-slate-500 mt-1">Hoặc chụp ảnh màn hình và bấm <kbd class="px-1.5 py-0.5 rounded bg-white border border-purple-200 font-mono font-bold text-purple-700 text-[10px]">Ctrl + V</kbd></span>
+                             class="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/60 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[190px] group">
+                            <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">📄</span>
+                            <span class="text-xs font-bold text-slate-800">Thả file ảnh hoặc nhấp chọn</span>
+                            <span class="text-[10px] text-slate-500 mt-1">Hoặc dán ảnh qua <kbd class="px-1 py-0.5 rounded bg-white border border-purple-200 font-mono font-bold text-purple-700 text-[10px]">Ctrl + V</kbd></span>
                             <input type="file" id="ai-agent-file-input" accept="image/*" class="hidden" onchange="onAIAgentFileSelect(event)">
                         </div>
 
                         <!-- Preview Ảnh khi đã chọn -->
                         <div id="ai-agent-preview-wrap" class="hidden space-y-2">
-                            <div class="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center min-h-[260px] max-h-[420px]">
-                                <img id="ai-agent-preview-img" src="" alt="Chứng từ" class="max-h-[400px] w-auto object-contain">
+                            <div class="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center min-h-[190px] max-h-[300px]">
+                                <img id="ai-agent-preview-img" src="" alt="Chứng từ" class="max-h-[290px] w-auto object-contain">
                                 <button type="button" onclick="document.getElementById('ai-agent-file-input').click()" class="absolute bottom-2 right-2 bg-black/70 hover:bg-black text-white text-xs px-2.5 py-1 rounded-md backdrop-blur-xs font-medium">
-                                    Đổi ảnh khác
+                                    Đổi ảnh
                                 </button>
                             </div>
                         </div>
 
                         <!-- Loading State -->
-                        <div id="ai-agent-loading" class="hidden p-4 bg-purple-50 rounded-xl border border-purple-200 text-center space-y-2">
-                            <div class="inline-block animate-spin text-2xl">⏳</div>
+                        <div id="ai-agent-loading" class="hidden p-3 bg-purple-50 rounded-xl border border-purple-200 text-center space-y-1.5">
+                            <div class="inline-block animate-spin text-xl">⏳</div>
                             <div class="text-xs font-bold text-purple-900">AI đang quét và bóc tách dữ liệu...</div>
-                            <div class="text-[11px] text-purple-700">Đang nhận diện đối tác, bảng mặt hàng và số tiền</div>
+                            <div class="text-[10px] text-purple-700">Đang nhận diện đối tác, bảng mặt hàng và số tiền</div>
+                        </div>
+
+                        <div class="space-y-1 text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <div>• Đơn nhập sỉ / Phiếu giao hàng NCC</div>
+                            <div>• Đơn đặt gia công xưởng OEM</div>
+                            <div>• Bill chuyển khoản khách mua hàng</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. KẾT QUẢ PHÂN TÍCH & ĐỐI SOÁT CHỨNG TỪ (Toàn chiều ngang khi bung) -->
+                <div id="ai-agent-result-wrap" class="hidden bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-xs text-slate-700">Loại nghiệp vụ:</span>
+                            <select id="ai-agent-type-select" onchange="onAITypeSelectChange(this.value)" class="text-xs font-bold border border-purple-200 bg-purple-50 text-purple-900 rounded-lg px-2.5 py-1 focus:outline-none focus:border-purple-500 shadow-2xs">
+                                <option value="oem_order">🏭 Đơn Gia Công OEM</option>
+                                <option value="purchase_order">📥 Hóa Đơn Nhập Hàng (PN)</option>
+                                <option value="pos_order">🛒 Đơn Bán Lẻ POS</option>
+                                <option value="cashflow_voucher">💰 Phiếu Thu/Chi Sổ Quỹ</option>
+                            </select>
+                        </div>
+                        <div class="text-xs">
+                            <span class="text-slate-400">Tổng tiền:</span>
+                            <span id="ai-agent-total" class="font-mono font-black text-sm text-slate-900 ml-1">0 đ</span>
                         </div>
                     </div>
 
-                    <!-- KHU VỰC 2: KẾT QUẢ PHÂN TÍCH & ĐỐI SOÁT (7 cols) -->
-                    <div class="lg:col-span-7 space-y-3">
-                        <div id="ai-agent-result-wrap" class="hidden bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-                            <div class="flex items-center justify-between border-b pb-2.5">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-bold text-xs text-slate-700">Loại nghiệp vụ:</span>
-                                    <select id="ai-agent-type-select" onchange="onAITypeSelectChange(this.value)" class="text-xs font-bold border border-purple-200 bg-purple-50 text-purple-900 rounded-lg px-2.5 py-1 focus:outline-none focus:border-purple-500 shadow-2xs">
-                                        <option value="oem_order">🏭 Đơn Gia Công OEM</option>
-                                        <option value="purchase_order">📥 Hóa Đơn Nhập Hàng (PN)</option>
-                                        <option value="pos_order">🛒 Đơn Bán Lẻ POS</option>
-                                        <option value="cashflow_voucher">💰 Phiếu Thu/Chi Sổ Quỹ</option>
-                                    </select>
-                                </div>
-                                <div class="text-xs">
-                                    <span class="text-slate-400">Tổng tiền:</span>
-                                    <span id="ai-agent-total" class="font-mono font-black text-sm text-slate-900 ml-1">0 đ</span>
-                                </div>
-                            </div>
-
-                            <!-- Panel tài chính mở rộng cho đơn OEM -->
-                            <div id="ai-agent-oem-financials" class="hidden bg-purple-50/60 border border-purple-200 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                                <div>
-                                    <span class="text-[11px] text-purple-700 block font-medium">VAT:</span>
-                                    <span id="ai-oem-vat" class="font-mono font-bold text-slate-900">0%</span>
-                                </div>
-                                <div>
-                                    <span class="text-[11px] text-purple-700 block font-medium">Chiết khấu:</span>
-                                    <span id="ai-oem-discount" class="font-mono font-bold text-slate-900">0%</span>
-                                </div>
-                                <div>
-                                    <span class="text-[11px] text-purple-700 block font-medium">Đã cọc (Đợt 1):</span>
-                                    <span id="ai-oem-deposit" class="font-mono font-bold text-emerald-700">0 đ</span>
-                                </div>
-                                <div>
-                                    <span class="text-[11px] text-purple-700 block font-medium">Còn lại:</span>
-                                    <span id="ai-oem-remaining" class="font-mono font-bold text-rose-700">0 đ</span>
-                                </div>
-                            </div>
-
-                            <!-- Meta fields -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                <div>
-                                    <label class="block font-bold text-slate-700 mb-1">Đối Tác (Khách / NCC / Xưởng):</label>
-                                    <input type="text" id="ai-agent-partner-name" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
-                                </div>
-                                <div>
-                                    <label class="block font-bold text-slate-700 mb-1">Ngày Chứng Từ:</label>
-                                    <input type="date" id="ai-agent-date" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1 text-xs">Ghi Chú Trích Xuất:</label>
-                                <input type="text" id="ai-agent-note" class="border p-2 rounded-lg w-full text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
-                            </div>
-
-                            <!-- Bảng items nếu có -->
-                            <div id="ai-agent-items-wrap" class="space-y-1.5">
-                                <label class="block font-bold text-slate-700 text-xs">Danh Sách Mặt Hàng Bóc Tách:</label>
-                                <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
-                                    <table class="w-full text-left border-collapse text-xs">
-                                        <thead class="bg-slate-50 text-slate-500 sticky top-0 border-b uppercase text-[10px] font-semibold">
-                                            <tr>
-                                                <th class="p-2 w-8 text-center">TT</th>
-                                                <th class="p-2">Tên Mặt Hàng</th>
-                                                <th class="p-2 text-right w-20">SL</th>
-                                                <th class="p-2 text-right w-24">Đơn Giá</th>
-                                                <th class="p-2 text-right w-28">Thành Tiền</th>
-                                                <th class="p-2 text-center w-8">✕</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="ai-agent-items-tbody" class="divide-y divide-slate-100 font-normal"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Cụm nút hành động 1-chạm -->
-                            <div class="border-t pt-3 flex flex-wrap items-center justify-end gap-2">
-                                <button type="button" id="btn-ai-push-pos" onclick="pushAIToPOSCart()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
-                                    <span>🛒</span> Đẩy Vào Giỏ Bán Hàng POS
-                                </button>
-                                <button type="button" id="btn-ai-create-po" onclick="createAIPurchaseOrder()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
-                                    <span>📥</span> Tạo Phiếu Nhập Hàng PN
-                                </button>
-                                <button type="button" id="btn-ai-create-oem" onclick="createAIOEMOrder()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
-                                    <span>🏭</span> Điền Đơn Gia Công OEM
-                                </button>
-                                <button type="button" id="btn-ai-create-cash" onclick="createAICashflowVoucher()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
-                                    <span>💰</span> Tạo Phiếu Thu/Chi Sổ Quỹ
-                                </button>
-                            </div>
+                    <!-- Panel tài chính mở rộng cho đơn OEM -->
+                    <div id="ai-agent-oem-financials" class="hidden bg-purple-50/60 border border-purple-200 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div>
+                            <span class="text-[11px] text-purple-700 block font-medium">VAT:</span>
+                            <span id="ai-oem-vat" class="font-mono font-bold text-slate-900">0%</span>
                         </div>
-
-                        <!-- Placeholder khi chưa có kết quả -->
-                        <div id="ai-agent-placeholder" class="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
-                            👈 Vui lòng thả ảnh hoặc dán ảnh hóa đơn bên trái để tác nhân AI phân tích
+                        <div>
+                            <span class="text-[11px] text-purple-700 block font-medium">Chiết khấu:</span>
+                            <span id="ai-oem-discount" class="font-mono font-bold text-slate-900">0%</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-purple-700 block font-medium">Đã cọc (Đợt 1):</span>
+                            <span id="ai-oem-deposit" class="font-mono font-bold text-emerald-700">0 đ</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-purple-700 block font-medium">Còn lại:</span>
+                            <span id="ai-oem-remaining" class="font-mono font-bold text-rose-700">0 đ</span>
                         </div>
                     </div>
+
+                    <!-- Meta fields -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Đối Tác (Khách / NCC / Xưởng):</label>
+                            <input type="text" id="ai-agent-partner-name" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Ngày Chứng Từ:</label>
+                            <input type="date" id="ai-agent-date" class="border p-2 rounded-lg w-full font-semibold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1 text-xs">Ghi Chú Trích Xuất:</label>
+                        <input type="text" id="ai-agent-note" class="border p-2 rounded-lg w-full text-xs text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:border-purple-500">
+                    </div>
+
+                    <!-- Bảng items nếu có -->
+                    <div id="ai-agent-items-wrap" class="space-y-1.5">
+                        <label class="block font-bold text-slate-700 text-xs">Danh Sách Mặt Hàng Bóc Tách:</label>
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-500 sticky top-0 border-b uppercase text-[10px] font-semibold">
+                                    <tr>
+                                        <th class="p-2 w-8 text-center">TT</th>
+                                        <th class="p-2">Tên Mặt Hàng</th>
+                                        <th class="p-2 text-right w-20">SL</th>
+                                        <th class="p-2 text-right w-24">Đơn Giá</th>
+                                        <th class="p-2 text-right w-28">Thành Tiền</th>
+                                        <th class="p-2 text-center w-8">✕</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ai-agent-items-tbody" class="divide-y divide-slate-100 font-normal"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Cụm nút hành động 1-chạm -->
+                    <div class="border-t pt-3 flex flex-wrap items-center justify-end gap-2">
+                        <button type="button" id="btn-ai-push-pos" onclick="pushAIToPOSCart()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                            <span>🛒</span> Đẩy Vào Giỏ Bán Hàng POS
+                        </button>
+                        <button type="button" id="btn-ai-create-po" onclick="createAIPurchaseOrder()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                            <span>📥</span> Tạo Phiếu Nhập Hàng PN
+                        </button>
+                        <button type="button" id="btn-ai-create-oem" onclick="createAIOEMOrder()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                            <span>🏭</span> Điền Đơn Gia Công OEM
+                        </button>
+                        <button type="button" id="btn-ai-create-cash" onclick="createAICashflowVoucher()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition">
+                            <span>💰</span> Tạo Phiếu Thu/Chi Sổ Quỹ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Placeholder khi chưa có kết quả -->
+                <div id="ai-agent-placeholder" class="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 text-center text-slate-400 text-xs">
+                    💡 Bạn có thể kéo thả hoặc dán ảnh hóa đơn / bill chuyển khoản vào ô bên trên bất cứ lúc nào để AI nhận diện tự động.
                 </div>
             </div>
 
@@ -8487,6 +8756,9 @@
                         <button onclick="switchSettingsSubTab('telegram')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-sky-700 hover:bg-sky-50 flex items-center gap-1.5 border border-sky-200 transition" data-sub="telegram" data-role="owner">
                             <svg class="w-3.5 h-3.5 text-sky-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                             <span>Bot Telegram</span>
+                        </button>
+                        <button onclick="switchSettingsSubTab('pet-catalog')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="pet-catalog">
+                            <span>🐾 Danh Mục Thú Cưng</span>
                         </button>
                         <button onclick="switchSettingsSubTab('reset-data')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 border border-rose-200 transition" data-sub="reset-data">
                             <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -9189,6 +9461,68 @@
                     </div>
                 </div>
             </div>
+
+            <!-- SUB: QUẢN LÝ DANH MỤC THÚ CƯNG (MÀU LÔNG & GIỐNG LOÀI) -->
+            <div id="settings-sub-pet-catalog" class="hidden space-y-4">
+                <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center shrink-0 text-lg">
+                            🐾
+                        </span>
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Danh Mục Màu Lông & Giống Loài Thú Cưng</h2>
+                            <p class="text-xs text-slate-500">Tùy biến danh mục màu sắc và giống loài hiển thị ở màn hình Tiếp Nhận Spa và Hồ Sơ Thú Cưng</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="restorePetCatalogDefaultsUI()" class="border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition">
+                            ↺ Khôi Phục Mặc Định
+                        </button>
+                        <button type="button" onclick="savePetCatalogSettingsUI()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            <span>Lưu Danh Mục Thú Cưng</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- CARD 1: DANH MỤC MÀU LÔNG -->
+                    <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                                <span>🎨</span>
+                                <span>Danh Mục Màu Lông (<span id="pet-color-count">0</span>)</span>
+                            </h3>
+                            <button type="button" onclick="restoreColorDefaultsOnly()" class="text-xs text-purple-600 hover:underline">Reset màu gốc</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-color-input" placeholder="Nhập tên màu mới (VD: Trắng tuyền, Xám khói...)" class="border border-slate-300 p-2 rounded-lg flex-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" onkeydown="if(event.key==='Enter'){event.preventDefault();addPetColorTag();}">
+                            <button type="button" onclick="addPetColorTag()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 rounded-lg text-xs transition">+ Thêm Màu</button>
+                        </div>
+                        <div id="pet-colors-container" class="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200 min-h-[120px]">
+                            <!-- Chips render here -->
+                        </div>
+                    </div>
+
+                    <!-- CARD 2: DANH MỤC GIỐNG LOÀI -->
+                    <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                        <div class="flex items-center justify-between border-b pb-2">
+                            <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                                <span>🐕</span>
+                                <span>Danh Mục Giống Loài (<span id="pet-breed-count">0</span>)</span>
+                            </h3>
+                            <button type="button" onclick="restoreBreedDefaultsOnly()" class="text-xs text-purple-600 hover:underline">Reset giống gốc</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-breed-input" placeholder="Nhập tên giống mới (VD: Poodle Tiny, Mèo ALN...)" class="border border-slate-300 p-2 rounded-lg flex-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" onkeydown="if(event.key==='Enter'){event.preventDefault();addPetBreedTag();}">
+                            <button type="button" onclick="addPetBreedTag()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-2 rounded-lg text-xs transition">+ Thêm Giống</button>
+                        </div>
+                        <div id="pet-breeds-container" class="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200 min-h-[120px]">
+                            <!-- Chips render here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
             </div>
@@ -9259,6 +9593,60 @@
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     <span>Lưu Nhân Viên</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GÁN KEY AI CHO NHÂN VIÊN (OWNER QUẢN LÝ) -->
+    <div id="modal-assign-staff-ai" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🔑</span>
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <span>Gán Key AI Cho Nhân Viên</span>
+                        </h3>
+                        <p class="text-[11px] text-purple-600 font-medium" id="assign-staff-ai-name">Nhân viên: -</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAssignStaffAIModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition">✕</button>
+            </div>
+            <input type="hidden" id="assign-staff-ai-id">
+            <div class="space-y-3">
+                <div id="assign-staff-ai-status-box" class="p-2.5 rounded-lg border text-xs bg-slate-50 border-slate-200">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-600 font-medium">Trạng thái hiện tại:</span>
+                        <span id="assign-staff-ai-status-badge" class="font-bold px-2 py-0.5 rounded text-[10px]">Đang tải...</span>
+                    </div>
+                    <div id="assign-staff-ai-status-desc" class="text-[10px] text-slate-500 mt-1"></div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Google Gemini API Key:</label>
+                    <input id="assign-staff-ai-key" type="password" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Dán mã AIzaSy... (để trống nếu muốn xóa để dùng key tiệm)">
+                    <p class="text-[10px] text-slate-400 mt-1">Gán key riêng sẽ giúp nhân viên này dùng quota riêng, không tiêu tốn quota của shop.</p>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1">Mô Hình (Model):</label>
+                    <select id="assign-staff-ai-model" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
+                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Nhanh & Tiết kiệm nhất)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    </select>
+                </div>
+
+                <div id="assign-staff-ai-test-result" class="hidden"></div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t">
+                <button type="button" id="btn-test-assign-staff-ai" onclick="testAssignStaffAIKey()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-purple-700 rounded-lg font-bold border border-slate-300 flex items-center gap-1 transition">
+                    <span>🔍</span> <span>Kiểm Tra Key</span>
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeAssignStaffAIModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Hủy</button>
+                    <button type="button" onclick="saveAssignStaffAIKey()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow-xs">Lưu Gán Key</button>
+                </div>
             </div>
         </div>
     </div>
@@ -9822,7 +10210,7 @@
                         <div class="flex justify-between items-center mb-1">
                             <span class="font-bold text-slate-800 text-[11px] flex items-center gap-1">
                                 <span>🌀</span>
-                                <span>Dịch Vụ Phụ Thu & Trị Liệu:</span>
+                                <span>Phụ thu:</span>
                             </span>
                             <button type="button" onclick="addSvcExtraService('', 0)" class="text-amber-800 hover:text-amber-950 font-bold text-[10px] flex items-center gap-1 bg-amber-100/70 hover:bg-amber-200 px-2 py-0.5 rounded border border-amber-300 transition cursor-pointer">
                                 <span>➕</span><span>Tự thêm dòng</span>
@@ -9850,6 +10238,12 @@
                             <div>
                                 <label class="block text-[10.5px] font-bold text-slate-700 mb-0.5">💳 Đặt Cọc Trước:</label>
                                 <input type="text" id="svc-deposit-amount" oninput="onMoneyInputChange(this); autoCalculateServicePrice();" placeholder="0" class="w-full border p-1 rounded text-xs text-right font-mono font-bold text-amber-800 bg-white">
+                                <select id="svc-deposit-method" onchange="syncSvcDepositAccountRow()" class="w-full mt-1 text-[10.5px] border p-1 rounded bg-white font-semibold text-slate-700">
+                                    <option value="cash">💵 Cọc tiền mặt</option>
+                                    <option value="transfer">💳 Cọc chuyển khoản</option>
+                                    <option value="card">💳 Cọc quẹt thẻ</option>
+                                </select>
+                                <select id="svc-deposit-account" class="hidden w-full mt-1 text-[10.5px] border p-1 rounded bg-white font-semibold text-slate-700"></select>
                             </div>
                         </div>
                     </div>
@@ -9905,13 +10299,28 @@
                             </div>
                         </div>
                         <div id="svc-wallet-helper-banner" class="hidden"></div>
-                        <div id="svc-payment-method-wrap" class="hidden">
-                            <select id="svc-payment-method" class="w-full text-xs border p-1.5 rounded-lg bg-white font-semibold text-slate-700">
+                        <div id="svc-payment-method-wrap" class="hidden space-y-1.5">
+                            <select id="svc-payment-method" onchange="onSpaPayMethodChanged('svc')" class="w-full text-xs border p-1.5 rounded-lg bg-white font-semibold text-slate-700">
                                 <option value="wallet" id="svc-opt-pay-wallet">💆 Trừ Ví Spa (Số dư: 0 đ)</option>
                                 <option value="cash">💵 Tiền mặt</option>
                                 <option value="transfer">💳 Chuyển khoản (VietQR)</option>
                                 <option value="card">💳 Quẹt thẻ POS</option>
                             </select>
+                            <div id="svc-payment-account-wrap" class="hidden">
+                                <label class="block text-[10.5px] font-bold text-slate-700 mb-0.5">🏦 Tài khoản nhận tiền:</label>
+                                <select id="svc-payment-account" class="w-full text-xs border p-1.5 rounded-lg bg-white font-semibold text-slate-700"></select>
+                            </div>
+                            <div id="svc-remainder-wrap" class="hidden rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1.5">
+                                <div class="text-[10.5px] text-slate-600">Phần còn lại <b id="svc-remainder-amount" class="text-rose-700 font-mono">0 đ</b> (hàng hóa/tip) thu bằng:</div>
+                                <div class="flex gap-1">
+                                    <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="svc-remainder-method" value="cash" checked class="hidden" onchange="onSpaRemainderMethodChanged('svc')">💵 Tiền mặt</label>
+                                    <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="svc-remainder-method" value="transfer" class="hidden" onchange="onSpaRemainderMethodChanged('svc')">🏦 Chuyển khoản</label>
+                                    <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="svc-remainder-method" value="card" class="hidden" onchange="onSpaRemainderMethodChanged('svc')">💳 Thẻ</label>
+                                </div>
+                                <div id="svc-remainder-account-wrap" class="hidden">
+                                    <select id="svc-remainder-account" class="w-full text-xs border p-1 rounded bg-white font-semibold text-slate-700"></select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -9938,14 +10347,7 @@
 
             <!-- CHẾ ĐỘ 2: NHẬP HÀNG LOẠT (GOOGLE SHEETS STYLE) -->
             <div id="svc-batch-pets-view" class="hidden flex-1 min-h-0 overflow-y-auto flex flex-col space-y-2.5 pr-1 text-xs">
-                <div class="bg-sky-50 border border-sky-200 p-2 rounded-xl flex items-center justify-between shrink-0">
-                    <div class="flex items-center gap-2">
-                        <span class="text-base">⚡</span>
-                        <span class="text-xs text-sky-900 font-medium">Nhập nhanh nhiều bé của khách theo hàng ngang (dùng phím Tab để nhảy ô). Phiếu sẽ tự động tạo hàng loạt và liên kết cùng một mã đợt tiếp nhận.</span>
-                    </div>
-                </div>
-
-                <!-- THANH CHỌN BÉ CỦA KHÁCH (CHỌN TỪNG CON HOẶC CHỌN HẾT) -->
+<!-- THANH CHỌN BÉ CỦA KHÁCH (CHỌN TỪNG CON HOẶC CHỌN HẾT) -->
                 <div id="batch-pet-selection-bar" class="bg-purple-50/70 border border-purple-200 p-2.5 rounded-xl flex flex-col gap-1.5 shrink-0">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
@@ -10050,15 +10452,28 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <label class="text-xs font-bold text-slate-600">Thanh toán:</label>
-                            <select id="batch-payment-timing" class="border p-1 rounded bg-white text-xs font-semibold">
+                            <select id="batch-payment-timing" onchange="onSpaPayMethodChanged('batch')" class="border p-1 rounded bg-white text-xs font-semibold">
                                 <option value="unpaid">Khi đón</option>
                                 <option value="paid">Trả trước</option>
                             </select>
-                            <select id="batch-payment-method" class="border p-1 rounded bg-white text-xs font-semibold">
+                            <select id="batch-payment-method" onchange="onSpaPayMethodChanged('batch')" class="border p-1 rounded bg-white text-xs font-semibold">
                                 <option value="wallet" id="batch-opt-pay-wallet">💆 Trừ Ví Spa (Số dư: 0 đ)</option>
                                 <option value="cash">Tiền mặt</option>
                                 <option value="transfer">Chuyển khoản</option>
                             </select>
+                            <span id="batch-payment-account-wrap" class="hidden items-center gap-1">
+                                <label class="text-xs font-bold text-slate-600">TK nhận:</label>
+                                <select id="batch-payment-account" class="border p-1 rounded bg-white text-xs font-semibold"></select>
+                            </span>
+                            <span id="batch-remainder-wrap" class="hidden items-center gap-1">
+                                <label class="text-xs font-bold text-slate-600">Thu ngoài <b id="batch-remainder-amount" class="text-rose-700 font-mono">0 đ</b> bằng:</label>
+                                <select id="batch-remainder-method" onchange="onSpaRemainderMethodChanged('batch')" class="border p-1 rounded bg-white text-xs font-semibold">
+                                    <option value="cash">Tiền mặt</option>
+                                    <option value="transfer">Chuyển khoản</option>
+                                    <option value="card">Quẹt thẻ</option>
+                                </select>
+                                <select id="batch-remainder-account" class="hidden border p-1 rounded bg-white text-xs font-semibold"></select>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -10162,6 +10577,77 @@
             </div>
             <div class="flex justify-end pt-2 border-t">
                 <button type="button" onclick="closeGroomingGalleryPicker()" class="px-4 py-1.5 border rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TRẢ BÉ & THANH TOÁN SPA -->
+    <div id="modal-spa-checkout" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick="if(event.target === this) closeSpaCheckoutModal()">
+        <div class="bg-white rounded-xl max-w-xl w-full shadow-2xl max-h-[95vh] flex flex-col">
+            <div class="flex justify-between items-start border-b px-5 py-3">
+                <div>
+                    <h3 class="text-base font-bold text-emerald-800">💰 Trả Bé & Thanh Toán</h3>
+                    <p id="spapay-cust-info" class="text-xs text-slate-500 mt-0.5">-</p>
+                </div>
+                <button type="button" onclick="closeSpaCheckoutModal()" class="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+            </div>
+
+            <div class="px-5 py-3 space-y-3 overflow-y-auto text-xs">
+                <div>
+                    <div class="font-bold text-slate-700 mb-1">Bé trả hôm nay (tích chọn):</div>
+                    <div id="spapay-ticket-list" class="space-y-1"></div>
+                </div>
+
+                <div class="bg-slate-50 border rounded-lg p-2.5 space-y-1">
+                    <div class="flex justify-between"><span class="text-slate-600">Tổng tiền các phiếu chưa TT:</span><span id="spapay-total" class="font-mono font-bold">0 đ</span></div>
+                    <div class="flex justify-between"><span class="text-slate-600">Đã cọc:</span><span id="spapay-deposit" class="font-mono font-bold text-sky-700">0 đ</span></div>
+                    <div id="spapay-wallet-row" class="flex justify-between hidden"><span class="text-slate-600">Trừ ví Spa:</span><span id="spapay-wallet" class="font-mono font-bold text-purple-700">0 đ</span></div>
+                    <div class="flex justify-between border-t pt-1 text-sm"><span class="font-black text-slate-800">KHÁCH CẦN TRẢ:</span><span id="spapay-cash" class="font-mono font-black text-rose-700">0 đ</span></div>
+                    <div id="spapay-tip-row" class="flex justify-between text-[11px] hidden"><span class="text-slate-500">Tip thợ (khách đưa riêng, không tính vào bill):</span><span id="spapay-tip" class="font-mono font-bold text-emerald-700">0 đ</span></div>
+                </div>
+
+                <div>
+                    <div class="font-bold text-slate-700 mb-1">Hình thức thanh toán:</div>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <label class="spapay-method cursor-pointer text-center border rounded-lg py-1.5 font-bold has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-method" value="cash" checked class="hidden" onchange="recalcSpaCheckout()">💵 Tiền mặt</label>
+                        <label class="spapay-method cursor-pointer text-center border rounded-lg py-1.5 font-bold has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-method" value="transfer" class="hidden" onchange="recalcSpaCheckout()">🏦 Chuyển khoản</label>
+                        <label class="spapay-method cursor-pointer text-center border rounded-lg py-1.5 font-bold has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-method" value="card" class="hidden" onchange="recalcSpaCheckout()">💳 Thẻ</label>
+                        <label id="spapay-wallet-label" class="spapay-method cursor-pointer text-center border rounded-lg py-1.5 font-bold has-[:checked]:bg-purple-50 has-[:checked]:border-purple-500 has-[:checked]:text-purple-700"><input type="radio" name="spapay-method" value="wallet" class="hidden" onchange="recalcSpaCheckout()">💆 Ví Spa</label>
+                    </div>
+                    <div id="spapay-account-wrap" class="hidden mt-1.5">
+                        <label class="font-bold text-slate-700">Tài khoản nhận tiền:</label>
+                        <select id="spapay-account" class="w-full border rounded-lg p-1.5 font-semibold text-slate-700 bg-white"></select>
+                    </div>
+                    <div id="spapay-remainder-wrap" class="hidden mt-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2 space-y-1.5">
+                        <div class="text-[11px] text-slate-600">Ví Spa chỉ trả phần dịch vụ. Phần còn lại <b id="spapay-remainder-amount" class="text-rose-700 font-mono">0 đ</b> thu bằng:</div>
+                        <div class="flex gap-1">
+                            <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-remainder-method" value="cash" checked class="hidden" onchange="onSpaRemainderMethodChanged('spapay')">💵 Tiền mặt</label>
+                            <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-remainder-method" value="transfer" class="hidden" onchange="onSpaRemainderMethodChanged('spapay')">🏦 Chuyển khoản</label>
+                            <label class="flex-1 text-center border border-slate-300 rounded-md py-1 text-[11px] font-bold cursor-pointer has-[:checked]:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:text-sky-700"><input type="radio" name="spapay-remainder-method" value="card" class="hidden" onchange="onSpaRemainderMethodChanged('spapay')">💳 Thẻ</label>
+                        </div>
+                        <div id="spapay-remainder-account-wrap" class="hidden">
+                            <select id="spapay-remainder-account" class="w-full border rounded-lg p-1.5 font-semibold text-slate-700 bg-white"></select>
+                        </div>
+                    </div>
+                    <div id="spapay-wallet-note" class="text-[11px] text-purple-700 mt-1 hidden"></div>
+                </div>
+
+                <div id="spapay-cash-box" class="grid grid-cols-2 gap-2 items-end">
+                    <div>
+                        <label class="font-bold text-slate-700">Tiền khách đưa:</label>
+                        <input type="text" id="spapay-tendered" inputmode="numeric" oninput="onMoneyInputChange(this); recalcSpaCheckout()" placeholder="0" class="w-full border-2 border-emerald-300 rounded-lg p-1.5 text-right font-mono font-bold text-emerald-800">
+                    </div>
+                    <div class="text-right">
+                        <div class="text-slate-500">Tiền thừa trả khách:</div>
+                        <div id="spapay-change" class="font-mono font-black text-emerald-700 text-base">0 đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t px-5 py-3">
+                <button type="button" onclick="closeSpaCheckoutModal()" class="px-3.5 py-2 border rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button>
+                <button type="button" id="spapay-btn-print" onclick="submitSpaCheckout(true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow">🖨️ Thu tiền & In hóa đơn K80</button>
+                <button type="button" id="spapay-btn-ok" onclick="submitSpaCheckout(false)" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow">✅ Thu tiền & Trả bé</button>
             </div>
         </div>
     </div>
@@ -10937,6 +11423,13 @@
                     </div>
                 </div>
 
+                <!-- Thuế VAT -->
+                <div>
+                    <label class="font-bold text-slate-500 block mb-1">Thuế VAT (%):</label>
+                    <input type="number" id="modal-item-vat-rate" value="0" min="0" max="100" step="any"
+                           class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+
                 <!-- Giá bán thực tế -->
                 <div class="bg-sky-50 p-2.5 rounded-lg border border-sky-100 flex justify-between items-center">
                     <span class="font-bold text-slate-700">Giá bán sau giảm:</span>
@@ -11054,23 +11547,26 @@
 
     
     <script src="/static/js/banks.js?v=20261011_03"></script>
-    <script src="/static/js/auth.js?v=20261016_01"></script>
-    <script src="/static/js/shifts.js?v=20260923_04"></script>
-    <script src="/static/js/staff.js?v=20260928_01"></script>
-    <script src="/static/js/app.js?v=20261013_01"></script>
+    <script src="/static/js/auth.js?v=20261020_03"></script>
+    <script src="/static/js/app.js?v=20261021_04"></script>
+    <script src="/static/js/payacc.js?v=20261021_01"></script>
+    <script src="/static/js/shifts.js?v=20261021_07"></script>
+    <script src="/static/js/staff.js?v=20261021_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261016_01"></script>
-    <script src="/static/js/modules/spa.js?v=20261016_01"></script>
-    <script src="/static/js/modules/purchases.js?v=20261017_01"></script>
-    <script src="/static/js/modules/productions.js?v=20261017_01"></script>
-    <script src="/static/js/modules/cashflow.js?v=20261016_01"></script>
-    <script src="/static/js/modules/hotel.js?v=20261016_01"></script>
+    <script src="/static/js/modules/spa.js?v=20261022_01"></script>
+    <script src="/static/js/modules/purchases.js?v=20261021_07"></script>
+    <script src="/static/js/modules/productions.js?v=20261021_07"></script>
+    <script src="/static/js/modules/cashflow.js?v=20261022_01"></script>
+    <script src="/static/js/modules/hotel.js?v=20261021_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
-    <script src="/static/js/modules/ai_agent.js?v=20261016_01"></script>
+    <script src="/static/js/modules/ai_agent.js?v=20261022_01"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261016_01"></script>
+    <script src="/static/js/modules/purchase_requests.js?v=20261023_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261016_01"></script>
-    <script src="/static/js/pos.js?v=20261016_01"></script>
+    <script src="/static/js/pos.js?v=20261021_07"></script>
     <script src="/static/js/modules/marketplace.js?v=20261016_01"></script>
+    <script src="/static/js/clientlog.js?v=20261021_01"></script>
 
     <!-- MODAL: XEM ẢNH BILL CHỨNG TỪ -->
     <div id="modal-view-expense-bill" onclick="if(event.target === this) closeExpenseBillModal()" class="hidden fixed inset-0 bg-black/80 items-center justify-center z-[75] p-3 backdrop-blur-sm flex">
@@ -11538,6 +12034,10 @@
                         <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
                             <span class="text-slate-500 text-[11px] block">Chuyển khoản / Ví</span>
                             <span id="shift-close-bank-sales" class="font-extrabold text-sm text-sky-700">0 đ</span>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                            <span class="text-slate-500 text-[11px] block">Quẹt thẻ (Máy POS)</span>
+                            <span id="shift-close-card-sales" class="font-extrabold text-sm text-indigo-700">0 đ</span>
                         </div>
                     </div>
                 </div>
@@ -12718,6 +13218,7 @@
                             <option value="cash">💵 Tiền mặt (Két)</option>
                             <option value="bank">🏦 Tài khoản Ngân hàng</option>
                             <option value="ewallet">📱 Ví điện tử</option>
+                            <option value="pos_card">💳 Máy POS thẻ (tiền quẹt thẻ)</option>
                         </select>
                     </div>
                 </div>
@@ -14288,6 +14789,177 @@
                     <button type="button" onclick="saveAIConfig()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: CẤU HÌNH AI CÁ NHÂN (BYOK) ==================== -->
+<div id="modal-my-ai-config" onclick="if(event.target === this) closeMyAIConfigModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[75] p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-5 space-y-4 text-xs border border-purple-200 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex justify-between items-center border-b pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🔑</span>
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800">Cấu Hình AI Cá Nhân Của Bạn</h4>
+                    <p class="text-[11px] text-purple-600 font-medium">Tự dùng Gemini API Key riêng (BYOK)</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeMyAIConfigModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-3">
+            <div id="my-ai-status-box" class="p-2.5 rounded-lg border text-xs bg-slate-50 border-slate-200">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-600 font-medium">Nguồn AI đang kích hoạt:</span>
+                    <span id="my-ai-active-badge" class="font-bold px-2 py-0.5 rounded text-[10px]">Đang kiểm tra...</span>
+                </div>
+                <div id="my-ai-active-desc" class="text-[10px] text-slate-500 mt-1"></div>
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="font-bold text-slate-700">Google Gemini API Key cá nhân:</label>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[11px] text-purple-600 hover:underline font-bold flex items-center gap-0.5">
+                        <span>Lấy Key miễn phí</span> <span>↗</span>
+                    </a>
+                </div>
+                <input type="password" id="my-gemini-key" placeholder="Dán mã AIzaSy... (để trống nếu muốn dùng chung tiệm)" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:outline-none focus:border-purple-500">
+                <p class="text-[10px] text-slate-400 mt-1">Key được lưu riêng cho tài khoản đăng nhập của bạn, không ai khác thấy được.</p>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700 block mb-1">Phiên bản Mô Hình (Model):</label>
+                <select id="my-gemini-model" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white focus:outline-none focus:border-purple-500">
+                    <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Nhanh & Tối ưu nhất)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                </select>
+            </div>
+
+            <!-- Box kết quả kiểm tra key cá nhân -->
+            <div id="my-gemini-test-result" class="hidden"></div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t">
+            <button type="button" id="btn-test-my-ai-key" onclick="testMyAIKey()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-purple-700 rounded-lg font-bold border border-slate-300 flex items-center gap-1 transition">
+                <span>🔍</span> <span>Kiểm Tra Key</span>
+            </button>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeMyAIConfigModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Đóng</button>
+                <button type="button" onclick="saveMyAIConfig()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow-xs">Lưu Key Cá Nhân</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: TẠO LỜI NHẮC / VIỆC CHO NHÂN VIÊN ==================== -->
+<div id="modal-create-reminder" onclick="if(event.target === this) closeCreateReminderModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[75] p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 space-y-4 text-xs border border-purple-200 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex justify-between items-center border-b pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⏰</span>
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800">Tạo Lời Nhắc / Việc Trong Ca</h4>
+                    <p class="text-[11px] text-purple-600 font-medium">Nhắc việc cá nhân hoặc giao việc trong ca</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeCreateReminderModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none">&times;</button>
+        </div>
+
+        <div class="space-y-3">
+            <div>
+                <label class="font-bold text-slate-700 block mb-1">Gán cho nhân viên:</label>
+                <select id="reminder-staff-id" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white focus:outline-none focus:border-purple-500">
+                    <option value="">Chính tôi (Cá nhân)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700 block mb-1">Nội dung nhắc việc <span class="text-rose-500">*</span>:</label>
+                <input type="text" id="reminder-title" placeholder="Ví dụ: Gọi chị Lan trả cún lúc 14h, kiểm date pate..." class="w-full border border-slate-300 rounded-lg p-2 text-xs font-semibold focus:outline-none focus:border-purple-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Thời gian nhắc (giờ):</label>
+                    <input type="time" id="reminder-time" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-xs focus:outline-none focus:border-purple-500">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700 block mb-1">Mức độ ưu tiên:</label>
+                    <select id="reminder-priority" class="w-full border border-slate-300 rounded-lg p-2 font-semibold bg-white focus:outline-none focus:border-purple-500">
+                        <option value="urgent" class="text-rose-600 font-bold">🔴 Gấp (Ưu tiên số 1)</option>
+                        <option value="normal" class="text-amber-600 font-bold" selected>🟡 Bình thường</option>
+                        <option value="low" class="text-slate-600">🟢 Ghi chú cuối ca</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700 block mb-1">Ghi chú chi tiết (nếu có):</label>
+                <textarea id="reminder-desc" rows="2" placeholder="Ghi chú thêm thông tin khách hàng, số điện thoại hoặc mã đơn..." class="w-full border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-purple-500"></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t">
+            <button type="button" onclick="closeCreateReminderModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Hủy</button>
+            <button type="button" onclick="saveNewReminder()" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow-xs">Lưu Lời Nhắc</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: DANH SÁCH HÀNG SẮP HẾT CẦN ĐẶT ==================== -->
+<div id="modal-ai-low-stock" onclick="if(event.target === this) closeLowStockModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[75] p-4 backdrop-blur-xs">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 text-xs border border-purple-200 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex justify-between items-center border-b pb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">🚨</span>
+                <div>
+                    <h4 class="font-bold text-sm text-slate-800">Danh Sách Hàng Sắp Hết (Cần Đặt NCC)</h4>
+                    <p class="text-[11px] text-rose-600 font-medium" id="ai-low-stock-subtitle">Các mặt hàng có số lượng tồn kho &le; định mức tối thiểu</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeLowStockModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl leading-none">&times;</button>
+        </div>
+
+        <!-- Thanh bộ lọc theo Đối Tác & Nút Tạo Nháp Hàng Loạt -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+                <label class="text-xs font-bold text-slate-700 whitespace-nowrap">Lọc Đối Tác:</label>
+                <select id="ai-low-stock-partner-filter" onchange="filterLowStockByPartner()" class="border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 bg-white flex-1 focus:ring-1 focus:ring-amber-500">
+                    <option value="ALL">📦 Tất cả đối tác</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="btn-batch-draft-partner" onclick="batchCreateDraftsForPartner()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-1.5 transition">
+                    <span>⚡</span><span id="lbl-batch-draft-btn">Tạo Nháp NCC Này</span>
+                </button>
+                <button type="button" onclick="batchCreateDraftsAll()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs shadow-xs flex items-center gap-1.5 transition" title="Tự động gom nháp toàn bộ các NCC có hàng thiếu">
+                    <span>🚀</span><span>Tạo Toàn Bộ NCC</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-72 overflow-y-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-50 text-slate-600 sticky top-0 border-b font-semibold text-[11px]">
+                    <tr>
+                        <th class="p-2.5">Sản Phẩm</th>
+                        <th class="p-2.5 text-right">Tồn Kho</th>
+                        <th class="p-2.5 text-right">Định Mức</th>
+                        <th class="p-2.5 text-center">ĐVT</th>
+                        <th class="p-2.5 text-center">1-Chạm Nháp</th>
+                    </tr>
+                </thead>
+                <tbody id="ai-low-stock-tbody" class="divide-y divide-slate-100 font-medium">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t">
+            <button type="button" onclick="closeLowStockModal()" class="px-3 py-1.5 border rounded-lg text-slate-600 hover:bg-slate-100 font-semibold">Đóng</button>
+            <button type="button" onclick="closeLowStockModal(); if(typeof switchTab==='function') switchTab('purchases');" class="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5">
+                <span>📥</span> Sang Màn Hình Nhập Hàng
+            </button>
         </div>
     </div>
 </div>

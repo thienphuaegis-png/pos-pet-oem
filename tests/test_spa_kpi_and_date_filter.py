@@ -4,7 +4,8 @@ from server import app
 import datetime
 from database import get_db
 
-client = TestClient(app)
+from tests.auth_helpers import owner_auth_headers
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_spa_kpi_endpoint():
     res = client.get("/api/pet-services/kpi")

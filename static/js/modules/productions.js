@@ -431,7 +431,7 @@
                     window.allPaymentAccounts.forEach(a => {
                         const isCty = a.owner_type === 'COMPANY';
                         const isBank = a.account_type === 'bank';
-                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         const isSelected = currentVal == a.id;
                         itemsHtml += `
                             <div onclick="selectCashbookAcc(${a.id}, '${a.name.replace(/'/g, "\\'")}', '${a.code}', '${a.owner_type}', ${a.current_balance || 0})" class="p-2.5 rounded-lg border ${isSelected ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200'} hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer flex items-center justify-between transition">
@@ -470,7 +470,7 @@
                     kpisContainer.innerHTML = window.allPaymentAccounts.map(a => {
                         const isBank = a.account_type === 'bank';
                         const isCty = a.owner_type === 'COMPANY';
-                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         return `
                             <div class="bg-white p-3 rounded-lg border shadow-xs hover:shadow-md transition cursor-pointer ${a.is_default ? 'border-indigo-400 bg-indigo-50/20' : 'border-slate-200'}" onclick="filterCashbookByAccount(${a.id})">
                                 <div class="flex items-center justify-between">
@@ -2634,7 +2634,7 @@
                     tbody.innerHTML = accounts.map(a => {
                         const isBank = a.account_type === 'bank';
                         const isCty = a.owner_type === 'COMPANY';
-                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : '💵');
+                        const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         const bankInfo = isBank 
                             ? `<span class="font-bold text-slate-800">${a.bank_name ? getBankDisplayName(a.bank_name) : '-'}</span> - STK: <span class="font-mono font-bold">${a.account_number || '-'}</span> (${a.account_holder || '-'})`
                             : `<span class="text-gray-400 italic">Tiền mặt / không có STK</span>`;
@@ -5252,6 +5252,19 @@
             }
         }
 
+        // Hoàn / thu chênh lệch bằng chuyển khoản -> phải chọn tài khoản (không thêm thẻ vào đổi/trả)
+        function syncReturnAccountRow() {
+            const m = document.getElementById('return-modal-payment-method')?.value || 'cash';
+            const wrap = document.getElementById('return-modal-account-wrap');
+            const sel = document.getElementById('return-modal-account');
+            if (!wrap || !sel || !window.PayAcc) return;
+            const need = m === 'transfer';
+            wrap.classList.toggle('hidden', !need);
+            if (need) PayAcc.load().then(() => PayAcc.fill(sel, 'transfer'));
+        }
+        window.syncReturnAccountRow = syncReturnAccountRow;
+        document.addEventListener('change', e => { if (e.target && e.target.id === 'return-modal-payment-method') syncReturnAccountRow(); });
+
         async function submitOrderReturn() {
             if (!currentReturnOrder) return;
             const selectedReturns = currentReturnItems.filter(it => (it.return_qty || 0) > 0);
@@ -5277,9 +5290,15 @@
                     price: it.price
                 })),
                 refund_method: document.getElementById('return-modal-payment-method')?.value || 'cash',
+                account_id: (window.PayAcc ? PayAcc.value(document.getElementById('return-modal-payment-method')?.value || 'cash', document.getElementById('return-modal-account')) : null),
                 note: document.getElementById('return-modal-note')?.value?.trim() || ''
             };
 
+            const _rm = payload.refund_method;
+            if (window.PayAcc && (_rm === 'transfer') && ((payload.return_items.length && true))) {
+                const _err = PayAcc.validate(_rm, payload.account_id);
+                if (_err) { alert(_err); return; }
+            }
             const btnSubmit = document.getElementById('btn-submit-order-return');
             if (btnSubmit) {
                 btnSubmit.disabled = true;
@@ -8611,7 +8630,7 @@
             if (!tbody) return;
             const orders = ordersToRender !== undefined ? ordersToRender : allOEMOrders;
             if (!orders || orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-medium">Chưa có đơn đặt gia công OEM nào khớp điều kiện tìm kiếm.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-medium">Chưa có đơn đặt gia công OEM nào khớp điều kiện tìm kiếm.</td></tr>';
                 return;
             }
 
@@ -8652,6 +8671,9 @@
                     <tr onclick="viewOEMOrderDetail(${o.id})" class="hover:bg-slate-50/70 transition cursor-pointer border-b border-slate-100">
                         <td class="p-3 font-mono font-bold text-amber-700">
                             <span>${escapeHtml(o.code)}</span>
+                        </td>
+                        <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            ${typeof formatDateTime === 'function' ? (formatDateTime(o.created_at) || '—') : (o.created_at || '—')}
                         </td>
                         <td class="p-3">
                             <div class="font-bold text-slate-900">${escapeHtml(o.partner_name || 'Xưởng gia công')}</div>
@@ -8862,6 +8884,11 @@
             if (btnSubmit) {
                 btnSubmit.disabled = false;
                 btnSubmit.innerText = '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
+            }
+            const btnDraft = document.getElementById('btn-submit-draft-oem');
+            if (btnDraft) {
+                btnDraft.disabled = false;
+                btnDraft.classList.remove('hidden');
             }
             const modalTitle = document.querySelector('#modal-create-oem h3 span');
             if (modalTitle) modalTitle.innerText = '➕ Lập Đơn Đặt Gia Công OEM Mới';
@@ -9181,6 +9208,7 @@
                 const tr = document.createElement('tr');
                 tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
                 const initialPrice = p.cost_price > 0 ? p.cost_price : '';
+                const itemVat = p.vat_rate !== undefined && p.vat_rate !== null ? p.vat_rate : 8;
                 tr.innerHTML = `
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
@@ -9193,6 +9221,9 @@
                     </td>
                     <td class="p-2.5">
                         <input type="number" step="any" min="0" value="${initialPrice !== '' ? initialPrice : ''}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" step="any" min="0" max="100" value="${itemVat}" placeholder="8" class="oem-prod-vat border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                     </td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
                         0 đ
@@ -9235,6 +9266,7 @@
             const qty = (item.ordered_qty !== undefined && item.ordered_qty !== null && item.ordered_qty !== '') ? item.ordered_qty : '';
             const defaultCost = p.cost_price > 0 ? p.cost_price : '';
             const price = (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') ? item.unit_price : defaultCost;
+            const itemVat = item.vat_rate !== undefined && item.vat_rate !== null ? item.vat_rate : (p.vat_rate !== undefined && p.vat_rate !== null ? p.vat_rate : 8);
 
             const tr = document.createElement('tr');
             tr.className = 'border-b hover:bg-slate-50 oem-item-row transition';
@@ -9250,6 +9282,9 @@
                 </td>
                 <td class="p-2.5">
                     <input type="number" step="any" min="0" value="${price}" placeholder="0" class="oem-prod-price border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
+                </td>
+                <td class="p-2.5">
+                    <input type="number" step="any" min="0" max="100" value="${itemVat}" placeholder="8" class="oem-prod-vat border border-slate-300 p-1.5 rounded-lg w-full text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-amber-500" oninput="recalcCreateOEMMath()">
                 </td>
                 <td class="p-2.5 text-right font-mono font-bold text-slate-800 oem-row-total">
                     0 đ
@@ -9363,32 +9398,38 @@
         async function recalcCreateOEMMath() {
             const rows = document.querySelectorAll('.oem-item-row');
             let totalRaw = 0;
+            let totalVat = 0;
             const selectedItems = [];
+
+            const discountType = document.getElementById('oem-create-discount-type')?.value || 'percent';
+            const discountInputVal = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
+            const vatPct = parseFloat(document.getElementById('oem-create-vat')?.value) || 0;
 
             rows.forEach(r => {
                 const prodId = parseInt(r.querySelector('.oem-prod-id')?.value);
                 const qtyInput = r.querySelector('.oem-prod-qty');
                 const priceInput = r.querySelector('.oem-prod-price');
+                const vatInput = r.querySelector('.oem-prod-vat');
                 const totalCell = r.querySelector('.oem-row-total');
 
                 const qty = parseFloat(qtyInput?.value) || 0;
                 const price = parseFloat(priceInput?.value) || 0;
+                const itemVat = vatInput ? parseFloat(vatInput.value) : vatPct;
+                const effectiveVat = !isNaN(itemVat) ? itemVat : vatPct;
+
                 const rowTotal = qty * price;
                 totalRaw += rowTotal;
+                totalVat += rowTotal * (effectiveVat / 100);
 
                 if (totalCell) totalCell.innerText = formatMoney(rowTotal);
                 if (prodId && qty > 0) {
                     if (currentOEMTargetType === 'ingredient') {
-                        selectedItems.push({ ingredient_id: prodId, item_type: 'ingredient', quantity: qty });
+                        selectedItems.push({ ingredient_id: prodId, item_type: 'ingredient', quantity: qty, vat_rate: effectiveVat });
                     } else {
-                        selectedItems.push({ product_id: prodId, item_type: 'product', quantity: qty });
+                        selectedItems.push({ product_id: prodId, item_type: 'product', quantity: qty, vat_rate: effectiveVat });
                     }
                 }
             });
-
-            const discountType = document.getElementById('oem-create-discount-type')?.value || 'percent';
-            const discountInputVal = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
-            const vatPct = parseFloat(document.getElementById('oem-create-vat')?.value) || 0;
 
             let discountAmount = 0;
             let discountDisplayLabel = '0%';
@@ -9403,7 +9444,7 @@
             }
 
             const rawAfterDiscount = Math.max(0, totalRaw - discountAmount);
-            const vatAmount = totalRaw * (vatPct / 100); // VAT trên giá thô
+            const vatAmount = totalVat; // VAT tính theo từng item
             const totalFinal = rawAfterDiscount + vatAmount;
 
             document.getElementById('oem-math-raw').innerText = formatMoney(totalRaw);
@@ -9505,7 +9546,7 @@
             }
         }
 
-        async function submitCreateOEMOrder() {
+        async function submitCreateOEMOrder(isDraft = false) {
             const partnerId = parseInt(document.getElementById('oem-create-partner')?.value);
             if (!partnerId) return alert('Vui lòng chọn Nhà Máy Gia Công!');
 
@@ -9516,7 +9557,7 @@
             const discountType = document.getElementById('oem-create-discount-type')?.value || 'percent';
             const discountVal = parseFloat(document.getElementById('oem-create-discount')?.value) || 0;
             const vatPct = parseFloat(document.getElementById('oem-create-vat')?.value) || 0;
-            const depositAmount = parseFloat(document.getElementById('oem-create-deposit')?.value) || 0;
+            const depositAmount = isDraft ? 0 : (parseFloat(document.getElementById('oem-create-deposit')?.value) || 0);
             const note = document.getElementById('oem-create-note')?.value || '';
 
             const rows = document.querySelectorAll('.oem-item-row');
@@ -9525,20 +9566,24 @@
                 const prodId = parseInt(r.querySelector('.oem-prod-id')?.value);
                 const qty = parseFloat(r.querySelector('.oem-prod-qty')?.value) || 0;
                 const price = parseFloat(r.querySelector('.oem-prod-price')?.value) || 0;
+                const vatVal = parseFloat(r.querySelector('.oem-prod-vat')?.value);
+                const effectiveVat = !isNaN(vatVal) ? vatVal : vatPct;
                 if (prodId && qty > 0) {
                     if (currentOEMTargetType === 'ingredient') {
                         items.push({
                             item_type: 'ingredient',
                             ingredient_id: prodId,
                             ordered_qty: qty,
-                            unit_price: price
+                            unit_price: price,
+                            vat_rate: effectiveVat
                         });
                     } else {
                         items.push({
                             item_type: 'product',
                             product_id: prodId,
                             ordered_qty: qty,
-                            unit_price: price
+                            unit_price: price,
+                            vat_rate: effectiveVat
                         });
                     }
                 }
@@ -9560,15 +9605,20 @@
                 vat_percent: vatPct,
                 fund_source: fundSource,
                 note: note,
-                items: items
+                items: items,
+                is_draft: isDraft
             };
             const isEdit = !!editingOEMOrderId;
             if (!isEdit) payload.deposit_amount = depositAmount;
 
             const btnSubmit = document.getElementById('btn-submit-create-oem');
+            const btnDraft = document.getElementById('btn-submit-draft-oem');
             if (btnSubmit) {
                 btnSubmit.disabled = true;
-                btnSubmit.innerText = 'Đang lưu đơn & xuất cọc...';
+                btnSubmit.innerText = isDraft ? 'Đang lưu đơn...' : 'Đang lưu đơn & xuất cọc...';
+            }
+            if (btnDraft) {
+                btnDraft.disabled = true;
             }
 
             try {
@@ -9598,6 +9648,8 @@
                 const data = await res.json();
                 if (isEdit) {
                     alert(`✅ Đã cập nhật đơn OEM thành công.`);
+                } else if (isDraft) {
+                    alert(`✅ Đã lưu bản nháp đơn gia công OEM thành công: ${data.code}\n(Đơn nháp chưa xuất cọc sổ quỹ, bạn có thể chỉnh sửa hoặc xóa bất cứ lúc nào)`);
                 } else {
                     alert(`✅ Đã lập đơn đặt gia công OEM thành công: ${data.code}\n${depositAmount > 0 ? `Đã tự động xuất phiếu chi cọc ${formatMoney(depositAmount)} vào Sổ Quỹ (${fundSource === 'COMPANY' ? 'Quỹ Cty' : 'Quỹ Cá nhân'})` : ''}`);
                 }
@@ -9611,8 +9663,12 @@
                     btnSubmit.disabled = false;
                     btnSubmit.innerText = isEdit ? '💾 Lưu Thay Đổi' : '🚀 Lưu Đơn & Xuất Cọc Sổ Quỹ';
                 }
+                if (btnDraft) {
+                    btnDraft.disabled = false;
+                }
             }
         }
+        window.submitCreateOEMOrder = submitCreateOEMOrder;
 
         async function openModalEditOEM(orderId) {
             if (!allContacts || allContacts.length === 0) {
@@ -9719,6 +9775,10 @@
             if (btnSubmit) {
                 btnSubmit.disabled = false;
                 btnSubmit.innerText = '💾 Lưu Thay Đổi';
+            }
+            const btnDraft = document.getElementById('btn-submit-draft-oem');
+            if (btnDraft) {
+                btnDraft.classList.add('hidden');
             }
             const modalTitle = document.querySelector('#modal-create-oem h3 span');
             if (modalTitle) modalTitle.innerText = `✏️ Chỉnh Sửa Đơn Gia Công OEM (${order.code})`;

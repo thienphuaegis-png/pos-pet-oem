@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Giao Diện AI Hub Thích Ứng Theo Chức Vụ (Role-Adaptive)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-6xl mx-auto space-y-5">
+        
+        <!-- BANNER HEADER -->
+        <div class="bg-gradient-to-r from-purple-800 via-indigo-800 to-sky-800 text-white p-5 rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🤖</span>
+                    <h1 class="text-lg font-bold">MOCKUP THIẾT KẾ: TÁC NHÂN AI ĐIỀU BIẾN THEO CHỨC VỤ</h1>
+                </div>
+                <p class="text-xs text-purple-100 mt-1">
+                    Thủ kho cần xem <strong>Hàng cần đặt, Hàng đang về, Thời gian hàng về & Công nợ NCC/Xưởng</strong> thay vì hiển thị doanh số bán lẻ 0đ.
+                </p>
+            </div>
+            <!-- BỘ CHỌN ROLE TEST TRÊN DEMO -->
+            <div class="flex items-center gap-2 bg-white/10 backdrop-blur-md p-1.5 rounded-xl border border-white/20">
+                <span class="text-xs font-bold text-white px-2">Xem vai trò:</span>
+                <button onclick="setRole('warehouse')" id="btn-role-wh" class="px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition">
+                    📦 Thủ Kho / OEM (Phụng)
+                </button>
+                <button onclick="setRole('accountant')" id="btn-role-acc" class="px-3 py-1.5 text-purple-100 hover:text-white rounded-lg text-xs font-semibold transition">
+                    💼 Kế Toán
+                </button>
+                <button onclick="setRole('cashier')" id="btn-role-pos" class="px-3 py-1.5 text-purple-100 hover:text-white rounded-lg text-xs font-semibold transition">
+                    🛒 Thu Ngân (Đôn)
+                </button>
+            </div>
+        </div>
+
+        <!-- KHUNG CHÀO CA ĐẦU NGÀY -->
+        <div class="bg-gradient-to-r from-purple-50 via-slate-50 to-indigo-50 p-4 rounded-xl border border-purple-100 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md" id="role-avatar">
+                    📦
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-base font-bold text-slate-900" id="role-greeting">Chào buổi sáng, Phụng!</h2>
+                        <span id="role-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">Thủ Kho / OEM</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🟢 Hoạt động</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1" id="role-briefing">
+                        🤖 <em>"Hôm nay kho có <strong>107 mặt hàng chạm đáy tồn</strong> cần đặt NCC, <strong>2 đơn hàng đang trên đường về</strong> (dự kiến về chiều nay), và nợ xưởng gia công 44.8tr."</em>
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-xs transition flex items-center gap-1">
+                    <span>➕</span> <span>Tạo Nhắc Nhở</span>
+                </button>
+                <button class="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition">
+                    🔑 Dùng Key Tiệm
+                </button>
+            </div>
+        </div>
+
+        <!-- 3 CỘT ĐIỀU HÀNH THÍCH ỨNG THEO ROLE -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+            
+            <!-- CỘT 1: NHẮC VIỆC & CẢNH BÁO TỒN KHO / ĐƠN HÀNG (4 cols) -->
+            <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between border-b pb-2">
+                    <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                        <span>📌</span> <span id="col1-title">Cảnh Báo Kho & Nhắc Việc</span>
+                    </h3>
+                    <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded font-mono" id="col1-count">4 việc</span>
+                </div>
+
+                <div class="space-y-2 text-xs" id="col1-list">
+                    <!-- Task Item 1 -->
+                    <div class="p-2.5 bg-white border border-rose-200 rounded-lg shadow-2xs space-y-1">
+                        <div class="flex items-start justify-between gap-1">
+                            <label class="flex items-center gap-2 font-semibold text-rose-900 cursor-pointer">
+                                <input type="checkbox" class="w-3.5 h-3.5 rounded text-purple-600">
+                                <span>🚨 Hết hàng: Sữa Tắm Cho Chó SOS 530ml</span>
+                            </label>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800 shrink-0">Tồn: 0</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 pl-5">Định mức tối thiểu: 10 chai. Cần làm đơn nhập hàng gấp từ NCC Minh Trí.</div>
+                    </div>
+
+                    <!-- Task Item 2 -->
+                    <div class="p-2.5 bg-white border border-amber-200 rounded-lg shadow-2xs space-y-1">
+                        <div class="flex items-start justify-between gap-1">
+                            <label class="flex items-center gap-2 font-semibold text-amber-900 cursor-pointer">
+                                <input type="checkbox" class="w-3.5 h-3.5 rounded text-purple-600">
+                                <span>🚚 Nhận hàng: Đơn PN-26101901 (NCC Royal)</span>
+                            </label>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">Hôm nay 15:00</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 pl-5">Lô 50 bao Hạt Royal Canin Mini Adult. Shipper giao kho chính.</div>
+                    </div>
+
+                    <!-- Task Item 3 -->
+                    <div class="p-2.5 bg-white border border-purple-200 rounded-lg shadow-2xs space-y-1">
+                        <div class="flex items-start justify-between gap-1">
+                            <label class="flex items-center gap-2 font-semibold text-purple-900 cursor-pointer">
+                                <input type="checkbox" class="w-3.5 h-3.5 rounded text-purple-600">
+                                <span>🏭 Nghiệm thu OEM: Lô Nước Lau Sàn Quế Cam</span>
+                            </label>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 shrink-0">Ngày mai</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 pl-5">Xưởng Phú Nhuận giao 1.000 chai. Cần kiểm tra tem mác và nắp seal.</div>
+                    </div>
+
+                    <!-- Task Item 4 -->
+                    <div class="p-2.5 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1">
+                        <div class="flex items-start justify-between gap-1">
+                            <label class="flex items-center gap-2 font-semibold text-slate-800 cursor-pointer">
+                                <input type="checkbox" class="w-3.5 h-3.5 rounded text-purple-600">
+                                <span>Đối soát vỏ chai tồn kho với Xưởng</span>
+                            </label>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-700 shrink-0">Thường</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 pl-5">Kiểm tra số lượng chai nâu 500ml còn dư tại kho gia công.</div>
+                    </div>
+                </div>
+
+                <button class="w-full py-2 bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 border-dashed rounded-lg text-xs font-bold transition flex items-center justify-center gap-1">
+                    <span>➕ Thêm nhắc việc kho</span>
+                </button>
+            </div>
+
+            <!-- CỘT 2: ĐIỀU PHỐI ĐẶT HÀNG, HÀNG ĐANG VỀ & CÔNG NỢ (4 cols) -->
+            <div class="md:col-span-4 bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-3" id="col2-container">
+                <div class="flex items-center justify-between border-b pb-2">
+                    <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                        <span>📊</span> <span id="col2-title">Theo Dõi Nhập Hàng & Tiến Độ Về</span>
+                    </h3>
+                    <span class="text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">Kho & Xưởng</span>
+                </div>
+
+                <!-- 2 KPI Card dành cho THỦ KHO -->
+                <div class="grid grid-cols-2 gap-2 text-xs" id="col2-kpi-grid">
+                    <div class="bg-white p-2.5 rounded-lg border border-rose-200 bg-rose-50/30">
+                        <div class="text-[10px] text-rose-700 font-bold">Hàng Sắp Hết (Cần Đặt)</div>
+                        <div class="text-sm font-black text-rose-600 font-mono mt-0.5">107 mặt hàng</div>
+                        <div class="text-[9px] text-rose-500 mt-0.5">Tồn kho &le; 5 đơn vị</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-lg border border-purple-200 bg-purple-50/30">
+                        <div class="text-[10px] text-purple-700 font-bold">Đơn Đang Chờ Về</div>
+                        <div class="text-sm font-black text-purple-700 font-mono mt-0.5">3 đơn / lô</div>
+                        <div class="text-[9px] text-purple-600 mt-0.5">2 đơn NCC + 1 đơn OEM</div>
+                    </div>
+                </div>
+
+                <!-- BẢNG THEO DÕI HÀNG ĐANG VỀ & THỜI GIAN VỀ -->
+                <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2 text-xs">
+                    <div class="font-bold text-slate-700 flex items-center justify-between text-[11px]">
+                        <span>🚚 Lô Hàng Đang Về & Dự Kiến Giao</span>
+                        <span class="text-[10px] text-purple-600 hover:underline cursor-pointer">Chi tiết</span>
+                    </div>
+                    <div class="space-y-2 text-[11px]" id="col2-shipments-list">
+                        <div class="p-2 rounded bg-amber-50/60 border border-amber-200 space-y-0.5">
+                            <div class="flex justify-between items-center font-bold text-slate-800">
+                                <span>📥 PN-26101901: NCC Royal Canin</span>
+                                <span class="text-amber-700 font-mono">Hôm nay 15h</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span>50 bao thức ăn (Giao kho chính)</span>
+                                <span class="font-bold text-slate-700">18.500.000 đ</span>
+                            </div>
+                        </div>
+
+                        <div class="p-2 rounded bg-purple-50/60 border border-purple-200 space-y-0.5">
+                            <div class="flex justify-between items-center font-bold text-slate-800">
+                                <span>🏭 OEM-005: Xưởng Phú Nhuận</span>
+                                <span class="text-purple-700 font-mono">24/10/2026</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span>1.000 chai nước lau sàn Quế Cam</span>
+                                <span class="font-bold text-slate-700">18.288.000 đ</span>
+                            </div>
+                        </div>
+
+                        <div class="p-2 rounded bg-slate-50 border border-slate-200 space-y-0.5">
+                            <div class="flex justify-between items-center font-bold text-slate-800">
+                                <span>📥 PN-26102103: NCC Cát Vệ Sinh</span>
+                                <span class="text-slate-600 font-mono">26/10/2026</span>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500">
+                                <span>200 bao cát đậu nành Cature</span>
+                                <span class="font-bold text-slate-700">14.000.000 đ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOX CÔNG NỢ NCC & XƯỞNG CẦN ĐỐI SOÁT / THANH TOÁN -->
+                <div class="p-2.5 bg-rose-50/80 border border-rose-200 rounded-lg text-xs space-y-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-rose-900">📑 Công nợ NCC & Xưởng còn nợ:</span>
+                        <span class="font-mono font-bold text-rose-700 text-sm">62.800.000 đ</span>
+                    </div>
+                    <div class="text-[10px] text-rose-700">Xưởng OEM: 44.800.000 đ + NCC Phụ kiện: 18.000.000 đ</div>
+                </div>
+            </div>
+
+            <!-- CỘT 3: BÓC TÁCH CHỨNG TỪ AI (4 cols - Giữ nguyên dropzone) -->
+            <div class="md:col-span-4 bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-2xs">
+                <div class="flex items-center justify-between border-b pb-2">
+                    <h3 class="font-bold text-xs uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                        <span>📸</span> <span>Bóc Tách Chứng Từ AI</span>
+                    </h3>
+                    <span class="text-[10px] text-purple-600 font-mono font-bold">hỗ trợ Ctrl + V</span>
+                </div>
+
+                <div class="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-purple-50/30 hover:bg-purple-50/60 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition min-h-[190px]">
+                    <span class="text-3xl mb-1">📄</span>
+                    <span class="text-xs font-bold text-slate-800">Thả file ảnh hoặc nhấp chọn</span>
+                    <span class="text-[10px] text-slate-500 mt-1">Hoặc dán ảnh qua <kbd class="px-1 py-0.5 rounded bg-white border border-purple-200 font-mono font-bold text-purple-700 text-[10px]">Ctrl + V</kbd></span>
+                </div>
+
+                <div class="space-y-1 text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div>• 📥 Phiếu giao hàng từ NCC &rarr; Tự tạo Phiếu Nhập PN</div>
+                    <div>• 🏭 Báo giá gia công xưởng &rarr; Tự điền Đơn OEM</div>
+                    <div>• 💰 Bill thanh toán chuyển khoản &rarr; Tạo Phiếu Chi quỹ</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- LOGIC CHUYỂN ĐỔI ROLE MÔ PHỎNG -->
+    <script>
+        function setRole(role) {
+            const btnWh = document.getElementById('btn-role-wh');
+            const btnAcc = document.getElementById('btn-role-acc');
+            const btnPos = document.getElementById('btn-role-pos');
+            const avatar = document.getElementById('role-avatar');
+            const greeting = document.getElementById('role-greeting');
+            const badge = document.getElementById('role-badge');
+            const brief = document.getElementById('role-briefing');
+            const col1Title = document.getElementById('col1-title');
+            const col2Title = document.getElementById('col2-title');
+            const col2Kpi = document.getElementById('col2-kpi-grid');
+            const col2Shipments = document.getElementById('col2-shipments-list');
+
+            // Reset buttons
+            [btnWh, btnAcc, btnPos].forEach(b => {
+                b.className = "px-3 py-1.5 text-purple-100 hover:text-white rounded-lg text-xs font-semibold transition";
+            });
+
+            if (role === 'warehouse') {
+                btnWh.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+                avatar.textContent = "📦";
+                greeting.textContent = "Chào buổi sáng, Phụng!";
+                badge.textContent = "Thủ Kho / OEM";
+                brief.innerHTML = `🤖 <em>"Hôm nay kho có <strong>107 mặt hàng chạm đáy tồn</strong> cần đặt NCC, <strong>2 đơn hàng đang trên đường về</strong> (dự kiến về chiều nay), và nợ xưởng gia công 44.8tr."</em>`;
+                col1Title.textContent = "Cảnh Báo Kho & Nhắc Việc";
+                col2Title.textContent = "Theo Dõi Nhập Hàng & Tiến Độ Về";
+            } else if (role === 'accountant') {
+                btnAcc.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+                avatar.textContent = "💼";
+                greeting.textContent = "Chào bạn Kế Toán!";
+                badge.textContent = "Kế Toán";
+                brief.innerHTML = `🤖 <em>"Hôm nay tiệm có <strong>14 đơn khách nợ</strong> (tổng 18.5tr cần thu), <strong>nợ NCC/Xưởng 62.8tr</strong> đến hạn trả, và 3 phiếu yêu cầu chi tiêu đang chờ duyệt."</em>`;
+                col1Title.textContent = "Công Nợ & Duyệt Chi Hôm Nay";
+                col2Title.textContent = "Đối Soát Dòng Tiền & Công Nợ 2 Chiều";
+                col2Kpi.innerHTML = `
+                    <div class="bg-white p-2.5 rounded-lg border border-sky-200 bg-sky-50/30">
+                        <div class="text-[10px] text-sky-700 font-bold">Phải Thu (Khách Nợ)</div>
+                        <div class="text-sm font-black text-sky-600 font-mono mt-0.5">18.500.000 đ</div>
+                        <div class="text-[9px] text-sky-500 mt-0.5">14 khách hàng</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-lg border border-rose-200 bg-rose-50/30">
+                        <div class="text-[10px] text-rose-700 font-bold">Phải Trả (Nợ NCC/Xưởng)</div>
+                        <div class="text-sm font-black text-rose-700 font-mono mt-0.5">62.800.000 đ</div>
+                        <div class="text-[9px] text-rose-600 mt-0.5">5 NCC & Xưởng OEM</div>
+                    </div>
+                `;
+            } else {
+                btnPos.className = "px-3 py-1.5 bg-white text-purple-900 rounded-lg text-xs font-bold shadow-xs transition";
+                avatar.textContent = "🛒";
+                greeting.textContent = "Chào buổi sáng, Đôn!";
+                badge.textContent = "Thu Ngân";
+                brief.innerHTML = `🤖 <em>"Ca sáng hôm nay có 3 bé hẹn spa cần trả trước trưa, 2 đơn khách nợ VietQR cần nhắc thanh toán. Chúc bạn một ca bán hàng đông khách!"</em>`;
+                col1Title.textContent = "Việc Cần Làm Trong Ca";
+                col2Title.textContent = "Hiệu Suất & Doanh Số Ca Trực";
+                col2Kpi.innerHTML = `
+                    <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                        <div class="text-[10px] text-slate-400 font-medium">Doanh số ca này</div>
+                        <div class="text-sm font-black text-sky-600 font-mono mt-0.5">4.850.000 đ</div>
+                        <div class="text-[9px] text-slate-500 mt-0.5">8 hóa đơn POS</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                        <div class="text-[10px] text-slate-400 font-medium">Hoa hồng tạm tính</div>
+                        <div class="text-sm font-black text-emerald-600 font-mono mt-0.5">97.000 đ</div>
+                        <div class="text-[9px] text-slate-500 mt-0.5">Định mức 2.0%</div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

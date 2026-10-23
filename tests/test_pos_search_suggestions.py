@@ -31,3 +31,25 @@ def test_pos_js_has_suggestion_logic():
     assert "10 khách hàng gợi ý" in pos_js
     assert "addEventListener('focus'" in pos_js
     assert "addEventListener('click'" in pos_js
+
+def test_pos_search_arrow_keys_and_mutual_exclusion():
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    js_path = os.path.join(base_dir, "static", "js", "pos.js")
+    with open(js_path, "r", encoding="utf-8") as f:
+        pos_js = f.read()
+
+    assert "handleProductSearchKeydown" in pos_js
+    assert "handleCustomerSearchKeydown" in pos_js
+    assert "ArrowDown" in pos_js
+    assert "ArrowUp" in pos_js
+    assert "pos-product-item" in pos_js
+    assert "pos-customer-item" in pos_js
+    assert "closeAllPosDropdowns" in pos_js
+
+def test_auth_js_triggers_pos_init_on_login():
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    auth_js_path = os.path.join(base_dir, "static", "js", "auth.js")
+    with open(auth_js_path, "r", encoding="utf-8") as f:
+        auth_js = f.read()
+
+    assert "initPOSModule" in auth_js

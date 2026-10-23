@@ -1,6 +1,7 @@
+import json
 from fastapi import APIRouter, HTTPException, Depends
 from database import get_db
-from schemas import CompanySettingsUpdate, TemplateSettingsUpdate, PrintBoldConfigsUpdate, RolePermissionUpdate, ModuleToggleUpdate, StaffPermissionUpdate
+from schemas import CompanySettingsUpdate, TemplateSettingsUpdate, PrintBoldConfigsUpdate, RolePermissionUpdate, ModuleToggleUpdate, StaffPermissionUpdate, PetCatalogUpdate
 from logger_config import get_module_logger
 from dependencies import require_role
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/api/settings", tags=["Settings"])
 # Cac quyen quan ly duoc (owner luon full, khong hien trong danh sach nay)
 PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
              "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
-             "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
+             "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date"]
 MANAGEABLE_ROLES = ["cashier", "accountant", "warehouse", "staff"]
 MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel", "module_marketplace"]
 
@@ -296,6 +297,8 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
                 'inventory_logs',
                 'production_materials_consumed', 'production_items', 'productions'
             ]
+            # expense_requests.cashbook_id tro vao cashbook (NO ACTION) -> go lien ket truoc khi xoa so quy
+            cur.execute("UPDATE expense_requests SET cashbook_id = NULL WHERE cashbook_id IS NOT NULL")
             for t in tables_to_clear:
                 cur.execute(f"DELETE FROM {t}")
 
@@ -331,6 +334,7 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
                 'products', 'ingredients',
                 'contacts'
             ]
+            cur.execute("UPDATE expense_requests SET cashbook_id = NULL WHERE cashbook_id IS NOT NULL")
             for t in all_data_tables:
                 cur.execute(f"DELETE FROM {t}")
 
@@ -415,6 +419,100 @@ def reject_telegram_admin(req: TelegramRejectReq, user=Depends(require_role("own
     from services.telegram_bot import reject_admin_request
     ok = reject_admin_request(req.chat_id)
     return {"status": "ok", "message": f"Đã xóa/từ chối quyền Admin của Chat ID {req.chat_id}"}
+
+
+# ── Danh Mục Màu Lông & Giống Loài Thú Cưng (Configurable Pet Catalog) ──
+DEFAULT_PET_COLORS = [
+    "Trắng", "Đen", "Nâu", "Socola", "Kem", "Vàng", "Vàng mơ", "Xám",
+    "Silver", "Phantom", "Bò sữa", "Bò nâu", "Bò xám", "Trắng - Xám",
+    "Vàng - Đen", "Vàng - Xám", "Bicolor (Nhị thể)", "Tricolor (Tam thể)",
+    "Tabbi (Mướp)", "Sọc dưa"
+]
+
+DEFAULT_PET_BREEDS = [
+    "Poodle", "Phốc Sóc", "Corgi", "Samoyed", "Alaska", "Husky",
+    "Golden", "Labrador", "Bichon", "Shiba", "Akita", "Bull Pháp",
+    "Pug", "Bull Anh", "Lạp xưởng", "Bắc Kinh", "Chó Nhật", "Chó Cảnh Khác",
+    "Mèo ALN", "Mèo ALD", "Mèo Cảnh Khác"
+]
+
+@router.get("/pet-catalog")
+def get_pet_catalog():
+    """Lấy danh mục màu lông và giống loài thú cưng đã cấu hình, tự động bổ sung nếu bảng pets có dữ liệu riêng."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT key, value FROM settings WHERE key IN ('pet_colors_catalog', 'pet_breeds_catalog')")
+    rows = {r["key"]: r["value"] for r in cur.fetchall()}
+
+    colors = []
+    if rows.get("pet_colors_catalog"):
+        try:
+            colors = json.loads(rows["pet_colors_catalog"])
+        except Exception:
+            colors = []
+    if not colors or not isinstance(colors, list):
+        colors = list(DEFAULT_PET_COLORS)
+
+    breeds = []
+    if rows.get("pet_breeds_catalog"):
+        try:
+            breeds = json.loads(rows["pet_breeds_catalog"])
+        except Exception:
+            breeds = []
+    if not breeds or not isinstance(breeds, list):
+        breeds = list(DEFAULT_PET_BREEDS)
+
+    # Self-healing / no data loss: merge thêm các màu/giống đã từng lưu trong bảng pets
+    try:
+        cur.execute("SELECT DISTINCT color FROM pets WHERE color IS NOT NULL AND TRIM(color) != ''")
+        for r in cur.fetchall():
+            c = r["color"].strip()
+            if c and c not in colors:
+                colors.append(c)
+
+        cur.execute("SELECT DISTINCT breed FROM pets WHERE breed IS NOT NULL AND TRIM(breed) != ''")
+        for r in cur.fetchall():
+            b = r["breed"].strip()
+            if b and b not in breeds:
+                breeds.append(b)
+    except Exception as e:
+        logger.warning(f"Error merging distinct colors/breeds from pets: {e}")
+
+    conn.close()
+    return {
+        "colors": colors,
+        "breeds": breeds
+    }
+
+@router.post("/pet-catalog")
+def update_pet_catalog(req: PetCatalogUpdate, user=Depends(require_role("owner"))):
+    """Cập nhật danh mục màu lông và giống loài tùy chỉnh của cửa hàng."""
+    clean_colors = [c.strip() for c in req.colors if c and c.strip()]
+    clean_breeds = [b.strip() for b in req.breeds if b and b.strip()]
+    unique_colors = list(dict.fromkeys(clean_colors))
+    unique_breeds = list(dict.fromkeys(clean_breeds))
+
+    conn = get_db()
+    cur = conn.cursor()
+    val_colors = json.dumps(unique_colors, ensure_ascii=False)
+    val_breeds = json.dumps(unique_breeds, ensure_ascii=False)
+
+    cur.execute("INSERT INTO settings (key, value) VALUES ('pet_colors_catalog', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (val_colors, val_colors))
+    cur.execute("INSERT INTO settings (key, value) VALUES ('pet_breeds_catalog', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (val_breeds, val_breeds))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": "Đã lưu danh mục thú cưng thành công"}
+
+@router.post("/pet-catalog/restore-defaults")
+def restore_pet_catalog_defaults(user=Depends(require_role("owner"))):
+    """Khôi phục danh mục màu và giống thú cưng về mặc định."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM settings WHERE key IN ('pet_colors_catalog', 'pet_breeds_catalog')")
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": "Đã khôi phục danh mục màu và giống thú cưng về mặc định"}
+
 
 
 

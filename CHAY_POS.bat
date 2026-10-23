@@ -8,7 +8,8 @@ echo         HE THONG BAN HANG POS MASTERCARE
 echo ========================================================
 echo.
 
-echo [1/3] Kiem tra va don dep cong mang 8998, 8999...
+echo [1/2] Kiem tra va don dep cong mang 8998, 8999...
+taskkill /F /IM POS_Mastercare.exe >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8998" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
@@ -16,8 +17,12 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8999" ^| findstr "LI
     taskkill /F /PID %%a >nul 2>&1
 )
 
-echo [2/3] Dang khoi dong may chu POS...
+echo [2/2] Dang khoi dong may chu POS...
 set "STARTED=0"
+
+if exist "dist\POS_Mastercare.exe" (
+    copy "dist\POS_Mastercare.exe" "POS_Mastercare.exe" /y >nul 2>&1
+)
 
 if exist "POS_Mastercare.exe" (
     echo        -^> Khoi dong bang ban dong goi: POS_Mastercare.exe
@@ -44,11 +49,6 @@ if "!STARTED!"=="0" (
     pause
     exit /b 1
 )
-
-echo [3/3] Dang mo giao dien ban hang tren trinh duyet...
-powershell -NoProfile -Command "Start-Sleep -Seconds 2"
-
-start "" "http://localhost:8998"
 
 echo.
 echo ========================================================

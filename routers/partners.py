@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from database import get_db
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
-from dependencies import require_role, require_permission, require_any_permission
+from dependencies import require_role, require_permission, require_any_permission, resolve_payment_account
 
 logger = get_module_logger("partners")
 
@@ -1038,10 +1038,18 @@ class PetServiceCreate(BaseModel):
     send_to_hotel: Optional[int] = 0
     batch_code: Optional[str] = ""
     ticket_date: Optional[str] = None
+    account_id: Optional[int] = None          # tài khoản nhận tiền (chuyển khoản / thẻ)
+    deposit_account_id: Optional[int] = None  # tài khoản nhận tiền cọc
+    deposit_method: Optional[str] = "cash"    # hình thức nhận cọc: cash|transfer|card
+    # Khi trả bằng Ví Spa: hình thức thu phần còn lại (hàng hóa/tip/ví thiếu) — cash|transfer|card
+    remainder_method: Optional[str] = "cash"
 
 class PetServiceBatchCreate(BaseModel):
     customer_id: int
     batch_code: Optional[str] = ""
+    account_id: Optional[int] = None
+    remainder_method: Optional[str] = "cash"
+    start_ticket_number: Optional[int] = None  # số phiếu đầu đợt mà màn hình đã hiển thị cho thu ngân
     tickets: List[PetServiceCreate]
 
 class PetServiceStatusUpdate(BaseModel):
@@ -1071,6 +1079,8 @@ class PetServiceProgressUpdate(BaseModel):
 
 class PetServiceTicketBulkItem(BaseModel):
     id: int
+    account_id: Optional[int] = None
+    remainder_method: Optional[str] = None
     status: Optional[str] = None
     staff_cutter: Optional[str] = None
     staff_worker_1: Optional[str] = None
@@ -1108,6 +1118,8 @@ class PetServicePayRequest(BaseModel):
     payment_method: str = "cash"
     account_id: Optional[int] = None
     note: Optional[str] = None
+    # Khi payment_method = 'wallet': hình thức thu phần còn lại (hàng hóa/tip/ví thiếu)
+    remainder_method: Optional[str] = "cash"
 
 class SpaStaffCreate(BaseModel):
     staff_code: Optional[str] = ""
@@ -1482,7 +1494,14 @@ def restore_retail_products_stock(cur, items: list, ticket_code: str, warehouse_
 
     cur.execute("DELETE FROM inventory_logs WHERE order_code = ?", (ticket_code,))
 
-def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash", account_id: Optional[int] = None, note: Optional[str] = None):
+def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash", account_id: Optional[int] = None, note: Optional[str] = None, remainder_method: Optional[str] = None):
+    """Thu tiền 1 phiếu Spa.
+
+    - payment_method 'wallet': ví chỉ trả phần dịch vụ; phần còn lại (hàng hóa, tip,
+      hoặc phần dịch vụ ví không đủ) thu bằng `remainder_method`
+      ('cash' mặc định, hoặc 'transfer'/'card' — khi đó phải có account_id đúng loại).
+    - Các hình thức khác: thu toàn bộ bằng payment_method.
+    """
     cur.execute("SELECT * FROM pet_service_tickets WHERE id = ?", (ticket_id,))
     ticket = cur.fetchone()
     if not ticket:
@@ -1528,6 +1547,8 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
 
     remaining_due = max(0.0, price - deposit_amount)
     wallet_deduction = 0.0
+    paid_account_id = None  # tài khoản thực sự nhận tiền (None nếu ví Spa trả đủ)
+    pay_remainder_method = None  # hình thức thu phần còn lại khi ví không trả đủ bill
 
     if payment_method == "wallet":
         cur.execute("SELECT id, name, spa_wallet_balance FROM contacts WHERE id = ?", (customer_id,))
@@ -1559,15 +1580,15 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
         if payment_method == "wallet" and wallet_deduction > 0:
             note_str += f" (Trừ ví: {wallet_deduction:,.0f} đ, Thu ngoài: {cash_collected:,.0f} đ)"
 
-        if not account_id:
-            acc_type = 'bank' if payment_method in ('transfer', 'card') else 'cash'
-            cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
-            acc_row = cur.fetchone()
-            account_id = acc_row["id"] if acc_row else None
-            if not account_id:
-                cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                acc_row = cur.fetchone()
-                account_id = acc_row["id"] if acc_row else None
+        # Phần thu ngoài của 'Ví Spa' thu theo hình thức thu ngân chọn (tiền mặt / CK / thẻ);
+        # các hình thức khác thì đúng hình thức của phiếu.
+        pay_m = (remainder_method or "cash") if payment_method == "wallet" else payment_method
+        if pay_m not in ("cash", "transfer", "card", "bank"):
+            pay_m = "cash"
+        # CK/thẻ bắt buộc có account_id đúng loại; tiền mặt luôn vào két tiền mặt
+        account_id = resolve_payment_account(cur, pay_m, account_id if pay_m != "cash" else None)
+        paid_account_id = account_id
+        pay_remainder_method = pay_m if payment_method == "wallet" else None
 
         cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
         s_row = cur.fetchone()
@@ -1580,9 +1601,10 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
 
     cur.execute("""
         UPDATE pet_service_tickets
-        SET payment_status = 'paid', payment_method = ?, spa_wallet_deduction = ?
+        SET payment_status = 'paid', payment_method = ?, spa_wallet_deduction = ?, account_id = ?,
+            remainder_method = ?
         WHERE id = ?
-    """, (payment_method, wallet_deduction, ticket_id))
+    """, (payment_method, wallet_deduction, paid_account_id, pay_remainder_method, ticket_id))
 
     return {
         "status": "ok",
@@ -1590,6 +1612,7 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
         "code": code,
         "wallet_deduction": wallet_deduction,
         "cash_collected": cash_collected,
+        "remainder_method": pay_remainder_method,
         "remaining_due": 0.0
     }
 
@@ -1682,14 +1705,10 @@ def create_pet_service(ticket: PetServiceCreate):
         # 4. Sửa J: Tiền cọc ghi phiếu thu riêng lúc nhận
         if ticket.deposit_amount and ticket.deposit_amount > 0:
             cb_dep_code = generate_cashbook_code(cur, "PT-COC")
-            acc_type = 'bank' if ticket.payment_method in ('transfer', 'card') else 'cash'
-            cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
-            acc_row = cur.fetchone()
-            account_id = acc_row["id"] if acc_row else None
-            if not account_id:
-                cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-                acc_row = cur.fetchone()
-                account_id = acc_row["id"] if acc_row else None
+            # Cọc: tiền mặt -> két; CK/thẻ -> bắt buộc tài khoản đúng loại
+            dep_m = ticket.deposit_method if ticket.deposit_method in ("cash", "transfer", "card") else "cash"
+            account_id = resolve_payment_account(cur, dep_m, ticket.deposit_account_id if dep_m != "cash" else None)
+            cur.execute("UPDATE pet_service_tickets SET deposit_account_id = ? WHERE id = ?", (account_id, new_id))
 
             cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
             s_row = cur.fetchone()
@@ -1702,7 +1721,8 @@ def create_pet_service(ticket: PetServiceCreate):
 
         # 5. Nếu phiếu ở trạng thái Đã Thanh Toán: xử lý thanh toán phần còn lại qua hàm dùng chung
         if ticket.payment_status == "paid":
-            process_spa_ticket_payment(cur, new_id, payment_method=ticket.payment_method or "cash")
+            process_spa_ticket_payment(cur, new_id, payment_method=ticket.payment_method or "cash", account_id=ticket.account_id,
+                                       remainder_method=ticket.remainder_method or "cash")
 
         conn.commit()
         return {"status": "ok", "id": new_id, "code": code, "ticket_number": ticket_number, "batch_code": ticket.batch_code or ""}
@@ -1730,7 +1750,12 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
         # Lấy ticket_number cơ sở cho ngày hôm nay (bắt đầu random từ 5 đến 10 nếu chưa có phiếu nào)
         cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
         row = cur.fetchone()
-        base_number = (row["max_num"] + 1) if (row and row["max_num"] is not None) else random.randint(5, 10)
+        db_next = (row["max_num"] + 1) if (row and row["max_num"] is not None) else None
+        shown = batch_req.start_ticket_number
+        if shown and shown > 0 and (db_next is None or shown >= db_next):
+            base_number = shown  # đúng số đã hiển thị trên màn hình
+        else:
+            base_number = db_next if db_next is not None else random.randint(5, 10)
 
         cur.execute("SELECT id, name, phone FROM contacts WHERE id = ?", (batch_req.customer_id,))
         cust = cur.fetchone()
@@ -1754,14 +1779,19 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
         cash_collected_batch = 0.0
         created_tickets = []
 
-        acc_type = 'bank' if (batch_req.tickets and batch_req.tickets[0].payment_method in ('transfer', 'card')) else 'cash'
-        cur.execute("SELECT id FROM payment_accounts WHERE account_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (acc_type,))
-        acc_row = cur.fetchone()
-        account_id = acc_row["id"] if acc_row else None
-        if not account_id:
-            cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
-            acc_row = cur.fetchone()
-            account_id = acc_row["id"] if acc_row else None
+        # Tài khoản nhận tiền của cả đợt: theo hình thức của phiếu trả trước đầu tiên (Ví Spa -> phần thu ngoài là tiền mặt)
+        paid_tickets = [t for t in batch_req.tickets if t.payment_status == "paid"]
+        raw_batch_method = (paid_tickets[0].payment_method if paid_tickets else "cash") or "cash"
+        # Ví Spa: phần còn lại của đợt thu theo hình thức thu ngân chọn (mặc định tiền mặt)
+        batch_remainder_method = None
+        if raw_batch_method == "wallet":
+            batch_remainder_method = (batch_req.remainder_method or "cash")
+            if batch_remainder_method not in ("cash", "transfer", "card", "bank"):
+                batch_remainder_method = "cash"
+        batch_method = batch_remainder_method or raw_batch_method
+        batch_acc_req = batch_req.account_id or (paid_tickets[0].account_id if paid_tickets else None)
+        account_id = resolve_payment_account(cur, batch_method if paid_tickets else "any",
+                                            (batch_acc_req if batch_method != "cash" else None) if paid_tickets else None)
 
         cur.execute("SELECT id FROM shifts WHERE status = 'open' ORDER BY id DESC LIMIT 1")
         s_row = cur.fetchone()
@@ -1854,14 +1884,20 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
             # Sửa J: Ghi phiếu thu tiền cọc nếu có cọc
             if t_dep > 0:
                 cb_dep_code = generate_cashbook_code(cur, "PT-COC")
+                dep_m = t.deposit_method if t.deposit_method in ("cash", "transfer", "card") else "cash"
+                dep_account_id = resolve_payment_account(cur, dep_m, t.deposit_account_id if dep_m != "cash" else None)
+                cur.execute("UPDATE pet_service_tickets SET deposit_account_id = ? WHERE id = ?", (dep_account_id, t_id))
                 cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu tiền cọc Spa', ?, ?, 'pet_service_deposit', ?, ?, ?, ?)
-                """, (cb_dep_code, t_dep, batch_req.customer_id, t_id, f"Thu tiền cọc phiếu Spa {t_code} (Đợt {batch_code})", account_id, shift_id))
+                """, (cb_dep_code, t_dep, batch_req.customer_id, t_id, f"Thu tiền cọc phiếu Spa {t_code} (Đợt {batch_code})", dep_account_id, shift_id))
 
             if t.payment_status == "paid":
                 this_cash = max(0.0, t_rem - this_wallet_ded)
                 cash_collected_batch += this_cash
+                rem_m = batch_remainder_method if (t.payment_method == "wallet" and this_cash > 0) else None
+                cur.execute("UPDATE pet_service_tickets SET account_id = ?, remainder_method = ? WHERE id = ?",
+                            (account_id if this_cash > 0 else None, rem_m, t_id))
 
             created_tickets.append({
                 "id": t_id,
@@ -2116,7 +2152,8 @@ def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
                 cur_t = cur.fetchone()
                 if cur_t and cur_t["payment_status"] != "paid" and t.payment_status == "paid":
                     pay_m = t.payment_method or cur_t["payment_method"] or "cash"
-                    process_spa_ticket_payment(cur, t.id, payment_method=pay_m)
+                    process_spa_ticket_payment(cur, t.id, payment_method=pay_m, account_id=getattr(t, 'account_id', None),
+                                               remainder_method=getattr(t, 'remainder_method', None) or "cash")
                 else:
                     updates.append("payment_status = ?")
                     params.append(t.payment_status)
@@ -2137,9 +2174,12 @@ def bulk_update_pet_service_tickets(payload: PetServiceTicketBulkUpdate):
                 updated_count += 1
 
         conn.commit()
+    except HTTPException:
+        # Lỗi nghiệp vụ (400/403/404) phải giữ nguyên mã, không bọc thành 500
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
-        conn.close()
         logger.error(f"Error in bulk_update_pet_service_tickets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -2161,7 +2201,8 @@ def pay_pet_service(ticket_id: int, req: PetServicePayRequest):
             ticket_id,
             payment_method=req.payment_method or "cash",
             account_id=req.account_id,
-            note=req.note
+            note=req.note,
+            remainder_method=req.remainder_method or "cash"
         )
         conn.commit()
         return res

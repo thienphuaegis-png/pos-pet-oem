@@ -13,13 +13,17 @@ async function loadStaffList() {
     if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có nhân viên</td></tr>`; return; }
     tbody.innerHTML = rows.map(r => `
       <tr class="border-t hover:bg-slate-50">
-        <td class="p-2.5 font-semibold">${r.name}</td>
+        <td class="p-2.5 font-semibold">
+          <div>${r.name}</div>
+          ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
+        </td>
         <td class="p-2.5 font-mono">${r.username || '-'}</td>
         <td class="p-2.5">${ROLE_LABEL[r.role] || r.role}</td>
         <td class="p-2.5">${r.phone || '-'}</td>
         <td class="p-2.5 text-right">${r.commission_rate || 0}%</td>
         <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Đã khóa</span>'}</td>
         <td class="p-2.5 text-center">
+          <button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2" title="Gán hoặc đổi Gemini API Key riêng cho nhân viên này">🔑 Gán Key AI</button>
           <button onclick="openEditStaffModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.role}', '${(r.phone||'').replace(/'/g, "\\'")}', ${r.commission_rate || 0}, ${r.is_active})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2">Sửa</button>
           <button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2">Reset MK</button>
           <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="text-rose-600 hover:underline text-[11px] font-bold">${r.is_active ? 'Khóa' : 'Mở khóa'}</button>
@@ -176,7 +180,8 @@ const PERM_LABEL = {
   "reports.view": "Xem Báo Cáo",
   "shifts.approve": "Duyệt Ca Làm Việc",
   "shifts.bypass": "Bán hàng không cần mở ca",
-  "settings.access": "Truy cập Cài Đặt"
+  "settings.access": "Truy cập Cài Đặt",
+  "spa.pick_date": "Chọn ngày xem lịch Spa"
 };
 const MODULE_LABEL = {
   module_hotel: "Khách Sạn Thú Cưng",
@@ -405,3 +410,137 @@ async function togglePermission(role, perm_key, allowed) {
     refreshUserProfile();
   }
 }
+
+// ── Gán Gemini API Key cho nhân viên (BYOK Admin Override) ──
+
+async function openAssignStaffAIModal(staffId, staffName) {
+  const modal = document.getElementById('modal-assign-staff-ai');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+
+  document.getElementById('assign-staff-ai-id').value = staffId;
+  const nameEl = document.getElementById('assign-staff-ai-name');
+  if (nameEl) nameEl.textContent = `Nhân viên: ${staffName}`;
+
+  const keyInput = document.getElementById('assign-staff-ai-key');
+  const modelSelect = document.getElementById('assign-staff-ai-model');
+  const badge = document.getElementById('assign-staff-ai-status-badge');
+  const desc = document.getElementById('assign-staff-ai-status-desc');
+  const testRes = document.getElementById('assign-staff-ai-test-result');
+
+  if (testRes) testRes.classList.add('hidden');
+  if (keyInput) keyInput.value = '';
+
+  try {
+    const res = await fetch(`/api/auth/staff/${staffId}/ai-config`);
+    if (!res.ok) {
+      if (badge && desc) {
+        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700";
+        badge.innerText = "Chưa có thông tin";
+        desc.innerText = "Dán Gemini API Key riêng vào ô bên dưới để gán cho nhân viên này.";
+      }
+      return;
+    }
+    const data = await res.json();
+    if (modelSelect && data.ai_model) modelSelect.value = data.ai_model;
+    if (badge && desc) {
+      if (data.has_ai_key) {
+        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-purple-100 text-purple-800 border border-purple-200";
+        badge.innerText = "🟢 Đã gán Key riêng";
+        desc.innerText = `Key hiện tại: ${data.masked_key} (${data.ai_model})`;
+      } else {
+        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 border border-blue-200";
+        badge.innerText = "🏢 Đang dùng Key chung của tiệm";
+        desc.innerText = "Nhân viên chưa có key riêng, đang dùng quota tài khoản chung của shop.";
+      }
+    }
+  } catch (e) {
+    console.error("Lỗi tải AI config nhân viên:", e);
+  }
+}
+
+function closeAssignStaffAIModal() {
+  const modal = document.getElementById('modal-assign-staff-ai');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+async function testAssignStaffAIKey() {
+  const key = (document.getElementById('assign-staff-ai-key')?.value || '').trim();
+  const model = document.getElementById('assign-staff-ai-model')?.value || 'gemini-2.5-flash';
+  const resultDiv = document.getElementById('assign-staff-ai-test-result');
+  const btn = document.getElementById('btn-test-assign-staff-ai');
+
+  if (!key) {
+    alert("Vui lòng nhập Google Gemini API Key vào ô để kiểm tra!");
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerText = "⏳ Đang thử..."; }
+  if (resultDiv) {
+    resultDiv.className = "p-2 bg-slate-50 border rounded text-slate-700 text-xs";
+    resultDiv.innerText = "Đang kết nối tới Google AI Studio...";
+    resultDiv.classList.remove('hidden');
+  }
+
+  try {
+    const res = await fetch('/api/ai/test-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gemini_api_key: key, gemini_model: model })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (resultDiv) {
+        resultDiv.className = "p-2.5 bg-emerald-50 border border-emerald-200 rounded text-emerald-800 text-xs font-semibold";
+        resultDiv.innerText = `✅ ${data.message || 'API Key hoạt động xuất sắc!'}`;
+      }
+    } else {
+      if (resultDiv) {
+        resultDiv.className = "p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs";
+        resultDiv.innerText = `❌ Lỗi: ${data.detail || 'API Key không hợp lệ hoặc hết hạn'}`;
+      }
+    }
+  } catch (e) {
+    if (resultDiv) {
+      resultDiv.className = "p-2.5 bg-rose-50 border border-rose-200 rounded text-rose-800 text-xs";
+      resultDiv.innerText = `❌ Lỗi mạng: ${e.message}`;
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = "<span>🔍</span> <span>Kiểm Tra Key</span>"; }
+  }
+}
+
+async function saveAssignStaffAIKey() {
+  const staffId = document.getElementById('assign-staff-ai-id')?.value;
+  const key = (document.getElementById('assign-staff-ai-key')?.value || '').trim();
+  const model = document.getElementById('assign-staff-ai-model')?.value || 'gemini-2.5-flash';
+
+  if (!staffId) return;
+
+  try {
+    const res = await fetch(`/api/auth/staff/${staffId}/ai-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_api_key: key, ai_model: model })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(`✅ ${data.message || 'Đã lưu cấu hình AI thành công!'}`);
+      closeAssignStaffAIModal();
+      loadStaffList();
+    } else {
+      alert("❌ Lỗi: " + (data.detail || "Không thể gán Key"));
+    }
+  } catch (e) {
+    alert("❌ Lỗi kết nối: " + e.message);
+  }
+}
+
+window.openAssignStaffAIModal = openAssignStaffAIModal;
+window.closeAssignStaffAIModal = closeAssignStaffAIModal;
+window.testAssignStaffAIKey = testAssignStaffAIKey;
+window.saveAssignStaffAIKey = saveAssignStaffAIKey;

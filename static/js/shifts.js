@@ -204,6 +204,8 @@ function renderShiftCloseModal(summary) {
   if (totalSalesEl) totalSalesEl.textContent = formatMoney(orders.total_sales || 0);
   if (cashSalesEl) cashSalesEl.textContent = formatMoney(cash.cash_sales || 0);
   if (bankSalesEl) bankSalesEl.textContent = formatMoney((cash.bank_sales || 0) + (cash.ewallet_sales || 0));
+  const cardSalesEl = document.getElementById('shift-close-card-sales');
+  if (cardSalesEl) cardSalesEl.textContent = formatMoney(cash.card_sales || 0);
 
   const openCashEl = document.getElementById('shift-close-opening-cash');
   const cashInSalesEl = document.getElementById('shift-close-cash-in-sales');
@@ -425,6 +427,7 @@ function printShiftZReport(summaryData) {
         <div style="display: flex; justify-content: space-between; padding-left: 8px; font-size: 12px; color: #333;">
           <span>• Chuyển khoản:</span><span>${fmt((cash.bank_sales || 0) + (cash.ewallet_sales || 0))}</span>
         </div>
+        ${cash.card_sales ? `<div style="display: flex; justify-content: space-between; padding-left: 8px; font-size: 12px; color: #333;"><span>• Quẹt thẻ:</span><span>${fmt(cash.card_sales)}</span></div>` : ''}
         ${orders.total_debt ? `<div style="display: flex; justify-content: space-between; padding-left: 8px; font-size: 12px; color: #c00;"><span>• Ghi nợ KH:</span><span>${fmt(orders.total_debt)}</span></div>` : ''}
       </div>
 

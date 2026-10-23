@@ -145,3 +145,46 @@ def can_view_cost(user) -> bool:
     if user.get("role") in ("owner", "admin"):
         return True
     return check_permission(user["id"], user.get("role", ""), "inventory.view_cost")
+
+
+# ── Tài khoản nhận tiền dùng chung cho mọi luồng thanh toán ──
+# cash -> két (account_type 'cash'); transfer -> 'bank'/'ewallet'; card -> 'pos_card' (Máy POS thẻ)
+METHOD_ACCOUNT_TYPES = {
+    "cash": ("cash",),
+    "transfer": ("bank", "ewallet"),
+    "bank": ("bank", "ewallet"),
+    "card": ("pos_card",),
+    "wallet": ("bank", "ewallet"),
+}
+
+
+def resolve_payment_account(cur, payment_method, account_id=None):
+    """Trả về account_id hợp lệ cho `payment_method`.
+
+    - Client gửi account_id: kiểm tra tồn tại + đang hoạt động + đúng loại với hình thức
+      (chuyển khoản không được vào két tiền mặt, thẻ phải vào Máy POS thẻ...). Sai -> 400.
+    - Không gửi: tiền mặt -> két mặc định. Chuyển khoản/thẻ -> HTTP 400 (bắt buộc chọn tài khoản),
+      để không ghi nhầm tiền vào tài khoản mặc định.
+    """
+    from fastapi import HTTPException
+    m = (payment_method or "cash").lower()
+    types = METHOD_ACCOUNT_TYPES.get(m, ("cash",))
+    if account_id:
+        cur.execute("SELECT id, account_type, name FROM payment_accounts WHERE id = ? AND is_active = 1", (account_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Tài khoản nhận tiền không tồn tại hoặc đã ngừng hoạt động")
+        if m != "any" and row["account_type"] not in types:
+            label = {"cash": "tiền mặt", "transfer": "chuyển khoản", "bank": "chuyển khoản", "card": "quẹt thẻ", "wallet": "ví điện tử"}.get(m, m)
+            raise HTTPException(status_code=400, detail=f"Tài khoản \"{row['name']}\" không dùng được cho hình thức {label}")
+        return row["id"]
+    if m in ("transfer", "bank", "card", "wallet"):
+        label = {"card": "quẹt thẻ", "wallet": "ví điện tử"}.get(m, "chuyển khoản")
+        raise HTTPException(status_code=400, detail=f"Vui lòng chọn tài khoản nhận tiền cho hình thức {label}")
+    cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'cash' AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+    row = cur.fetchone()
+    if row:
+        return row["id"]
+    cur.execute("SELECT id FROM payment_accounts WHERE is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1")
+    row = cur.fetchone()
+    return row["id"] if row else None

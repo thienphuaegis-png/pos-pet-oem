@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from pydantic import BaseModel
+from typing import Optional
 from database import get_db
 from dependencies import get_current_user, require_role, get_user_effective_permissions, oauth2_scheme, SECRET, ALGO
 
@@ -132,6 +133,56 @@ def change_password(body: ChangePasswordIn, current: dict = Depends(get_current_
     return {"message": "Đổi mật khẩu thành công"}
 
 
+# ── Cấu hình AI cá nhân (Bring Your Own Key - BYOK) ──
+
+class StaffAIConfigIn(BaseModel):
+    ai_api_key: Optional[str] = ""
+    ai_model: Optional[str] = "gemini-2.5-flash"
+
+
+@router.get("/my-ai-config")
+def get_my_ai_config(current: dict = Depends(get_current_user)):
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT ai_api_key, ai_model FROM staff WHERE id=?", (current["id"],))
+    row = cur.fetchone()
+    
+    cur.execute("SELECT value FROM settings WHERE key='gemini_api_key'")
+    shop_key_row = cur.fetchone()
+    shop_has_key = bool(shop_key_row and shop_key_row[0] and shop_key_row[0].strip())
+    db.close()
+
+    key = (row["ai_api_key"] or "").strip() if row else ""
+    model = (row["ai_model"] or "gemini-2.5-flash") if row else "gemini-2.5-flash"
+    masked_key = ""
+    if key:
+        masked_key = key[:4] + "*" * max(0, len(key) - 8) + key[-4:] if len(key) > 8 else "***"
+
+    return {
+        "user_has_key": bool(key),
+        "masked_key": masked_key,
+        "ai_model": model,
+        "shop_has_key": shop_has_key,
+        "active_source": "personal" if bool(key) else ("shop" if shop_has_key else "none")
+    }
+
+
+@router.post("/my-ai-config")
+def update_my_ai_config(body: StaffAIConfigIn, current: dict = Depends(get_current_user)):
+    key = (body.ai_api_key or "").strip()
+    model = (body.ai_model or "gemini-2.5-flash").strip()
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("UPDATE staff SET ai_api_key=?, ai_model=? WHERE id=?", (key, model, current["id"]))
+    db.commit()
+    db.close()
+    return {
+        "message": "Đã cập nhật cấu hình AI cá nhân",
+        "user_has_key": bool(key),
+        "ai_model": model
+    }
+
+
 # ── Staff Management (owner only) ──
 
 class StaffCreate(BaseModel):
@@ -141,6 +192,8 @@ class StaffCreate(BaseModel):
     role: str  # cashier, accountant, warehouse, owner
     phone: str = ""
     commission_rate: float = 0
+    ai_api_key: Optional[str] = None
+    ai_model: Optional[str] = "gemini-2.5-flash"
 
 
 class StaffUpdate(BaseModel):
@@ -149,12 +202,19 @@ class StaffUpdate(BaseModel):
     phone: str = None
     commission_rate: float = None
     is_active: int = None
+    ai_api_key: Optional[str] = None
+    ai_model: Optional[str] = None
 
 
 @router.get("/staff")
 def list_staff(current: dict = Depends(require_role("owner"))):
     db = get_db(); cur = db.cursor()
-    cur.execute("SELECT id, name, username, role, phone, commission_rate, is_active, created_at FROM staff ORDER BY id")
+    cur.execute("""
+        SELECT id, name, username, role, phone, commission_rate, is_active, created_at,
+               (CASE WHEN ai_api_key IS NOT NULL AND TRIM(ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
+               ai_model
+        FROM staff ORDER BY id
+    """)
     rows = [dict(r) for r in cur.fetchall()]
     db.close()
     return rows
@@ -177,8 +237,8 @@ def create_staff(body: StaffCreate, current: dict = Depends(require_role("owner"
     db = get_db(); cur = db.cursor()
     try:
         cur.execute(
-            "INSERT INTO staff (name, username, password_hash, role, phone, commission_rate, is_active, must_change_password) VALUES (?,?,?,?,?,?,1,1)",
-            (body.name, body.username, pwd_ctx.hash(body.password), body.role, body.phone, body.commission_rate)
+            "INSERT INTO staff (name, username, password_hash, role, phone, commission_rate, is_active, must_change_password, ai_api_key, ai_model) VALUES (?,?,?,?,?,?,1,1,?,?)",
+            (body.name, body.username, pwd_ctx.hash(body.password), body.role, body.phone, body.commission_rate, (body.ai_api_key or "").strip() or None, body.ai_model or "gemini-2.5-flash")
         )
         db.commit()
         new_id = cur.lastrowid
@@ -198,6 +258,8 @@ def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(requi
     if body.phone is not None:           fields.append("phone=?");           vals.append(body.phone)
     if body.commission_rate is not None: fields.append("commission_rate=?"); vals.append(body.commission_rate)
     if body.is_active is not None:       fields.append("is_active=?");       vals.append(body.is_active)
+    if body.ai_api_key is not None:      fields.append("ai_api_key=?");      vals.append(body.ai_api_key.strip() or None)
+    if body.ai_model is not None:        fields.append("ai_model=?");        vals.append(body.ai_model.strip() or "gemini-2.5-flash")
     if body.is_active == 0:              fields.append("token_version=token_version+1")
     if not fields:
         db.close(); raise HTTPException(400, "Không có trường nào để cập nhật")
@@ -205,6 +267,49 @@ def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(requi
     cur.execute(f"UPDATE staff SET {', '.join(fields)} WHERE id=?", vals)
     db.commit(); db.close()
     return {"message": "Cập nhật nhân viên thành công"}
+
+
+class StaffAssignAIKeyIn(BaseModel):
+    ai_api_key: Optional[str] = ""
+    ai_model: Optional[str] = "gemini-2.5-flash"
+
+
+@router.get("/staff/{staff_id}/ai-config")
+def get_staff_ai_config(staff_id: int, current: dict = Depends(require_role("owner"))):
+    db = get_db(); cur = db.cursor()
+    cur.execute("SELECT id, name, ai_api_key, ai_model FROM staff WHERE id=?", (staff_id,))
+    staff = cur.fetchone()
+    db.close()
+    if not staff:
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+    key = (staff["ai_api_key"] or "").strip()
+    masked = key[:4] + "*" * max(0, len(key) - 8) + key[-4:] if len(key) > 8 else ("***" if key else "")
+    return {
+        "staff_id": staff_id,
+        "staff_name": staff["name"],
+        "has_ai_key": bool(key),
+        "masked_key": masked,
+        "ai_model": staff["ai_model"] or "gemini-2.5-flash"
+    }
+
+
+@router.post("/staff/{staff_id}/ai-config")
+def assign_staff_ai_config(staff_id: int, body: StaffAssignAIKeyIn, current: dict = Depends(require_role("owner"))):
+    key = (body.ai_api_key or "").strip()
+    model = (body.ai_model or "gemini-2.5-flash").strip()
+    db = get_db(); cur = db.cursor()
+    cur.execute("SELECT id, name FROM staff WHERE id=?", (staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        db.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+    cur.execute("UPDATE staff SET ai_api_key=?, ai_model=? WHERE id=?", (key or None, model, staff_id))
+    db.commit(); db.close()
+    return {
+        "message": f"Đã gán cấu hình AI cho nhân viên {staff['name']}",
+        "has_ai_key": bool(key),
+        "ai_model": model
+    }
 
 
 @router.post("/staff/{staff_id}/reset-password")

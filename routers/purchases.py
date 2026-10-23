@@ -5,9 +5,9 @@ from typing import Optional, List
 import datetime
 import time
 from database import get_db, archive_code, is_code_archived
-from schemas import PurchaseCreate
+from schemas import PurchaseCreate, PurchaseRequestCreate
 from logger_config import get_module_logger
-from dependencies import require_role, require_permission
+from dependencies import require_role, require_permission, get_current_user
 from routers.cashbook import generate_cashbook_code
 
 logger = get_module_logger("purchases")
@@ -445,7 +445,23 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
     try:
         warehouse_id = req.warehouse_id or 1
         subtotal_amount = sum(item.quantity * item.cost_price for item in req.items)
-        vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2) if req.vat_rate > 0 else 0.0
+        discount_factor = max(0.0, 1.0 - (req.discount / subtotal_amount)) if subtotal_amount > 0 else 1.0
+        
+        has_item_vat = any(item.vat_rate is not None and item.vat_rate > 0 for item in req.items)
+        total_vat_amount = 0.0
+        item_vat_list = []
+        for item in req.items:
+            item_vat_rate = item.vat_rate if item.vat_rate is not None else (req.vat_rate or 0.0)
+            item_sub = round(item.quantity * item.cost_price, 2)
+            item_vat_amt = round(item_sub * discount_factor * (item_vat_rate / 100.0), 2)
+            total_vat_amount += item_vat_amt
+            item_vat_list.append((item_vat_rate, item_vat_amt))
+
+        if not has_item_vat and req.vat_rate > 0:
+            total_vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2)
+            item_vat_list = [(req.vat_rate, round(round(item.quantity * item.cost_price, 2) * discount_factor * (req.vat_rate / 100.0), 2)) for item in req.items]
+
+        vat_amount = round(total_vat_amount, 2)
         total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
         
@@ -477,18 +493,19 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
         ))
         purchase_id = cur.lastrowid
 
-        for item in req.items:
+        for idx, item in enumerate(req.items):
             subtotal = round(item.quantity * item.cost_price, 2)
             prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else None
+            it_vat_r, it_vat_a = item_vat_list[idx]
             cur.execute('''
             INSERT INTO purchase_items (
-                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity, vat_rate, vat_amount
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 purchase_id, item.item_type, prod_id_val, item.ingredient_id,
                 item.item_name, item.unit, max(float(item.unit_ratio or 1), 0.000001),
-                item.quantity, item.cost_price, subtotal, item.quantity
+                item.quantity, item.cost_price, subtotal, item.quantity, it_vat_r, it_vat_a
             ))
 
         if req.paid_amount > 0:
@@ -527,7 +544,23 @@ def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permiss
         purchase_id = p["id"]
         warehouse_id = req.warehouse_id or 1
         subtotal_amount = sum(item.quantity * item.cost_price for item in req.items)
-        vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2) if req.vat_rate > 0 else 0.0
+        discount_factor = max(0.0, 1.0 - (req.discount / subtotal_amount)) if subtotal_amount > 0 else 1.0
+        
+        has_item_vat = any(item.vat_rate is not None and item.vat_rate > 0 for item in req.items)
+        total_vat_amount = 0.0
+        item_vat_list = []
+        for item in req.items:
+            item_vat_rate = item.vat_rate if item.vat_rate is not None else (req.vat_rate or 0.0)
+            item_sub = round(item.quantity * item.cost_price, 2)
+            item_vat_amt = round(item_sub * discount_factor * (item_vat_rate / 100.0), 2)
+            total_vat_amount += item_vat_amt
+            item_vat_list.append((item_vat_rate, item_vat_amt))
+
+        if not has_item_vat and req.vat_rate > 0:
+            total_vat_amount = round((subtotal_amount - req.discount) * (req.vat_rate / 100.0), 2)
+            item_vat_list = [(req.vat_rate, round(round(item.quantity * item.cost_price, 2) * discount_factor * (req.vat_rate / 100.0), 2)) for item in req.items]
+
+        vat_amount = round(total_vat_amount, 2)
         total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
 
@@ -549,18 +582,19 @@ def update_purchase(code: str, req: PurchaseCreate, user=Depends(require_permiss
 
         cur.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
 
-        for item in req.items:
+        for idx, item in enumerate(req.items):
             subtotal = round(item.quantity * item.cost_price, 2)
             prod_id_val = item.product_id if item.item_type == 'product' and item.product_id else None
+            it_vat_r, it_vat_a = item_vat_list[idx]
             cur.execute('''
             INSERT INTO purchase_items (
-                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity
+                purchase_id, item_type, product_id, ingredient_id, item_name, unit, unit_ratio, quantity, cost_price, subtotal, actual_quantity, vat_rate, vat_amount
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 purchase_id, item.item_type, prod_id_val, item.ingredient_id,
                 item.item_name, item.unit, max(float(item.unit_ratio or 1), 0.000001),
-                item.quantity, item.cost_price, subtotal, item.quantity
+                item.quantity, item.cost_price, subtotal, item.quantity, it_vat_r, it_vat_a
             ))
 
         conn.commit()
@@ -604,6 +638,21 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
             actual_map = {item.item_id: item.actual_quantity for item in req.items}
 
         new_subtotal = 0.0
+        for item in items:
+            item_id = item["id"]
+            qty = actual_map.get(item_id, item["quantity"])
+            if qty < 0:
+                qty = 0
+            new_subtotal += round(qty * item["cost_price"], 2)
+
+        discount = p["discount"] or 0
+        shipping_fee = p["shipping_fee"] or 0
+        other_fee = p["other_fee"] or 0
+        header_vat_rate = p["vat_rate"] or 0
+        discount_factor = max(0.0, 1.0 - (discount / new_subtotal)) if new_subtotal > 0 else 1.0
+
+        has_item_vat = any("vat_rate" in item and item["vat_rate"] is not None and item["vat_rate"] > 0 for item in items)
+        total_vat_amount = 0.0
 
         for item in items:
             item_id = item["id"]
@@ -612,16 +661,22 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
                 qty = 0
             cost = item["cost_price"]
             subtotal = round(qty * cost, 2)
-            new_subtotal += subtotal
 
-            cur.execute("UPDATE purchase_items SET actual_quantity = ?, subtotal = ? WHERE id = ?", (qty, subtotal, item_id))
+            item_vat_rate = item["vat_rate"] if ("vat_rate" in item and item["vat_rate"] is not None) else header_vat_rate
+            item_vat_amount = round(subtotal * discount_factor * (item_vat_rate / 100.0), 2)
+            total_vat_amount += item_vat_amount
+
+            cur.execute("UPDATE purchase_items SET actual_quantity = ?, subtotal = ?, vat_rate = ?, vat_amount = ? WHERE id = ?", (qty, subtotal, item_vat_rate, item_vat_amount, item_id))
+
+            # Phương án B: Giá vốn kho tính gộp thuế: cost_with_vat = cost * (1 + vat_rate / 100)
+            cost_with_vat = cost * (1.0 + (item_vat_rate / 100.0))
 
             # Quy doi don vi: qty/cost dang theo don vi nhap (vd Thung), ton kho & gia von luu theo don vi co ban (Chai)
             ratio = float(item["unit_ratio"] or 1) if "unit_ratio" in item.keys() else 1.0
             if ratio <= 0:
                 ratio = 1.0
             base_qty = round(qty * ratio, 4)
-            base_cost = round(cost / ratio, 4)
+            base_cost = round(cost_with_vat / ratio, 4)
             unit_note = f" ({qty:g} {item['unit']} x {ratio:g})" if ratio != 1 else ""
 
             item_type = item["item_type"]
@@ -673,11 +728,10 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
                 ''', (prod_id, warehouse_id, base_qty, bal_p_after, p["supplier_id"], f"Nhận hàng thực tế phiếu {code}{unit_note}"))
 
         # Tính toán lại tổng tiền dựa trên số lượng thực nhận
-        vat_rate = p["vat_rate"] or 0
-        discount = p["discount"] or 0
-        shipping_fee = p["shipping_fee"] or 0
-        other_fee = p["other_fee"] or 0
-        vat_amount = round((new_subtotal - discount) * (vat_rate / 100.0), 2) if vat_rate > 0 else 0.0
+        if not has_item_vat and header_vat_rate > 0:
+            total_vat_amount = round((new_subtotal - discount) * (header_vat_rate / 100.0), 2)
+
+        vat_amount = round(total_vat_amount, 2)
         final_total = round(max(0.0, new_subtotal - discount + shipping_fee + other_fee + vat_amount), 2)
         paid_amount = p["paid_amount"] or 0
         final_debt = round(max(0.0, final_total - paid_amount), 2)
@@ -859,9 +913,11 @@ def print_purchase_checklist(code: str):
     return HTMLResponse(content=html)
 
 @router.delete("/api/purchases/{code}")
-def delete_purchase(code: str, user=Depends(require_role("owner"))):
+def delete_purchase(code: str, user=Depends(get_current_user)):
     """
     Xóa/Hủy phiếu nhập hàng: Hoàn lại tồn kho, công nợ NCC và xóa phiếu.
+    Đối với hóa đơn nháp (draft): Nhân viên được phép xóa.
+    Đối với phiếu đã nhận/chờ nhận: Yêu cầu quyền owner/admin.
     """
     conn = get_db()
     cur = conn.cursor()
@@ -870,6 +926,9 @@ def delete_purchase(code: str, user=Depends(require_role("owner"))):
         p = cur.fetchone()
         if not p:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+
+        if p["status"] != 'draft' and user.get("role") not in ("owner", "admin"):
+            raise HTTPException(status_code=403, detail="Chỉ Quản trị viên mới được quyền xóa phiếu nhập đã duyệt hoặc đã nhận hàng")
 
         cur.execute("SELECT * FROM purchase_items WHERE purchase_id = ?", (p["id"],))
         items = cur.fetchall()
@@ -918,6 +977,10 @@ def delete_purchase(code: str, user=Depends(require_role("owner"))):
         cur.execute("DELETE FROM purchases WHERE id = ?", (p["id"],))
 
         conn.commit()
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
     except Exception as e:
         conn.rollback()
         conn.close()
@@ -1086,4 +1149,281 @@ def pay_purchase_debt(code: str, req: PurchasePayRequest, user=Depends(require_p
     finally:
         conn.close()
 
-# San xuat (BOM Execution)
+# --- Phân hệ Yêu Cầu Nhập Hàng (Purchase Requisition - Masking NCC) ---
+
+@router.get("/api/purchase-requests/catalog-masked")
+def get_masked_catalog_for_requisition():
+    """Danh mục hàng hóa dành cho nhân viên cửa hàng/spa: ẩn danh hoàn toàn tên, SĐT, giá vốn NCC."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT p.id, p.code, p.name, p.unit, p.stock, p.category, si.supplier_id
+            FROM products p
+            LEFT JOIN supplier_items si ON p.id = si.product_id
+            WHERE p.is_active = 1 AND p.type = 'product'
+            ORDER BY p.name ASC
+        """)
+        rows = cur.fetchall()
+
+        supplier_map = {}
+        counter = 1
+        catalog = []
+        for r in rows:
+            sid = r["supplier_id"]
+            if sid:
+                if sid not in supplier_map:
+                    supplier_map[sid] = f"NGUON-{counter:02d}"
+                    counter += 1
+                group_label = supplier_map[sid]
+            else:
+                group_label = "NGUON-CHUNG"
+
+            catalog.append({
+                "id": r["id"],
+                "code": r["code"],
+                "name": r["name"],
+                "unit": r["unit"] or "cái",
+                "stock": float(r["stock"] or 0),
+                "category": r["category"] or "Khác",
+                "source_group": group_label
+                # Tuyệt đối không trả: cost_price, supplier_name, supplier_id, supplier_phone
+            })
+        return catalog
+    finally:
+        conn.close()
+
+
+@router.post("/api/purchase-requests")
+def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(get_current_user)):
+    """Gửi phiếu yêu cầu nhập hàng từ cửa hàng hoặc spa."""
+    if not req.items or len(req.items) == 0:
+        raise HTTPException(status_code=400, detail="Phiếu yêu cầu phải có ít nhất 1 sản phẩm")
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Nhân viên"
+        base_code = f"YCNH{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        code = base_code
+        seq = 1
+        while True:
+            cur.execute("SELECT 1 FROM purchase_requests WHERE code = ?", (code,))
+            if not cur.fetchone():
+                break
+            code = f"{base_code}_{seq}"
+            seq += 1
+
+        cur.execute("""
+            INSERT INTO purchase_requests (code, department, priority, status, note, created_by)
+            VALUES (?, ?, ?, 'pending', ?, ?)
+        """, (code, req.department, req.priority, req.note or "", user_name))
+        request_id = cur.lastrowid
+
+        for it in req.items:
+            cur.execute("""
+                INSERT INTO purchase_request_items (request_id, product_id, quantity, note)
+                VALUES (?, ?, ?, ?)
+            """, (request_id, it.product_id, it.quantity, it.note or ""))
+
+        # Tự động tạo nhắc việc cho Thủ kho (role = 'warehouse' hoặc bất kỳ thủ kho active)
+        cur.execute("SELECT id FROM staff WHERE role = 'warehouse' AND is_active = 1 LIMIT 1")
+        wh_row = cur.fetchone()
+        wh_staff_id = wh_row[0] if wh_row else None
+
+        cur.execute("""
+            INSERT INTO staff_reminders (staff_id, title, description, priority, is_done)
+            VALUES (?, ?, ?, ?, 0)
+        """, (
+            wh_staff_id,
+            f"🔔 Yêu cầu nhập hàng mới ({code}): {len(req.items)} món từ bộ phận {req.department.upper()}",
+            f"Nhân viên {user_name} vừa tạo phiếu yêu cầu {code}. Bấm 1-chạm để chuyển thành đơn PO.",
+            req.priority
+        ))
+
+        conn.commit()
+        return {
+            "success": True,
+            "id": request_id,
+            "code": code,
+            "item_count": len(req.items),
+            "message": f"Đã gửi phiếu yêu cầu nhập hàng {code} thành công!"
+        }
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Lỗi tạo phiếu yêu cầu: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.get("/api/purchase-requests")
+def list_purchase_requests(status: Optional[str] = None):
+    """Lấy danh sách các phiếu yêu cầu nhập hàng."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        sql = """
+            SELECT pr.id, pr.code, pr.department, pr.priority, pr.status, pr.converted_purchase_code,
+                   pr.note, pr.created_by, pr.created_at,
+                   COUNT(pri.id) as item_count, COALESCE(SUM(pri.quantity), 0) as total_qty
+            FROM purchase_requests pr
+            LEFT JOIN purchase_request_items pri ON pr.id = pri.request_id
+        """
+        params = []
+        if status:
+            sql += " WHERE pr.status = ?"
+            params.append(status)
+        sql += " GROUP BY pr.id ORDER BY pr.id DESC"
+
+        cur.execute(sql, tuple(params))
+        results = []
+        for r in cur.fetchall():
+            results.append({
+                "id": r["id"],
+                "code": r["code"],
+                "department": r["department"],
+                "priority": r["priority"],
+                "status": r["status"],
+                "converted_purchase_code": r["converted_purchase_code"],
+                "note": r["note"],
+                "created_by": r["created_by"],
+                "created_at": r["created_at"],
+                "item_count": r["item_count"],
+                "total_qty": float(r["total_qty"] or 0)
+            })
+        return results
+    finally:
+        conn.close()
+
+
+@router.get("/api/purchase-requests/{request_id}/items")
+def get_purchase_request_items(request_id: int):
+    """Lấy danh sách các sản phẩm trong phiếu yêu cầu (ẩn danh thông tin NCC)."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT pri.id, pri.product_id, pri.quantity, pri.note,
+                   p.code as product_code, p.name as product_name, p.unit
+            FROM purchase_request_items pri
+            JOIN products p ON pri.product_id = p.id
+            WHERE pri.request_id = ?
+        """, (request_id,))
+        rows = cur.fetchall()
+        return [
+            {
+                "id": r["id"],
+                "product_id": r["product_id"],
+                "product_code": r["product_code"],
+                "product_name": r["product_name"],
+                "unit": r["unit"] or "cái",
+                "quantity": float(r["quantity"] or 0),
+                "note": r["note"] or ""
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+
+
+@router.post("/api/purchase-requests/{request_id}/convert-to-po")
+def convert_request_to_po(request_id: int, user: dict = Depends(require_permission("purchases.manage"))):
+    """Thủ kho 1-chạm chuyển phiếu yêu cầu thành đơn đặt hàng NCC (PO) chính thức dạng draft."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchase_requests WHERE id = ?", (request_id,))
+        pr = cur.fetchone()
+        if not pr:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu yêu cầu")
+        if pr["status"] == "converted":
+            raise HTTPException(status_code=400, detail=f"Phiếu yêu cầu đã được chuyển đổi sang PO: {pr['converted_purchase_code']}")
+
+        cur.execute("""
+            SELECT pri.product_id, pri.quantity, p.name as product_name, p.unit, p.cost_price, si.supplier_id
+            FROM purchase_request_items pri
+            JOIN products p ON pri.product_id = p.id
+            LEFT JOIN supplier_items si ON p.id = si.product_id
+            WHERE pri.request_id = ?
+        """, (request_id,))
+        items = cur.fetchall()
+        if not items:
+            raise HTTPException(status_code=400, detail="Phiếu yêu cầu không có mặt hàng nào")
+
+        supplier_id = None
+        for it in items:
+            if it["supplier_id"]:
+                supplier_id = it["supplier_id"]
+                break
+        if not supplier_id:
+            cur.execute("SELECT id FROM contacts WHERE type = 'supplier' ORDER BY id ASC LIMIT 1")
+            c_row = cur.fetchone()
+            supplier_id = c_row[0] if c_row else None
+
+        if not supplier_id:
+            raise HTTPException(status_code=400, detail="Chưa có Nhà cung cấp nào trong hệ thống")
+
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Thủ kho"
+        base_code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+        code = base_code
+        seq = 1
+        while True:
+            cur.execute("SELECT 1 FROM purchases WHERE code = ?", (code,))
+            if not cur.fetchone():
+                break
+            code = f"{base_code}_{seq}"
+            seq += 1
+
+        subtotal = sum(float(it["quantity"]) * float(it["cost_price"] or 0) for it in items)
+        subtotal = round(subtotal, 2)
+
+        cur.execute("""
+            INSERT INTO purchases (
+                code, supplier_id, warehouse_id, subtotal_amount, discount,
+                shipping_fee, other_fee, vat_rate, vat_amount, total_amount,
+                paid_amount, debt_amount, status, fund_source, note, created_by
+            ) VALUES (?, ?, 1, ?, 0, 0, 0, 0, 0, ?, 0, ?, 'draft', 'PERSONAL', ?, ?)
+        """, (
+            code, supplier_id, subtotal, subtotal, subtotal,
+            f"Chuyển đổi từ Phiếu Yêu Cầu {pr['code']} ({pr['department'].upper()})", user_name
+        ))
+        po_id = cur.lastrowid
+
+        for it in items:
+            cost = float(it["cost_price"] or 0)
+            qty = float(it["quantity"])
+            item_sub = round(qty * cost, 2)
+            cur.execute("""
+                INSERT INTO purchase_items (
+                    purchase_id, item_type, product_id, item_name, unit, unit_ratio,
+                    quantity, cost_price, subtotal, actual_quantity, vat_rate, vat_amount
+                ) VALUES (?, 'product', ?, ?, ?, 1.0, ?, ?, ?, ?, 0, 0)
+            """, (
+                po_id, it["product_id"], it["product_name"], it["unit"] or "cái",
+                qty, cost, item_sub, qty
+            ))
+
+        cur.execute("""
+            UPDATE purchase_requests
+            SET status = 'converted', converted_purchase_code = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (code, request_id))
+
+        conn.commit()
+        return {
+            "success": True,
+            "purchase_code": code,
+            "purchase_id": po_id,
+            "message": f"Đã chuyển đổi thành công Phiếu yêu cầu {pr['code']} sang Đơn nhập hàng {code}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Lỗi chuyển đổi yêu cầu sang PO: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+

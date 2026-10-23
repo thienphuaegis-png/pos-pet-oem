@@ -64,7 +64,7 @@ def test_out_of_stock_query():
     cur = conn.cursor()
     cur.execute("""
     INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, is_active)
-    VALUES ('TEST-OOS-01', 'Hạt Test Hết Hàng', 'product', 50000, 70000, -1, 'gói', 1)
+    VALUES ('TEST-OOS-01', 'Hạt Test Hết Hàng', 'product', 50000, 70000, -999999, 'gói', 1)
     """)
     conn.commit()
     conn.close()

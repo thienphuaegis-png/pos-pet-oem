@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, List
 from database import get_db
-from dependencies import require_role, require_permission, get_current_user
+from dependencies import require_role, require_permission, get_current_user, resolve_payment_account
 from routers.cashbook import generate_cashbook_code
 
 router = APIRouter(prefix="/api/topup", tags=["topup"])
@@ -212,23 +212,8 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
             }
             method_label = method_labels.get(req.payment_method, req.payment_method or "Tiền mặt")
 
-            acc_id = req.account_id
-            if acc_id:
-                cur.execute("SELECT id FROM payment_accounts WHERE id = ? AND is_active = 1", (acc_id,))
-                if not cur.fetchone():
-                    acc_id = None
-
-            if not acc_id:
-                if req.payment_method in ("bank", "transfer", "card", "wallet"):
-                    cur.execute("SELECT id FROM payment_accounts WHERE account_type = 'bank' AND is_active = 1 LIMIT 1")
-                    row_acc = cur.fetchone()
-                    if not row_acc:
-                        cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                        row_acc = cur.fetchone()
-                else:
-                    cur.execute("SELECT id FROM payment_accounts WHERE is_default = 1 AND is_active = 1 LIMIT 1")
-                    row_acc = cur.fetchone()
-                acc_id = row_acc[0] if row_acc else None
+            # Chuyển khoản/thẻ: bắt buộc tài khoản đúng loại; tiền mặt: két. Không tự rơi vào tài khoản mặc định.
+            acc_id = resolve_payment_account(cur, req.payment_method or "cash", req.account_id)
 
             cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)

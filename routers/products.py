@@ -474,9 +474,10 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
     try:
         cat = p.category or "Khác"
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        min_stock = float(p.min_stock) if p.min_stock is not None else 5.0
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -522,12 +523,13 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
 
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        min_stock = float(p.min_stock) if p.min_stock is not None else (float(existing["min_stock"]) if "min_stock" in existing.keys() and existing["min_stock"] is not None else 5.0)
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
-                updated_by = ?, updated_at = ?
+                updated_by = ?, updated_at = ?, min_stock = ?
             WHERE id = ?
-        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, now_vn, product_id))
+        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, now_vn, min_stock, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))

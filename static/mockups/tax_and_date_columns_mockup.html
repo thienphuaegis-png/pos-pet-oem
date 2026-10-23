@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Mockup: Thêm Cột Ngày Tạo & Logic Đa Thuế Suất Theo Từng Sản Phẩm</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      color: #1e293b;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    h2 {
+      font-size: 15px;
+      margin-top: 0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-old { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .badge-new { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-oem { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    td {
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    .highlight-red {
+      background: #fff1f2;
+      border: 1px dashed #f43f5e;
+      color: #e11d48;
+      font-weight: 600;
+    }
+    .highlight-green {
+      background: #f0fdf4;
+      border: 1px solid #22c55e;
+      color: #15803d;
+      font-weight: bold;
+    }
+    .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .progress-bar-bg {
+      background: #e2e8f0;
+      height: 6px;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .progress-bar-fill {
+      background: #f59e0b;
+      height: 100%;
+    }
+    .note-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 10px 12px;
+      border-radius: 0 6px 6px 0;
+      font-size: 12px;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PHẦN 1: SO SÁNH GIAO DIỆN BẢNG DANH SÁCH -->
+  <div class="card">
+    <h2>
+      <span>1. So Sánh Bố Cục Bảng: Nhập Hàng & Gia Công OEM</span>
+      <span class="badge badge-oem">Cột Ngày Tạo Đơn</span>
+    </h2>
+
+    <div class="grid-2">
+      <!-- HIỆN TẠI -->
+      <div>
+        <div style="font-weight: 700; color: #dc2626; margin-bottom: 6px;">❌ HIỆN TẠI (6 Cột - Thiếu ngày tạo):</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Mã Đơn</th>
+              <th>Đối Tác & Kho</th>
+              <th class="text-right">Tổng Tiền</th>
+              <th class="text-right">Đã Thanh Toán</th>
+              <th class="text-center">Trạng Thái</th>
+              <th class="text-center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-mono" style="color: #c2410c; font-weight: bold;">OEM-20261015-001</td>
+              <td>
+                <div style="font-weight: bold;">Lucky Star</div>
+                <div style="font-size: 10px; color: #64748b;">📦 Kho Lucky Star</div>
+              </td>
+              <td class="text-right font-mono" style="font-weight: bold;">94.183.200 đ</td>
+              <td class="text-right">
+                <div style="font-size: 11px;">Cọc: 49.377.600 đ (52%)</div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 52%;"></div></div>
+              </td>
+              <td class="text-center"><span class="badge" style="background:#fef3c7; color:#92400e;">Đang SX</span></td>
+              <td class="text-center"><button style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:11px;">Nhận hàng</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="highlight-red" style="padding: 6px 10px; margin-top: 6px; border-radius: 6px; font-size: 11px;">
+          ⚠️ Không biết đơn tạo lúc nào, muốn xem phải bấm mở modal chi tiết!
+        </div>
+      </div>
+
+      <!-- ĐỀ XUẤT -->
+      <div>
+        <div style="font-weight: 700; color: #16a34a; margin-bottom: 6px;">✅ ĐỀ XUẤT (7 Cột - Đã chèn Ngày Tạo):</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Mã Đơn</th>
+              <th class="highlight-green" style="background: #dcfce7; color: #15803d;">Ngày Tạo</th>
+              <th>Đối Tác & Kho</th>
+              <th class="text-right">Tổng Tiền</th>
+              <th class="text-right">Đã Thanh Toán</th>
+              <th class="text-center">Trạng Thái</th>
+              <th class="text-center">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-mono" style="color: #c2410c; font-weight: bold;">OEM-20261015-001</td>
+              <!-- CỘT MỚI -->
+              <td class="highlight-green font-mono" style="font-size: 11px;">
+                <div>15/10/2026</div>
+                <div style="font-size: 10px; color: #166534;">14:35:20</div>
+              </td>
+              <td>
+                <div style="font-weight: bold;">Lucky Star</div>
+                <div style="font-size: 10px; color: #64748b;">📦 Kho Lucky Star</div>
+              </td>
+              <td class="text-right font-mono" style="font-weight: bold;">94.183.200 đ</td>
+              <td class="text-right">
+                <div style="font-size: 11px;">Cọc: 49.377.600 đ (52%)</div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 52%;"></div></div>
+              </td>
+              <td class="text-center"><span class="badge" style="background:#fef3c7; color:#92400e;">Đang SX</span></td>
+              <td class="text-center"><button style="background:#f59e0b; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; font-size:11px;">Nhận hàng</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="highlight-green" style="padding: 6px 10px; margin-top: 6px; border-radius: 6px; font-size: 11px;">
+          ✨ Cột "Ngày Tạo" lấy từ <code>created_at</code> có sẵn trong DB, format VN chuẩn (<code>dd/mm/yyyy hh:mm</code>).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHẦN 2: LOGIC TÍNH THUẾ THEO TỪNG SẢN PHẨM (MULTI-VAT) -->
+  <div class="card">
+    <h2>
+      <span>2. Logic Tính Thuế Theo Từng Sản Phẩm (Đa Thuế Suất Trong 1 Đơn)</span>
+      <span class="badge badge-new">Chuẩn Kế Toán / Hóa Đơn Điện Tử</span>
+    </h2>
+
+    <div class="note-box">
+      <strong>Vấn đề hiện tại:</strong> Cả đơn hàng hiện áp chung 1 con số <code>vat_rate</code> / <code>vat_percent</code> duy nhất (ví dụ 8% cho cả đơn).<br>
+      <strong>Thực tế ngành Pet Care:</strong> 
+      • Thuốc thú y / Vắc xin: <strong>5%</strong>.<br>
+      • Nước lau sàn / Hóa mỹ phẩm giảm thuế: <strong>8%</strong>.<br>
+      • Dịch vụ Spa / Grooming / Phụ kiện: <strong>10%</strong>.<br>
+      • Con giống / Sản phẩm nông nghiệp tươi sống: <strong>0%</strong> (hoặc không chịu thuế).
+    </div>
+
+    <div style="margin-top: 14px; font-weight: 700; color: #1e293b;">Ví dụ: Đơn hàng gồm 3 sản phẩm có 3 mức thuế khác nhau:</div>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>STT</th>
+          <th>Tên Sản Phẩm / Dịch Vụ</th>
+          <th class="text-right">Đơn Giá</th>
+          <th class="text-right">SL</th>
+          <th class="text-right">Tiền Hàng (Chưa VAT)</th>
+          <th class="text-center highlight-green" style="background: #e0f2fe; color: #0284c7;">Thuế Suất VAT</th>
+          <th class="text-right highlight-green" style="background: #f0fdf4; color: #15803d;">Tiền Thuế VAT</th>
+          <th class="text-right">Thành Tiền (Có VAT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-center font-mono">1</td>
+          <td><strong>Vắc xin phòng bệnh 5 bệnh chó</strong> (Thuốc thú y)</td>
+          <td class="text-right font-mono">150.000 đ</td>
+          <td class="text-right font-mono">2</td>
+          <td class="text-right font-mono">300.000 đ</td>
+          <td class="text-center font-mono font-bold" style="color: #0284c7;">5%</td>
+          <td class="text-right font-mono font-bold" style="color: #16a34a;">15.000 đ</td>
+          <td class="text-right font-mono font-bold">315.000 đ</td>
+        </tr>
+        <tr>
+          <td class="text-center font-mono">2</td>
+          <td><strong>Nước Lau Sàn Thú Cưng 1L</strong> (Hàng hóa OEM)</td>
+          <td class="text-right font-mono">100.000 đ</td>
+          <td class="text-right font-mono">5</td>
+          <td class="text-right font-mono">500.000 đ</td>
+          <td class="text-center font-mono font-bold" style="color: #0284c7;">8%</td>
+          <td class="text-right font-mono font-bold" style="color: #16a34a;">40.000 đ</td>
+          <td class="text-right font-mono font-bold">540.000 đ</td>
+        </tr>
+        <tr>
+          <td class="text-center font-mono">3</td>
+          <td><strong>Combo Cắt Tỉa Lông & Tắm Spa Toàn Diện</strong> (Dịch vụ)</td>
+          <td class="text-right font-mono">250.000 đ</td>
+          <td class="text-right font-mono">1</td>
+          <td class="text-right font-mono">250.000 đ</td>
+          <td class="text-center font-mono font-bold" style="color: #0284c7;">10%</td>
+          <td class="text-right font-mono font-bold" style="color: #16a34a;">25.000 đ</td>
+          <td class="text-right font-mono font-bold">275.000 đ</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background: #f8fafc; font-weight: bold;">
+          <td colspan="4" class="text-right" style="padding: 10px;">TỔNG CỘNG TIỀN HÀNG (CHƯA VAT):</td>
+          <td class="text-right font-mono" style="color: #334155; font-size: 13px;">1.050.000 đ</td>
+          <td class="text-center font-mono" style="color: #64748b;">(Đa mức)</td>
+          <td class="text-right font-mono" style="color: #16a34a; font-size: 13px;">+ 80.000 đ</td>
+          <td class="text-right font-mono" style="color: #b45309; font-size: 14px;">1.130.000 đ</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- BẢNG KÊ NHÓM THUẾ -->
+    <div style="margin-top: 14px; background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+      <div style="font-weight: 700; margin-bottom: 6px; font-size: 12px; color: #475569;">📊 BẢNG TỔNG HỢP THEO MỨC THUẾ (In trên Hóa đơn & Báo cáo thuế):</div>
+      <div style="display: flex; gap: 20px; font-size: 12px;">
+        <div>• Nhóm <strong>5%</strong>: Tiền hàng: <span class="font-mono">300.000 đ</span> ➔ VAT: <span class="font-mono text-emerald-600 font-bold">15.000 đ</span></div>
+        <div>• Nhóm <strong>8%</strong>: Tiền hàng: <span class="font-mono">500.000 đ</span> ➔ VAT: <span class="font-mono text-emerald-600 font-bold">40.000 đ</span></div>
+        <div>• Nhóm <strong>10%</strong>: Tiền hàng: <span class="font-mono">250.000 đ</span> ➔ VAT: <span class="font-mono text-emerald-600 font-bold">25.000 đ</span></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

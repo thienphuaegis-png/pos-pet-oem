@@ -62,6 +62,7 @@ def _calc_shift_summary(cur, shift_id: int):
             COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as cash_sales,
             COALESCE(SUM(CASE WHEN pa.account_type = 'bank' AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as bank_sales,
             COALESCE(SUM(CASE WHEN pa.account_type = 'ewallet' AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as ewallet_sales,
+            COALESCE(SUM(CASE WHEN pa.account_type = 'pos_card' AND cb.type IN ('in','THU') AND cb.ref_type = 'order' THEN cb.amount ELSE 0 END), 0) as card_sales,
             COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('in','THU') AND (cb.ref_type != 'order' OR cb.ref_type IS NULL) THEN cb.amount ELSE 0 END), 0) as other_cash_in,
             COALESCE(SUM(CASE WHEN (pa.account_type = 'cash' OR pa.account_type IS NULL) AND cb.type IN ('out','CHI') THEN cb.amount ELSE 0 END), 0) as cash_out
         FROM cashbook cb

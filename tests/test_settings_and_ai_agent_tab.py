@@ -3,7 +3,8 @@ from starlette.testclient import TestClient
 from server import app
 from database import get_db, init_db
 
-client = TestClient(app)
+from tests.auth_helpers import owner_auth_headers
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_settings_sub_activity_log_exists():
     """Kiểm tra nhật ký hoạt động đã được tách thành sub-tab riêng biệt"""

@@ -206,7 +206,7 @@ async function handleLogin() {
     }
     applyRoleUI();
     if (typeof loadCurrentShift === 'function') loadCurrentShift();
-    if (typeof initApp === 'function') initApp();
+    triggerLandingTabSafe();
   } catch (e) {
     errEl.textContent = 'Không kết nối được server';
   }
@@ -229,7 +229,7 @@ async function handleForceChangePassword() {
     document.getElementById('force-pwd-overlay').style.display = 'none';
     applyRoleUI();
     if (typeof loadCurrentShift === 'function') loadCurrentShift();
-    if (typeof initApp === 'function') initApp();
+    triggerLandingTabSafe();
   } catch (e) {
     errEl.textContent = 'Không kết nối được server';
   }
@@ -367,10 +367,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof loadCurrentShift === 'function') {
       loadCurrentShift();
     }
+    triggerLandingTabSafe();
   } else {
     showLoginOverlay();
   }
 });
+
+function triggerLandingTabSafe() {
+  if (typeof window.switchTab === 'function') {
+    window.switchTab('ai-agent');
+  } else {
+    setTimeout(triggerLandingTabSafe, 50);
+  }
+}
+window.triggerLandingTabSafe = triggerLandingTabSafe;
+window.triggerPOSTabSafe = triggerLandingTabSafe; // backward compatibility
 
 // ── Password Visibility & Caps Lock Helpers (Mẫu 3) ──
 window.togglePasswordVisibility = function(inputId, btnEl) {

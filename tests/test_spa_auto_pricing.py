@@ -3,7 +3,8 @@ from fastapi.testclient import TestClient
 from server import app
 from database import get_db
 
-client = TestClient(app)
+from tests.auth_helpers import owner_auth_headers
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_spa_auto_pricing_case_insensitivity_and_smart_weight():
     """Kiểm tra API /api/pricing/calculate-spa:

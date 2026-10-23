@@ -7,7 +7,8 @@ from dependencies import get_current_user
 # Bypass auth
 app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
 
-client = TestClient(app)
+from tests.auth_helpers import owner_auth_headers
+client = TestClient(app, headers=owner_auth_headers())
 
 def test_hotel_checkout_summary_breaks_down_wallet_limits():
     """Kiểm tra API checkout-summary bóc tách rõ ràng: tiền phòng cấm dùng ví, chỉ tiền spa được dùng ví"""

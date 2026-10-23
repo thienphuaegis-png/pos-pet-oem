@@ -369,6 +369,8 @@ def init_db():
     prod_cols = [c[1] for c in cur.fetchall()]
     if 'category' not in prod_cols:
         cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Khác'")
+    if 'min_stock' not in prod_cols:
+        cur.execute("ALTER TABLE products ADD COLUMN min_stock REAL DEFAULT 5.0")
 
     # Seed product_categories if empty & migrate existing categories
     cur.execute("SELECT COUNT(*) FROM product_categories")
@@ -854,6 +856,31 @@ def init_db():
 
     # Bang ke hoach hen tra no NCC (ho tro tra mot phan khong theo don hoac tra theo don)
     cur.execute('''
+    CREATE TABLE IF NOT EXISTS purchase_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE,
+        department TEXT DEFAULT 'store',
+        priority TEXT DEFAULT 'normal',
+        status TEXT DEFAULT 'pending',
+        converted_purchase_code TEXT,
+        note TEXT,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    cur.execute('''
+    CREATE TABLE IF NOT EXISTS purchase_request_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        quantity REAL NOT NULL,
+        note TEXT,
+        FOREIGN KEY(request_id) REFERENCES purchase_requests(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id)
+    )''')
+
+    cur.execute('''
     CREATE TABLE IF NOT EXISTS supplier_debt_plans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         supplier_id INTEGER NOT NULL,
@@ -993,7 +1020,7 @@ def init_db():
     # Seed mac dinh = giu nguyen hanh vi cu (require_role cung truoc day)
     PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
                  "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
-                 "reports.view", "shifts.approve", "shifts.bypass", "settings.access"]
+                 "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date"]
     DEFAULT_ROLE_PERMS = {
         "cashier": {"pos.sell", "cashbook.manage", "partners.manage"},
         "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order", "inventory.view_cost"},
@@ -1392,6 +1419,12 @@ def init_db():
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN deposit_amount REAL DEFAULT 0.0")
     if 'spa_wallet_deduction' not in ticket_cols:
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN spa_wallet_deduction REAL DEFAULT 0.0")
+    if 'account_id' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN account_id INTEGER")
+    if 'deposit_account_id' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN deposit_account_id INTEGER")
+    if 'remainder_method' not in ticket_cols:
+        cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN remainder_method TEXT")
     if 'original_service_type' not in ticket_cols:
         cur.execute("ALTER TABLE pet_service_tickets ADD COLUMN original_service_type TEXT DEFAULT ''")
     if 'original_price' not in ticket_cols:
@@ -1623,6 +1656,17 @@ def init_db():
         VALUES ('MB-CANHAN', 'MB Bank Cá Nhân (Chủ Shop)', 'bank', 'PERSONAL', 'MB Bank', '0929861468', 'Bùi Thiên Phú', 0, 0)
         """)
 
+    # Migration: loại tài khoản 'pos_card' (Máy POS thẻ) - tiền quẹt thẻ về tài khoản riêng, tách khỏi chuyển khoản
+    cur.execute("SELECT value FROM settings WHERE key = 'migration_pos_card_account'")
+    if not cur.fetchone():
+        cur.execute("SELECT COUNT(*) FROM payment_accounts WHERE account_type = 'pos_card'")
+        if cur.fetchone()[0] == 0:
+            cur.execute("""
+            INSERT OR IGNORE INTO payment_accounts (code, name, account_type, owner_type, initial_balance, is_default)
+            VALUES ('POS-THE', 'Máy POS thẻ', 'pos_card', 'COMPANY', 0, 0)
+            """)
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_pos_card_account', '1')")
+
     # ── Auth migration: thêm cột username/password_hash/is_active vào staff ──
     for _col in [
         "ALTER TABLE staff ADD COLUMN username TEXT",
@@ -1630,6 +1674,8 @@ def init_db():
         "ALTER TABLE staff ADD COLUMN is_active INTEGER DEFAULT 1",
         "ALTER TABLE staff ADD COLUMN must_change_password INTEGER DEFAULT 0",
         "ALTER TABLE staff ADD COLUMN token_version INTEGER DEFAULT 0",
+        "ALTER TABLE staff ADD COLUMN ai_api_key TEXT",
+        "ALTER TABLE staff ADD COLUMN ai_model TEXT DEFAULT 'gemini-2.5-flash'",
     ]:
         try:
             cur.execute(_col)
@@ -1776,6 +1822,16 @@ def init_db():
         "ALTER TABLE oem_orders ADD COLUMN target_type TEXT DEFAULT 'product'",
         "ALTER TABLE oem_order_items ADD COLUMN item_type TEXT DEFAULT 'product'",
         "ALTER TABLE oem_order_items ADD COLUMN ingredient_id INTEGER",
+        "ALTER TABLE products ADD COLUMN vat_rate REAL DEFAULT 0.0",
+        "ALTER TABLE ingredients ADD COLUMN vat_rate REAL DEFAULT 0.0",
+        "ALTER TABLE order_items ADD COLUMN vat_rate REAL DEFAULT 0.0",
+        "ALTER TABLE order_items ADD COLUMN vat_amount REAL DEFAULT 0.0",
+        "ALTER TABLE orders ADD COLUMN vat_amount REAL DEFAULT 0.0",
+        "ALTER TABLE purchase_items ADD COLUMN vat_rate REAL DEFAULT 0.0",
+        "ALTER TABLE purchase_items ADD COLUMN vat_amount REAL DEFAULT 0.0",
+        "ALTER TABLE oem_order_items ADD COLUMN vat_rate REAL DEFAULT 8.0",
+        "ALTER TABLE oem_order_items ADD COLUMN vat_amount REAL DEFAULT 0.0",
+        "ALTER TABLE oem_orders ADD COLUMN vat_amount REAL DEFAULT 0.0",
     ]:
         try:
             cur.execute(_col)
@@ -1984,6 +2040,23 @@ def init_db():
     )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_archived_codes_type ON archived_codes(doc_type)")
+
+    # Bảng nhắc nhở và quản lý công việc nhân viên (Staff Reminders & Tasks)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS staff_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        staff_id INTEGER REFERENCES staff(id) ON DELETE CASCADE,
+        created_by INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        remind_time TEXT,
+        priority TEXT DEFAULT 'normal' CHECK(priority IN ('urgent', 'normal', 'low')),
+        is_done INTEGER DEFAULT 0,
+        done_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_staff_reminders_staff ON staff_reminders(staff_id, is_done)")
 
     # Nạp các mã chứng từ hiện hữu vào archived_codes nếu chưa có
     try:

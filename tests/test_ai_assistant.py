@@ -2,6 +2,7 @@ import pytest
 from routers.ai_assistant import parse_text_offline
 from starlette.testclient import TestClient
 from server import app
+from tests.auth_helpers import staff_auth_headers
 
 client = TestClient(app)
 
@@ -28,7 +29,7 @@ def test_parse_text_offline():
 def test_api_parse_cashflow_text():
     res = client.post("/api/ai/parse-cashflow", json={
         "text": "chi 200k tiền nước uống quỹ cty"
-    })
+    }, headers=staff_auth_headers("owner"))
     assert res.status_code == 200
     data = res.json()
     assert data["type"] == "out"
@@ -38,7 +39,7 @@ def test_api_parse_cashflow_text():
 
 def test_api_test_key_validation():
     # Test key rỗng
-    res = client.post("/api/ai/test-key", json={"gemini_api_key": ""})
+    res = client.post("/api/ai/test-key", json={"gemini_api_key": ""}, headers=staff_auth_headers("owner"))
     assert res.status_code == 400
     assert "Vui lòng nhập API Key" in res.json()["detail"]
 
@@ -53,7 +54,7 @@ def test_api_suggest_bom():
     conn.commit()
     conn.close()
 
-    res = client.post("/api/ai/suggest-bom", json={"product_id": 9999})
+    res = client.post("/api/ai/suggest-bom", json={"product_id": 9999}, headers=staff_auth_headers("owner"))
     assert res.status_code == 200
     data = res.json()
     assert data["product_id"] == 9999
@@ -71,7 +72,7 @@ def test_api_clone_bom():
     conn.commit()
     conn.close()
 
-    res = client.post("/api/products/9998/bom/clone-from/9997")
+    res = client.post("/api/products/9998/bom/clone-from/9997", headers=staff_auth_headers("owner"))
     assert res.status_code == 200
     data = res.json()
     assert any(item["ingredient_id"] == 8883 for item in data["bom_items"])

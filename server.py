@@ -341,6 +341,32 @@ def ping():
     return {"app": "pos-offline-petcare", "version": get_app_version_info()["version"],
             "hostname": socket.gethostname()}
 
+_client_logger = logging.getLogger("pos_client")
+_client_logger.propagate = False
+try:
+    from logging.handlers import RotatingFileHandler
+    _cl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    os.makedirs(_cl_dir, exist_ok=True)
+    _h = RotatingFileHandler(os.path.join(_cl_dir, "client.log"), maxBytes=2_000_000, backupCount=2, encoding="utf-8")
+    _h.setFormatter(logging.Formatter("%(message)s"))
+    _client_logger.addHandler(_h)
+    _client_logger.setLevel(logging.INFO)
+except OSError:
+    pass
+
+@app.post("/api/client-log", include_in_schema=False)
+async def client_log(request: Request, user=Depends(get_current_user)):
+    """Nhận log thao tác/lỗi từ trình duyệt (static/js/clientlog.js) -> logs/client.log."""
+    try:
+        data = await request.json()
+        lines = [str(l)[:400] for l in (data.get("lines") or [])[:200]]
+    except Exception:
+        raise HTTPException(status_code=400, detail="bad payload")
+    who = (user or {}).get("username") or (user or {}).get("name") or "?"
+    for l in lines:
+        _client_logger.info(f"{datetime.date.today()} [{who}] {l}")
+    return {"ok": True}
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
@@ -384,13 +410,25 @@ def index():
         v_info = get_app_version_info()
         ver_text = f"{v_info['version']} • {v_info['build_date']}"
         short_ver = v_info['short_version']
-        cache_id = f"{v_info['commit_hash']}_{v_info['build_date'].replace('.', '')}"
+
+        # ponytail: tu dong bust cache trinh duyet bang mtime cao nhat cua static/js
+        js_dir = find_resource_path(os.path.join("static", "js"))
+        try:
+            mtimes = [os.path.getmtime(os.path.join(r, f)) for r, _, fs in os.walk(js_dir) for f in fs if f.endswith(".js")]
+            latest_mtime = int(max(mtimes)) if mtimes else int(time.time())
+        except Exception:
+            latest_mtime = int(time.time())
+        cache_id = f"{v_info['commit_hash']}_{latest_mtime}"
 
         html = re.sub(r'id="sidebar-version-tag"[^>]*>([^<]*)<', f'id="sidebar-version-tag">{ver_text}<', html)
         html = re.sub(r'id="sidebar-version-collapsed"[^>]*>([^<]*)<', f'id="sidebar-version-collapsed" title="{v_info["version"]}">{short_ver}<', html)
         html = re.sub(r'(\.js\?v=)[0-9a-zA-Z_]+', rf'\g<1>{cache_id}', html)
 
-        return html
+        resp = HTMLResponse(content=html)
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
     return "<h1>UI template not found</h1>"
 
 @app.get("/pos", response_class=HTMLResponse)
