@@ -56,4 +56,5 @@
 - [x] Đẩy Trực Tiếp Phiếu Yêu Cầu Nhập Hàng Chờ Duyệt Ra Màn Hình Tác Nhân AI Hub Kèm Nút 1-Chạm Lên PO.
 - [x] Đồng Bộ Popup Xác Nhận Bằng Modal POS Chuẩn Thay Vì confirm() Trình Duyệt.
 - [x] Thu Gọn Widget Bóc Tách Chứng Từ AI (Compact Slim Card) Nhường Không Gian Cho Trung Tâm Nghiệp Vụ.
+- [x] Bổ Sung Nút 1-Chạm Chốt Đơn Đặt Hàng OEM Từ Bản Nháp (Đổi Nút "Nhận Hàng" Thành "Chốt Đơn" Cho Đơn DRAFT, `tests/test_oem_draft_confirm_to_order.py` pass).
 - [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).

@@ -511,18 +511,28 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
         total_final = round(raw_after_discount + vat_amount, 2)
         remaining = max(0.0, total_final - (o["deposit_amount"] or 0.0))
 
+        if getattr(req, "is_draft", False):
+            status = "DRAFT"
+        elif getattr(req, "is_confirm", False):
+            status = "DEPOSITED"
+        elif o["status"] == "DRAFT":
+            # Nếu đang là DRAFT mà không yêu cầu draft tiếp, kiểm tra có cọc không để chuyển DEPOSITED
+            status = "DEPOSITED" if (o["deposit_amount"] or 0.0) > 0 else "DRAFT"
+        else:
+            status = o["status"]
+
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         cur.execute("""
             UPDATE oem_orders
             SET partner_id = ?, oem_warehouse_id = ?, dest_warehouse_id = ?,
                 expected_delivery_date = ?, vat_percent = ?, discount_percent = ?,
                 total_raw_amount = ?, vat_amount = ?, total_final_amount = ?, remaining_payment = ?, note = ?,
-                fund_source = ?, updated_by = ?, updated_at = ?
+                fund_source = ?, status = ?, updated_by = ?, updated_at = ?
             WHERE id = ?
         """, (
             req.partner_id, req.oem_warehouse_id, req.dest_warehouse_id,
             req.expected_delivery_date, req.vat_percent, discount_pct,
-            total_raw, vat_amount, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", user_name, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id
+            total_raw, vat_amount, total_final, remaining, req.note or "", getattr(req, "fund_source", "COMPANY") or "COMPANY", status, user_name, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), order_id
         ))
 
         is_received = o["status"] in ("RECEIVED", "COMPLETED")
@@ -634,6 +644,35 @@ def delete_oem_order(order_id: int, user=Depends(get_current_user)):
     except Exception as e:
         conn.rollback()
         logger.error(f"Lỗi xóa đơn OEM: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@router.post("/api/oem/orders/{order_id}/confirm")
+def confirm_oem_order(order_id: int, user=Depends(require_permission("oem.manage"))):
+    """1-chạm xác nhận đơn nháp OEM thành đơn đặt hàng chính thức (DEPOSITED)."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM oem_orders WHERE id = ?", (order_id,))
+        order_row = cur.fetchone()
+        if not order_row:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đơn OEM")
+        order = dict(order_row)
+        if order["status"] != "DRAFT":
+            raise HTTPException(status_code=400, detail=f"Đơn hàng đang ở trạng thái {order['status']}, không phải đơn nháp")
+
+        cur.execute("""
+            UPDATE oem_orders
+            SET status = 'DEPOSITED', updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (order_id,))
+        conn.commit()
+        return {"success": True, "id": order_id, "code": order["code"], "status": "DEPOSITED"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()

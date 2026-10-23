@@ -8653,7 +8653,13 @@
                 const pct = totalAmt > 0 ? Math.min(100, Math.max(0, Math.round((depositAmt / totalAmt) * 100))) : (depositAmt > 0 ? 100 : 0);
 
                 let primaryActionBtn = '';
-                if (o.status === 'DRAFT' || o.status === 'DEPOSITED') {
+                if (o.status === 'DRAFT') {
+                    primaryActionBtn = `
+                        <button type="button" onclick="confirmOEMDraftToOrder(${o.id}, '${escapeHtml(o.code)}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition flex items-center gap-1" title="Chốt đơn nháp thành Đơn Đặt Hàng chính thức">
+                            <span>🚀</span> Chốt Đơn
+                        </button>
+                    `;
+                } else if (o.status === 'DEPOSITED') {
                     primaryActionBtn = `
                         <button type="button" onclick="openModalReceiveOEM(${o.id})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-2xs transition" title="Nhận hàng thực tế từ xưởng & quyết toán">
                             Nhận hàng
@@ -8708,6 +8714,11 @@
                                     </button>
                                     <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
                                         <div class="py-0.5">
+                                            ${o.status === 'DRAFT' ? `
+                                                <button type="button" onclick="closeAllOEMActionMenus(); confirmOEMDraftToOrder(${o.id}, '${escapeHtml(o.code)}')" class="w-full px-3 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-bold">
+                                                    <span>🚀</span> <span>Chốt Đặt Hàng</span>
+                                                </button>
+                                            ` : ''}
                                             <button type="button" onclick="closeAllOEMActionMenus(); viewOEMOrderDetail(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                 <span>ℹ️</span> <span>Chi tiết</span>
                                             </button>
@@ -8731,6 +8742,38 @@
                 `;
             }).join('');
         }
+
+        async function confirmOEMDraftToOrder(orderId, orderCode) {
+            let confirmed = false;
+            if (typeof window.showConfirmModal === 'function') {
+                confirmed = await window.showConfirmModal({
+                    title: "Chốt Đặt Hàng Gia Công OEM",
+                    message: `Bạn có muốn chuyển đơn nháp <b>${orderCode}</b> thành đơn đặt hàng chính thức (Đang SX)?`,
+                    confirmText: "Chốt Đặt Hàng",
+                    cancelText: "Hủy bỏ",
+                    icon: "🚀"
+                });
+            } else {
+                confirmed = confirm(`Bạn có muốn chuyển đơn nháp ${orderCode} thành đơn đặt hàng chính thức?`);
+            }
+
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`/api/oem/orders/${orderId}/confirm`, {
+                    method: 'POST'
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Lỗi chuyển đổi đơn OEM');
+                }
+                alert(`✅ Đã chốt đơn gia công OEM ${orderCode} thành công! Trạng thái: Đang SX.`);
+                loadOEMData();
+            } catch (e) {
+                alert(`❌ Lỗi: ${e.message}`);
+            }
+        }
+        window.confirmOEMDraftToOrder = confirmOEMDraftToOrder;
 
         async function loadOEMCashflow() {
             try {
@@ -9606,7 +9649,8 @@
                 fund_source: fundSource,
                 note: note,
                 items: items,
-                is_draft: isDraft
+                is_draft: isDraft,
+                is_confirm: !isDraft
             };
             const isEdit = !!editingOEMOrderId;
             if (!isEdit) payload.deposit_amount = depositAmount;
@@ -9740,7 +9784,11 @@
             document.getElementById('oem-create-vat').value = order.vat_percent ?? 0;
             document.getElementById('oem-create-fund').value = order.fund_source || 'COMPANY';
             document.getElementById('oem-create-deposit').value = order.deposit_amount ?? 0;
-            document.getElementById('oem-create-deposit').disabled = true;
+            const depositInp = document.getElementById('oem-create-deposit');
+            if (depositInp) {
+                // Nếu là bản nháp: cho phép nhập cọc khi sửa để chuyển thành đơn chính thức
+                depositInp.disabled = (order.status !== 'DRAFT');
+            }
             document.getElementById('oem-create-note').value = order.note || '';
 
             const searchInput = document.getElementById('oem-factory-search-input');
@@ -9774,11 +9822,17 @@
             const btnSubmit = document.getElementById('btn-submit-create-oem');
             if (btnSubmit) {
                 btnSubmit.disabled = false;
-                btnSubmit.innerText = '💾 Lưu Thay Đổi';
+                btnSubmit.innerText = (order.status === 'DRAFT') ? '🚀 Chốt Đặt Hàng Chính Thức' : '💾 Lưu Thay Đổi';
             }
             const btnDraft = document.getElementById('btn-submit-draft-oem');
             if (btnDraft) {
-                btnDraft.classList.add('hidden');
+                // Nếu đơn đang là DRAFT: cho phép lưu tiếp dạng nháp hoặc lưu chính thức
+                if (order.status === 'DRAFT') {
+                    btnDraft.classList.remove('hidden');
+                    btnDraft.innerText = '💾 Lưu Bản Nháp Tiếp';
+                } else {
+                    btnDraft.classList.add('hidden');
+                }
             }
             const modalTitle = document.querySelector('#modal-create-oem h3 span');
             if (modalTitle) modalTitle.innerText = `✏️ Chỉnh Sửa Đơn Gia Công OEM (${order.code})`;
@@ -10338,6 +10392,15 @@
                         </div>
                     </div>
                 `;
+
+                const btnConfirm = document.getElementById('btn-detail-confirm-oem');
+                if (btnConfirm) {
+                    if (ord.status === 'DRAFT') {
+                        btnConfirm.classList.remove('hidden');
+                    } else {
+                        btnConfirm.classList.add('hidden');
+                    }
+                }
 
                 document.getElementById('modal-detail-oem').classList.remove('hidden');
             } catch (err) {

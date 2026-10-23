@@ -461,6 +461,8 @@ class OEMOrderUpdate(BaseModel):
     discount_percent: float = 0.0
     discount_amount: Optional[float] = None
     discount_type: Optional[str] = "percent"
+    is_draft: Optional[bool] = False
+    is_confirm: Optional[bool] = False
     note: Optional[str] = ""
     fund_source: Optional[str] = "COMPANY"
     items: List[OEMOrderItemIn]

@@ -4909,10 +4909,13 @@
                     </div>
 
                     <div class="p-3 border-t bg-slate-50 rounded-b-xl flex flex-wrap justify-between items-center gap-2">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2" id="oem-detail-actions-left">
                             <button type="button" onclick="printOEMInspectionFromDetail()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold flex items-center gap-1.5 shadow transition">
                                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
                                 <span>🖨️ In Phiếu Kiểm</span>
+                            </button>
+                            <button type="button" id="btn-detail-confirm-oem" onclick="closeModalDetailOEM(); confirmOEMDraftToOrder(currentViewedOEMOrderId, document.getElementById('oem-view-code').innerText)" class="hidden px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded font-bold flex items-center gap-1 shadow transition">
+                                <span>🚀 Chốt Đặt Hàng</span>
                             </button>
                             <button type="button" onclick="closeModalDetailOEM(); openModalEditOEM(currentViewedOEMOrderId)" class="px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-300 rounded font-bold flex items-center gap-1 transition">
                                 <span>✏️ Sửa Đơn</span>
