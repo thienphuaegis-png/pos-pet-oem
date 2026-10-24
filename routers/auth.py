@@ -195,6 +195,9 @@ class StaffCreate(BaseModel):
     device_code: Optional[str] = None
     employee_code: Optional[str] = None
     base_salary: Optional[float] = 0.0
+    allowance: Optional[float] = 0.0
+    work_block_id: Optional[int] = None
+    hire_date: Optional[str] = None
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = "gemini-2.5-flash"
 
@@ -212,6 +215,9 @@ class StaffUpdate(BaseModel):
     device_code: Optional[str] = None
     employee_code: Optional[str] = None
     base_salary: Optional[float] = None
+    allowance: Optional[float] = None
+    work_block_id: Optional[int] = None
+    hire_date: Optional[str] = None
     revoke_account: Optional[bool] = False
 
 
@@ -223,7 +229,7 @@ def list_staff(current: dict = Depends(require_role("owner"))):
                (CASE WHEN ai_api_key IS NOT NULL AND TRIM(ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
                ai_model,
                (CASE WHEN username IS NOT NULL AND TRIM(username) != '' AND password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account,
-               device_code, employee_code, base_salary
+               device_code, employee_code, base_salary, allowance, work_block_id, hire_date
         FROM staff ORDER BY id
     """)
     rows = [dict(r) for r in cur.fetchall()]
@@ -285,14 +291,15 @@ def create_staff(body: StaffCreate, current: dict = Depends(require_role("owner"
             """INSERT INTO staff (
                 name, username, password_hash, role, phone, commission_rate,
                 is_active, must_change_password, ai_api_key, ai_model,
-                device_code, employee_code, base_salary
-            ) VALUES (?,?,?,?,?,?,1,?,?,?,?,?,?)""",
+                device_code, employee_code, base_salary, allowance, work_block_id, hire_date
+            ) VALUES (?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?)""",
             (
                 name, username_val, password_hash, role_val, (body.phone or "").strip(),
                 float(body.commission_rate or 0.0), must_change,
                 (body.ai_api_key or "").strip() or None, body.ai_model or "gemini-2.5-flash",
                 device_code, (body.employee_code or "").strip() or None,
-                float(body.base_salary or 0.0)
+                float(body.base_salary or 0.0), float(body.allowance or 0.0),
+                body.work_block_id, (body.hire_date or "").strip() or None
             )
         )
         db.commit()
@@ -337,6 +344,12 @@ def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(requi
         fields.append("employee_code=?"); vals.append(body.employee_code.strip() or None)
     if body.base_salary is not None:
         fields.append("base_salary=?"); vals.append(float(body.base_salary or 0.0))
+    if body.allowance is not None:
+        fields.append("allowance=?"); vals.append(float(body.allowance or 0.0))
+    if body.work_block_id is not None:
+        fields.append("work_block_id=?"); vals.append(body.work_block_id or None)
+    if body.hire_date is not None:
+        fields.append("hire_date=?"); vals.append(body.hire_date.strip() or None)
 
     if body.revoke_account:
         fields.append("username=NULL")

@@ -60,6 +60,21 @@ async function loadStaffList() {
   }
 }
 
+async function loadStaffWorkBlocks(selectedId) {
+  const sel = document.getElementById('staff-work-block-id');
+  if (!sel) return;
+  try {
+    const res = await fetch('/api/hrm/config');
+    if (res.ok) {
+      const data = await res.json();
+      sel.innerHTML = '<option value="">-- Chọn khối --</option>' +
+        (data.blocks || []).map(b => `<option value="${b.id}" ${selectedId === b.id ? 'selected' : ''}>${b.name} (${b.start_time}-${b.end_time})</option>`).join('');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 function openCreateStaffModal() {
   const titleEl = document.getElementById('modal-staff-title');
   if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Thêm Nhân Viên</span>';
@@ -70,6 +85,11 @@ function openCreateStaffModal() {
   document.getElementById('staff-phone').value = '';
   document.getElementById('staff-commission').value = 0;
   document.getElementById('staff-base-salary').value = '';
+  const allowEl = document.getElementById('staff-allowance');
+  if (allowEl) allowEl.value = '';
+  const hireEl = document.getElementById('staff-hire-date');
+  if (hireEl) hireEl.value = '';
+  loadStaffWorkBlocks();
 
   const toggle = document.getElementById('staff-has-account-toggle');
   if (toggle) toggle.checked = false;
@@ -104,6 +124,11 @@ function openEditStaffModal(id) {
   document.getElementById('staff-phone').value = r.phone || '';
   document.getElementById('staff-commission').value = r.commission_rate || 0;
   document.getElementById('staff-base-salary').value = r.base_salary ? Number(r.base_salary).toLocaleString('vi-VN') : '';
+  const allowEl = document.getElementById('staff-allowance');
+  if (allowEl) allowEl.value = r.allowance ? Number(r.allowance).toLocaleString('vi-VN') : '';
+  const hireEl = document.getElementById('staff-hire-date');
+  if (hireEl) hireEl.value = r.hire_date || '';
+  loadStaffWorkBlocks(r.work_block_id);
 
   const hasAccount = Boolean(r.has_account);
   const toggle = document.getElementById('staff-has-account-toggle');
@@ -199,6 +224,11 @@ async function submitStaffForm() {
   const base_salary = typeof parseMoneyInput === 'function'
     ? parseMoneyInput(document.getElementById('staff-base-salary').value)
     : (parseFloat((document.getElementById('staff-base-salary').value || '').replace(/\D/g, '')) || 0);
+  const allowance = typeof parseMoneyInput === 'function'
+    ? parseMoneyInput(document.getElementById('staff-allowance')?.value)
+    : (parseFloat((document.getElementById('staff-allowance')?.value || '').replace(/\D/g, '')) || 0);
+  const work_block_id = parseInt(document.getElementById('staff-work-block-id')?.value) || null;
+  const hire_date = document.getElementById('staff-hire-date')?.value || null;
 
   const hasAccount = document.getElementById('staff-has-account-toggle').checked;
   const role = hasAccount ? document.getElementById('staff-role').value : 'staff';
@@ -230,7 +260,8 @@ async function submitStaffForm() {
     if (id) {
       const payload = {
         name, role, phone, commission_rate,
-        employee_code, device_code, base_salary
+        employee_code, device_code, base_salary,
+        allowance, work_block_id, hire_date
       };
       if (hasAccount) {
         payload.username = username;
@@ -247,6 +278,7 @@ async function submitStaffForm() {
       const payload = {
         name, role, phone, commission_rate,
         employee_code, device_code, base_salary,
+        allowance, work_block_id, hire_date,
         username: hasAccount ? username : null,
         password: hasAccount ? password : null
       };

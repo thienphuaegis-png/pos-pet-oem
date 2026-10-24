@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from database import get_db
-from dependencies import require_permission
+from dependencies import require_permission, get_current_user
 from services import payroll_service as ps
 from services.attendance_import import parse_attendance_xlsx, punches_to_json
 from services.payroll_engine import to_min
@@ -588,3 +588,291 @@ def export_payroll(month: str, user=Depends(require_permission(PERM))):
     wb.save(buf); buf.seek(0)
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f'attachment; filename="Bang_Luong_{month}.xlsx"'})
+
+
+@router.get("/my-payslip")
+def get_my_payslip(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(get_current_user)):
+    target_staff_id = user["id"]
+    if staff_id and user.get("role") in ("owner", "accountant", "manager"):
+        target_staff_id = staff_id
+
+    if not month:
+        month = date.today().strftime("%Y-%m")
+    try:
+        y, m, first, last = ps.parse_month(month)
+    except Exception:
+        raise HTTPException(400, "Tháng không hợp lệ (YYYY-MM)")
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT s.id, s.name, s.employee_code, s.role, s.phone, s.base_salary, s.allowance, s.work_block_id,
+               b.name AS block_name
+        FROM staff s
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        WHERE s.id = ?
+    """, (target_staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy thông tin nhân viên")
+
+    cur.execute("SELECT * FROM payroll_periods WHERE month = ?", (month,))
+    period = cur.fetchone()
+    if not period:
+        conn.close()
+        return {
+            "status": "not_found",
+            "month": month,
+            "period_status": "none",
+            "staff": dict(staff),
+            "message": f"Chưa có dữ liệu bảng lương tháng {month[5:]}/{month[:4]}"
+        }
+
+    cur.execute("""
+        SELECT pl.*, c.code AS cashbook_code
+        FROM payroll_lines pl
+        LEFT JOIN cashbook c ON c.id = pl.cashbook_id
+        WHERE pl.period_id = ? AND pl.staff_id = ?
+    """, (period["id"], target_staff_id))
+    line = cur.fetchone()
+    conn.close()
+
+    if not line:
+        return {
+            "status": "not_found",
+            "month": month,
+            "period_status": period["status"],
+            "staff": dict(staff),
+            "message": f"Chưa có dòng lương cho nhân viên {staff['name']} trong tháng {month[5:]}/{month[:4]}"
+        }
+
+    data = json.loads(line["data_json"] or "{}")
+    for k in ps.MANUAL_FIELDS:
+        data[k] = float(line[k] or 0)
+    data["net_pay"] = float(line["net_pay"] or 0)
+    data["manual_note"] = line["manual_note"] or ""
+    data["cashbook_code"] = line["cashbook_code"] or ""
+    data["paid_at"] = line["paid_at"]
+
+    return {
+        "status": "ok",
+        "month": month,
+        "period_status": period["status"],
+        "staff": dict(staff),
+        "payslip": data
+    }
+
+
+@router.get("/payroll/{month}/export-mobile-sheets")
+def export_mobile_sheets(month: str, user=Depends(require_permission(PERM))):
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    conn = get_db(); cur = conn.cursor()
+    data = ps.get_period(cur, month)
+    conn.close()
+
+    wb = openpyxl.Workbook()
+
+    # 1. Sheet DU_LIEU_LUONG
+    ws_data = wb.active
+    ws_data.title = "DU_LIEU_LUONG"
+
+    cols = [
+        ("Mã NV", "employee_code"),
+        ("Họ và Tên", "name"),
+        ("Khối / Vị Trí", "block"),
+        ("Công Chuẩn", "std_days"),
+        ("Công Chính Thức", "days_official"),
+        ("Công Thử Việc", "days_probation"),
+        ("Lương Cơ Bản", "base_salary"),
+        ("Lương Theo Công", "pay_days"),
+        ("Phụ Cấp", "allowance"),
+        ("Phụ Cấp Khác/Xăng", "fuel_other"),
+        ("Lương Lễ", "holiday_pay"),
+        ("Hoa Hồng Bán Lẻ", "commission"),
+        ("Hoa Hồng Spa", "spa_commission"),
+        ("Tiền Tip", "tips"),
+        ("Thưởng Chuyên Cần", "attendance_bonus"),
+        ("Thưởng Sinh Nhật", "birthday_bonus"),
+        ("Thưởng Khác", "bonus_other"),
+        ("Tiền Tăng Ca OT", "ot_pay"),
+        ("Phạt Trễ & Quẹt Thẻ", "penalties"),
+        ("Tạm Ứng Trong Tháng", "advances"),
+        ("Giảm Trừ Khác", "deduction_other"),
+        ("THỰC LÃNH NET", "net_pay"),
+        ("Phiếu Chi Sổ Quỹ", "cashbook_code"),
+        ("Ghi Chú Giải Trình", "manual_note")
+    ]
+
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    border_thin = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    ws_data.append([c[0] for c in cols])
+    for col_idx in range(1, len(cols) + 1):
+        cell = ws_data.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border_thin
+
+    row_num = 2
+    for line in data["lines"]:
+        row_vals = []
+        for _, k in cols:
+            val = line.get(k)
+            if val is None:
+                val = ""
+            row_vals.append(val)
+        ws_data.append(row_vals)
+        for col_idx in range(1, len(cols) + 1):
+            cell = ws_data.cell(row=row_num, column=col_idx)
+            cell.font = Font(name="Arial", size=10)
+            cell.border = border_thin
+            if isinstance(cell.value, (int, float)):
+                cell.number_format = '#,##0'
+        row_num += 1
+
+    for i in range(1, len(cols) + 1):
+        ws_data.column_dimensions[get_column_letter(i)].width = 18
+
+    # 2. Sheet PHIEU_LUONG_MOBILE (Dạng Card dọc tối ưu xem trên điện thoại Google Sheets)
+    ws_mob = wb.create_sheet("PHIEU_LUONG_MOBILE")
+    ws_mob.column_dimensions['A'].width = 2
+    ws_mob.column_dimensions['B'].width = 28
+    ws_mob.column_dimensions['C'].width = 24
+    ws_mob.column_dimensions['D'].width = 2
+
+    title_font = Font(name="Arial", size=13, bold=True, color="0F172A")
+    sec_font = Font(name="Arial", size=10, bold=True, color="1E293B")
+    sec_fill_income = PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid")
+    sec_fill_deduct = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+    net_font = Font(name="Arial", size=14, bold=True, color="065F46")
+    net_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    lbl_font = Font(name="Arial", size=10, color="334155")
+    val_font = Font(name="Arial", size=10, bold=True, color="0F172A")
+
+    ws_mob['B2'] = f"PHIẾU LƯƠNG THÁNG {month[5:]}/{month[:4]}"
+    ws_mob['B2'].font = title_font
+
+    ws_mob['B4'] = "👉 Nhập/Chọn Mã Nhân Viên:"
+    ws_mob['B4'].font = Font(name="Arial", size=10, bold=True, color="4338CA")
+    first_code = data["lines"][0].get("employee_code") if data["lines"] else "NV01"
+    ws_mob['C4'] = first_code or "NV01"
+    ws_mob['C4'].font = Font(name="Arial", size=11, bold=True, color="4338CA")
+    ws_mob['C4'].fill = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid")
+    ws_mob['C4'].alignment = Alignment(horizontal="center")
+    ws_mob['C4'].border = border_thin
+
+    ws_mob['B5'] = "Họ và tên nhân viên:"
+    ws_mob['B5'].font = lbl_font
+    ws_mob['C5'] = '=IFERROR(VLOOKUP(C4, DU_LIEU_LUONG!A2:X200, 2, FALSE), "Không tìm thấy")'
+    ws_mob['C5'].font = val_font
+
+    ws_mob['B6'] = "Khối / Bộ phận:"
+    ws_mob['B6'].font = lbl_font
+    ws_mob['C6'] = '=IFERROR(VLOOKUP(C4, DU_LIEU_LUONG!A2:X200, 3, FALSE), "--")'
+    ws_mob['C6'].font = val_font
+
+    # I. THU NHẬP
+    ws_mob['B8'] = "I. CÁC KHOẢN THU NHẬP"
+    ws_mob['C8'] = "SỐ TIỀN (VNĐ)"
+    for col in ('B8', 'C8'):
+        ws_mob[col].font = sec_font
+        ws_mob[col].fill = sec_fill_income
+        ws_mob[col].border = border_thin
+
+    income_items = [
+        (9, "1. Lương cơ bản", 7),
+        (10, "2. Công chuẩn tháng", 4),
+        (11, "3. Công làm việc thực tế", 5),
+        (12, "4. Lương theo ngày công", 8),
+        (13, "5. Phụ cấp ăn trưa / xăng", 9),
+        (14, "6. Phụ cấp khác", 10),
+        (15, "7. Lương ngày lễ", 11),
+        (16, "8. Hoa hồng bán lẻ", 12),
+        (17, "9. Hoa hồng Spa & Dịch vụ", 13),
+        (18, "10. Tiền Tip khách tặng", 14),
+        (19, "11. Thưởng chuyên cần", 15),
+        (20, "12. Thưởng sinh nhật", 16),
+        (21, "13. Thưởng khác", 17),
+        (22, "14. Tiền tăng ca OT", 18),
+    ]
+
+    for r_idx, label, col_idx in income_items:
+        ws_mob[f'B{r_idx}'] = label
+        ws_mob[f'B{r_idx}'].font = lbl_font
+        ws_mob[f'B{r_idx}'].border = border_thin
+        ws_mob[f'C{r_idx}'] = f'=IFERROR(VLOOKUP(C$4, DU_LIEU_LUONG!A$2:X$200, {col_idx}, FALSE), 0)'
+        ws_mob[f'C{r_idx}'].font = val_font
+        ws_mob[f'C{r_idx}'].alignment = Alignment(horizontal="right")
+        ws_mob[f'C{r_idx}'].border = border_thin
+        if col_idx not in (4, 5):
+            ws_mob[f'C{r_idx}'].number_format = '#,##0'
+        else:
+            ws_mob[f'C{r_idx}'].number_format = '0.0'
+
+    # II. GIẢM TRỪ
+    ws_mob['B24'] = "II. CÁC KHOẢN GIẢM TRỪ"
+    ws_mob['C24'] = "SỐ TIỀN (VNĐ)"
+    for col in ('B24', 'C24'):
+        ws_mob[col].font = sec_font
+        ws_mob[col].fill = sec_fill_deduct
+        ws_mob[col].border = border_thin
+
+    deduct_items = [
+        (25, "1. Phạt trễ & Quẹt thẻ", 19),
+        (26, "2. Tạm ứng trong tháng", 20),
+        (27, "3. Giảm trừ khác", 21),
+    ]
+
+    for r_idx, label, col_idx in deduct_items:
+        ws_mob[f'B{r_idx}'] = label
+        ws_mob[f'B{r_idx}'].font = lbl_font
+        ws_mob[f'B{r_idx}'].border = border_thin
+        ws_mob[f'C{r_idx}'] = f'=IFERROR(VLOOKUP(C$4, DU_LIEU_LUONG!A$2:X$200, {col_idx}, FALSE), 0)'
+        ws_mob[f'C{r_idx}'].font = val_font
+        ws_mob[f'C{r_idx}'].alignment = Alignment(horizontal="right")
+        ws_mob[f'C{r_idx}'].border = border_thin
+        ws_mob[f'C{r_idx}'].number_format = '#,##0'
+
+    # III. THỰC LÃNH NET
+    ws_mob['B29'] = "III. THỰC LÃNH NET:"
+    ws_mob['B29'].font = net_font
+    ws_mob['B29'].fill = net_fill
+    ws_mob['B29'].border = border_thin
+
+    ws_mob['C29'] = '=IFERROR(VLOOKUP(C$4, DU_LIEU_LUONG!A$2:X$200, 22, FALSE), 0)'
+    ws_mob['C29'].font = net_font
+    ws_mob['C29'].fill = net_fill
+    ws_mob['C29'].alignment = Alignment(horizontal="right")
+    ws_mob['C29'].border = border_thin
+    ws_mob['C29'].number_format = '#,##0'
+
+    ws_mob['B31'] = "Mã Phiếu Chi Sổ Quỹ:"
+    ws_mob['B31'].font = lbl_font
+    ws_mob['C31'] = '=IFERROR(VLOOKUP(C$4, DU_LIEU_LUONG!A$2:X$200, 23, FALSE), "--")'
+    ws_mob['C31'].font = val_font
+
+    ws_mob['B32'] = "Ghi chú giải trình:"
+    ws_mob['B32'].font = lbl_font
+    ws_mob['C32'] = '=IFERROR(VLOOKUP(C$4, DU_LIEU_LUONG!A$2:X$200, 24, FALSE), "")'
+    ws_mob['C32'].font = val_font
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="Phieu_Luong_Mobile_GoogleSheets_{month}.xlsx"'}
+    )

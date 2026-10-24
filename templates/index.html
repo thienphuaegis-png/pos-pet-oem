@@ -934,6 +934,12 @@
                         </span>
                         <span class="sidebar-text truncate">Chấm Công & Lương</span>
                     </button>
+                    <button onclick="switchTab('my-payslip')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="my-payslip" data-role="owner,cashier,accountant,warehouse,staff" data-tooltip="Phiếu Lương Của Tôi">
+                        <span class="sidebar-icon bg-purple-100 text-purple-700">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                        </span>
+                        <span class="sidebar-text truncate">Phiếu Lương Của Tôi</span>
+                    </button>
                     <button onclick="switchTab('guide')" class="tab-btn w-full text-left px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition cursor-pointer" data-tab="guide" data-tooltip="Hướng Dẫn Nghiệp Vụ">
                         <span class="sidebar-icon bg-indigo-100 text-indigo-700">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10"/></svg>
@@ -6305,6 +6311,7 @@
                             <button id="btn-hrm-unlock" onclick="unlockHrmPayroll()" class="hidden bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">🔓 Mở Khóa</button>
                             <button id="btn-hrm-pay" onclick="openHrmPayModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">💰 Trả Lương</button>
                             <button onclick="exportHrmPayroll()" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">📥 Xuất Excel</button>
+                            <button onclick="exportMobileSheets()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">📲 Xuất Google Sheet Mobile</button>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
@@ -6413,14 +6420,129 @@
 
                 <!-- SUBTAB 5: CÀI ĐẶT & KHỐI -->
                 <div id="hrm-subtab-config" class="hidden space-y-4">
+                    <!-- 1. QUY ĐỊNH PHẠT & THƯỞNG -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
+                            <div>
+                                <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
+                                    <span>⚖️</span> Quy Định Phạt Vi Phạm & Chế Độ Đãi Ngộ
+                                </h3>
+                                <p class="text-[11px] text-slate-500">Các tham số này áp dụng trực tiếp cho công thức tính lương tự động</p>
+                            </div>
+                            <button onclick="saveHrmRules()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">
+                                <span>💾</span> Lưu Quy Định
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Phạt trễ từng phút (đ/phút)</label>
+                                <input type="number" id="cfg-late-per-min" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">VD: 5.000 đ/phút</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Phạt trễ nặng cố định (đ)</label>
+                                <input type="number" id="cfg-late-flat" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">VD: 200.000 đ khi vượt ngưỡng</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Ngưỡng phút trễ nặng (phút)</label>
+                                <input type="number" id="cfg-late-threshold" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Mặc định: 30 phút</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Phạt quên quẹt thẻ (đ/lần)</label>
+                                <input type="number" id="cfg-missing-punch" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">VD: 50.000 đ (vẫn tính nửa công)</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Phạt vắng không phép (đ/ngày)</label>
+                                <input type="number" id="cfg-absent" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Mặc định: 500.000 đ</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Thưởng chuyên cần (đ/tháng)</label>
+                                <input type="number" id="cfg-attendance-bonus" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Đủ công chuẩn & 0 vi phạm</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Thưởng sinh nhật (đ/lần)</label>
+                                <input type="number" id="cfg-birthday-bonus" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Tự cộng vào tháng sinh nhật</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Tỷ lệ lương thử việc (%)</label>
+                                <input type="number" id="cfg-probation-rate" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Mặc định: 85% lương chính thức</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Hệ số tăng ca OT</label>
+                                <input type="number" step="0.1" id="cfg-ot-multiplier" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Mặc định: 1.5</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Phút tối thiểu tính OT (phút)</label>
+                                <input type="number" id="cfg-ot-min" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-[10px] text-slate-400">Mặc định: 25 phút</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. KHỐI LÀM VIỆC & CA CHUẨN -->
                     <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
-                        <h3 class="text-xs font-bold uppercase text-slate-700">Khối Làm Việc & Ca Chuẩn</h3>
+                        <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
+                            <span>🏢</span> Khối Làm Việc & Ca Chuẩn
+                        </h3>
                         <div id="hrm-blocks-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
                     </div>
+
+                    <!-- 3. NGÀY LỄ TRONG NĂM -->
                     <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
-                        <h3 class="text-xs font-bold uppercase text-slate-700">Quy Tắc Hoa Hồng Dịch Vụ Spa</h3>
+                        <div class="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
+                            <div>
+                                <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
+                                    <span>📅</span> Danh Sách Ngày Lễ (Nhân Đôi Ngày Công)
+                                </h3>
+                                <p class="text-[11px] text-slate-500">Đi làm ngày lễ được cộng thêm 1 ngày công vào bảng lương</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="date" id="cfg-new-holiday-date" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs">
+                                <input type="text" id="cfg-new-holiday-name" placeholder="Tên ngày lễ..." class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs">
+                                <button onclick="addHrmHoliday()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1 rounded-lg cursor-pointer">➕ Thêm</button>
+                            </div>
+                        </div>
+                        <div id="hrm-holidays-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2"></div>
+                    </div>
+
+                    <!-- 4. QUY TẮC HOA HỒNG SPA -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
+                        <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
+                            <span>✂️</span> Quy Tắc Hoa Hồng Dịch Vụ Spa Theo Vai Trò
+                        </h3>
                         <div id="hrm-spa-rules-list"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- TAB: PHIẾU LƯƠNG CỦA TÔI (MOBILE & DESKTOP RESPONSIVE) -->
+            <div id="tab-my-payslip" class="hidden space-y-4 max-w-2xl mx-auto pb-12">
+                <!-- Thanh điều hướng tháng -->
+                <div class="bg-white p-3 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">📱</span>
+                        <div>
+                            <h2 class="text-xs font-bold text-slate-800">Phiếu Lương Của Tôi</h2>
+                            <p class="text-[10px] text-slate-500">Tra cứu chi tiết thu nhập, ngày công & thưởng phạt</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="month" id="my-payslip-month" onchange="loadMyPayslip()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-purple-500">
+                        <button onclick="printMyPayslip()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">🖨️ In Phiếu</button>
+                    </div>
+                </div>
+
+                <!-- Thẻ thông tin nhân viên & nội dung phiếu -->
+                <div id="my-payslip-content" class="space-y-3">
+                    <div class="text-center py-10 text-slate-400 text-xs">Đang nạp phiếu lương...</div>
                 </div>
             </div>
 
@@ -9732,9 +9854,27 @@
                         <input id="staff-commission" type="number" step="0.1" min="0" max="100" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" value="0">
                     </div>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-700">Lương Cơ Bản (Tháng)</label>
-                    <input id="staff-base-salary" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 6.000.000">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Lương Cơ Bản</label>
+                        <input id="staff-base-salary" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 6.000.000">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Phụ Cấp Ăn Trưa/Xăng</label>
+                        <input id="staff-allowance" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 500.000">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Khối Làm Việc</label>
+                        <select id="staff-work-block-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                            <option value="">-- Chọn khối --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Ngày Nhận Việc</label>
+                        <input id="staff-hire-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
                 </div>
 
                 <!-- CÔNG TẮC CẤP TÀI KHOẢN ĐĂNG NHẬP -->
@@ -9802,6 +9942,232 @@
                     <span>Lưu Nhân Viên</span>
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SỬA KHỐI LÀM VIỆC & CA CHUẨN (HRM) -->
+    <div id="modal-hrm-block" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>🏢</span> <span id="modal-hrm-block-title">Cấu Hình Khối Làm Việc</span>
+                </h3>
+                <button type="button" onclick="closeEditBlockModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <input type="hidden" id="hrm-block-id">
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Tên khối làm việc (*)</label>
+                    <input id="hrm-block-name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs mt-1 font-bold">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-700">Giờ vào ca (HH:MM)</label>
+                        <input id="hrm-block-start" type="time" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Giờ tan ca (HH:MM)</label>
+                        <input id="hrm-block-end" type="time" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-700">Nghỉ trưa (phút)</label>
+                        <input id="hrm-block-lunch" type="number" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Giờ công chuẩn (giờ/ngày)</label>
+                        <input id="hrm-block-std-hours" type="number" step="0.5" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="font-bold text-slate-700">Số ngày nghỉ phép/tháng</label>
+                        <input id="hrm-block-monthly-off" type="number" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                    </div>
+                    <div class="flex items-center gap-2 pt-6">
+                        <input type="checkbox" id="hrm-block-off-sunday" class="rounded text-emerald-600 w-4 h-4">
+                        <label for="hrm-block-off-sunday" class="font-bold text-slate-700 cursor-pointer">Nghỉ Chủ Nhật</label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeEditBlockModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="saveHrmBlock()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: THÊM TĂNG CA (HRM) -->
+    <div id="modal-hrm-overtime" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>⏱️</span> <span>Thêm Giờ Tăng Ca (OT)</span>
+                </h3>
+                <button type="button" onclick="closeHrmOvertimeModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Nhân viên (*)</label>
+                    <select id="hrm-ot-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ngày tăng ca (*)</label>
+                    <input id="hrm-ot-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Số giờ tăng ca (h) (*)</label>
+                    <input id="hrm-ot-hours" type="number" step="0.5" min="0.5" max="24" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-bold text-purple-700" placeholder="VD: 2.0">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ghi chú công việc OT</label>
+                    <input id="hrm-ot-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Tăng ca kiểm kê kho">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmOvertimeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmOvertime()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Tăng Ca</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TẠM ỨNG LƯƠNG (HRM) -->
+    <div id="modal-hrm-advance" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>💸</span> <span>Tạm Ứng Lương Nhân Viên</span>
+                </h3>
+                <button type="button" onclick="closeHrmAdvanceModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Nhân viên ứng (*)</label>
+                    <select id="hrm-adv-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ngày tạm ứng (*)</label>
+                    <input id="hrm-adv-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Số tiền ứng (*)</label>
+                    <input id="hrm-adv-amount" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm mt-1 font-mono font-bold text-rose-600" placeholder="VD: 1.000.000">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Tài khoản chi Sổ Quỹ</label>
+                    <select id="hrm-adv-account-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white">
+                        <option value="">-- Không sinh phiếu chi sổ quỹ --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ghi chú / Lý do ứng</label>
+                    <input id="hrm-adv-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Ứng tiền việc gia đình">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmAdvanceModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmAdvance()" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2 rounded-lg font-bold shadow-xs">Xác Nhận Ứng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SỬA CÔNG NGÀY (HRM) -->
+    <div id="modal-hrm-edit-day" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>📝</span> <span>Điều Chỉnh Chấm Công Ngày</span>
+                </h3>
+                <button type="button" onclick="closeHrmEditDayModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <input type="hidden" id="hrm-edit-day-staff-id">
+            <input type="hidden" id="hrm-edit-day-date">
+            <div class="p-2.5 bg-slate-50 border rounded-lg space-y-1">
+                <div class="font-bold text-slate-800" id="hrm-edit-day-staff-name">Nhân viên: -</div>
+                <div class="text-[11px] text-slate-500 font-mono" id="hrm-edit-day-date-text">Ngày: -</div>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Trạng thái công</label>
+                    <select id="hrm-edit-day-code" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white font-bold">
+                        <option value="X">X — Đi làm đủ ca (1.0 công)</option>
+                        <option value="X/2">X/2 — Nửa ca / Quên quẹt (0.5 công)</option>
+                        <option value="TV">TV — Thử việc (1.0 công TV)</option>
+                        <option value="OFF">OFF — Nghỉ phép / Ngày nghỉ (0 công)</option>
+                        <option value="L">L — Nghỉ Lễ nhân đôi (1 công + 1 công thưởng)</option>
+                        <option value="V">V — Vắng không phép</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Các mốc quẹt thẻ (cách nhau dấu phẩy)</label>
+                    <input id="hrm-edit-day-punches" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono" placeholder="VD: 08:00, 17:30">
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="hrm-edit-day-waive" class="rounded text-emerald-600 w-4 h-4">
+                    <label for="hrm-edit-day-waive" class="font-bold text-slate-700 cursor-pointer">Miễn phạt đi trễ / quên quẹt</label>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ghi chú giải trình</label>
+                    <input id="hrm-edit-day-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Quên quẹt do máy mất điện">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmEditDayModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmEditDay()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-lg font-bold shadow-xs">Cập Nhật Công</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SỬA SỐ DÒNG LƯƠNG (HRM) -->
+    <div id="modal-hrm-edit-line" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>✏️</span> <span>Điều Chỉnh Số Bảng Lương</span>
+                </h3>
+                <button type="button" onclick="closeHrmEditLineModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <input type="hidden" id="hrm-line-staff-id">
+            <div class="p-2.5 bg-slate-50 border rounded-lg font-bold text-slate-800" id="hrm-line-staff-name">Nhân viên: -</div>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Thưởng khác (VNĐ)</label>
+                    <input id="hrm-line-bonus-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-emerald-700" placeholder="VD: 500.000">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Phụ cấp khác / Xăng xe (VNĐ)</label>
+                    <input id="hrm-line-fuel-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-sky-700" placeholder="VD: 300.000">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Giảm trừ khác (VNĐ)</label>
+                    <input id="hrm-line-deduction-other" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-rose-600" placeholder="VD: 100.000">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ghi chú điều chỉnh</label>
+                    <input id="hrm-line-manual-note" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Thưởng hoàn thành xuất sắc">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmEditLineModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmEditLine()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: XEM PHIẾU LƯƠNG CHI TIẾT (HRM) -->
+    <div id="modal-hrm-payslip" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>📄</span> <span>Phiếu Lương Chi Tiết</span>
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="printHrmPayslip()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1">🖨️ In</button>
+                    <button type="button" onclick="closeHrmPayslipModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+                </div>
+            </div>
+            <div id="hrm-payslip-modal-body" class="space-y-3"></div>
         </div>
     </div>
 
@@ -11759,7 +12125,7 @@
     <script src="/static/js/app.js?v=20261021_04"></script>
     <script src="/static/js/payacc.js?v=20261021_01"></script>
     <script src="/static/js/shifts.js?v=20261021_07"></script>
-    <script src="/static/js/staff.js?v=20261021_01"></script>
+    <script src="/static/js/staff.js?v=20261024_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261016_01"></script>
     <script src="/static/js/modules/spa.js?v=20261024_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261021_07"></script>
@@ -11775,7 +12141,7 @@
     <script src="/static/js/pos.js?v=20261024_01"></script>
     <script src="/static/js/modules/marketplace.js?v=20261016_01"></script>
     <script src="/static/js/clientlog.js?v=20261021_01"></script>
-    <script src="/static/js/modules/hrm.js?v=20261023_01"></script>
+    <script src="/static/js/modules/hrm.js?v=20261024_01"></script>
 
     <!-- MODAL: XEM ẢNH BILL CHỨNG TỪ -->
     <div id="modal-view-expense-bill" onclick="if(event.target === this) closeExpenseBillModal()" class="hidden fixed inset-0 bg-black/80 items-center justify-center z-[75] p-3 backdrop-blur-sm flex">
