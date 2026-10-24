@@ -2614,7 +2614,7 @@
 
                             <!-- Thanh Quick-Search Thả Thẳng Vào Bảng (Không Cần Modal Che) -->
                             <div class="relative" id="bom-quick-search-wrapper">
-                                <input type="text" id="bom-quick-search-input" oninput="filterBOMQuickSearch()" onfocus="showBOMQuickSearch()" placeholder="🔍 Gõ tên hoặc mã nguyên liệu để thêm nhanh..." class="w-full border border-slate-300 rounded-lg p-2 text-xs font-medium bg-white focus:outline-none focus:border-indigo-500 shadow-2xs">
+                                <input type="text" id="bom-quick-search-input" oninput="filterBOMQuickSearch()" onfocus="showBOMQuickSearch()" onkeydown="handleBOMQuickSearchKeydown(event)" placeholder="🔍 Gõ tên hoặc mã nguyên liệu để thêm nhanh..." class="w-full border border-slate-300 rounded-lg p-2 text-xs font-medium bg-white focus:outline-none focus:border-indigo-500 shadow-2xs">
                                 <div id="bom-quick-search-dropdown" class="absolute left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl z-30 hidden divide-y text-xs"></div>
                             </div>
 
@@ -11763,7 +11763,7 @@
     <script src="/static/js/modules/contacts.js?v=20261016_01"></script>
     <script src="/static/js/modules/spa.js?v=20261024_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261021_07"></script>
-    <script src="/static/js/modules/productions.js?v=20261024_01"></script>
+    <script src="/static/js/modules/productions.js?v=20261024_02"></script>
     <script src="/static/js/modules/cashflow.js?v=20261022_01"></script>
     <script src="/static/js/modules/hotel.js?v=20261021_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>

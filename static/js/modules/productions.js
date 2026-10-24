@@ -3183,6 +3183,7 @@
 
             const searchInput = document.getElementById('bom-prod-search-input');
             if (searchInput) searchInput.value = ''; // Reset ô tìm kiếm
+            if (typeof hideBOMQuickSearch === 'function') hideBOMQuickSearch();
 
             if (selectedBOMProductIds.length > 0) {
                 // Tải BOM của sản phẩm đầu tiên hoặc mới nhất trong danh sách
@@ -3786,10 +3787,96 @@
         }
 
         // --- QUICK-SEARCH NGUYÊN LIỆU THẢ THẲNG VÀO BẢNG (KHÔNG CẦN MODAL CHE) ---
+        let bomQuickActiveIdx = -1;
+        let bomQuickFilteredList = [];
+
+        window.hideBOMQuickSearch = function() {
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            if (dd) dd.classList.add('hidden');
+            bomQuickActiveIdx = -1;
+        };
+
         window.showBOMQuickSearch = function() {
             const dd = document.getElementById('bom-quick-search-dropdown');
             if (dd) dd.classList.remove('hidden');
             window.filterBOMQuickSearch();
+        };
+
+        // Tự động đóng dropdown quick-search khi click ra ngoài wrapper
+        document.addEventListener('click', function(event) {
+            const wrapper = document.getElementById('bom-quick-search-wrapper');
+            if (wrapper && !wrapper.contains(event.target)) {
+                window.hideBOMQuickSearch();
+            }
+        });
+
+        window.setBOMQuickActiveItem = function(idx) {
+            bomQuickActiveIdx = idx;
+            updateBOMQuickHighlight();
+        };
+
+        function updateBOMQuickHighlight() {
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            if (!dd) return;
+            const items = dd.querySelectorAll('.bom-quick-search-item');
+            items.forEach((el, i) => {
+                if (i === bomQuickActiveIdx) {
+                    el.classList.add('bg-indigo-100', 'ring-1', 'ring-indigo-400');
+                    el.classList.remove('hover:bg-indigo-50');
+                    el.scrollIntoView({ block: 'nearest' });
+                } else {
+                    el.classList.remove('bg-indigo-100', 'ring-1', 'ring-indigo-400');
+                    el.classList.add('hover:bg-indigo-50');
+                }
+            });
+        }
+
+        window.handleBOMQuickSearchKeydown = function(e) {
+            const dd = document.getElementById('bom-quick-search-dropdown');
+            const isHidden = !dd || dd.classList.contains('hidden');
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                window.hideBOMQuickSearch();
+                document.getElementById('bom-quick-search-input')?.blur();
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (isHidden) {
+                    window.showBOMQuickSearch();
+                    return;
+                }
+                if (bomQuickFilteredList.length > 0) {
+                    bomQuickActiveIdx = (bomQuickActiveIdx + 1) % bomQuickFilteredList.length;
+                    updateBOMQuickHighlight();
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (isHidden) {
+                    window.showBOMQuickSearch();
+                    return;
+                }
+                if (bomQuickFilteredList.length > 0) {
+                    bomQuickActiveIdx = (bomQuickActiveIdx - 1 + bomQuickFilteredList.length) % bomQuickFilteredList.length;
+                    updateBOMQuickHighlight();
+                }
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                if (!isHidden && bomQuickFilteredList.length > 0) {
+                    e.preventDefault();
+                    const targetIdx = bomQuickActiveIdx >= 0 ? bomQuickActiveIdx : (bomQuickFilteredList.length === 1 ? 0 : -1);
+                    if (targetIdx >= 0 && targetIdx < bomQuickFilteredList.length) {
+                        window.quickAddBOMIngredient(bomQuickFilteredList[targetIdx].id);
+                    }
+                }
+            }
         };
 
         window.filterBOMQuickSearch = function() {
@@ -3798,18 +3885,19 @@
             if (!dd) return;
 
             const list = (typeof costIngredients !== 'undefined' ? costIngredients : []);
-            const filtered = list.filter(ing => 
+            bomQuickFilteredList = list.filter(ing => 
                 (ing.code && ing.code.toLowerCase().includes(kw)) || 
                 ing.name.toLowerCase().includes(kw)
             );
+            bomQuickActiveIdx = -1;
 
-            if (filtered.length === 0) {
+            if (bomQuickFilteredList.length === 0) {
                 dd.innerHTML = '<div class="p-3 text-slate-400 text-center font-medium text-xs">Không tìm thấy nguyên liệu nào phù hợp</div>';
                 return;
             }
 
-            dd.innerHTML = filtered.slice(0, 30).map(ing => `
-                <div onclick="quickAddBOMIngredient(${ing.id})" class="p-2.5 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition group">
+            dd.innerHTML = bomQuickFilteredList.slice(0, 30).map((ing, idx) => `
+                <div onclick="quickAddBOMIngredient(${ing.id})" onmouseenter="setBOMQuickActiveItem(${idx})" class="bom-quick-search-item p-2.5 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition group">
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-indigo-100 text-slate-600 group-hover:text-indigo-700 flex items-center justify-center font-bold text-xs">📦</span>
                         <div>
@@ -3851,8 +3939,7 @@
 
             const input = document.getElementById('bom-quick-search-input');
             if (input) input.value = '';
-            const dd = document.getElementById('bom-quick-search-dropdown');
-            if (dd) dd.classList.add('hidden');
+            window.hideBOMQuickSearch();
 
             await loadProductBOMDetails(targetIds[targetIds.length - 1]);
             await loadUnifiedInventory();
