@@ -317,13 +317,23 @@ async function applyRoleUI() {
 
   if (!posModulesCache) await loadModulesForUI();
 
-  // Ẩn/hiện elements theo data-role + data-module
-  document.querySelectorAll('[data-role]').forEach(el => {
-    const allowed = el.dataset.role.split(',').map(r => r.trim());
-    const roleOk = (user.role === 'owner' || allowed.includes(user.role));
+  // Ẩn/hiện elements theo data-role + data-module + data-perm
+  document.querySelectorAll('[data-role], [data-perm]').forEach(el => {
+    let roleOk = true;
+    if (el.dataset.role) {
+      const allowed = el.dataset.role.split(',').map(r => r.trim());
+      roleOk = (user.role === 'owner' || user.role === 'admin' || allowed.includes(user.role));
+    }
     const moduleKey = el.dataset.module;
     const moduleOk = !moduleKey || posModulesCache[moduleKey] !== false;
-    el.style.display = (roleOk && moduleOk) ? '' : 'none';
+
+    let permOk = true;
+    if (el.dataset.perm && user.role !== 'owner' && user.role !== 'admin') {
+      const requiredPerms = el.dataset.perm.split(',').map(p => p.trim());
+      permOk = requiredPerms.some(p => Auth.can(p));
+    }
+
+    el.style.display = (roleOk && moduleOk && permOk) ? '' : 'none';
   });
 
   // Header info
@@ -375,6 +385,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function triggerLandingTabSafe() {
   if (typeof window.switchTab === 'function') {
+    const user = Auth.getUser();
+    if (user && user.role !== 'owner' && user.role !== 'admin') {
+      // Nếu user chỉ có quyền purchases.request và không có quyền kho/nhập/pos
+      if (Auth.can('purchases.request') && !Auth.can('purchases.manage') && !Auth.can('inventory.manage') && !Auth.can('pos.sell')) {
+        window.switchTab('purchase-requests');
+        return;
+      }
+    }
     window.switchTab('ai-agent');
   } else {
     setTimeout(triggerLandingTabSafe, 50);
@@ -382,6 +400,7 @@ function triggerLandingTabSafe() {
 }
 window.triggerLandingTabSafe = triggerLandingTabSafe;
 window.triggerPOSTabSafe = triggerLandingTabSafe; // backward compatibility
+// initPOSModule is called via switchTab('pos') when user switches to POS tab
 
 // ── Password Visibility & Caps Lock Helpers (Mẫu 3) ──
 window.togglePasswordVisibility = function(inputId, btnEl) {

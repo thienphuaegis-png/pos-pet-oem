@@ -1,16 +1,28 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-23 — Tích hợp phân hệ HRM & Payroll Engine (Chấm công vân tay, Bảng lương 4 tầng, Hoa hồng bán lẻ/spa, Sổ quỹ)
+**Checkpoint:** 2026-10-24 — Phân quyền chi tiết (Granular RBAC) cho nhân viên kho (Tách tab Yêu cầu đặt hàng `purchases.request`, khóa Sidebar theo `data-perm`, che công nợ AI Dashboard)
 **Lịch sử checkpoint:** `docs/checkpoints/CHECKPOINT_2026_10_23.md`
 **Active Plan:** `docs/plans/plan_hrm_payroll_attendance_engine.md`
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.29` — Exe: `dist/POS_Mastercare.exe` (31.6 MB) khớp database & code mới nhất
+**Version:** `v3.6.30` — Granular RBAC, `purchases.request` permission
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-23)
+## 1. Phiên Hiện Tại ✅ (2026-10-24)
+- **Phân quyền chi tiết Tab-level (Granular RBAC):**
+  - Thêm quyền `purchases.request` vào `PERM_KEYS` và `database.py`, seed tự động cho các role.
+  - Gắn `data-perm` vào toàn bộ tab trên thanh Sidebar (`templates/index.html`).
+  - Nâng cấp `applyRoleUI()` trong `static/js/auth.js` duyệt đồng thời `data-role` và `Auth.can(data-perm)`.
+  - Guard `switchTab()` trong `static/js/app.js` chặn mở tab khi không có quyền.
+  - Landing tab thông minh: Nhân viên chỉ có quyền `purchases.request` tự động mở tab `purchase-requests`.
+  - Che dữ liệu nhạy cảm trên AI Hub: Ẩn số nợ NCC/xưởng và lô hàng về ở cả Backend (`ai_assistant.py`) và Frontend (`ai_agent.js`) khi thiếu quyền `purchases.manage`.
+  - Bảo vệ API `/api/purchase-requests` bằng `require_any_permission("purchases.request", "purchases.manage")`.
+
+---
+
+## 2. Phiên Trước ✅ (2026-10-23)
 - **Sửa triệt để 5 lỗi hoa hồng cũ:**
   - Hoa hồng bán lẻ tính theo doanh thu thuần `(total_amount - discount)`, trừ hàng trả lại, bỏ đơn nháp/hủy.
   - Tự động tính lại khi sửa đơn hoặc gán lại nhân viên hàng loạt. Hoa hồng combo tính theo doanh thu thuần.

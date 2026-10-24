@@ -702,16 +702,23 @@
                 }
 
                 if (col2FooterBox) {
-                    col2FooterBox.className = "p-2.5 bg-rose-50/80 border border-rose-200 rounded-lg text-xs space-y-1";
-                    col2FooterBox.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <span class="font-bold text-rose-900">📑 Công nợ NCC & Xưởng còn nợ:</span>
-                            <span class="font-mono font-bold text-rose-700 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.total_payable || 0) : data.warehouse_kpi?.total_payable}</span>
-                        </div>
-                        <div class="text-[10px] text-rose-700">
-                            Nợ NCC: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_suppliers || 0) : 0} + Nợ xưởng OEM: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_oem || 0) : 0}
-                        </div>
-                    `;
+                    const canSeeDebt = typeof Auth === 'undefined' || Auth.can('purchases.manage');
+                    if (canSeeDebt && (data.warehouse_kpi?.total_payable || 0) > 0) {
+                        col2FooterBox.classList.remove('hidden');
+                        col2FooterBox.className = "p-2.5 bg-rose-50/80 border border-rose-200 rounded-lg text-xs space-y-1";
+                        col2FooterBox.innerHTML = `
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-rose-900">📑 Công nợ NCC & Xưởng còn nợ:</span>
+                                <span class="font-mono font-bold text-rose-700 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.total_payable || 0) : data.warehouse_kpi?.total_payable}</span>
+                            </div>
+                            <div class="text-[10px] text-rose-700">
+                                Nợ NCC: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_suppliers || 0) : 0} + Nợ xưởng OEM: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_oem || 0) : 0}
+                            </div>
+                        `;
+                    } else {
+                        col2FooterBox.classList.add('hidden');
+                        col2FooterBox.innerHTML = '';
+                    }
                 }
 
             } else if (role === 'accountant') {

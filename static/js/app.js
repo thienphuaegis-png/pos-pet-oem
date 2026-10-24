@@ -4254,12 +4254,21 @@
 
         function switchTab(tabId, subTabId) {
             console.log("switchTab activated:", tabId, subTabId);
-            startPageLoader();
             // Map legacy ids
             if (tabId === 'products') { tabId = 'inventory'; subTabId = 'products'; }
             else if (tabId === 'cost-management') { tabId = 'inventory'; subTabId = 'cost'; }
             else if (tabId === 'production') { tabId = 'inventory'; subTabId = 'production'; }
             else if (tabId === 'company') { tabId = 'settings'; subTabId = 'company'; }
+
+            const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (tabBtn && tabBtn.style.display === 'none' && typeof Auth !== 'undefined') {
+                const user = Auth.getUser();
+                if (user && user.role !== 'owner' && user.role !== 'admin') {
+                    console.warn(`Access denied to tab ${tabId}`);
+                    return;
+                }
+            }
+            startPageLoader();
 
             document.querySelectorAll('[id^="tab-"]').forEach(el => {
                 el.classList.add('hidden');

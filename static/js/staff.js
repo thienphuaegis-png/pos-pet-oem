@@ -172,6 +172,7 @@ const PERM_LABEL = {
   "pos.edit_delete_order": "Sửa hóa đơn",
   "cashbook.manage": "Lập phiếu Sổ Quỹ",
   "purchases.manage": "Quản lý Nhập hàng",
+  "purchases.request": "Tạo & Xem Yêu Cầu Đặt Hàng",
   "partners.manage": "Quản lý KH/NCC",
   "price_lists.manage": "Quản lý Bảng Giá",
   "inventory.manage": "Quản lý Kho",

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg-page: #f8fafc;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-muted: #64748b;
+    --accent: #6366f1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 12px; background: transparent; color: var(--text-primary); font-size: 13px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .badge-red { background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px; }
+  .badge-green { background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px; }
+  .badge-purple { background: #f3e8ff; color: #7e22ce; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px; }
+  .sidebar-box { background: #f1f5f9; border-radius: 8px; padding: 8px; margin-top: 8px; font-size: 12px; }
+  .tab-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; margin-bottom: 3px; font-weight: 600; }
+  .tab-active { background: #e0e7ff; color: #4338ca; }
+  .tab-dim { color: #64748b; background: #fff; border: 1px solid #e2e8f0; }
+  .tab-cross { color: #94a3b8; text-decoration: line-through; background: #f8fafc; border: 1px dashed #cbd5e1; opacity: 0.6; }
+  .highlight-danger { border: 1px dashed #ef4444; background: #fef2f2; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 11px; }
+  .highlight-safe { border: 1px dashed #10b981; background: #f0fdf4; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  th { background: #f8fafc; font-weight: 600; color: #475569; }
+</style>
+</head>
+<body>
+
+<div class="grid-2">
+  <!-- CỘT 1: HIỆN TẠI -->
+  <div class="card" style="border-top: 4px solid #ef4444;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 14px; font-weight: 700;">HIỆN TẠI (Theo Role Kho)</h3>
+      <span class="badge-red">Bị lộ nhiều tab & dữ liệu</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">Tài khoản gán role <b>warehouse</b>: Sidebar cố định theo <code>data-role</code></p>
+    
+    <div class="sidebar-box">
+      <div style="font-weight: 700; color: #475569; margin-bottom: 6px;">Menu Sidebar nhân viên thấy:</div>
+      <div class="tab-row tab-dim">📦 Hàng Hóa & Kho</div>
+      <div class="tab-row tab-dim">🚚 Nhập Hàng</div>
+      <div class="tab-row tab-dim">📋 Yêu Cầu Đặt Hàng</div>
+      <div class="tab-row tab-dim">🏭 Gia Công OEM</div>
+      <div class="tab-row tab-dim">👥 Khách Hàng & Đối Tác</div>
+      <div class="tab-row tab-dim">💰 Sổ Quỹ Thu Chi</div>
+      <div class="tab-row tab-dim">🏦 Dòng Tiền & Nợ NCC</div>
+      <div class="tab-row tab-active">🤖 Tác Nhân AI (Đang mở)</div>
+    </div>
+
+    <div class="highlight-danger">
+      <b>⚠️ Rủi ro hiện hữu:</b><br>
+      • Thấy toàn bộ công nợ xưởng & NCC (288.638.953 đ) trên Dashboard AI.<br>
+      • Bấm vào Nhập Hàng, Hàng Hóa, Sổ Quỹ vẫn xem được danh sách và giá tiền.<br>
+      • Cài đặt chưa có nút tick riêng cho "Yêu Cầu Đặt Hàng".
+    </div>
+  </div>
+
+  <!-- CỘT 2: ĐỀ XUẤT -->
+  <div class="card" style="border-top: 4px solid #10b981;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 14px; font-weight: 700;">ĐỀ XUẤT (Granular Permissions)</h3>
+      <span class="badge-green">Khóa chặt & Gọn gàng</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 12px; margin-top: 4px;">Thêm quyền <code>purchases.request</code> + Sidebar lọc theo <code>data-perm</code></p>
+
+    <div class="sidebar-box">
+      <div style="font-weight: 700; color: #475569; margin-bottom: 6px;">Menu Sidebar sau khi phân quyền riêng:</div>
+      <div class="tab-row tab-active">📋 Yêu Cầu Đặt Hàng (Cho phép)</div>
+      <div class="tab-row tab-dim">📖 Hướng Dẫn Nghiệp Vụ</div>
+      <div class="tab-row tab-dim">🤖 Tác Nhân AI (Đã ẩn số nợ & đơn nhập)</div>
+      <div class="tab-row tab-cross">❌ Hàng Hóa & Kho (Tự động ẩn)</div>
+      <div class="tab-row tab-cross">❌ Nhập Hàng (Tự động ẩn)</div>
+      <div class="tab-row tab-cross">❌ Gia Công OEM (Tự động ẩn)</div>
+      <div class="tab-row tab-cross">❌ Sổ Quỹ & Dòng Tiền (Tự động ẩn)</div>
+    </div>
+
+    <div class="highlight-safe">
+      <b>🛡️ Sau khi áp dụng:</b><br>
+      • Nhân viên kho chỉ thao tác đúng tab <b>Yêu Cầu Đặt Hàng</b>.<br>
+      • Dashboard AI tự động ẩn khối "Công nợ 288tr" và các đơn PO bí mật.<br>
+      • Tầng Backend chặn 403 nếu cố tình gọi API duyệt nhập kho.
+    </div>
+  </div>
+</div>
+
+<!-- MOCKUP BẢNG PHÂN QUYỀN TRONG CÀI ĐẶT -->
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h4 style="font-size: 13px; font-weight: 700; color: #334155;">Giao diện Cài Đặt → Phân Quyền Riêng Từng Nhân Viên (Sẽ bổ sung mục mới)</h4>
+    <span class="badge-purple">Settings → Staff Permissions</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Quyền chức năng</th>
+        <th style="text-align: center;">Mặc định (Kho)</th>
+        <th style="text-align: center;">Riêng nhân viên này</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background: #f0fdf4;">
+        <td><b>📋 Tạo & Xem Yêu Cầu Đặt Hàng (purchases.request)</b> <span class="badge-green">Mới</span></td>
+        <td style="text-align: center; color: #16a34a;">✔️</td>
+        <td style="text-align: center;"><b>Cho phép</b></td>
+      </tr>
+      <tr>
+        <td>🚚 Quản lý Nhập hàng (purchases.manage)</td>
+        <td style="text-align: center; color: #16a34a;">✔️</td>
+        <td style="text-align: center; color: #dc2626;"><b>Không cho phép</b></td>
+      </tr>
+      <tr>
+        <td>📦 Quản lý Kho (inventory.manage)</td>
+        <td style="text-align: center; color: #16a34a;">✔️</td>
+        <td style="text-align: center; color: #dc2626;"><b>Không cho phép</b></td>
+      </tr>
+      <tr>
+        <td>🏭 Quản lý OEM (oem.manage)</td>
+        <td style="text-align: center; color: #64748b;">—</td>
+        <td style="text-align: center; color: #dc2626;"><b>Không cho phép</b></td>
+      </tr>
+      <tr>
+        <td>💰 Lập phiếu Sổ Quỹ (cashbook.manage)</td>
+        <td style="text-align: center; color: #16a34a;">✔️</td>
+        <td style="text-align: center; color: #dc2626;"><b>Không cho phép</b></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

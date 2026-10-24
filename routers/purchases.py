@@ -7,7 +7,7 @@ import time
 from database import get_db, archive_code, is_code_archived
 from schemas import PurchaseCreate, PurchaseRequestCreate
 from logger_config import get_module_logger
-from dependencies import require_role, require_permission, get_current_user
+from dependencies import require_role, require_permission, require_any_permission, get_current_user
 from routers.cashbook import generate_cashbook_code
 
 logger = get_module_logger("purchases")
@@ -1181,7 +1181,7 @@ def pay_purchase_debt(code: str, req: PurchasePayRequest, user=Depends(require_p
 # --- Phân hệ Yêu Cầu Nhập Hàng (Purchase Requisition - Masking NCC) ---
 
 @router.get("/api/purchase-requests/catalog-masked")
-def get_masked_catalog_for_requisition():
+def get_masked_catalog_for_requisition(user: dict = Depends(require_any_permission("purchases.request", "purchases.manage", "inventory.manage"))):
     """Danh mục hàng hóa dành cho nhân viên cửa hàng/spa: ẩn danh hoàn toàn tên, SĐT, giá vốn NCC."""
     conn = get_db()
     cur = conn.cursor()
@@ -1224,7 +1224,7 @@ def get_masked_catalog_for_requisition():
 
 
 @router.post("/api/purchase-requests")
-def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(get_current_user)):
+def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(require_any_permission("purchases.request", "purchases.manage"))):
     """Gửi phiếu yêu cầu nhập hàng từ cửa hàng hoặc spa."""
     if not req.items or len(req.items) == 0:
         raise HTTPException(status_code=400, detail="Phiếu yêu cầu phải có ít nhất 1 sản phẩm")
@@ -1287,7 +1287,7 @@ def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(get
 
 
 @router.get("/api/purchase-requests")
-def list_purchase_requests(status: Optional[str] = None):
+def list_purchase_requests(status: Optional[str] = None, user: dict = Depends(require_any_permission("purchases.request", "purchases.manage"))):
     """Lấy danh sách các phiếu yêu cầu nhập hàng."""
     conn = get_db()
     cur = conn.cursor()
@@ -1327,7 +1327,7 @@ def list_purchase_requests(status: Optional[str] = None):
 
 
 @router.get("/api/purchase-requests/{request_id}/items")
-def get_purchase_request_items(request_id: int):
+def get_purchase_request_items(request_id: int, user: dict = Depends(require_any_permission("purchases.request", "purchases.manage"))):
     """Lấy danh sách các sản phẩm trong phiếu yêu cầu (ẩn danh thông tin NCC)."""
     conn = get_db()
     cur = conn.cursor()

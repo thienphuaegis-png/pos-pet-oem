@@ -1018,18 +1018,28 @@ def init_db():
         PRIMARY KEY (role, perm_key)
     )''')
     # Seed mac dinh = giu nguyen hanh vi cu (require_role cung truoc day)
-    PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
+    PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage", "purchases.request",
                  "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
-                 "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date"]
+                 "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date", "payroll.manage"]
     DEFAULT_ROLE_PERMS = {
-        "cashier": {"pos.sell", "cashbook.manage", "partners.manage"},
-        "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order", "inventory.view_cost"},
-        "warehouse": {"purchases.manage", "inventory.manage", "cashbook.manage", "partners.manage", "inventory.view_cost"},
+        "cashier": {"pos.sell", "cashbook.manage", "partners.manage", "purchases.request"},
+        "accountant": {"cashbook.manage", "partners.manage", "reports.view", "shifts.approve", "pos.edit_delete_order", "inventory.view_cost", "purchases.request"},
+        "warehouse": {"purchases.manage", "purchases.request", "inventory.manage", "cashbook.manage", "partners.manage", "inventory.view_cost"},
     }
     for role, perms in DEFAULT_ROLE_PERMS.items():
         for key in PERM_KEYS:
             cur.execute("INSERT OR IGNORE INTO role_permissions (role, perm_key, allowed) VALUES (?, ?, ?)",
                         (role, key, 1 if key in perms else 0))
+
+    # Migration 2026-10-24: Quyen tao & xem yeu cau dat hang (purchases.request)
+    cur.execute("SELECT value FROM settings WHERE key = 'migration_rbac_purchases_request'")
+    if not cur.fetchone():
+        for role, allowed in [("warehouse", 1), ("cashier", 1), ("accountant", 1), ("staff", 0)]:
+            cur.execute("""
+                INSERT INTO role_permissions (role, perm_key, allowed) VALUES (?, 'purchases.request', ?)
+                ON CONFLICT(role, perm_key) DO UPDATE SET allowed = excluded.allowed
+            """, (role, allowed))
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_rbac_purchases_request', '1')")
 
     # Migration 2026-09-30: Cấp quyền cashbook.manage & partners.manage cho cashier & warehouse trên DB hiện hữu
     cur.execute("SELECT value FROM settings WHERE key = 'migration_rbac_cashbook_partners'")

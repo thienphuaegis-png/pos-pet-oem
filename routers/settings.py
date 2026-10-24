@@ -10,7 +10,7 @@ logger = get_module_logger("settings")
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 # Cac quyen quan ly duoc (owner luon full, khong hien trong danh sach nay)
-PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage",
+PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.manage", "purchases.request",
              "partners.manage", "price_lists.manage", "inventory.manage", "inventory.view_cost", "oem.manage",
              "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date",
              "payroll.manage"]

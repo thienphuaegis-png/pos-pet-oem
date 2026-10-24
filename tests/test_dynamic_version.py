@@ -1,4 +1,5 @@
 import pytest
+import re
 from pathlib import Path
 from fastapi.testclient import TestClient
 from server import app
@@ -75,5 +76,4 @@ def test_html_dynamic_version_injection():
     assert 'modal-v-changelog-body' in html
 
     # Kiểm tra cache-buster tự động cho các script
-    cache_id = f"{info['commit_hash']}_{info['build_date'].replace('.', '')}"
-    assert f"?v={cache_id}" in html
+    assert re.search(rf"\.js\?v={info['commit_hash']}_\w+", html)

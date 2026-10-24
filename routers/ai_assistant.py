@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from database import get_db
-from dependencies import require_role, get_optional_user, get_current_user
+from dependencies import require_role, get_optional_user, get_current_user, check_permission
 from schemas import QuickDraftRequest, BatchQuickDraftRequest
 from logger_config import get_module_logger
 
@@ -1135,6 +1135,13 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
     def format_vn(num):
         return f"{int(round(num)):,}".replace(",", ".")
 
+    can_manage_purchases = (staff_role in ("owner", "admin")) or check_permission(user["id"], staff_role, "purchases.manage")
+    if not can_manage_purchases and staff_role != 'accountant':
+        debt_purchases = 0.0
+        debt_oem = 0.0
+        total_payable = 0.0
+        incoming_shipments = []
+
     # 9. Lời chào và tóm tắt công việc cá nhân hóa theo vai trò (Role-Customized Briefing)
     hour = datetime.datetime.now().hour
     period = "buổi sáng" if hour < 12 else ("buổi chiều" if hour < 18 else "buổi tối")
@@ -1142,11 +1149,17 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
 
     incoming_count = len(incoming_shipments)
     if staff_role == 'warehouse':
-        briefing_desc = (
-            f"Hôm nay kho có {low_stock_count} sản phẩm chạm đáy tồn cần đặt, "
-            f"{incoming_count} đơn hàng đang trên đường về, và nợ xưởng/NCC {format_vn(total_payable)} đ. "
-            f"Chúc bạn kiểm kho và nhận hàng nhanh chóng!"
-        )
+        if can_manage_purchases:
+            briefing_desc = (
+                f"Hôm nay kho có {low_stock_count} sản phẩm chạm đáy tồn cần đặt, "
+                f"{incoming_count} đơn hàng đang trên đường về, và nợ xưởng/NCC {format_vn(total_payable)} đ. "
+                f"Chúc bạn kiểm kho và nhận hàng nhanh chóng!"
+            )
+        else:
+            briefing_desc = (
+                f"Hôm nay có {low_stock_count} sản phẩm chạm đáy tồn cần tạo đề xuất đặt hàng. "
+                f"Chúc bạn một ca làm việc thuận lợi và hiệu quả!"
+            )
     elif staff_role == 'accountant':
         briefing_desc = (
             f"Hôm nay tiệm có {unpaid_count} khách ghi nợ (tổng {format_vn(unpaid_debt)} đ cần thu), "
