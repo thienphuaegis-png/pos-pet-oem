@@ -1276,7 +1276,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     is_company = (req.fund_source == "COMPANY")
     if is_company:
         cur.execute("""
-            SELECT id, debt_amount, paid_amount, 'PO' as order_type
+            SELECT id, code, debt_amount, paid_amount, 'PO' as order_type
             FROM purchases 
             WHERE supplier_id = ? AND debt_amount > 0 AND (vat_rate > 0 OR vat_amount > 0)
             ORDER BY id ASC
@@ -1284,7 +1284,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         pos = [dict(r) for r in cur.fetchall()]
         
         cur.execute("""
-            SELECT id, remaining_payment as debt_amount, deposit_amount as paid_amount, 'OEM' as order_type
+            SELECT id, code, remaining_payment as debt_amount, deposit_amount as paid_amount, 'OEM' as order_type
             FROM oem_orders
             WHERE partner_id = ? AND remaining_payment > 0 AND (vat_percent > 0 OR fund_source = 'COMPANY')
             ORDER BY id ASC
@@ -1293,7 +1293,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         fund_label = "Quỹ Công Ty (Hóa đơn có VAT)"
     else:
         cur.execute("""
-            SELECT id, debt_amount, paid_amount, 'PO' as order_type
+            SELECT id, code, debt_amount, paid_amount, 'PO' as order_type
             FROM purchases 
             WHERE supplier_id = ? AND debt_amount > 0 AND (vat_rate = 0 OR vat_rate IS NULL) AND (vat_amount = 0 OR vat_amount IS NULL)
             ORDER BY id ASC
@@ -1301,7 +1301,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         pos = [dict(r) for r in cur.fetchall()]
         
         cur.execute("""
-            SELECT id, remaining_payment as debt_amount, deposit_amount as paid_amount, 'OEM' as order_type
+            SELECT id, code, remaining_payment as debt_amount, deposit_amount as paid_amount, 'OEM' as order_type
             FROM oem_orders
             WHERE partner_id = ? AND remaining_payment > 0 AND (vat_percent = 0 OR vat_percent IS NULL) AND (fund_source != 'COMPANY' OR fund_source IS NULL)
             ORDER BY id ASC
@@ -1335,6 +1335,8 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     if abs(total_allowed_debt - rem) <= 1.0:
         rem = total_allowed_debt
 
+    allocated_po_codes = []
+    single_po_id = None
     for o in target_orders:
         if rem <= 0:
             break
@@ -1342,6 +1344,9 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         if (o["debt_amount"] - alloc) <= 1.0:
             alloc = o["debt_amount"]
         rem -= alloc
+        if alloc > 0 and o["order_type"] == "PO":
+            allocated_po_codes.append(o["code"])
+            single_po_id = o["id"] if len(allocated_po_codes) == 1 else None
         if o["order_type"] == "PO":
             new_po_debt = max(0.0, o["debt_amount"] - alloc)
             if new_po_debt <= 1.0:
@@ -1365,7 +1370,10 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     cur.execute("UPDATE contacts SET debt = CASE WHEN (debt - ?) <= 1.0 THEN 0.0 ELSE MAX(0.0, debt - ?) END WHERE id = ?", (req.amount, req.amount, req.supplier_id))
     
     cb_code = generate_cashbook_code(cur, "PC-NH")
-    note = req.note or f"Thanh toán nợ cho {supp['name']} ({fund_label})"
+    po_desc = f" (cấn trừ {', '.join(allocated_po_codes)})" if allocated_po_codes else ""
+    note = req.note or f"Thanh toán nợ cho {supp['name']} ({fund_label}){po_desc}"
+    ref_type = 'purchase' if len(allocated_po_codes) == 1 and single_po_id else 'supplier_debt'
+    ref_id = single_po_id if len(allocated_po_codes) == 1 and single_po_id else None
     acc_id = req.account_id
     if not acc_id:
         cur.execute("SELECT id FROM payment_accounts WHERE owner_type = ? AND is_active = 1 ORDER BY is_default DESC, id ASC LIMIT 1", (req.fund_source,))
@@ -1376,14 +1384,14 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     if req.payment_date:
         cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
         cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id, created_by, created_at)
-            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?, ?, ?)
-        """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id, user_name, cb_created_at))
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by, created_at)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (cb_code, req.amount, req.supplier_id, ref_type, ref_id, req.fund_source, note, acc_id, user_name, cb_created_at))
     else:
         cur.execute("""
-            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, fund_source, note, account_id, created_by)
-            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'supplier_debt', ?, ?, ?, ?)
-        """, (cb_code, req.amount, req.supplier_id, req.fund_source, note, acc_id, user_name))
+            INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (cb_code, req.amount, req.supplier_id, ref_type, ref_id, req.fund_source, note, acc_id, user_name))
     
     conn.commit()
     conn.close()
@@ -1481,17 +1489,18 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
         acc_id = row_acc[0] if row_acc else None
         
     user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+    ref_type = 'purchase' if req.order_type.upper() in ("PO", "PURCHASE") else f"order_{req.order_type.lower()}"
     if req.payment_date:
         cb_created_at = req.payment_date if " " in req.payment_date else f"{req.payment_date} 12:00:00"
         cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by, created_at)
             VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id, user_name, cb_created_at))
+        """, (cb_code, alloc, supplier_id, ref_type, req.order_id, req.fund_source, note, acc_id, user_name, cb_created_at))
     else:
         cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
             VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (cb_code, alloc, supplier_id, f"order_{req.order_type.lower()}", req.order_id, req.fund_source, note, acc_id, user_name))
+        """, (cb_code, alloc, supplier_id, ref_type, req.order_id, req.fund_source, note, acc_id, user_name))
     
     conn.commit()
     conn.close()

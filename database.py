@@ -2152,7 +2152,10 @@ def init_db():
         pass
 
     try:
-        from scripts.migrate_cashbook_sync import sync_missing_cashbook_entries
+        from scripts.migrate_cashbook_sync import cleanup_duplicate_sync_vouchers, sync_missing_cashbook_entries
+        cleaned = cleanup_duplicate_sync_vouchers(conn)
+        if cleaned > 0:
+            logger.info(f"Đã dọn dẹp {cleaned} phiếu thu/chi đồng bộ tự động trùng lặp.")
         sync_missing_cashbook_entries(conn)
     except Exception as e:
         logger.warning(f"Cashbook sync check skipped or failed: {e}")

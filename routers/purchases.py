@@ -1155,10 +1155,10 @@ def pay_purchase_debt(code: str, req: PurchasePayRequest, user=Depends(require_p
             row_acc = cur.fetchone()
             acc_id = row_acc[0] if row_acc else None
 
-        cb_note = req.note or f"Chi thanh toán công nợ phiếu nhập {code}"
+        cb_note = req.note or f"Thanh toán nợ phiếu nhập {code}"
         cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, fund_source, note, account_id, created_by)
-            VALUES (?, 'out', 'Chi tiền nhập hàng', ?, ?, 'purchase', ?, ?, ?, ?, ?)
+            VALUES (?, 'out', 'Chi trả nợ NCC', ?, ?, 'purchase', ?, ?, ?, ?, ?)
         """, (cb_code, pay_amount, p["supplier_id"], p["id"], fund_source, cb_note, acc_id, user_name))
 
         conn.commit()
