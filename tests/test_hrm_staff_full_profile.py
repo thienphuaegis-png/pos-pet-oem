@@ -87,3 +87,33 @@ def test_compute_staff_virtual_fields():
     cur.execute("DELETE FROM staff WHERE id = ?", (staff_id,))
     conn.commit()
     conn.close()
+
+
+def test_ui_hrm_adjustments_and_3tab_staff_modal():
+    from bs4 import BeautifulSoup
+    with open("templates/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # 1. Subtab Điều Chỉnh Lương
+    assert soup.find(id="btn-hrm-tab-adjustments") is not None
+    assert soup.find(id="hrm-subtab-adjustments") is not None
+    assert soup.find(id="table-hrm-adjustments") is not None
+    assert soup.find(id="modal-hrm-salary-adjustment") is not None
+
+    # 2. Modal Hồ sơ 3 Tab
+    assert soup.find(id="modal-hrm-staff-profile") is not None
+    assert soup.find(id="btn-hrm-modal-tab-1") is not None
+    assert soup.find(id="btn-hrm-modal-tab-2") is not None
+    assert soup.find(id="btn-hrm-modal-tab-3") is not None
+    assert soup.find(id="hrm-modal-panel-1") is not None
+    assert soup.find(id="hrm-modal-panel-2") is not None
+    assert soup.find(id="hrm-modal-panel-3") is not None
+
+    # 3. Các trường CCCD & Ngân hàng & Khẩn cấp
+    assert soup.find(id="hrm-staff-id-card-number") is not None
+    assert soup.find(id="hrm-staff-id-card-date") is not None
+    assert soup.find(id="hrm-staff-permanent-address") is not None
+    assert soup.find(id="hrm-staff-bank-name") is not None
+    assert soup.find(id="hrm-staff-emergency-phone") is not None

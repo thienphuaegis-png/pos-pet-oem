@@ -6293,6 +6293,7 @@
                             <button id="btn-hrm-tab-attendance" onclick="switchHrmSubTab('attendance')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Chấm Công</button>
                             <button id="btn-hrm-tab-overtime" onclick="switchHrmSubTab('overtime')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tăng Ca</button>
                             <button id="btn-hrm-tab-advances" onclick="switchHrmSubTab('advances')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tạm Ứng</button>
+                            <button id="btn-hrm-tab-adjustments" onclick="switchHrmSubTab('adjustments')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Điều Chỉnh Lương</button>
                             <button id="btn-hrm-tab-staff" onclick="switchHrmSubTab('staff')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Nhân Sự</button>
                             <button id="btn-hrm-tab-config" onclick="switchHrmSubTab('config')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Cài Đặt</button>
                         </div>
@@ -6419,6 +6420,43 @@
                     </div>
                 </div>
 
+                <!-- SUBTAB: ĐIỀU CHỈNH LƯƠNG & PHỤ CẤP -->
+                <div id="hrm-subtab-adjustments" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="hrm-adj-search" oninput="filterHrmAdjustmentsTable()" placeholder="🔍 Tìm theo tên, mã NV, lý do..." class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs w-60 focus:ring-1 focus:ring-emerald-500">
+                            <select id="hrm-adj-filter-staff" onchange="filterHrmAdjustmentsTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                <option value="">-- Tất cả nhân viên --</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openHrmAdjustmentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">
+                                <span>➕</span> Tạo Quyết Định Điều Chỉnh
+                            </button>
+                            <button onclick="loadHrmSalaryAdjustments()" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg cursor-pointer">🔄 Tải lại</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
+                                <tr>
+                                    <th class="p-2.5">Ngày Quyết Định</th>
+                                    <th class="p-2.5">Mã & Họ Tên NV</th>
+                                    <th class="p-2.5">Bộ Phận / Vị Trí</th>
+                                    <th class="p-2.5 text-center">Loại</th>
+                                    <th class="p-2.5 text-right">Lương CB (+/-)</th>
+                                    <th class="p-2.5 text-right">Phụ Cấp (+/-)</th>
+                                    <th class="p-2.5 text-center">Ngày Áp Dụng</th>
+                                    <th class="p-2.5">Lý Do / Căn Cứ</th>
+                                    <th class="p-2.5 text-center">Người Tạo</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-hrm-adjustments" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- SUBTAB 5: NHÂN SỰ (HỒ SƠ LƯƠNG & CHẤM CÔNG) -->
                 <div id="hrm-subtab-staff" class="hidden space-y-3">
                     <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
@@ -6440,12 +6478,16 @@
                             <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] border-b border-slate-200">
                                 <tr>
                                     <th class="p-2.5">Mã NV & Họ Tên</th>
-                                    <th class="p-2.5">Khối Làm Việc</th>
-                                    <th class="p-2.5 text-right">Lương Cơ Bản</th>
+                                    <th class="p-2.5">Bộ Phận & Vị Trí</th>
+                                    <th class="p-2.5">Khối Ca</th>
+                                    <th class="p-2.5 text-right">Lương Gốc</th>
+                                    <th class="p-2.5 text-center">Đ/C Lương</th>
+                                    <th class="p-2.5 text-right">Lương CB Hiện Tại</th>
                                     <th class="p-2.5 text-right">Phụ Cấp</th>
-                                    <th class="p-2.5">Ngày Vào Làm / HĐ</th>
-                                    <th class="p-2.5 text-center">Mã Máy Vân Tay</th>
-                                    <th class="p-2.5 text-center">Tài Khoản Đăng Nhập</th>
+                                    <th class="p-2.5 text-right">Tổng Lương</th>
+                                    <th class="p-2.5 text-center">Thâm Niên</th>
+                                    <th class="p-2.5 text-center">Tình Trạng</th>
+                                    <th class="p-2.5 text-center">TK Đăng Nhập</th>
                                     <th class="p-2.5 text-center">Thao Tác</th>
                                 </tr>
                             </thead>
@@ -10217,7 +10259,7 @@
 
     <!-- MODAL: HỒ SƠ NHÂN SỰ TÍNH LƯƠNG (HRM) -->
     <div id="modal-hrm-staff-profile" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
             <div class="flex items-center justify-between border-b pb-3">
                 <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                     <span>👤</span> <span id="modal-hrm-staff-title">Thêm Nhân Sự Lương Mới</span>
@@ -10225,7 +10267,16 @@
                 <button type="button" onclick="closeHrmStaffModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
             </div>
             <input type="hidden" id="hrm-staff-id">
-            <div class="space-y-3">
+
+            <!-- Sub-tabs Modal Hồ sơ -->
+            <div class="flex bg-slate-100 p-1 rounded-lg gap-1 text-[11px] font-bold">
+                <button type="button" id="btn-hrm-modal-tab-1" onclick="switchHrmModalTab(1)" class="flex-1 py-1.5 rounded-md bg-white text-emerald-700 shadow-xs">💼 Công Việc & Lương</button>
+                <button type="button" id="btn-hrm-modal-tab-2" onclick="switchHrmModalTab(2)" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900">🪪 Cá Nhân & CCCD</button>
+                <button type="button" id="btn-hrm-modal-tab-3" onclick="switchHrmModalTab(3)" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900">🏦 Ngân Hàng & Khẩn Cấp</button>
+            </div>
+
+            <!-- TAB 1: CÔNG VIỆC & LƯƠNG -->
+            <div id="hrm-modal-panel-1" class="space-y-3">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="font-bold text-slate-700">Họ và tên (*)</label>
@@ -10246,40 +10297,56 @@
                         <input id="hrm-staff-device-code" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono text-purple-700 font-bold focus:ring-1 focus:ring-emerald-500" placeholder="VD: 1, 2, 1001...">
                     </div>
                 </div>
-                <div>
-                    <label class="font-bold text-slate-700">Khối làm việc & Ca chuẩn (*)</label>
-                    <select id="hrm-staff-work-block-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-semibold text-slate-700 focus:ring-1 focus:ring-emerald-500">
-                        <option value="">-- Chọn khối làm việc --</option>
-                    </select>
-                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label class="font-bold text-slate-700">Lương cơ bản (đ/tháng)</label>
-                        <input id="hrm-staff-base-salary" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-emerald-700 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                        <label class="font-bold text-slate-700">Khối làm việc & Ca chuẩn (*)</label>
+                        <select id="hrm-staff-work-block-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-semibold text-slate-700 focus:ring-1 focus:ring-emerald-500">
+                            <option value="">-- Chọn khối làm việc --</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="font-bold text-slate-700">Phụ cấp ăn trưa/xăng (đ/tháng)</label>
-                        <input id="hrm-staff-allowance" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-slate-800 focus:ring-1 focus:ring-emerald-500" placeholder="0">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                        <label class="font-bold text-slate-700">Ngày vào làm</label>
-                        <input id="hrm-staff-hire-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-700">Ngày lên chính thức (hết thử việc)</label>
-                        <input id="hrm-staff-official-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                        <label class="font-bold text-slate-700">Bộ phận</label>
+                        <input id="hrm-staff-department" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: HCNS, Kho, Văn Phòng, Sales...">
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="font-bold text-slate-700">Chức vụ / Vị trí</label>
-                        <input id="hrm-staff-position" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Thợ Grooming, NV Kho...">
+                        <input id="hrm-staff-position" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Quản Lý Kho, Nhân viên kho...">
                     </div>
                     <div>
                         <label class="font-bold text-slate-700">Hoa hồng bán lẻ (%)</label>
                         <input id="hrm-staff-commission-rate" type="number" step="0.5" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Lương cơ bản gốc (đ/tháng)</label>
+                        <input id="hrm-staff-base-salary" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-emerald-700 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Phụ cấp ăn trưa/xăng gốc (đ/tháng)</label>
+                        <input id="hrm-staff-allowance" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-slate-800 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày nhận việc</label>
+                        <input id="hrm-staff-hire-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày bắt đầu thử việc</label>
+                        <input id="hrm-staff-probation-start" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày lên chính thức (hết thử việc)</label>
+                        <input id="hrm-staff-official-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày nghỉ việc (nếu có)</label>
+                        <input id="hrm-staff-leave-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
                     </div>
                 </div>
                 <div class="p-3 bg-purple-50 rounded-lg border border-purple-200/70 flex items-center justify-between">
@@ -10290,9 +10357,140 @@
                     <input type="checkbox" id="hrm-staff-is-spa" class="rounded text-purple-600 w-4 h-4 cursor-pointer">
                 </div>
             </div>
+
+            <!-- TAB 2: CÁ NHÂN & CCCD -->
+            <div id="hrm-modal-panel-2" class="space-y-3 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Giới tính</label>
+                        <select id="hrm-staff-gender" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày tháng năm sinh</label>
+                        <input id="hrm-staff-birthday" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Số CCCD (12 số)</label>
+                        <input id="hrm-staff-id-card-number" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono focus:ring-1 focus:ring-emerald-500" placeholder="083097004964">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày cấp CCCD</label>
+                        <input id="hrm-staff-id-card-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Nơi cấp CCCD</label>
+                        <input id="hrm-staff-id-card-place" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="Cục CS QLHC về TTXH">
+                    </div>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Địa chỉ email</label>
+                    <input id="hrm-staff-email" type="email" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="example@gmail.com">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Địa chỉ thường trú (theo CCCD)</label>
+                    <input id="hrm-staff-permanent-address" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="Số nhà, đường, xã/phường, quận/huyện, tỉnh/thành">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Địa chỉ tạm trú (nơi ở hiện tại)</label>
+                    <input id="hrm-staff-temporary-address" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="Số nhà trọ, hẻm, đường, khu phố...">
+                </div>
+            </div>
+
+            <!-- TAB 3: NGÂN HÀNG & KHẨN CẤP -->
+            <div id="hrm-modal-panel-3" class="space-y-3 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Ngân hàng</label>
+                        <input id="hrm-staff-bank-name" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Techcombank, MBBank...">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Số tài khoản</label>
+                        <input id="hrm-staff-bank-account" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold focus:ring-1 focus:ring-emerald-500" placeholder="0388...">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Chi nhánh</label>
+                        <input id="hrm-staff-bank-branch" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Bến Tre, Thủ Đức...">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
+                    <div>
+                        <label class="font-bold text-slate-700">SĐT người thân khẩn cấp</label>
+                        <input id="hrm-staff-emergency-phone" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="098...">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Mối quan hệ</label>
+                        <input id="hrm-staff-emergency-relation" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Cha, Mẹ, Anh, Chị, Vợ, Bạn...">
+                    </div>
+                </div>
+            </div>
+
             <div class="flex gap-2 pt-3 border-t">
                 <button type="button" onclick="closeHrmStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
                 <button type="button" onclick="submitHrmStaffProfile()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Hồ Sơ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TẠO QUYẾT ĐỊNH ĐIỀU CHỈNH LƯƠNG / PHỤ CẤP -->
+    <div id="modal-hrm-salary-adjustment" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>⚖️</span> <span>Tạo Quyết Định Điều Chỉnh Lương</span>
+                </h3>
+                <button type="button" onclick="closeHrmAdjustmentModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Chọn Nhân Viên (*)</label>
+                    <select id="hrm-adj-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-bold text-slate-800 focus:ring-1 focus:ring-emerald-500">
+                        <option value="">-- Chọn nhân viên --</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày quyết định</label>
+                        <input id="hrm-adj-decision-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Ngày áp dụng (*)</label>
+                        <input id="hrm-adj-effective-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-bold text-emerald-700 focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Loại điều chỉnh</label>
+                    <select id="hrm-adj-type" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500">
+                        <option value="salary">Điều chỉnh Lương Cơ Bản</option>
+                        <option value="allowance">Điều chỉnh Phụ Cấp</option>
+                        <option value="mixed">Cả Lương và Phụ Cấp</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="font-bold text-slate-700">Lương CB (+/-) đ</label>
+                        <input id="hrm-adj-base-delta" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-emerald-700 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                        <span class="text-[10px] text-slate-400">VD: 1.000.000 hoặc -500.000</span>
+                    </div>
+                    <div>
+                        <label class="font-bold text-slate-700">Phụ cấp (+/-) đ</label>
+                        <input id="hrm-adj-allowance-delta" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-slate-800 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                        <span class="text-[10px] text-slate-400">VD: 800.000 hoặc -200.000</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Lý do / Căn cứ quyết định (*)</label>
+                    <textarea id="hrm-adj-reason" rows="2" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 focus:ring-1 focus:ring-emerald-500" placeholder="VD: Tăng lương định kỳ, Phụ cấp quản lý kho, chuyển qua phụ cấp..."></textarea>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmAdjustmentModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmAdjustment()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Quyết Định</button>
             </div>
         </div>
     </div>

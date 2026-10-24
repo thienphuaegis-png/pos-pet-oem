@@ -17,7 +17,7 @@
 
     window.switchHrmSubTab = function(sub) {
         currentSubTab = sub;
-        ['payroll', 'attendance', 'overtime', 'advances', 'staff', 'config'].forEach(s => {
+        ['payroll', 'attendance', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
             const pane = document.getElementById(`hrm-subtab-${s}`);
             const btn = document.getElementById(`btn-hrm-tab-${s}`);
             if (pane) pane.classList.toggle('hidden', s !== sub);
@@ -38,6 +38,7 @@
         else if (currentSubTab === 'attendance') loadHrmAttendance(month);
         else if (currentSubTab === 'overtime') loadHrmOvertime(month);
         else if (currentSubTab === 'advances') loadHrmAdvances(month);
+        else if (currentSubTab === 'adjustments') loadHrmSalaryAdjustments();
         else if (currentSubTab === 'staff') loadHrmStaff();
         else if (currentSubTab === 'config') loadHrmConfig();
     };
@@ -1185,26 +1186,34 @@
             const hasAcc = Boolean(r.has_account);
             const block = hrmBlocksMap[r.work_block_id];
             const blockBadge = block
-                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">${block.name} <span class="font-mono text-[10px] text-slate-500 font-normal">(${block.start_time}-${block.end_time})</span></span>`
-                : `<span class="text-slate-400 italic">Chưa xếp ca</span>`;
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">${block.name}</span>`
+                : `<span class="text-slate-400 italic text-[10px]">Chưa xếp</span>`;
 
-            const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '-';
+            const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '0 đ';
 
             const accountBadge = hasAcc
-                ? `<div class="space-y-0.5">
-                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                        <span>👤</span> ${r.username}
-                     </span>
-                     <div class="text-[10px] text-slate-400">${ROLE_MAP[r.role] || r.role}</div>
-                   </div>`
-                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold cursor-pointer transition shadow-2xs" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
-                     ⚡ Cấp TK (F4)
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                     <span>👤</span> ${r.username}
+                   </span>`
+                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold cursor-pointer transition shadow-2xs whitespace-nowrap" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
+                     ⚡ Cấp TK
                    </button>`;
 
-            const isProbation = !r.official_date || (new Date(r.official_date) > new Date());
-            const contractBadge = isProbation
+            const cStatus = r.contractual_status || (!r.official_date || (new Date(r.official_date) > new Date()) ? 'Thử việc' : 'Chính thức');
+            const contractBadge = cStatus === 'Chính thức'
+                ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`
+                : cStatus === 'Thử việc'
                 ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Thử việc</span>`
-                : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`;
+                : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Nghỉ việc</span>`;
+
+            const baseDelta = Number(r.total_base_delta || 0);
+            const deltaBadge = baseDelta > 0
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer" title="Xem lịch sử điều chỉnh">+${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                : baseDelta < 0
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer" title="Xem lịch sử điều chỉnh">${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                : `<span class="text-slate-300 font-mono text-[10px]">0 đ</span>`;
+
+            const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
 
             return `
                 <tr class="hover:bg-slate-50 transition border-t border-slate-100">
@@ -1216,38 +1225,77 @@
                             ${r.is_spa_worker ? `<span class="bg-pink-50 text-pink-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
                         </div>
                     </td>
+                    <td class="p-2.5 text-slate-600 text-[11px]">${deptText}</td>
                     <td class="p-2.5">${blockBadge}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fMoney(r.base_salary)}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${fMoney(r.allowance)}</td>
-                    <td class="p-2.5">
-                        <div class="font-mono text-[11px] text-slate-700">${r.hire_date || '--'}</div>
-                        <div class="mt-0.5">${contractBadge}</div>
-                    </td>
-                    <td class="p-2.5 text-center font-mono font-bold text-purple-700">${r.device_code || '<span class="text-slate-300">--</span>'}</td>
+                    <td class="p-2.5 text-right font-mono text-slate-500 text-[11px]">${fMoney(r.base_salary)}</td>
+                    <td class="p-2.5 text-center">${deltaBadge}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fMoney(r.base_salary_effective || r.base_salary)}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${fMoney(r.allowance_effective !== undefined ? r.allowance_effective : r.allowance)}</td>
+                    <td class="p-2.5 text-right font-mono font-black text-indigo-700">${fMoney(r.total_salary || ((r.base_salary_effective || r.base_salary || 0) + (r.allowance_effective || r.allowance || 0)))}</td>
+                    <td class="p-2.5 text-center font-semibold text-slate-700 text-[10px] whitespace-nowrap">${r.tenure || '—'}</td>
+                    <td class="p-2.5 text-center">${contractBadge}</td>
                     <td class="p-2.5 text-center">${accountBadge}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
-                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold cursor-pointer mr-1">✏️ Sửa</button>
-                        ${!hasAcc ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[11px] font-bold cursor-pointer">⚡ Cấp TK</button>` : ''}
+                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
+                        <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
+                        ${!hasAcc ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[10px] font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
                     </td>
                 </tr>
             `;
         }).join('');
     }
 
+    // Modal Hồ sơ Nhân sự 3 Tab
+    window.switchHrmModalTab = function(tabNum) {
+        [1, 2, 3].forEach(n => {
+            const panel = document.getElementById(`hrm-modal-panel-${n}`);
+            const btn = document.getElementById(`btn-hrm-modal-tab-${n}`);
+            if (panel) panel.classList.toggle('hidden', n !== tabNum);
+            if (btn) {
+                if (n === tabNum) {
+                    btn.className = "flex-1 py-1.5 rounded-md bg-white text-emerald-700 shadow-xs font-bold";
+                } else {
+                    btn.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900";
+                }
+            }
+        });
+    };
+
     window.openHrmStaffModal = async function(id) {
+        switchHrmModalTab(1);
         document.getElementById('modal-hrm-staff-title').textContent = id ? "Chỉnh Sửa Hồ Sơ Nhân Sự Lương" : "Thêm Nhân Sự Lương Mới (F3)";
         document.getElementById('hrm-staff-id').value = id || '';
         document.getElementById('hrm-staff-name').value = '';
         document.getElementById('hrm-staff-phone').value = '';
         document.getElementById('hrm-staff-employee-code').value = '';
         document.getElementById('hrm-staff-device-code').value = '';
+        document.getElementById('hrm-staff-department').value = '';
+        document.getElementById('hrm-staff-position').value = '';
         document.getElementById('hrm-staff-base-salary').value = '';
         document.getElementById('hrm-staff-allowance').value = '';
         document.getElementById('hrm-staff-hire-date').value = '';
+        document.getElementById('hrm-staff-probation-start').value = '';
         document.getElementById('hrm-staff-official-date').value = '';
-        document.getElementById('hrm-staff-position').value = '';
+        document.getElementById('hrm-staff-leave-date').value = '';
         document.getElementById('hrm-staff-commission-rate').value = 0;
         document.getElementById('hrm-staff-is-spa').checked = false;
+
+        // Tab 2
+        document.getElementById('hrm-staff-gender').value = 'Nam';
+        document.getElementById('hrm-staff-birthday').value = '';
+        document.getElementById('hrm-staff-id-card-number').value = '';
+        document.getElementById('hrm-staff-id-card-date').value = '';
+        document.getElementById('hrm-staff-id-card-place').value = '';
+        document.getElementById('hrm-staff-email').value = '';
+        document.getElementById('hrm-staff-permanent-address').value = '';
+        document.getElementById('hrm-staff-temporary-address').value = '';
+
+        // Tab 3
+        document.getElementById('hrm-staff-bank-name').value = '';
+        document.getElementById('hrm-staff-bank-account').value = '';
+        document.getElementById('hrm-staff-bank-branch').value = '';
+        document.getElementById('hrm-staff-emergency-phone').value = '';
+        document.getElementById('hrm-staff-emergency-relation').value = '';
 
         // Load blocks dropdown
         const blockSel = document.getElementById('hrm-staff-work-block-id');
@@ -1270,13 +1318,33 @@
                 document.getElementById('hrm-staff-employee-code').value = s.employee_code || '';
                 document.getElementById('hrm-staff-device-code').value = s.device_code || '';
                 document.getElementById('hrm-staff-work-block-id').value = s.work_block_id || '';
+                document.getElementById('hrm-staff-department').value = s.department || '';
+                document.getElementById('hrm-staff-position').value = s.position || '';
                 document.getElementById('hrm-staff-base-salary').value = s.base_salary ? Number(s.base_salary).toLocaleString('vi-VN') : '';
                 document.getElementById('hrm-staff-allowance').value = s.allowance ? Number(s.allowance).toLocaleString('vi-VN') : '';
                 document.getElementById('hrm-staff-hire-date').value = s.hire_date || '';
+                document.getElementById('hrm-staff-probation-start').value = s.probation_start || '';
                 document.getElementById('hrm-staff-official-date').value = s.official_date || '';
-                document.getElementById('hrm-staff-position').value = s.position || '';
+                document.getElementById('hrm-staff-leave-date').value = s.leave_date || '';
                 document.getElementById('hrm-staff-commission-rate').value = s.commission_rate || 0;
                 document.getElementById('hrm-staff-is-spa').checked = Boolean(s.is_spa_worker);
+
+                // Tab 2
+                document.getElementById('hrm-staff-gender').value = s.gender || 'Nam';
+                document.getElementById('hrm-staff-birthday').value = s.birthday || '';
+                document.getElementById('hrm-staff-id-card-number').value = s.id_card_number || '';
+                document.getElementById('hrm-staff-id-card-date').value = s.id_card_date || '';
+                document.getElementById('hrm-staff-id-card-place').value = s.id_card_place || '';
+                document.getElementById('hrm-staff-email').value = s.email || '';
+                document.getElementById('hrm-staff-permanent-address').value = s.permanent_address || '';
+                document.getElementById('hrm-staff-temporary-address').value = s.temporary_address || '';
+
+                // Tab 3
+                document.getElementById('hrm-staff-bank-name').value = s.bank_name || '';
+                document.getElementById('hrm-staff-bank-account').value = s.bank_account || '';
+                document.getElementById('hrm-staff-bank-branch').value = s.bank_branch || '';
+                document.getElementById('hrm-staff-emergency-phone').value = s.emergency_phone || '';
+                document.getElementById('hrm-staff-emergency-relation').value = s.emergency_relation || '';
             }
         }
 
@@ -1298,8 +1366,8 @@
         const devCode = document.getElementById('hrm-staff-device-code')?.value.trim();
         const blockId = parseInt(document.getElementById('hrm-staff-work-block-id')?.value) || null;
 
-        const parseVal = id => {
-            const val = document.getElementById(id)?.value;
+        const parseVal = elId => {
+            const val = document.getElementById(elId)?.value;
             return typeof parseMoneyInput === 'function' ? parseMoneyInput(val) : (parseFloat((val || '').replace(/\D/g, '')) || 0);
         };
 
@@ -1312,13 +1380,33 @@
             employee_code: empCode || null,
             device_code: devCode || null,
             work_block_id: blockId,
+            department: document.getElementById('hrm-staff-department')?.value.trim() || null,
+            position: document.getElementById('hrm-staff-position')?.value.trim() || null,
             base_salary: parseVal('hrm-staff-base-salary'),
             allowance: parseVal('hrm-staff-allowance'),
             hire_date: document.getElementById('hrm-staff-hire-date')?.value || null,
+            probation_start: document.getElementById('hrm-staff-probation-start')?.value || null,
             official_date: document.getElementById('hrm-staff-official-date')?.value || null,
-            position: document.getElementById('hrm-staff-position')?.value.trim() || null,
+            leave_date: document.getElementById('hrm-staff-leave-date')?.value || null,
             commission_rate: parseFloat(document.getElementById('hrm-staff-commission-rate')?.value) || 0,
-            is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0
+            is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0,
+
+            // Tab 2
+            gender: document.getElementById('hrm-staff-gender')?.value || 'Nam',
+            birthday: document.getElementById('hrm-staff-birthday')?.value || null,
+            id_card_number: document.getElementById('hrm-staff-id-card-number')?.value.trim() || null,
+            id_card_date: document.getElementById('hrm-staff-id-card-date')?.value || null,
+            id_card_place: document.getElementById('hrm-staff-id-card-place')?.value.trim() || null,
+            email: document.getElementById('hrm-staff-email')?.value.trim() || null,
+            permanent_address: document.getElementById('hrm-staff-permanent-address')?.value.trim() || null,
+            temporary_address: document.getElementById('hrm-staff-temporary-address')?.value.trim() || null,
+
+            // Tab 3
+            bank_name: document.getElementById('hrm-staff-bank-name')?.value.trim() || null,
+            bank_account: document.getElementById('hrm-staff-bank-account')?.value.trim() || null,
+            bank_branch: document.getElementById('hrm-staff-bank-branch')?.value.trim() || null,
+            emergency_phone: document.getElementById('hrm-staff-emergency-phone')?.value.trim() || null,
+            emergency_relation: document.getElementById('hrm-staff-emergency-relation')?.value.trim() || null
         };
 
         try {
@@ -1336,6 +1424,207 @@
             }
             if (window.showToast) window.showToast("Đã lưu hồ sơ nhân sự thành công", "success");
             closeHrmStaffModal();
+            loadHrmStaff();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // ── Phân Hệ: Điều Chỉnh Lương & Phụ Cấp ──
+    let hrmAdjustmentsList = [];
+
+    window.loadHrmSalaryAdjustments = async function() {
+        const tbody = document.getElementById('table-hrm-adjustments');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">Đang tải danh sách quyết định điều chỉnh lương...</td></tr>`;
+
+        try {
+            const [resAdj, resStaff] = await Promise.all([
+                fetch('/api/hrm/adjustments'),
+                hrmStaffList.length ? Promise.resolve({ ok: true, json: () => Promise.resolve(hrmStaffList) }) : fetch('/api/hrm/employees')
+            ]);
+            if (!resAdj.ok) return;
+            hrmAdjustmentsList = await resAdj.json();
+
+            if (!hrmStaffList.length && resStaff.ok) {
+                hrmStaffList = await resStaff.json();
+            }
+
+            // Cập nhật bộ lọc nhân viên
+            const staffFilter = document.getElementById('hrm-adj-filter-staff');
+            if (staffFilter) {
+                const curVal = staffFilter.value;
+                staffFilter.innerHTML = '<option value="">-- Tất cả nhân viên --</option>' +
+                    (hrmStaffList || []).map(s => `<option value="${s.id}" ${curVal == s.id ? 'selected' : ''}>${s.employee_code ? s.employee_code + ' - ' : ''}${s.name}</option>`).join('');
+            }
+
+            renderHrmAdjustmentsTable(hrmAdjustmentsList);
+        } catch (e) {
+            console.error("Lỗi tải quyết định điều chỉnh lương:", e);
+        }
+    };
+
+    function renderHrmAdjustmentsTable(list) {
+        const tbody = document.getElementById('table-hrm-adjustments');
+        if (!tbody) return;
+        if (!list || list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">Chưa có quyết định điều chỉnh lương nào.</td></tr>`;
+            return;
+        }
+
+        const fMoney = v => {
+            const n = Number(v || 0);
+            if (n === 0) return '—';
+            return (n > 0 ? '+' : '') + n.toLocaleString('vi-VN') + ' đ';
+        };
+
+        tbody.innerHTML = list.map((r, idx) => {
+            const bDelta = Number(r.base_delta || 0);
+            const aDelta = Number(r.allowance_delta || 0);
+            const typeLabel = r.adjustment_type === 'salary' ? 'Lương' : r.adjustment_type === 'allowance' ? 'Phụ cấp' : 'Cả hai';
+            const typeBadge = r.adjustment_type === 'salary'
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Lương</span>'
+                : r.adjustment_type === 'allowance'
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Phụ cấp</span>'
+                : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Cả hai</span>';
+
+            const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
+
+            return `
+                <tr class="hover:bg-slate-50 transition border-t border-slate-100">
+                    <td class="p-2.5 font-mono text-[11px] text-slate-600">${r.decision_date || r.effective_date}</td>
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800 text-xs">${r.staff_name || 'NV #' + r.staff_id}</div>
+                        <div class="text-[10px] text-purple-700 font-mono font-bold mt-0.5">${r.employee_code || ''}</div>
+                    </td>
+                    <td class="p-2.5 text-slate-600 text-[11px]">${deptText}</td>
+                    <td class="p-2.5 text-center">${typeBadge}</td>
+                    <td class="p-2.5 text-right font-mono font-bold ${bDelta > 0 ? 'text-emerald-700' : bDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(bDelta)}</td>
+                    <td class="p-2.5 text-right font-mono font-bold ${aDelta > 0 ? 'text-emerald-700' : aDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(aDelta)}</td>
+                    <td class="p-2.5 text-center font-mono font-bold text-emerald-700 text-[11px]">${r.effective_date}</td>
+                    <td class="p-2.5 text-slate-700 text-xs">${r.reason || '—'}</td>
+                    <td class="p-2.5 text-center text-slate-500 text-[11px]">${r.created_by || 'Hệ thống'}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="deleteHrmAdjustment(${r.id})" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-[10px] font-bold cursor-pointer" title="Xóa quyết định">🗑️ Xóa</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    window.filterHrmAdjustmentsTable = function() {
+        const q = (document.getElementById('hrm-adj-search')?.value || '').toLowerCase().trim();
+        const staffId = document.getElementById('hrm-adj-filter-staff')?.value;
+        const filtered = hrmAdjustmentsList.filter(a => {
+            const matchQ = !q || (a.staff_name || '').toLowerCase().includes(q) || (a.employee_code || '').toLowerCase().includes(q) || (a.reason || '').toLowerCase().includes(q);
+            const matchStaff = !staffId || a.staff_id == staffId;
+            return matchQ && matchStaff;
+        });
+        renderHrmAdjustmentsTable(filtered);
+    };
+
+    window.filterHrmAdjByStaff = function(staffId) {
+        switchHrmSubTab('adjustments');
+        const staffFilter = document.getElementById('hrm-adj-filter-staff');
+        if (staffFilter) {
+            staffFilter.value = staffId;
+            filterHrmAdjustmentsTable();
+        }
+    };
+
+    window.openHrmAdjustmentModal = async function(staffId) {
+        const staffSel = document.getElementById('hrm-adj-staff-id');
+        if (staffSel) {
+            if (!hrmStaffList.length) {
+                try {
+                    const res = await fetch('/api/hrm/employees');
+                    if (res.ok) hrmStaffList = await res.json();
+                } catch (e) { console.error(e); }
+            }
+            staffSel.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
+                (hrmStaffList || []).map(s => `<option value="${s.id}" ${staffId == s.id ? 'selected' : ''}>${s.employee_code ? s.employee_code + ' - ' : ''}${s.name}</option>`).join('');
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById('hrm-adj-decision-date').value = today;
+        document.getElementById('hrm-adj-effective-date').value = today;
+        document.getElementById('hrm-adj-type').value = 'salary';
+        document.getElementById('hrm-adj-base-delta').value = '';
+        document.getElementById('hrm-adj-allowance-delta').value = '';
+        document.getElementById('hrm-adj-reason').value = '';
+
+        const modal = document.getElementById('modal-hrm-salary-adjustment');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmAdjustmentModal = function() {
+        const modal = document.getElementById('modal-hrm-salary-adjustment');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitHrmAdjustment = async function() {
+        const staffId = document.getElementById('hrm-adj-staff-id')?.value;
+        const decDate = document.getElementById('hrm-adj-decision-date')?.value || null;
+        const effDate = document.getElementById('hrm-adj-effective-date')?.value;
+        const adjType = document.getElementById('hrm-adj-type')?.value || 'salary';
+        const reason = document.getElementById('hrm-adj-reason')?.value.trim();
+
+        const parseSignedVal = elId => {
+            const raw = (document.getElementById(elId)?.value || '').trim();
+            if (!raw) return 0;
+            const isNegative = raw.startsWith('-');
+            const digits = raw.replace(/\D/g, '');
+            const num = parseFloat(digits) || 0;
+            return isNegative ? -num : num;
+        };
+
+        const baseDelta = parseSignedVal('hrm-adj-base-delta');
+        const allowanceDelta = parseSignedVal('hrm-adj-allowance-delta');
+
+        if (!staffId) { alert("Vui lòng chọn nhân viên"); return; }
+        if (!effDate) { alert("Vui lòng chọn ngày áp dụng"); return; }
+        if (baseDelta === 0 && allowanceDelta === 0) { alert("Vui lòng nhập số tiền điều chỉnh lương hoặc phụ cấp"); return; }
+        if (!reason) { alert("Vui lòng nhập lý do / căn cứ quyết định"); return; }
+
+        const payload = {
+            decision_date: decDate,
+            effective_date: effDate,
+            adjustment_type: adjType,
+            base_delta: baseDelta,
+            allowance_delta: allowanceDelta,
+            reason: reason
+        };
+
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}/adjustments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi tạo quyết định điều chỉnh");
+                return;
+            }
+            if (window.showToast) window.showToast("Đã tạo quyết định điều chỉnh lương thành công", "success");
+            closeHrmAdjustmentModal();
+            loadHrmSalaryAdjustments();
+            loadHrmStaff();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteHrmAdjustment = async function(id) {
+        if (!confirm("Bạn có chắc chắn muốn xóa quyết định điều chỉnh lương này?")) return;
+        try {
+            const res = await fetch(`/api/hrm/adjustments/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Không thể xóa quyết định");
+                return;
+            }
+            if (window.showToast) window.showToast("Đã xóa quyết định điều chỉnh thành công", "success");
+            loadHrmSalaryAdjustments();
             loadHrmStaff();
         } catch (e) {
             console.error(e);
