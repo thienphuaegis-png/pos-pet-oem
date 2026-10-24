@@ -7,7 +7,6 @@
 (function() {
     // Danh sách câu thoại khịa ba gai, xéo xắt chuẩn meme Loopy dành riêng cho chị Phi Phụng
     const LOOPY_SASSY_QUOTES = [
-        "Rà chuột quài mậy, tính trừ lương tui hay gì? 🙄💅",
         "Nhìn cái giề? Lo làm việc đi má! 💅✨",
         "Rảnh quá rê chuột vô tui hoài, KPI tháng này xong chưa? 😒📊",
         "Chọt chọt cái gì, có tin tui cắn một phát rách tay hông? 🐹💥",
