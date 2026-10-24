@@ -123,6 +123,8 @@
                 <td class="p-2.5 text-right font-mono font-bold text-amber-700">${(l.ot_pay || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.penalties || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.advances || 0).toLocaleString('vi-VN')}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.insurance ? '-' + Number(l.insurance).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.pit ? '-' + Number(l.pit).toLocaleString('vi-VN') : '—'}</td>
                 <td class="p-2.5 text-right font-mono font-black text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
                 <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
@@ -148,6 +150,8 @@
                 <td class="p-2.5 text-right font-mono">${(tot.ot_pay || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.penalties || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.advances || 0).toLocaleString('vi-VN')}</td>
+                <td class="p-2.5 text-right font-mono text-indigo-700">${tot.insurance ? '-' + Number(tot.insurance).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono text-indigo-700">${tot.pit ? '-' + Number(tot.pit).toLocaleString('vi-VN') : '—'}</td>
                 <td class="p-2.5 text-right font-mono font-black text-emerald-800 text-sm">${(tot.net_pay || 0).toLocaleString('vi-VN')}đ</td>
                 <td colspan="2"></td>
             </tr>
@@ -575,6 +579,16 @@
             setVal('cfg-ot-multiplier', r.ot_multiplier || 1.5);
             setVal('cfg-ot-min', r.ot_min_minutes || 25);
 
+            // Enterprise Mode
+            const isEnt = r.payroll_mode === 'enterprise';
+            const modeToggle = document.getElementById('cfg-payroll-mode-toggle');
+            if (modeToggle) modeToggle.checked = isEnt;
+            toggleEnterpriseRulesUI(isEnt);
+            setVal('cfg-insurance-rate', r.insurance_rate ? (parseFloat(r.insurance_rate) * 100).toFixed(1) : '10.5');
+            setMoney('cfg-insurance-cap', r.insurance_cap || 46800000);
+            setMoney('cfg-tax-self', r.tax_self_deduction || 11000000);
+            setMoney('cfg-tax-dep', r.tax_dependent_deduction || 4400000);
+
             // 2. Blocks
             const blocksList = document.getElementById('hrm-blocks-list');
             if (blocksList) {
@@ -638,12 +652,30 @@
     }
     window.loadHrmConfig = loadHrmConfig;
 
+    window.toggleEnterpriseRulesUI = function(isEnterprise) {
+        const fields = document.getElementById('cfg-enterprise-fields');
+        const label = document.getElementById('cfg-payroll-mode-label');
+        if (fields) fields.classList.toggle('hidden', !isEnterprise);
+        if (label) {
+            label.textContent = isEnterprise ? "Doanh Nghiệp (HĐ, BHXH & Thuế)" : "SME (Lương Net)";
+            label.className = isEnterprise ? "text-xs font-bold text-indigo-700" : "text-xs font-bold text-slate-600";
+        }
+    };
+
+    window.toggleContractFields = function(hasContract) {
+        const fields = document.getElementById('hrm-staff-contract-fields');
+        if (fields) fields.classList.toggle('hidden', !hasContract);
+    };
+
     window.saveHrmRules = async function() {
         const parseVal = id => {
             const val = document.getElementById(id)?.value;
             return typeof parseMoneyInput === 'function' ? parseMoneyInput(val) : (parseFloat((val || '').replace(/\D/g, '')) || 0);
         };
         const probPct = parseFloat(document.getElementById('cfg-probation-rate')?.value) || 0;
+        const isEnt = Boolean(document.getElementById('cfg-payroll-mode-toggle')?.checked);
+        const insPct = parseFloat(document.getElementById('cfg-insurance-rate')?.value) || 10.5;
+
         const body = {
             late_per_min: parseVal('cfg-late-per-min'),
             late_flat: parseVal('cfg-late-flat'),
@@ -654,7 +686,12 @@
             birthday_bonus: parseVal('cfg-birthday-bonus'),
             probation_rate: (probPct > 1 ? (probPct / 100).toFixed(2) : String(probPct || '0.85')),
             ot_multiplier: String(document.getElementById('cfg-ot-multiplier')?.value || '1.5'),
-            ot_min_minutes: parseInt(document.getElementById('cfg-ot-min')?.value) || 25
+            ot_min_minutes: parseInt(document.getElementById('cfg-ot-min')?.value) || 25,
+            payroll_mode: isEnt ? 'enterprise' : 'sme',
+            insurance_rate: (insPct / 100).toFixed(3),
+            insurance_cap: parseVal('cfg-insurance-cap'),
+            tax_self_deduction: parseVal('cfg-tax-self'),
+            tax_dependent_deduction: parseVal('cfg-tax-dep')
         };
 
         try {
@@ -1280,6 +1317,15 @@
         document.getElementById('hrm-staff-commission-rate').value = 0;
         document.getElementById('hrm-staff-is-spa').checked = false;
 
+        // Contract & Insurance
+        document.getElementById('hrm-staff-has-contract').checked = false;
+        toggleContractFields(false);
+        document.getElementById('hrm-staff-contract-number').value = '';
+        document.getElementById('hrm-staff-contract-type').value = 'Có thời hạn';
+        document.getElementById('hrm-staff-dependents-count').value = 0;
+        document.getElementById('hrm-staff-insurance-salary').value = '';
+        document.getElementById('hrm-staff-is-insurance-exempt').checked = false;
+
         // Tab 2
         document.getElementById('hrm-staff-gender').value = 'Nam';
         document.getElementById('hrm-staff-birthday').value = '';
@@ -1328,6 +1374,16 @@
                 document.getElementById('hrm-staff-leave-date').value = s.leave_date || '';
                 document.getElementById('hrm-staff-commission-rate').value = s.commission_rate || 0;
                 document.getElementById('hrm-staff-is-spa').checked = Boolean(s.is_spa_worker);
+
+                // Contract & Insurance
+                const hasCont = Boolean(s.has_contract);
+                document.getElementById('hrm-staff-has-contract').checked = hasCont;
+                toggleContractFields(hasCont);
+                document.getElementById('hrm-staff-contract-number').value = s.contract_number || '';
+                document.getElementById('hrm-staff-contract-type').value = s.contract_type || 'Có thời hạn';
+                document.getElementById('hrm-staff-dependents-count').value = s.dependents_count || 0;
+                document.getElementById('hrm-staff-insurance-salary').value = s.insurance_salary ? Number(s.insurance_salary).toLocaleString('vi-VN') : '';
+                document.getElementById('hrm-staff-is-insurance-exempt').checked = Boolean(s.is_insurance_exempt);
 
                 // Tab 2
                 document.getElementById('hrm-staff-gender').value = s.gender || 'Nam';
@@ -1390,6 +1446,14 @@
             leave_date: document.getElementById('hrm-staff-leave-date')?.value || null,
             commission_rate: parseFloat(document.getElementById('hrm-staff-commission-rate')?.value) || 0,
             is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0,
+
+            // Contract & Insurance
+            has_contract: document.getElementById('hrm-staff-has-contract')?.checked ? 1 : 0,
+            contract_number: document.getElementById('hrm-staff-contract-number')?.value.trim() || null,
+            contract_type: document.getElementById('hrm-staff-contract-type')?.value || 'Có thời hạn',
+            dependents_count: parseInt(document.getElementById('hrm-staff-dependents-count')?.value) || 0,
+            insurance_salary: parseVal('hrm-staff-insurance-salary'),
+            is_insurance_exempt: document.getElementById('hrm-staff-is-insurance-exempt')?.checked ? 1 : 0,
 
             // Tab 2
             gender: document.getElementById('hrm-staff-gender')?.value || 'Nam',

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from database import get_db
 from dependencies import require_permission, get_current_user
 from services import payroll_service as ps
+from services.hrm_schema import HRM_DEFAULT_RULES
 from services.attendance_import import parse_attendance_xlsx, punches_to_json
 from services.payroll_engine import to_min
 
@@ -22,6 +23,8 @@ PROFILE_FIELDS = (
     "id_card_number", "id_card_date", "id_card_place",
     "permanent_address", "temporary_address", "email",
     "emergency_phone", "emergency_relation",
+    "has_contract", "contract_number", "contract_type", "dependents_count",
+    "insurance_salary", "is_insurance_exempt",
     "is_spa_worker", "commission_rate"
 )
 
@@ -70,10 +73,20 @@ def get_config(user=Depends(require_permission(PERM))):
 def update_rules(body: dict, user=Depends(require_permission(PERM))):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT value FROM settings WHERE key='hrm_rules'")
-    cur_rules = json.loads(cur.fetchone()["value"])
+    row = cur.fetchone()
+    cur_rules = json.loads(row["value"]) if row and row["value"] else {}
+    for default_k, default_v in HRM_DEFAULT_RULES.items():
+        if default_k not in cur_rules:
+            cur_rules[default_k] = default_v
+
     for k, v in body.items():
-        if k not in cur_rules:
+        if k not in HRM_DEFAULT_RULES and k not in cur_rules:
             raise HTTPException(400, f"Tham số không hợp lệ: {k}")
+        if k == "payroll_mode":
+            if v not in ("sme", "enterprise"):
+                raise HTTPException(400, "payroll_mode phải là 'sme' hoặc 'enterprise'")
+            cur_rules[k] = v
+            continue
         try:
             if float(v) < 0:
                 raise ValueError
@@ -213,6 +226,12 @@ class ProfileIn(BaseModel):
     email: Optional[str] = None
     emergency_phone: Optional[str] = None
     emergency_relation: Optional[str] = None
+    has_contract: Optional[int] = None
+    contract_number: Optional[str] = None
+    contract_type: Optional[str] = None
+    dependents_count: Optional[int] = None
+    insurance_salary: Optional[float] = None
+    is_insurance_exempt: Optional[int] = None
     is_spa_worker: Optional[int] = None
     commission_rate: Optional[float] = None
 

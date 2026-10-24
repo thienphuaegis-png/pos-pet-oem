@@ -24,6 +24,8 @@ def to_min(v) -> Optional[int]:
     if isinstance(v, (int, float)):
         if 0 <= v < 1:
             return int(round(v * 24 * 60 * 60)) // 60
+        if 0 <= v < 1440:
+            return int(v)
         return None
     m = re.match(r"^\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*$", str(v))
     if not m:
@@ -69,6 +71,33 @@ class Rules:
     holiday_extra_days: int = 1
     attendance_bonus: int = 500000
     birthday_bonus: int = 200000
+    payroll_mode: str = "sme"   # 'sme' (mặc định) | 'enterprise'
+    insurance_rate: Decimal = Decimal("0.105")  # 10.5% NLĐ đóng (8% BHXH + 1.5% BHYT + 1% BHTN)
+    insurance_cap: int = 46800000               # Trần lương đóng BHXH (20 lần mức cơ sở 2.34M)
+    tax_self_deduction: int = 11000000          # Giảm trừ gia cảnh bản thân (11M/tháng)
+    tax_dependent_deduction: int = 4400000      # Giảm trừ người phụ thuộc (4.4M/người/tháng)
+
+
+def calc_pit(assessable_income: Decimal) -> Decimal:
+    """Thuế thu nhập cá nhân theo biểu thuế lũy tiến từng phần 7 bậc (Thông tư 111/2013/TT-BTC)."""
+    if assessable_income <= 0:
+        return Decimal(0)
+    ai = float(assessable_income)
+    if ai <= 5_000_000:
+        tax = ai * 0.05
+    elif ai <= 10_000_000:
+        tax = ai * 0.10 - 250_000
+    elif ai <= 18_000_000:
+        tax = ai * 0.15 - 750_000
+    elif ai <= 32_000_000:
+        tax = ai * 0.20 - 1_650_000
+    elif ai <= 52_000_000:
+        tax = ai * 0.25 - 3_250_000
+    elif ai <= 80_000_000:
+        tax = ai * 0.30 - 5_850_000
+    else:
+        tax = ai * 0.35 - 9_850_000
+    return Decimal(str(max(0, int(round(tax)))))
 
 
 def std_days(block: Block, year: int, month: int) -> int:
@@ -190,6 +219,8 @@ def calc_payslip(*, base_salary: int, allowance: int, std_days_month: int, std_h
                  commission: int = 0, spa_commission: int = 0, tips: int = 0,
                  advances: int = 0, fuel_other: int = 0, bonus_other: int = 0,
                  deduction_other: int = 0, birthday_in_month: bool = False,
+                 has_contract: bool = False, dependents_count: int = 0,
+                 insurance_salary: float = 0, is_insurance_exempt: bool = False,
                  rules: Rules = Rules()) -> dict:
     """Tính 1 dòng bảng lương từ kết quả chấm công từng ngày (list DayResult)."""
     base = Decimal(base_salary)
@@ -219,7 +250,25 @@ def calc_payslip(*, base_salary: int, allowance: int, std_days_month: int, std_h
     gross = (pay_days + Decimal(allowance) + Decimal(fuel_other) + holiday_pay + Decimal(commission)
              + Decimal(spa_commission) + Decimal(tips) + Decimal(birthday) + Decimal(attendance_bonus)
              + Decimal(bonus_other) + ot_pay)
-    net = gross - Decimal(penalties) - Decimal(advances) - Decimal(deduction_other)
+
+    # ── Chế độ Doanh nghiệp (Enterprise Mode): Bảo hiểm & Thuế TNCN ──
+    insurance = Decimal(0)
+    pit = Decimal(0)
+    assessable_income = Decimal(0)
+
+    if rules.payroll_mode == "enterprise":
+        if has_contract and not is_insurance_exempt:
+            ins_base = Decimal(str(insurance_salary)) if insurance_salary > 0 else base
+            ins_base = min(ins_base, Decimal(str(rules.insurance_cap)))
+            insurance = (ins_base * rules.insurance_rate).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+        ot_exempt = (ot_pay * (rules.ot_multiplier - Decimal(1)) / rules.ot_multiplier) if rules.ot_multiplier > 1 else Decimal(0)
+        taxable_income = max(Decimal(0), gross - ot_exempt)
+        total_deduction = insurance + Decimal(rules.tax_self_deduction) + (Decimal(rules.tax_dependent_deduction) * Decimal(dependents_count))
+        assessable_income = max(Decimal(0), taxable_income - total_deduction)
+        pit = calc_pit(assessable_income)
+
+    net = gross - Decimal(penalties) - Decimal(advances) - Decimal(deduction_other) - insurance - pit
     net_rounded = int((net / 1000).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * 1000)
     return {
         "base_salary": base_salary,
@@ -248,6 +297,9 @@ def calc_payslip(*, base_salary: int, allowance: int, std_days_month: int, std_h
         "penalties": penalties,
         "advances": advances,
         "deduction_other": deduction_other,
+        "insurance": _money(insurance),
+        "pit": _money(pit),
+        "assessable_income": _money(assessable_income),
         "gross": _money(gross),
         "net": _money(net),
         "net_rounded": net_rounded,

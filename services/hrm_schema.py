@@ -7,6 +7,11 @@ HRM_DEFAULT_RULES = {
     "full_day_min": 420, "half_day_min": 210,
     "probation_rate": "0.85", "ot_multiplier": "1.5", "ot_min_minutes": 25,
     "holiday_extra_days": 1, "attendance_bonus": 500000, "birthday_bonus": 200000,
+    "payroll_mode": "sme",
+    "insurance_rate": "0.105",
+    "insurance_cap": 46800000,
+    "tax_self_deduction": 11000000,
+    "tax_dependent_deduction": 4400000,
 }
 
 STAFF_HR_COLUMNS = [
@@ -19,6 +24,9 @@ STAFF_HR_COLUMNS = [
     ("id_card_number", "TEXT"), ("id_card_date", "TEXT"), ("id_card_place", "TEXT"),
     ("permanent_address", "TEXT"), ("temporary_address", "TEXT"), ("email", "TEXT"),
     ("emergency_phone", "TEXT"), ("emergency_relation", "TEXT"),
+    ("has_contract", "INTEGER DEFAULT 0"), ("contract_number", "TEXT"),
+    ("contract_type", "TEXT DEFAULT 'Có thời hạn'"), ("dependents_count", "INTEGER DEFAULT 0"),
+    ("insurance_salary", "REAL DEFAULT 0"), ("is_insurance_exempt", "INTEGER DEFAULT 0"),
     ("is_spa_worker", "INTEGER DEFAULT 0"), ("legacy_spa_staff_id", "INTEGER"),
 ]
 

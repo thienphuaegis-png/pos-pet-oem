@@ -78,26 +78,20 @@
 ---
 
 ## 3. Files Thay Đổi Chính
-| Module / File | Trách nhiệm |
-|---|---|
-| `services/commission.py` | Tính hoa hồng bán lẻ và dịch vụ spa |
-| `services/hrm_schema.py` | DDL và migration bảng HRM, gộp spa staff |
-| `services/payroll_engine.py` | Engine tính công, phạt, lương thử việc/chính thức, OT |
-| `services/payroll_service.py` | Nghiệp vụ tính lương, chốt kỳ, sinh/hủy phiếu chi sổ quỹ |
-| `services/attendance_import.py` | Parser import file Excel vân tay |
-| `routers/hrm.py` | RESTful API phân hệ HRM |
-| `static/js/modules/hrm.js` | UI logic chấm công & bảng lương |
-| `templates/index.html` | Tab `#tab-hrm` và nút sidebar |
+- `services/payroll_engine.py`: Biểu thuế TNCN 7 bậc, trừ BHXH 10.5%, engine tính lương
+- `services/hrm_schema.py`: Schema HRM, staff 10 trường cá nhân & chế độ HĐ/bảo hiểm
+- `services/payroll_service.py`: Pipeline tính lương, thâm niên, điều chỉnh lương lũy kế
+- `routers/hrm.py`: API HRM nhân sự, quy định doanh nghiệp, điều chỉnh lương
+- `templates/index.html` & `static/js/modules/hrm.js`: UI HRM, 3-tab modal, bảng lương, subtab điều chỉnh
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
 - [x] Tích hợp phân hệ HRM & Payroll Engine vào POS offline.
-- [x] Copy `dist/POS_Mastercare.exe` đè ra gốc `POS_Mastercare.exe` sau khi đóng tiến trình.
-- [ ] Khởi động lại POS (`CHAY_POS.bat`) và nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).
+- [x] Nạp dữ liệu tạm ứng và chấm công Tháng 9/2026 từ Google Sheet.
+
+---
 
 ## 5. Phiên Bản & Bản Build Hiện Tại
-- Bản build EXE: `POS_Mastercare.exe` (31 MB)
-- Phiên bản: `v3.6.28` (Build date: `2026.10.23`)
-- Nhánh Git: `main` (Đồng bộ sạch sẽ với `origin/main`)
-- Bản đồ dự án tương tác: `PROJECT_MAP.html` (Đã cập nhật trọn bộ 6 tính năng đợt 23/10/2026 kèm tính năng Export Markdown).
+- Bản build EXE: `POS_Mastercare.exe` v3.6.32
+- Nhánh Git: `main` | Test suite: 100% PASS

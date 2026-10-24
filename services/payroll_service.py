@@ -200,45 +200,50 @@ def payroll_staff(cur, first: date) -> list:
 
 
 def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa, manual) -> dict:
+    s = dict(staff)
     anomalies = []
-    block = blocks.get(staff["work_block_id"])
+    block = blocks.get(s["work_block_id"])
     if not block:
-        return {"staff_id": staff["id"], "name": staff["name"], "employee_code": staff["employee_code"] or "",
+        return {"staff_id": s["id"], "name": s["name"], "employee_code": s["employee_code"] or "",
                 "block": "", "anomalies": ["Chưa gán khối làm việc"], "net_rounded": 0, "days": []}
-    days = build_days(cur, staff, block, rules, first, last, today)
-    base, allowance = salary_at(cur, staff, last)
+    days = build_days(cur, s, block, rules, first, last, today)
+    base, allowance = salary_at(cur, s, last)
     cur.execute("SELECT work_date, hours FROM staff_overtime WHERE staff_id = ? AND work_date BETWEEN ? AND ?",
-                (staff["id"], first.isoformat(), last.isoformat()))
+                (s["id"], first.isoformat(), last.isoformat()))
     ot_off = ot_prob = 0.0
     for o in cur.fetchall():
-        if is_probation(staff, _d(o["work_date"])):
+        if is_probation(s, _d(o["work_date"])):
             ot_prob += float(o["hours"])
         else:
             ot_off += float(o["hours"])
     cur.execute("SELECT COALESCE(SUM(amount),0) FROM staff_advances WHERE staff_id = ? AND advance_date BETWEEN ? AND ?",
-                (staff["id"], first.isoformat(), last.isoformat()))
+                (s["id"], first.isoformat(), last.isoformat()))
     advances = int(round(float(cur.fetchone()[0])))
-    bday = _d(staff["birthday"])
-    spa_rec = spa.get((staff["name"] or "").strip().lower(), {})
+    bday = _d(s["birthday"])
+    spa_rec = spa.get((s["name"] or "").strip().lower(), {})
     p = calc_payslip(
         base_salary=base, allowance=allowance, std_days_month=std_days(block, y, m), std_hours=block.std_hours,
         days=days, ot_hours_official=ot_off, ot_hours_probation=ot_prob,
-        commission=int(sales.get(staff["id"], {}).get("commission", 0)),
+        commission=int(sales.get(s["id"], {}).get("commission", 0)),
         spa_commission=int(spa_rec.get("commission", 0)), tips=int(spa_rec.get("tips", 0)),
         advances=advances, fuel_other=int(manual.get("fuel_other", 0)), bonus_other=int(manual.get("bonus_other", 0)),
         deduction_other=int(manual.get("deduction_other", 0)), birthday_in_month=bool(bday and bday.month == m),
+        has_contract=bool(s.get("has_contract")),
+        dependents_count=int(s.get("dependents_count") or 0),
+        insurance_salary=float(s.get("insurance_salary") or 0),
+        is_insurance_exempt=bool(s.get("is_insurance_exempt")),
         rules=rules)
-    if p["net_rounded"] > 0 and not (staff["bank_account"] or "").strip():
+    if p["net_rounded"] > 0 and not (s["bank_account"] or "").strip():
         anomalies.append("Thiếu số tài khoản ngân hàng")
     if p["net_rounded"] < 0:
         anomalies.append("Thực lãnh âm (phạt + tạm ứng lớn hơn lương)")
-    if (staff["probation_start"] or staff["hire_date"]) and not staff["official_date"] and any(d.probation for d in days):
+    if (s["probation_start"] or s["hire_date"]) and not s["official_date"] and any(d.probation for d in days):
         anomalies.append("Đang thử việc nhưng chưa có ngày chính thức")
-    if not (staff["device_code"] or "").strip() and not staff["is_spa_worker"]:
+    if not (s["device_code"] or "").strip() and not s["is_spa_worker"]:
         anomalies.append("Chưa có mã máy chấm công")
-    p.update({"staff_id": staff["id"], "name": staff["name"], "employee_code": staff["employee_code"] or "",
-              "position": staff["position"] or "", "block": block.name, "anomalies": anomalies,
-              "sales_net": int(sales.get(staff["id"], {}).get("net", 0)),
+    p.update({"staff_id": s["id"], "name": s["name"], "employee_code": s["employee_code"] or "",
+              "position": s["position"] or "", "block": block.name, "anomalies": anomalies,
+              "sales_net": int(sales.get(s["id"], {}).get("net", 0)),
               "days": [day_to_dict(x) for x in days]})
     return p
 
@@ -294,7 +299,7 @@ def get_period(cur, month: str) -> dict:
                      "cashbook_id": r["cashbook_id"], "cashbook_code": r["cashbook_code"], "paid_at": r["paid_at"]})
         lines.append(data)
     keys = ("pay_days", "allowance", "holiday_pay", "commission", "spa_commission", "tips", "ot_pay",
-            "attendance_bonus", "birthday_bonus", "penalties", "advances", "net_pay")
+            "attendance_bonus", "birthday_bonus", "penalties", "advances", "insurance", "pit", "net_pay")
     totals = {k: sum(float(l.get(k) or 0) for l in lines) for k in keys}
     return {"month": month, "status": period["status"], "locked_at": period["locked_at"],
             "locked_by": period["locked_by"], "lines": lines, "totals": totals}
