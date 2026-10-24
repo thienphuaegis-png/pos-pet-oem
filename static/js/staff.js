@@ -24,6 +24,7 @@ async function loadStaffList() {
         <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Đã khóa</span>'}</td>
         <td class="p-2.5 text-center">
           <button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2" title="Gán hoặc đổi Gemini API Key riêng cho nhân viên này">🔑 Gán Key AI</button>
+          <button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2" title="Chỉnh quyền riêng cho nhân viên này">🛡️ Quyền riêng</button>
           <button onclick="openEditStaffModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.role}', '${(r.phone||'').replace(/'/g, "\\'")}', ${r.commission_rate || 0}, ${r.is_active})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2">Sửa</button>
           <button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2">Reset MK</button>
           <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="text-rose-600 hover:underline text-[11px] font-bold">${r.is_active ? 'Khóa' : 'Mở khóa'}</button>
@@ -259,6 +260,21 @@ async function updateStaffPermission(staffId, permKey, value) {
     refreshUserProfile();
   }
 }
+
+function goToStaffPermission(staffId) {
+  if (typeof switchSettingsSubTab === 'function') {
+    switchSettingsSubTab('permissions');
+    setTimeout(() => {
+      const sel = document.getElementById('staff-perm-select');
+      if (sel) {
+        sel.value = staffId;
+        loadStaffPermissions(staffId);
+        sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
+  }
+}
+window.goToStaffPermission = goToStaffPermission;
 
 let activityLogDebounceTimer = null;
 function debounceActivityLogSearch() {
