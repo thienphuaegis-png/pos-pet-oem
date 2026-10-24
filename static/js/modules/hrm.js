@@ -15,6 +15,27 @@
         return picker.value;
     }
 
+    window.changeHrmMonth = function(delta) {
+        const picker = document.getElementById('hrm-month-picker');
+        if (!picker) return;
+        let val = picker.value || new Date().toISOString().slice(0, 7);
+        const parts = val.split('-');
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10) + delta;
+        if (m < 1) { m = 12; y -= 1; }
+        else if (m > 12) { m = 1; y += 1; }
+        picker.value = `${y}-${String(m).padStart(2, '0')}`;
+        loadHrmCurrentSubTab();
+    };
+
+    window.setHrmCurrentMonth = function() {
+        const picker = document.getElementById('hrm-month-picker');
+        if (!picker) return;
+        const now = new Date();
+        picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        loadHrmCurrentSubTab();
+    };
+
     window.switchHrmSubTab = function(sub) {
         currentSubTab = sub;
         ['payroll', 'attendance', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
@@ -121,13 +142,14 @@
                 <td class="p-2.5 text-right font-mono text-emerald-700">${(l.attendance_bonus || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono">${(l.birthday_bonus || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-amber-700">${(l.ot_pay || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.penalties || 0).toLocaleString('vi-VN')}</td>
+                <td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-right font-mono font-bold text-rose-600 cursor-pointer hover:bg-rose-50 hover:underline" title="Bấm xem chi tiết phút trễ & phạt vi phạm">-${(l.penalties || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.advances || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.insurance ? '-' + Number(l.insurance).toLocaleString('vi-VN') : '—'}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.pit ? '-' + Number(l.pit).toLocaleString('vi-VN') : '—'}</td>
                 <td class="p-2.5 text-right font-mono font-black text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
                 <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
+                    <button onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="text-emerald-700 hover:underline font-bold mr-2 cursor-pointer">Chi tiết công</button>
                     <button onclick="editHrmLine(${l.staff_id}, ${l.bonus_other || 0}, ${l.fuel_other || 0}, ${l.deduction_other || 0}, '${(l.manual_note || '').replace(/'/g, "\\'")}')" class="text-sky-600 hover:underline font-bold mr-2 cursor-pointer">Sửa số</button>
                 </td>
             </tr>
@@ -242,17 +264,196 @@
         downloadWithAuth(`/api/hrm/payroll/${month}/export`, `Bang_Luong_${month}.xlsx`);
     };
 
-    // ── Chấm Công Matrix ──
+    // ── Chấm Công Matrix & Bảng Chi Tiết Duyệt Phạt ──
+    let hrmAttCurrentView = 'matrix';
+
     async function loadHrmAttendance(month) {
         try {
             const res = await fetch(`/api/hrm/attendance?month=${month}`);
             if (!res.ok) return;
             attendanceData = await res.json();
             renderAttendanceMatrix(attendanceData);
+            if (hrmAttCurrentView === 'detail') {
+                renderAttendanceDetailTable();
+            }
         } catch (e) {
             console.error(e);
         }
     }
+
+    window.switchHrmAttendanceView = function(view) {
+        hrmAttCurrentView = view;
+        const btnMatrix = document.getElementById('btn-hrm-att-view-matrix');
+        const btnDetail = document.getElementById('btn-hrm-att-view-detail');
+        const containerMatrix = document.getElementById('hrm-attendance-matrix-container');
+        const containerDetail = document.getElementById('hrm-attendance-detail-container');
+        const legend = document.getElementById('hrm-att-matrix-legend');
+
+        if (view === 'matrix') {
+            if (btnMatrix) btnMatrix.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-emerald-800 shadow-2xs cursor-pointer transition-all";
+            if (btnDetail) btnDetail.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all";
+            if (containerMatrix) containerMatrix.classList.remove('hidden');
+            if (containerDetail) containerDetail.classList.add('hidden');
+            if (legend) legend.classList.remove('hidden');
+        } else {
+            if (btnMatrix) btnMatrix.className = "px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all";
+            if (btnDetail) btnDetail.className = "px-3 py-1 text-xs font-bold rounded-md bg-white text-emerald-800 shadow-2xs cursor-pointer transition-all";
+            if (containerMatrix) containerMatrix.classList.add('hidden');
+            if (containerDetail) containerDetail.classList.remove('hidden');
+            if (legend) legend.classList.add('hidden');
+
+            const staffSel = document.getElementById('hrm-att-filter-staff');
+            if (staffSel && attendanceData && attendanceData.employees) {
+                const curVal = staffSel.value;
+                staffSel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+                    attendanceData.employees.map(e => `<option value="${e.staff_id}" ${curVal == e.staff_id ? 'selected' : ''}>${e.employee_code || 'NV' + e.staff_id} - ${e.name}</option>`).join('');
+            }
+            renderAttendanceDetailTable();
+        }
+    };
+
+    window.renderAttendanceDetailTable = function() {
+        if (!attendanceData || !attendanceData.employees) return;
+        const tbody = document.getElementById('table-hrm-att-detail-body');
+        const countEl = document.getElementById('hrm-att-detail-count');
+        if (!tbody) return;
+
+        const filterStatus = document.getElementById('hrm-att-filter-status')?.value || 'late_viol';
+        const filterStaff = document.getElementById('hrm-att-filter-staff')?.value || '';
+        const filterDate = document.getElementById('hrm-att-filter-date')?.value || '';
+
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        let rows = [];
+
+        attendanceData.employees.forEach(emp => {
+            if (filterStaff && String(emp.staff_id) !== filterStaff) return;
+            (emp.days || []).forEach(d => {
+                if (filterDate && d.date !== filterDate) return;
+
+                const hasViolation = (d.late_min > 0 || (d.violations && d.violations.length > 0) || d.penalty > 0);
+                const isWaived = Boolean(d.waive);
+                const isOnTime = Boolean(d.check_in && !d.late_min && (!d.violations || d.violations.length === 0) && !d.penalty);
+                const isLeave = (d.code === 'OFF' || d.code === 'L' || Boolean(d.leave_type));
+
+                if (filterStatus === 'late_viol' && !hasViolation && !isWaived) return;
+                if (filterStatus === 'on_time' && !isOnTime) return;
+                if (filterStatus === 'waived' && !isWaived) return;
+                if (filterStatus === 'leave' && !isLeave) return;
+
+                rows.push({ emp, day: d });
+            });
+        });
+
+        rows.sort((a, b) => b.day.date.localeCompare(a.day.date) || a.emp.name.localeCompare(b.emp.name));
+
+        if (countEl) countEl.textContent = `${rows.length} dòng hiển thị`;
+
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="15" class="p-8 text-center text-slate-400">Không có dữ liệu chấm công thỏa điều kiện lọc.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rows.map(({ emp, day }) => {
+            const dt = new Date(day.date);
+            const dayOfWeek = dayNames[dt.getDay()];
+            const isSun = dt.getDay() === 0;
+
+            let codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-500">-</span>`;
+            if (day.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
+            else if (day.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
+            else if (day.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
+            else if (day.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
+            else if (day.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">OFF</span>`;
+            else if (day.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">L (Lễ)</span>`;
+            else if (day.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-50 text-slate-400">CN</span>`;
+
+            let viols = [];
+            (day.violations || []).forEach(v => {
+                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Trễ ${day.late_min}p</span>`);
+                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Về sớm ${day.early_min}p</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên vào (-50k)</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên ra (-50k)</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-[10px] font-bold">Vắng (-500k)</span>`);
+            });
+
+            const workedHours = day.worked_min > 0 ? (day.worked_min / 60).toFixed(1) + 'h' : '—';
+            const lateText = day.late_min > 0 ? `<span class="text-rose-600 font-bold">${day.late_min}p</span>` : '<span class="text-slate-300">—</span>';
+            const earlyText = day.early_min > 0 ? `<span class="text-amber-600 font-bold">${day.early_min}p</span>` : '<span class="text-slate-300">—</span>';
+            const penText = day.penalty > 0 ? `<span class="text-rose-600 font-mono font-black">-${day.penalty.toLocaleString('vi-VN')}đ</span>` : (day.waive ? '<span class="text-emerald-700 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 text-[10px]">0đ (Miễn)</span>' : '<span class="text-slate-300">—</span>');
+
+            const switchHtml = `
+                <div class="flex items-center justify-center gap-1.5">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" onchange="toggleHrmWaive(${emp.staff_id}, '${day.date}', ${day.waive ? 'true' : 'false'})" class="sr-only peer" ${day.waive ? 'checked' : ''}>
+                        <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                    <span class="text-[10px] font-bold ${day.waive ? 'text-emerald-700' : 'text-slate-400'}">${day.waive ? 'Miễn' : 'Phạt'}</span>
+                </div>
+            `;
+
+            const noteHtml = day.note ? `<span class="italic text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-[11px] block max-w-[160px] truncate" title="${day.note}">${day.note}</span>` : '<span class="text-slate-300">—</span>';
+
+            return `
+                <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
+                    <td class="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">${day.date} <span class="${isSun ? 'text-rose-600' : 'text-slate-500'}">(${dayOfWeek})</span></td>
+                    <td class="p-2.5 font-mono text-purple-700 font-bold">${emp.employee_code || 'NV' + emp.staff_id}</td>
+                    <td class="p-2.5 font-bold text-slate-800 whitespace-nowrap">${emp.name}</td>
+                    <td class="p-2.5 text-slate-600 whitespace-nowrap">${emp.block}</td>
+                    <td class="p-2.5 text-center font-mono font-bold ${day.check_in ? 'text-slate-800' : 'text-slate-300'}">${day.check_in || '—'}</td>
+                    <td class="p-2.5 text-center font-mono font-bold ${day.check_out ? 'text-slate-800' : 'text-slate-300'}">${day.check_out || '—'}</td>
+                    <td class="p-2.5 text-right font-mono">${workedHours}</td>
+                    <td class="p-2.5 text-right">${lateText}</td>
+                    <td class="p-2.5 text-right">${earlyText}</td>
+                    <td class="p-2.5"><div class="flex flex-wrap gap-1">${viols.join('') || '<span class="text-slate-400">Đúng giờ</span>'}</div></td>
+                    <td class="p-2.5 text-right">${penText}</td>
+                    <td class="p-2.5 text-center">${codeBadge}</td>
+                    <td class="p-2.5 text-center">${switchHtml}</td>
+                    <td class="p-2.5">${noteHtml}</td>
+                    <td class="p-2.5 text-center whitespace-nowrap">
+                        <button onclick="openHrmEditDayModal(${emp.staff_id}, '${day.date}', '${day.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-[11px]">✏️ Sửa</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    window.toggleHrmWaive = async function(staffId, workDate, currentWaive) {
+        let note = "";
+        if (!currentWaive) {
+            const reason = prompt("Nhập lý do miễn phạt (ví dụ: Quên quẹt thẻ / Sự cố máy / Sếp duyệt):", "Sếp duyệt miễn phạt");
+            if (reason === null) {
+                renderAttendanceDetailTable();
+                return;
+            }
+            note = reason.trim();
+        }
+        try {
+            const res = await fetch('/api/hrm/attendance/toggle-waive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    staff_id: staffId,
+                    work_date: workDate,
+                    waive: !currentWaive,
+                    note: note
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi cập nhật miễn phạt");
+                renderAttendanceDetailTable();
+                return;
+            }
+            if (window.showToast) window.showToast(!currentWaive ? "Đã duyệt miễn phạt thành công" : "Đã hủy miễn phạt", "success");
+            await loadHrmAttendance(getSelectedMonth());
+            if (hrmAttCurrentView === 'detail') {
+                renderAttendanceDetailTable();
+            }
+        } catch (err) {
+            console.error(err);
+            renderAttendanceDetailTable();
+        }
+    };
 
     function renderAttendanceMatrix(data) {
         const thead = document.getElementById('table-hrm-att-head');
@@ -287,6 +488,7 @@
                     if (dayRes.code === 'X') cls = "font-bold text-emerald-600 bg-emerald-50/50";
                     else if (dayRes.code === 'X/2') cls = "font-bold text-sky-600 bg-sky-50/50";
                     else if (dayRes.code === 'TV') cls = "font-bold text-amber-600 bg-amber-50/50";
+                    else if (dayRes.code === 'TV/2') cls = "font-bold text-amber-900 bg-amber-100/80 border border-amber-300";
                     else if (dayRes.code === 'OFF') cls = "text-slate-400 bg-slate-100";
                     else if (dayRes.code === 'L') cls = "font-bold text-purple-700 bg-purple-50";
 
@@ -894,7 +1096,7 @@
                 body: JSON.stringify({
                     staff_id: staffId,
                     work_date: workDate,
-                    leave_type: code,
+                    code: code,
                     punches: punches,
                     waive: waive,
                     note: note
@@ -908,6 +1110,12 @@
             if (window.showToast) window.showToast("Đã cập nhật công thành công", "success");
             closeHrmEditDayModal();
             loadHrmAttendance(getSelectedMonth());
+            // Nếu đang mở modal chi tiết công hoặc đang ở subtab payroll thì refresh
+            if (!document.getElementById('modal-hrm-staff-days-detail')?.classList.contains('hidden')) {
+                loadHrmPayroll(getSelectedMonth()).then(() => {
+                    viewHrmStaffDaysDetail(staffId);
+                });
+            }
         } catch (e) {
             console.error(e);
         }
@@ -974,6 +1182,109 @@
     window.exportMobileSheets = function() {
         const month = getSelectedMonth();
         downloadWithAuth(`/api/hrm/payroll/${month}/export-mobile-sheets`, `Phieu_Luong_Mobile_${month}.xlsx`);
+    };
+
+    // ── Chi Tiết Chấm Công & Phạt Trễ (Modal Days Breakdown) ──
+    window.viewHrmStaffDaysDetail = function(staffId) {
+        if (!payrollData || !payrollData.lines) {
+            alert("Chưa có dữ liệu bảng lương. Vui lòng bấm 'Tính Lương' trước.");
+            return;
+        }
+        const line = payrollData.lines.find(l => l.staff_id === staffId);
+        if (!line) {
+            alert("Không tìm thấy nhân viên trong bảng lương tháng này.");
+            return;
+        }
+
+        const month = getSelectedMonth();
+        document.getElementById('hrm-days-detail-title').textContent = `Chi Tiết Chấm Công & Phạt Trễ: ${line.name} (${line.employee_code || 'NV' + line.staff_id})`;
+        document.getElementById('hrm-days-detail-subtitle').textContent = `Khối: ${line.block} | Tháng: ${month} | Lương cơ bản: ${(line.base_salary || 0).toLocaleString('vi-VN')}đ`;
+
+        const totalDays = (line.days_official || 0) + (line.days_probation || 0);
+        document.getElementById('hrm-days-detail-sum-credit').textContent = `${totalDays} công`;
+        document.getElementById('hrm-days-detail-sub-credit').textContent = `${line.days_official || 0} Chính thức / ${line.days_probation || 0} Thử việc`;
+
+        document.getElementById('hrm-days-detail-sum-penalty').textContent = `-${(line.penalties || 0).toLocaleString('vi-VN')}đ`;
+        const totalLateMin = (line.days || []).reduce((acc, d) => acc + (d.late_min || 0), 0);
+        document.getElementById('hrm-days-detail-sub-penalty').textContent = `Tổng trễ: ${totalLateMin} phút`;
+
+        const otAndBonus = (line.ot_pay || 0) + (line.attendance_bonus || 0);
+        document.getElementById('hrm-days-detail-sum-ot').textContent = `${otAndBonus.toLocaleString('vi-VN')}đ`;
+        document.getElementById('hrm-days-detail-sub-ot').textContent = `OT: ${(line.ot_pay || 0).toLocaleString('vi-VN')}đ | CC: ${(line.attendance_bonus || 0).toLocaleString('vi-VN')}đ`;
+
+        document.getElementById('hrm-days-detail-sum-net').textContent = `${(line.net_rounded || 0).toLocaleString('vi-VN')}đ`;
+        document.getElementById('hrm-days-detail-sub-net').textContent = `Tạm ứng: -${(line.advances || 0).toLocaleString('vi-VN')}đ`;
+
+        const tbody = document.getElementById('table-hrm-staff-days-body');
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+        tbody.innerHTML = (line.days || []).map(d => {
+            const dt = new Date(d.date);
+            const dayOfWeek = dayNames[dt.getDay()];
+            const isSun = dt.getDay() === 0;
+
+            let codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-500">-</span>`;
+            if (d.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
+            else if (d.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
+            else if (d.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
+            else if (d.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
+            else if (d.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">OFF</span>`;
+            else if (d.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">L (Lễ)</span>`;
+            else if (d.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-50 text-slate-400">CN nghỉ</span>`;
+
+            let viols = [];
+            (d.violations || []).forEach(v => {
+                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Trễ ${d.late_min}p</span>`);
+                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Về sớm ${d.early_min}p</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên vào (-50k)</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên ra (-50k)</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-[10px] font-bold">Vắng không phép (-500k)</span>`);
+            });
+            if (d.waived) {
+                viols.push(`<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">Đã miễn phạt</span>`);
+            }
+
+            const workedHours = d.worked_min > 0 ? (d.worked_min / 60).toFixed(1) + 'h' : '—';
+            const lateText = d.late_min > 0 ? `<span class="text-rose-600 font-bold">${d.late_min}p</span>` : '<span class="text-slate-300">—</span>';
+            const earlyText = d.early_min > 0 ? `<span class="text-amber-600 font-bold">${d.early_min}p</span>` : '<span class="text-slate-300">—</span>';
+            const penText = d.penalty > 0 ? `<span class="text-rose-600 font-mono font-black">-${d.penalty.toLocaleString('vi-VN')}đ</span>` : '<span class="text-slate-300">—</span>';
+
+            return `
+                <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
+                    <td class="p-2.5 font-mono font-bold text-slate-800">${d.date}</td>
+                    <td class="p-2.5 text-center font-bold ${isSun ? 'text-rose-600' : 'text-slate-600'}">${dayOfWeek}</td>
+                    <td class="p-2.5 text-center font-mono font-bold ${d.check_in ? 'text-slate-800' : 'text-slate-300'}">${d.check_in || '—'}</td>
+                    <td class="p-2.5 text-center font-mono font-bold ${d.check_out ? 'text-slate-800' : 'text-slate-300'}">${d.check_out || '—'}</td>
+                    <td class="p-2.5 text-right font-mono">${workedHours}</td>
+                    <td class="p-2.5 text-right">${lateText}</td>
+                    <td class="p-2.5 text-right">${earlyText}</td>
+                    <td class="p-2.5"><div class="flex flex-wrap gap-1">${viols.join('') || '<span class="text-slate-400">Đúng giờ</span>'}</div></td>
+                    <td class="p-2.5 text-right">${penText}</td>
+                    <td class="p-2.5 text-center">${codeBadge}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="openHrmEditDayModal(${staffId}, '${d.date}', '${d.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-[11px]">✏️ Sửa</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const modal = document.getElementById('modal-hrm-staff-days-detail');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmStaffDaysDetailModal = function() {
+        const modal = document.getElementById('modal-hrm-staff-days-detail');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.openHrmRulesGuideModal = function() {
+        const modal = document.getElementById('modal-hrm-rules-guide');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmRulesGuideModal = function() {
+        const modal = document.getElementById('modal-hrm-rules-guide');
+        if (modal) modal.classList.add('hidden');
     };
 
     // ── Phiếu Lương Cá Nhân (Modal & Tab) ──
@@ -1070,6 +1381,16 @@
                 .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #f1f5f9; }
                 .net { font-size: 18px; font-weight: bold; color: #047857; text-align: right; }
                 .title { font-size: 16px; font-weight: bold; margin-bottom: 12px; text-align: center; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+                th, td { border: 1px solid #cbd5e1; padding: 4px 6px; }
+                th { background: #f8fafc; font-weight: bold; text-align: left; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: bold; }
+                @media print {
+                    body { padding: 10px; }
+                    .page-break { page-break-inside: avoid; }
+                }
             </style>
             </head><body>${contentEl.innerHTML}</body></html>
         `);
@@ -1087,6 +1408,45 @@
         };
 
         const f = num => (num || 0).toLocaleString('vi-VN') + ' đ';
+
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        const dayRows = (p.days || []).map(d => {
+            const dt = new Date(d.date);
+            const dow = dayNames[dt.getDay()];
+            const isSun = dt.getDay() === 0;
+
+            let viols = [];
+            (d.violations || []).forEach(v => {
+                if (v === 'late') viols.push(`Trễ ${d.late_min}p`);
+                else if (v === 'early') viols.push(`Về sớm ${d.early_min}p`);
+                else if (v === 'missing_in') viols.push(`Quên vào`);
+                else if (v === 'missing_out') viols.push(`Quên ra`);
+                else if (v === 'absent') viols.push(`Vắng`);
+            });
+
+            const workedStr = d.worked_min > 0 ? (d.worked_min / 60).toFixed(1) + 'h' : '—';
+            const penStr = d.penalty > 0 ? `-${d.penalty.toLocaleString('vi-VN')} đ` : (d.waived ? '0 đ' : '—');
+            const statusPen = d.waived
+                ? '<span class="text-emerald-700 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">Đã miễn phạt</span>'
+                : (d.penalty > 0
+                    ? '<span class="text-rose-700 font-bold bg-rose-50 px-1 py-0.5 rounded border border-rose-200">Đã phạt</span>'
+                    : '<span class="text-slate-400">Không vi phạm</span>');
+
+            return `
+                <tr class="${isSun ? 'bg-slate-50 font-medium' : ''}">
+                    <td class="p-1.5 font-mono font-bold">${d.date}</td>
+                    <td class="p-1.5 text-center font-bold ${isSun ? 'text-rose-600' : 'text-slate-600'}">${dow}</td>
+                    <td class="p-1.5 text-center font-mono">${d.check_in || '—'}</td>
+                    <td class="p-1.5 text-center font-mono">${d.check_out || '—'}</td>
+                    <td class="p-1.5 text-right font-mono">${workedStr}</td>
+                    <td class="p-1.5 text-right ${d.late_min > 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}">${d.late_min > 0 ? d.late_min + 'p' : '—'}</td>
+                    <td class="p-1.5 text-slate-700">${viols.join(', ') || 'Đúng giờ'}</td>
+                    <td class="p-1.5 text-right font-mono font-bold ${d.penalty > 0 ? 'text-rose-600' : 'text-slate-500'}">${penStr}</td>
+                    <td class="p-1.5 text-center font-bold text-slate-800">${d.code || '—'}</td>
+                    <td class="p-1.5 text-center text-[10px]">${statusPen}</td>
+                </tr>
+            `;
+        }).join('');
 
         return `
             <div class="space-y-3 text-xs">
@@ -1147,6 +1507,37 @@
                     </div>
                     <div class="text-right">
                         <div class="font-mono font-black text-xl text-emerald-700">${(p.net_pay || p.net_rounded || 0).toLocaleString('vi-VN')} đ</div>
+                    </div>
+                </div>
+
+                <!-- Thẻ IV: Bảng Chi Tiết 30/31 Ngày Chấm Công (Minh Bạch Phạt Trễ) -->
+                <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between border-b pb-1">
+                        <h4 class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1">
+                            <span>⏱️</span> IV. Bảng Chi Tiết 30/31 Ngày Chấm Công & Đi Trễ Trong Tháng
+                        </h4>
+                        <span class="text-[10px] text-slate-400 font-medium">Toàn bộ các ngày trong kỳ lương</span>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl overflow-x-auto max-h-[350px]">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-1.5">Ngày</th>
+                                    <th class="p-1.5 text-center">Thứ</th>
+                                    <th class="p-1.5 text-center">Vào</th>
+                                    <th class="p-1.5 text-center">Ra</th>
+                                    <th class="p-1.5 text-right">Làm việc</th>
+                                    <th class="p-1.5 text-right">Trễ</th>
+                                    <th class="p-1.5">Vi phạm</th>
+                                    <th class="p-1.5 text-right text-rose-600">Tiền phạt</th>
+                                    <th class="p-1.5 text-center">Công</th>
+                                    <th class="p-1.5 text-center">Xử lý phạt</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${dayRows || '<tr><td colspan="10" class="p-4 text-center text-slate-400">Chưa có chi tiết ngày công</td></tr>'}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

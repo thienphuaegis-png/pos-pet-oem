@@ -188,7 +188,7 @@ def day_to_dict(r) -> dict:
     return {"date": r.work_date.isoformat(), "code": r.code, "credit": r.credit, "probation": r.probation,
             "check_in": fmt_min(r.check_in), "check_out": fmt_min(r.check_out), "worked_min": r.worked_min,
             "late_min": r.late_min, "early_min": r.early_min, "violations": r.violations, "penalty": r.penalty,
-            "ot_suggest_hours": r.ot_suggest_hours, "holiday": r.holiday, "employed": r.employed}
+            "ot_suggest_hours": r.ot_suggest_hours, "holiday": r.holiday, "employed": r.employed, "waived": r.waived}
 
 
 def payroll_staff(cur, first: date) -> list:

@@ -6287,7 +6287,13 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <input type="month" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-1 focus:ring-emerald-500">
+                        <!-- Bộ Chọn Tháng Nhanh 1-Chạm -->
+                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                            <button type="button" onclick="changeHrmMonth(-1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-black cursor-pointer transition-all" title="Tháng trước">◀</button>
+                            <input type="month" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()" class="border-0 bg-transparent px-2 py-0.5 text-xs font-black text-slate-800 focus:ring-0 focus:outline-none cursor-pointer">
+                            <button type="button" onclick="changeHrmMonth(1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-black cursor-pointer transition-all" title="Tháng sau">▶</button>
+                        </div>
+                        <button type="button" onclick="setHrmCurrentMonth()" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-2xs">Tháng Này</button>
                         <div class="flex bg-slate-100 p-1 rounded-lg gap-1 text-xs font-semibold">
                             <button id="btn-hrm-tab-payroll" onclick="switchHrmSubTab('payroll')" class="px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer">Bảng Lương</button>
                             <button id="btn-hrm-tab-attendance" onclick="switchHrmSubTab('attendance')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Chấm Công</button>
@@ -6308,6 +6314,7 @@
                             <span id="hrm-payroll-lock-info" class="text-xs text-slate-500"></span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="openHrmRulesGuideModal()" class="border border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs">ℹ️ Quy Tắc Tính Công & Phạt</button>
                             <button id="btn-hrm-calc" onclick="calculateHrmPayroll()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">⚡ Tính Lương</button>
                             <button id="btn-hrm-lock" onclick="lockHrmPayroll()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">🔒 Chốt Lương</button>
                             <button id="btn-hrm-unlock" onclick="unlockHrmPayroll()" class="hidden bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">🔓 Mở Khóa</button>
@@ -6351,27 +6358,100 @@
                     </div>
                 </div>
 
-                <!-- SUBTAB 2: CHẤM CÔNG (LƯỚI THÁNG) -->
+                <!-- SUBTAB 2: CHẤM CÔNG (LƯỚI THÁNG & BẢNG CHI TIẾT DUYỆT PHẠT) -->
                 <div id="hrm-subtab-attendance" class="hidden space-y-3">
                     <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
-                        <div class="flex items-center gap-3 text-xs text-slate-600">
-                            <span><b class="text-emerald-600">X:</b> 1 công</span>
-                            <span><b class="text-sky-600">X/2:</b> 0.5 công</span>
-                            <span><b class="text-amber-600">TV:</b> Thử việc (85%)</span>
-                            <span><b class="text-slate-400">OFF:</b> Nghỉ phép</span>
-                            <span><b class="text-purple-600">L:</b> Ngày lễ</span>
-                            <span><b class="text-rose-600 font-mono">Đỏ:</b> Có vi phạm/phạt</span>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <!-- Bộ Chuyển Chế Độ Xem (Matrix vs Detailed Log) -->
+                            <div class="flex bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                                <button type="button" id="btn-hrm-att-view-matrix" onclick="switchHrmAttendanceView('matrix')" class="px-3 py-1 text-xs font-bold rounded-md bg-white text-emerald-800 shadow-2xs cursor-pointer transition-all">📅 Lưới Tháng</button>
+                                <button type="button" id="btn-hrm-att-view-detail" onclick="switchHrmAttendanceView('detail')" class="px-3 py-1 text-xs font-bold rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition-all">📋 Bảng Chi Tiết & Duyệt Phạt</button>
+                            </div>
+
+                            <!-- Legend (chỉ hiện khi xem lưới matrix) -->
+                            <div id="hrm-att-matrix-legend" class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                <span><b class="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">X:</b> 1 công</span>
+                                <span><b class="text-sky-700 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">X/2:</b> 0.5 công</span>
+                                <span><b class="text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">TV:</b> Thử việc</span>
+                                <span><b class="text-amber-900 bg-amber-100 px-1 py-0.5 rounded border border-amber-300">TV/2:</b> 0.5 công TV</span>
+                                <span><b class="text-slate-600 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">OFF:</b> Nghỉ</span>
+                                <span><b class="text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200">L:</b> Lễ</span>
+                                <span><b class="text-rose-600 font-mono">Đỏ:</b> Phạt</span>
+                            </div>
                         </div>
+
                         <div class="flex items-center gap-2">
+                            <button type="button" onclick="openHrmRulesGuideModal()" class="border border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs">ℹ️ Quy Tắc Tính Công</button>
                             <input type="file" id="hrm-file-import" accept=".xlsx,.xlsm" class="hidden" onchange="uploadAttendanceExcel(this)">
                             <button onclick="document.getElementById('hrm-file-import').click()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer">📤 Import File Vân Tay (.xlsx)</button>
                         </div>
                     </div>
+
+                    <!-- CHẾ ĐỘ 1: LƯỚI MA TRẬN 31 NGÀY -->
                     <div id="hrm-attendance-matrix-container" class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead id="table-hrm-att-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200"></thead>
                             <tbody id="table-hrm-att-body" class="divide-y divide-slate-100"></tbody>
                         </table>
+                    </div>
+
+                    <!-- CHẾ ĐỘ 2: BẢNG CHI TIẾT THEO NGÀY & DUYỆT PHẠT 1-CHẠM -->
+                    <div id="hrm-attendance-detail-container" class="hidden space-y-3">
+                        <!-- Bộ lọc bảng chi tiết -->
+                        <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                            <div class="flex flex-wrap items-center gap-2.5">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-slate-500 font-bold">Lọc trạng thái:</span>
+                                    <select id="hrm-att-filter-status" onchange="renderAttendanceDetailTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white text-slate-700">
+                                        <option value="late_viol" selected>⚠️ Có vi phạm / Đi trễ</option>
+                                        <option value="all">Tất cả trạng thái</option>
+                                        <option value="on_time">✅ Đúng giờ</option>
+                                        <option value="waived">🛡️ Đã miễn phạt (Không phạt)</option>
+                                        <option value="leave">🏖️ Nghỉ phép / Lễ</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-slate-500 font-bold">Nhân viên:</span>
+                                    <select id="hrm-att-filter-staff" onchange="renderAttendanceDetailTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white text-slate-700 max-w-[200px]">
+                                        <option value="">Tất cả nhân viên</option>
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-slate-500 font-bold">Ngày:</span>
+                                    <input type="date" id="hrm-att-filter-date" onchange="renderAttendanceDetailTable()" class="border border-slate-300 rounded-lg px-2.5 py-0.5 text-xs font-bold bg-white text-slate-700">
+                                    <button type="button" onclick="document.getElementById('hrm-att-filter-date').value=''; renderAttendanceDetailTable();" class="text-[11px] text-slate-500 hover:text-slate-800 underline cursor-pointer">Xóa ngày</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="hrm-att-detail-count" class="text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">0 dòng</span>
+                            </div>
+                        </div>
+
+                        <!-- Bảng chi tiết chấm công và duyệt phạt -->
+                        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-2.5">Ngày & Thứ</th>
+                                        <th class="p-2.5">Mã NV</th>
+                                        <th class="p-2.5">Họ và Tên</th>
+                                        <th class="p-2.5">Khối Ca</th>
+                                        <th class="p-2.5 text-center">Giờ Vào</th>
+                                        <th class="p-2.5 text-center">Giờ Ra</th>
+                                        <th class="p-2.5 text-right">Làm Việc</th>
+                                        <th class="p-2.5 text-right">Trễ (phút)</th>
+                                        <th class="p-2.5 text-right">Về Sớm</th>
+                                        <th class="p-2.5">Vi Phạm & Phạt</th>
+                                        <th class="p-2.5 text-right text-rose-600">Tiền Phạt</th>
+                                        <th class="p-2.5 text-center">Tính Công</th>
+                                        <th class="p-2.5 text-center">Không Phạt?</th>
+                                        <th class="p-2.5">Lý Do / Giải Trình</th>
+                                        <th class="p-2.5 text-center">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-hrm-att-detail-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -10224,6 +10304,7 @@
                         <option value="X">X — Đi làm đủ ca (1.0 công)</option>
                         <option value="X/2">X/2 — Nửa ca / Quên quẹt (0.5 công)</option>
                         <option value="TV">TV — Thử việc (1.0 công TV)</option>
+                        <option value="TV/2">TV/2 — Thử việc nửa ca (0.5 công TV)</option>
                         <option value="OFF">OFF — Nghỉ phép / Ngày nghỉ (0 công)</option>
                         <option value="L">L — Nghỉ Lễ nhân đôi (1 công + 1 công thưởng)</option>
                         <option value="V">V — Vắng không phép</option>
@@ -10281,6 +10362,186 @@
             <div class="flex gap-2 pt-3 border-t">
                 <button type="button" onclick="closeHrmEditLineModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
                 <button type="button" onclick="submitHrmEditLine()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHI TIẾT CHẤM CÔNG & PHẠT TRỄ (HRM) -->
+    <div id="modal-hrm-staff-days-detail" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">⏱️</span>
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-800" id="hrm-days-detail-title">Chi Tiết Chấm Công & Phạt Trễ</h3>
+                        <p class="text-[11px] text-slate-500" id="hrm-days-detail-subtitle">Theo dõi từng lượt quẹt thẻ, phút trễ và lý do vi phạm</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeHrmStaffDaysDetailModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <!-- Dashboard tóm tắt công & phạt -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+                    <span class="text-[10px] uppercase font-bold text-emerald-800">Tổng Ngày Công</span>
+                    <div class="text-base font-black text-emerald-700 mt-0.5" id="hrm-days-detail-sum-credit">0</div>
+                    <span class="text-[10px] text-emerald-600" id="hrm-days-detail-sub-credit">0 CT / 0 TV</span>
+                </div>
+                <div class="p-3 bg-rose-50/70 border border-rose-200/80 rounded-xl">
+                    <span class="text-[10px] uppercase font-bold text-rose-800">Tổng Phạt Vi Phạm</span>
+                    <div class="text-base font-black text-rose-600 mt-0.5" id="hrm-days-detail-sum-penalty">0đ</div>
+                    <span class="text-[10px] text-rose-600" id="hrm-days-detail-sub-penalty">0 phút trễ</span>
+                </div>
+                <div class="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl">
+                    <span class="text-[10px] uppercase font-bold text-amber-800">Tăng Ca & Thưởng CC</span>
+                    <div class="text-base font-black text-amber-700 mt-0.5" id="hrm-days-detail-sum-ot">0đ</div>
+                    <span class="text-[10px] text-amber-600" id="hrm-days-detail-sub-ot">Chuyên cần: 0đ</span>
+                </div>
+                <div class="p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-xl">
+                    <span class="text-[10px] uppercase font-bold text-indigo-800">Thực Lãnh Tháng</span>
+                    <div class="text-base font-black text-indigo-700 mt-0.5" id="hrm-days-detail-sum-net">0đ</div>
+                    <span class="text-[10px] text-indigo-600" id="hrm-days-detail-sub-net">Lương CB: 0đ</span>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách 30 ngày -->
+            <div class="border border-slate-200 rounded-xl overflow-x-auto max-h-[380px]">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                        <tr>
+                            <th class="p-2.5">Ngày</th>
+                            <th class="p-2.5 text-center">Thứ</th>
+                            <th class="p-2.5 text-center">Giờ Vào</th>
+                            <th class="p-2.5 text-center">Giờ Ra</th>
+                            <th class="p-2.5 text-right">Làm Việc</th>
+                            <th class="p-2.5 text-right">Trễ (phút)</th>
+                            <th class="p-2.5 text-right">Về Sớm</th>
+                            <th class="p-2.5">Vi Phạm & Phạt</th>
+                            <th class="p-2.5 text-right text-rose-600">Tiền Phạt</th>
+                            <th class="p-2.5 text-center">Tính Công</th>
+                            <th class="p-2.5 text-center">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-hrm-staff-days-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 border-t">
+                <span class="text-[11px] text-slate-400">💡 Bấm nút "Sửa" ở cột Thao Tác để điều chỉnh công hoặc miễn phạt cho nhân viên</span>
+                <button type="button" onclick="closeHrmStaffDaysDetailModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUY TẮC CHẤM CÔNG & PHẠT (HRM) -->
+    <div id="modal-hrm-rules-guide" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">ℹ️</span>
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-800">Quy Tắc Tính Công, Đi Trễ & Phạt Vi Phạm</h3>
+                        <p class="text-[11px] text-slate-500">Minh bạch công thức tính từ máy chấm công vân tay và Google Sheets</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeHrmRulesGuideModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <div class="space-y-3.5 leading-relaxed text-slate-700">
+                <!-- 1. Ký hiệu công -->
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                        <span>🏷️</span> 1. Ký Hiệu & Cách Tính Ngày Công
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-emerald-700 font-mono">X (1.0 công):</b> Đi làm đủ ca (&ge; 6.5 giờ). Hưởng 100% lương ngày chính thức.
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-sky-700 font-mono">X/2 (0.5 công):</b> Làm việc từ 3.5h đến dưới 6.5h hoặc có đơn xin nghỉ nửa buổi.
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-amber-800 font-mono">TV (1.0 công TV):</b> Nhân sự đang trong thời gian thử việc. Hưởng 85% lương ngày.
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-amber-900 font-mono">TV/2 (0.5 công TV):</b> Thử việc làm nửa ca (từ 3.5h đến dưới 6.5h hoặc off nửa buổi).
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-slate-600 font-mono">OFF (0 công):</b> Có đơn xin nghỉ phép được duyệt, không tính công và không bị phạt vắng.
+                        </div>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
+                            <b class="text-purple-700 font-mono">L (Ngày Lễ):</b> Nghỉ lễ hưởng nguyên lương theo Điều 112 Bộ luật Lao động.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Khối ca chuẩn -->
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <h4 class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                        <span>⏰</span> 2. Khối Ca Làm Việc & Khung Giờ Chuẩn
+                    </h4>
+                    <div class="space-y-1.5 text-[11px]">
+                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/80">
+                            <div>
+                                <b class="text-slate-900">Văn Phòng (HCNS, Kế toán, TMĐT):</b>
+                                <div class="text-slate-500">Giờ làm: 08:00 - 17:30 (Nghỉ trưa: 12:00 - 13:30 = 90 phút). Nghỉ cố định Chủ Nhật.</div>
+                            </div>
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-bold font-mono">8.0 giờ/ngày</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/80">
+                            <div>
+                                <b class="text-slate-900">Kho & Giao Hàng:</b>
+                                <div class="text-slate-500">Giờ làm: 08:00 - 18:00 (Nghỉ trưa: 12:00 - 13:30 = 90 phút). Xoay ca nghỉ 1 ngày/tuần.</div>
+                            </div>
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-bold font-mono">8.5 giờ/ngày</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Quy định phạt vi phạm -->
+                <div class="p-3 bg-rose-50/50 rounded-xl border border-rose-200 space-y-2">
+                    <h4 class="font-bold text-rose-900 flex items-center gap-1.5 text-xs">
+                        <span>⚠️</span> 3. Bảng Mức Phạt Vi Phạm Chấm Công
+                    </h4>
+                    <div class="space-y-1.5 text-[11px]">
+                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
+                            <span>Vào trễ dưới 30 phút:</span>
+                            <b class="text-rose-600 font-mono font-bold">5.000 đ / mỗi phút trễ</b>
+                        </div>
+                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
+                            <span>Vào trễ từ 30 phút trở lên:</span>
+                            <b class="text-rose-600 font-mono font-bold">Phạt cố định 200.000 đ / lần</b>
+                        </div>
+                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
+                            <span>Quên quẹt thẻ vào HOẶC quên quẹt ra (chỉ có 1 lần quẹt):</span>
+                            <b class="text-rose-600 font-mono font-bold">50.000 đ / lần</b>
+                        </div>
+                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
+                            <span>Vắng mặt không phép (ngày làm không quẹt thẻ và không có đơn xin off):</span>
+                            <b class="text-rose-600 font-mono font-bold">500.000 đ / ngày</b>
+                        </div>
+                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
+                            <span>Miễn trừ phạt vi phạm:</span>
+                            <span class="text-emerald-700 font-semibold">Tích cờ "Miễn phạt" khi có giải trình hợp lệ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Thưởng & Tạm ứng -->
+                <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-200 space-y-2">
+                    <h4 class="font-bold text-indigo-900 flex items-center gap-1.5 text-xs">
+                        <span>🎁</span> 4. Chuyên Cần, Tăng Ca & Tạm Ứng Lương
+                    </h4>
+                    <div class="space-y-1 text-[11px] text-slate-600">
+                        <p>• <b>Thưởng Chuyên Cần (500.000 đ):</b> Dành cho nhân sự đi làm đủ hoặc vượt ngày công chuẩn của tháng và <u>không có bất kỳ vi phạm</u> phạt trễ nào.</p>
+                        <p>• <b>Tăng Ca Ngoài Giờ:</b> Quẹt thẻ ra sau 18:00 (tối thiểu 25 phút), làm tròn theo block 30 phút, tính hệ số <b class="text-amber-700">150%</b> lương giờ.</p>
+                        <p>• <b>Tạm Ứng:</b> Tự động khấu trừ vào đúng tháng phát sinh phiếu ứng lương từ tab <i>Ứng Lương</i>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t">
+                <button type="button" onclick="closeHrmRulesGuideModal()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold shadow-xs">Đã Hiểu</button>
             </div>
         </div>
     </div>

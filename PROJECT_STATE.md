@@ -1,26 +1,23 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-24 — Hồ sơ Nhân sự Toàn diện & Quản lý Điều chỉnh Lương theo tháng (Google Sheets Sync, Subtab Điều chỉnh lương, Modal 3 Tab)
+**Checkpoint:** 2026-10-24 — HRM Chi tiết chấm công, duyệt miễn phạt 1-chạm & tích hợp phiếu lương (v3.6.33)
 **Lịch sử checkpoint:** `docs/checkpoints/CHECKPOINT_2026_10_23.md`
 **Active Plan:** `docs/plans/2026-10-24-hrm-staff-full-profile-and-salary-adjustments.md`
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.31` — Comprehensive HRM Staff Profile & Monthly Salary Adjustments Engine
+**Version:** `v3.6.33` — HRM Attendance Detailed Log, 1-Click Penalty Waive & Payslip Days Breakdown
 
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
-- **Hồ Sơ Nhân Sự Toàn Diện & Quản Lý Điều Chỉnh Lương Theo Tháng (Google Sheets Sync):**
-  - Mở rộng bảng `staff` thêm 10 trường cá nhân & pháp lý: `gender`, `department`, `id_card_number` (CCCD 12 số), `id_card_date`, `id_card_place`, `permanent_address`, `temporary_address`, `email`, `emergency_phone`, `emergency_relation`.
-  - Mở rộng bảng `hrm_salary_adjustments`: thêm `decision_date`, `adjustment_type` ('salary' | 'allowance' | 'mixed').
-  - Module tính toán động (`services/payroll_service.py`): tính thâm niên tự động (`calculate_tenure`), lũy kế điều chỉnh lương theo ngày hiệu lực (`compute_staff_virtual_fields`), phân loại tình trạng hợp đồng (`Chính thức`/`Thử việc`/`Nghỉ việc`).
-  - API endpoints mới: `GET /api/hrm/adjustments` (lọc theo tháng & nhân viên), `DELETE /api/hrm/adjustments/{id}` (guard khóa kỳ lương), cập nhật `GET /api/hrm/employees` enrich đầy đủ các chỉ số tài chính.
-  - Script import 1-chạm `scripts/import_hrm_from_sheets.py`: nạp chuẩn xác 17 nhân sự và 16 quyết định điều chỉnh lương lịch sử từ 2 tab Google Sheet thật của cửa hàng vào database.
-  - Subtab mới `[⚖️ Điều Chỉnh Lương]` trong phân hệ HRM: bảng theo dõi lịch sử quyết định, bộ lọc theo nhân viên, modal tạo quyết định có format realtime tiền tệ.
-  - Nâng cấp Modal Hồ sơ Nhân sự `#modal-hrm-staff-profile` thành 3 Tab trực quan (`💼 Công Việc & Lương`, `🪪 Cá Nhân & CCCD`, `🏦 Ngân Hàng & Khẩn Cấp`).
-  - Mở rộng bảng danh sách nhân sự trên subtab `Nhân Sự` hiển thị 12 cột đối soát chi tiết: Mã NV, Tên, Bộ phận, Khối ca, Lương gốc, Đ/C Lương (badge click xem lịch sử), Lương CB hiện tại, Phụ cấp, Tổng lương, Thâm niên, Tình trạng, TK Đăng nhập, Thao tác.
-  - Sửa dứt điểm 4 lỗi test suite cơ sở (`authed_downloads`, `tailscale deploy`, `sidebar count`, `purchase ref_type`), đạt **835/835 tests PASS** 100%. Rebuild EXE `POS_Mastercare.exe` (31.69 MB) thành công.
+- **Bảng Chi Tiết Chấm Công, Duyệt Miễn Phạt 1-Chạm & Tích Hợp Phiếu Lương:**
+  - View switcher tại subtab Chấm công: `[📅 Lưới Tháng]` vs `[📋 Bảng Chi Tiết & Duyệt Phạt]`.
+  - Bảng chi tiết chấm công theo ngày: lọc trạng thái (Có vi phạm/trễ, Đúng giờ, Đã miễn phạt, Nghỉ...), lọc nhân viên, lọc ngày.
+  - Duyệt miễn phạt 1-chạm (`toggleHrmWaive`): toggle switch trên bảng + popup lý do giải trình, tự động đưa phạt về 0đ và phục hồi thưởng chuyên cần.
+  - Bổ sung Mục IV trên Phiếu Lương (in đủ 30/31 ngày chấm công kèm giờ vào/ra, phút trễ, vi phạm, tiền phạt và trạng thái miễn phạt).
+  - Bổ sung thử việc nửa công `TV/2` (0.5 công TV) và bộ chọn tháng tiện lợi 1-chạm `[◀] YYYY-MM [▶] [Tháng Này]`.
+  - Test suite đạt **842/842 tests PASS (100%)**. Build EXE `POS_Mastercare.exe` v3.6.33 thành công.
 - **Quyết toán Đơn Gia Công OEM 2 Chặng & Cơ chế Khử Sai Số Làm Tròn 1 Đồng:**
   - Khắc phục lỗi chặn thanh toán công nợ do sai số làm tròn 1 đồng (`req.amount > order_debt + 1.0` thay vì `+ 0.01` trong `routers/oem.py:pay_single_order_debt` và `pay_supplier_debt`).
   - Tự động cấn trừ dứt điểm nợ về `0.0` đ khi chênh lệch $\le 1$ đ, chuyển trạng thái đơn sang `PAID` và làm sạch `contacts.debt`.

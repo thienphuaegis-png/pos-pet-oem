@@ -486,8 +486,9 @@ def attendance_grid(month: str = Query(...), user=Depends(require_permission(PER
 class AttendanceIn(BaseModel):
     staff_id: int
     work_date: str
-    punches: List[str] = []
+    punches: Optional[List[str]] = None
     leave_type: Optional[str] = None
+    code: Optional[str] = None
     waive: bool = False
     note: Optional[str] = ""
 
@@ -495,19 +496,72 @@ class AttendanceIn(BaseModel):
 @router.put("/attendance")
 def upsert_attendance(a: AttendanceIn, user=Depends(require_permission(PERM))):
     d = _date_or_none(a.work_date, "Ngày")
-    if a.leave_type not in (None, "", "off", "off_morning", "off_afternoon"):
-        raise HTTPException(400, "Loại nghỉ không hợp lệ")
-    punches = sorted({to_min(p) for p in a.punches if to_min(p) is not None})
+    lt = a.leave_type or a.code
+    punches_raw = a.punches
+
+    if lt in ("TV/2", "X/2", "off_morning", "off_afternoon"):
+        if lt == "off_morning":
+            leave_type = "off_morning"
+            if not punches_raw:
+                punches_raw = ["13:30", "18:00"]
+        else:
+            leave_type = "off_afternoon"
+            if not punches_raw:
+                punches_raw = ["08:00", "12:00"]
+    elif lt in ("X", "TV"):
+        leave_type = None
+        if not punches_raw:
+            punches_raw = ["08:00", "17:30"]
+    elif lt == "OFF" or lt == "off":
+        leave_type = "off"
+        punches_raw = []
+    elif lt == "V":
+        leave_type = None
+        punches_raw = []
+    elif lt is None or lt == "":
+        leave_type = None
+    else:
+        raise HTTPException(400, f"Loại công/nghỉ không hợp lệ: {lt}")
+
+    punches = sorted({to_min(p) for p in (punches_raw or []) if to_min(p) is not None})
     conn = get_db(); cur = conn.cursor()
     ps.assert_month_open(cur, d)
     cur.execute("""INSERT INTO staff_attendance (staff_id, work_date, punches, leave_type, waive, note, source, updated_by, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, 'manual', ?, CURRENT_TIMESTAMP)
                    ON CONFLICT(staff_id, work_date) DO UPDATE SET punches=excluded.punches, leave_type=excluded.leave_type,
                    waive=excluded.waive, note=excluded.note, source='manual', updated_by=excluded.updated_by, updated_at=CURRENT_TIMESTAMP""",
-                (a.staff_id, d, json.dumps([f"{p // 60:02d}:{p % 60:02d}" for p in punches]), a.leave_type or None,
+                (a.staff_id, d, json.dumps([f"{p // 60:02d}:{p % 60:02d}" for p in punches]), leave_type,
                  int(a.waive), a.note or "", _uname(user)))
     conn.commit(); conn.close()
     return {"status": "ok"}
+
+
+class WaiveIn(BaseModel):
+    staff_id: int
+    work_date: str
+    waive: bool
+    note: Optional[str] = None
+
+
+@router.post("/attendance/toggle-waive")
+def toggle_waive(w: WaiveIn, user=Depends(require_permission(PERM))):
+    d = _date_or_none(w.work_date, "Ngày")
+    conn = get_db(); cur = conn.cursor()
+    ps.assert_month_open(cur, d)
+    cur.execute("SELECT punches, leave_type, note FROM staff_attendance WHERE staff_id=? AND work_date=?", (w.staff_id, d))
+    row = cur.fetchone()
+    note_val = w.note if w.note is not None else (row["note"] if row else "")
+    if row:
+        cur.execute("""UPDATE staff_attendance
+                       SET waive=?, note=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
+                       WHERE staff_id=? AND work_date=?""",
+                    (int(w.waive), note_val, _uname(user), w.staff_id, d))
+    else:
+        cur.execute("""INSERT INTO staff_attendance (staff_id, work_date, punches, leave_type, waive, note, source, updated_by, updated_at)
+                       VALUES (?, ?, '[]', NULL, ?, ?, 'manual', ?, CURRENT_TIMESTAMP)""",
+                    (w.staff_id, d, int(w.waive), note_val, _uname(user)))
+    conn.commit(); conn.close()
+    return {"status": "ok", "waive": w.waive, "note": note_val}
 
 
 # ── Tăng ca ──
