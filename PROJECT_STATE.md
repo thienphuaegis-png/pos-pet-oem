@@ -68,8 +68,8 @@
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
 - [x] Tích hợp phân hệ HRM & Payroll Engine vào POS offline.
-- [ ] Khi đóng POS đang chạy (PID 25020, 20692), copy `dist/POS_Mastercare.exe` đè ra gốc và khởi động lại.
-- [ ] Nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).
+- [x] Copy `dist/POS_Mastercare.exe` đè ra gốc `POS_Mastercare.exe` sau khi đóng tiến trình.
+- [ ] Khởi động lại POS (`CHAY_POS.bat`) và nghiệm thu thực tế trên máy chủ tiệm (`verify-server-tailscale-and-toggle`).
 
 ## 5. Phiên Bản & Bản Build Hiện Tại
 - Bản build EXE: `POS_Mastercare.exe` (31 MB)
