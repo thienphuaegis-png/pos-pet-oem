@@ -9275,6 +9275,18 @@
                 <div id="ai-agent-placeholder" class="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 text-center text-slate-400 text-xs">
                     💡 Bạn có thể kéo thả hoặc dán ảnh hóa đơn / bill chuyển khoản vào ô bên trên bất cứ lúc nào để AI nhận diện tự động.
                 </div>
+
+                <!-- ==================== LOOPY PET (DÀNH RIÊNG CHO PHI PHỤNG - SAU NÀY XÓA) ==================== -->
+                <div id="loopy-pet-container" class="hidden fixed bottom-6 right-6 z-40 select-none pointer-events-auto">
+                    <div id="loopy-speech-bubble" class="hidden mb-2 bg-white/95 backdrop-blur-xs border border-pink-200 text-pink-900 text-xs px-3 py-1.5 rounded-2xl shadow-xl relative max-w-[210px] text-center font-medium animate-bounce">
+                        <span id="loopy-speech-text">Chào chị Phụng nha! 🌸✨</span>
+                        <div class="w-2.5 h-2.5 bg-white border-b border-r border-pink-200 rotate-45 absolute -bottom-1.5 right-8"></div>
+                    </div>
+                    <div class="cursor-pointer flex flex-col items-center group transition transform hover:scale-110 active:scale-95" onclick="interactWithLoopyPet()" onmouseenter="hoverLoopyPet(true)" onmouseleave="hoverLoopyPet(false)">
+                        <img id="loopy-pet-img" src="/static/images/loopy_pet.gif" alt="Loopy Pet" class="w-20 h-auto drop-shadow-xl">
+                        <span class="text-[10px] font-bold text-pink-700 bg-pink-100/95 px-2 py-0.5 rounded-full border border-pink-300 -mt-1 shadow-xs">Loopy 💖</span>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB: CÀI ĐẶT HỆ THỐNG (CONSOLIDATED) -->
@@ -12942,6 +12954,7 @@
     <script src="/static/js/modules/hotel.js?v=20261021_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
     <script src="/static/js/modules/ai_agent.js?v=20261024_01"></script>
+    <script src="/static/js/modules/loopy_pet.js?v=20261024_01"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261016_01"></script>
     <script src="/static/js/modules/purchase_requests.js?v=20261024_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
