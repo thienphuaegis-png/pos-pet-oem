@@ -55,9 +55,11 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [x] Triển khai Month Selector Variant B và Tab Xin Off.
-- [x] Tích hợp quy tắc 6 cột chấm công và đồng bộ Google Sheets tab XIN OFF.
-- [ ] Tích hợp thông báo Telegram bot khi nhân sự nộp đơn xin off mới.
+- [ ] Khóa chỉnh sửa trực tiếp trên lưới lương (bỏ nút Sửa số để bảo toàn tính bất biến kế toán).
+- [ ] Bỏ droplist dư "Loại điều chỉnh" trong modal điều chỉnh lương (chỉ giữ 2 ô Lương CB & Phụ cấp).
+- [ ] Bảng riêng quản lý Nhân Viên Miễn Chấm Công (mặc định đủ công trừ off chế độ & xin off).
+- [ ] Nút tự báo công Check-in/Check-out trên trang Phiếu Lương cho nhân sự Remote.
+- [ ] Chuẩn hóa parser máy chấm công vân tay (format DD/MM/YYYY) & tính lương Sales Pancake (KPI 85%/100%), Part-time theo giờ.
 
 ---
 
