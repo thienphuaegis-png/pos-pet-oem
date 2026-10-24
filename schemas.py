@@ -676,6 +676,7 @@ class PurchaseRequestCreate(BaseModel):
     staff_name: Optional[str] = None
     priority: str = "normal" # 'low', 'normal', 'urgent'
     note: Optional[str] = ""
+    split_by_supplier: Optional[bool] = False
     items: List[PurchaseRequestItemIn]
 
 

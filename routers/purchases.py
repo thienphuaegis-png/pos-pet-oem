@@ -1237,6 +1237,84 @@ def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(req
         staff_id = req.staff_id or (user.get("id") if isinstance(user, dict) else None)
         department = req.department or "store"
 
+        # Nếu chọn tự động phân tách theo nhà cung cấp (split_by_supplier = True)
+        if req.split_by_supplier:
+            groups = {}  # supplier_id -> list of items
+            for it in req.items:
+                cur.execute("""
+                    SELECT COALESCE(
+                        (SELECT supplier_id FROM supplier_items WHERE product_id = ? AND item_type = 'product' AND supplier_id IS NOT NULL ORDER BY id DESC LIMIT 1),
+                        (SELECT p_sub.supplier_id FROM purchase_items pi_sub JOIN purchases p_sub ON pi_sub.purchase_id = p_sub.id WHERE pi_sub.product_id = ? AND p_sub.supplier_id IS NOT NULL ORDER BY p_sub.id DESC LIMIT 1),
+                        0
+                    )
+                """, (it.product_id, it.product_id))
+                row = cur.fetchone()
+                sid = row[0] if row else 0
+                groups.setdefault(sid, []).append(it)
+
+            if len(groups) > 1:
+                created_ids = []
+                created_codes = []
+                now_prefix = datetime.datetime.now().strftime('%y%m%d%H%M%S')
+                seq = 1
+
+                for sid, group_items in groups.items():
+                    code = f"YCNH{now_prefix}_{seq}"
+                    while True:
+                        cur.execute("SELECT 1 FROM purchase_requests WHERE code = ?", (code,))
+                        if not cur.fetchone():
+                            break
+                        seq += 1
+                        code = f"YCNH{now_prefix}_{seq}"
+                    seq += 1
+
+                    sup_label = ""
+                    if sid > 0:
+                        cur.execute("SELECT name FROM contacts WHERE id = ?", (sid,))
+                        c_row = cur.fetchone()
+                        if c_row:
+                            sup_label = f" [NCC: {c_row[0]}]"
+
+                    note_with_sup = ((req.note or "") + sup_label).strip()
+                    cur.execute("""
+                        INSERT INTO purchase_requests (code, staff_id, department, priority, status, note, created_by)
+                        VALUES (?, ?, ?, ?, 'pending', ?, ?)
+                    """, (code, staff_id, department, req.priority, note_with_sup, requester_name))
+                    req_sub_id = cur.lastrowid
+                    created_ids.append(req_sub_id)
+                    created_codes.append(code)
+
+                    for it in group_items:
+                        cur.execute("""
+                            INSERT INTO purchase_request_items (request_id, product_id, quantity, note)
+                            VALUES (?, ?, ?, ?)
+                        """, (req_sub_id, it.product_id, it.quantity, it.note or ""))
+
+                cur.execute("SELECT id FROM staff WHERE role = 'warehouse' AND is_active = 1 LIMIT 1")
+                wh_row = cur.fetchone()
+                wh_staff_id = wh_row[0] if wh_row else None
+                cur.execute("""
+                    INSERT INTO staff_reminders (staff_id, title, description, priority, is_done)
+                    VALUES (?, ?, ?, ?, 0)
+                """, (
+                    wh_staff_id,
+                    f"🔔 Tự động phân {len(created_codes)} phiếu yêu cầu nhập hàng từ {requester_name}",
+                    f"Yêu cầu được phân thành {len(created_codes)} phiếu theo từng NCC: {', '.join(created_codes)}.",
+                    req.priority
+                ))
+
+                conn.commit()
+                return {
+                    "success": True,
+                    "id": created_ids[0],
+                    "code": created_codes[0],
+                    "ids": created_ids,
+                    "codes": created_codes,
+                    "item_count": len(req.items),
+                    "created_count": len(created_codes),
+                    "message": f"Đã tự động phân thành {len(created_codes)} phiếu yêu cầu theo từng nhà cung cấp: {', '.join(created_codes)}"
+                }
+
         base_code = f"YCNH{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
         code = base_code
         seq = 1

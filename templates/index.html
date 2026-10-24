@@ -3282,7 +3282,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <input type="text" id="search-pet-services" oninput="renderActiveSpaView()" placeholder="🔍 Tìm mã, khách, SĐT, bé, thợ..." class="border p-1.5 rounded text-xs bg-slate-50 w-64 focus:border-purple-500 outline-none">
-                                <button onclick="openCreateServiceTicketModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1">➕ Tạo Phiếu Dịch Vụ</button>
+                                <button onclick="openCreateServiceTicketModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded shadow flex items-center gap-1" title="Phím tắt: F2">➕ Tiếp Nhận Dịch Vụ (F2)</button>
                             </div>
                         </div>
 
@@ -4417,6 +4417,9 @@
                                 <!-- Kết quả tìm kiếm -->
                             </div>
                         </div>
+
+                        <!-- Báo tự động phân tách theo NCC -->
+                        <div id="pr-split-notice" class="hidden p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-tight"></div>
 
                         <!-- Bảng danh sách mặt hàng đã chọn -->
                         <div class="border border-slate-200 rounded-lg overflow-hidden flex-1 min-h-[160px] max-h-64 overflow-y-auto">
@@ -11758,18 +11761,18 @@
     <script src="/static/js/shifts.js?v=20261021_07"></script>
     <script src="/static/js/staff.js?v=20261021_01"></script>
     <script src="/static/js/modules/contacts.js?v=20261016_01"></script>
-    <script src="/static/js/modules/spa.js?v=20261022_01"></script>
+    <script src="/static/js/modules/spa.js?v=20261024_01"></script>
     <script src="/static/js/modules/purchases.js?v=20261021_07"></script>
-    <script src="/static/js/modules/productions.js?v=20261021_07"></script>
+    <script src="/static/js/modules/productions.js?v=20261024_01"></script>
     <script src="/static/js/modules/cashflow.js?v=20261022_01"></script>
     <script src="/static/js/modules/hotel.js?v=20261021_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
-    <script src="/static/js/modules/ai_agent.js?v=20261022_01"></script>
+    <script src="/static/js/modules/ai_agent.js?v=20261024_01"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261016_01"></script>
-    <script src="/static/js/modules/purchase_requests.js?v=20261023_01"></script>
+    <script src="/static/js/modules/purchase_requests.js?v=20261024_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
     <script src="/static/js/modules/reports_analytics.js?v=20261016_01"></script>
-    <script src="/static/js/pos.js?v=20261021_07"></script>
+    <script src="/static/js/pos.js?v=20261024_01"></script>
     <script src="/static/js/modules/marketplace.js?v=20261016_01"></script>
     <script src="/static/js/clientlog.js?v=20261021_01"></script>
     <script src="/static/js/modules/hrm.js?v=20261023_01"></script>

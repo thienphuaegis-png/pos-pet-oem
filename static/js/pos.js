@@ -533,7 +533,23 @@ function setupShortcuts() {
 
     document.addEventListener('keydown', (e) => {
         const tabPos = document.getElementById('tab-pos');
-        if (!tabPos || tabPos.classList.contains('hidden')) return; // Khóa phím tắt khi không ở tab POS
+        const isPosActive = tabPos && !tabPos.classList.contains('hidden');
+        const tabSpa = document.getElementById('tab-pet-services');
+        const isSpaActive = tabSpa && !tabSpa.classList.contains('hidden');
+
+        // Phím tắt F2 Tiếp nhận dịch vụ trên tab Spa & Grooming
+        if (isSpaActive) {
+            if (e.key === 'F2') {
+                const anyModalOpen = document.querySelector('.fixed.inset-0:not(.hidden)');
+                if (!anyModalOpen && typeof openCreateServiceTicketModal === 'function') {
+                    e.preventDefault();
+                    openCreateServiceTicketModal();
+                }
+            }
+            return;
+        }
+
+        if (!isPosActive) return; // Khóa phím tắt khi không ở tab POS
         if (e.key === 'F1') {
             e.preventDefault();
             addNewInvoiceTab();
@@ -3001,6 +3017,8 @@ function renderAndPrint(ord, isDraft = false) {
         tiet_kiem: formatMoney(totalSavings),
         tru_vi: formatMoney(ord.spa_wallet_deduction || 0),
         raw_tru_vi: ord.spa_wallet_deduction || 0,
+        phi_ship: formatMoney(ord.shipping_fee || 0),
+        raw_phi_ship: ord.shipping_fee || 0,
         phai_tra: formatMoney(ord.final_amount),
         khach_tra: formatMoney(ord.paid_amount),
         con_no: formatMoney(ord.debt_amount),
@@ -3073,6 +3091,44 @@ function renderAndPrint(ord, isDraft = false) {
                 fsz: 11,
                 bold: false,
                 align: "right"
+            });
+        }
+    }
+
+    // Xử lý dòng Phí Giao Hàng (K80, K58, A5, A4): tự ẩn nếu không có ship, hoặc tự chèn nếu có ship mà template chưa có
+    const shipFee = ord.shipping_fee || 0;
+    const shipElem = effectiveElements.find(e => (e.catalog_key === 'shipping_fee') || (e.text && (e.text.includes('{{phi_ship}}') || (e.label && (e.label.toLowerCase().includes('phí giao hàng') || e.label.toLowerCase().includes('phí vận chuyển'))))));
+    if (shipFee <= 0 && shipElem) {
+        const shipY = shipElem.y || 0;
+        const shiftAmount = 18;
+        effectiveElements = effectiveElements.filter(e => e !== shipElem);
+        effectiveElements.forEach(e => {
+            if ((e.zone || 'header') === 'footer' && (e.y || 0) > shipY) {
+                e.y = (e.y || 0) - shiftAmount;
+            }
+        });
+    } else if (shipFee > 0 && !shipElem) {
+        const payElem = effectiveElements.find(e => e.text && (e.text.includes('{{phai_tra}}') || (e.label && e.label.toLowerCase().includes('phải trả'))));
+        if (payElem) {
+            const insY = payElem.y;
+            effectiveElements.forEach(e => {
+                if ((e.zone || 'header') === 'footer' && (e.y || 0) >= insY) {
+                    e.y = (e.y || 0) + 18;
+                }
+            });
+            effectiveElements.push({
+                id: "e_auto_phi_ship",
+                catalog_key: "shipping_fee",
+                zone: "footer",
+                type: "text",
+                text: "Phí giao hàng: +{{phi_ship}}",
+                label: "Phí Giao Hàng",
+                x: payElem.x !== undefined ? payElem.x : (isThermal ? 10 : 30),
+                y: insY,
+                w: payElem.w !== undefined ? payElem.w : (isThermal ? 270 : 250),
+                fsz: Math.max(9, (payElem.fsz || 12) - 1),
+                bold: false,
+                align: payElem.align || "right"
             });
         }
     }
@@ -3551,6 +3607,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{tong_thanh_toan}}/g, printData.phai_tra);
             txt = txt.replace(/{{giam_gia}}/g, printData.giam_gia);
             txt = txt.replace(/{{tru_vi}}/g, printData.tru_vi);
+            txt = txt.replace(/{{phi_ship}}/g, printData.phi_ship);
             txt = txt.replace(/{{tiet_kiem}}/g, printData.tiet_kiem);
             txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
             txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);

@@ -7997,5 +7997,6 @@
             }
         }
         window.restorePetCatalogDefaultsUI = restorePetCatalogDefaultsUI;
+        window.openCreateServiceTicketModal = openCreateServiceTicketModal;
 
 

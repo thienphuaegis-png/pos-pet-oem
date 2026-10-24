@@ -1319,6 +1319,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
         if actual_paid > 0:
             cb_code = generate_cashbook_code(cur, "PT-BH")
+            ship_str = f" (Gồm phí ship: {int(shipping_fee):,} đ)" if shipping_fee > 0 else ""
             if req.payments:
                 # Thanh toán tách nhiều hình thức: ghi 1 dòng order_payments/cashbook cho mỗi hình thức
                 total_split = sum(p.amount for p in req.payments if p.amount > 0)
@@ -1337,7 +1338,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     cur.execute("""
                     INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                     VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method})", p_acc_id, shift_id))
+                    """, (sub_cb_code, p_amt, req.customer_id, order_id, f"Thu tien don {code} ({p.method}){ship_str}", p_acc_id, shift_id))
             else:
                 acc_id = getattr(req, "account_id", None)
                 pay_method = getattr(req, "payment_method", None) or "cash"
@@ -1351,7 +1352,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                 cur.execute("""
                 INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note, account_id, shift_id)
                 VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?, ?, ?)
-                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code} ({pay_method})", acc_id, shift_id))
+                """, (cb_code, actual_paid, req.customer_id, order_id, f"Thu tien don {code} ({pay_method}){ship_str}", acc_id, shift_id))
 
         # Tích điểm và thăng hạng tự động (Loyalty / Points / Auto-upgrade)
         points_earned = 0
@@ -1772,10 +1773,11 @@ def update_order(code: str, req: OrderUpdate, user=Depends(require_permission("p
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
         if actual_new_paid > 0:
             cb_code = generate_cashbook_code(cur, "PT-BH")
+            ship_str = f" (Gồm phí ship: {int(shipping_fee):,} đ)" if shipping_fee > 0 else ""
             cur.execute("""
             INSERT INTO cashbook (code, type, category, amount, contact_id, ref_type, ref_id, note)
             VALUES (?, 'in', 'Thu tien ban hang', ?, ?, 'order', ?, ?)
-            """, (cb_code, actual_new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat)"))
+            """, (cb_code, actual_new_paid, new_customer_id, order_id, f"Thu tien don {code} (cap nhat){ship_str}"))
 
         conn.commit()
     except Exception as e:

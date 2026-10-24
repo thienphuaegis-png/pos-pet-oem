@@ -1089,6 +1089,15 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             "debt_amount": float(r["debt_amount"] or 0)
         })
 
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    incoming_today_count = 0
+    for s in incoming_shipments:
+        exp = str(s.get("expected_date") or "").strip()
+        is_today = exp.startswith(today_str)
+        s["is_today"] = is_today
+        if is_today:
+            incoming_today_count += 1
+
     cur.execute("SELECT COALESCE(SUM(debt_amount), 0) FROM purchases WHERE debt_amount > 0 AND status != 'cancelled'")
     debt_purchases = float(cur.fetchone()[0] or 0.0)
     cur.execute("SELECT COALESCE(SUM(remaining_payment), 0) FROM oem_orders WHERE remaining_payment > 0 AND status != 'CANCELLED'")
@@ -1203,6 +1212,7 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
         "warehouse_kpi": {
             "low_stock_count": low_stock_count,
             "incoming_count": incoming_count,
+            "incoming_today_count": incoming_today_count,
             "pending_request_count": len(pending_purchase_requests),
             "debt_to_suppliers": debt_purchases,
             "debt_to_oem": debt_oem,

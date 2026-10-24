@@ -127,6 +127,18 @@
         const tbody = document.getElementById('pr-selected-tbody');
         if (!tbody) return;
 
+        const groups = Array.from(new Set(_selectedItems.map(it => it.source_group || 'Chung')));
+        const noticeEl = document.getElementById('pr-split-notice');
+        if (noticeEl) {
+            if (groups.length > 1) {
+                noticeEl.classList.remove('hidden');
+                noticeEl.innerHTML = `⚡ <b>Tự động phân nhóm:</b> Có <b>${groups.length}</b> nguồn cung cấp khác nhau (${groups.join(', ')}). Khi bấm gửi, hệ thống sẽ tự động tách thành <b>${groups.length}</b> phiếu yêu cầu riêng biệt theo từng nhà cung cấp.`;
+            } else {
+                noticeEl.classList.add('hidden');
+                noticeEl.innerHTML = '';
+            }
+        }
+
         if (_selectedItems.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa chọn mặt hàng nào. Vui lòng tìm kiếm ở ô trên.</td></tr>`;
             return;
@@ -182,6 +194,7 @@
             department: staffRole,
             priority: priority,
             note: note,
+            split_by_supplier: true,
             items: _selectedItems.map(it => ({
                 product_id: it.product_id,
                 quantity: it.quantity,

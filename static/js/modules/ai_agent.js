@@ -603,7 +603,9 @@
                 if (col2KpiGrid) {
                     const pendingReqs = data.warehouse_kpi?.pending_purchase_requests || [];
                     const pendingCount = data.warehouse_kpi?.pending_request_count || pendingReqs.length;
+                    const incomingToday = data.warehouse_kpi?.incoming_today_count || 0;
 
+                    col2KpiGrid.className = "grid grid-cols-3 gap-2 text-xs";
                     col2KpiGrid.innerHTML = `
                         <div onclick="openLowStockModal()" class="bg-white p-2 rounded-lg border border-rose-200 bg-rose-50/30 cursor-pointer hover:border-rose-400 transition group shadow-2xs">
                             <div class="text-[10px] text-rose-700 font-bold flex items-center justify-between">
@@ -615,11 +617,19 @@
                         </div>
                         <div onclick="if(typeof switchTab==='function') switchTab('purchase-requests')" class="bg-white p-2 rounded-lg border border-amber-200 bg-amber-50/30 cursor-pointer hover:border-amber-400 transition group shadow-2xs">
                             <div class="text-[10px] text-amber-700 font-bold flex items-center justify-between">
-                                <span>Yêu Cầu Chờ Duyệt</span>
+                                <span>Chờ Duyệt</span>
                                 <span class="group-hover:scale-110 transition-transform">📋</span>
                             </div>
                             <div class="text-sm font-black text-amber-600 font-mono mt-0.5">${pendingCount} phiếu</div>
-                            <div class="text-[9px] text-amber-600 mt-0.5">Từ CH & Spa</div>
+                            <div class="text-[9px] text-amber-600 mt-0.5">Yêu cầu nhập</div>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-purple-200 bg-purple-50/30 shadow-2xs">
+                            <div class="text-[10px] text-purple-700 font-bold flex items-center justify-between">
+                                <span>Về Hôm Nay</span>
+                                <span class="animate-bounce">⚡</span>
+                            </div>
+                            <div class="text-sm font-black text-purple-700 font-mono mt-0.5">${incomingToday} đơn</div>
+                            <div class="text-[9px] text-purple-600 mt-0.5">Dự kiến giao</div>
                         </div>
                     `;
                 }
@@ -674,11 +684,14 @@
                                     const badge = isPurchase 
                                         ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">📥 Nhập NCC</span>`
                                         : `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 shrink-0">🏭 Đơn OEM</span>`;
+                                    const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-600 text-white shrink-0 animate-pulse">⚡ Hôm Nay</span>` : '';
+                                    const cardBg = s.is_today ? 'bg-purple-50/70 border-purple-300 shadow-2xs' : 'bg-slate-50 border-slate-200';
 
                                     return `
-                                        <div onclick="${clickFn}" class="p-2 rounded-lg bg-slate-50 hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition cursor-pointer space-y-0.5 group">
+                                        <div onclick="${clickFn}" class="p-2 rounded-lg ${cardBg} hover:bg-purple-50/80 border hover:border-purple-300 transition cursor-pointer space-y-0.5 group">
                                             <div class="flex justify-between items-center font-bold text-slate-800">
                                                 <div class="flex items-center gap-1.5 truncate mr-2">
+                                                    ${todayBadge}
                                                     ${badge}
                                                     <span class="truncate group-hover:text-purple-700">${s.code}: ${s.partner_name}</span>
                                                 </div>
@@ -775,16 +788,23 @@
                 }
 
                 if (col2KpiGrid) {
+                    const incomingToday = data.warehouse_kpi?.incoming_today_count || 0;
+                    col2KpiGrid.className = "grid grid-cols-3 gap-2 text-xs";
                     col2KpiGrid.innerHTML = `
-                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                        <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
                             <div class="text-[10px] text-slate-400 font-medium">Doanh số hôm nay</div>
                             <div class="text-sm font-black text-sky-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.kpi.sales_today) : data.kpi.sales_today}</div>
                             <div class="text-[9px] text-slate-500 mt-0.5">${data.kpi.orders_count || 0} hóa đơn</div>
                         </div>
-                        <div onclick="openLowStockModal()" class="bg-white p-2.5 rounded-lg border border-amber-200 bg-amber-50/20 cursor-pointer hover:border-amber-400 transition shadow-2xs">
+                        <div onclick="openLowStockModal()" class="bg-white p-2 rounded-lg border border-amber-200 bg-amber-50/20 cursor-pointer hover:border-amber-400 transition shadow-2xs">
                             <div class="text-[10px] text-amber-700 font-medium">Hàng sắp hết kho</div>
                             <div class="text-sm font-black text-amber-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} mã</div>
                             <div class="text-[9px] text-amber-500 mt-0.5">Tồn &le; định mức</div>
+                        </div>
+                        <div class="bg-white p-2 rounded-lg border border-purple-200 bg-purple-50/20 shadow-2xs">
+                            <div class="text-[10px] text-purple-700 font-medium">Hàng về hôm nay</div>
+                            <div class="text-sm font-black text-purple-700 font-mono mt-0.5">${incomingToday} đơn</div>
+                            <div class="text-[9px] text-purple-600 mt-0.5">Dự kiến giao</div>
                         </div>
                     `;
                 }
@@ -802,10 +822,12 @@
                             const clickFn = isPurchase 
                                 ? `if(typeof openReceiveModal==='function') openReceiveModal('${s.code}', false);`
                                 : `if(typeof openModalReceiveOEM==='function') openModalReceiveOEM(${s.id});`;
+                            const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-600 text-white shrink-0 mr-1 animate-pulse">⚡ Hôm Nay</span>` : '';
                             return `
                                 <div onclick="${clickFn}" class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-b-0 text-[11px] hover:bg-purple-50/60 p-1 rounded cursor-pointer transition">
-                                    <div class="truncate mr-2">
-                                        <span class="font-bold text-slate-800">${s.code}</span>: <span class="text-slate-600">${s.partner_name}</span>
+                                    <div class="truncate mr-2 flex items-center">
+                                        ${todayBadge}
+                                        <span class="font-bold text-slate-800">${s.code}</span>: <span class="text-slate-600 truncate ml-1">${s.partner_name}</span>
                                     </div>
                                     <span class="font-mono font-bold text-purple-700 shrink-0">${s.expected_date}</span>
                                 </div>

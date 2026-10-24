@@ -5720,6 +5720,7 @@
             signatures_3col: { zone: "footer", type: "signatures_3col", label: "3 Cột Chữ Ký (Kế toán - Thủ kho - Người nhận)", w: 734, h: 90 },
             total: { zone: "footer", type: "text", text: "Tổng tiền hàng: {{tong_tien}}", label: "Tổng Tiền", fsz: 12, bold: false, align: "right", w: 280 },
             discount: { zone: "footer", type: "text", text: "Giảm giá: -{{giam_gia}}", label: "Giảm Giá", fsz: 11, bold: false, align: "right", w: 270 },
+            shipping_fee: { zone: "footer", type: "text", text: "Phí giao hàng: +{{phi_ship}}", label: "Phí Giao Hàng", fsz: 11, bold: false, align: "right", w: 270 },
             final: { zone: "footer", type: "text", text: "KHÁCH PHẢI TRẢ: {{phai_tra}}", label: "Phải Trả", fsz: 15, bold: true, align: "right", w: 320 },
             paid: { zone: "footer", type: "text", text: "Tiền khách đưa: {{khach_tra}}", label: "Khách Đưa", fsz: 12, bold: false, align: "right", w: 280 },
             debt: { zone: "footer", type: "text", text: "Tiền thừa/Nợ: {{con_no}}", label: "Thừa/Nợ", fsz: 12, bold: false, align: "right", w: 280 },
@@ -6558,7 +6559,7 @@
                 'signatures_cashbook', 'signatures_accounting_4col',
                 'audit_warehouse', 'audit_summary', 'signatures_audit',
                 'b2b_footer_boxes', 'signatures_3col',
-                'total', 'discount', 'final', 'paid', 'debt', 'qr', 'footer_msg'
+                'total', 'discount', 'shipping_fee', 'final', 'paid', 'debt', 'qr', 'footer_msg'
             ];
             keys.forEach(k => {
                 const el = document.getElementById('chk-' + k);
@@ -7001,6 +7002,7 @@
                 dia_chi_khach: "123 Đường Trần Phú, P. Lộc Thọ, Nha Trang",
                 tong_tien: "240.000 đ",
                 giam_gia: "40.000 đ",
+                phi_ship: "30.000 đ",
                 tiet_kiem: "40.000 đ",
                 phai_tra: "200.000 đ",
                 khach_tra: "200.000 đ",
