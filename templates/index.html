@@ -9278,9 +9278,14 @@
 
                 <!-- ==================== LOOPY PET (DÀNH RIÊNG CHO PHI PHỤNG - SAU NÀY XÓA) ==================== -->
                 <style>
+                    /* Dải sprite 192px/frame: idle 16 frame (3072px), wave 2 frame (384px). Đổi số frame thì sửa keyframe + steps(). */
                     @keyframes loopy-sprite-anim {
                         from { background-position: 0 0; }
-                        to { background-position: -1920px 0; }
+                        to { background-position: -3072px 0; }
+                    }
+                    @keyframes loopy-wave-anim {
+                        from { background-position: 0 0; }
+                        to { background-position: -384px 0; }
                     }
                     @keyframes loopy-subtle-float {
                         0%, 100% { transform: translateY(0px); }
@@ -9290,9 +9295,11 @@
                         width: 192px;
                         height: 208px;
                         background-repeat: no-repeat;
-                        background-size: 1920px 208px;
-                        animation: loopy-sprite-anim 1s steps(10) infinite;
+                        animation: loopy-sprite-anim 2.4s steps(16) infinite;
                         will-change: background-position;
+                    }
+                    .loopy-sprite-box.is-wave {
+                        animation: loopy-wave-anim 0.5s steps(2) infinite;
                     }
                     .loopy-floating-mesh {
                         animation: loopy-subtle-float 2.8s ease-in-out infinite;
@@ -9308,7 +9315,7 @@
                     <!-- Khung hitbox cố định, KHÔNG chuyển động CSS để tránh giật chuột mouseenter/mouseleave -->
                     <div id="loopy-interactive-card" class="cursor-pointer flex flex-col items-center select-none" onclick="interactWithLoopyPet()" onmouseenter="hoverLoopyPet(true)" onmouseleave="hoverLoopyPet(false)">
                         <div class="loopy-floating-mesh flex flex-col items-center">
-                            <div id="loopy-sprite" class="loopy-sprite-box drop-shadow-2xl transition-transform duration-200 active:scale-95" style="background-image: url('/static/images/loopy_idle_strip.webp');"></div>
+                            <div id="loopy-sprite" class="loopy-sprite-box drop-shadow-2xl transition-transform duration-200 active:scale-95" style="background-image: url('/static/images/loopy_idle_strip.webp?v=2');"></div>
                             <span class="text-[11px] font-bold text-pink-700 bg-pink-100/95 px-2.5 py-0.5 rounded-full border border-pink-300 -mt-2 shadow-xs">Loopy 💖</span>
                         </div>
                     </div>
@@ -12980,7 +12987,7 @@
     <script src="/static/js/modules/hotel.js?v=20261021_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261001_03"></script>
     <script src="/static/js/modules/ai_agent.js?v=20261024_01"></script>
-    <script src="/static/js/modules/loopy_pet.js?v=20261024_01"></script>
+    <script src="/static/js/modules/loopy_pet.js?v=20261024_02"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261016_01"></script>
     <script src="/static/js/modules/purchase_requests.js?v=20261024_01"></script>
     <script src="/static/js/chart.umd.min.js"></script>
