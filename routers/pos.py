@@ -1089,7 +1089,12 @@ def get_order_return_detail(code: str):
 def list_staff():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, name, phone, role, commission_rate, is_active, created_at FROM staff ORDER BY id ASC")
+    cur.execute("""
+        SELECT id, name, phone, role, commission_rate, is_active, created_at,
+               username, device_code, employee_code,
+               (CASE WHEN username IS NOT NULL AND TRIM(username) != '' AND password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account
+        FROM staff ORDER BY id ASC
+    """)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows

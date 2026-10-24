@@ -11,6 +11,12 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
+- **Quản lý Nhân sự Kép (Dual-Purpose Staff: Hồ sơ nội bộ HRM vs Tài khoản đăng nhập POS):**
+  - Tách bạch hồ sơ nhân sự nội bộ (chấm công vân tay `device_code`, bảng lương, tạm ứng, hoa hồng) và tài khoản POS (`username`, `password_hash`, `role`).
+  - Hỗ trợ tạo nhân sự không cần tài khoản đăng nhập (`username=NULL`, `password_hash=NULL`, `role='staff'`).
+  - Bổ sung công tắc toggle "Cấp tài khoản đăng nhập POS" trên modal thêm/sửa nhân viên `#modal-staff`.
+  - Hỗ trợ cấp tài khoản sau này (Promote) và thu hồi tài khoản an toàn (Demote về hồ sơ nội bộ, thu hồi token JWT ngay mà không xóa dữ liệu nhân sự).
+  - Kiểm tra an toàn tại cổng đăng nhập `/api/auth/login` và API reset mật khẩu `/api/auth/staff/{id}/reset-password`.
 - **Phân quyền chi tiết Tab-level (Granular RBAC) & Chọn nhân viên yêu cầu đặt hàng:**
   - Thêm quyền `purchases.request` vào `PERM_KEYS` và `database.py`, seed tự động cho các role.
   - Gắn `data-perm` vào toàn bộ tab trên thanh Sidebar (`templates/index.html`).
@@ -42,6 +48,7 @@
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
+- `tests/test_staff_dual_purpose_auth.py`: 1/1 passed (Toàn bộ chu trình tạo nhân sự không tài khoản, bảo vệ đăng nhập, cấp tài khoản sau, và thu hồi tài khoản).
 - `tests/test_commission_accuracy.py`: 1/1 passed.
 - `tests/test_payroll_engine.py`: 14/14 passed.
 - `tests/test_hrm_payroll_api.py`: 12/12 passed.

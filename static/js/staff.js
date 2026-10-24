@@ -1,6 +1,15 @@
 // ── Quản lý Nhân Viên (Settings > Nhân Viên) ──
 
 const ROLE_LABEL = { owner: 'Chủ Shop', cashier: 'Thu Ngân', accountant: 'Kế Toán', warehouse: 'Thủ Kho', staff: 'Nhân Viên' };
+let currentStaffList = [];
+
+function toggleStaffAccountFields(checked) {
+  const fields = document.getElementById('staff-account-fields');
+  if (fields) {
+    fields.classList.toggle('hidden', !checked);
+  }
+}
+window.toggleStaffAccountFields = toggleStaffAccountFields;
 
 async function loadStaffList() {
   const tbody = document.getElementById('staff-table-body');
@@ -10,27 +19,42 @@ async function loadStaffList() {
     const res = await fetch('/api/auth/staff');
     if (!res.ok) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-rose-500">Không có quyền xem</td></tr>`; return; }
     const rows = await res.json();
+    currentStaffList = rows || [];
     if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có nhân viên</td></tr>`; return; }
-    tbody.innerHTML = rows.map(r => `
-      <tr class="border-t hover:bg-slate-50">
-        <td class="p-2.5 font-semibold">
-          <div>${r.name}</div>
-          ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
-        </td>
-        <td class="p-2.5 font-mono">${r.username || '-'}</td>
-        <td class="p-2.5">${ROLE_LABEL[r.role] || r.role}</td>
-        <td class="p-2.5">${r.phone || '-'}</td>
-        <td class="p-2.5 text-right">${r.commission_rate || 0}%</td>
-        <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Đã khóa</span>'}</td>
-        <td class="p-2.5 text-center">
-          <button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2" title="Gán hoặc đổi Gemini API Key riêng cho nhân viên này">🔑 Gán Key AI</button>
-          <button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2" title="Chỉnh quyền riêng cho nhân viên này">🛡️ Quyền riêng</button>
-          <button onclick="openEditStaffModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.role}', '${(r.phone||'').replace(/'/g, "\\'")}', ${r.commission_rate || 0}, ${r.is_active})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2">Sửa</button>
-          <button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2">Reset MK</button>
-          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="text-rose-600 hover:underline text-[11px] font-bold">${r.is_active ? 'Khóa' : 'Mở khóa'}</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = rows.map(r => {
+      const accountBadge = r.has_account
+        ? `<span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
+        : `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded italic">Chỉ hồ sơ lương</span>`;
+
+      const roleText = r.has_account ? (ROLE_LABEL[r.role] || r.role) : '<span class="text-slate-400">Không đăng nhập</span>';
+
+      const codesInfo = [
+        r.employee_code ? `<span class="text-[10px] text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
+        r.device_code ? `<span class="text-[10px] text-indigo-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : ''
+      ].filter(Boolean).join(' | ');
+
+      return `
+        <tr class="border-t hover:bg-slate-50">
+          <td class="p-2.5 font-semibold">
+            <div>${r.name}</div>
+            ${codesInfo ? `<div class="mt-0.5">${codesInfo}</div>` : ''}
+            ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
+          </td>
+          <td class="p-2.5">${accountBadge}</td>
+          <td class="p-2.5 font-semibold text-slate-700">${roleText}</td>
+          <td class="p-2.5">${r.phone || '-'}</td>
+          <td class="p-2.5 text-right font-mono">${r.commission_rate || 0}%</td>
+          <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Đã khóa</span>'}</td>
+          <td class="p-2.5 text-center whitespace-nowrap">
+            ${r.has_account ? `<button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Gán hoặc đổi Gemini API Key riêng">🔑 Key AI</button>` : ''}
+            ${r.has_account ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
+            <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Sửa</button>
+            ${r.has_account ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Reset MK</button>` : `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">➕ Cấp TK</button>`}
+            <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="text-rose-600 hover:underline text-[11px] font-bold cursor-pointer">${r.is_active ? 'Khóa' : 'Mở khóa'}</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi tải dữ liệu</td></tr>`;
   }
@@ -41,13 +65,26 @@ function openCreateStaffModal() {
   if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Thêm Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = '';
   document.getElementById('staff-name').value = '';
-  document.getElementById('staff-username').value = '';
-  document.getElementById('staff-password').value = '';
-  document.getElementById('staff-role').value = 'cashier';
+  document.getElementById('staff-employee-code').value = '';
+  document.getElementById('staff-device-code').value = '';
   document.getElementById('staff-phone').value = '';
   document.getElementById('staff-commission').value = 0;
+  document.getElementById('staff-base-salary').value = '';
+
+  const toggle = document.getElementById('staff-has-account-toggle');
+  if (toggle) toggle.checked = false;
+  toggleStaffAccountFields(false);
+
+  document.getElementById('staff-username').value = '';
   document.getElementById('staff-username').disabled = false;
-  document.getElementById('staff-password-row').style.display = '';
+  document.getElementById('staff-password').value = '';
+  const pwdLbl = document.getElementById('staff-password-label');
+  if (pwdLbl) pwdLbl.textContent = 'Mật Khẩu (*)';
+  document.getElementById('staff-role').value = 'cashier';
+
+  const revokeWrap = document.getElementById('staff-revoke-account-wrap');
+  if (revokeWrap) revokeWrap.classList.add('hidden');
+
   const modal = document.getElementById('modal-staff');
   if (modal) {
     modal.classList.remove('hidden');
@@ -55,23 +92,93 @@ function openCreateStaffModal() {
   }
 }
 
-function openEditStaffModal(id, name, role, phone, commission, isActive) {
+function openEditStaffModal(id) {
+  const r = (currentStaffList || []).find(s => s.id === id);
+  if (!r) return;
   const titleEl = document.getElementById('modal-staff-title');
   if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Sửa Nhân Viên</span>';
-  document.getElementById('staff-edit-id').value = id;
-  document.getElementById('staff-name').value = name;
-  document.getElementById('staff-username').value = '';
-  document.getElementById('staff-username').disabled = true;
-  document.getElementById('staff-password-row').style.display = 'none';
-  document.getElementById('staff-role').value = role;
-  document.getElementById('staff-phone').value = phone;
-  document.getElementById('staff-commission').value = commission;
+  document.getElementById('staff-edit-id').value = r.id;
+  document.getElementById('staff-name').value = r.name || '';
+  document.getElementById('staff-employee-code').value = r.employee_code || '';
+  document.getElementById('staff-device-code').value = r.device_code || '';
+  document.getElementById('staff-phone').value = r.phone || '';
+  document.getElementById('staff-commission').value = r.commission_rate || 0;
+  document.getElementById('staff-base-salary').value = r.base_salary ? Number(r.base_salary).toLocaleString('vi-VN') : '';
+
+  const hasAccount = Boolean(r.has_account);
+  const toggle = document.getElementById('staff-has-account-toggle');
+  if (toggle) toggle.checked = hasAccount;
+  toggleStaffAccountFields(hasAccount);
+
+  document.getElementById('staff-username').value = r.username || '';
+  document.getElementById('staff-username').disabled = false;
+  document.getElementById('staff-password').value = '';
+  const pwdLbl = document.getElementById('staff-password-label');
+  if (pwdLbl) pwdLbl.textContent = hasAccount ? 'Đổi Mật Khẩu (Bỏ trống nếu giữ nguyên)' : 'Mật Khẩu Ban Đầu (*)';
+  document.getElementById('staff-role').value = (r.role && r.role !== 'staff') ? r.role : 'cashier';
+
+  const revokeWrap = document.getElementById('staff-revoke-account-wrap');
+  if (revokeWrap) {
+    revokeWrap.classList.toggle('hidden', !hasAccount);
+  }
+
   const modal = document.getElementById('modal-staff');
   if (modal) {
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
   }
 }
+window.openEditStaffModal = openEditStaffModal;
+
+function openGrantAccountModal(id) {
+  openEditStaffModal(id);
+  const toggle = document.getElementById('staff-has-account-toggle');
+  if (toggle) {
+    toggle.checked = true;
+    toggleStaffAccountFields(true);
+    setTimeout(() => document.getElementById('staff-username')?.focus(), 100);
+  }
+}
+window.openGrantAccountModal = openGrantAccountModal;
+
+async function revokeStaffAccount() {
+  const id = document.getElementById('staff-edit-id').value;
+  if (!id) return;
+  const staff = (currentStaffList || []).find(s => s.id == id);
+  const name = staff ? staff.name : 'nhân viên này';
+
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal({
+        title: "Thu Hồi Tài Khoản Đăng Nhập",
+        message: `Bạn có chắc muốn THU HỒI tài khoản đăng nhập của "${name}"? Nhân viên sẽ không thể đăng nhập POS nữa, nhưng toàn bộ hồ sơ tính lương, chấm công và doanh số cũ vẫn được giữ nguyên vẹn.`,
+        type: 'danger',
+        confirmText: 'Thu Hồi Tài Khoản',
+        cancelText: 'Hủy bỏ',
+        icon: '🚫'
+      })
+    : confirm(`Bạn có chắc muốn thu hồi tài khoản đăng nhập của ${name}?`);
+
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/auth/staff/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ revoke_account: true })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('❌ ' + (data.detail || 'Lỗi thu hồi tài khoản'));
+      return;
+    }
+    if (typeof showToast === 'function') showToast('✅ Đã thu hồi tài khoản đăng nhập thành công', 'success');
+    closeStaffModal();
+    loadStaffList();
+  } catch (e) {
+    alert('❌ Không kết nối được server');
+  }
+}
+window.revokeStaffAccount = revokeStaffAccount;
 
 function closeStaffModal() {
   const modal = document.getElementById('modal-staff');
@@ -85,31 +192,75 @@ window.closeStaffModal = closeStaffModal;
 async function submitStaffForm() {
   const id = document.getElementById('staff-edit-id').value;
   const name = document.getElementById('staff-name').value.trim();
-  const role = document.getElementById('staff-role').value;
+  const employee_code = document.getElementById('staff-employee-code').value.trim() || null;
+  const device_code = document.getElementById('staff-device-code').value.trim() || null;
   const phone = document.getElementById('staff-phone').value.trim();
   const commission_rate = parseFloat(document.getElementById('staff-commission').value) || 0;
+  const base_salary = typeof parseMoneyInput === 'function'
+    ? parseMoneyInput(document.getElementById('staff-base-salary').value)
+    : (parseFloat((document.getElementById('staff-base-salary').value || '').replace(/\D/g, '')) || 0);
+
+  const hasAccount = document.getElementById('staff-has-account-toggle').checked;
+  const role = hasAccount ? document.getElementById('staff-role').value : 'staff';
+
   if (!name) { alert('Vui lòng nhập họ tên'); return; }
+
+  let username = null;
+  let password = null;
+
+  if (hasAccount) {
+    username = document.getElementById('staff-username').value.trim();
+    password = document.getElementById('staff-password').value;
+    if (!username) {
+      alert('Vui lòng nhập Tên đăng nhập (Username)');
+      return;
+    }
+    if (!id && (!password || password.length < 6)) {
+      alert('Vui lòng nhập Mật khẩu ban đầu (tối thiểu 6 ký tự)');
+      return;
+    }
+    if (password && password.length < 6) {
+      alert('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+  }
 
   try {
     let res;
     if (id) {
+      const payload = {
+        name, role, phone, commission_rate,
+        employee_code, device_code, base_salary
+      };
+      if (hasAccount) {
+        payload.username = username;
+        if (password && password.length >= 6) {
+          payload.password = password;
+        }
+      }
       res = await fetch(`/api/auth/staff/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role, phone, commission_rate })
+        body: JSON.stringify(payload)
       });
     } else {
-      const username = document.getElementById('staff-username').value.trim();
-      const password = document.getElementById('staff-password').value;
-      if (!username || !password) { alert('Vui lòng nhập username và mật khẩu'); return; }
+      const payload = {
+        name, role, phone, commission_rate,
+        employee_code, device_code, base_salary,
+        username: hasAccount ? username : null,
+        password: hasAccount ? password : null
+      };
       res = await fetch('/api/auth/staff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, password, role, phone, commission_rate })
+        body: JSON.stringify(payload)
       });
     }
     const data = await res.json();
     if (!res.ok) { alert('❌ ' + (data.detail || 'Lỗi lưu nhân viên')); return; }
+    if (typeof showToast === 'function') {
+      showToast(id ? '✅ Đã cập nhật nhân viên thành công' : '✅ Đã tạo nhân viên thành công', 'success');
+    }
     closeStaffModal();
     loadStaffList();
   } catch (e) {
@@ -224,7 +375,14 @@ async function loadStaffPermissions(staffId) {
   const res = await fetch(`/api/settings/staff-permissions/${staffId}`);
   if (!res.ok) { wrap.innerHTML = '<div class="text-red-500 text-sm">Lỗi tải quyền nhân viên</div>'; return; }
   const data = await res.json();
+  const warningBanner = !data.has_account
+    ? `<div class="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+         <span>⚠️</span>
+         <span><b>Lưu ý:</b> Nhân viên này chưa được cấp tài khoản đăng nhập POS. Các cấu hình quyền dưới đây sẽ có hiệu lực sau khi cấp tài khoản.</span>
+       </div>`
+    : '';
   wrap.innerHTML = `
+    ${warningBanner}
     <table class="w-full text-sm text-left">
       <thead class="text-slate-500 border-b"><tr>
         <th class="py-2 pr-2">Quyền</th>

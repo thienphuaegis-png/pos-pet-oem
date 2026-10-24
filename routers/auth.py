@@ -39,17 +39,17 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=429, detail=f"Đăng nhập sai quá {MAX_FAILED_ATTEMPTS} lần, thử lại sau {LOCKOUT_MINUTES} phút")
 
     cur.execute(
-        "SELECT id, password_hash, role, name, is_active, must_change_password, token_version FROM staff WHERE username=?",
+        "SELECT id, password_hash, role, name, is_active, must_change_password, token_version, username FROM staff WHERE username=?",
         (form.username,)
     )
     user = cur.fetchone()
-    ok = bool(user and user["password_hash"] and pwd_ctx.verify(form.password, user["password_hash"]) and user["is_active"])
+    ok = bool(user and user["username"] and user["password_hash"] and pwd_ctx.verify(form.password, user["password_hash"]) and user["is_active"])
 
     cur.execute("INSERT INTO login_attempts (username, ip, success) VALUES (?, ?, ?)",
                 (form.username, client_ip, 1 if ok else 0))
     db.commit()
 
-    if not user or not user["password_hash"] or not pwd_ctx.verify(form.password, user["password_hash"]):
+    if not user or not user["username"] or not user["password_hash"] or not pwd_ctx.verify(form.password, user["password_hash"]):
         db.close()
         raise HTTPException(status_code=401, detail="Sai tên đăng nhập hoặc mật khẩu")
     if not user["is_active"]:
@@ -187,23 +187,32 @@ def update_my_ai_config(body: StaffAIConfigIn, current: dict = Depends(get_curre
 
 class StaffCreate(BaseModel):
     name: str
-    username: str
-    password: str
-    role: str  # cashier, accountant, warehouse, owner
-    phone: str = ""
-    commission_rate: float = 0
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = "staff"  # cashier, accountant, warehouse, owner, staff
+    phone: Optional[str] = ""
+    commission_rate: Optional[float] = 0.0
+    device_code: Optional[str] = None
+    employee_code: Optional[str] = None
+    base_salary: Optional[float] = 0.0
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = "gemini-2.5-flash"
 
 
 class StaffUpdate(BaseModel):
-    name: str = None
-    role: str = None
-    phone: str = None
-    commission_rate: float = None
-    is_active: int = None
+    name: Optional[str] = None
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    commission_rate: Optional[float] = None
+    is_active: Optional[int] = None
     ai_api_key: Optional[str] = None
     ai_model: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    device_code: Optional[str] = None
+    employee_code: Optional[str] = None
+    base_salary: Optional[float] = None
+    revoke_account: Optional[bool] = False
 
 
 @router.get("/staff")
@@ -212,7 +221,9 @@ def list_staff(current: dict = Depends(require_role("owner"))):
     cur.execute("""
         SELECT id, name, username, role, phone, commission_rate, is_active, created_at,
                (CASE WHEN ai_api_key IS NOT NULL AND TRIM(ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
-               ai_model
+               ai_model,
+               (CASE WHEN username IS NOT NULL AND TRIM(username) != '' AND password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account,
+               device_code, employee_code, base_salary
         FROM staff ORDER BY id
     """)
     rows = [dict(r) for r in cur.fetchall()]
@@ -232,18 +243,64 @@ def login_log(current: dict = Depends(require_role("owner")), limit: int = 100):
 
 @router.post("/staff")
 def create_staff(body: StaffCreate, current: dict = Depends(require_role("owner"))):
-    if len(body.password) < 6:
-        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự")
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Họ tên nhân viên không được để trống")
+
+    username_raw = (body.username or "").strip()
+    has_account = bool(username_raw)
+
+    username_val = None
+    password_hash = None
+    must_change = 0
+    role_val = body.role or "staff"
+
+    if has_account:
+        username_val = username_raw
+        if not body.password or len(body.password.strip()) < 6:
+            raise HTTPException(status_code=400, detail="Mật khẩu tài khoản phải có ít nhất 6 ký tự")
+        password_hash = pwd_ctx.hash(body.password.strip())
+        must_change = 1
+        if role_val == "staff":
+            role_val = "cashier"
+    else:
+        role_val = body.role or "staff"
+
     db = get_db(); cur = db.cursor()
     try:
+        if username_val:
+            cur.execute("SELECT id FROM staff WHERE LOWER(username) = LOWER(?)", (username_val,))
+            if cur.fetchone():
+                db.close()
+                raise HTTPException(status_code=400, detail=f"Tên đăng nhập '{username_val}' đã tồn tại")
+
+        device_code = (body.device_code or "").strip() or None
+        if device_code:
+            cur.execute("SELECT id FROM staff WHERE device_code = ?", (device_code,))
+            if cur.fetchone():
+                db.close()
+                raise HTTPException(status_code=400, detail=f"Mã chấm công '{device_code}' đã được gán cho nhân viên khác")
+
         cur.execute(
-            "INSERT INTO staff (name, username, password_hash, role, phone, commission_rate, is_active, must_change_password, ai_api_key, ai_model) VALUES (?,?,?,?,?,?,1,1,?,?)",
-            (body.name, body.username, pwd_ctx.hash(body.password), body.role, body.phone, body.commission_rate, (body.ai_api_key or "").strip() or None, body.ai_model or "gemini-2.5-flash")
+            """INSERT INTO staff (
+                name, username, password_hash, role, phone, commission_rate,
+                is_active, must_change_password, ai_api_key, ai_model,
+                device_code, employee_code, base_salary
+            ) VALUES (?,?,?,?,?,?,1,?,?,?,?,?,?)""",
+            (
+                name, username_val, password_hash, role_val, (body.phone or "").strip(),
+                float(body.commission_rate or 0.0), must_change,
+                (body.ai_api_key or "").strip() or None, body.ai_model or "gemini-2.5-flash",
+                device_code, (body.employee_code or "").strip() or None,
+                float(body.base_salary or 0.0)
+            )
         )
         db.commit()
         new_id = cur.lastrowid
         db.close()
-        return {"id": new_id, "message": "Tạo nhân viên thành công"}
+        return {"id": new_id, "message": "Tạo nhân viên thành công", "has_account": has_account}
+    except HTTPException:
+        raise
     except Exception as e:
         db.close()
         raise HTTPException(400, f"Lỗi tạo nhân viên: {str(e)}")
@@ -252,20 +309,76 @@ def create_staff(body: StaffCreate, current: dict = Depends(require_role("owner"
 @router.put("/staff/{staff_id}")
 def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(require_role("owner"))):
     db = get_db(); cur = db.cursor()
+    cur.execute("SELECT id, name, username, password_hash, role FROM staff WHERE id=?", (staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        db.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+
     fields, vals = [], []
-    if body.name is not None:            fields.append("name=?");            vals.append(body.name)
-    if body.role is not None:            fields.append("role=?");            vals.append(body.role)
-    if body.phone is not None:           fields.append("phone=?");           vals.append(body.phone)
-    if body.commission_rate is not None: fields.append("commission_rate=?"); vals.append(body.commission_rate)
-    if body.is_active is not None:       fields.append("is_active=?");       vals.append(body.is_active)
+    if body.name is not None:            fields.append("name=?");            vals.append(body.name.strip())
+    if body.phone is not None:           fields.append("phone=?");           vals.append(body.phone.strip())
+    if body.commission_rate is not None: fields.append("commission_rate=?"); vals.append(float(body.commission_rate))
+    if body.is_active is not None:
+        fields.append("is_active=?"); vals.append(int(body.is_active))
+        if body.is_active == 0:
+            fields.append("token_version=token_version+1")
     if body.ai_api_key is not None:      fields.append("ai_api_key=?");      vals.append(body.ai_api_key.strip() or None)
     if body.ai_model is not None:        fields.append("ai_model=?");        vals.append(body.ai_model.strip() or "gemini-2.5-flash")
-    if body.is_active == 0:              fields.append("token_version=token_version+1")
+    if body.device_code is not None:
+        dev_code = body.device_code.strip() or None
+        if dev_code:
+            cur.execute("SELECT id FROM staff WHERE device_code=? AND id != ?", (dev_code, staff_id))
+            if cur.fetchone():
+                db.close()
+                raise HTTPException(status_code=400, detail=f"Mã chấm công '{dev_code}' đã được gán cho nhân viên khác")
+        fields.append("device_code=?"); vals.append(dev_code)
+    if body.employee_code is not None:
+        fields.append("employee_code=?"); vals.append(body.employee_code.strip() or None)
+    if body.base_salary is not None:
+        fields.append("base_salary=?"); vals.append(float(body.base_salary or 0.0))
+
+    if body.revoke_account:
+        fields.append("username=NULL")
+        fields.append("password_hash=NULL")
+        fields.append("role='staff'")
+        fields.append("token_version=token_version+1")
+    else:
+        if body.username is not None:
+            uname = body.username.strip()
+            if uname:
+                cur.execute("SELECT id FROM staff WHERE LOWER(username) = LOWER(?) AND id != ?", (uname, staff_id))
+                if cur.fetchone():
+                    db.close()
+                    raise HTTPException(status_code=400, detail=f"Tên đăng nhập '{uname}' đã tồn tại")
+                fields.append("username=?"); vals.append(uname)
+                if body.password and len(body.password.strip()) >= 6:
+                    fields.append("password_hash=?"); vals.append(pwd_ctx.hash(body.password.strip()))
+                    fields.append("must_change_password=1")
+                    fields.append("token_version=token_version+1")
+                elif not staff["password_hash"] and (not body.password or len(body.password.strip()) < 6):
+                    db.close()
+                    raise HTTPException(status_code=400, detail="Khi cấp tài khoản đăng nhập mới, mật khẩu phải có ít nhất 6 ký tự")
+                if body.role is not None:
+                    fields.append("role=?"); vals.append(body.role)
+                elif staff["role"] == "staff":
+                    fields.append("role=?"); vals.append("cashier")
+        elif body.password is not None and len(body.password.strip()) >= 6:
+            fields.append("password_hash=?"); vals.append(pwd_ctx.hash(body.password.strip()))
+            fields.append("must_change_password=1")
+            fields.append("token_version=token_version+1")
+
+        if body.role is not None and body.username is None and not body.revoke_account:
+            fields.append("role=?"); vals.append(body.role)
+
     if not fields:
-        db.close(); raise HTTPException(400, "Không có trường nào để cập nhật")
+        db.close()
+        raise HTTPException(400, "Không có trường nào để cập nhật")
+
     vals.append(staff_id)
     cur.execute(f"UPDATE staff SET {', '.join(fields)} WHERE id=?", vals)
-    db.commit(); db.close()
+    db.commit()
+    db.close()
     return {"message": "Cập nhật nhân viên thành công"}
 
 
@@ -318,6 +431,14 @@ def reset_staff_password(staff_id: int, body: ChangePasswordIn, current: dict = 
     if len(body.new_password) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
     db = get_db(); cur = db.cursor()
+    cur.execute("SELECT id, username, password_hash FROM staff WHERE id=?", (staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        db.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    if not staff["username"]:
+        db.close()
+        raise HTTPException(status_code=400, detail="Nhân viên này chưa có tài khoản đăng nhập. Hãy bấm 'Cấp tài khoản' trước.")
     cur.execute("UPDATE staff SET password_hash=?, must_change_password=1, token_version=token_version+1 WHERE id=?", (pwd_ctx.hash(body.new_password), staff_id))
     db.commit(); db.close()
     return {"message": "Reset mật khẩu thành công"}

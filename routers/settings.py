@@ -43,11 +43,12 @@ def get_staff_permissions(staff_id: int, user=Depends(require_role("owner"))):
     """Quyen rieng cua 1 nhan vien: NULL = dung theo role, khac NULL = da override."""
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT role FROM staff WHERE id=?", (staff_id,))
+    cur.execute("SELECT role, username, password_hash FROM staff WHERE id=?", (staff_id,))
     staff = cur.fetchone()
     if not staff:
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    has_account = bool(staff["username"] and staff["password_hash"])
     cur.execute("SELECT perm_key, allowed FROM role_permissions WHERE role=?", (staff["role"],))
     role_defaults = {r["perm_key"]: bool(r["allowed"]) for r in cur.fetchall()}
     cur.execute("SELECT perm_key, allowed FROM staff_permissions WHERE staff_id=?", (staff_id,))
@@ -60,7 +61,7 @@ def get_staff_permissions(staff_id: int, user=Depends(require_role("owner"))):
             "role_default": role_defaults.get(key, False),
             "override": overrides.get(key, None),  # None = chua override, dung role_default
         })
-    return {"staff_id": staff_id, "role": staff["role"], "perm_keys": PERM_KEYS, "permissions": result}
+    return {"staff_id": staff_id, "role": staff["role"], "has_account": has_account, "perm_keys": PERM_KEYS, "permissions": result}
 
 @router.post("/staff-permissions")
 def update_staff_permission(req: StaffPermissionUpdate, user=Depends(require_role("owner"))):

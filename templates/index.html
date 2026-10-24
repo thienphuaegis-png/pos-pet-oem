@@ -9709,52 +9709,92 @@
                     <label class="text-xs font-bold text-slate-700">Họ Tên (*)</label>
                     <input id="staff-name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: Nguyễn Văn A">
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-700">Tên Đăng Nhập (Username) (*)</label>
-                    <input id="staff-username" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: thungan1">
-                </div>
-                <div id="staff-password-row">
-                    <label class="text-xs font-bold text-slate-700">Mật Khẩu (*)</label>
-                    <div class="relative flex items-center mt-1">
-                        <input id="staff-password" type="password" class="w-full border border-slate-300 rounded-lg pl-3 pr-16 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Tối thiểu 6 ký tự"
-                            onkeyup="checkPasswordCapsLock(event, 'staff-caps-warn')"
-                            onkeydown="checkPasswordCapsLock(event, 'staff-caps-warn')"
-                            onblur="checkPasswordCapsLock(event, 'staff-caps-warn')">
-                        <button type="button" onclick="togglePasswordVisibility('staff-password', this)"
-                            class="absolute right-2 px-2 py-1 rounded text-xs text-slate-500 hover:text-purple-600 hover:bg-slate-100 flex items-center gap-1 transition"
-                            title="Hiện/Ẩn mật khẩu">
-                            <svg class="pwd-icon w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                            <span class="pwd-label text-[10px] font-bold">Xem</span>
-                        </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Mã Nhân Viên</label>
+                        <input id="staff-employee-code" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: NV01">
                     </div>
-                    <div id="staff-caps-warn" class="hidden text-amber-600 text-[11px] font-semibold mt-1 flex items-center gap-1">
-                        <span>⚠️</span> <span>Chú ý: Đang bật Caps Lock (viết hoa)</span>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Mã Máy Vân Tay</label>
+                        <input id="staff-device-code" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 13, 16">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Số Điện Thoại</label>
+                        <input id="staff-phone" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 0912345678">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-700">Hoa Hồng Bán Lẻ (%)</label>
+                        <input id="staff-commission" type="number" step="0.1" min="0" max="100" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" value="0">
                     </div>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-slate-700">Vai Trò (*)</label>
-                    <select id="staff-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
-                        <option value="cashier">Thu Ngân (Bán Hàng POS)</option>
-                        <option value="accountant">Kế Toán (Sổ Quỹ, Báo Cáo)</option>
-                        <option value="warehouse">Thủ Kho (Kho Hàng, Nhập Hàng)</option>
-                        <option value="owner">Chủ Shop (Toàn Quyền)</option>
-                    </select>
+                    <label class="text-xs font-bold text-slate-700">Lương Cơ Bản (Tháng)</label>
+                    <input id="staff-base-salary" type="text" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 6.000.000">
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-700">Số Điện Thoại</label>
-                    <input id="staff-phone" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: 0912345678">
+
+                <!-- CÔNG TẮC CẤP TÀI KHOẢN ĐĂNG NHẬP -->
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-slate-800 text-xs">Cấp tài khoản đăng nhập POS</span>
+                            <p class="text-[10px] text-slate-500">Tắt nếu chỉ dùng tính lương, chấm công hoặc thợ Spa</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="staff-has-account-toggle" onchange="toggleStaffAccountFields(this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                    </div>
+
+                    <div id="staff-account-fields" class="space-y-3 pt-2 border-t border-slate-200 hidden">
+                        <div>
+                            <label class="text-xs font-bold text-slate-700">Tên Đăng Nhập (Username) (*)</label>
+                            <input id="staff-username" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="VD: thungan1">
+                        </div>
+                        <div id="staff-password-row">
+                            <label class="text-xs font-bold text-slate-700" id="staff-password-label">Mật Khẩu (*)</label>
+                            <div class="relative flex items-center mt-1">
+                                <input id="staff-password" type="password" class="w-full border border-slate-300 rounded-lg pl-3 pr-16 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Tối thiểu 6 ký tự"
+                                    onkeyup="checkPasswordCapsLock(event, 'staff-caps-warn')"
+                                    onkeydown="checkPasswordCapsLock(event, 'staff-caps-warn')"
+                                    onblur="checkPasswordCapsLock(event, 'staff-caps-warn')">
+                                <button type="button" onclick="togglePasswordVisibility('staff-password', this)"
+                                    class="absolute right-2 px-2 py-1 rounded text-xs text-slate-500 hover:text-purple-600 hover:bg-slate-100 flex items-center gap-1 transition cursor-pointer"
+                                    title="Hiện/Ẩn mật khẩu">
+                                    <svg class="pwd-icon w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                                    </svg>
+                                    <span class="pwd-label text-[10px] font-bold">Xem</span>
+                                </button>
+                            </div>
+                            <div id="staff-caps-warn" class="hidden text-amber-600 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                                <span>⚠️</span> <span>Chú ý: Đang bật Caps Lock (viết hoa)</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-700">Vai Trò Hệ Thống (*)</label>
+                            <select id="staff-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
+                                <option value="cashier">Thu Ngân (Bán Hàng POS)</option>
+                                <option value="accountant">Kế Toán (Sổ Quỹ, Báo Cáo)</option>
+                                <option value="warehouse">Thủ Kho (Kho Hàng, Nhập Hàng)</option>
+                                <option value="owner">Chủ Shop (Toàn Quyền)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-700">Tỷ Lệ Hoa Hồng (%)</label>
-                    <input id="staff-commission" type="number" step="0.1" min="0" max="100" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500" value="0">
+
+                <!-- Nút thu hồi tài khoản khi đang sửa nhân viên có tài khoản -->
+                <div id="staff-revoke-account-wrap" class="hidden pt-1">
+                    <button type="button" onclick="revokeStaffAccount()" class="w-full text-center py-2 px-3 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                        <span>🚫</span> <span>Thu hồi tài khoản đăng nhập (Chỉ giữ hồ sơ tính lương)</span>
+                    </button>
                 </div>
             </div>
             <div class="flex gap-2 pt-3 border-t">
-                <button type="button" onclick="closeStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-semibold transition">Hủy</button>
-                <button type="button" onclick="submitStaffForm()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition">
+                <button type="button" onclick="closeStaffModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-semibold transition cursor-pointer">Hủy</button>
+                <button type="button" onclick="submitStaffForm()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg text-xs font-semibold shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                     <span>Lưu Nhân Viên</span>
                 </button>
