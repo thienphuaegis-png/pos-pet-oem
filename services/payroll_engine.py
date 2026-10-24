@@ -149,6 +149,7 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
         return res
     if d.leave == "off":
         res.code = "OFF"
+        res.penalty = 0
         return res
     if not d.punches:
         if d.is_holiday:
@@ -156,8 +157,9 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
         elif d.work_date.weekday() == 6 and b.off_sunday:
             res.code = "CN"
         else:
-            res.violations.append("absent")
-            res.penalty = 0 if d.waive else r.absent
+            if d.leave != "off_morning":
+                res.violations.append("absent")
+            res.penalty = 0 if (d.waive or d.leave == "off_morning") else r.absent
         return res
 
     start, end = b.start, b.end
@@ -168,21 +170,34 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
 
     mn, mx = d.punches[0], d.punches[-1]
     if mn == mx:
-        if mn < (start + end) // 2:
-            cin, cout = mn, None
+        if d.leave == "off_morning":
+            if mn <= 930:
+                cin, cout = mn, None
+            else:
+                cin, cout = None, mn
+        elif d.leave == "off_afternoon":
+            if mn < 630:
+                cin, cout = mn, None
+            else:
+                cin, cout = None, mn
         else:
-            cin, cout = None, mx
+            if mn < (start + end) // 2:
+                cin, cout = mn, None
+            else:
+                cin, cout = None, mx
     else:
         cin, cout = mn, mx
     res.check_in, res.check_out = cin, cout
 
     pen = 0
     if cin is None:
-        res.violations.append("missing_in")
-        pen += r.missing_punch
+        if d.leave != "off_morning":
+            res.violations.append("missing_in")
+            pen += r.missing_punch
     if cout is None:
-        res.violations.append("missing_out")
-        pen += r.missing_punch
+        if d.leave not in ("off_morning", "off_afternoon"):
+            res.violations.append("missing_out")
+            pen += r.missing_punch
     i_eff = cin if cin is not None else start
     o_eff = cout if cout is not None else end
     worked = max(0, o_eff - i_eff)
@@ -190,12 +205,15 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
         worked -= b.lunch
     res.worked_min = worked
 
-    credit = 1.0 if worked >= r.full_day_min else (0.5 if worked >= r.half_day_min else 0.0)
     if d.leave in ("off_morning", "off_afternoon"):
-        credit = min(credit, 0.5)
+        credit = 0.5
+        base = "TV" if d.probation else "X"
+        res.code = f"{base}/2"
+    else:
+        credit = 1.0 if worked >= r.full_day_min else (0.5 if worked >= r.half_day_min else 0.0)
+        base = "TV" if d.probation else "X"
+        res.code = base if credit == 1.0 else (base + "/2" if credit == 0.5 else "")
     res.credit = credit
-    base = "TV" if d.probation else "X"
-    res.code = base if credit == 1.0 else (base + "/2" if credit == 0.5 else "")
 
     if cin is not None and cin > start:
         res.late_min = cin - start

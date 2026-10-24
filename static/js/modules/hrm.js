@@ -5,6 +5,17 @@
     let currentSubTab = 'payroll';
     let payrollData = null;
     let attendanceData = null;
+    let leavesData = [];
+
+    function updateMonthDisplay(val) {
+        const display = document.getElementById('hrm-month-display');
+        if (display && val) {
+            const parts = val.split('-');
+            if (parts.length === 2) {
+                display.textContent = `Tháng ${parts[1]}/${parts[0]}`;
+            }
+        }
+    }
 
     function getSelectedMonth() {
         const picker = document.getElementById('hrm-month-picker');
@@ -12,8 +23,84 @@
             const now = new Date();
             picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         }
+        updateMonthDisplay(picker.value);
         return picker.value;
     }
+
+    window.toggleHrmMonthDropdown = function(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('hrm-month-dropdown-menu');
+        if (!menu) return;
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) {
+            menu.classList.remove('hidden');
+            loadHrmMonthDropdown();
+        } else {
+            menu.classList.add('hidden');
+        }
+    };
+
+    window.selectHrmMonth = function(monthStr) {
+        const picker = document.getElementById('hrm-month-picker');
+        if (picker) picker.value = monthStr;
+        updateMonthDisplay(monthStr);
+        const menu = document.getElementById('hrm-month-dropdown-menu');
+        if (menu) menu.classList.add('hidden');
+        loadHrmCurrentSubTab();
+    };
+
+    async function loadHrmMonthDropdown() {
+        const picker = document.getElementById('hrm-month-picker');
+        const val = picker?.value || new Date().toISOString().slice(0, 7);
+        const year = parseInt(val.split('-')[0], 10);
+        const yearTitle = document.getElementById('hrm-dropdown-year-title');
+        if (yearTitle) yearTitle.textContent = `Năm ${year}`;
+        const grid = document.getElementById('hrm-month-grid');
+        if (!grid) return;
+
+        try {
+            const res = await fetch(`/api/hrm/periods?year=${year}`);
+            const periods = res.ok ? await res.json() : [];
+            const periodMap = {};
+            periods.forEach(p => { periodMap[p.month] = p.status; });
+
+            grid.innerHTML = Array.from({length: 12}, (_, i) => {
+                const mNum = i + 1;
+                const mStr = `${year}-${String(mNum).padStart(2, '0')}`;
+                const status = periodMap[mStr] || 'draft';
+                const isSelected = mStr === val;
+
+                let badgeClass = "bg-amber-100 text-amber-800";
+                let statusLabel = "Tạm tính";
+                if (status === 'locked') {
+                    badgeClass = "bg-blue-100 text-blue-800";
+                    statusLabel = "Đã chốt";
+                } else if (status === 'paid') {
+                    badgeClass = "bg-emerald-100 text-emerald-800";
+                    statusLabel = "Đã chi";
+                }
+
+                return `
+                    <button type="button" onclick="selectHrmMonth('${mStr}')" class="flex flex-col items-start p-2 rounded-lg border text-left cursor-pointer transition-all ${isSelected ? 'bg-emerald-50 border-emerald-400 font-bold' : 'bg-slate-50 border-slate-200 hover:bg-white'}">
+                        <span class="text-xs text-slate-800">Tháng ${String(mNum).padStart(2, '0')}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded mt-1 font-semibold ${badgeClass}">${statusLabel}</span>
+                    </button>
+                `;
+            }).join('');
+        } catch (e) {
+            console.error("Lỗi nạp danh sách tháng:", e);
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('hrm-month-dropdown-menu');
+        const btn = document.getElementById('hrm-month-dropdown-btn');
+        if (menu && !menu.classList.contains('hidden')) {
+            if (!menu.contains(e.target) && !btn?.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        }
+    });
 
     window.changeHrmMonth = function(delta) {
         const picker = document.getElementById('hrm-month-picker');
@@ -25,6 +112,7 @@
         if (m < 1) { m = 12; y -= 1; }
         else if (m > 12) { m = 1; y += 1; }
         picker.value = `${y}-${String(m).padStart(2, '0')}`;
+        updateMonthDisplay(picker.value);
         loadHrmCurrentSubTab();
     };
 
@@ -33,12 +121,13 @@
         if (!picker) return;
         const now = new Date();
         picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        updateMonthDisplay(picker.value);
         loadHrmCurrentSubTab();
     };
 
     window.switchHrmSubTab = function(sub) {
         currentSubTab = sub;
-        ['payroll', 'attendance', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
+        ['payroll', 'attendance', 'leaves', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
             const pane = document.getElementById(`hrm-subtab-${s}`);
             const btn = document.getElementById(`btn-hrm-tab-${s}`);
             if (pane) pane.classList.toggle('hidden', s !== sub);
@@ -57,6 +146,7 @@
         const month = getSelectedMonth();
         if (currentSubTab === 'payroll') loadHrmPayroll(month);
         else if (currentSubTab === 'attendance') loadHrmAttendance(month);
+        else if (currentSubTab === 'leaves') loadHrmLeaves(month);
         else if (currentSubTab === 'overtime') loadHrmOvertime(month);
         else if (currentSubTab === 'advances') loadHrmAdvances(month);
         else if (currentSubTab === 'adjustments') loadHrmSalaryAdjustments();
@@ -521,6 +611,192 @@
             loadHrmAttendance(getSelectedMonth());
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    // ── Xin Off ──
+    async function loadHrmLeaves(month) {
+        month = month || getSelectedMonth();
+        try {
+            const res = await fetch(`/api/hrm/leaves?month=${month}`);
+            if (!res.ok) throw new Error("Lỗi tải danh sách xin off");
+            leavesData = await res.json();
+
+            // Populate staff filter
+            const filterEl = document.getElementById('hrm-leaves-staff-filter');
+            if (filterEl) {
+                const currentFilter = filterEl.value;
+                const staffMap = {};
+                leavesData.forEach(l => {
+                    if (l.staff_id) staffMap[l.staff_id] = l.staff_name;
+                });
+                filterEl.innerHTML = '<option value="">-- Tất cả nhân viên --</option>' +
+                    Object.keys(staffMap).map(sid => `<option value="${sid}">${staffMap[sid]}</option>`).join('');
+                filterEl.value = currentFilter;
+            }
+            renderHrmLeavesTable();
+        } catch (e) {
+            console.error("Lỗi loadHrmLeaves:", e);
+        }
+    }
+    window.loadHrmLeaves = loadHrmLeaves;
+
+    window.renderHrmLeavesTable = function() {
+        const tbody = document.getElementById('table-hrm-leaves');
+        if (!tbody) return;
+        const filterSid = document.getElementById('hrm-leaves-staff-filter')?.value;
+        const list = filterSid ? leavesData.filter(l => String(l.staff_id) === filterSid) : leavesData;
+
+        if (!list || list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Chưa có đơn xin nghỉ nào trong tháng.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(l => {
+            let badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">Off cả ngày</span>';
+            if (l.leave_type === 'off_morning') {
+                badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800">Off Buổi Sáng (0.5 công)</span>';
+            } else if (l.leave_type === 'off_afternoon') {
+                badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">Off Buổi Chiều (0.5 công)</span>';
+            }
+
+            return `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="p-2.5 font-bold text-slate-700">${l.work_date}</td>
+                    <td class="p-2.5 font-medium text-slate-500">${l.staff_code || 'NV' + l.staff_id}</td>
+                    <td class="p-2.5 font-bold text-slate-800">${l.staff_name}</td>
+                    <td class="p-2.5 text-slate-500">${l.department || l.position || '-'}</td>
+                    <td class="p-2.5 text-center">${badge}</td>
+                    <td class="p-2.5 text-slate-600 max-w-xs truncate" title="${l.reason || ''}">${l.reason || '-'}</td>
+                    <td class="p-2.5 text-slate-500">${l.approved_by || '-'}</td>
+                    <td class="p-2.5 text-center whitespace-nowrap">
+                        <button onclick="openHrmLeaveModal(${l.id})" class="text-blue-600 hover:text-blue-800 font-bold px-1.5 py-0.5 rounded hover:bg-blue-50 cursor-pointer">✏️ Sửa</button>
+                        <button onclick="deleteHrmLeave(${l.id})" class="text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer ml-1">🗑️ Xóa</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    window.openHrmLeaveModal = async function(id) {
+        const staffSelect = document.getElementById('hrm-leave-staff-id');
+        const dateInput = document.getElementById('hrm-leave-date');
+        const typeSelect = document.getElementById('hrm-leave-type');
+        const reasonInput = document.getElementById('hrm-leave-reason');
+        const approverInput = document.getElementById('hrm-leave-approved-by');
+        const idInput = document.getElementById('hrm-leave-id');
+        const titleEl = document.getElementById('modal-hrm-leave-title');
+
+        try {
+            const res = await fetch('/api/staff');
+            if (res.ok) {
+                const staffList = await res.json();
+                staffSelect.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
+                    staffList.filter(s => s.is_active).map(s => `<option value="${s.id}">${s.name} (${s.employee_code || 'NV' + s.id})</option>`).join('');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
+        if (id) {
+            const item = leavesData.find(x => x.id === id);
+            if (item) {
+                if (idInput) idInput.value = item.id;
+                if (staffSelect) staffSelect.value = item.staff_id;
+                if (dateInput) dateInput.value = item.work_date;
+                if (typeSelect) typeSelect.value = item.leave_type;
+                if (reasonInput) reasonInput.value = item.reason || '';
+                if (approverInput) approverInput.value = item.approved_by || '';
+                if (titleEl) titleEl.textContent = 'Cập Nhật Đơn Xin Off';
+            }
+        } else {
+            if (idInput) idInput.value = '';
+            if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+            if (typeSelect) typeSelect.value = 'off';
+            if (reasonInput) reasonInput.value = '';
+            if (approverInput) approverInput.value = '';
+            if (titleEl) titleEl.textContent = 'Tạo Đơn Xin Off';
+        }
+
+        const modal = document.getElementById('modal-hrm-leave');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmLeaveModal = function() {
+        const modal = document.getElementById('modal-hrm-leave');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitHrmLeave = async function() {
+        const id = document.getElementById('hrm-leave-id')?.value;
+        const staffId = document.getElementById('hrm-leave-staff-id')?.value;
+        const workDate = document.getElementById('hrm-leave-date')?.value;
+        const leaveType = document.getElementById('hrm-leave-type')?.value;
+        const reason = document.getElementById('hrm-leave-reason')?.value.trim();
+        const approvedBy = document.getElementById('hrm-leave-approved-by')?.value.trim();
+
+        if (!staffId) { alert("Vui lòng chọn nhân viên"); return; }
+        if (!workDate) { alert("Vui lòng chọn ngày nghỉ"); return; }
+        if (!leaveType) { alert("Vui lòng chọn hình thức nghỉ"); return; }
+
+        try {
+            const res = await fetch('/api/hrm/leaves', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: id ? parseInt(id) : null,
+                    staff_id: parseInt(staffId),
+                    work_date: workDate,
+                    leave_type: leaveType,
+                    reason: reason,
+                    approved_by: approvedBy || null
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi tạo đơn xin off");
+                return;
+            }
+            closeHrmLeaveModal();
+            loadHrmLeaves();
+            if (window.showToast) window.showToast("Đã lưu đơn xin off thành công", "success");
+        } catch (e) {
+            console.error("Lỗi submitHrmLeave:", e);
+            alert("Lỗi kết nối máy chủ");
+        }
+    };
+
+    window.deleteHrmLeave = async function(id) {
+        if (!confirm("Xác nhận xóa đơn xin nghỉ này và khôi phục chấm công?")) return;
+        try {
+            const res = await fetch(`/api/hrm/leaves/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json();
+                alert(data.detail || "Lỗi xóa đơn xin off");
+                return;
+            }
+            loadHrmLeaves();
+            if (window.showToast) window.showToast("Đã xóa đơn xin off thành công", "success");
+        } catch (e) {
+            console.error("Lỗi deleteHrmLeave:", e);
+            alert("Lỗi kết nối máy chủ");
+        }
+    };
+
+    window.syncHrmLeavesFromSheets = async function() {
+        if (!confirm("Bắt đầu đồng bộ danh sách Xin Off từ Google Sheets (GID: 1879481422)?")) return;
+        try {
+            const res = await fetch('/api/hrm/leaves/sync-sheets', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi đồng bộ từ Google Sheets");
+                return;
+            }
+            alert(data.message || `Đồng bộ thành công ${data.synced_count} bản ghi`);
+            loadHrmLeaves();
+        } catch (e) {
+            console.error("Lỗi syncHrmLeavesFromSheets:", e);
+            alert("Lỗi kết nối khi đồng bộ Google Sheets");
         }
     };
 

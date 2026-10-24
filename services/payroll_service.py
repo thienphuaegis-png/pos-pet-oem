@@ -167,19 +167,25 @@ def salary_at(cur, staff, last_day: date):
 def build_days(cur, staff, block: Block, rules: Rules, first: date, last: date, today: date) -> list:
     cur.execute("SELECT * FROM staff_attendance WHERE staff_id = ? AND work_date BETWEEN ? AND ?",
                 (staff["id"], first.isoformat(), last.isoformat()))
-    att = {r["work_date"]: r for r in cur.fetchall()}
+    att = {r["work_date"]: dict(r) for r in cur.fetchall()}
     cur.execute("SELECT holiday_date FROM hrm_holidays WHERE holiday_date BETWEEN ? AND ?", (first.isoformat(), last.isoformat()))
     holidays = {r["holiday_date"] for r in cur.fetchall()}
+    cur.execute("SELECT * FROM staff_leaves WHERE staff_id = ? AND work_date BETWEEN ? AND ?",
+                (staff["id"], first.isoformat(), last.isoformat()))
+    leaves = {r["work_date"]: dict(r) for r in cur.fetchall()}
     out = []
     for n in range(1, last.day + 1):
         d = date(first.year, first.month, n)
         if d > today:
             break
         a = att.get(d.isoformat())
+        l = leaves.get(d.isoformat())
         punches = sorted(to_min(p) for p in json.loads(a["punches"] or "[]") if to_min(p) is not None) if a else []
+        leave_val = (a["leave_type"] if a and a.get("leave_type") else (l["leave_type"] if l else None))
+        waive_val = bool(a["waive"]) if a else (bool(l) if l else False)
         out.append(classify_day(DayInput(
-            work_date=d, punches=punches, leave=a["leave_type"] if a else None,
-            is_holiday=d.isoformat() in holidays, waive=bool(a["waive"]) if a else False,
+            work_date=d, punches=punches, leave=leave_val,
+            is_holiday=d.isoformat() in holidays, waive=waive_val,
             employed=is_employed(staff, d), probation=is_probation(staff, d)), block, rules))
     return out
 

@@ -114,6 +114,19 @@ def ensure_hrm_schema(cur):
     cur.execute("CREATE INDEX IF NOT EXISTS idx_staff_attendance_date ON staff_attendance(work_date)")
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS staff_leaves (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        staff_id INTEGER NOT NULL REFERENCES staff(id),
+        work_date TEXT NOT NULL,
+        leave_type TEXT NOT NULL, -- 'off', 'off_morning', 'off_afternoon'
+        reason TEXT,
+        approved_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(staff_id, work_date)
+    )""")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_staff_leaves_date ON staff_leaves(work_date)")
+
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS staff_overtime (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,

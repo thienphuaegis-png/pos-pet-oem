@@ -6287,16 +6287,31 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- Bộ Chọn Tháng Nhanh 1-Chạm -->
-                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                        <!-- Bộ Chọn Tháng Nhanh Variant B: Stepper [◀] [Tháng MM/YYYY ▾] [▶] [Hôm Nay] -->
+                        <div class="relative flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-300 shadow-2xs">
                             <button type="button" onclick="changeHrmMonth(-1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-black cursor-pointer transition-all" title="Tháng trước">◀</button>
-                            <input type="month" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()" class="border-0 bg-transparent px-2 py-0.5 text-xs font-black text-slate-800 focus:ring-0 focus:outline-none cursor-pointer">
+                            <div class="relative">
+                                <button type="button" id="hrm-month-dropdown-btn" onclick="toggleHrmMonthDropdown()" class="flex items-center gap-1 px-2.5 py-1 text-xs font-black text-slate-800 hover:text-emerald-700 hover:bg-white rounded-md cursor-pointer transition-all">
+                                    <span id="hrm-month-display">Tháng --/----</span>
+                                    <span class="text-[10px] text-slate-400">▾</span>
+                                </button>
+                                <div id="hrm-month-dropdown-menu" class="hidden absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-2 text-xs">
+                                    <div class="flex items-center justify-between px-2 py-1 border-b border-slate-100 mb-1">
+                                        <span id="hrm-dropdown-year-title" class="font-bold text-slate-700">Năm 2026</span>
+                                        <span class="text-[10px] text-slate-400 font-medium">Trạng thái kỳ lương</span>
+                                    </div>
+                                    <div id="hrm-month-grid" class="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto p-1">
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="hrm-month-picker" onchange="loadHrmCurrentSubTab()">
                             <button type="button" onclick="changeHrmMonth(1)" class="px-2 py-1 hover:bg-white hover:text-emerald-700 text-slate-700 rounded-md text-xs font-black cursor-pointer transition-all" title="Tháng sau">▶</button>
                         </div>
-                        <button type="button" onclick="setHrmCurrentMonth()" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-2xs">Tháng Này</button>
+                        <button type="button" onclick="setHrmCurrentMonth()" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-all shadow-2xs">Hôm Nay</button>
                         <div class="flex bg-slate-100 p-1 rounded-lg gap-1 text-xs font-semibold">
                             <button id="btn-hrm-tab-payroll" onclick="switchHrmSubTab('payroll')" class="px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer">Bảng Lương</button>
                             <button id="btn-hrm-tab-attendance" onclick="switchHrmSubTab('attendance')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Chấm Công</button>
+                            <button id="btn-hrm-tab-leaves" onclick="switchHrmSubTab('leaves')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Xin Off</button>
                             <button id="btn-hrm-tab-overtime" onclick="switchHrmSubTab('overtime')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tăng Ca</button>
                             <button id="btn-hrm-tab-advances" onclick="switchHrmSubTab('advances')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Tạm Ứng</button>
                             <button id="btn-hrm-tab-adjustments" onclick="switchHrmSubTab('adjustments')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer">Điều Chỉnh Lương</button>
@@ -6452,6 +6467,39 @@
                                 <tbody id="table-hrm-att-detail-body" class="divide-y divide-slate-100"></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB: XIN OFF -->
+                <div id="hrm-subtab-leaves" class="hidden space-y-3">
+                    <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-600">Quản lý đơn xin nghỉ (Off cả ngày, Off sáng, Off chiều) & tự động đồng bộ chấm công</span>
+                            <select id="hrm-leaves-staff-filter" onchange="renderHrmLeavesTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs bg-white">
+                                <option value="">-- Tất cả nhân viên --</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="syncHrmLeavesFromSheets()" class="border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs">📥 Đồng Bộ Google Sheet</button>
+                            <button onclick="openHrmLeaveModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs">➕ Tạo Đơn Xin Off</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 font-bold border-b">
+                                <tr>
+                                    <th class="p-2.5">Ngày Off</th>
+                                    <th class="p-2.5">Mã NV</th>
+                                    <th class="p-2.5">Nhân Viên</th>
+                                    <th class="p-2.5">Bộ Phận / Vị Trí</th>
+                                    <th class="p-2.5 text-center">Hình Thức Off</th>
+                                    <th class="p-2.5">Lý Do</th>
+                                    <th class="p-2.5">Người Duyệt</th>
+                                    <th class="p-2.5 text-center">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-hrm-leaves" class="divide-y divide-slate-100"></tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -10204,6 +10252,49 @@
             <div class="flex gap-2 pt-3 border-t">
                 <button type="button" onclick="closeEditBlockModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
                 <button type="button" onclick="saveHrmBlock()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Cấu Hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ĐƠN XIN OFF (HRM) -->
+    <div id="modal-hrm-leave" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span>🏖️</span> <span id="modal-hrm-leave-title">Tạo Đơn Xin Off</span>
+                </h3>
+                <button type="button" onclick="closeHrmLeaveModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center">✕</button>
+            </div>
+            <input type="hidden" id="hrm-leave-id" value="">
+            <div class="space-y-3">
+                <div>
+                    <label class="font-bold text-slate-700">Nhân viên (*)</label>
+                    <select id="hrm-leave-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Ngày nghỉ (*)</label>
+                    <input id="hrm-leave-date" type="date" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Hình thức nghỉ (*)</label>
+                    <select id="hrm-leave-type" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white">
+                        <option value="off">Off cả ngày (Nghỉ nguyên ngày)</option>
+                        <option value="off_morning">Off Buổi Sáng (Làm ca chiều)</option>
+                        <option value="off_afternoon">Off Buổi Chiều (Làm ca sáng)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Lý do xin nghỉ</label>
+                    <input id="hrm-leave-reason" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="VD: Việc gia đình, ốm, việc riêng...">
+                </div>
+                <div>
+                    <label class="font-bold text-slate-700">Người duyệt</label>
+                    <input id="hrm-leave-approved-by" type="text" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1" placeholder="Để trống = người đăng nhập">
+                </div>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+                <button type="button" onclick="closeHrmLeaveModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
+                <button type="button" onclick="submitHrmLeave()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs">Lưu Đơn Off</button>
             </div>
         </div>
     </div>

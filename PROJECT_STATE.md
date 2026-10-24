@@ -1,94 +1,66 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-24 — HRM Chi tiết chấm công, duyệt miễn phạt 1-chạm & tích hợp phiếu lương (v3.6.33)
+**Checkpoint:** 2026-10-24 — HRM Month Selector Variant B, Tab Xin Off & Nhận diện quẹt thẻ 6 cột (v3.6.34)
 **Lịch sử checkpoint:** `docs/checkpoints/CHECKPOINT_2026_10_23.md`
 **Active Plan:** `docs/plans/2026-10-24-hrm-staff-full-profile-and-salary-adjustments.md`
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
 **Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.33` — HRM Attendance Detailed Log, 1-Click Penalty Waive & Payslip Days Breakdown
+**Version:** `v3.6.34` — HRM Month Selector Variant B, Leaves Management & 6-Col Punches
 
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
-- **Bảng Chi Tiết Chấm Công, Duyệt Miễn Phạt 1-Chạm & Tích Hợp Phiếu Lương:**
-  - View switcher tại subtab Chấm công: `[📅 Lưới Tháng]` vs `[📋 Bảng Chi Tiết & Duyệt Phạt]`.
-  - Bảng chi tiết chấm công theo ngày: lọc trạng thái (Có vi phạm/trễ, Đúng giờ, Đã miễn phạt, Nghỉ...), lọc nhân viên, lọc ngày.
-  - Duyệt miễn phạt 1-chạm (`toggleHrmWaive`): toggle switch trên bảng + popup lý do giải trình, tự động đưa phạt về 0đ và phục hồi thưởng chuyên cần.
-  - Bổ sung Mục IV trên Phiếu Lương (in đủ 30/31 ngày chấm công kèm giờ vào/ra, phút trễ, vi phạm, tiền phạt và trạng thái miễn phạt).
-  - Bổ sung thử việc nửa công `TV/2` (0.5 công TV) và bộ chọn tháng tiện lợi 1-chạm `[◀] YYYY-MM [▶] [Tháng Này]`.
-  - Test suite đạt **842/842 tests PASS (100%)**. Build EXE `POS_Mastercare.exe` v3.6.33 thành công.
-- **Quyết toán Đơn Gia Công OEM 2 Chặng & Cơ chế Khử Sai Số Làm Tròn 1 Đồng:**
-  - Khắc phục lỗi chặn thanh toán công nợ do sai số làm tròn 1 đồng (`req.amount > order_debt + 1.0` thay vì `+ 0.01` trong `routers/oem.py:pay_single_order_debt` và `pay_supplier_debt`).
-  - Tự động cấn trừ dứt điểm nợ về `0.0` đ khi chênh lệch $\le 1$ đ, chuyển trạng thái đơn sang `PAID` và làm sạch `contacts.debt`.
-  - Khắc phục bẫy lệnh sửa đơn `update_oem_order` xóa đè số lượng đặt ban đầu: bảo toàn `ordered_qty` gốc khi đơn đã nhận hàng (`RECEIVED`/`COMPLETED`).
-  - Giao diện Modal Chi tiết OEM (`static/js/modules/productions.js`): bổ sung bảng đối soát 2 chặng tài chính trực quan (Hợp đồng cọc ban đầu vs Quyết toán thực nhận tại kho, tính chi tiết thừa/thiếu từng sản phẩm, tiền cọc cấn trừ và công nợ đợt 2).
-  - Bảng Công nợ NCC (`static/js/modules/cashflow.js`): hiển thị badge đối soát kèm làm tròn số tiền thanh toán 1-chạm không bị lỗi.
-  - Khôi phục dữ liệu chuẩn cho đơn `OEM-20261015-001` (Lucky Star): Đặt 1.800/món, Nhận 954, 993, 1501, cọc 50% là 49.377.600 đ, nợ đợt 2 là 15.571.135 đ.
-- **Quản lý Nhân sự Kép (Dual-Purpose Staff: Hồ sơ nội bộ HRM vs Tài khoản đăng nhập POS):**
-  - Tách bạch hồ sơ nhân sự nội bộ (chấm công vân tay `device_code`, bảng lương, tạm ứng, hoa hồng) và tài khoản POS (`username`, `password_hash`, `role`).
-  - Hỗ trợ tạo nhân sự không cần tài khoản đăng nhập (`username=NULL`, `password_hash=NULL`, `role='staff'`).
-  - Bổ sung công tắc toggle "Cấp tài khoản đăng nhập POS" trên modal thêm/sửa nhân viên `#modal-staff`.
-  - Hỗ trợ cấp tài khoản sau này (Promote) và thu hồi tài khoản an toàn (Demote về hồ sơ nội bộ, thu hồi token JWT ngay mà không xóa dữ liệu nhân sự).
-  - Kiểm tra an toàn tại cổng đăng nhập `/api/auth/login` và API reset mật khẩu `/api/auth/staff/{id}/reset-password`.
-- **Phân quyền chi tiết Tab-level (Granular RBAC) & Chọn nhân viên yêu cầu đặt hàng:**
-  - Thêm quyền `purchases.request` vào `PERM_KEYS` và `database.py`, seed tự động cho các role.
-  - Gắn `data-perm` vào toàn bộ tab trên thanh Sidebar (`templates/index.html`).
-  - Nâng cấp `applyRoleUI()` trong `static/js/auth.js` duyệt đồng thời `data-role` và `Auth.can(data-perm)`.
-  - Guard `switchTab()` trong `static/js/app.js` chặn mở tab khi không có quyền.
-  - Đổi trường "Bộ phận yêu cầu" thành "Nhân viên yêu cầu": Nạp động danh sách nhân viên active, tự động chọn tài khoản đang đăng nhập, lưu `staff_id` và `created_by` vào DB `purchase_requests`.
-  - Hiển thị danh tính người yêu cầu kèm badge vai trò trong bảng lịch sử và thông báo nhắc việc Thủ Kho.
-  - Che dữ liệu nhạy cảm trên AI Hub: Ẩn số nợ NCC/xưởng và lô hàng về ở cả Backend (`ai_assistant.py`) và Frontend (`ai_agent.js`) khi thiếu quyền `purchases.manage`.
-  - Bảo vệ API `/api/purchase-requests` bằng `require_any_permission("purchases.request", "purchases.manage")`.
-
----
-
-## 2. Phiên Trước ✅ (2026-10-23)
-- **Sửa triệt để 5 lỗi hoa hồng cũ:**
-  - Hoa hồng bán lẻ tính theo doanh thu thuần `(total_amount - discount)`, trừ hàng trả lại, bỏ đơn nháp/hủy.
-  - Tự động tính lại khi sửa đơn hoặc gán lại nhân viên hàng loạt. Hoa hồng combo tính theo doanh thu thuần.
-- **Phân hệ HRM & Schema DB (`services/hrm_schema.py`):**
-  - Mở rộng `staff` (`employee_code`, `device_code`, `official_date`, `base_salary_probation`, `work_block_id`).
-  - Gộp thợ Spa vào `staff` (`is_spa_worker=1`), 8 bảng mới: khối làm việc, ngày lễ, tăng lương, chấm công, tăng ca, tạm ứng, quy tắc spa, bảng lương.
-- **Engine Chấm Công & Bảng Lương 4 Tầng (`services/payroll_engine.py`, `services/payroll_service.py`):**
-  - Phạt trễ chuẩn 5.000đ/phút; trễ > 30 phút phạt 200.000đ; quên quẹt phạt 50.000đ nhưng vẫn tính nửa công.
-  - Nghỉ không phép phạt 500.000đ chỉ tính từ ngày nhận việc. Phân tách thử việc 85% / chính thức 100%.
-  - Thưởng chuyên cần 500.000đ khi đi làm đủ ngày công chuẩn không vi phạm. Tăng ca hệ số 1.5.
-  - Tích hợp Sổ Quỹ: Sinh phiếu chi `PC-LG` khi trả lương, tự động revert trạng thái khi xóa phiếu chi.
-- **Giao diện & API:**
-  - `routers/hrm.py` (16 endpoints RESTful, RBAC `payroll.manage`).
-  - Frontend: Nút "Chấm Công & Lương" trên sidebar, container `#tab-hrm` với 5 subtab và module `hrm.js`.
+- **Month Selector Variant B:**
+  - Stepper `[◀] [Tháng MM/YYYY ▾] [▶] [Hôm Nay]` với menu dropdown 12 tháng theo năm.
+  - Hiển thị badge trạng thái kỳ lương trực quan: Tạm tính (amber), Đã chốt (blue), Đã chi (emerald).
+  - API `GET /api/hrm/periods?year=YYYY` trả về trạng thái kỳ lương 12 tháng.
+- **Tab Xin Off (#hrm-subtab-leaves):**
+  - Đặt vị trí chuẩn giữa Chấm Công và Tăng Ca.
+  - Bảng DB `staff_leaves` (`id, staff_id, work_date, leave_type, reason, approved_by, created_at`).
+  - API RESTful: `GET /api/hrm/leaves?month=YYYY-MM`, `POST /api/hrm/leaves`, `DELETE /api/hrm/leaves/{id}`.
+  - Tự động đồng bộ sang `staff_attendance` (`leave_type`, `waive=1`, `note=reason`).
+  - API `POST /api/hrm/leaves/sync-sheets` đồng bộ đơn xin nghỉ từ Google Sheet GID `1879481422`.
+  - Giao diện: Subtab Xin Off với bộ lọc nhân viên/tháng, bảng danh sách, modal `#modal-hrm-leave`, nút tạo đơn và đồng bộ Google Sheets.
+- **Nhận diện quẹt thẻ 6 cột & Quy tắc Nghỉ phép (services/payroll_engine.py):**
+  - `off`: `res.code = 'OFF'`, `res.penalty = 0`, không tính vi phạm vắng.
+  - `off_morning` (ca chiều 13:30 - 17:30/18:00): 1 punch <= 930 (15:30) -> check-in, > 930 -> check-out. Miễn phạt thiếu giờ vào/ra và vắng do có phép sáng, tính 0.5 công (`X/2` hoặc `TV/2`).
+  - `off_afternoon` (ca sáng 08:00 - 12:00): 1 punch < 630 (10:30) -> check-in, >= 630 -> check-out. Miễn phạt thiếu giờ ra và về sớm sau 12:00, tính 0.5 công (`X/2` hoặc `TV/2`).
+- **Build & Kiểm thử:**
+  - Test suite đạt **860/860 tests PASS (100%)**, 10 skipped.
+  - Build EXE PyInstaller: `POS_Mastercare.exe` (31.7 MB) thành công và khởi động máy chủ nền.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- `tests/test_oem_reconciliation_debt.py`: 1/1 passed (Toàn bộ chu trình quyết toán đơn OEM, bảo toàn SL đặt ban đầu khi sửa đơn, tự động khử sai số 1 đồng khi thanh toán nợ đơn lẻ).
-- `tests/test_staff_dual_purpose_auth.py`: 1/1 passed (Toàn bộ chu trình tạo nhân sự không tài khoản, bảo vệ đăng nhập, cấp tài khoản sau, và thu hồi tài khoản).
-- `tests/test_commission_accuracy.py`: 1/1 passed.
+- `tests/test_hrm_leaves_and_six_col_punches.py`: 13/13 passed (Full coverage Variant B, leaves CRUD, sync sheets, 6-col punch thresholds).
+- `tests/test_checkpoint_integrity.py`: 4/4 passed (PROJECT_STATE.md compact < 100 lines).
 - `tests/test_payroll_engine.py`: 14/14 passed.
 - `tests/test_hrm_payroll_api.py`: 12/12 passed.
 - `tests/test_html_integrity.py`: 5/5 passed.
-- `tests/test_ai_byok_staff.py`: 1/1 passed.
-- `tests/test_pay_single_order_debt.py`: 3/3 passed.
-- Build PyInstaller: `dist/POS_Mastercare.exe` (31.6 MB) thành công.
+- Build PyInstaller: `dist/POS_Mastercare.exe` (31.7 MB) thành công.
+- Background Server: `http://127.0.0.1:8998/api/ping` -> `v3.6.50` ONLINE.
 
 ---
 
 ## 3. Files Thay Đổi Chính
-- `services/payroll_engine.py`: Biểu thuế TNCN 7 bậc, trừ BHXH 10.5%, engine tính lương
-- `services/hrm_schema.py`: Schema HRM, staff 10 trường cá nhân & chế độ HĐ/bảo hiểm
-- `services/payroll_service.py`: Pipeline tính lương, thâm niên, điều chỉnh lương lũy kế
-- `routers/hrm.py`: API HRM nhân sự, quy định doanh nghiệp, điều chỉnh lương
-- `templates/index.html` & `static/js/modules/hrm.js`: UI HRM, 3-tab modal, bảng lương, subtab điều chỉnh
+- `services/payroll_engine.py`: Nhận diện quẹt thẻ 6 cột, miễn phạt phép sáng/chiều, phân loại công nửa ngày
+- `services/hrm_schema.py`: Schema `staff_leaves` có khóa ngoại và index theo ngày
+- `services/payroll_service.py`: Tích hợp dự phòng đọc phép từ `staff_leaves` khi tính ngày công
+- `routers/hrm.py`: Endpoints `/api/hrm/periods`, `/api/hrm/leaves` (CRUD), `/api/hrm/leaves/sync-sheets`
+- `templates/index.html`: Month selector Variant B, subtab `#hrm-subtab-leaves`, modal `#modal-hrm-leave`
+- `static/js/modules/hrm.js`: Logic dropdown tháng với status badges, render và xử lý sự kiện Xin Off
+- `tests/test_hrm_leaves_and_six_col_punches.py`: Bộ 13 bài test kiểm thử toàn diện
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [x] Tích hợp phân hệ HRM & Payroll Engine vào POS offline.
-- [x] Nạp dữ liệu tạm ứng và chấm công Tháng 9/2026 từ Google Sheet.
+- [x] Triển khai Month Selector Variant B và Tab Xin Off.
+- [x] Tích hợp quy tắc 6 cột chấm công và đồng bộ Google Sheets tab XIN OFF.
+- [ ] Tích hợp thông báo Telegram bot khi nhân sự nộp đơn xin off mới.
 
 ---
 
 ## 5. Phiên Bản & Bản Build Hiện Tại
-- Bản build EXE: `POS_Mastercare.exe` v3.6.32
-- Nhánh Git: `main` | Test suite: 100% PASS
+- Bản build EXE: `POS_Mastercare.exe` v3.6.34 (PyInstaller standalone)
+- Nhánh Git: `main` | Test suite: 100% PASS (860 passed, 10 skipped)

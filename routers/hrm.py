@@ -564,6 +564,221 @@ def toggle_waive(w: WaiveIn, user=Depends(require_permission(PERM))):
     return {"status": "ok", "waive": w.waive, "note": note_val}
 
 
+# ── Kỳ tính lương & Danh sách tháng ──
+@router.get("/periods")
+def list_periods(year: Optional[int] = None, user=Depends(require_permission(PERM))):
+    year = year or date.today().year
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT month, status, locked_at, locked_by FROM payroll_periods WHERE month LIKE ?", (f"{year}-%",))
+    by_month = {r["month"]: dict(r) for r in cur.fetchall()}
+    conn.close()
+    result = []
+    for m in range(1, 13):
+        m_str = f"{year}-{m:02d}"
+        item = by_month.get(m_str)
+        result.append({
+            "month": m_str,
+            "year": year,
+            "month_num": m,
+            "status": item["status"] if item else "draft",
+            "has_record": bool(item),
+            "locked_at": item.get("locked_at") if item else None
+        })
+    return result
+
+
+# ── Xin Off ──
+class LeaveIn(BaseModel):
+    id: Optional[int] = None
+    staff_id: int
+    work_date: str
+    leave_type: str  # 'off', 'off_morning', 'off_afternoon'
+    reason: Optional[str] = ""
+    approved_by: Optional[str] = None
+
+
+@router.get("/leaves")
+def list_leaves(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(require_permission(PERM))):
+    conn = get_db(); cur = conn.cursor()
+    query = """
+        SELECT l.*, s.name AS staff_name, s.employee_code AS staff_code, s.department, s.position
+        FROM staff_leaves l
+        JOIN staff s ON s.id = l.staff_id
+        WHERE 1=1
+    """
+    params = []
+    if month:
+        y, m, first, last = ps.parse_month(month)
+        query += " AND l.work_date BETWEEN ? AND ?"
+        params.extend([first.isoformat(), last.isoformat()])
+    if staff_id:
+        query += " AND l.staff_id = ?"
+        params.append(staff_id)
+    query += " ORDER BY l.work_date DESC, l.id DESC"
+    cur.execute(query, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+@router.post("/leaves")
+def create_or_update_leave(l: LeaveIn, user=Depends(require_permission(PERM))):
+    if l.leave_type not in ("off", "off_morning", "off_afternoon"):
+        raise HTTPException(400, "Hình thức nghỉ không hợp lệ ('off', 'off_morning', 'off_afternoon')")
+    d = _date_or_none(l.work_date, "Ngày nghỉ")
+    conn = get_db(); cur = conn.cursor()
+    ps.assert_month_open(cur, d)
+
+    cur.execute("SELECT id FROM staff WHERE id = ?", (l.staff_id,))
+    if not cur.fetchone():
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+
+    approver = l.approved_by or _uname(user)
+
+    cur.execute("""
+        INSERT INTO staff_leaves (staff_id, work_date, leave_type, reason, approved_by)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(staff_id, work_date) DO UPDATE SET
+            leave_type = excluded.leave_type,
+            reason = excluded.reason,
+            approved_by = excluded.approved_by
+    """, (l.staff_id, d, l.leave_type, l.reason or "", approver))
+
+    # Đồng bộ sang staff_attendance (leave_type, waive=1, note=reason)
+    cur.execute("SELECT id, note FROM staff_attendance WHERE staff_id = ? AND work_date = ?", (l.staff_id, d))
+    att_row = cur.fetchone()
+    if att_row:
+        cur.execute("""
+            UPDATE staff_attendance
+            SET leave_type = ?, waive = 1,
+                note = CASE WHEN (note IS NULL OR note = '') THEN ? ELSE note END,
+                updated_by = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE staff_id = ? AND work_date = ?
+        """, (l.leave_type, l.reason or "", _uname(user), l.staff_id, d))
+    else:
+        cur.execute("""
+            INSERT INTO staff_attendance (staff_id, work_date, punches, leave_type, waive, note, source, updated_by, updated_at)
+            VALUES (?, ?, '[]', ?, 1, ?, 'manual', ?, CURRENT_TIMESTAMP)
+        """, (l.staff_id, d, l.leave_type, l.reason or "", _uname(user)))
+
+    conn.commit()
+    cur.execute("""
+        SELECT l.*, s.name AS staff_name, s.employee_code AS staff_code, s.department, s.position
+        FROM staff_leaves l
+        JOIN staff s ON s.id = l.staff_id
+        WHERE l.staff_id = ? AND l.work_date = ?
+    """, (l.staff_id, d))
+    res = dict(cur.fetchone())
+    conn.close()
+    return res
+
+
+@router.delete("/leaves/{leave_id}")
+def delete_leave(leave_id: int, user=Depends(require_permission(PERM))):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT staff_id, work_date FROM staff_leaves WHERE id = ?", (leave_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy đơn xin off")
+    ps.assert_month_open(cur, row["work_date"])
+
+    cur.execute("DELETE FROM staff_leaves WHERE id = ?", (leave_id,))
+    cur.execute("""
+        UPDATE staff_attendance
+        SET leave_type = NULL, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE staff_id = ? AND work_date = ?
+    """, (_uname(user), row["staff_id"], row["work_date"]))
+
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
+
+
+@router.post("/leaves/sync-sheets")
+def sync_leaves_from_sheets(user=Depends(require_permission(PERM))):
+    import csv, io, urllib.request, re
+    url = "https://docs.google.com/spreadsheets/d/1F0h7NMbqkPBnacZHKM-9LupB83cPAx0myUcEIUbjsak/export?format=csv&gid=1879481422"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            content = resp.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        raise HTTPException(502, f"Không thể kết nối đến Google Sheets: {e}")
+
+    reader = csv.reader(io.StringIO(content))
+    rows = list(reader)
+    if not rows:
+        return {"ok": True, "synced_count": 0, "message": "Google Sheet rỗng"}
+
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, employee_code, name FROM staff")
+    staff_rows = cur.fetchall()
+    staff_by_code = {r["employee_code"].strip().upper(): r for r in staff_rows if r["employee_code"]}
+    staff_by_name = {r["name"].strip().lower(): r for r in staff_rows if r["name"]}
+
+    def parse_d(s: str) -> Optional[str]:
+        s = (s or "").strip()
+        m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", s)
+        if m:
+            d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            return f"{y:04d}-{mo:02d}-{d:02d}"
+        try:
+            return date.fromisoformat(s).isoformat()
+        except ValueError:
+            return None
+
+    synced_count = 0
+    for r in rows:
+        if len(r) < 4:
+            continue
+        code_str, name_str, d_str, off_raw = r[0].strip().upper(), r[1].strip(), r[2].strip(), r[3].strip()
+        if not code_str and not name_str:
+            continue
+        st = staff_by_code.get(code_str) or staff_by_name.get(name_str.lower())
+        if not st:
+            continue
+        work_date = parse_d(d_str)
+        if not work_date:
+            continue
+
+        off_lower = off_raw.lower()
+        if "sáng" in off_lower:
+            leave_type = "off_morning"
+        elif "chiều" in off_lower:
+            leave_type = "off_afternoon"
+        else:
+            leave_type = "off"
+
+        reason = f"Google Sheet - {off_raw}" if off_raw else "Google Sheet"
+        approver = "Google Sheet"
+
+        cur.execute("""
+            INSERT INTO staff_leaves (staff_id, work_date, leave_type, reason, approved_by)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(staff_id, work_date) DO UPDATE SET
+                leave_type = excluded.leave_type,
+                reason = excluded.reason,
+                approved_by = excluded.approved_by
+        """, (st["id"], work_date, leave_type, reason, approver))
+
+        cur.execute("""
+            INSERT INTO staff_attendance (staff_id, work_date, punches, leave_type, waive, note, source, updated_by, updated_at)
+            VALUES (?, ?, '[]', ?, 1, ?, 'manual', 'Google Sheet', CURRENT_TIMESTAMP)
+            ON CONFLICT(staff_id, work_date) DO UPDATE SET
+                leave_type = excluded.leave_type,
+                waive = 1,
+                note = CASE WHEN (staff_attendance.note IS NULL OR staff_attendance.note = '') THEN excluded.note ELSE staff_attendance.note END,
+                updated_at = CURRENT_TIMESTAMP
+        """, (st["id"], work_date, leave_type, reason))
+        synced_count += 1
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "synced_count": synced_count, "message": f"Đã đồng bộ {synced_count} đơn xin off từ Google Sheets"}
+
+
 # ── Tăng ca ──
 class OvertimeIn(BaseModel):
     staff_id: int
