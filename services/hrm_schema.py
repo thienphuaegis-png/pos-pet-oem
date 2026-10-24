@@ -11,10 +11,14 @@ HRM_DEFAULT_RULES = {
 
 STAFF_HR_COLUMNS = [
     ("employee_code", "TEXT"), ("device_code", "TEXT"), ("work_block_id", "INTEGER"),
-    ("position", "TEXT"), ("base_salary", "REAL DEFAULT 0"), ("allowance", "REAL DEFAULT 0"),
+    ("department", "TEXT"), ("position", "TEXT"), ("gender", "TEXT"),
+    ("base_salary", "REAL DEFAULT 0"), ("allowance", "REAL DEFAULT 0"),
     ("bank_account", "TEXT"), ("bank_name", "TEXT"), ("bank_branch", "TEXT"),
     ("birthday", "TEXT"), ("hire_date", "TEXT"), ("probation_start", "TEXT"),
     ("official_date", "TEXT"), ("leave_date", "TEXT"),
+    ("id_card_number", "TEXT"), ("id_card_date", "TEXT"), ("id_card_place", "TEXT"),
+    ("permanent_address", "TEXT"), ("temporary_address", "TEXT"), ("email", "TEXT"),
+    ("emergency_phone", "TEXT"), ("emergency_relation", "TEXT"),
     ("is_spa_worker", "INTEGER DEFAULT 0"), ("legacy_spa_staff_id", "INTEGER"),
 ]
 
@@ -69,13 +73,21 @@ def ensure_hrm_schema(cur):
     CREATE TABLE IF NOT EXISTS hrm_salary_adjustments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         staff_id INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+        decision_date TEXT,
         effective_date TEXT NOT NULL,
+        adjustment_type TEXT DEFAULT 'salary',
         base_delta REAL NOT NULL DEFAULT 0,
         allowance_delta REAL NOT NULL DEFAULT 0,
         reason TEXT,
         created_by TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )""")
+    cur.execute("PRAGMA table_info(hrm_salary_adjustments)")
+    adj_cols = {r[1] for r in cur.fetchall()}
+    if "decision_date" not in adj_cols:
+        cur.execute("ALTER TABLE hrm_salary_adjustments ADD COLUMN decision_date TEXT")
+    if "adjustment_type" not in adj_cols:
+        cur.execute("ALTER TABLE hrm_salary_adjustments ADD COLUMN adjustment_type TEXT DEFAULT 'salary'")
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS staff_attendance (

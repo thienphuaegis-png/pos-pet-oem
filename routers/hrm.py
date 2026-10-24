@@ -15,9 +15,15 @@ from services.payroll_engine import to_min
 
 router = APIRouter(prefix="/api/hrm", tags=["HRM & Payroll"])
 PERM = "payroll.manage"
-PROFILE_FIELDS = ("employee_code", "device_code", "work_block_id", "position", "base_salary", "allowance",
-                  "bank_account", "bank_name", "bank_branch", "birthday", "hire_date", "probation_start",
-                  "official_date", "leave_date", "is_spa_worker", "commission_rate")
+PROFILE_FIELDS = (
+    "employee_code", "device_code", "work_block_id", "department", "position", "gender",
+    "base_salary", "allowance", "bank_account", "bank_name", "bank_branch",
+    "birthday", "hire_date", "probation_start", "official_date", "leave_date",
+    "id_card_number", "id_card_date", "id_card_place",
+    "permanent_address", "temporary_address", "email",
+    "emergency_phone", "emergency_relation",
+    "is_spa_worker", "commission_rate"
+)
 
 
 def _uname(user) -> str:
@@ -186,7 +192,9 @@ class ProfileIn(BaseModel):
     employee_code: Optional[str] = None
     device_code: Optional[str] = None
     work_block_id: Optional[int] = None
+    department: Optional[str] = None
     position: Optional[str] = None
+    gender: Optional[str] = None
     base_salary: Optional[float] = None
     allowance: Optional[float] = None
     bank_account: Optional[str] = None
@@ -197,6 +205,14 @@ class ProfileIn(BaseModel):
     probation_start: Optional[str] = None
     official_date: Optional[str] = None
     leave_date: Optional[str] = None
+    id_card_number: Optional[str] = None
+    id_card_date: Optional[str] = None
+    id_card_place: Optional[str] = None
+    permanent_address: Optional[str] = None
+    temporary_address: Optional[str] = None
+    email: Optional[str] = None
+    emergency_phone: Optional[str] = None
+    emergency_relation: Optional[str] = None
     is_spa_worker: Optional[int] = None
     commission_rate: Optional[float] = None
 
@@ -209,7 +225,11 @@ def list_employees(user=Depends(require_permission(PERM))):
                    {', '.join('s.' + f for f in PROFILE_FIELDS)},
                    b.name AS block_name FROM staff s LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
                    ORDER BY s.is_active DESC, COALESCE(s.employee_code,'zz'), s.id""")
-    rows = [dict(r) for r in cur.fetchall()]
+    rows = []
+    for r in cur.fetchall():
+        d = dict(r)
+        d.update(ps.compute_staff_virtual_fields(cur, d))
+        rows.append(d)
     conn.close()
     return rows
 
@@ -242,7 +262,7 @@ def update_profile(staff_id: int, body: ProfileIn, user=Depends(require_permissi
         data["name"] = name_clean
     if "phone" in data:
         data["phone"] = (data["phone"] or "").strip()
-    for f in ("birthday", "hire_date", "probation_start", "official_date", "leave_date"):
+    for f in ("birthday", "hire_date", "probation_start", "official_date", "leave_date", "id_card_date"):
         if f in data:
             data[f] = _date_or_none(data[f], f)
     for f in ("base_salary", "allowance", "commission_rate"):
@@ -308,10 +328,52 @@ def quick_grant_account(staff_id: int, body: QuickAccountIn, user=Depends(requir
 
 
 class AdjustmentIn(BaseModel):
+    decision_date: Optional[str] = None
     effective_date: str
+    adjustment_type: Optional[str] = "salary"
     base_delta: float = 0
     allowance_delta: float = 0
     reason: Optional[str] = ""
+
+
+@router.get("/adjustments")
+def list_all_adjustments(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(require_permission(PERM))):
+    """Lấy danh sách quyết định điều chỉnh lương trên toàn hệ thống kèm thông tin nhân sự."""
+    conn = get_db(); cur = conn.cursor()
+    query = """
+        SELECT a.*, s.name as staff_name, s.employee_code, s.position, s.department
+        FROM hrm_salary_adjustments a
+        JOIN staff s ON s.id = a.staff_id
+        WHERE 1=1
+    """
+    params = []
+    if staff_id:
+        query += " AND a.staff_id = ?"
+        params.append(staff_id)
+    if month:
+        query += " AND a.effective_date LIKE ?"
+        params.append(f"{month}%")
+    query += " ORDER BY a.effective_date DESC, a.id DESC"
+    cur.execute(query, tuple(params))
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+@router.delete("/adjustments/{adj_id}")
+def delete_adjustment(adj_id: int, user=Depends(require_permission(PERM))):
+    """Xóa quyết định điều chỉnh lương (chỉ cho phép khi tháng áp dụng chưa chốt)."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM hrm_salary_adjustments WHERE id=?", (adj_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy quyết định điều chỉnh")
+    ps.assert_month_open(cur, row["effective_date"])
+    cur.execute("DELETE FROM hrm_salary_adjustments WHERE id=?", (adj_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok"}
 
 
 @router.get("/employees/{staff_id}/adjustments")
@@ -326,12 +388,13 @@ def list_adjustments(staff_id: int, user=Depends(require_permission(PERM))):
 @router.post("/employees/{staff_id}/adjustments")
 def add_adjustment(staff_id: int, a: AdjustmentIn, user=Depends(require_permission(PERM))):
     d = _date_or_none(a.effective_date, "Ngày áp dụng")
+    dec_d = _date_or_none(a.decision_date, "Ngày quyết định") if a.decision_date else d
     if not d or (a.base_delta == 0 and a.allowance_delta == 0):
         raise HTTPException(400, "Cần ngày áp dụng và số tiền điều chỉnh")
     conn = get_db(); cur = conn.cursor()
     ps.assert_month_open(cur, d)
-    cur.execute("INSERT INTO hrm_salary_adjustments (staff_id, effective_date, base_delta, allowance_delta, reason, created_by) VALUES (?,?,?,?,?,?)",
-                (staff_id, d, a.base_delta, a.allowance_delta, a.reason or "", _uname(user)))
+    cur.execute("INSERT INTO hrm_salary_adjustments (staff_id, decision_date, effective_date, adjustment_type, base_delta, allowance_delta, reason, created_by) VALUES (?,?,?,?,?,?,?,?)",
+                (staff_id, dec_d, d, a.adjustment_type or "salary", a.base_delta, a.allowance_delta, a.reason or "", _uname(user)))
     conn.commit(); conn.close()
     return {"status": "ok"}
 

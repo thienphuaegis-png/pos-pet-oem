@@ -15,6 +15,89 @@ ADVANCE_CATEGORY = "Tạm ứng lương"
 MANUAL_FIELDS = ("bonus_other", "fuel_other", "deduction_other")
 
 
+def calculate_tenure(hire_date, end_date=None) -> str:
+    """Tính thâm niên từ hire_date tới end_date (hoặc hôm nay) theo định dạng: X năm Y tháng Z ngày."""
+    start = _d(hire_date)
+    if not start:
+        return "—"
+    end = _d(end_date) or date.today()
+    if end < start:
+        return "0 năm 0 tháng 0 ngày"
+
+    y = end.year - start.year
+    m = end.month - start.month
+    d = end.day - start.day
+
+    if d < 0:
+        m -= 1
+        prev_m = 12 if end.month == 1 else end.month - 1
+        prev_y = end.year - 1 if end.month == 1 else end.year
+        days_in_prev_m = calendar.monthrange(prev_y, prev_m)[1]
+        d += days_in_prev_m
+
+    if m < 0:
+        y -= 1
+        m += 12
+
+    return f"{y} năm {m} tháng {d} ngày"
+
+
+def compute_staff_virtual_fields(cur, staff: dict, as_of_date: date = None) -> dict:
+    """Tính toán động các trường biến thiên theo thời gian cho nhân viên."""
+    target_d = as_of_date or date.today()
+    target_iso = target_d.isoformat()
+
+    leave_d = _d(staff.get("leave_date"))
+    calc_end_d = leave_d if (leave_d and leave_d < target_d) else target_d
+    tenure = calculate_tenure(staff.get("hire_date") or staff.get("probation_start"), calc_end_d)
+
+    # Tình trạng hợp đồng
+    if leave_d and leave_d <= target_d:
+        contractual_status = "Nghỉ việc"
+    else:
+        off_d = _d(staff.get("official_date"))
+        prob_d = _d(staff.get("probation_start")) or _d(staff.get("hire_date"))
+        if off_d and target_d >= off_d:
+            contractual_status = "Chính thức"
+        elif prob_d and target_d >= prob_d:
+            contractual_status = "Thử việc"
+        else:
+            contractual_status = "Chính thức" if staff.get("is_active", 1) else "Nghỉ việc"
+
+    # Lũy kế điều chỉnh lương có hiệu lực đến target_d
+    staff_id = staff.get("id")
+    total_base_delta = 0.0
+    total_allowance_delta = 0.0
+    if staff_id and cur:
+        cur.execute("""
+            SELECT COALESCE(SUM(base_delta), 0) as b, COALESCE(SUM(allowance_delta), 0) as a
+            FROM hrm_salary_adjustments
+            WHERE staff_id = ? AND effective_date <= ?
+        """, (staff_id, target_iso))
+        adj = cur.fetchone()
+        if adj:
+            total_base_delta = float(adj["b"])
+            total_allowance_delta = float(adj["a"])
+
+    base_orig = float(staff.get("base_salary") or 0)
+    allowance_orig = float(staff.get("allowance") or 0)
+    base_effective = base_orig + total_base_delta
+    allowance_effective = allowance_orig + total_allowance_delta
+    total_salary = base_effective + allowance_effective
+    probation_salary_85 = round(base_effective * 0.85)
+
+    return {
+        "tenure": tenure,
+        "contractual_status": contractual_status,
+        "total_base_delta": total_base_delta,
+        "total_allowance_delta": total_allowance_delta,
+        "base_salary_effective": base_effective,
+        "allowance_effective": allowance_effective,
+        "total_salary": total_salary,
+        "probation_salary_85": probation_salary_85,
+    }
+
+
 def parse_month(month: str):
     if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", month or ""):
         raise HTTPException(400, "Tháng không hợp lệ, định dạng YYYY-MM")
