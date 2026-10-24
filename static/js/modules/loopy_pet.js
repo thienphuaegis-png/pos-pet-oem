@@ -1,7 +1,7 @@
 /**
  * loopy_pet.js - Mascot Loopy dành riêng cho nhân viên Hoàng Phi Phụng
- * Sử dụng HTML5 Canvas Double-Buffering + requestAnimationFrame
- * Đảm bảo 60fps mượt mà, triệt tiêu hoàn toàn hiện tượng chớp/nháy (flash) khi loop lại.
+ * Sử dụng CSS Hardware-Accelerated Sprite Sheet Strip (1920x208)
+ * 100% không chớp, không lag, không phụ thuộc loop video/canvas.
  * (Tính năng tạm thời - sau này xóa bỏ bằng cách xóa file này)
  */
 (function() {
@@ -20,38 +20,18 @@
         "Thấy tui dễ thương quá chịu hông nổi chớ giề? Biết mà! 😌💖"
     ];
 
-    const FRAME_W = 192;
-    const FRAME_H = 208;
-    const TOTAL_FRAMES = 10;
-    const FRAME_DURATION = 100; // ms per frame
+    const IDLE_STRIP_URL = '/static/images/loopy_idle_strip.webp';
+    const WAVE_STRIP_URL = '/static/images/loopy_wave_strip.webp';
 
-    let canvas = null;
-    let ctx = null;
-    let idleStrip = new Image();
-    let waveStrip = new Image();
-    let currentStrip = idleStrip;
-    let isLoaded = false;
-    let currentFrame = 0;
-    let lastFrameTime = 0;
-    let animReqId = null;
+    // Preload ảnh vào RAM để chuyển trạng thái tức thì
+    const imgIdle = new Image();
+    imgIdle.src = IDLE_STRIP_URL;
+    const imgWave = new Image();
+    imgWave.src = WAVE_STRIP_URL;
+
     let bubbleTimer = null;
-    let waveTimeout = null;
-
-    idleStrip.src = '/static/images/loopy_idle_strip.webp';
-    waveStrip.src = '/static/images/loopy_wave_strip.webp';
-
-    let loadedCount = 0;
-    function onImgLoad() {
-        loadedCount++;
-        if (loadedCount >= 2) {
-            isLoaded = true;
-            if (canvas && !animReqId) {
-                startCanvasLoop();
-            }
-        }
-    }
-    idleStrip.onload = onImgLoad;
-    waveStrip.onload = onImgLoad;
+    let hoverCooldownTimer = null;
+    let isHovering = false;
 
     function isPhiPhung() {
         try {
@@ -65,40 +45,10 @@
         }
     }
 
-    function renderFrame() {
-        if (!ctx || !isLoaded) return;
-        ctx.clearRect(0, 0, FRAME_W, FRAME_H);
-        ctx.drawImage(
-            currentStrip,
-            currentFrame * FRAME_W, 0, FRAME_W, FRAME_H,
-            0, 0, FRAME_W, FRAME_H
-        );
-    }
-
-    function loopAnim(timestamp) {
-        if (!lastFrameTime) lastFrameTime = timestamp;
-        const delta = timestamp - lastFrameTime;
-
-        if (delta >= FRAME_DURATION) {
-            currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
-            lastFrameTime = timestamp - (delta % FRAME_DURATION);
-            renderFrame();
-        }
-
-        animReqId = requestAnimationFrame(loopAnim);
-    }
-
-    function startCanvasLoop() {
-        if (animReqId) return;
-        lastFrameTime = 0;
-        animReqId = requestAnimationFrame(loopAnim);
-    }
-
-    function stopCanvasLoop() {
-        if (animReqId) {
-            cancelAnimationFrame(animReqId);
-            animReqId = null;
-        }
+    function setLoopyState(isWave) {
+        const sprite = document.getElementById('loopy-sprite');
+        if (!sprite) return;
+        sprite.style.backgroundImage = `url('${isWave ? WAVE_STRIP_URL : IDLE_STRIP_URL}')`;
     }
 
     function updateLoopyVisibility() {
@@ -109,55 +59,44 @@
 
         if (isPhiPhung() && isTabAIActive) {
             loopy.classList.remove('hidden');
-            if (!canvas) {
-                canvas = document.getElementById('loopy-canvas');
-                if (canvas) {
-                    ctx = canvas.getContext('2d');
-                    if (isLoaded) renderFrame();
-                }
-            }
-            startCanvasLoop();
+            setLoopyState(false);
         } else {
             loopy.classList.add('hidden');
-            stopCanvasLoop();
         }
     }
 
-    let isHovering = false;
-    let hoverCooldownTimer = null;
-
     window.hoverLoopyPet = function(isHover) {
         if (isHover) {
-            if (isHovering) return; // Tránh re-trigger liên tục
+            if (isHovering) return;
             isHovering = true;
-            currentStrip = waveStrip;
+            setLoopyState(true);
 
             // Chọn ngẫu nhiên 1 câu khịa ba gai
             const quote = LOOPY_SASSY_QUOTES[Math.floor(Math.random() * LOOPY_SASSY_QUOTES.length)];
-            showLoopySpeech(quote, 3000);
+            showLoopySpeech(quote, 3200);
 
             if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
         } else {
-            // Khi chuột rời đi, giữ tư thế vẫy tay thêm một chút rồi mới về idle nhẹ nhàng
+            // Khi rời chuột, giữ tư thế vẫy tay thêm 800ms rồi mới trở về idle
             if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
             hoverCooldownTimer = setTimeout(() => {
                 isHovering = false;
-                currentStrip = idleStrip;
+                setLoopyState(false);
                 hoverCooldownTimer = null;
-            }, 600);
+            }, 800);
         }
     };
 
     window.interactWithLoopyPet = function() {
         isHovering = true;
-        currentStrip = waveStrip;
+        setLoopyState(true);
         const quote = LOOPY_SASSY_QUOTES[Math.floor(Math.random() * LOOPY_SASSY_QUOTES.length)];
         showLoopySpeech(quote, 3500);
 
         if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
         hoverCooldownTimer = setTimeout(() => {
             isHovering = false;
-            currentStrip = idleStrip;
+            setLoopyState(false);
             hoverCooldownTimer = null;
         }, 3000);
     };
