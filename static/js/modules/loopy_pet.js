@@ -42,7 +42,7 @@
     window.hoverLoopyPet = function(isHover) {
         const img = document.getElementById('loopy-pet-img');
         if (!img) return;
-        img.src = isHover ? '/static/images/loopy_wave.gif' : '/static/images/loopy_pet.gif';
+        img.src = isHover ? '/static/images/loopy_wave.webp' : '/static/images/loopy_idle.webp';
         if (isHover) {
             showLoopySpeech(LOOPY_GREETINGS[Math.floor(Math.random() * LOOPY_GREETINGS.length)], 2500);
         }
@@ -50,7 +50,7 @@
 
     window.interactWithLoopyPet = function() {
         const img = document.getElementById('loopy-pet-img');
-        if (img) img.src = '/static/images/loopy_wave.gif';
+        if (img) img.src = '/static/images/loopy_wave.webp';
         const msg = LOOPY_GREETINGS[Math.floor(Math.random() * LOOPY_GREETINGS.length)];
         showLoopySpeech(msg, 3500);
     };
