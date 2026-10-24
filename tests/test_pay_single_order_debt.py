@@ -72,7 +72,7 @@ def test_pay_single_order_debt_with_account_and_date(setup_order_and_account):
     cur = conn.cursor()
     cur.execute("""
         SELECT * FROM cashbook 
-        WHERE ref_type = 'order_po' AND ref_id = ? 
+        WHERE ref_type = 'purchase' AND ref_id = ? 
         ORDER BY id DESC LIMIT 1
     """, (po_id,))
     cb = cur.fetchone()

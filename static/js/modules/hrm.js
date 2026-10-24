@@ -935,7 +935,7 @@
     // ── Xuất Google Sheet Mobile ──
     window.exportMobileSheets = function() {
         const month = getSelectedMonth();
-        window.location.href = `/api/hrm/payroll/${month}/export-mobile-sheets`;
+        downloadWithAuth(`/api/hrm/payroll/${month}/export-mobile-sheets`, `Phieu_Luong_Mobile_${month}.xlsx`);
     };
 
     // ── Phiếu Lương Cá Nhân (Modal & Tab) ──

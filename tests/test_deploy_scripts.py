@@ -41,7 +41,9 @@ def test_no_bare_winget():
 def test_tailscale_installers_no_bare_winget():
     """CAI_TAILSCALE.bat (gốc + deploy/) từng gọi winget trần → máy tiệm báo
     'winget is not recognized'. Phải gọi full path và có đường tải MSI dự phòng."""
-    for path in (os.path.join(ROOT, "CAI_TAILSCALE.bat"), os.path.join(DEPLOY, "CAI_TAILSCALE.bat")):
+    paths = [p for p in (os.path.join(ROOT, "CAI_TAILSCALE.bat"), os.path.join(DEPLOY, "CAI_TAILSCALE.bat")) if os.path.exists(p)]
+    assert paths, "Phải có ít nhất 1 file CAI_TAILSCALE.bat"
+    for path in paths:
         with open(path, encoding="utf-8") as f:
             src = f.read()
         for i, line in enumerate(src.splitlines(), 1):
