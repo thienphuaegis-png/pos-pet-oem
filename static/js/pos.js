@@ -549,6 +549,26 @@ function setupShortcuts() {
             return;
         }
 
+        // Phím tắt F3 (Thêm NV Lương) và F4 (Cấp nhanh TK) trên tab Chấm Công & Lương (HRM)
+        const tabHrm = document.getElementById('tab-hrm');
+        const isHrmActive = tabHrm && !tabHrm.classList.contains('hidden');
+        if (isHrmActive) {
+            if (e.key === 'F3') {
+                const anyModalOpen = document.querySelector('.fixed.inset-0:not(.hidden)');
+                if (!anyModalOpen && typeof openHrmStaffModal === 'function') {
+                    e.preventDefault();
+                    openHrmStaffModal();
+                }
+            } else if (e.key === 'F4') {
+                const anyModalOpen = document.querySelector('.fixed.inset-0:not(.hidden)');
+                if (!anyModalOpen && typeof openHrmQuickAccountModal === 'function') {
+                    e.preventDefault();
+                    openHrmQuickAccountModal();
+                }
+            }
+            return;
+        }
+
         if (!isPosActive) return; // Khóa phím tắt khi không ở tab POS
         if (e.key === 'F1') {
             e.preventDefault();

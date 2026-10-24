@@ -17,7 +17,7 @@
 
     window.switchHrmSubTab = function(sub) {
         currentSubTab = sub;
-        ['payroll', 'attendance', 'overtime', 'advances', 'config'].forEach(s => {
+        ['payroll', 'attendance', 'overtime', 'advances', 'staff', 'config'].forEach(s => {
             const pane = document.getElementById(`hrm-subtab-${s}`);
             const btn = document.getElementById(`btn-hrm-tab-${s}`);
             if (pane) pane.classList.toggle('hidden', s !== sub);
@@ -38,6 +38,7 @@
         else if (currentSubTab === 'attendance') loadHrmAttendance(month);
         else if (currentSubTab === 'overtime') loadHrmOvertime(month);
         else if (currentSubTab === 'advances') loadHrmAdvances(month);
+        else if (currentSubTab === 'staff') loadHrmStaff();
         else if (currentSubTab === 'config') loadHrmConfig();
     };
 
@@ -561,13 +562,14 @@
             // 1. Rules
             const r = data.rules || {};
             const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-            setVal('cfg-late-per-min', r.late_per_min || 5000);
-            setVal('cfg-late-flat', r.late_flat || 200000);
+            const setMoney = (id, val) => { const el = document.getElementById(id); if (el) el.value = (Number(val) || 0).toLocaleString('vi-VN'); };
+            setMoney('cfg-late-per-min', r.late_per_min || 5000);
+            setMoney('cfg-late-flat', r.late_flat || 200000);
             setVal('cfg-late-threshold', r.late_flat_threshold_min || 30);
-            setVal('cfg-missing-punch', r.missing_punch || 50000);
-            setVal('cfg-absent', r.absent || 500000);
-            setVal('cfg-attendance-bonus', r.attendance_bonus || 500000);
-            setVal('cfg-birthday-bonus', r.birthday_bonus || 200000);
+            setMoney('cfg-missing-punch', r.missing_punch || 50000);
+            setMoney('cfg-absent', r.absent || 500000);
+            setMoney('cfg-attendance-bonus', r.attendance_bonus || 500000);
+            setMoney('cfg-birthday-bonus', r.birthday_bonus || 200000);
             setVal('cfg-probation-rate', (parseFloat(r.probation_rate || 0.85) * 100).toFixed(0));
             setVal('cfg-ot-multiplier', r.ot_multiplier || 1.5);
             setVal('cfg-ot-min', r.ot_min_minutes || 25);
@@ -579,7 +581,10 @@
                     <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2 relative group hover:border-emerald-400 transition">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-slate-800 text-xs">${b.name}</span>
-                            <button onclick="openEditBlockModal(${b.id})" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold cursor-pointer">✏️ Sửa</button>
+                            <div class="flex items-center gap-1">
+                                <button onclick="openEditBlockModal(${b.id})" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold cursor-pointer">✏️ Sửa</button>
+                                <button onclick="deleteHrmBlock(${b.id})" class="px-2 py-0.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-[11px] font-bold cursor-pointer" title="Xóa khối">🗑️</button>
+                            </div>
                         </div>
                         <div class="text-[11px] text-slate-600 space-y-1">
                             <div>Ca: <span class="font-bold text-slate-800 font-mono">${b.start_time} - ${b.end_time}</span> (Nghỉ trưa: ${b.lunch_minutes || 0}p)</div>
@@ -633,16 +638,19 @@
     window.loadHrmConfig = loadHrmConfig;
 
     window.saveHrmRules = async function() {
-        const getNum = id => parseFloat(document.getElementById(id)?.value) || 0;
-        const probPct = getNum('cfg-probation-rate');
+        const parseVal = id => {
+            const val = document.getElementById(id)?.value;
+            return typeof parseMoneyInput === 'function' ? parseMoneyInput(val) : (parseFloat((val || '').replace(/\D/g, '')) || 0);
+        };
+        const probPct = parseFloat(document.getElementById('cfg-probation-rate')?.value) || 0;
         const body = {
-            late_per_min: getNum('cfg-late-per-min'),
-            late_flat: getNum('cfg-late-flat'),
+            late_per_min: parseVal('cfg-late-per-min'),
+            late_flat: parseVal('cfg-late-flat'),
             late_flat_threshold_min: parseInt(document.getElementById('cfg-late-threshold')?.value) || 30,
-            missing_punch: getNum('cfg-missing-punch'),
-            absent: getNum('cfg-absent'),
-            attendance_bonus: getNum('cfg-attendance-bonus'),
-            birthday_bonus: getNum('cfg-birthday-bonus'),
+            missing_punch: parseVal('cfg-missing-punch'),
+            absent: parseVal('cfg-absent'),
+            attendance_bonus: parseVal('cfg-attendance-bonus'),
+            birthday_bonus: parseVal('cfg-birthday-bonus'),
             probation_rate: (probPct > 1 ? (probPct / 100).toFixed(2) : String(probPct || '0.85')),
             ot_multiplier: String(document.getElementById('cfg-ot-multiplier')?.value || '1.5'),
             ot_min_minutes: parseInt(document.getElementById('cfg-ot-min')?.value) || 25
@@ -666,11 +674,30 @@
         }
     };
 
+    window.openAddBlockModal = function() {
+        const titleEl = document.getElementById('modal-hrm-block-title');
+        if (titleEl) titleEl.textContent = "Thêm Khối Làm Việc Mới";
+        document.getElementById('hrm-block-id').value = '';
+        document.getElementById('hrm-block-name').value = '';
+        document.getElementById('hrm-block-start').value = '08:00';
+        document.getElementById('hrm-block-end').value = '17:30';
+        document.getElementById('hrm-block-lunch').value = 90;
+        document.getElementById('hrm-block-std-hours').value = 8;
+        document.getElementById('hrm-block-monthly-off').value = 0;
+        document.getElementById('hrm-block-off-sunday').checked = true;
+
+        const modal = document.getElementById('modal-hrm-block');
+        if (modal) modal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('hrm-block-name')?.focus(), 100);
+    };
+
     window.openEditBlockModal = function(id) {
         if (!hrmConfigCache || !hrmConfigCache.blocks) return;
         const b = hrmConfigCache.blocks.find(x => x.id === id);
         if (!b) return;
 
+        const titleEl = document.getElementById('modal-hrm-block-title');
+        if (titleEl) titleEl.textContent = "Cấu Hình Khối Làm Việc";
         document.getElementById('hrm-block-id').value = b.id;
         document.getElementById('hrm-block-name').value = b.name;
         document.getElementById('hrm-block-start').value = b.start_time;
@@ -691,8 +718,6 @@
 
     window.saveHrmBlock = async function() {
         const id = document.getElementById('hrm-block-id')?.value;
-        if (!id) return;
-
         const body = {
             name: document.getElementById('hrm-block-name')?.value.trim(),
             start_time: document.getElementById('hrm-block-start')?.value,
@@ -710,8 +735,10 @@
         }
 
         try {
-            const res = await fetch(`/api/hrm/config/blocks/${id}`, {
-                method: 'PUT',
+            const url = id ? `/api/hrm/config/blocks/${id}` : '/api/hrm/config/blocks';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
@@ -720,9 +747,25 @@
                 alert(data.detail || "Lỗi lưu khối làm việc");
                 return;
             }
-            if (window.showToast) window.showToast("Đã lưu cấu hình ca làm việc", "success");
+            if (window.showToast) window.showToast("Đã lưu khối làm việc thành công", "success");
             closeEditBlockModal();
             loadHrmConfig();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteHrmBlock = async function(id) {
+        if (!confirm("Bạn có chắc muốn xóa khối làm việc này?")) return;
+        try {
+            const res = await fetch(`/api/hrm/config/blocks/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                if (window.showToast) window.showToast("Đã xóa khối làm việc", "success");
+                loadHrmConfig();
+            } else {
+                const data = await res.json();
+                alert(data.detail || "Lỗi xóa khối làm việc");
+            }
         } catch (e) {
             console.error(e);
         }
@@ -1077,4 +1120,293 @@
             </div>
         `;
     }
+
+    // ── Hồ Sơ Nhân Sự Lương (Staff Profiles) ──
+    let hrmStaffList = [];
+    let hrmBlocksMap = {};
+
+    async function loadHrmStaff() {
+        const tbody = document.getElementById('table-hrm-staff');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Đang nạp danh sách nhân sự...</td></tr>`;
+        try {
+            const [resStaff, resCfg] = await Promise.all([
+                fetch('/api/hrm/employees'),
+                fetch('/api/hrm/config')
+            ]);
+            if (!resStaff.ok) return;
+            hrmStaffList = await resStaff.json();
+            if (resCfg.ok) {
+                const cfg = await resCfg.json();
+                hrmBlocksMap = {};
+                (cfg.blocks || []).forEach(b => { hrmBlocksMap[b.id] = b; });
+                const blockFilter = document.getElementById('hrm-staff-filter-block');
+                if (blockFilter) {
+                    const curVal = blockFilter.value;
+                    blockFilter.innerHTML = '<option value="">-- Tất cả khối làm việc --</option>' +
+                        (cfg.blocks || []).map(b => `<option value="${b.id}" ${curVal == b.id ? 'selected' : ''}>${b.name}</option>`).join('');
+                }
+            }
+            renderHrmStaffTable(hrmStaffList);
+        } catch (e) {
+            console.error("Lỗi nạp danh sách nhân sự:", e);
+        }
+    }
+    window.loadHrmStaff = loadHrmStaff;
+
+    function filterHrmStaffTable() {
+        const q = (document.getElementById('hrm-staff-search')?.value || '').toLowerCase().trim();
+        const blockId = document.getElementById('hrm-staff-filter-block')?.value;
+        const filtered = hrmStaffList.filter(s => {
+            const matchQ = !q || (s.name || '').toLowerCase().includes(q) || (s.phone || '').includes(q) || (s.employee_code || '').toLowerCase().includes(q);
+            const matchBlock = !blockId || s.work_block_id == blockId;
+            return matchQ && matchBlock;
+        });
+        renderHrmStaffTable(filtered);
+    }
+    window.filterHrmStaffTable = filterHrmStaffTable;
+
+    function renderHrmStaffTable(list) {
+        const tbody = document.getElementById('table-hrm-staff');
+        if (!tbody) return;
+        if (!list || list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Không tìm thấy nhân viên nào phù hợp.</td></tr>`;
+            return;
+        }
+
+        const ROLE_MAP = {
+            'owner': 'Chủ Shop',
+            'cashier': 'Thu Ngân',
+            'warehouse': 'Thủ Kho',
+            'accountant': 'Kế Toán',
+            'staff': 'Nhân Viên'
+        };
+
+        tbody.innerHTML = list.map(r => {
+            const hasAcc = Boolean(r.has_account);
+            const block = hrmBlocksMap[r.work_block_id];
+            const blockBadge = block
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">${block.name} <span class="font-mono text-[10px] text-slate-500 font-normal">(${block.start_time}-${block.end_time})</span></span>`
+                : `<span class="text-slate-400 italic">Chưa xếp ca</span>`;
+
+            const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '-';
+
+            const accountBadge = hasAcc
+                ? `<div class="space-y-0.5">
+                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                        <span>👤</span> ${r.username}
+                     </span>
+                     <div class="text-[10px] text-slate-400">${ROLE_MAP[r.role] || r.role}</div>
+                   </div>`
+                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold cursor-pointer transition shadow-2xs" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
+                     ⚡ Cấp TK (F4)
+                   </button>`;
+
+            const isProbation = !r.official_date || (new Date(r.official_date) > new Date());
+            const contractBadge = isProbation
+                ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Thử việc</span>`
+                : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`;
+
+            return `
+                <tr class="hover:bg-slate-50 transition border-t border-slate-100">
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800 text-xs">${r.name}</div>
+                        <div class="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                            ${r.employee_code ? `<span class="bg-purple-50 text-purple-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
+                            ${r.phone ? `<span>📞 ${r.phone}</span>` : ''}
+                            ${r.is_spa_worker ? `<span class="bg-pink-50 text-pink-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="p-2.5">${blockBadge}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fMoney(r.base_salary)}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-slate-700">${fMoney(r.allowance)}</td>
+                    <td class="p-2.5">
+                        <div class="font-mono text-[11px] text-slate-700">${r.hire_date || '--'}</div>
+                        <div class="mt-0.5">${contractBadge}</div>
+                    </td>
+                    <td class="p-2.5 text-center font-mono font-bold text-purple-700">${r.device_code || '<span class="text-slate-300">--</span>'}</td>
+                    <td class="p-2.5 text-center">${accountBadge}</td>
+                    <td class="p-2.5 text-center whitespace-nowrap">
+                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold cursor-pointer mr-1">✏️ Sửa</button>
+                        ${!hasAcc ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[11px] font-bold cursor-pointer">⚡ Cấp TK</button>` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    window.openHrmStaffModal = async function(id) {
+        document.getElementById('modal-hrm-staff-title').textContent = id ? "Chỉnh Sửa Hồ Sơ Nhân Sự Lương" : "Thêm Nhân Sự Lương Mới (F3)";
+        document.getElementById('hrm-staff-id').value = id || '';
+        document.getElementById('hrm-staff-name').value = '';
+        document.getElementById('hrm-staff-phone').value = '';
+        document.getElementById('hrm-staff-employee-code').value = '';
+        document.getElementById('hrm-staff-device-code').value = '';
+        document.getElementById('hrm-staff-base-salary').value = '';
+        document.getElementById('hrm-staff-allowance').value = '';
+        document.getElementById('hrm-staff-hire-date').value = '';
+        document.getElementById('hrm-staff-official-date').value = '';
+        document.getElementById('hrm-staff-position').value = '';
+        document.getElementById('hrm-staff-commission-rate').value = 0;
+        document.getElementById('hrm-staff-is-spa').checked = false;
+
+        // Load blocks dropdown
+        const blockSel = document.getElementById('hrm-staff-work-block-id');
+        if (blockSel) {
+            try {
+                const res = await fetch('/api/hrm/config');
+                if (res.ok) {
+                    const cfg = await res.json();
+                    blockSel.innerHTML = '<option value="">-- Chọn khối làm việc --</option>' +
+                        (cfg.blocks || []).map(b => `<option value="${b.id}">${b.name} (${b.start_time}-${b.end_time})</option>`).join('');
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        if (id) {
+            const s = (hrmStaffList || []).find(x => x.id === id);
+            if (s) {
+                document.getElementById('hrm-staff-name').value = s.name || '';
+                document.getElementById('hrm-staff-phone').value = s.phone || '';
+                document.getElementById('hrm-staff-employee-code').value = s.employee_code || '';
+                document.getElementById('hrm-staff-device-code').value = s.device_code || '';
+                document.getElementById('hrm-staff-work-block-id').value = s.work_block_id || '';
+                document.getElementById('hrm-staff-base-salary').value = s.base_salary ? Number(s.base_salary).toLocaleString('vi-VN') : '';
+                document.getElementById('hrm-staff-allowance').value = s.allowance ? Number(s.allowance).toLocaleString('vi-VN') : '';
+                document.getElementById('hrm-staff-hire-date').value = s.hire_date || '';
+                document.getElementById('hrm-staff-official-date').value = s.official_date || '';
+                document.getElementById('hrm-staff-position').value = s.position || '';
+                document.getElementById('hrm-staff-commission-rate').value = s.commission_rate || 0;
+                document.getElementById('hrm-staff-is-spa').checked = Boolean(s.is_spa_worker);
+            }
+        }
+
+        const modal = document.getElementById('modal-hrm-staff-profile');
+        if (modal) modal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('hrm-staff-name')?.focus(), 100);
+    };
+
+    window.closeHrmStaffModal = function() {
+        const modal = document.getElementById('modal-hrm-staff-profile');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitHrmStaffProfile = async function() {
+        const id = document.getElementById('hrm-staff-id')?.value;
+        const name = document.getElementById('hrm-staff-name')?.value.trim();
+        const phone = document.getElementById('hrm-staff-phone')?.value.trim();
+        const empCode = document.getElementById('hrm-staff-employee-code')?.value.trim();
+        const devCode = document.getElementById('hrm-staff-device-code')?.value.trim();
+        const blockId = parseInt(document.getElementById('hrm-staff-work-block-id')?.value) || null;
+
+        const parseVal = id => {
+            const val = document.getElementById(id)?.value;
+            return typeof parseMoneyInput === 'function' ? parseMoneyInput(val) : (parseFloat((val || '').replace(/\D/g, '')) || 0);
+        };
+
+        if (!name) { alert("Vui lòng nhập họ và tên nhân viên"); return; }
+        if (!blockId) { alert("Vui lòng chọn khối làm việc & ca chuẩn cho nhân viên"); return; }
+
+        const payload = {
+            name: name,
+            phone: phone,
+            employee_code: empCode || null,
+            device_code: devCode || null,
+            work_block_id: blockId,
+            base_salary: parseVal('hrm-staff-base-salary'),
+            allowance: parseVal('hrm-staff-allowance'),
+            hire_date: document.getElementById('hrm-staff-hire-date')?.value || null,
+            official_date: document.getElementById('hrm-staff-official-date')?.value || null,
+            position: document.getElementById('hrm-staff-position')?.value.trim() || null,
+            commission_rate: parseFloat(document.getElementById('hrm-staff-commission-rate')?.value) || 0,
+            is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0
+        };
+
+        try {
+            const url = id ? `/api/hrm/employees/${id}` : '/api/hrm/employees';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi lưu hồ sơ nhân sự");
+                return;
+            }
+            if (window.showToast) window.showToast("Đã lưu hồ sơ nhân sự thành công", "success");
+            closeHrmStaffModal();
+            loadHrmStaff();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // ── Cấp Nhanh Tài Khoản (Quick Account) ──
+    window.openHrmQuickAccountModal = function(staffId, staffName, empCode) {
+        if (!staffId) {
+            const candidate = (hrmStaffList || []).find(s => !s.has_account);
+            if (candidate) {
+                staffId = candidate.id;
+                staffName = candidate.name;
+                empCode = candidate.employee_code;
+            } else {
+                alert("Tất cả nhân sự trong danh sách đều đã có tài khoản đăng nhập!");
+                return;
+            }
+        }
+
+        document.getElementById('hrm-acc-staff-id').value = staffId;
+        document.getElementById('hrm-acc-staff-name').textContent = `${staffName} (${empCode || 'NV' + staffId})`;
+
+        let suggestedUname = '';
+        if (empCode) {
+            suggestedUname = empCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+        } else {
+            suggestedUname = (staffName || '').toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+        }
+        document.getElementById('hrm-acc-username').value = suggestedUname;
+        document.getElementById('hrm-acc-password').value = '123456';
+        document.getElementById('hrm-acc-role').value = 'staff';
+
+        const modal = document.getElementById('modal-hrm-quick-account');
+        if (modal) modal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('hrm-acc-username')?.focus(), 100);
+    };
+
+    window.closeHrmQuickAccountModal = function() {
+        const modal = document.getElementById('modal-hrm-quick-account');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitHrmQuickAccount = async function() {
+        const staffId = document.getElementById('hrm-acc-staff-id')?.value;
+        const username = document.getElementById('hrm-acc-username')?.value.trim();
+        const password = document.getElementById('hrm-acc-password')?.value.trim();
+        const role = document.getElementById('hrm-acc-role')?.value || 'staff';
+
+        if (!staffId) return;
+        if (!username) { alert("Vui lòng nhập tên đăng nhập (Username)"); return; }
+        if (!password || password.length < 6) { alert("Mật khẩu phải từ 6 ký tự trở lên"); return; }
+
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}/quick-account`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || "Lỗi cấp tài khoản");
+                return;
+            }
+            if (window.showToast) window.showToast(data.message || "Đã cấp tài khoản thành công", "success");
+            closeHrmQuickAccountModal();
+            loadHrmStaff();
+        } catch (e) {
+            console.error(e);
+        }
+    };
 })();

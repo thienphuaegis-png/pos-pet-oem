@@ -673,7 +673,7 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v6.8-2026-10-23-role-adaptive-ai-and-oem-draft-plan';
+    const ROADMAP_VERSION = 'v6.9-2026-10-24-hrm-staff-subtab-quick-acc';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-23)
       { id: 'ai-role-adaptive-briefing-and-min-stock', cat: 'AI', title: 'Tác Nhân AI Thích Ứng Vai Trò (Thủ Kho / Kế Toán / Thu Ngân) & Cột Tồn Tối Thiểu (min_stock)', done: true, note: 'Cột min_stock trong products; API /api/ai/staff-briefing cá nhân hóa cho Thủ kho (hàng sắp hết, hàng đang về, 1-chạm nhận hàng), Kế toán (công nợ 2 chiều, duyệt chi), Thu ngân (doanh số ca, tiền két).' },
@@ -823,7 +823,8 @@
       { id: 'telegram-cancel-refund', cat: 'Logic', title: 'Hoàn Thiện Telegram ChatOps & Hủy Đơn Hoàn Kho/Ví/Điểm', done: true, note: 'Sửa lỗi reply_markup editMessageText, tự động hoàn kho BOM, hoàn ví Spa, thu hồi điểm tích lũy và hạ hạng khi hủy đơn' },
       { id: 'ui-custom-modal-sync', cat: 'UI', title: 'Đồng Bộ Hộp Thoại Xác Nhận Hủy Đơn Chuẩn Design System Mastercare', done: true, note: 'Gỡ bỏ hoàn toàn popup confirm/alert trình duyệt, thay thế bằng Custom Confirm Modal đỏ nổi bật kèm toast' },
       { id: 'pos-cart-grid-align', cat: 'UI', title: 'Căn Chỉnh Lại Bảng Giỏ Hàng POS & Tách Ô Đơn Giá 2 Tầng', done: true, note: 'Khắc phục triệt để lỗi lệch cột giữa Header và Row, tách ô Đơn giá 2 tầng tránh chồng chéo lên nút [+] của cột SL' },
-      { id: 'hrm-payroll-mobile', cat: 'Logic', title: 'Hoàn Thiện Phân Hệ Chấm Công & Bảng Lương (HRM) Đa Nền Tảng', done: true, note: 'Tự động tính lương 4 tầng, phạt trễ/vắng/quên quẹt, thưởng chuyên cần, tăng ca OT, tạm ứng liên kết Sổ Quỹ, tùy biến quy định linh hoạt, xem phiếu lương Mobile và xuất Google Sheet liên kết VLOOKUP' }
+      { id: 'hrm-payroll-mobile', cat: 'Logic', title: 'Hoàn Thiện Phân Hệ Chấm Công & Bảng Lương (HRM) Đa Nền Tảng', done: true, note: 'Tự động tính lương 4 tầng, phạt trễ/vắng/quên quẹt, thưởng chuyên cần, tăng ca OT, tạm ứng liên kết Sổ Quỹ, tùy biến quy định linh hoạt, xem phiếu lương Mobile và xuất Google Sheet liên kết VLOOKUP' },
+      { id: 'hrm-staff-subtab-quick-acc', cat: 'Logic', title: 'Tách Biệt Subtab Nhân Sự HRM, Mở Khóa Khối Làm Việc & Cấp Nhanh Tài Khoản (F3/F4)', done: true, note: 'Định dạng tiền tệ realtime cho quy định phạt/thưởng, hỗ trợ CRUD khối làm việc ca chuẩn (có kiểm tra ràng buộc nhân viên), tạo subtab Nhân Sự chuyên quản lý hồ sơ lương, map phím tắt F3 thêm nhân sự và F4/nút bấm cấp nhanh tài khoản đăng nhập POS/Mobile' }
     ];
 
     let tasks = [];

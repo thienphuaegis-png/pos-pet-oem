@@ -79,6 +79,24 @@ def update_rules(body: dict, user=Depends(require_permission(PERM))):
     return {"status": "ok", "rules": cur_rules}
 
 
+@router.post("/config/blocks")
+def create_block(b: BlockIn, user=Depends(require_permission(PERM))):
+    for t in (b.start_time, b.end_time, b.split_time):
+        if to_min(t) is None:
+            raise HTTPException(400, f"Giờ không hợp lệ: {t}")
+    name = b.name.strip()
+    if not name:
+        raise HTTPException(400, "Tên khối làm việc bắt buộc")
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("""INSERT INTO hrm_work_blocks (name, start_time, end_time, lunch_minutes, std_hours, off_sunday, monthly_off_days, split_time)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (name, b.start_time, b.end_time, b.lunch_minutes, b.std_hours, int(bool(b.off_sunday)), b.monthly_off_days, b.split_time))
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return {"status": "ok", "id": new_id}
+
+
 @router.put("/config/blocks/{block_id}")
 def update_block(block_id: int, b: BlockIn, user=Depends(require_permission(PERM))):
     for t in (b.start_time, b.end_time, b.split_time):
@@ -89,6 +107,21 @@ def update_block(block_id: int, b: BlockIn, user=Depends(require_permission(PERM
                    off_sunday=?, monthly_off_days=?, split_time=? WHERE id=?""",
                 (b.name.strip(), b.start_time, b.end_time, b.lunch_minutes, b.std_hours, int(bool(b.off_sunday)),
                  b.monthly_off_days, b.split_time, block_id))
+    if cur.rowcount == 0:
+        conn.close(); raise HTTPException(404, "Không tìm thấy khối làm việc")
+    conn.commit(); conn.close()
+    return {"status": "ok"}
+
+
+@router.delete("/config/blocks/{block_id}")
+def delete_block(block_id: int, user=Depends(require_permission(PERM))):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM staff WHERE work_block_id = ? AND is_active = 1", (block_id,))
+    count = cur.fetchone()[0]
+    if count > 0:
+        conn.close()
+        raise HTTPException(400, f"Không thể xóa khối đang được gán cho {count} nhân viên. Vui lòng chuyển khối cho nhân viên trước khi xóa.")
+    cur.execute("DELETE FROM hrm_work_blocks WHERE id = ?", (block_id,))
     if cur.rowcount == 0:
         conn.close(); raise HTTPException(404, "Không tìm thấy khối làm việc")
     conn.commit(); conn.close()
@@ -148,6 +181,8 @@ def delete_spa_rule(rule_id: int, user=Depends(require_permission(PERM))):
 
 # ── Hồ sơ nhân sự ──
 class ProfileIn(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
     employee_code: Optional[str] = None
     device_code: Optional[str] = None
     work_block_id: Optional[int] = None
@@ -169,7 +204,9 @@ class ProfileIn(BaseModel):
 @router.get("/employees")
 def list_employees(user=Depends(require_permission(PERM))):
     conn = get_db(); cur = conn.cursor()
-    cur.execute(f"""SELECT s.id, s.name, s.phone, s.role, s.is_active, s.username, {', '.join('s.' + f for f in PROFILE_FIELDS)},
+    cur.execute(f"""SELECT s.id, s.name, s.phone, s.role, s.is_active, s.username,
+                   (CASE WHEN s.username IS NOT NULL AND TRIM(s.username) != '' AND s.password_hash IS NOT NULL THEN 1 ELSE 0 END) AS has_account,
+                   {', '.join('s.' + f for f in PROFILE_FIELDS)},
                    b.name AS block_name FROM staff s LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
                    ORDER BY s.is_active DESC, COALESCE(s.employee_code,'zz'), s.id""")
     rows = [dict(r) for r in cur.fetchall()]
@@ -184,7 +221,7 @@ class EmployeeCreate(ProfileIn):
 
 @router.post("/employees")
 def create_employee(body: EmployeeCreate, user=Depends(require_permission(PERM))):
-    """Tạo nhân viên KHÔNG có tài khoản đăng nhập (thợ spa, NV kho...). Tài khoản đăng nhập tạo ở Cài đặt > Nhân viên."""
+    """Tạo nhân viên KHÔNG có tài khoản đăng nhập (thợ spa, NV kho...). Tài khoản đăng nhập tạo nhanh qua phím tắt / nút Cấp TK."""
     if not body.name.strip():
         raise HTTPException(400, "Tên nhân viên bắt buộc")
     conn = get_db(); cur = conn.cursor()
@@ -198,6 +235,13 @@ def create_employee(body: EmployeeCreate, user=Depends(require_permission(PERM))
 @router.put("/employees/{staff_id}")
 def update_profile(staff_id: int, body: ProfileIn, user=Depends(require_permission(PERM))):
     data = body.model_dump(exclude_unset=True)
+    if "name" in data:
+        name_clean = (data["name"] or "").strip()
+        if not name_clean:
+            raise HTTPException(400, "Họ tên không được để trống")
+        data["name"] = name_clean
+    if "phone" in data:
+        data["phone"] = (data["phone"] or "").strip()
     for f in ("birthday", "hire_date", "probation_start", "official_date", "leave_date"):
         if f in data:
             data[f] = _date_or_none(data[f], f)
@@ -224,6 +268,43 @@ def update_profile(staff_id: int, body: ProfileIn, user=Depends(require_permissi
         raise
     conn.commit(); conn.close()
     return {"status": "ok"}
+
+
+class QuickAccountIn(BaseModel):
+    username: str
+    password: str
+    role: Optional[str] = "staff"
+
+
+@router.post("/employees/{staff_id}/quick-account")
+def quick_grant_account(staff_id: int, body: QuickAccountIn, user=Depends(require_permission(PERM))):
+    """Cấp nhanh tài khoản đăng nhập POS / Mobile cho nhân sự lương."""
+    uname = body.username.strip()
+    if not uname:
+        raise HTTPException(400, "Tên đăng nhập không được để trống")
+    pwd = body.password.strip()
+    if len(pwd) < 6:
+        raise HTTPException(400, "Mật khẩu phải từ 6 ký tự trở lên")
+    role = body.role or "staff"
+    if role not in ("owner", "cashier", "accountant", "warehouse", "staff"):
+        role = "staff"
+
+    from routers.auth import pwd_ctx
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, name, username FROM staff WHERE id = ?", (staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        conn.close(); raise HTTPException(404, "Không tìm thấy nhân viên")
+
+    cur.execute("SELECT id FROM staff WHERE LOWER(username) = LOWER(?) AND id != ?", (uname, staff_id))
+    if cur.fetchone():
+        conn.close(); raise HTTPException(400, f"Tên đăng nhập '{uname}' đã được sử dụng")
+
+    pwd_hash = pwd_ctx.hash(pwd)
+    cur.execute("""UPDATE staff SET username=?, password_hash=?, role=?, must_change_password=1, token_version=token_version+1
+                   WHERE id=?""", (uname, pwd_hash, role, staff_id))
+    conn.commit(); conn.close()
+    return {"status": "ok", "message": f"Đã cấp tài khoản '{uname}' thành công cho nhân viên {staff['name']}"}
 
 
 class AdjustmentIn(BaseModel):
