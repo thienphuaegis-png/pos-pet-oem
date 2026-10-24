@@ -1107,12 +1107,21 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
         ORDER BY pr.id DESC
         LIMIT 10
     """)
+    dept_map = {
+        "spa": "💆 Spa",
+        "cashier": "🏷 Thu ngân",
+        "accountant": "📒 Kế toán",
+        "warehouse": "📦 Thủ kho",
+        "staff": "👤 Nhân viên",
+        "store": "🏪 Cửa hàng",
+        "owner": "👑 Chủ shop"
+    }
     for r in cur.fetchall():
         pending_purchase_requests.append({
             "id": r["id"],
             "code": r["code"],
             "department": r["department"],
-            "dept_label": "💆 Spa" if r["department"] == 'spa' else "🏪 Cửa hàng",
+            "dept_label": dept_map.get(r["department"], r["department"] or "Nhân viên"),
             "priority": r["priority"],
             "created_by": r["created_by"] or "Nhân viên",
             "created_at": str(r["created_at"] or "")[:16],

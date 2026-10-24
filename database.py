@@ -859,6 +859,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS purchase_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT UNIQUE,
+        staff_id INTEGER,
         department TEXT DEFAULT 'store',
         priority TEXT DEFAULT 'normal',
         status TEXT DEFAULT 'pending',
@@ -868,6 +869,10 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
+    cur.execute("PRAGMA table_info(purchase_requests)")
+    pr_cols = [r[1] for r in cur.fetchall()]
+    if "staff_id" not in pr_cols:
+        cur.execute("ALTER TABLE purchase_requests ADD COLUMN staff_id INTEGER")
 
     cur.execute('''
     CREATE TABLE IF NOT EXISTS purchase_request_items (

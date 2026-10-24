@@ -671,7 +671,9 @@ class PurchaseRequestItemIn(BaseModel):
     note: Optional[str] = ""
 
 class PurchaseRequestCreate(BaseModel):
-    department: str = "store" # 'store' hoac 'spa'
+    department: Optional[str] = "store" # 'store', 'spa' hoac role
+    staff_id: Optional[int] = None
+    staff_name: Optional[str] = None
     priority: str = "normal" # 'low', 'normal', 'urgent'
     note: Optional[str] = ""
     items: List[PurchaseRequestItemIn]

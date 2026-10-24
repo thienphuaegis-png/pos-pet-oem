@@ -55,7 +55,9 @@ def test_purchase_request_masking_and_convert_po():
 
         # 2. Store staff creates a Purchase Request
         payload = {
-            "department": "spa",
+            "staff_id": 10,
+            "staff_name": "Thu Ngân Spa",
+            "department": "cashier",
             "priority": "urgent",
             "note": "Cần gấp cho ca chiều mai",
             "items": [
@@ -68,6 +70,13 @@ def test_purchase_request_masking_and_convert_po():
         create_data = res_create.json()
         assert create_data["success"] is True
         req_id = create_data["id"]
+
+        # Check DB record
+        cur.execute("SELECT staff_id, created_by, department FROM purchase_requests WHERE id = ?", (req_id,))
+        pr_row = cur.fetchone()
+        assert pr_row["staff_id"] == 10
+        assert pr_row["created_by"] == "Thu Ngân Spa"
+        assert pr_row["department"] == "cashier"
         req_code = create_data["code"]
 
         # Verify staff_reminders was created for warehouse

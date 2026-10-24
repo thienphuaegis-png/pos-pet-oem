@@ -1233,6 +1233,10 @@ def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(req
     cur = conn.cursor()
     try:
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Nhân viên"
+        requester_name = (req.staff_name or "").strip() or user_name
+        staff_id = req.staff_id or (user.get("id") if isinstance(user, dict) else None)
+        department = req.department or "store"
+
         base_code = f"YCNH{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
         code = base_code
         seq = 1
@@ -1244,9 +1248,9 @@ def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(req
             seq += 1
 
         cur.execute("""
-            INSERT INTO purchase_requests (code, department, priority, status, note, created_by)
-            VALUES (?, ?, ?, 'pending', ?, ?)
-        """, (code, req.department, req.priority, req.note or "", user_name))
+            INSERT INTO purchase_requests (code, staff_id, department, priority, status, note, created_by)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?)
+        """, (code, staff_id, department, req.priority, req.note or "", requester_name))
         request_id = cur.lastrowid
 
         for it in req.items:
@@ -1265,8 +1269,8 @@ def create_purchase_request(req: PurchaseRequestCreate, user: dict = Depends(req
             VALUES (?, ?, ?, ?, 0)
         """, (
             wh_staff_id,
-            f"🔔 Yêu cầu nhập hàng mới ({code}): {len(req.items)} món từ bộ phận {req.department.upper()}",
-            f"Nhân viên {user_name} vừa tạo phiếu yêu cầu {code}. Bấm 1-chạm để chuyển thành đơn PO.",
+            f"🔔 Yêu cầu nhập hàng mới ({code}): {len(req.items)} món từ {requester_name}",
+            f"Nhân viên {requester_name} vừa tạo phiếu yêu cầu {code}. Bấm 1-chạm để chuyển thành đơn PO.",
             req.priority
         ))
 
@@ -1293,7 +1297,7 @@ def list_purchase_requests(status: Optional[str] = None, user: dict = Depends(re
     cur = conn.cursor()
     try:
         sql = """
-            SELECT pr.id, pr.code, pr.department, pr.priority, pr.status, pr.converted_purchase_code,
+            SELECT pr.id, pr.code, pr.staff_id, pr.department, pr.priority, pr.status, pr.converted_purchase_code,
                    pr.note, pr.created_by, pr.created_at,
                    COUNT(pri.id) as item_count, COALESCE(SUM(pri.quantity), 0) as total_qty
             FROM purchase_requests pr
@@ -1311,6 +1315,7 @@ def list_purchase_requests(status: Optional[str] = None, user: dict = Depends(re
             results.append({
                 "id": r["id"],
                 "code": r["code"],
+                "staff_id": r["staff_id"],
                 "department": r["department"],
                 "priority": r["priority"],
                 "status": r["status"],

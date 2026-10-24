@@ -7,10 +7,40 @@
     let _selectedItems = []; // [{ product_id, name, code, unit, stock, source_group, quantity, note }]
     let _currentViewRequest = null;
 
-    window.initPurchaseRequestsTab = async function() {
-        await loadMaskedCatalog();
-        await loadPurchaseRequestsList();
+    const ROLE_LABELS = {
+        owner: 'Chủ shop',
+        admin: 'Admin',
+        cashier: 'Thu ngân',
+        accountant: 'Kế toán',
+        warehouse: 'Thủ kho',
+        staff: 'Nhân viên',
+        store: 'Cửa hàng',
+        spa: 'Spa'
     };
+
+    window.initPurchaseRequestsTab = async function() {
+        await Promise.all([loadMaskedCatalog(), populateRequisitionStaffList(), loadPurchaseRequestsList()]);
+    };
+
+    async function populateRequisitionStaffList() {
+        const sel = document.getElementById('pr-staff-select');
+        if (!sel) return;
+        try {
+            const res = await fetch('/api/staff');
+            if (!res.ok) return;
+            const staffList = await res.json();
+            const activeStaffs = staffList.filter(s => s.is_active);
+            const currentUser = typeof Auth !== 'undefined' ? Auth.getUser() : null;
+
+            sel.innerHTML = activeStaffs.map(s => {
+                const roleLabel = ROLE_LABELS[s.role] || s.role || 'Nhân viên';
+                const isSelected = currentUser && (currentUser.id === s.id) ? 'selected' : '';
+                return `<option value="${s.id}" data-name="${s.name}" data-role="${s.role}" ${isSelected}>${s.name} (${roleLabel})</option>`;
+            }).join('');
+        } catch (e) {
+            console.error("Lỗi tải danh sách nhân viên:", e);
+        }
+    }
 
     async function loadMaskedCatalog() {
         try {
@@ -137,12 +167,19 @@
             return;
         }
 
-        const dept = document.getElementById('pr-department')?.value || 'store';
+        const staffSelect = document.getElementById('pr-staff-select');
+        const selectedOpt = staffSelect?.selectedOptions[0];
+        const staffId = staffSelect && staffSelect.value ? parseInt(staffSelect.value) : null;
+        const staffName = selectedOpt ? selectedOpt.dataset.name : '';
+        const staffRole = selectedOpt ? selectedOpt.dataset.role : 'store';
+
         const priority = document.getElementById('pr-priority')?.value || 'normal';
         const note = document.getElementById('pr-note')?.value || '';
 
         const payload = {
-            department: dept,
+            staff_id: staffId,
+            staff_name: staffName,
+            department: staffRole,
             priority: priority,
             note: note,
             items: _selectedItems.map(it => ({
@@ -205,7 +242,8 @@
                     ? `<span class="bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.2 rounded text-[10px] font-bold">🔴 Cần gấp</span>`
                     : `<span class="text-slate-400 text-[10px]">Bình thường</span>`;
 
-                const deptTag = req.department === 'spa' ? '💆 Khu Spa' : '🏪 Quầy Bán Lẻ';
+                const roleBadge = ROLE_LABELS[req.department] || req.department || 'Nhân viên';
+                const roleTag = `<span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-semibold">${roleBadge}</span>`;
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
@@ -215,7 +253,7 @@
                         </td>
                         <td class="p-2.5">
                             <div class="font-bold text-slate-800">${req.created_by || 'Nhân viên'}</div>
-                            <div class="text-[10px] text-slate-500">${deptTag} &bull; ${priorityTag}</div>
+                            <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">${roleTag} &bull; ${priorityTag}</div>
                         </td>
                         <td class="p-2.5 text-center font-mono">
                             <span class="font-bold text-slate-800">${req.item_count} món</span>
@@ -288,7 +326,7 @@
                     <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                         <div><b>Mã phiếu:</b> <span class="font-mono text-amber-700">${req.code}</span></div>
                         <div><b>Trạng thái:</b> ${req.status === 'converted' ? '✅ Đã lên đơn PO: ' + req.converted_purchase_code : '⏳ Chờ duyệt'}</div>
-                        <div><b>Người gửi:</b> ${req.created_by} (${req.department === 'spa' ? 'Spa' : 'Cửa hàng'})</div>
+                        <div><b>Người gửi:</b> ${req.created_by} (${ROLE_LABELS[req.department] || req.department || 'Nhân viên'})</div>
                         <div><b>Ưu tiên:</b> ${req.priority === 'urgent' ? '🔴 Cần gấp' : 'Bình thường'}</div>
                         <div class="col-span-2"><b>Ghi chú:</b> ${req.note || 'Không có'}</div>
                     </div>

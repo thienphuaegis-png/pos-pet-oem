@@ -11,12 +11,13 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
-- **Phân quyền chi tiết Tab-level (Granular RBAC):**
+- **Phân quyền chi tiết Tab-level (Granular RBAC) & Chọn nhân viên yêu cầu đặt hàng:**
   - Thêm quyền `purchases.request` vào `PERM_KEYS` và `database.py`, seed tự động cho các role.
   - Gắn `data-perm` vào toàn bộ tab trên thanh Sidebar (`templates/index.html`).
   - Nâng cấp `applyRoleUI()` trong `static/js/auth.js` duyệt đồng thời `data-role` và `Auth.can(data-perm)`.
   - Guard `switchTab()` trong `static/js/app.js` chặn mở tab khi không có quyền.
-  - Landing tab thông minh: Nhân viên chỉ có quyền `purchases.request` tự động mở tab `purchase-requests`.
+  - Đổi trường "Bộ phận yêu cầu" thành "Nhân viên yêu cầu": Nạp động danh sách nhân viên active, tự động chọn tài khoản đang đăng nhập, lưu `staff_id` và `created_by` vào DB `purchase_requests`.
+  - Hiển thị danh tính người yêu cầu kèm badge vai trò trong bảng lịch sử và thông báo nhắc việc Thủ Kho.
   - Che dữ liệu nhạy cảm trên AI Hub: Ẩn số nợ NCC/xưởng và lô hàng về ở cả Backend (`ai_assistant.py`) và Frontend (`ai_agent.js`) khi thiếu quyền `purchases.manage`.
   - Bảo vệ API `/api/purchase-requests` bằng `require_any_permission("purchases.request", "purchases.manage")`.
 
