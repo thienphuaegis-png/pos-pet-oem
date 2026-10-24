@@ -5,12 +5,20 @@
  * (Tính năng tạm thời - sau này xóa bỏ bằng cách xóa file này)
  */
 (function() {
-    const LOOPY_GREETINGS = [
-        "Chào chị Phụng nha! 🌸",
-        "Hôm nay chị Phụng làm việc vui vẻ nhé! ✨",
-        "Chị Phụng cố lên nha, Loopy luôn cổ vũ chị! 💖",
-        "Có bill nào cần AI đọc không chị Phụng ơi? 📑",
-        "Loopy thương chị Phụng nhất nè! 🥰"
+    // Danh sách câu thoại khịa ba gai, xéo xắt chuẩn meme Loopy dành riêng cho chị Phi Phụng
+    const LOOPY_SASSY_QUOTES = [
+        "Rà chuột quài mậy, tính trừ lương tui hay gì? 🙄💅",
+        "Nhìn cái giề? Lo làm việc đi má! 💅✨",
+        "Rảnh quá rê chuột vô tui hoài, KPI tháng này xong chưa? 😒📊",
+        "Chọt chọt cái gì, có tin tui cắn một phát rách tay hông? 🐹💥",
+        "Chị Phụng ơi, bớt ngắm tui lại, khách đang đợi bill kìa! 🧾👀",
+        "Tính me tui sơ hở đặng chọc đúng hông? Không có cửa đâu cưng! 😏🚫",
+        "Đừng có đụng vào vẻ đẹp quý phái này, tốn tiền bảo dưỡng lắm! ✨👑",
+        "Tui là Loopy chứ hông phải thú cưng để chị xoa đầu nha! 😤🔥",
+        "Ủa alo? Rê chuột chi zạ? Thèm trà sữa thì nói một tiếng! 🧋😏",
+        "Lương tháng này có chia cho tui hông mà bấm bấm quài? 💸🤨",
+        "Đang ngồi thiền tịnh tâm, đừng có làm phiền nha bà già! 🧘‍♀️⚡",
+        "Thấy tui dễ thương quá chịu hông nổi chớ giề? Biết mà! 😌💖"
     ];
 
     const FRAME_W = 192;
@@ -116,30 +124,43 @@
         }
     }
 
+    let isHovering = false;
+    let hoverCooldownTimer = null;
+
     window.hoverLoopyPet = function(isHover) {
-        if (waveTimeout) {
-            clearTimeout(waveTimeout);
-            waveTimeout = null;
-        }
-        currentStrip = isHover ? waveStrip : idleStrip;
-        renderFrame();
         if (isHover) {
-            showLoopySpeech(LOOPY_GREETINGS[Math.floor(Math.random() * LOOPY_GREETINGS.length)], 2500);
+            if (isHovering) return; // Tránh re-trigger liên tục
+            isHovering = true;
+            currentStrip = waveStrip;
+
+            // Chọn ngẫu nhiên 1 câu khịa ba gai
+            const quote = LOOPY_SASSY_QUOTES[Math.floor(Math.random() * LOOPY_SASSY_QUOTES.length)];
+            showLoopySpeech(quote, 3000);
+
+            if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
+        } else {
+            // Khi chuột rời đi, giữ tư thế vẫy tay thêm một chút rồi mới về idle nhẹ nhàng
+            if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
+            hoverCooldownTimer = setTimeout(() => {
+                isHovering = false;
+                currentStrip = idleStrip;
+                hoverCooldownTimer = null;
+            }, 600);
         }
     };
 
     window.interactWithLoopyPet = function() {
+        isHovering = true;
         currentStrip = waveStrip;
-        renderFrame();
-        const msg = LOOPY_GREETINGS[Math.floor(Math.random() * LOOPY_GREETINGS.length)];
-        showLoopySpeech(msg, 3500);
+        const quote = LOOPY_SASSY_QUOTES[Math.floor(Math.random() * LOOPY_SASSY_QUOTES.length)];
+        showLoopySpeech(quote, 3500);
 
-        if (waveTimeout) clearTimeout(waveTimeout);
-        waveTimeout = setTimeout(() => {
+        if (hoverCooldownTimer) clearTimeout(hoverCooldownTimer);
+        hoverCooldownTimer = setTimeout(() => {
+            isHovering = false;
             currentStrip = idleStrip;
-            renderFrame();
-            waveTimeout = null;
-        }, 3500);
+            hoverCooldownTimer = null;
+        }, 3000);
     };
 
     function showLoopySpeech(text, duration = 3000) {
