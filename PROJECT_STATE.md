@@ -1,6 +1,6 @@
 # PROJECT STATE — POS Offline (Petcare & Retail)
 
-**Checkpoint:** 2026-10-24 — HRM Month Selector Variant B, Tab Xin Off & Nhận diện quẹt thẻ 6 cột (v3.6.34)
+**Checkpoint:** 2026-10-24 — Mascot Loopy hết chớp + câu nói idle; HRM Month Selector Variant B, Tab Xin Off & quẹt thẻ 6 cột (v3.6.34)
 **Lịch sử checkpoint:** `docs/checkpoints/CHECKPOINT_2026_10_23.md`
 **Active Plan:** `docs/plans/2026-10-24-hrm-staff-full-profile-and-salary-adjustments.md`
 **Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
@@ -11,6 +11,10 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
+- **Mascot Loopy (tạm thời, chỉ user Phi Phụng, tab AI Agent):** `static/js/modules/loopy_pet.js` + block `LOOPY PET` trong `templates/index.html`.
+  - Gốc lỗi chớp: `loopy_wave_strip.webp` cũ có 3/10 frame trống + tay đổi bên liên tục. Dựng lại bằng Pillow từ `loopy_idle.webp`/`loopy_wave.webp`: idle 16 frame (3072px, 1 lần chớp mắt), wave 2 frame tay trái (384px). Ảnh có `?v=2` chống cache.
+  - Không rê chuột: 15–30s nói 1 câu (70% ngoan hiền hợp việc hành chính/kho, 30% dụ rê chuột) → rê vào thì vẫy tay + khịa.
+  - Gỡ tính năng: xóa `loopy_pet.js`, block `LOOPY PET` + thẻ `<script>` trong `index.html`, ảnh `static/images/loopy_*`.
 - **Month Selector Variant B:**
   - Stepper `[◀] [Tháng MM/YYYY ▾] [▶] [Hôm Nay]` với menu dropdown 12 tháng theo năm.
   - Hiển thị badge trạng thái kỳ lương trực quan: Tạm tính (amber), Đã chốt (blue), Đã chi (emerald).
@@ -33,6 +37,7 @@
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
+- Loopy: probe Playwright headless chụp 40 lần idle + 30 lần wave → 0 frame trống; bong bóng idle tự hiện; hover thêm class `is-wave`. Commit `b4cb7ba`.
 - `tests/test_hrm_leaves_and_six_col_punches.py`: 13/13 passed (Full coverage Variant B, leaves CRUD, sync sheets, 6-col punch thresholds).
 - `tests/test_checkpoint_integrity.py`: 4/4 passed (PROJECT_STATE.md compact < 100 lines).
 - `tests/test_payroll_engine.py`: 14/14 passed.

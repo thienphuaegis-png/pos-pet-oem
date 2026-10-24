@@ -673,9 +673,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v6.9-2026-10-24-hrm-staff-subtab-quick-acc';
+    const ROADMAP_VERSION = 'v7.0-2026-10-24-loopy-mascot';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-23)
+      { id: 'loopy-mascot', cat: 'UI', title: 'Mascot Loopy cho chị Phụng (tab AI Agent): hết chớp + câu nói idle', done: true, note: 'Dựng lại sprite strip không frame trống (idle 16f, wave 2f tay trái); 15-30s nói câu ngoan/dụ rê chuột, rê vào thì khịa. Tạm thời, gỡ bằng xóa loopy_pet.js + block LOOPY PET.' },
       { id: 'ai-role-adaptive-briefing-and-min-stock', cat: 'AI', title: 'Tác Nhân AI Thích Ứng Vai Trò (Thủ Kho / Kế Toán / Thu Ngân) & Cột Tồn Tối Thiểu (min_stock)', done: true, note: 'Cột min_stock trong products; API /api/ai/staff-briefing cá nhân hóa cho Thủ kho (hàng sắp hết, hàng đang về, 1-chạm nhận hàng), Kế toán (công nợ 2 chiều, duyệt chi), Thu ngân (doanh số ca, tiền két).' },
       { id: 'oem-draft-mode-and-one-click-auto-draft', cat: 'PROD', title: 'Đơn OEM Chức Năng Lưu Nháp (DRAFT) & AI Đề Xuất 1-Chạm Tạo Đơn Nháp (Hàng Nhập & OEM)', done: false, note: 'Nút Lưu Bản Nháp DRAFT cho đơn OEM không xuất cọc; API /api/ai/quick-create-draft tự nhận diện hàng nhập vs OEM để tạo ngay đơn nháp trong 1 giây, mở ra cho người dùng sửa hoặc xóa.' },
       { id: 'store-purchase-requisition-anonymized-supplier', cat: 'PO', title: 'Phiếu Yêu Cầu Nhập Hàng Cửa Hàng & Bảo Mật Ẩn Danh Nhà Cung Cấp', done: false, note: 'Cửa hàng/spa tạo yêu cầu nhập hàng theo nhóm nguồn cung [NGUON-01] nhưng bảo mật tuyệt đối không thấy tên/SĐT NCC; tự động bắn reminder sang Thủ kho để 1-chạm chuyển thành đơn PO.' },
