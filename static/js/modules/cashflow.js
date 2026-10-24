@@ -259,7 +259,10 @@
 
                 tbody.innerHTML = orders.map(o => `
                     <tr class="border-b hover:bg-slate-50">
-                        <td class="p-2 font-mono font-bold text-slate-800">${o.code}</td>
+                        <td class="p-2 font-mono font-bold text-slate-800">
+                            <div>${o.code}</div>
+                            ${o.order_type === 'OEM' && o.paid_amount > 0 ? `<div class="text-[10px] text-emerald-700 font-normal">Đã cọc: ${formatMoney(o.paid_amount)} • Quyết toán thực nhận</div>` : ''}
+                        </td>
                         <td class="p-2">
                             ${o.order_type === 'OEM' 
                                 ? '<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold text-[10px]">🏭 OEM</span>' 
@@ -337,7 +340,7 @@
             document.getElementById('cfd-pay-order-code').innerText = orderCode;
             document.getElementById('cfd-pay-order-supp-name').innerText = supplierName;
             document.getElementById('cfd-pay-order-debt').innerText = formatMoney(debtAmount);
-            document.getElementById('cfd-pay-order-amount').value = debtAmount > 0 ? debtAmount.toLocaleString('vi-VN') : '';
+            document.getElementById('cfd-pay-order-amount').value = debtAmount > 0 ? Math.round(debtAmount).toLocaleString('vi-VN') : '';
             document.getElementById('cfd-pay-order-note').value = `Thanh toán nợ đơn ${orderCode} (${supplierName})`;
 
             const radioCompany = document.querySelector('input[name="cfd-pay-order-fund"][value="COMPANY"]');

@@ -10324,17 +10324,56 @@
                 document.getElementById('oem-view-code').innerText = ord.code;
                 const body = document.getElementById('oem-detail-body');
 
+                const isReceived = (ord.status === 'RECEIVED' || ord.status === 'COMPLETED');
+                const totalOrderedQty = (ord.items || []).reduce((sum, it) => sum + (Number(it.ordered_qty) || 0), 0);
+                const totalReceivedQty = (ord.items || []).reduce((sum, it) => sum + (Number(it.received_qty) || 0), 0);
+                const diffTotalQty = totalReceivedQty - totalOrderedQty;
+
                 body.innerHTML = `
+                    <!-- THÔNG TIN ĐƠN & ĐỐI SOÁT 2 CHẶNG TÀI CHÍNH -->
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border text-xs">
                         <div>Nhà máy: <strong class="text-slate-800">${ord.partner_name || '-'}</strong></div>
                         <div>Kho xưởng NVL: <strong class="text-slate-800">${ord.oem_warehouse_name || '-'}</strong></div>
                         <div>Hẹn nhận hàng: <strong class="font-mono text-slate-800">${ord.expected_delivery_date || '-'}</strong></div>
                         <div>Nguồn tiền: <strong class="${ord.fund_source === 'COMPANY' ? 'text-blue-700' : 'text-purple-700'}">${ord.fund_source === 'COMPANY' ? '🏢 Quỹ Công Ty' : '👤 Quỹ Cá Nhân'}</strong></div>
-                        <div>Tổng tiền niêm yết: <strong class="font-mono text-slate-700">${formatMoney(ord.total_raw_amount)}</strong></div>
+                        <div>Tiền hàng thô: <strong class="font-mono text-slate-700">${formatMoney(ord.total_raw_amount)}</strong></div>
                         <div>Chiết khấu: <strong class="text-emerald-600">${ord.discount_percent}%</strong> | VAT: <strong class="text-rose-600">${ord.vat_percent}%</strong></div>
                         <div>Đã cọc đợt 1: <strong class="text-emerald-600 font-mono font-bold">${formatMoney(ord.deposit_amount)}</strong></div>
                         <div>Còn lại đợt 2: <strong class="text-rose-600 font-mono font-bold">${formatMoney(ord.remaining_payment)}</strong></div>
                     </div>
+
+                    ${isReceived ? `
+                    <!-- BẢNG ĐỐI SOÁT 2 CHẶNG QUYẾT TOÁN THỰC TẾ -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-slate-200 text-xs shadow-2xs">
+                        <div class="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                            <div class="font-bold text-slate-700 flex justify-between items-center">
+                                <span>1. Hợp đồng đặt cọc ban đầu</span>
+                                <span class="bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-mono font-bold text-[11px]">${totalOrderedQty.toLocaleString('vi-VN')} SP</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600 pt-1">
+                                <span>Tiền cọc đợt 1 (Đã chi):</span>
+                                <span class="font-mono font-bold text-emerald-600">${formatMoney(ord.deposit_amount)}</span>
+                            </div>
+                            <div class="text-[11px] text-gray-500 italic">Đã xuất phiếu chi Sổ Quỹ theo hợp đồng đặt cọc</div>
+                        </div>
+                        <div class="bg-emerald-50/80 p-2.5 rounded border border-emerald-300 space-y-1">
+                            <div class="font-bold text-emerald-900 flex justify-between items-center">
+                                <span>2. Quyết toán thực nhận tại kho</span>
+                                <span class="px-1.5 py-0.5 rounded font-mono font-bold text-[11px] ${diffTotalQty < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                                    Thực nhận: ${totalReceivedQty.toLocaleString('vi-VN')} SP ${diffTotalQty !== 0 ? `(${diffTotalQty < 0 ? 'thiếu ' + Math.abs(diffTotalQty).toLocaleString('vi-VN') : 'thừa +' + diffTotalQty.toLocaleString('vi-VN')})` : ''}
+                                </span>
+                            </div>
+                            <div class="flex justify-between text-slate-700 pt-1">
+                                <span>Tổng tiền đơn thực nhận:</span>
+                                <span class="font-mono font-bold text-slate-800">${formatMoney(ord.total_final_amount)}</span>
+                            </div>
+                            <div class="flex justify-between text-rose-700 font-bold border-t border-emerald-200 pt-1">
+                                <span>👉 CÔNG NỢ CÒN PHẢI TRẢ (ĐỢT 2):</span>
+                                <span class="font-mono text-sm">${formatMoney(ord.remaining_payment)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
 
                     <div class="space-y-1">
                         <h4 class="font-bold text-slate-800 text-xs">📦 Danh Sách Thành Phẩm Gia Công:</h4>
@@ -10345,20 +10384,40 @@
                                         <th class="p-2">Sản Phẩm</th>
                                         <th class="p-2 text-right">SL Đặt</th>
                                         <th class="p-2 text-right">SL Thực Nhận</th>
+                                        <th class="p-2 text-center">Lệch Giao</th>
                                         <th class="p-2 text-right">Đơn Giá Xưởng</th>
-                                        <th class="p-2 text-right">Giá Vốn Sau Gộp Tem/Chai</th>
+                                        <th class="p-2 text-right">Thành Tiền Thực Nhận</th>
+                                        <th class="p-2 text-right">Giá Vốn Sau Gộp</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${(ord.items || []).map(it => `
-                                        <tr class="border-b">
+                                    ${(ord.items || []).map(it => {
+                                        const ordQty = Number(it.ordered_qty) || 0;
+                                        const recQty = Number(it.received_qty) || 0;
+                                        const itDiff = recQty - ordQty;
+                                        let diffBadge = '<span class="text-slate-400 font-mono text-[11px]">-</span>';
+                                        if (isReceived) {
+                                            if (itDiff < 0) {
+                                                diffBadge = `<span class="bg-rose-100 text-rose-800 px-1 py-0.5 rounded font-mono font-bold text-[10px]">-${Math.abs(itDiff).toLocaleString('vi-VN')}</span>`;
+                                            } else if (itDiff > 0) {
+                                                diffBadge = `<span class="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-mono font-bold text-[10px]">+${itDiff.toLocaleString('vi-VN')}</span>`;
+                                            } else {
+                                                diffBadge = `<span class="text-slate-500 font-mono text-[11px]">Đủ</span>`;
+                                            }
+                                        }
+                                        const rowTotal = (isReceived && recQty > 0 ? recQty : ordQty) * (Number(it.unit_price) || 0);
+                                        return `
+                                        <tr class="border-b hover:bg-slate-50/70">
                                             <td class="p-2 font-bold text-slate-800">${it.product_name}</td>
-                                            <td class="p-2 text-right font-mono">${it.ordered_qty}</td>
-                                            <td class="p-2 text-right font-mono font-bold text-amber-700">${it.received_qty || '-'}</td>
+                                            <td class="p-2 text-right font-mono font-semibold text-slate-700">${ordQty.toLocaleString('vi-VN')}</td>
+                                            <td class="p-2 text-right font-mono font-bold text-amber-700">${recQty > 0 ? recQty.toLocaleString('vi-VN') : '-'}</td>
+                                            <td class="p-2 text-center">${diffBadge}</td>
                                             <td class="p-2 text-right font-mono">${formatMoney(it.unit_price)}</td>
+                                            <td class="p-2 text-right font-mono font-bold text-slate-800">${formatMoney(rowTotal)}</td>
                                             <td class="p-2 text-right font-mono font-bold text-emerald-700">${it.full_cost_per_unit > 0 ? formatMoney(it.full_cost_per_unit) : 'Chờ nhận'}</td>
                                         </tr>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </tbody>
                             </table>
                         </div>

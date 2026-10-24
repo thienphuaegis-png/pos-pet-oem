@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--foreground, #1e293b);
+    background: transparent;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .card {
+    background: var(--card, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+  }
+  .title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-emerald { background: #d1fae5; color: #065f46; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-rose { background: #ffe4e6; color: #9f1239; }
+  .badge-sky { background: #e0f2fe; color: #0369a1; }
+  
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 640px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .stage-box {
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid var(--border, #cbd5e1);
+  }
+  .stage-init { background: #f8fafc; border-color: #cbd5e1; }
+  .stage-received { background: #f0fdf4; border-color: #86efac; }
+  
+  .stage-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .metric-label { color: var(--muted-foreground, #64748b); }
+  .metric-val { font-family: ui-monospace, monospace; font-weight: 600; }
+  
+  table.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  table.items-table th {
+    background: #f1f5f9;
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 700;
+    color: #475569;
+    border-bottom: 1px solid var(--border, #cbd5e1);
+  }
+  table.items-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+  }
+  
+  .error-callout {
+    background: #fff1f2;
+    border-left: 4px solid #f43f5e;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .solution-callout {
+    background: #ecfdf5;
+    border-left: 4px solid #10b981;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+  .formula {
+    background: rgba(0,0,0,0.04);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <div class="title">
+      <span>🏭 Đơn Gia Công OEM:</span>
+      <span style="color: #b45309; font-family: monospace;">OEM-20261015-001</span>
+      <span class="badge badge-emerald">ĐÃ NHẬN HÀNG (RECEIVED)</span>
+    </div>
+    <div style="font-size: 11px; color: var(--muted-foreground, #64748b);">
+      Xưởng: <b>Lucky Star</b> | Quỹ: <b>Công Ty (VAT 8%)</b>
+    </div>
+  </div>
+
+  <!-- 2 CHẶNG VÒNG ĐỜI -->
+  <div class="grid-2">
+    <!-- CHẶNG 1: LÚC ĐẶT HÀNG -->
+    <div class="stage-box stage-init">
+      <div class="stage-title" style="color: #475569;">
+        <span>1. Hợp đồng đặt cọc ban đầu</span>
+        <span class="badge badge-sky">15/10/2026</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">SL đặt dự kiến:</span>
+        <span class="metric-val" style="color: #0369a1;">5.400 chai</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Tiền thô ($5.400 \times 18.288$đ):</span>
+        <span class="metric-val">98.755.200 đ</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Chiết khấu (5%):</span>
+        <span class="metric-val" style="color: #059669;">- 4.937.760 đ</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Thuế VAT (8%):</span>
+        <span class="metric-val" style="color: #e11d48;">+ 7.900.416 đ</span>
+      </div>
+      <div class="metric-row" style="border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 4px;">
+        <span class="metric-label"><b>Tổng giá trị hợp đồng:</b></span>
+        <span class="metric-val"><b>98.755.200 đ</b></span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label"><b>Đã cọc 50% (Sổ Quỹ):</b></span>
+        <span class="metric-val" style="color: #059669;"><b>- 49.377.600 đ</b></span>
+      </div>
+      <div class="metric-row" style="background: #f1f5f9; padding: 6px; border-radius: 6px; margin-top: 4px;">
+        <span class="metric-label">Nợ dự kiến lúc đặt (50% còn lại):</span>
+        <span class="metric-val" style="color: #b45309;">49.377.600 đ</span>
+      </div>
+    </div>
+
+    <!-- CHẶNG 2: LÚC NHẬN HÀNG THỰC TẾ -->
+    <div class="stage-box stage-received">
+      <div class="stage-title" style="color: #047857;">
+        <span>2. Quyết toán thực nhận tại kho</span>
+        <span class="badge badge-emerald">22/10/2026</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">SL thực nhận (xưởng giao thiếu):</span>
+        <span class="metric-val" style="color: #e11d48;">3.448 chai (-1.952 chai)</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Tiền thô ($3.448 \times 18.288$đ):</span>
+        <span class="metric-val">63.057.024 đ</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Chiết khấu (5%):</span>
+        <span class="metric-val" style="color: #059669;">- 3.152.851 đ</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Thuế VAT (8%):</span>
+        <span class="metric-val" style="color: #e11d48;">+ 5.044.562 đ</span>
+      </div>
+      <div class="metric-row" style="border-top: 1px dashed #86efac; padding-top: 6px; margin-top: 4px;">
+        <span class="metric-label"><b>Tổng tiền đơn thực tế:</b></span>
+        <span class="metric-val"><b>64.948.735 đ</b></span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label"><b>Trừ tiền đã cọc (15/10):</b></span>
+        <span class="metric-val" style="color: #059669;"><b>- 49.377.600 đ</b></span>
+      </div>
+      <div class="metric-row" style="background: #dcfce7; padding: 6px; border-radius: 6px; margin-top: 4px;">
+        <span class="metric-label"><b>CÔNG NỢ CÒN PHẢI TRẢ (ĐỢT 2):</b></span>
+        <span class="metric-val" style="color: #e11d48; font-size: 13px;">15.571.135 đ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BẢNG CHI TIẾT SẢN PHẨM -->
+  <div style="margin-top: 14px;">
+    <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">📦 Bảng đối soát số lượng từng mặt hàng:</div>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Mặt hàng</th>
+          <th style="text-align: right;">SL Đặt Ban Đầu</th>
+          <th style="text-align: right;">SL Thực Nhận</th>
+          <th style="text-align: right;">Chênh Lệch</th>
+          <th style="text-align: right;">Đơn Giá</th>
+          <th style="text-align: right;">Thành Tiền Thực Nhận</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Nước Lau Sàn Sả Chanh 1L</b> (SP 35)</td>
+          <td style="text-align: right; font-family: monospace;">1.800 chai</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: #b45309;">954 chai</td>
+          <td style="text-align: right; font-family: monospace; color: #e11d48; font-weight: 700;">- 846 chai</td>
+          <td style="text-align: right; font-family: monospace;">18.288 đ</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700;">17.446.752 đ</td>
+        </tr>
+        <tr>
+          <td><b>Nước Lau Sàn Hoa Hạ 1L</b> (SP 37)</td>
+          <td style="text-align: right; font-family: monospace;">1.800 chai</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: #b45309;">993 chai</td>
+          <td style="text-align: right; font-family: monospace; color: #e11d48; font-weight: 700;">- 807 chai</td>
+          <td style="text-align: right; font-family: monospace;">18.288 đ</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700;">18.159.984 đ</td>
+        </tr>
+        <tr>
+          <td><b>Nước Lau Sàn Quế 1L</b> (SP 36)</td>
+          <td style="text-align: right; font-family: monospace;">1.800 chai</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: #b45309;">1.501 chai</td>
+          <td style="text-align: right; font-family: monospace; color: #e11d48; font-weight: 700;">- 299 chai</td>
+          <td style="text-align: right; font-family: monospace;">18.288 đ</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700;">27.450.288 đ</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="background: #f8fafc; font-weight: 700;">
+          <td>TỔNG CỘNG</td>
+          <td style="text-align: right; font-family: monospace;">5.400 chai</td>
+          <td style="text-align: right; font-family: monospace; color: #b45309;">3.448 chai</td>
+          <td style="text-align: right; font-family: monospace; color: #e11d48;">- 1.952 chai</td>
+          <td></td>
+          <td style="text-align: right; font-family: monospace; color: #0f172a;">63.057.024 đ</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- NGUYÊN NHÂN LỆCH CÔNG NỢ KHI THANH TOÁN -->
+  <div class="error-callout">
+    <div style="font-weight: 700; color: #9f1239; margin-bottom: 4px;">⚠️ NGUYÊN NHÂN GÂY LỆCH & KHÔNG THANH TOÁN ĐƯỢC:</div>
+    <div style="color: #4c0519; line-height: 1.5;">
+      1. <b>Bẫy làm tròn 1 đồng:</b> DB lưu số lẻ <span class="formula">15.571.134,72 đ</span>, nhưng màn hình làm tròn thành <span class="formula">15.571.135 đ</span>. Khi anh gõ 15.571.135 đ thì backend chặn vì số tiền nhập lớn hơn số nợ lẻ <b>0,28 đ</b>.<br>
+      2. <b>Lệch so với giấy hẹn cọc:</b> Lúc đặt hàng nợ dự kiến là <span class="formula">49.377.600 đ</span>, khi nhận thực tế chỉ còn nợ <span class="formula">15.571.135 đ</span> do xưởng giao thiếu 1.952 chai.<br>
+      3. <b>Mất số lượng đặt:</b> Do lệnh sửa đè, hệ thống đang lưu SL đặt = SL nhận = 3.448 chai, khiến cọc 49tr chiếm 76% thay vì 50%.
+    </div>
+  </div>
+
+  <!-- GIẢI PHÁP TỰ ĐỘNG -->
+  <div class="solution-callout">
+    <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">✅ GIẢI PHÁP KHẮC PHỤC TRIỆT ĐỂ:</div>
+    <div style="color: #064e3b; line-height: 1.5;">
+      • <b>Cơ chế khử số lẻ:</b> Nới dung sai so sánh lên &le; 1 đ. Khi trả 15.571.135 đ, nợ tự động cấn trừ sạch về <b>0 đ</b> (status: PAID).<br>
+      • <b>Khôi phục SL đặt:</b> Trả lại SL đặt 1.800 chai/loại để thể hiện đúng tỷ lệ cọc 50% ban đầu.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -11,6 +11,13 @@
 ---
 
 ## 1. Phiên Hiện Tại ✅ (2026-10-24)
+- **Quyết toán Đơn Gia Công OEM 2 Chặng & Cơ chế Khử Sai Số Làm Tròn 1 Đồng:**
+  - Khắc phục lỗi chặn thanh toán công nợ do sai số làm tròn 1 đồng (`req.amount > order_debt + 1.0` thay vì `+ 0.01` trong `routers/oem.py:pay_single_order_debt` và `pay_supplier_debt`).
+  - Tự động cấn trừ dứt điểm nợ về `0.0` đ khi chênh lệch $\le 1$ đ, chuyển trạng thái đơn sang `PAID` và làm sạch `contacts.debt`.
+  - Khắc phục bẫy lệnh sửa đơn `update_oem_order` xóa đè số lượng đặt ban đầu: bảo toàn `ordered_qty` gốc khi đơn đã nhận hàng (`RECEIVED`/`COMPLETED`).
+  - Giao diện Modal Chi tiết OEM (`static/js/modules/productions.js`): bổ sung bảng đối soát 2 chặng tài chính trực quan (Hợp đồng cọc ban đầu vs Quyết toán thực nhận tại kho, tính chi tiết thừa/thiếu từng sản phẩm, tiền cọc cấn trừ và công nợ đợt 2).
+  - Bảng Công nợ NCC (`static/js/modules/cashflow.js`): hiển thị badge đối soát kèm làm tròn số tiền thanh toán 1-chạm không bị lỗi.
+  - Khôi phục dữ liệu chuẩn cho đơn `OEM-20261015-001` (Lucky Star): Đặt 1.800/món, Nhận 954, 993, 1501, cọc 50% là 49.377.600 đ, nợ đợt 2 là 15.571.135 đ.
 - **Quản lý Nhân sự Kép (Dual-Purpose Staff: Hồ sơ nội bộ HRM vs Tài khoản đăng nhập POS):**
   - Tách bạch hồ sơ nhân sự nội bộ (chấm công vân tay `device_code`, bảng lương, tạm ứng, hoa hồng) và tài khoản POS (`username`, `password_hash`, `role`).
   - Hỗ trợ tạo nhân sự không cần tài khoản đăng nhập (`username=NULL`, `password_hash=NULL`, `role='staff'`).
@@ -48,6 +55,7 @@
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
+- `tests/test_oem_reconciliation_debt.py`: 1/1 passed (Toàn bộ chu trình quyết toán đơn OEM, bảo toàn SL đặt ban đầu khi sửa đơn, tự động khử sai số 1 đồng khi thanh toán nợ đơn lẻ).
 - `tests/test_staff_dual_purpose_auth.py`: 1/1 passed (Toàn bộ chu trình tạo nhân sự không tài khoản, bảo vệ đăng nhập, cấp tài khoản sau, và thu hồi tài khoản).
 - `tests/test_commission_accuracy.py`: 1/1 passed.
 - `tests/test_payroll_engine.py`: 14/14 passed.

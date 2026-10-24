@@ -536,16 +536,32 @@ def update_oem_order(order_id: int, req: OEMOrderUpdate, user=Depends(require_pe
         ))
 
         is_received = o["status"] in ("RECEIVED", "COMPLETED")
+        # Bảo toàn số lượng đặt ban đầu nếu đơn đã nhận hàng, tránh lệnh sửa đơn xóa đè
+        cur.execute("SELECT product_id, ingredient_id, ordered_qty, received_qty FROM oem_order_items WHERE order_id = ?", (order_id,))
+        old_items_map = {}
+        for r in cur.fetchall():
+            key = (r["product_id"], r["ingredient_id"])
+            old_items_map[key] = (r["ordered_qty"], r["received_qty"])
+
         cur.execute("DELETE FROM oem_order_items WHERE order_id = ?", (order_id,))
         for idx, it in enumerate(req.items):
             item_vat_rate, item_vat_amt, net_cost = item_vat_data[idx]
-            rec_qty = it.ordered_qty if is_received else 0
+            key = (it.product_id, getattr(it, "ingredient_id", None))
+            if is_received and key in old_items_map:
+                old_ord, old_rec = old_items_map[key]
+                # Nếu đã nhận hàng: giữ nguyên ordered_qty gốc
+                ord_qty = old_ord if old_ord and old_ord > 0 else it.ordered_qty
+                rec_qty = old_rec if old_rec and old_rec > 0 else it.ordered_qty
+            else:
+                ord_qty = it.ordered_qty
+                rec_qty = it.ordered_qty if is_received else 0
+
             cur.execute("""
                 INSERT INTO oem_order_items (
                     order_id, product_id, ordered_qty, received_qty,
                     unit_price, final_unit_cost, full_cost_per_unit, vat_rate, vat_amount
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (order_id, it.product_id, it.ordered_qty, rec_qty, it.unit_price, net_cost, net_cost, item_vat_rate, item_vat_amt))
+            """, (order_id, it.product_id, ord_qty, rec_qty, it.unit_price, net_cost, net_cost, item_vat_rate, item_vat_amt))
 
         conn.commit()
         return {"success": True, "id": order_id, "total_final": total_final}
@@ -1307,7 +1323,7 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         conn.close()
         raise HTTPException(status_code=400, detail=f"Nhà cung cấp này hiện không có công nợ nào thuộc {fund_label}")
         
-    if req.amount > total_allowed_debt + 0.01:
+    if req.amount > total_allowed_debt + 1.0:
         conn.close()
         raise HTTPException(
             status_code=400, 
@@ -1315,15 +1331,26 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
         )
         
     rem = req.amount
+    # Nới dung sai làm tròn 1 đồng: Nếu thanh toán khớp gần tuyệt đối, cấn trừ sạch toàn bộ nợ
+    if abs(total_allowed_debt - rem) <= 1.0:
+        rem = total_allowed_debt
+
     for o in target_orders:
         if rem <= 0:
             break
         alloc = min(rem, o["debt_amount"])
+        if (o["debt_amount"] - alloc) <= 1.0:
+            alloc = o["debt_amount"]
         rem -= alloc
         if o["order_type"] == "PO":
-            cur.execute("UPDATE purchases SET debt_amount = debt_amount - ?, paid_amount = paid_amount + ? WHERE id = ?", (alloc, alloc, o["id"]))
+            new_po_debt = max(0.0, o["debt_amount"] - alloc)
+            if new_po_debt <= 1.0:
+                new_po_debt = 0.0
+            cur.execute("UPDATE purchases SET debt_amount = ?, paid_amount = paid_amount + ? WHERE id = ?", (new_po_debt, alloc, o["id"]))
         else:
-            new_remaining = o["debt_amount"] - alloc
+            new_remaining = max(0.0, o["debt_amount"] - alloc)
+            if new_remaining <= 1.0:
+                new_remaining = 0.0
             new_deposit = o["paid_amount"] + alloc
             payment_status = "PAID" if new_remaining <= 0 else "PARTIAL"
             cur.execute("UPDATE oem_orders SET remaining_payment = ?, deposit_amount = ?, payment_status = ? WHERE id = ?", (new_remaining, new_deposit, payment_status, o["id"]))
@@ -1331,11 +1358,11 @@ def pay_supplier_debt(req: SupplierDebtPaymentRequest, user=Depends(require_any_
     # Nếu còn dư tiền thanh toán sau khi trừ đơn -> trừ tiếp vào nợ đầu kỳ
     if rem > 0:
         if is_company:
-            cur.execute("UPDATE contacts SET initial_debt_company = MAX(0.0, initial_debt_company - ?) WHERE id = ?", (rem, req.supplier_id))
+            cur.execute("UPDATE contacts SET initial_debt_company = CASE WHEN (initial_debt_company - ?) <= 1.0 THEN 0.0 ELSE MAX(0.0, initial_debt_company - ?) END WHERE id = ?", (rem, rem, req.supplier_id))
         else:
-            cur.execute("UPDATE contacts SET initial_debt_personal = MAX(0.0, initial_debt_personal - ?) WHERE id = ?", (rem, req.supplier_id))
+            cur.execute("UPDATE contacts SET initial_debt_personal = CASE WHEN (initial_debt_personal - ?) <= 1.0 THEN 0.0 ELSE MAX(0.0, initial_debt_personal - ?) END WHERE id = ?", (rem, rem, req.supplier_id))
 
-    cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?) WHERE id = ?", (req.amount, req.supplier_id))
+    cur.execute("UPDATE contacts SET debt = CASE WHEN (debt - ?) <= 1.0 THEN 0.0 ELSE MAX(0.0, debt - ?) END WHERE id = ?", (req.amount, req.amount, req.supplier_id))
     
     cb_code = generate_cashbook_code(cur, "PC-NH")
     note = req.note or f"Thanh toán nợ cho {supp['name']} ({fund_label})"
@@ -1405,7 +1432,7 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
         conn.close()
         raise HTTPException(status_code=400, detail=f"Đơn hàng {order_code} không có thuế VAT, bắt buộc thanh toán bằng Quỹ Cá Nhân!")
         
-    if req.amount > order_debt + 0.01:
+    if req.amount > order_debt + 1.0:
         conn.close()
         raise HTTPException(status_code=400, detail=f"Số tiền thanh toán vượt quá nợ còn lại của đơn ({order_debt:,.0f} đ)")
 
@@ -1421,7 +1448,13 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
             raise HTTPException(status_code=400, detail=f"Tài khoản chi không thuộc {fund_label}")
         
     alloc = req.amount
+    # Nới dung sai làm tròn: Nếu chênh lệch <= 1 đ, cấn trừ sạch nợ còn lại
+    if abs(order_debt - alloc) <= 1.0:
+        alloc = order_debt
+
     new_debt = max(0.0, order_debt - alloc)
+    if new_debt <= 1.0:
+        new_debt = 0.0
     new_paid = order["paid_amount"] + alloc
     
     if req.order_type.upper() in ("PO", "PURCHASE"):
@@ -1430,7 +1463,7 @@ def pay_single_order_debt(req: OrderDebtPaymentRequest, user=Depends(require_any
         payment_status = "PAID" if new_debt <= 0 else "PARTIAL"
         cur.execute("UPDATE oem_orders SET remaining_payment = ?, deposit_amount = ?, payment_status = ? WHERE id = ?", (new_debt, new_paid, payment_status, req.order_id))
         
-    cur.execute("UPDATE contacts SET debt = MAX(0.0, debt - ?) WHERE id = ?", (alloc, supplier_id))
+    cur.execute("UPDATE contacts SET debt = CASE WHEN (debt - ?) <= 1.0 THEN 0.0 ELSE MAX(0.0, debt - ?) END WHERE id = ?", (alloc, alloc, supplier_id))
     
     cur.execute("SELECT name FROM contacts WHERE id = ?", (supplier_id,))
     supp_row = cur.fetchone()
