@@ -673,9 +673,12 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v7.0-2026-10-24-loopy-mascot';
+    const ROADMAP_VERSION = 'v7.1-2026-10-25-resigned-staff-and-silent-update';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-23)
+      // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-25)
+      { id: 'resigned-staff-and-silent-update', cat: 'HRM', title: 'Quản Lý Nhân Viên Nghỉ Việc (HRM/Cài Đặt) & Triệt Tiêu Kẹt Cửa Sổ Khi Cập Nhật Từ Xa', done: true, note: 'Bổ sung segmented pills 3 trạng thái (Đang làm việc / Đã nghỉ việc / Tất cả) cho cả HRM và Cài Đặt; nút thao tác 🛑 Nghỉ việc (gán is_active=0, leave_date, thu hồi token phiên đăng nhập) và ↩️ Đi làm lại; thay findstr bằng Python one-liner đọc token trong RAM kèm cờ CREATE_NO_WINDOW & SW_HIDE triệt tiêu 100% cửa sổ đen bị kẹt.' },
+      { id: 'spa-customer-call-and-pancake-sync', cat: 'SPA', title: 'Tối Ưu Bảng Dịch Vụ Spa 11 Cột, Tô Nền Xanh Đơn Đã Thanh Toán & Đồng Bộ Pancake (POSCAKE)', done: true, note: 'Dời dropdown gọi điện xuống dưới SĐT ở cột Khách Hàng (rút từ 12 còn 11 cột); tô nền xanh ngọc bg-emerald-50/70 cho dòng đã thanh toán; đồng bộ 2 shop Pancake, trừ tồn kho tự động mọi sàn TMĐT và cấu hình hoa hồng bán hàng theo nhân viên.' },
+      // 0. CẬP NHẬT (2026-10-24)
       { id: 'loopy-mascot', cat: 'UI', title: 'Mascot Loopy cho chị Phụng (tab AI Agent): hết chớp + câu nói idle', done: true, note: 'Dựng lại sprite strip không frame trống (idle 16f, wave 2f tay trái); 15-30s nói câu ngoan/dụ rê chuột, rê vào thì khịa. Tạm thời, gỡ bằng xóa loopy_pet.js + block LOOPY PET.' },
       { id: 'ai-role-adaptive-briefing-and-min-stock', cat: 'AI', title: 'Tác Nhân AI Thích Ứng Vai Trò (Thủ Kho / Kế Toán / Thu Ngân) & Cột Tồn Tối Thiểu (min_stock)', done: true, note: 'Cột min_stock trong products; API /api/ai/staff-briefing cá nhân hóa cho Thủ kho (hàng sắp hết, hàng đang về, 1-chạm nhận hàng), Kế toán (công nợ 2 chiều, duyệt chi), Thu ngân (doanh số ca, tiền két).' },
       { id: 'oem-draft-mode-and-one-click-auto-draft', cat: 'PROD', title: 'Đơn OEM Chức Năng Lưu Nháp (DRAFT) & AI Đề Xuất 1-Chạm Tạo Đơn Nháp (Hàng Nhập & OEM)', done: false, note: 'Nút Lưu Bản Nháp DRAFT cho đơn OEM không xuất cọc; API /api/ai/quick-create-draft tự nhận diện hàng nhập vs OEM để tạo ngay đơn nháp trong 1 giây, mở ra cho người dùng sửa hoặc xóa.' },

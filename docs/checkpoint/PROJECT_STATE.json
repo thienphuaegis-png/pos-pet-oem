@@ -3,11 +3,11 @@
     "name": "pos-offline-petcare2",
     "version": "v3.6.28",
     "framework": "FastAPI + SQLite (data/pos.db)",
-    "git_commit": "b4cb7ba",
+    "git_commit": "be54325",
     "git_branch": "main",
-    "updated_at": "2026-10-25T00:00:12",
+    "updated_at": "2026-10-25T23:31:03",
     "codegraph_stats": {
-      "files_indexed": 639,
+      "files_indexed": 646,
       "nodes": 5980,
       "edges": 20499
     }
