@@ -123,8 +123,10 @@ if exist "%ROOT%\deploy\khoa_tiem.txt" (
 if defined PULLURL (
     "%GIT%" pull --ff-only "!PULLURL!" > "%TEMP%\pos_pull.log" 2>&1
     set "RC=!errorlevel!"
-    type "%TEMP%\pos_pull.log" | findstr /v /c:"!TOKEN!"
-    del "%TEMP%\pos_pull.log" >nul 2>&1
+    if exist "%TEMP%\pos_pull.log" (
+        "%VPY%" -c "import os,sys; p=r'%TEMP%\pos_pull.log'; k=r'%ROOT%\deploy\khoa_tiem.txt'; t=open(k, encoding='utf-8', errors='ignore').read().strip() if os.path.exists(k) else ''; [sys.stdout.write(l) for l in open(p, encoding='utf-8', errors='ignore') if not t or t not in l]" 2>nul
+        del "%TEMP%\pos_pull.log" >nul 2>&1
+    )
 ) else (
     "%GIT%" pull --ff-only
     set "RC=!errorlevel!"

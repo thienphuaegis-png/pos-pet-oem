@@ -259,7 +259,7 @@ def apply_system_update(user=Depends(require_role("owner", "admin"))):
         lock.write_text(f"{username} {datetime.datetime.now():%Y-%m-%d %H:%M:%S}", encoding="utf-8")
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         log = open(UPDATE_DIR / f"update_{stamp}.log", "w", encoding="utf-8", errors="replace")
-        base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        base = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         si.wShowWindow = 0  # SW_HIDE: triệt tiêu hoàn toàn cửa sổ đen
