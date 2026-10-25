@@ -4,6 +4,8 @@ title CAP NHAT POS PET OEM
 setlocal EnableDelayedExpansion
 cd /d "%~dp0.."
 set "ROOT=%CD%"
+set "GIT_TERMINAL_PROMPT=0"
+set "PYTHONUNBUFFERED=1"
 
 REM /auto = chay tu nut web: khong pause, ghi ket qua ra logs\update_status.txt
 set "PAUSE=pause"
@@ -54,12 +56,14 @@ if %errorlevel% neq 0 (
 
 REM --- 1/5 Tat server dang chay ---
 echo [1/5] Tam dung server...
-powershell -NoProfile -Command ^
-  "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+taskkill /F /IM POS_Mastercare.exe >nul 2>&1
+taskkill /F /IM pythonw.exe >nul 2>&1
+powershell -NoProfile -NonInteractive -Command ^
+  "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
   "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
 REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
 REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
-powershell -NoProfile -Command "Start-Sleep -Seconds 3"
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 3"
 echo       OK
 
 REM --- 2/5 Sao luu du lieu ---
@@ -74,7 +78,7 @@ if not exist "data\backups" mkdir "data\backups"
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value 2^>nul') do set "dt=%%a"
 if not defined dt (
     REM Du phong khi wmic bi go khoi Windows moi
-    for /f "delims=" %%a in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%a"
+    for /f "delims=" %%a in ('powershell -NoProfile -NonInteractive -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%a"
 ) else (
     set "STAMP=!dt:~0,8!_!dt:~8,6!"
 )
@@ -103,7 +107,7 @@ if exist "%ROOT%\deploy\khoa_tiem" set "KEYPATH=%ROOT%\deploy\khoa_tiem"
 
 if defined KEYPATH (
     set "KEYPATH=!KEYPATH:\=/!"
-    set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+    set "GIT_SSH_COMMAND=ssh -i '!KEYPATH!' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes"
 )
 
 set "PULLURL="
@@ -171,7 +175,7 @@ start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
 
 REM Cho server len, toi da 30 giay.
 set "READY="
-powershell -NoProfile -Command ^
+powershell -NoProfile -NonInteractive -Command ^
   "for ($i=0; $i -lt 30; $i++) {" ^
   "  try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8999/api/ping' -TimeoutSec 2 -UseBasicParsing;" ^
   "        if ($r.StatusCode -eq 200) { exit 0 } } catch {}" ^
@@ -183,7 +187,7 @@ if %errorlevel% equ 0 set "READY=1"
 if not defined READY (
     set "ERR_DETAIL="
     if exist "pos_debug.log" (
-        for /f "delims=" %%l in ('powershell -NoProfile -Command "Get-Content pos_debug.log -Tail 15 -ErrorAction SilentlyContinue | Out-String"') do set "ERR_DETAIL=%%l"
+        for /f "delims=" %%l in ('powershell -NoProfile -NonInteractive -Command "Get-Content pos_debug.log -Tail 15 -ErrorAction SilentlyContinue | Out-String"') do set "ERR_DETAIL=%%l"
     )
     if defined ERR_DETAIL (
         set "REASON=Server khoi dong loi: !ERR_DETAIL!"
@@ -204,8 +208,8 @@ exit /b 0
 :rollback
 echo.
 echo [ROLLBACK] !REASON! - dang quay ve ban cu !OLD!...
-powershell -NoProfile -Command ^
-  "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
+powershell -NoProfile -NonInteractive -Command ^
+  "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
   "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } };" ^
   "Start-Sleep -Seconds 3"
 "%GIT%" reset --hard !OLD!
@@ -213,7 +217,7 @@ del /q "data\pos.db-wal" "data\pos.db-shm" >nul 2>&1
 "%VPY%" -c "import sqlite3; s=sqlite3.connect(r'!BACKUP!'); d=sqlite3.connect(r'data\pos.db'); s.backup(d); d.close(); s.close()"
 "%VPY%" -m pip install -r requirements.txt -q
 start /d "%ROOT%" "" wscript.exe "%ROOT%\deploy\start_server.vbs"
-powershell -NoProfile -Command "for ($i=0; $i -lt 45; $i++) { foreach ($p in 8998,8999) { try { $r = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $p + '/api/ping') -TimeoutSec 2 -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } } catch {} }; Start-Sleep -Seconds 1 }; exit 1"
+powershell -NoProfile -NonInteractive -Command "for ($i=0; $i -lt 45; $i++) { foreach ($p in 8998,8999) { try { $r = Invoke-WebRequest -Uri ('http://127.0.0.1:' + $p + '/api/ping') -TimeoutSec 2 -UseBasicParsing; if ($r.StatusCode -eq 200) { exit 0 } } catch {} }; Start-Sleep -Seconds 1 }; exit 1"
 if !errorlevel! equ 0 (
     call :write_status ROLLED_BACK "!REASON! - da quay ve ban cu"
     echo   DA QUAY VE BAN CU - du lieu giu nguyen.

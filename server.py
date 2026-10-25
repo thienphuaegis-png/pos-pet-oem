@@ -260,7 +260,10 @@ def apply_system_update(user=Depends(require_role("owner", "admin"))):
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         log = open(UPDATE_DIR / f"update_{stamp}.log", "w", encoding="utf-8", errors="replace")
         base = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        kw = dict(cwd=str(APP_ROOT), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE: triệt tiêu hoàn toàn cửa sổ đen
+        kw = dict(cwd=str(APP_ROOT), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, startupinfo=si)
         args = ["cmd", "/c", str(deploy_bat), "/auto"]
         try:
             # Thoát khỏi job object của Task Scheduler để không bị giết khi server tắt
