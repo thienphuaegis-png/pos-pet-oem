@@ -656,6 +656,26 @@ class MarketplaceAutoCookieRequest(BaseModel):
 class MarketplaceOrderBulkDeleteRequest(BaseModel):
     order_ids: List[int]
 
+class PancakeTestRequest(BaseModel):
+    shop_id: str
+    api_key: Optional[str] = None   # bỏ trống = dùng key đã lưu của account_id
+    account_id: Optional[int] = None
+
+class PancakeSyncRequest(BaseModel):
+    account_id: Optional[int] = None  # None = đồng bộ tất cả shop Pancake
+    date_from: str                    # YYYY-MM-DD
+    date_to: str
+
+class PancakeCommissionRules(BaseModel):
+    threshold: float = Field(ge=0)
+    bonus_at_threshold: float = Field(default=0, ge=0)
+    tiers: List[List[Optional[float]]]  # [[đến_doanh_thu | null, tỷ_lệ_%], ...] tăng dần
+
+class PancakeSellerUpdate(BaseModel):
+    seller_name: str
+    staff_id: Optional[int] = None
+    rules: Optional[PancakeCommissionRules] = None  # None = dùng công thức chung
+
 class QuickDraftRequest(BaseModel):
     product_id: Optional[int] = None
     partner_id: Optional[int] = None

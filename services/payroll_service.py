@@ -272,6 +272,12 @@ def calculate_period(cur, month: str, today: date = None) -> dict:
         raise HTTPException(400, "Bảng lương đã chốt, mở khóa trước khi tính lại")
     rules, blocks = load_rules(cur), load_blocks(cur)
     sales = sales_commission_by_staff(cur, f"{first} 00:00:00", f"{last} 23:59:59")
+    # Cộng hoa hồng Sales Pancake (đơn POSCAKE theo NV đã gán ở TMĐT > Pancake) vào dòng "Hoa hồng bán"
+    from services.pancake import commission_by_staff as pancake_commission_by_staff
+    for sid, pc in pancake_commission_by_staff(cur, first.isoformat(), last.isoformat()).items():
+        rec = sales.setdefault(sid, {"commission": 0, "net": 0})
+        rec["commission"] = rec.get("commission", 0) + pc["commission"]
+        rec["net"] = rec.get("net", 0) + pc["revenue"]
     spa = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
     cur.execute("SELECT * FROM payroll_lines WHERE period_id = ?", (period["id"],))
     existing = {r["staff_id"]: r for r in cur.fetchall()}

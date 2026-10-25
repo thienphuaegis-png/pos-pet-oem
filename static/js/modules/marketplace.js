@@ -49,7 +49,7 @@
 
     function switchMktSubTab(subTab) {
         state.activeSubTab = subTab;
-        const subTabs = ['shopee', 'tiktok', 'mapping', 'analytics'];
+        const subTabs = ['shopee', 'tiktok', 'pancake', 'mapping', 'analytics'];
         subTabs.forEach(t => {
             const btn = document.getElementById(`btn-subtab-mkt-${t}`);
             const pane = document.getElementById(`pane-mkt-${t}`);
@@ -58,6 +58,7 @@
                     btn.className = 'px-4 py-2.5 text-xs font-bold border-b-2 flex items-center gap-2 transition cursor-pointer ';
                     if (t === 'shopee') btn.className += 'border-orange-500 text-orange-600';
                     else if (t === 'tiktok') btn.className += 'border-slate-900 text-slate-900';
+                    else if (t === 'pancake') btn.className += 'border-amber-500 text-amber-700';
                     else if (t === 'mapping') btn.className += 'border-indigo-600 text-indigo-700';
                     else btn.className += 'border-purple-600 text-purple-700';
                 } else {
@@ -72,6 +73,7 @@
 
         if (subTab === 'shopee') loadShopeeOrders();
         else if (subTab === 'tiktok') loadTikTokOrders();
+        else if (subTab === 'pancake') loadPancakeTab();
         else if (subTab === 'mapping') {
             loadUnmappedItems();
             loadSkuMappings();
@@ -111,6 +113,7 @@
             const accounts = await res.json();
             state.shopeeAccounts = accounts.filter(a => a.platform === 'shopee');
             state.tiktokAccounts = accounts.filter(a => a.platform === 'tiktok');
+            state.pancakeAccounts = accounts.filter(a => a.platform === 'pancake');
 
             renderAccountSelects();
         } catch (e) {
@@ -1225,9 +1228,7 @@
         tbody.innerHTML = currentUnmappedItems.map((it, idx) => {
             const safeName = (it.platform_product_name || '').replace(/'/g, "\\'");
             const safeVar = (it.platform_variation || '').replace(/'/g, "\\'");
-            const platformBadge = it.platform === 'shopee'
-                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Shopee</span>'
-                : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
+            const platformBadge = mktPlatformBadge(it.platform);
 
             const sel = unmappedRowSelections[idx];
             const hasSelection = sel && sel.productId;
@@ -1541,9 +1542,7 @@
             }
 
             tbody.innerHTML = mappings.map(m => {
-                const platformBadge = m.platform === 'shopee'
-                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800">Shopee</span>'
-                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
+                const platformBadge = mktPlatformBadge(m.platform);
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
@@ -1772,5 +1771,372 @@
         container.scrollTop = container.scrollHeight;
     }
     window.sendMarketplaceAIChat = sendMarketplaceAIChat;
+
+    function mktPlatformBadge(p) {
+        if (p === 'shopee') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Shopee</span>';
+        if (p === 'pancake') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Pancake</span>';
+        return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // PANCAKE (POSCAKE API): shop, đồng bộ đơn, hoa hồng NV bán
+    // ─────────────────────────────────────────────────────────────
+    window.mktPancakePage = 1;
+    let pcStaff = [];
+    let pcSellers = [];
+    let pcDefaultRules = null;
+    let pcRulesTarget = null; // null = công thức chung, string = tên NV Pancake
+
+    const pcMoney = v => (typeof formatMoney === 'function') ? formatMoney(Math.round(v || 0)) : `${Math.round(v || 0).toLocaleString('vi-VN')} đ`;
+    const pcToast = (msg, type) => window.showToast ? window.showToast(msg, type) : alert(msg);
+
+    function pcRange() {
+        const fromEl = document.getElementById('pc-date-from');
+        const toEl = document.getElementById('pc-date-to');
+        if (fromEl && !fromEl.value) {
+            const today = (typeof getLocalTodayDateStr === 'function') ? getLocalTodayDateStr() : new Intl.DateTimeFormat('en-CA').format(new Date());
+            fromEl.value = today.slice(0, 8) + '01';
+            toEl.value = today;
+        }
+        return { from: fromEl?.value || '', to: toEl?.value || '' };
+    }
+
+    function rulesText(r) {
+        if (!r) return '';
+        const tiers = (r.tiers || []).map(([upTo, rate]) => `${upTo ? 'đến ' + pcMoney(upTo) : 'trên đó'}: ${rate}%`).join(', ');
+        return `Mốc ${pcMoney(r.threshold)} · thưởng đạt mốc ${pcMoney(r.bonus_at_threshold)} · ${tiers}`;
+    }
+
+    async function loadPancakeTab() {
+        pcRange();
+        renderPancakeShops();
+        if (!pcStaff.length) {
+            try { const r = await fetch('/api/staff'); if (r.ok) pcStaff = (await r.json()).filter(s => s.is_active); } catch (e) { }
+        }
+        await Promise.all([loadPancakeSellers(), loadPancakeOrders(1)]);
+    }
+    window.loadPancakeTab = loadPancakeTab;
+
+    function renderPancakeShops() {
+        const box = document.getElementById('pc-shop-list');
+        if (!box) return;
+        const shops = state.pancakeAccounts || [];
+        if (!shops.length) {
+            box.innerHTML = '<span class="text-xs text-rose-600 font-bold">Chưa có shop Pancake — bấm "+ Thêm Shop"</span>';
+            return;
+        }
+        box.innerHTML = shops.map(a => {
+            let sid = '';
+            try { sid = JSON.parse(a.extra_config || '{}').shop_id || ''; } catch (e) { }
+            const ok = a.has_cookies && sid;
+            return `<button type="button" onclick="openPancakeShopModal(${a.id})" class="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 text-left cursor-pointer transition" title="Bấm để sửa">
+                <span>${ok ? '🟢' : '🔴'}</span>
+                <span><span class="block font-bold text-xs text-amber-900">${escapeHtml(a.shop_name)}</span>
+                <span class="block text-[10px] text-slate-500 font-mono">ID ${escapeHtml(sid || '?')}${a.last_sync_at ? ' · sync ' + escapeHtml(a.last_sync_at.slice(5, 16)) : ''}</span></span>
+            </button>`;
+        }).join('');
+    }
+
+    async function syncPancakeNow() {
+        const { from, to } = pcRange();
+        const btn = document.getElementById('btn-pc-sync');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang tải đơn...'; }
+        try {
+            const res = await fetch('/api/marketplace/pancake/sync', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date_from: from, date_to: to })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi đồng bộ');
+            pcToast(data.message, data.message.includes('lỗi') ? 'warning' : 'success');
+            await loadMarketplaceAccounts();
+            await loadPancakeTab();
+        } catch (e) {
+            pcToast('Lỗi: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '🔄 Đồng Bộ Đơn'; }
+        }
+    }
+    window.syncPancakeNow = syncPancakeNow;
+
+    async function loadPancakeSellers() {
+        const tbody = document.getElementById('pc-sellers-tbody');
+        if (!tbody) return;
+        const { from, to } = pcRange();
+        try {
+            const res = await fetch(`/api/marketplace/pancake/sellers?date_from=${from}&date_to=${to}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi tải hoa hồng');
+            pcSellers = data.sellers || [];
+            pcDefaultRules = data.default_rules;
+            document.getElementById('pc-default-rules-text').textContent = 'Công thức chung: ' + rulesText(pcDefaultRules);
+            if (!pcSellers.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="p-4 text-center text-slate-400">Chưa có dữ liệu. Bấm "Đồng Bộ Đơn".</td></tr>';
+                return;
+            }
+            const opts = sel => '<option value="">-- Chưa gán --</option>' + pcStaff.map(s =>
+                `<option value="${s.id}" ${String(s.id) === String(sel) ? 'selected' : ''}>${escapeHtml(s.name)}${s.employee_code ? ' (' + escapeHtml(s.employee_code) + ')' : ''}</option>`).join('');
+            tbody.innerHTML = pcSellers.map((s, i) => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-2.5 font-bold text-slate-800">${escapeHtml(s.seller_name)}</td>
+                    <td class="p-2.5"><select onchange="assignPancakeSeller(${i}, this.value)" class="border ${s.staff_id ? 'border-slate-300' : 'border-amber-400 bg-amber-50'} rounded-lg px-2 py-1 text-xs font-semibold">${opts(s.staff_id)}</select></td>
+                    <td class="p-2.5 text-center font-mono">${s.orders}</td>
+                    <td class="p-2.5 text-right font-mono font-bold">${pcMoney(s.revenue)}</td>
+                    <td class="p-2.5 text-right font-mono text-sky-700">${pcMoney(s.collected)}</td>
+                    <td class="p-2.5 text-center font-mono">${s.rate ? s.rate + '%' : '-'}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${pcMoney(s.commission)}</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-700">${pcMoney(s.bonus)}</td>
+                    <td class="p-2.5 text-center"><button type="button" onclick="openPancakeRulesModal(${i})" class="px-2 py-1 rounded text-[10px] font-bold cursor-pointer ${s.custom_rules ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${s.custom_rules ? 'Riêng ✎' : 'Chung ✎'}</button></td>
+                </tr>`).join('');
+            const tot = pcSellers.reduce((a, s) => ({ n: a.n + s.orders, r: a.r + s.revenue, c: a.c + s.collected }), { n: 0, r: 0, c: 0 });
+            document.getElementById('kpi-pancake-revenue').textContent = pcMoney(tot.r);
+            document.getElementById('kpi-pancake-collected').textContent = pcMoney(tot.c);
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-rose-500">Lỗi: ${escapeHtml(e.message)}</td></tr>`;
+        }
+    }
+
+    async function putPancakeSeller(s, staffId, rules) {
+        const res = await fetch('/api/marketplace/pancake/sellers', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ seller_name: s.seller_name, staff_id: staffId ? Number(staffId) : null, rules })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Lỗi lưu');
+        return data;
+    }
+
+    async function assignPancakeSeller(i, staffId) {
+        const s = pcSellers[i];
+        try {
+            await putPancakeSeller(s, staffId, s.custom_rules ? s.rules : null);
+            pcToast(`Đã gán [${s.seller_name}]`, 'success');
+            await loadPancakeSellers();
+        } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
+    }
+    window.assignPancakeSeller = assignPancakeSeller;
+
+    function addPancakeTierRow(upTo, rate) {
+        const box = document.getElementById('pc-rules-tiers');
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-1.5 pc-tier-row';
+        row.innerHTML = `<span class="text-slate-500 w-8">Đến</span>
+            <input type="text" inputmode="numeric" oninput="formatCurrencyInputRealtime(this)" placeholder="không giới hạn" value="${upTo ? Number(upTo).toLocaleString('vi-VN') : ''}" class="pc-tier-upto flex-1 border border-slate-300 rounded p-1.5 font-mono text-right">
+            <input type="number" step="0.1" min="0" max="100" value="${rate ?? ''}" class="pc-tier-rate w-20 border border-slate-300 rounded p-1.5 font-mono text-right"><span>%</span>
+            <button type="button" onclick="this.parentElement.remove()" class="text-rose-500 font-bold px-1 cursor-pointer">✕</button>`;
+        box.appendChild(row);
+    }
+    window.addPancakeTierRow = addPancakeTierRow;
+
+    function fillPancakeRules(r) {
+        document.getElementById('pc-rules-threshold').value = r.threshold ? Number(r.threshold).toLocaleString('vi-VN') : '0';
+        document.getElementById('pc-rules-bonus').value = r.bonus_at_threshold ? Number(r.bonus_at_threshold).toLocaleString('vi-VN') : '0';
+        document.getElementById('pc-rules-tiers').innerHTML = '';
+        (r.tiers || []).forEach(([u, rt]) => addPancakeTierRow(u, rt));
+    }
+
+    function togglePancakeRulesInputs() {
+        const useDefault = document.getElementById('pc-rules-use-default').checked;
+        document.getElementById('pc-rules-inputs').classList.toggle('opacity-40', useDefault);
+        document.getElementById('pc-rules-inputs').classList.toggle('pointer-events-none', useDefault);
+        if (useDefault && pcDefaultRules) fillPancakeRules(pcDefaultRules);
+    }
+    window.togglePancakeRulesInputs = togglePancakeRulesInputs;
+
+    function openPancakeRulesModal(i) {
+        pcRulesTarget = (i === null || i === undefined) ? null : pcSellers[i];
+        const isDefault = !pcRulesTarget;
+        document.getElementById('pc-rules-title').textContent = isDefault ? '⚙️ Công Thức Hoa Hồng Chung' : `⚙️ Công Thức Riêng — ${pcRulesTarget.seller_name}`;
+        document.getElementById('pc-rules-use-default-wrap').classList.toggle('hidden', isDefault);
+        document.getElementById('pc-rules-use-default').checked = !isDefault && !pcRulesTarget.custom_rules;
+        fillPancakeRules(isDefault ? (pcDefaultRules || {}) : pcRulesTarget.rules);
+        togglePancakeRulesInputs();
+        document.getElementById('modal-pancake-rules').classList.remove('hidden');
+    }
+    window.openPancakeRulesModal = openPancakeRulesModal;
+
+    function closePancakeRulesModal() {
+        document.getElementById('modal-pancake-rules')?.classList.add('hidden');
+    }
+    window.closePancakeRulesModal = closePancakeRulesModal;
+
+    async function savePancakeRules() {
+        const num = id => parseMoneyInput(document.getElementById(id).value);
+        const tiers = [...document.querySelectorAll('#pc-rules-tiers .pc-tier-row')].map(r => {
+            const u = parseMoneyInput(r.querySelector('.pc-tier-upto').value);
+            return [u > 0 ? u : null, Number(r.querySelector('.pc-tier-rate').value || 0)];
+        });
+        const rules = { threshold: num('pc-rules-threshold'), bonus_at_threshold: num('pc-rules-bonus'), tiers };
+        const useDefault = pcRulesTarget && document.getElementById('pc-rules-use-default').checked;
+        if (!useDefault) {
+            if (!tiers.length) return pcToast('Cần ít nhất 1 bậc tỷ lệ', 'warning');
+            if (tiers.some(([, rt]) => rt < 0 || rt > 100)) return pcToast('Tỷ lệ phải từ 0 đến 100%', 'warning');
+            const ups = tiers.map(t => t[0]);
+            if (ups.slice(0, -1).some(u => u === null) || ups.some((u, k) => k && u !== null && ups[k - 1] !== null && u <= ups[k - 1]))
+                return pcToast('Các bậc "Đến" phải tăng dần; chỉ bậc cuối được để trống', 'warning');
+        }
+        try {
+            if (pcRulesTarget) {
+                await putPancakeSeller(pcRulesTarget, pcRulesTarget.staff_id, useDefault ? null : rules);
+            } else {
+                const res = await fetch('/api/marketplace/pancake/rules', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Lỗi lưu');
+            }
+            pcToast('Đã lưu công thức hoa hồng', 'success');
+            closePancakeRulesModal();
+            await loadPancakeSellers();
+        } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
+    }
+    window.savePancakeRules = savePancakeRules;
+
+    let pcSearchTimer = null;
+    function debouncePancakeOrders() {
+        clearTimeout(pcSearchTimer);
+        pcSearchTimer = setTimeout(() => loadPancakeOrders(1), 400);
+    }
+    window.debouncePancakeOrders = debouncePancakeOrders;
+
+    async function loadPancakeOrders(page = 1) {
+        const tbody = document.getElementById('mkt-pancake-orders-tbody');
+        if (!tbody) return;
+        const { from, to } = pcRange();
+        const params = new URLSearchParams({ platform: 'pancake', page: Math.max(1, page), limit: 50, date_from: from, date_to: to });
+        const status = document.getElementById('mkt-pancake-status-filter')?.value || 'all';
+        const q = document.getElementById('mkt-pancake-search')?.value.trim() || '';
+        if (status !== 'all') params.append('status', status);
+        if (q) params.append('q', q);
+        const kpiParams = new URLSearchParams(params); kpiParams.delete('page'); kpiParams.delete('limit');
+        try {
+            const [ordersRes, kpiRes] = await Promise.all([
+                fetch(`/api/marketplace/orders?${params}`), fetch(`/api/marketplace/orders-kpi?${kpiParams}`)
+            ]);
+            if (kpiRes.ok) {
+                const k = await kpiRes.json();
+                document.getElementById('kpi-pancake-order-count').textContent = k.order_count || 0;
+                document.getElementById('kpi-pancake-mapped-ratio').textContent = `${k.mapped_ratio || 0}%`;
+            }
+            const data = await ordersRes.json();
+            if (!ordersRes.ok) throw new Error(data.detail || 'Không tải được đơn');
+            if (page > (data.total_pages || 1) && page > 1) return;
+            window.mktPancakePage = data.page || 1;
+            document.getElementById('mkt-pancake-page-info').textContent = `Trang ${data.page}/${data.total_pages || 1} · ${data.total} đơn`;
+            const orders = data.orders || [];
+            if (!orders.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có đơn trong khoảng ngày này.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = orders.map(o => {
+                const items = (o.items || []).map(it => {
+                    const badge = it.mapped_product_id
+                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ ${escapeHtml(it.pos_product_code || '')}</span>`
+                        : `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold" title="Vào tab Ánh Xạ Sản Phẩm để gán">⚠️ Chưa map</span>`;
+                    const ret = it.returned_qty ? ` <span class="text-rose-600 font-bold">(hoàn ${it.returned_qty})</span>` : '';
+                    return `<div class="py-0.5 flex items-center justify-between gap-2"><span>${escapeHtml(it.platform_product_name)}${it.platform_variation ? ' <span class="text-slate-400">(' + escapeHtml(it.platform_variation) + ')</span>' : ''} <b class="text-amber-700">x${it.quantity}</b>${ret}</span>${badge}</div>`;
+                }).join('');
+                return `<tr class="hover:bg-slate-50 align-top">
+                    <td class="p-3 font-mono font-bold text-slate-900">${escapeHtml(o.order_sn)}${o.tracking_number ? `<div class="text-[10px] text-slate-400">🚚 ${escapeHtml(o.tracking_number)}</div>` : ''}</td>
+                    <td class="p-3 text-slate-500">${formatDateTime(o.order_date)}</td>
+                    <td class="p-3"><div class="font-semibold text-slate-700">${escapeHtml(o.shop_name || '')}</div><div class="text-[10px] text-slate-500">${escapeHtml(o.seller_name || '')}</div></td>
+                    <td class="p-3 text-slate-700">${escapeHtml(o.buyer_username || '')}</td>
+                    <td class="p-3 min-w-[260px]">${items}</td>
+                    <td class="p-3 text-right font-mono font-bold">${pcMoney(o.total_amount)}</td>
+                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span></td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-rose-500">Lỗi: ${escapeHtml(e.message)}</td></tr>`;
+        }
+    }
+    window.loadPancakeOrders = loadPancakeOrders;
+
+    function openPancakeShopModal(id) {
+        const acc = (state.pancakeAccounts || []).find(a => a.id === id);
+        let sid = '';
+        try { sid = acc ? (JSON.parse(acc.extra_config || '{}').shop_id || '') : ''; } catch (e) { }
+        document.getElementById('pc-shop-id-db').value = acc ? acc.id : '';
+        document.getElementById('pc-shop-name').value = acc ? acc.shop_name : '';
+        document.getElementById('pc-shop-shopid').value = sid;
+        document.getElementById('pc-shop-apikey').value = '';
+        document.getElementById('pc-shop-apikey-hint').classList.toggle('hidden', !acc);
+        document.getElementById('btn-pc-shop-delete').classList.toggle('invisible', !acc);
+        document.getElementById('pc-shop-test-result').classList.add('hidden');
+        document.getElementById('modal-pancake-shop').classList.remove('hidden');
+    }
+    window.openPancakeShopModal = openPancakeShopModal;
+
+    function closePancakeShopModal() {
+        document.getElementById('modal-pancake-shop')?.classList.add('hidden');
+    }
+    window.closePancakeShopModal = closePancakeShopModal;
+
+    async function testPancakeShop() {
+        const box = document.getElementById('pc-shop-test-result');
+        const id = document.getElementById('pc-shop-id-db').value;
+        box.className = 'p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        box.textContent = '⏳ Đang kiểm tra...';
+        try {
+            const res = await fetch('/api/marketplace/pancake/test', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shop_id: document.getElementById('pc-shop-shopid').value.trim(),
+                    api_key: document.getElementById('pc-shop-apikey').value.trim() || null,
+                    account_id: id ? Number(id) : null
+                })
+            });
+            const data = await res.json();
+            const ok = data.status === 'ok';
+            box.className = `p-2 rounded-lg text-[11px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`;
+            box.textContent = (ok ? '✅ ' : '❌ ') + (data.message || data.detail || '');
+        } catch (e) {
+            box.className = 'p-2 rounded-lg text-[11px] font-bold bg-rose-100 text-rose-800';
+            box.textContent = '❌ ' + e.message;
+        }
+    }
+    window.testPancakeShop = testPancakeShop;
+
+    async function savePancakeShop() {
+        const id = document.getElementById('pc-shop-id-db').value;
+        const shop_name = document.getElementById('pc-shop-name').value.trim();
+        const shopId = document.getElementById('pc-shop-shopid').value.trim();
+        const key = document.getElementById('pc-shop-apikey').value.trim();
+        if (!shop_name || !/^\d+$/.test(shopId)) return pcToast('Cần tên shop và Shop ID (chỉ gồm số)', 'warning');
+        if (!id && !key) return pcToast('Shop mới cần nhập API Key', 'warning');
+        const body = { shop_name, extra_config: JSON.stringify({ shop_id: shopId }) };
+        if (key) body.cookies = key;
+        try {
+            const res = await fetch(id ? `/api/marketplace/accounts/${id}` : '/api/marketplace/accounts', {
+                method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(id ? body : { platform: 'pancake', ...body })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi lưu shop');
+            pcToast('Đã lưu shop Pancake', 'success');
+            closePancakeShopModal();
+            await loadMarketplaceAccounts();
+            renderPancakeShops();
+        } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
+    }
+    window.savePancakeShop = savePancakeShop;
+
+    async function deletePancakeShop() {
+        const id = document.getElementById('pc-shop-id-db').value;
+        if (!id) return;
+        const ok = window.showConfirmModal
+            ? await window.showConfirmModal({ title: 'Xóa shop Pancake?', message: 'Chỉ xóa cấu hình kết nối. Đơn đã tải về vẫn giữ.', confirmText: 'Xóa', type: 'danger' })
+            : confirm('Xóa shop Pancake?');
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/marketplace/accounts/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi xóa');
+            closePancakeShopModal();
+            await loadMarketplaceAccounts();
+            renderPancakeShops();
+        } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
+    }
+    window.deletePancakeShop = deletePancakeShop;
 
 })();

@@ -5343,7 +5343,9 @@
                     'modal-quick-add-pet',
                     'modal-import-bom',
                     'modal-clone-bom',
-                    'modal-pos-wallet-history'
+                    'modal-pos-wallet-history',
+                    'modal-pancake-shop',
+                    'modal-pancake-rules'
                 ];
 
                 for (const mid of activeModals) {

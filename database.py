@@ -258,6 +258,39 @@ def is_code_archived(cur, code: str) -> bool:
     except Exception:
         return False
 
+def _migrate_marketplace_pancake(cur):
+    """Bỏ CHECK platform IN ('shopee','tiktok') để nhận 'pancake'; thêm cột NV bán, SL hoàn, bảng NV Pancake."""
+    check = "CHECK(platform IN ('shopee', 'tiktok'))"
+    for tbl in ("marketplace_accounts", "marketplace_orders"):
+        cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (tbl,))
+        row = cur.fetchone()
+        if not row or check not in row[0]:
+            continue
+        cur.connection.commit()  # PRAGMA foreign_keys không đổi được trong transaction
+        cur.execute("PRAGMA foreign_keys = OFF")
+        cur.execute(row[0].replace(check, "").replace(f"CREATE TABLE {tbl}", f"CREATE TABLE {tbl}_new", 1))
+        cur.execute(f"INSERT INTO {tbl}_new SELECT * FROM {tbl}")
+        cur.execute(f"DROP TABLE {tbl}")
+        cur.execute(f"ALTER TABLE {tbl}_new RENAME TO {tbl}")
+        cur.connection.commit()
+        cur.execute("PRAGMA foreign_keys = ON")
+    cur.execute("PRAGMA table_info(marketplace_orders)")
+    if "seller_name" not in {c[1] for c in cur.fetchall()}:
+        cur.execute("ALTER TABLE marketplace_orders ADD COLUMN seller_name TEXT")
+    cur.execute("PRAGMA table_info(marketplace_order_items)")
+    if "returned_qty" not in {c[1] for c in cur.fetchall()}:
+        cur.execute("ALTER TABLE marketplace_order_items ADD COLUMN returned_qty REAL DEFAULT 0")
+    # Tên NV bán bên POSCAKE -> nhân viên POS (người dùng tự gán)
+    cur.execute("""CREATE TABLE IF NOT EXISTS pancake_sellers (
+        seller_name TEXT PRIMARY KEY,
+        staff_id INTEGER REFERENCES staff(id) ON DELETE SET NULL,
+        rules_json TEXT)""")  # rules_json NULL = dùng công thức hoa hồng chung
+    # Mốc bắt đầu trừ kho đơn sàn: đơn đặt trước ngày này coi như đã trừ kho tay, không trừ lại
+    import datetime as _dt
+    cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('mkt_stock_start_date', ?)",
+                (_dt.date.today().isoformat(),))
+
+
 def init_db():
     if os.environ.get("DATABASE_URL"):
         # Running against Supabase PostgreSQL: schema is already managed and migrated
@@ -1961,7 +1994,7 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS marketplace_accounts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL CHECK(platform IN ('shopee', 'tiktok')),
+        platform TEXT NOT NULL,
         shop_name TEXT NOT NULL,
         cookies TEXT,
         extra_config TEXT,
@@ -1975,7 +2008,7 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS marketplace_orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL CHECK(platform IN ('shopee', 'tiktok')),
+        platform TEXT NOT NULL,
         account_id INTEGER,
         order_sn TEXT NOT NULL,
         order_status TEXT NOT NULL,
@@ -2045,6 +2078,7 @@ def init_db():
                 cur.execute(f"ALTER TABLE marketplace_orders ADD COLUMN {_col} {_type}")
     except Exception as _e:
         pass
+    _migrate_marketplace_pancake(cur)
 
     # Bảng lưu vết mã chứng từ vĩnh viễn (chống trùng mã kể cả khi đơn đã bị xóa hoặc hủy)
     cur.execute("""

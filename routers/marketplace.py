@@ -10,9 +10,12 @@ from schemas import (
     MarketplaceOrderSyncRequest, MarketplaceSkuMapCreate,
     MarketplaceAIChatRequest, ShopeeTestConnectionRequest,
     MarketplaceOrderJsonImportRequest, MarketplaceAutoCookieRequest,
-    MarketplaceOrderBulkDeleteRequest
+    MarketplaceOrderBulkDeleteRequest, PancakeTestRequest, PancakeSyncRequest,
+    PancakeCommissionRules, PancakeSellerUpdate
 )
+from services import pancake as pancake_svc
 from logger_config import get_module_logger
+from services.marketplace_stock import sync_order_stock, sync_orders_stock
 from dependencies import get_optional_user, require_role
 
 logger = get_module_logger("marketplace")
@@ -76,7 +79,7 @@ def list_accounts(platform: Optional[str] = None):
     cur = conn.cursor()
     query = """
         SELECT a.id, a.platform, a.shop_name, a.is_active, a.last_sync_at,
-               a.created_at, a.updated_at,
+               a.created_at, a.updated_at, a.extra_config,
                CASE WHEN a.cookies IS NOT NULL AND LENGTH(a.cookies) > 5 THEN 1 ELSE 0 END as has_cookies,
                (SELECT COUNT(*) FROM marketplace_orders WHERE account_id = a.id) as order_count
         FROM marketplace_accounts a
@@ -200,6 +203,148 @@ def delete_account(account_id: int, user=Depends(require_role("owner"))):
     return {"status": "ok", "message": "Đã xóa gian hàng"}
 
 # ─────────────────────────────────────────────────────────────────
+# 1b. PANCAKE (POSCAKE pos.pages.fm) — API key + shop_id, đồng bộ đơn, hoa hồng NV bán
+# ─────────────────────────────────────────────────────────────────
+def _pancake_account(cur, account_id: int):
+    cur.execute("SELECT * FROM marketplace_accounts WHERE id = ? AND platform = 'pancake'", (account_id,))
+    acc = cur.fetchone()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Không tìm thấy shop Pancake")
+    try:
+        shop_id = str(json.loads(acc["extra_config"] or "{}").get("shop_id") or "").strip()
+    except ValueError:
+        shop_id = ""
+    if not shop_id or not (acc["cookies"] or "").strip():
+        raise HTTPException(status_code=400, detail=f"Shop [{acc['shop_name']}] chưa nhập đủ Shop ID và API Key")
+    return acc, shop_id, acc["cookies"].strip()
+
+
+def _parse_day(s: str) -> datetime.datetime:
+    try:
+        return datetime.datetime.strptime(s.strip().replace("/", "-"), "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Ngày không hợp lệ: {s} (cần YYYY-MM-DD)")
+
+
+@router.post("/pancake/test")
+async def test_pancake_connection(req: PancakeTestRequest, user=Depends(get_optional_user)):
+    key = (req.api_key or "").strip()
+    if not key and req.account_id:
+        conn = get_db()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT cookies FROM marketplace_accounts WHERE id = ? AND platform = 'pancake'", (req.account_id,))
+            r = cur.fetchone()
+            key = (r["cookies"] or "").strip() if r else ""
+        finally:
+            conn.close()
+    if not key or not req.shop_id.strip():
+        return {"status": "error", "message": "Cần nhập Shop ID và API Key"}
+    now = int(datetime.datetime.now().timestamp())
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            res = await client.get(f"{pancake_svc.BASE_URL}/shops/{req.shop_id.strip()}/orders",
+                                   params={"api_key": key, "page": 1, "page_size": 1,
+                                           "startDateTime": now - 30 * 86400, "endDateTime": now})
+        data = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
+        if res.status_code != 200 or not data.get("success"):
+            return {"status": "error", "message": f"POSCAKE từ chối: {data.get('message') or res.status_code}"}
+        return {"status": "ok", "message": f"Kết nối thành công! 30 ngày qua có {data.get('total_entries', 0)} đơn."}
+    except Exception as e:
+        return {"status": "error", "message": f"Lỗi kết nối POSCAKE: {e}"}
+
+
+@router.post("/pancake/sync")
+async def sync_pancake_orders(req: PancakeSyncRequest, user=Depends(get_optional_user)):
+    d_from, d_to = _parse_day(req.date_from), _parse_day(req.date_to)
+    if d_to < d_from:
+        raise HTTPException(status_code=400, detail="Ngày kết thúc phải sau ngày bắt đầu")
+    if (d_to - d_from).days > 92:
+        raise HTTPException(status_code=400, detail="Mỗi lần đồng bộ tối đa 3 tháng")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        if req.account_id:
+            ids = [req.account_id]
+        else:
+            cur.execute("SELECT id FROM marketplace_accounts WHERE platform = 'pancake' AND is_active = 1 ORDER BY id")
+            ids = [r[0] for r in cur.fetchall()]
+        if not ids:
+            raise HTTPException(status_code=400, detail="Chưa có shop Pancake nào. Bấm 'Thêm shop' để nhập Shop ID + API Key")
+        accounts = [_pancake_account(cur, i) for i in ids]
+    finally:
+        conn.close()
+
+    # Ngày theo giờ VN -> unix (POSCAKE lọc theo thời điểm tạo đơn)
+    vn = datetime.timezone(datetime.timedelta(hours=7))
+    start_unix = int(d_from.replace(tzinfo=vn).timestamp())
+    end_unix = int(d_to.replace(hour=23, minute=59, second=59, tzinfo=vn).timestamp())
+    results, total_orders, total_items = [], 0, 0
+    for acc, shop_id, key in accounts:
+        try:
+            raw = await pancake_svc.fetch_orders(shop_id, key, start_unix, end_unix)
+        except Exception as e:
+            logger.error(f"Pancake sync shop {acc['shop_name']}: {e}")
+            results.append(f"{acc['shop_name']}: lỗi {e}")
+            continue
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            r = pancake_svc.save_orders(cur, acc["id"], raw)
+            cur.execute("UPDATE marketplace_accounts SET last_sync_at = ? WHERE id = ?",
+                        (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), acc["id"]))
+            conn.commit()
+        finally:
+            conn.close()
+        total_orders += r["orders"]
+        total_items += r["items"]
+        results.append(f"{acc['shop_name']}: {r['orders']} đơn")
+    return {"status": "ok", "synced_orders": total_orders, "synced_items": total_items,
+            "message": "Đồng bộ Pancake xong — " + "; ".join(results)}
+
+
+@router.get("/pancake/sellers")
+def list_pancake_sellers(date_from: str, date_to: str, user=Depends(get_optional_user)):
+    _parse_day(date_from), _parse_day(date_to)
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        return {"sellers": pancake_svc.seller_summary(cur, date_from, date_to),
+                "default_rules": pancake_svc.load_default_rules(cur)}
+    finally:
+        conn.close()
+
+
+@router.put("/pancake/sellers")
+def update_pancake_seller(req: PancakeSellerUpdate, user=Depends(require_role("owner", "accountant"))):
+    conn = get_db()
+    cur = conn.cursor()
+    if req.staff_id:
+        cur.execute("SELECT 1 FROM staff WHERE id = ?", (req.staff_id,))
+        if not cur.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    rules = json.dumps(req.rules.model_dump()) if req.rules else None
+    cur.execute("""INSERT INTO pancake_sellers (seller_name, staff_id, rules_json) VALUES (?, ?, ?)
+                   ON CONFLICT(seller_name) DO UPDATE SET staff_id = excluded.staff_id, rules_json = excluded.rules_json""",
+                (req.seller_name.strip(), req.staff_id or None, rules))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã lưu cài đặt cho [{req.seller_name}]"}
+
+
+@router.put("/pancake/rules")
+def update_pancake_rules(req: PancakeCommissionRules, user=Depends(require_role("owner", "accountant"))):
+    conn = get_db()
+    cur = conn.cursor()
+    val = json.dumps(req.model_dump())
+    cur.execute("INSERT INTO settings (key, value) VALUES ('pancake_commission_rules', ?) ON CONFLICT(key) DO UPDATE SET value = ?", (val, val))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": "Đã lưu công thức hoa hồng chung"}
+
+
+# ─────────────────────────────────────────────────────────────────
 # 2. ĐỒNG BỘ ĐƠN HÀNG TỪ SHOPEE & TIKTOK SHOP
 # ─────────────────────────────────────────────────────────────────
 @router.post("/shopee/test-connection")
@@ -288,6 +433,7 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
     synced_orders = 0
     synced_items = 0
     last_error = ""
+    touched_ids = set()
 
     # Duyệt qua các tab trạng thái Shopee (100: to_ship, 200: shipping, 300: completed, 400: cancelled)
     tabs_to_fetch = [req.order_tab] if req.order_tab else [100, 200, 300, 400]
@@ -374,6 +520,7 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
                     
                     cur.execute("SELECT id FROM marketplace_orders WHERE platform = 'shopee' AND order_sn = ?", (order_sn,))
                     order_db_id = cur.fetchone()[0]
+                    touched_ids.add(order_db_id)
                     synced_orders += 1
 
                     # Bóc tách mặt hàng
@@ -439,6 +586,7 @@ async def sync_shopee_orders(req: MarketplaceOrderSyncRequest, user=Depends(get_
                 "message": "Đã quét các tab Shopee (Chờ giao, Đang giao, Đã giao) nhưng hiện không tìm thấy đơn hàng nào. Hãy kiểm tra trạng thái đơn trên Shopee hoặc dùng tính năng Dán JSON Đơn Hàng!"
             }
 
+    sync_orders_stock(cur, touched_ids)
     now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("UPDATE marketplace_accounts SET last_sync_at = ? WHERE id = ?", (now_vn, req.account_id))
     conn.commit()
@@ -483,6 +631,7 @@ def import_orders_json(req: MarketplaceOrderJsonImportRequest, user=Depends(get_
 
     synced_orders = 0
     synced_items = 0
+    touched_ids = set()
 
     for entry in card_list:
         c = entry.get("order_card") or entry.get("package_level_order_card") or entry
@@ -517,6 +666,7 @@ def import_orders_json(req: MarketplaceOrderJsonImportRequest, user=Depends(get_
 
         cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (req.platform.lower(), order_sn))
         order_db_id = cur.fetchone()[0]
+        touched_ids.add(order_db_id)
         synced_orders += 1
 
         groups = []
@@ -557,6 +707,7 @@ def import_orders_json(req: MarketplaceOrderJsonImportRequest, user=Depends(get_
             """, (order_db_id, str(it.get("item_id", "")), p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
             synced_items += 1
 
+    sync_orders_stock(cur, touched_ids)
     conn.commit()
     conn.close()
 
@@ -844,6 +995,7 @@ async def import_orders_excel(
 
     synced_orders = 0
     synced_items = 0
+    touched_ids = set()
 
     for sn, o in orders_dict.items():
         item_total = sum(it["subtotal"] for it in o["items"])
@@ -877,6 +1029,7 @@ async def import_orders_excel(
 
         cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (platform.lower(), sn))
         order_db_id = cur.fetchone()[0]
+        touched_ids.add(order_db_id)
         synced_orders += 1
 
         cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_db_id,))
@@ -915,6 +1068,7 @@ async def import_orders_excel(
             """, (order_db_id, p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
             synced_items += 1
 
+    sync_orders_stock(cur, touched_ids)
     conn.commit()
     conn.close()
 
@@ -932,10 +1086,18 @@ def _build_order_filter_sql(
     platform: Optional[str] = None,
     date: Optional[str] = None,
     status: Optional[str] = None,
-    q: Optional[str] = None
+    q: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
     where = ""
     params = []
+    if date_from:
+        where += " AND date(o.order_date) >= date(?)"
+        params.append(date_from)
+    if date_to:
+        where += " AND date(o.order_date) <= date(?)"
+        params.append(date_to)
     if platform and platform != "all":
         where += " AND o.platform = ?"
         params.append(platform.lower())
@@ -947,8 +1109,8 @@ def _build_order_filter_sql(
         params.append(status)
     if q and q.strip():
         term = f"%{q.strip()}%"
-        where += " AND (o.order_sn LIKE ? OR o.buyer_username LIKE ? OR o.tracking_number LIKE ?)"
-        params.extend([term, term, term])
+        where += " AND (o.order_sn LIKE ? OR o.buyer_username LIKE ? OR o.tracking_number LIKE ? OR o.seller_name LIKE ?)"
+        params.extend([term, term, term, term])
     return where, params
 
 @router.get("/orders-kpi")
@@ -956,12 +1118,14 @@ def get_marketplace_orders_kpi(
     platform: Optional[str] = None,
     date: Optional[str] = None,
     status: Optional[str] = None,
-    q: Optional[str] = None
+    q: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
     """Thống kê KPI sàn TMĐT độc lập trên toàn bộ CSDL theo bộ lọc (không bị giới hạn bởi phân trang)."""
     conn = get_db()
     cur = conn.cursor()
-    where, params = _build_order_filter_sql(platform, date, status, q)
+    where, params = _build_order_filter_sql(platform, date, status, q, date_from, date_to)
 
     cur.execute(f"""
         SELECT 
@@ -1007,11 +1171,13 @@ def list_marketplace_orders(
     status: Optional[str] = None,
     q: Optional[str] = None,
     page: Optional[int] = None,
-    limit: int = 50
+    limit: int = 50,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
     conn = get_db()
     cur = conn.cursor()
-    where, params = _build_order_filter_sql(platform, date, status, q)
+    where, params = _build_order_filter_sql(platform, date, status, q, date_from, date_to)
 
     total_count = 0
     if page is not None:
@@ -1089,6 +1255,7 @@ def delete_marketplace_order(order_id: int, user=Depends(require_role("owner")))
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
 
+    sync_order_stock(cur, order_id, force_zero=True)  # xóa đơn -> cộng lại kho đã trừ
     cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_id,))
     cur.execute("DELETE FROM marketplace_orders WHERE id = ?", (order_id,))
     conn.commit()
@@ -1104,6 +1271,7 @@ def bulk_delete_marketplace_orders(req: MarketplaceOrderBulkDeleteRequest, user=
     conn = get_db()
     cur = conn.cursor()
     placeholders = ",".join(["?"] * len(req.order_ids))
+    sync_orders_stock(cur, req.order_ids, force_zero=True)
     cur.execute(f"DELETE FROM marketplace_order_items WHERE order_id IN ({placeholders})", req.order_ids)
     cur.execute(f"DELETE FROM marketplace_orders WHERE id IN ({placeholders})", req.order_ids)
     affected = cur.rowcount
@@ -1116,6 +1284,11 @@ def clear_all_marketplace_orders(platform: Optional[str] = None, user=Depends(re
     """Dọn sạch toàn bộ đơn hàng sàn (theo platform hoặc tất cả)."""
     conn = get_db()
     cur = conn.cursor()
+    if platform and platform != "all":
+        cur.execute("SELECT id FROM marketplace_orders WHERE platform = ?", (platform.lower(),))
+    else:
+        cur.execute("SELECT id FROM marketplace_orders")
+    sync_orders_stock(cur, [r[0] for r in cur.fetchall()], force_zero=True)
     if platform and platform != "all":
         cur.execute("DELETE FROM marketplace_order_items WHERE order_id IN (SELECT id FROM marketplace_orders WHERE platform = ?)", (platform.lower(),))
         cur.execute("DELETE FROM marketplace_orders WHERE platform = ?", (platform.lower(),))
@@ -1169,7 +1342,12 @@ def save_sku_mapping(req: MarketplaceSkuMapCreate, user=Depends(get_optional_use
         UPDATE marketplace_order_items 
         SET mapped_product_id = ?
         WHERE platform_product_name = ? AND (? = '' OR platform_variation = ?)
-    """, (req.product_id, req.platform_item_name.strip(), (req.platform_variation or "").strip(), (req.platform_variation or "").strip()))
+          AND order_id IN (SELECT id FROM marketplace_orders WHERE platform = ?)
+    """, (req.product_id, req.platform_item_name.strip(), (req.platform_variation or "").strip(), (req.platform_variation or "").strip(), req.platform.lower()))
+    cur.execute("""SELECT DISTINCT i.order_id FROM marketplace_order_items i JOIN marketplace_orders o ON o.id = i.order_id
+                   WHERE o.platform = ? AND i.platform_product_name = ? AND (? = '' OR i.platform_variation = ?)""",
+                (req.platform.lower(), req.platform_item_name.strip(), (req.platform_variation or "").strip(), (req.platform_variation or "").strip()))
+    sync_orders_stock(cur, [r[0] for r in cur.fetchall()])
 
     conn.commit()
     conn.close()
@@ -1233,8 +1411,12 @@ def auto_map_unmapped_items(user=Depends(get_optional_user)):
             cur.execute("""
                 UPDATE marketplace_order_items 
                 SET mapped_product_id = ?
-                WHERE platform_product_name = ?
-            """, (matched_id, u["platform_product_name"]))
+                WHERE platform_product_name = ? AND mapped_product_id IS NULL
+                  AND order_id IN (SELECT id FROM marketplace_orders WHERE platform = ?)
+            """, (matched_id, u["platform_product_name"], u["platform"]))
+            cur.execute("""SELECT DISTINCT i.order_id FROM marketplace_order_items i JOIN marketplace_orders o ON o.id = i.order_id
+                           WHERE o.platform = ? AND i.platform_product_name = ?""", (u["platform"], u["platform_product_name"]))
+            sync_orders_stock(cur, [r[0] for r in cur.fetchall()])
             mapped_count += 1
 
     conn.commit()
