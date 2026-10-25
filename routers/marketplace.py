@@ -11,9 +11,12 @@ from schemas import (
     MarketplaceAIChatRequest, ShopeeTestConnectionRequest,
     MarketplaceOrderJsonImportRequest, MarketplaceAutoCookieRequest,
     MarketplaceOrderBulkDeleteRequest, PancakeTestRequest, PancakeSyncRequest,
-    PancakeCommissionRules, PancakeSellerUpdate
+    PancakeCommissionRules, PancakeSellerUpdate,
+    KocInspectSheetRequest, KocCommissionRulesIn, KocSourceSaveRequest,
+    KocManualVideoAddRequest, KocVideoUpdateRequest
 )
 from services import pancake as pancake_svc
+from services import koc_service as koc_svc
 from logger_config import get_module_logger
 from services.marketplace_stock import sync_order_stock, sync_orders_stock
 from dependencies import get_optional_user, require_role
@@ -1559,3 +1562,349 @@ async def chat_marketplace_ai(req: MarketplaceAIChatRequest):
     except Exception as e:
         logger.error(f"AI Call error: {e}")
         return {"reply": f"Không thể kết nối AI: {str(e)}", "data": daily_data}
+
+
+# ─────────────────────────────────────────────────────────────────
+# 5. QUẢN LÝ KOC / KOL, LINK VIDEO TIKTOK & TÍNH HOA HỒNG
+# ─────────────────────────────────────────────────────────────────
+@router.post("/koc/inspect-sheet")
+def inspect_koc_sheet(req: KocInspectSheetRequest, user=Depends(get_optional_user)):
+    try:
+        sheet_id, xlsx_bytes = koc_svc.download_sheet_xlsx_bytes(req.sheet_url)
+        tabs = koc_svc.inspect_workbook_tabs(xlsx_bytes)
+        return {"status": "ok", "sheet_id": sheet_id, "tabs": tabs}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Không đọc được Google Sheet: {e}")
+
+
+@router.get("/koc/sources")
+def list_koc_sources(month: Optional[str] = None, user=Depends(get_optional_user)):
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        koc_svc.ensure_koc_schema(cur)
+        return koc_svc.list_sources_summary(cur, month=month)
+    finally:
+        conn.close()
+
+
+@router.post("/koc/sources")
+def save_koc_source(req: KocSourceSaveRequest, user=Depends(get_optional_user)):
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", (req.month or "").strip()):
+        raise HTTPException(status_code=400, detail="Tháng phải có định dạng YYYY-MM")
+    try:
+        sheet_id = koc_svc.extract_sheet_id(req.sheet_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    name = (req.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Tên nguồn / chiến dịch bắt buộc")
+
+    rules_json = json.dumps(req.rules.model_dump()) if req.rules else None
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        if req.staff_id:
+            cur.execute("SELECT 1 FROM staff WHERE id = ?", (req.staff_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+
+        if req.id:
+            cur.execute("""
+                UPDATE koc_sources
+                SET name = ?, sheet_url = ?, sheet_id = ?, month = ?, staff_id = ?,
+                    koc_tab_name = ?, video_tab_name = ?, rules_json = ?
+                WHERE id = ?
+            """, (
+                name, req.sheet_url.strip(), sheet_id, req.month.strip(), req.staff_id,
+                (req.koc_tab_name or "").strip(), (req.video_tab_name or "").strip(),
+                rules_json, req.id
+            ))
+            src_id = req.id
+        else:
+            cur.execute("""
+                INSERT INTO koc_sources (name, sheet_url, sheet_id, month, staff_id, koc_tab_name, video_tab_name, rules_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                name, req.sheet_url.strip(), sheet_id, req.month.strip(), req.staff_id,
+                (req.koc_tab_name or "").strip(), (req.video_tab_name or "").strip(),
+                rules_json
+            ))
+            src_id = cur.lastrowid
+        conn.commit()
+        return {"status": "ok", "id": src_id, "message": f"Đã lưu nguồn KOC [{name}]"}
+    finally:
+        conn.close()
+
+
+@router.delete("/koc/sources/{source_id}")
+def delete_koc_source(source_id: int, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        cur.execute("DELETE FROM koc_videos WHERE source_id = ?", (source_id,))
+        cur.execute("DELETE FROM koc_profiles WHERE source_id = ?", (source_id,))
+        cur.execute("DELETE FROM koc_sources WHERE id = ?", (source_id,))
+        conn.commit()
+        return {"status": "ok", "message": "Đã xóa nguồn KOC"}
+    finally:
+        conn.close()
+
+
+@router.put("/koc/rules")
+def update_default_koc_rules(req: KocCommissionRulesIn, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        data = req.model_dump()
+        cur.execute("INSERT INTO settings (key, value) VALUES ('koc_commission_rules', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (json.dumps(data),))
+        conn.commit()
+        return {"status": "ok", "rules": data}
+    finally:
+        conn.close()
+
+
+@router.post("/koc/sources/{source_id}/sync")
+def sync_koc_source(source_id: int, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
+        src = cur.fetchone()
+        if not src:
+            raise HTTPException(status_code=404, detail="Không tìm thấy nguồn KOC")
+        _, xlsx_bytes = koc_svc.download_sheet_xlsx_bytes(src["sheet_url"])
+        res = koc_svc.sync_source_from_xlsx_bytes(cur, source_id, xlsx_bytes)
+        conn.commit()
+        return {
+            "status": "ok",
+            **res,
+            "message": f"Đã đồng bộ {res['profiles_synced']} KOC & {res['videos_synced']} link video từ Google Sheet",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi đồng bộ Google Sheet: {e}")
+    finally:
+        conn.close()
+
+
+@router.get("/koc/profiles")
+def list_koc_profiles(source_id: Optional[int] = None, month: Optional[str] = None, q: Optional[str] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        sql = """
+            SELECT kp.*, ks.name AS source_name, ks.month, s.name AS staff_name,
+                   (SELECT COUNT(*) FROM koc_videos kv WHERE kv.source_id = kp.source_id AND LOWER(kv.koc_username) = LOWER(kp.koc_username)) AS actual_videos,
+                   (SELECT COALESCE(SUM(kv.views), 0) FROM koc_videos kv WHERE kv.source_id = kp.source_id AND LOWER(kv.koc_username) = LOWER(kp.koc_username)) AS total_views
+            FROM koc_profiles kp
+            JOIN koc_sources ks ON ks.id = kp.source_id
+            LEFT JOIN staff s ON s.id = ks.staff_id
+            WHERE ks.is_active = 1
+        """
+        params = []
+        if source_id:
+            sql += " AND kp.source_id = ?"
+            params.append(source_id)
+        if month:
+            sql += " AND ks.month = ?"
+            params.append(month)
+        if q and q.strip():
+            kw = f"%{q.strip()}%"
+            sql += " AND (kp.koc_username LIKE ? OR kp.product_sample LIKE ? OR kp.contact_info LIKE ? OR kp.note LIKE ?)"
+            params.extend([kw, kw, kw, kw])
+        sql += " ORDER BY total_views DESC, kp.videos_returned DESC, kp.id ASC"
+        cur.execute(sql, tuple(params))
+        return {"profiles": [dict(r) for r in cur.fetchall()]}
+    finally:
+        conn.close()
+
+
+@router.get("/koc/videos")
+def list_koc_videos(
+    source_id: Optional[int] = None,
+    month: Optional[str] = None,
+    kpi_filter: Optional[str] = "all",
+    q: Optional[str] = None,
+):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        default_rules = koc_svc.load_default_rules(cur)
+        min_v = int(default_rules.get("min_views") or 200)
+        if source_id:
+            cur.execute("SELECT * FROM koc_sources WHERE id = ?", (source_id,))
+            srow = cur.fetchone()
+            if srow:
+                min_v = int(koc_svc.source_rules(cur, srow, default_rules).get("min_views") or 200)
+
+        sql = """
+            SELECT kv.*, ks.name AS source_name, ks.month, s.name AS staff_name
+            FROM koc_videos kv
+            JOIN koc_sources ks ON ks.id = kv.source_id
+            LEFT JOIN staff s ON s.id = ks.staff_id
+            WHERE ks.is_active = 1
+        """
+        params = []
+        if source_id:
+            sql += " AND kv.source_id = ?"
+            params.append(source_id)
+        if month:
+            sql += " AND ks.month = ?"
+            params.append(month)
+        if kpi_filter == "qualified":
+            sql += " AND kv.views >= ?"
+            params.append(min_v)
+        elif kpi_filter == "under":
+            sql += " AND kv.views < ?"
+            params.append(min_v)
+        if q and q.strip():
+            kw = f"%{q.strip()}%"
+            sql += " AND (kv.koc_username LIKE ? OR kv.video_url LIKE ? OR kv.product_note LIKE ? OR kv.title LIKE ?)"
+            params.extend([kw, kw, kw, kw])
+        sql += " ORDER BY kv.views DESC, kv.id ASC"
+        cur.execute(sql, tuple(params))
+        rows = [dict(r) for r in cur.fetchall()]
+        return {"videos": rows, "min_views": min_v}
+    finally:
+        conn.close()
+
+
+@router.post("/koc/videos")
+def add_manual_koc_videos(req: KocManualVideoAddRequest, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        cur.execute("SELECT id FROM koc_sources WHERE id = ?", (req.source_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Không tìm thấy nguồn/chiến dịch KOC")
+        urls = koc_svc.TIKTOK_URL_RE.findall(req.urls_text or "")
+        if not urls:
+            raise HTTPException(status_code=400, detail="Không tìm thấy link TikTok hợp lệ nào")
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        added = 0
+        for u in urls:
+            vkey = koc_svc.extract_video_key(u)
+            author = (req.koc_username or "").strip().lstrip("@/") or koc_svc.extract_username(u)
+            cur.execute("""
+                INSERT INTO koc_videos (source_id, video_key, video_url, koc_username, views, product_note, status, updated_at)
+                VALUES (?, ?, ?, ?, 0, ?, 'Chưa quét view', ?)
+                ON CONFLICT(source_id, video_key) DO UPDATE SET
+                    video_url = excluded.video_url,
+                    product_note = CASE WHEN excluded.product_note != '' THEN excluded.product_note ELSE koc_videos.product_note END
+            """, (req.source_id, vkey, u, author, (req.product_note or "").strip(), now_str))
+            if author:
+                cur.execute("""
+                    INSERT INTO koc_profiles (source_id, koc_username, channel_url, product_sample, approval_status, videos_returned, updated_at)
+                    VALUES (?, ?, ?, ?, 'DUYỆT', 1, ?)
+                    ON CONFLICT(source_id, koc_username) DO NOTHING
+                """, (req.source_id, author, f"https://www.tiktok.com/@{author}", (req.product_note or "").strip(), now_str))
+            added += 1
+        conn.commit()
+        return {"status": "ok", "added": added, "message": f"Đã thêm {added} link video TikTok"}
+    finally:
+        conn.close()
+
+
+@router.put("/koc/videos/{video_id}")
+def update_koc_video(video_id: int, req: KocVideoUpdateRequest, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("""
+            UPDATE koc_videos
+            SET views = ?, status = COALESCE(?, status), product_note = COALESCE(?, product_note), updated_at = ?
+            WHERE id = ?
+        """, (req.views, req.status, req.product_note, now_str, video_id))
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@router.delete("/koc/videos/{video_id}")
+def delete_koc_video(video_id: int, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM koc_videos WHERE id = ?", (video_id,))
+        conn.commit()
+        return {"status": "ok"}
+    finally:
+        conn.close()
+
+
+@router.post("/koc/sources/{source_id}/refresh-views")
+async def refresh_koc_source_views(source_id: int, only_zero: bool = False, limit: int = 80):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        koc_svc.ensure_koc_schema(cur)
+        sql = "SELECT id, video_url, views FROM koc_videos WHERE source_id = ?"
+        if only_zero:
+            sql += " AND COALESCE(views, 0) = 0"
+        sql += " ORDER BY views ASC, id ASC LIMIT ?"
+        cur.execute(sql, (source_id, max(1, min(limit, 300))))
+        targets = [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    if not targets:
+        return {"status": "ok", "updated": 0, "message": "Không có video nào cần quét view"}
+
+    sem = asyncio.Semaphore(5)
+    updated_count = 0
+
+    async with httpx.AsyncClient() as client:
+        async def _worker(item):
+            async with sem:
+                res = await koc_svc.fetch_tiktok_video_metrics(item["video_url"], client)
+                await asyncio.sleep(0.35)
+                return item["id"], res
+
+        results = await asyncio.gather(*[_worker(t) for t in targets])
+
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        for vid_id, m in results:
+            if m.get("ok"):
+                updated_count += 1
+                cur.execute("""
+                    UPDATE koc_videos
+                    SET views = ?, likes = ?, comments = ?, shares = ?,
+                        title = CASE WHEN ? != '' THEN ? ELSE title END,
+                        koc_username = CASE WHEN ? != '' THEN ? ELSE koc_username END,
+                        published_at = CASE WHEN ? != '' THEN ? ELSE published_at END,
+                        status = ?, updated_at = ?
+                    WHERE id = ?
+                """, (
+                    m["views"], m["likes"], m["comments"], m["shares"],
+                    m["title"], m["title"], m["koc_username"], m["koc_username"],
+                    m["published_at"], m["published_at"], m["status"], m["updated_at"], vid_id
+                ))
+            else:
+                cur.execute("UPDATE koc_videos SET status = ?, updated_at = ? WHERE id = ?",
+                            (m.get("status", "Lỗi"), m.get("updated_at", ""), vid_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "status": "ok",
+        "scanned": len(targets),
+        "updated": updated_count,
+        "message": f"Đã quét {len(targets)} video TikTok (cập nhật thành công {updated_count} video)",
+    }
+

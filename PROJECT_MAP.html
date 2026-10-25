@@ -673,9 +673,10 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v7.1-2026-10-25-resigned-staff-and-silent-update';
+    const ROADMAP_VERSION = 'v7.2-2026-10-25-koc-kol-management-and-commission';
     const DEFAULT_TASKS = [
       // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-25)
+      { id: 'koc-kol-management-and-commission', cat: 'ECOMM', title: 'Quản Lý KOC / KOL, Link Video TikTok & Tính Hoa Hồng Động Từ Google Sheet (Không Khóa Cứng)', done: true, note: 'Subtab 🎬 KOC / KOL & Affiliate trong Bán Hàng Sàn TMĐT; dán bất kỳ link Google Sheet nào tự động liệt kê các Tab (tab DS KOC/Booking như THANH 10/2026 và tab Link & View như Tiktok/gid=1807044221); quét view TikTok trực tiếp qua TikWM API; cấu hình linh hoạt mức view sàn (200), định mức KPI trừ đi (0/200) và đơn giá/video (10.000đ); tự động cộng hoa hồng vào Bảng Lương HRM của nhân viên phụ trách.' },
       { id: 'resigned-staff-and-silent-update', cat: 'HRM', title: 'Quản Lý Nhân Viên Nghỉ Việc (HRM/Cài Đặt) & Triệt Tiêu Kẹt Cửa Sổ Khi Cập Nhật Từ Xa', done: true, note: 'Bổ sung segmented pills 3 trạng thái (Đang làm việc / Đã nghỉ việc / Tất cả) cho cả HRM và Cài Đặt; nút thao tác 🛑 Nghỉ việc (gán is_active=0, leave_date, thu hồi token phiên đăng nhập) và ↩️ Đi làm lại; thay findstr bằng Python one-liner đọc token trong RAM kèm cờ CREATE_NO_WINDOW & SW_HIDE triệt tiêu 100% cửa sổ đen bị kẹt.' },
       { id: 'spa-customer-call-and-pancake-sync', cat: 'SPA', title: 'Tối Ưu Bảng Dịch Vụ Spa 11 Cột, Tô Nền Xanh Đơn Đã Thanh Toán & Đồng Bộ Pancake (POSCAKE)', done: true, note: 'Dời dropdown gọi điện xuống dưới SĐT ở cột Khách Hàng (rút từ 12 còn 11 cột); tô nền xanh ngọc bg-emerald-50/70 cho dòng đã thanh toán; đồng bộ 2 shop Pancake, trừ tồn kho tự động mọi sàn TMĐT và cấu hình hoa hồng bán hàng theo nhân viên.' },
       // 0. CẬP NHẬT (2026-10-24)

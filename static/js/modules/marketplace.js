@@ -49,7 +49,7 @@
 
     function switchMktSubTab(subTab) {
         state.activeSubTab = subTab;
-        const subTabs = ['shopee', 'tiktok', 'pancake', 'mapping', 'analytics'];
+        const subTabs = ['shopee', 'tiktok', 'pancake', 'koc', 'mapping', 'analytics'];
         subTabs.forEach(t => {
             const btn = document.getElementById(`btn-subtab-mkt-${t}`);
             const pane = document.getElementById(`pane-mkt-${t}`);
@@ -59,6 +59,7 @@
                     if (t === 'shopee') btn.className += 'border-orange-500 text-orange-600';
                     else if (t === 'tiktok') btn.className += 'border-slate-900 text-slate-900';
                     else if (t === 'pancake') btn.className += 'border-amber-500 text-amber-700';
+                    else if (t === 'koc') btn.className += 'border-pink-600 text-pink-700';
                     else if (t === 'mapping') btn.className += 'border-indigo-600 text-indigo-700';
                     else btn.className += 'border-purple-600 text-purple-700';
                 } else {
@@ -74,6 +75,7 @@
         if (subTab === 'shopee') loadShopeeOrders();
         else if (subTab === 'tiktok') loadTikTokOrders();
         else if (subTab === 'pancake') loadPancakeTab();
+        else if (subTab === 'koc') loadKocTab();
         else if (subTab === 'mapping') {
             loadUnmappedItems();
             loadSkuMappings();
@@ -2138,5 +2140,632 @@
         } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
     }
     window.deletePancakeShop = deletePancakeShop;
+
+    // ─────────────────────────────────────────────────────────────
+    // QUẢN LÝ KOC / KOL, LINK VIDEO TIKTOK & TÍNH HOA HỒNG
+    // ─────────────────────────────────────────────────────────────
+    let kocSources = [];
+    let kocDefaultRules = null;
+    let kocSelectedSourceId = '';
+    let kocInnerView = 'videos';
+    let kocRulesTargetSource = null;
+    let kocSearchTimer = null;
+
+    function kocRulesSummaryText(r) {
+        if (!r) return '';
+        const deduct = Number(r.kpi_deduct_videos || 0);
+        const viral = Number(r.viral_bonus || 0) > 0 ? ` · Thưởng viral (≥${r.viral_min_views} view): +${pcMoney(r.viral_bonus)}/video` : '';
+        return `Mức view sàn: ≥${r.min_views || 200} view · Trừ KPI: ${deduct} video · Đơn giá: ${pcMoney(r.rate_per_video || 10000)}/video đạt${viral}`;
+    }
+
+    async function ensureKocStaffLoaded() {
+        if (!pcStaff.length) {
+            try {
+                const r = await fetch('/api/staff');
+                if (r.ok) pcStaff = (await r.json()).filter(s => s.is_active);
+            } catch (e) { }
+        }
+        const sel = document.getElementById('koc-src-staff');
+        if (sel) {
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="">-- Chưa gán nhân viên --</option>' +
+                pcStaff.map(s => `<option value="${s.id}">${escapeHtml(s.employee_code ? '[' + s.employee_code + '] ' : '')}${escapeHtml(s.name)}${s.position ? ' (' + escapeHtml(s.position) + ')' : ''}</option>`).join('');
+            sel.value = curVal;
+        }
+    }
+
+    async function loadKocTab() {
+        await ensureKocStaffLoaded();
+        const monthEl = document.getElementById('koc-month-filter');
+        const month = monthEl ? monthEl.value : '';
+        try {
+            const url = month ? `/api/marketplace/koc/sources?month=${encodeURIComponent(month)}` : '/api/marketplace/koc/sources';
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi tải nguồn KOC');
+            kocSources = data.sources || [];
+            kocDefaultRules = data.default_rules || { min_views: 200, kpi_deduct_videos: 0, rate_per_video: 10000, viral_min_views: 1000, viral_bonus: 0 };
+
+            const rulesTxt = document.getElementById('koc-default-rules-text');
+            if (rulesTxt) rulesTxt.textContent = 'Công thức chung: ' + kocRulesSummaryText(kocDefaultRules);
+
+            const srcSelect = document.getElementById('koc-source-select');
+            if (srcSelect) {
+                const prev = kocSelectedSourceId;
+                srcSelect.innerHTML = '<option value="">-- Tất cả nguồn / chiến dịch --</option>' +
+                    kocSources.map(s => `<option value="${s.id}">[${escapeHtml(s.month)}] ${escapeHtml(s.name)}${s.staff_name ? ' — ' + escapeHtml(s.staff_name) : ''}</option>`).join('');
+                if (prev && kocSources.some(s => String(s.id) === String(prev))) {
+                    srcSelect.value = prev;
+                } else {
+                    kocSelectedSourceId = '';
+                    srcSelect.value = '';
+                }
+            }
+
+            renderKocSourcesTable();
+            updateKocTopKpiCards();
+            await loadKocDetails();
+        } catch (e) {
+            pcToast('Lỗi tải tab KOC: ' + e.message, 'error');
+        }
+    }
+    window.loadKocTab = loadKocTab;
+
+    function onSelectKocSource(val) {
+        kocSelectedSourceId = val || '';
+        updateKocTopKpiCards();
+        loadKocDetails();
+    }
+    window.onSelectKocSource = onSelectKocSource;
+
+    function updateKocTopKpiCards() {
+        const activeList = kocSelectedSourceId
+            ? kocSources.filter(s => String(s.id) === String(kocSelectedSourceId))
+            : kocSources;
+
+        let totalKoc = 0, totalVids = 0, totalViews = 0, qualVids = 0, payableVids = 0, underVids = 0, errVids = 0, totalComm = 0;
+        let minViewLabel = kocDefaultRules ? kocDefaultRules.min_views : 200;
+
+        activeList.forEach(s => {
+            const st = s.stats || {};
+            totalKoc += Number(s.koc_count || st.unique_kocs || 0);
+            totalVids += Number(st.total_videos || 0);
+            totalViews += Number(st.total_views || 0);
+            qualVids += Number(st.qualified_videos || 0);
+            payableVids += Number(st.payable_videos || 0);
+            underVids += Number(st.under_kpi_videos || 0);
+            errVids += Number(st.error_videos || 0);
+            totalComm += Number(st.commission || 0);
+            if (activeList.length === 1 && s.rules) minViewLabel = s.rules.min_views;
+        });
+
+        document.getElementById('kpi-koc-count').textContent = totalKoc.toLocaleString('vi-VN');
+        document.getElementById('kpi-koc-total-videos').textContent = totalVids.toLocaleString('vi-VN');
+        document.getElementById('kpi-koc-total-views').textContent = `${totalViews.toLocaleString('vi-VN')} lượt xem`;
+        document.getElementById('kpi-koc-min-view-label').textContent = `≥${minViewLabel}`;
+        document.getElementById('kpi-koc-qualified-videos').textContent = qualVids.toLocaleString('vi-VN');
+        document.getElementById('kpi-koc-payable-videos').textContent = `Tính thưởng: ${payableVids.toLocaleString('vi-VN')} video`;
+        document.getElementById('kpi-koc-under-videos').textContent = underVids.toLocaleString('vi-VN');
+        document.getElementById('kpi-koc-error-videos').textContent = `Lỗi/riêng tư: ${errVids}`;
+        document.getElementById('kpi-koc-commission').textContent = pcMoney(totalComm);
+    }
+
+    function renderKocSourcesTable() {
+        const tbody = document.getElementById('koc-sources-tbody');
+        if (!tbody) return;
+        if (!kocSources.length) {
+            tbody.innerHTML = '<tr><td colspan="12" class="p-4 text-center text-slate-400">Chưa có nguồn Google Sheet nào. Bấm "🔗 + Thêm / Đổi Link Google Sheet" để kết nối.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = kocSources.map((s, idx) => {
+            const st = s.stats || {};
+            const r = s.rules || kocDefaultRules || {};
+            const staffOpts = '<option value="">-- Chưa gán NV --</option>' +
+                pcStaff.map(u => `<option value="${u.id}" ${u.id === s.staff_id ? 'selected' : ''}>${escapeHtml(u.employee_code ? '[' + u.employee_code + '] ' : '')}${escapeHtml(u.name)}</option>`).join('');
+            const tabsInfo = [
+                s.koc_tab_name ? `KOC: ${s.koc_tab_name}` : '',
+                s.video_tab_name ? `View: ${s.video_tab_name}` : ''
+            ].filter(Boolean).join(' · ') || 'Chưa chọn tab';
+
+            return `<tr class="hover:bg-slate-50 ${String(s.id) === String(kocSelectedSourceId) ? 'bg-pink-50/40' : ''}">
+                <td class="p-2.5">
+                    <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                        <a href="${escapeHtml(s.sheet_url)}" target="_blank" class="text-pink-700 hover:underline" title="Mở Google Sheet gốc">🔗 ${escapeHtml(s.name)}</a>
+                    </div>
+                    <div class="text-[10px] text-slate-500">${escapeHtml(tabsInfo)}${s.last_sync_at ? ' · Sync: ' + escapeHtml(s.last_sync_at.slice(5, 16)) : ''}</div>
+                </td>
+                <td class="p-2.5 font-mono font-bold text-slate-700">${escapeHtml(s.month)}</td>
+                <td class="p-2.5">
+                    <select onchange="quickAssignKocStaff(${idx}, this.value)" class="border border-slate-300 rounded px-2 py-1 text-xs font-semibold text-slate-800 bg-white">
+                        ${staffOpts}
+                    </select>
+                </td>
+                <td class="p-2.5 text-center font-bold">${s.koc_count || 0}</td>
+                <td class="p-2.5 text-center font-mono font-bold">${st.total_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} <span class="text-[10px] text-slate-400 font-normal">(≥${r.min_views})</span></td>
+                <td class="p-2.5 text-center font-mono text-amber-700">${st.under_kpi_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono text-slate-600">${r.kpi_deduct_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono font-black text-indigo-700">${st.payable_videos || 0}</td>
+                <td class="p-2.5 text-right font-mono">${pcMoney(r.rate_per_video)}</td>
+                <td class="p-2.5 text-right font-mono font-black text-pink-600">${pcMoney(st.commission)}</td>
+                <td class="p-2.5 text-center whitespace-nowrap">
+                    <button type="button" onclick="syncSingleKocSource(${s.id})" class="px-2 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer" title="Đồng bộ lại từ Google Sheet">🔄 Sync</button>
+                    <button type="button" onclick="openKocRulesModal(${idx})" class="px-2 py-1 rounded text-[10px] font-bold ${s.custom_rules ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'} hover:bg-indigo-200 cursor-pointer" title="Chỉnh công thức tính">${s.custom_rules ? '⚙️ Riêng' : '⚙️ Chung'}</button>
+                    <button type="button" onclick="openKocSourceModal(${s.id})" class="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Đổi link / đổi tab">✏️ Sửa</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function quickAssignKocStaff(idx, staffId) {
+        const s = kocSources[idx];
+        if (!s) return;
+        try {
+            const res = await fetch('/api/marketplace/koc/sources', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: s.id, name: s.name, sheet_url: s.sheet_url, month: s.month,
+                    staff_id: staffId ? Number(staffId) : null,
+                    koc_tab_name: s.koc_tab_name, video_tab_name: s.video_tab_name,
+                    rules: s.custom_rules ? s.rules : null
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi gán NV');
+            pcToast('Đã cập nhật nhân viên phụ trách KOC', 'success');
+            await loadKocTab();
+        } catch (e) { pcToast('Lỗi: ' + e.message, 'error'); }
+    }
+    window.quickAssignKocStaff = quickAssignKocStaff;
+
+    function switchKocInnerView(view) {
+        kocInnerView = view;
+        const btnV = document.getElementById('btn-koc-view-videos');
+        const btnP = document.getElementById('btn-koc-view-profiles');
+        const paneV = document.getElementById('koc-pane-videos');
+        const paneP = document.getElementById('koc-pane-profiles');
+        const filterKpi = document.getElementById('koc-video-kpi-filter');
+
+        if (view === 'videos') {
+            btnV.className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-white text-slate-900 shadow-2xs cursor-pointer transition';
+            btnP.className = 'px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer transition';
+            paneV.classList.remove('hidden');
+            paneP.classList.add('hidden');
+            if (filterKpi) filterKpi.classList.remove('hidden');
+        } else {
+            btnP.className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-white text-slate-900 shadow-2xs cursor-pointer transition';
+            btnV.className = 'px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer transition';
+            paneP.classList.remove('hidden');
+            paneV.classList.add('hidden');
+            if (filterKpi) filterKpi.classList.add('hidden');
+        }
+    }
+    window.switchKocInnerView = switchKocInnerView;
+
+    function debounceKocSearch() {
+        clearTimeout(kocSearchTimer);
+        kocSearchTimer = setTimeout(() => loadKocDetails(), 350);
+    }
+    window.debounceKocSearch = debounceKocSearch;
+
+    async function loadKocDetails() {
+        const month = document.getElementById('koc-month-filter')?.value || '';
+        const q = document.getElementById('koc-search-input')?.value.trim() || '';
+        const kpiFilter = document.getElementById('koc-video-kpi-filter')?.value || 'all';
+
+        const paramsV = new URLSearchParams({ kpi_filter: kpiFilter });
+        const paramsP = new URLSearchParams();
+        if (kocSelectedSourceId) {
+            paramsV.append('source_id', kocSelectedSourceId);
+            paramsP.append('source_id', kocSelectedSourceId);
+        }
+        if (month) {
+            paramsV.append('month', month);
+            paramsP.append('month', month);
+        }
+        if (q) {
+            paramsV.append('q', q);
+            paramsP.append('q', q);
+        }
+
+        try {
+            const [resV, resP] = await Promise.all([
+                fetch(`/api/marketplace/koc/videos?${paramsV}`),
+                fetch(`/api/marketplace/koc/profiles?${paramsP}`)
+            ]);
+            const dataV = resV.ok ? await resV.json() : { videos: [], min_views: 200 };
+            const dataP = resP.ok ? await resP.json() : { profiles: [] };
+
+            const videos = dataV.videos || [];
+            const minV = dataV.min_views || 200;
+            const profiles = dataP.profiles || [];
+
+            document.getElementById('badge-koc-video-count').textContent = videos.length;
+            document.getElementById('badge-koc-profile-count').textContent = profiles.length;
+
+            const vTbody = document.getElementById('koc-videos-tbody');
+            if (vTbody) {
+                if (!videos.length) {
+                    vTbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Không có link video nào khớp bộ lọc.</td></tr>';
+                } else {
+                    vTbody.innerHTML = videos.map((v, i) => {
+                        const views = Number(v.views || 0);
+                        const isQual = views >= minV;
+                        const kpiBadge = isQual
+                            ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đạt (≥${minV})</span>`
+                            : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Chưa đạt</span>`;
+                        const uname = v.koc_username ? '@' + v.koc_username.replace(/^\/?@/, '') : '—';
+                        return `<tr class="hover:bg-slate-50 ${isQual ? 'bg-emerald-50/20' : ''}">
+                            <td class="p-2.5 text-center text-slate-400 font-mono">${i + 1}</td>
+                            <td class="p-2.5 font-bold text-slate-800">
+                                <a href="https://www.tiktok.com/${escapeHtml(uname)}" target="_blank" class="hover:text-pink-600 hover:underline">${escapeHtml(uname)}</a>
+                                <div class="text-[10px] text-slate-400 font-normal">${escapeHtml(v.source_name || '')}</div>
+                            </td>
+                            <td class="p-2.5 max-w-[280px] truncate font-mono">
+                                <a href="${escapeHtml(v.video_url)}" target="_blank" class="text-sky-700 hover:underline" title="${escapeHtml(v.video_url)}">${escapeHtml(v.video_url)}</a>
+                            </td>
+                            <td class="p-2.5 max-w-[220px]">
+                                <div class="font-semibold text-slate-700">${escapeHtml(v.product_note || '')}</div>
+                                <div class="text-[10px] text-slate-400 truncate" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
+                            </td>
+                            <td class="p-2.5 text-right">
+                                <input type="number" min="0" value="${views}" onchange="updateSingleKocVideoViews(${v.id}, this.value)" class="w-24 border border-slate-200 focus:border-pink-500 rounded px-2 py-1 text-right font-mono font-bold ${isQual ? 'text-emerald-700 bg-white' : 'text-slate-700 bg-slate-50'}" title="Sửa nhanh số view">
+                            </td>
+                            <td class="p-2.5 text-center">${kpiBadge}</td>
+                            <td class="p-2.5 text-center"><span class="text-[10px] font-semibold text-slate-600">${escapeHtml(v.status || 'OK')}</span></td>
+                            <td class="p-2.5 text-[10px] text-slate-500 font-mono">${escapeHtml((v.updated_at || '').slice(0, 16))}</td>
+                            <td class="p-2.5 text-center">
+                                <button type="button" onclick="deleteSingleKocVideo(${v.id})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 cursor-pointer" title="Xóa link này">🗑️</button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            }
+
+            const pTbody = document.getElementById('koc-profiles-tbody');
+            if (pTbody) {
+                if (!profiles.length) {
+                    pTbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Không có KOC/KOL nào.</td></tr>';
+                } else {
+                    pTbody.innerHTML = profiles.map((p, i) => {
+                        const uname = p.koc_username ? '@' + p.koc_username.replace(/^\/?@/, '') : '—';
+                        return `<tr class="hover:bg-slate-50">
+                            <td class="p-2.5 text-center text-slate-400 font-mono">${i + 1}</td>
+                            <td class="p-2.5">
+                                <a href="${escapeHtml(p.channel_url || 'https://www.tiktok.com/' + uname)}" target="_blank" class="font-bold text-pink-700 hover:underline">${escapeHtml(uname)}</a>
+                                <div class="text-[10px] text-slate-400">${escapeHtml(p.source_name || '')}</div>
+                            </td>
+                            <td class="p-2.5 text-slate-700">
+                                <div>FL: <b>${escapeHtml(p.followers || '—')}</b></div>
+                                ${p.gmv_text ? `<div class="text-[10px] text-emerald-700">GMV: ${escapeHtml(p.gmv_text)}</div>` : ''}
+                            </td>
+                            <td class="p-2.5 font-semibold text-slate-700">${escapeHtml(p.product_sample || '—')}</td>
+                            <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${escapeHtml(p.approval_status || 'DUYỆT')}</span></td>
+                            <td class="p-2.5 text-right font-mono">${p.cast_fee > 0 ? pcMoney(p.cast_fee) : '<span class="text-slate-400">Freecast</span>'}</td>
+                            <td class="p-2.5 text-center font-mono font-bold text-indigo-700">${p.actual_videos || p.videos_returned || 0}</td>
+                            <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${Number(p.total_views || 0).toLocaleString('vi-VN')}</td>
+                            <td class="p-2.5 text-slate-600 max-w-[220px] truncate" title="${escapeHtml((p.contact_info || '') + ' ' + (p.note || ''))}">${escapeHtml(p.contact_info || p.note || '—')}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            }
+        } catch (e) {
+            console.error('loadKocDetails error:', e);
+        }
+    }
+    window.loadKocDetails = loadKocDetails;
+
+    async function updateSingleKocVideoViews(videoId, newViews) {
+        try {
+            const res = await fetch(`/api/marketplace/koc/videos/${videoId}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ views: Math.max(0, parseInt(newViews || 0, 10)), status: 'Cập nhật tay' })
+            });
+            if (!res.ok) throw new Error('Lỗi lưu số view');
+            await loadKocTab();
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.updateSingleKocVideoViews = updateSingleKocVideoViews;
+
+    async function deleteSingleKocVideo(videoId) {
+        try {
+            const res = await fetch(`/api/marketplace/koc/videos/${videoId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Lỗi xóa video');
+            await loadKocTab();
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.deleteSingleKocVideo = deleteSingleKocVideo;
+
+    async function openKocSourceModal(sourceId = null) {
+        await ensureKocStaffLoaded();
+        const src = sourceId ? kocSources.find(s => s.id === sourceId) : null;
+        document.getElementById('koc-src-id').value = src ? src.id : '';
+        document.getElementById('koc-src-name').value = src ? src.name : '';
+        const nowMonth = new Date().toISOString().slice(0, 7);
+        document.getElementById('koc-src-month').value = src ? src.month : (document.getElementById('koc-month-filter')?.value || nowMonth);
+        document.getElementById('koc-src-url').value = src ? src.sheet_url : '';
+        document.getElementById('koc-src-staff').value = src && src.staff_id ? src.staff_id : '';
+        document.getElementById('btn-koc-src-delete').classList.toggle('invisible', !src);
+        document.getElementById('koc-src-inspect-msg').classList.add('hidden');
+
+        const kocTabSel = document.getElementById('koc-src-koc-tab');
+        const vidTabSel = document.getElementById('koc-src-video-tab');
+        kocTabSel.innerHTML = `<option value="${escapeHtml(src?.koc_tab_name || '')}">${src?.koc_tab_name ? escapeHtml(src.koc_tab_name) : '-- Bấm "Tải DS Tab" để chọn --'}</option>`;
+        vidTabSel.innerHTML = `<option value="${escapeHtml(src?.video_tab_name || '')}">${src?.video_tab_name ? escapeHtml(src.video_tab_name) : '-- Bấm "Tải DS Tab" để chọn --'}</option>`;
+
+        document.getElementById('modal-koc-source').classList.remove('hidden');
+        if (src && src.sheet_url) {
+            inspectKocSheetTabs(src.koc_tab_name, src.video_tab_name);
+        }
+    }
+    window.openKocSourceModal = openKocSourceModal;
+
+    function closeKocSourceModal() {
+        document.getElementById('modal-koc-source')?.classList.add('hidden');
+    }
+    window.closeKocSourceModal = closeKocSourceModal;
+
+    async function inspectKocSheetTabs(presetKocTab = null, presetVidTab = null) {
+        const url = document.getElementById('koc-src-url').value.trim();
+        const msgBox = document.getElementById('koc-src-inspect-msg');
+        const btn = document.getElementById('btn-koc-inspect');
+        if (!url) return pcToast('Vui lòng dán link Google Sheet trước', 'warning');
+
+        msgBox.className = 'p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        msgBox.textContent = '⏳ Đang kết nối và đọc danh sách các Tab trong Google Sheet...';
+        msgBox.classList.remove('hidden');
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/marketplace/koc/inspect-sheet', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheet_url: url })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Không đọc được Sheet');
+            const tabs = data.tabs || [];
+            const kocTabSel = document.getElementById('koc-src-koc-tab');
+            const vidTabSel = document.getElementById('koc-src-video-tab');
+
+            const curKoc = presetKocTab !== null ? presetKocTab : kocTabSel.value;
+            const curVid = presetVidTab !== null ? presetVidTab : vidTabSel.value;
+
+            kocTabSel.innerHTML = '<option value="">-- Không chọn / Tự trích từ video --</option>' +
+                tabs.map(t => `<option value="${escapeHtml(t.name)}">${t.kind === 'koc_booking' ? '👥 ' : ''}${escapeHtml(t.name)} (${t.rows} dòng)</option>`).join('');
+            vidTabSel.innerHTML = '<option value="">-- Không chọn --</option>' +
+                tabs.map(t => `<option value="${escapeHtml(t.name)}">${t.kind === 'video_views' ? '📹 ' : ''}${escapeHtml(t.name)} (${t.rows} dòng)</option>`).join('');
+
+            if (curKoc && tabs.some(t => t.name === curKoc)) kocTabSel.value = curKoc;
+            if (curVid && tabs.some(t => t.name === curVid)) vidTabSel.value = curVid;
+
+            msgBox.className = 'p-2 rounded-lg text-[11px] bg-emerald-100 text-emerald-800 font-bold';
+            msgBox.textContent = `✅ Đã tìm thấy ${tabs.length} tab trong Google Sheet! Hãy chọn tab tương ứng bên trên.`;
+        } catch (e) {
+            msgBox.className = 'p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+            msgBox.textContent = '❌ ' + e.message;
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+    window.inspectKocSheetTabs = inspectKocSheetTabs;
+
+    async function saveKocSourceAndSync() {
+        const id = document.getElementById('koc-src-id').value;
+        const name = document.getElementById('koc-src-name').value.trim();
+        const month = document.getElementById('koc-src-month').value.trim();
+        const sheet_url = document.getElementById('koc-src-url').value.trim();
+        const koc_tab_name = document.getElementById('koc-src-koc-tab').value;
+        const video_tab_name = document.getElementById('koc-src-video-tab').value;
+        const staff_id = document.getElementById('koc-src-staff').value;
+
+        if (!name || !month || !sheet_url) {
+            return pcToast('Vui lòng nhập Tên chiến dịch, Tháng và Link Google Sheet', 'warning');
+        }
+        if (!koc_tab_name && !video_tab_name) {
+            return pcToast('Hãy chọn ít nhất 1 Tab (Tab DS KOC hoặc Tab Link & View)', 'warning');
+        }
+
+        const btn = document.getElementById('btn-koc-src-save');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang lưu & đồng bộ...'; }
+
+        try {
+            const existing = id ? kocSources.find(s => String(s.id) === String(id)) : null;
+            const res = await fetch('/api/marketplace/koc/sources', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: id ? Number(id) : null,
+                    name, sheet_url, month,
+                    staff_id: staff_id ? Number(staff_id) : null,
+                    koc_tab_name, video_tab_name,
+                    rules: existing && existing.custom_rules ? existing.rules : null
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi lưu nguồn');
+
+            const syncRes = await fetch(`/api/marketplace/koc/sources/${data.id}/sync`, { method: 'POST' });
+            const syncData = await syncRes.json();
+            if (!syncRes.ok) throw new Error(syncData.detail || 'Lỗi đồng bộ dữ liệu từ Sheet');
+
+            pcToast(syncData.message || 'Đã lưu và đồng bộ thành công!', 'success');
+            closeKocSourceModal();
+            kocSelectedSourceId = String(data.id);
+            await loadKocTab();
+        } catch (e) {
+            pcToast('Lỗi: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '💾 Lưu & Đồng Bộ Ngay'; }
+        }
+    }
+    window.saveKocSourceAndSync = saveKocSourceAndSync;
+
+    async function deleteKocSourceModal() {
+        const id = document.getElementById('koc-src-id').value;
+        if (!id) return;
+        const ok = window.showConfirmModal
+            ? await window.showConfirmModal({ title: 'Xóa nguồn KOC?', message: 'Xóa chiến dịch này cùng toàn bộ KOC và video thuộc chiến dịch.', confirmText: 'Xóa', type: 'danger' })
+            : confirm('Xóa nguồn KOC này?');
+        if (!ok) return;
+        try {
+            const res = await fetch(`/api/marketplace/koc/sources/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Lỗi xóa nguồn');
+            closeKocSourceModal();
+            if (String(kocSelectedSourceId) === String(id)) kocSelectedSourceId = '';
+            await loadKocTab();
+            pcToast('Đã xóa nguồn KOC', 'success');
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.deleteKocSourceModal = deleteKocSourceModal;
+
+    async function syncSingleKocSource(sourceId) {
+        const btn = document.getElementById('btn-koc-sync-sheet');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang đồng bộ...'; }
+        try {
+            const res = await fetch(`/api/marketplace/koc/sources/${sourceId}/sync`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi đồng bộ');
+            pcToast(data.message, 'success');
+            await loadKocTab();
+        } catch (e) {
+            pcToast('Lỗi: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '🔄 Đồng Bộ Từ Sheet'; }
+        }
+    }
+    window.syncSingleKocSource = syncSingleKocSource;
+
+    async function syncCurrentKocSheet() {
+        const targets = kocSelectedSourceId
+            ? kocSources.filter(s => String(s.id) === String(kocSelectedSourceId))
+            : kocSources;
+        if (!targets.length) return openKocSourceModal();
+        for (const s of targets) {
+            await syncSingleKocSource(s.id);
+        }
+    }
+    window.syncCurrentKocSheet = syncCurrentKocSheet;
+
+    async function scanCurrentKocViews() {
+        const targetId = kocSelectedSourceId || (kocSources[0] ? kocSources[0].id : null);
+        if (!targetId) return pcToast('Hãy kết nối nguồn Sheet trước', 'warning');
+        const btn = document.getElementById('btn-koc-scan-views');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang quét view...'; }
+        try {
+            const res = await fetch(`/api/marketplace/koc/sources/${targetId}/refresh-views?limit=80`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi quét view');
+            pcToast(data.message, 'success');
+            await loadKocTab();
+        } catch (e) {
+            pcToast('Lỗi: ' + e.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '👁️ Quét View TikTok'; }
+        }
+    }
+    window.scanCurrentKocViews = scanCurrentKocViews;
+
+    function fillKocRulesInputs(r) {
+        document.getElementById('koc-rule-min-views').value = r.min_views ?? 200;
+        document.getElementById('koc-rule-kpi-deduct').value = r.kpi_deduct_videos ?? 0;
+        document.getElementById('koc-rule-rate').value = Number(r.rate_per_video ?? 10000).toLocaleString('vi-VN');
+        document.getElementById('koc-rule-viral-views').value = r.viral_min_views ?? 1000;
+        document.getElementById('koc-rule-viral-bonus').value = Number(r.viral_bonus ?? 0).toLocaleString('vi-VN');
+    }
+
+    function toggleKocRulesInputs() {
+        const useDefault = document.getElementById('koc-rules-use-default').checked;
+        document.getElementById('koc-rules-inputs').classList.toggle('opacity-40', useDefault);
+        document.getElementById('koc-rules-inputs').classList.toggle('pointer-events-none', useDefault);
+        if (useDefault && kocDefaultRules) fillKocRulesInputs(kocDefaultRules);
+    }
+    window.toggleKocRulesInputs = toggleKocRulesInputs;
+
+    function openKocRulesModal(sourceIdx = null) {
+        kocRulesTargetSource = (sourceIdx === null || sourceIdx === undefined) ? null : kocSources[sourceIdx];
+        const isDefault = !kocRulesTargetSource;
+        document.getElementById('koc-rules-title').textContent = isDefault
+            ? '⚙️ Công Thức Hoa Hồng Chung (Mọi Chiến Dịch)'
+            : `⚙️ Công Thức Riêng — ${kocRulesTargetSource.name}`;
+        document.getElementById('koc-rules-use-default-wrap').classList.toggle('hidden', isDefault);
+        document.getElementById('koc-rules-use-default').checked = !isDefault && !kocRulesTargetSource.custom_rules;
+        fillKocRulesInputs(isDefault ? (kocDefaultRules || {}) : (kocRulesTargetSource.rules || kocDefaultRules || {}));
+        toggleKocRulesInputs();
+        document.getElementById('modal-koc-rules').classList.remove('hidden');
+    }
+    window.openKocRulesModal = openKocRulesModal;
+
+    function closeKocRulesModal() {
+        document.getElementById('modal-koc-rules')?.classList.add('hidden');
+    }
+    window.closeKocRulesModal = closeKocRulesModal;
+
+    async function saveKocRules() {
+        const rules = {
+            min_views: Math.max(0, parseInt(document.getElementById('koc-rule-min-views').value || 0, 10)),
+            kpi_deduct_videos: Math.max(0, parseInt(document.getElementById('koc-rule-kpi-deduct').value || 0, 10)),
+            rate_per_video: parseMoneyInput(document.getElementById('koc-rule-rate').value),
+            viral_min_views: Math.max(0, parseInt(document.getElementById('koc-rule-viral-views').value || 0, 10)),
+            viral_bonus: parseMoneyInput(document.getElementById('koc-rule-viral-bonus').value),
+        };
+        const useDefault = kocRulesTargetSource && document.getElementById('koc-rules-use-default').checked;
+        try {
+            if (kocRulesTargetSource) {
+                const s = kocRulesTargetSource;
+                const res = await fetch('/api/marketplace/koc/sources', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: s.id, name: s.name, sheet_url: s.sheet_url, month: s.month,
+                        staff_id: s.staff_id, koc_tab_name: s.koc_tab_name, video_tab_name: s.video_tab_name,
+                        rules: useDefault ? null : rules
+                    })
+                });
+                if (!res.ok) throw new Error('Lỗi lưu công thức riêng');
+            } else {
+                const res = await fetch('/api/marketplace/koc/rules', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(rules)
+                });
+                if (!res.ok) throw new Error('Lỗi lưu công thức chung');
+            }
+            pcToast('Đã lưu công thức tính hoa hồng KOC', 'success');
+            closeKocRulesModal();
+            await loadKocTab();
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.saveKocRules = saveKocRules;
+
+    function openAddKocVideoModal() {
+        if (!kocSources.length) return openKocSourceModal();
+        const sel = document.getElementById('koc-add-video-source');
+        sel.innerHTML = kocSources.map(s => `<option value="${s.id}" ${String(s.id) === String(kocSelectedSourceId) ? 'selected' : ''}>[${escapeHtml(s.month)}] ${escapeHtml(s.name)}</option>`).join('');
+        document.getElementById('koc-add-video-urls').value = '';
+        document.getElementById('koc-add-video-note').value = '';
+        document.getElementById('modal-koc-add-video').classList.remove('hidden');
+    }
+    window.openAddKocVideoModal = openAddKocVideoModal;
+
+    function closeAddKocVideoModal() {
+        document.getElementById('modal-koc-add-video')?.classList.add('hidden');
+    }
+    window.closeAddKocVideoModal = closeAddKocVideoModal;
+
+    async function submitManualKocVideos() {
+        const source_id = Number(document.getElementById('koc-add-video-source').value);
+        const urls_text = document.getElementById('koc-add-video-urls').value.trim();
+        const product_note = document.getElementById('koc-add-video-note').value.trim();
+        if (!urls_text) return pcToast('Hãy dán ít nhất 1 link video TikTok', 'warning');
+        try {
+            const res = await fetch('/api/marketplace/koc/videos', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_id, urls_text, product_note })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Lỗi thêm link');
+            pcToast(data.message, 'success');
+            closeAddKocVideoModal();
+            await loadKocTab();
+        } catch (e) { pcToast(e.message, 'error'); }
+    }
+    window.submitManualKocVideos = submitManualKocVideos;
 
 })();

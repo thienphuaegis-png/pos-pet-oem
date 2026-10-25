@@ -2191,6 +2191,10 @@ def init_db():
     from services.hrm_schema import ensure_hrm_schema
     ensure_hrm_schema(cur)
 
+    # KOC / KOL & Affiliate Video Management & Commission
+    from services.koc_service import ensure_koc_schema
+    ensure_koc_schema(cur)
+
     # Nạp các mã chứng từ hiện hữu vào archived_codes nếu chưa có
     try:
         cur.execute("INSERT OR IGNORE INTO archived_codes (code, doc_type) SELECT code, 'order' FROM orders WHERE code IS NOT NULL")

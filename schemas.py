@@ -676,6 +676,37 @@ class PancakeSellerUpdate(BaseModel):
     staff_id: Optional[int] = None
     rules: Optional[PancakeCommissionRules] = None  # None = dùng công thức chung
 
+class KocInspectSheetRequest(BaseModel):
+    sheet_url: str
+
+class KocCommissionRulesIn(BaseModel):
+    min_views: int = Field(default=200, ge=0)
+    kpi_deduct_videos: int = Field(default=0, ge=0)
+    rate_per_video: float = Field(default=10000, ge=0)
+    viral_min_views: int = Field(default=1000, ge=0)
+    viral_bonus: float = Field(default=0, ge=0)
+
+class KocSourceSaveRequest(BaseModel):
+    id: Optional[int] = None
+    name: str
+    sheet_url: str
+    month: str
+    staff_id: Optional[int] = None
+    koc_tab_name: Optional[str] = ""
+    video_tab_name: Optional[str] = ""
+    rules: Optional[KocCommissionRulesIn] = None
+
+class KocManualVideoAddRequest(BaseModel):
+    source_id: int
+    urls_text: str
+    koc_username: Optional[str] = ""
+    product_note: Optional[str] = ""
+
+class KocVideoUpdateRequest(BaseModel):
+    views: int = Field(ge=0)
+    status: Optional[str] = "OK"
+    product_note: Optional[str] = None
+
 class QuickDraftRequest(BaseModel):
     product_id: Optional[int] = None
     partner_id: Optional[int] = None

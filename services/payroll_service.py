@@ -279,6 +279,11 @@ def calculate_period(cur, month: str, today: date = None) -> dict:
         rec = sales.setdefault(sid, {"commission": 0, "net": 0})
         rec["commission"] = rec.get("commission", 0) + pc["commission"]
         rec["net"] = rec.get("net", 0) + pc["revenue"]
+    # Cộng hoa hồng KOC/KOL TikTok (theo nguồn/chiến dịch đã gán nhân viên phụ trách ở TMĐT > KOC/KOL)
+    from services.koc_service import commission_by_staff as koc_commission_by_staff
+    for sid, kc in koc_commission_by_staff(cur, month).items():
+        rec = sales.setdefault(sid, {"commission": 0, "net": 0})
+        rec["commission"] = rec.get("commission", 0) + kc["commission"]
     spa = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
     cur.execute("SELECT * FROM payroll_lines WHERE period_id = ?", (period["id"],))
     existing = {r["staff_id"]: r for r in cur.fetchall()}

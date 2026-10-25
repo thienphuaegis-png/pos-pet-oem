@@ -1675,6 +1675,10 @@
                         <span class="text-base">🥞</span>
                         <span>Pancake</span>
                     </button>
+                    <button id="btn-subtab-mkt-koc" onclick="switchMktSubTab('koc')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer">
+                        <span class="text-base">🎬</span>
+                        <span>KOC / KOL &amp; Affiliate</span>
+                    </button>
                     <button id="btn-subtab-mkt-mapping" onclick="switchMktSubTab('mapping')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer">
                         <span class="text-base">🔗</span>
                         <span>Ánh Xạ Sản Phẩm (SKU)</span>
@@ -2001,6 +2005,176 @@
                                 </thead>
                                 <tbody id="mkt-pancake-orders-tbody" class="divide-y divide-slate-100">
                                     <tr><td colspan="7" class="p-6 text-center text-slate-400">Chưa có đơn.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBTAB: KOC / KOL & AFFILIATE TIKTOK -->
+                <div id="pane-mkt-koc" class="mkt-subtab-pane hidden space-y-4">
+                    <!-- Thanh Điều Khiển & Bộ Lọc Tháng -->
+                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2 bg-pink-50 px-3 py-1.5 rounded-lg border border-pink-200">
+                                <span class="text-lg">🎬</span>
+                                <div>
+                                    <div class="text-[10px] text-slate-500 font-bold uppercase">Affiliate &amp; Booking</div>
+                                    <div class="font-bold text-xs text-pink-800">Quản Lý KOC / KOL &amp; Hoa Hồng Video</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
+                                <span class="text-[10px] text-slate-500 font-bold">Tháng:</span>
+                                <input type="month" id="koc-month-filter" onchange="loadKocTab()" class="text-xs font-bold text-slate-800 focus:outline-none">
+                                <button type="button" onclick="document.getElementById('koc-month-filter').value=''; loadKocTab()" class="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer ml-1" title="Xem tất cả tháng">&times;</button>
+                            </div>
+                            <select id="koc-source-select" onchange="onSelectKocSource(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white focus:outline-none">
+                                <option value="">-- Tất cả nguồn / chiến dịch --</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="openKocSourceModal()" class="px-3.5 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                                <span>🔗 + Thêm / Đổi Link Google Sheet</span>
+                            </button>
+                            <button type="button" id="btn-koc-sync-sheet" onclick="syncCurrentKocSheet()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                                <span>🔄 Đồng Bộ Từ Sheet</span>
+                            </button>
+                            <button type="button" id="btn-koc-scan-views" onclick="scanCurrentKocViews()" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer flex items-center gap-1.5" title="Quét lượt xem TikTok thực tế cho các video">
+                                <span>👁️ Quét View TikTok</span>
+                            </button>
+                            <button type="button" onclick="openKocRulesModal(null)" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition cursor-pointer">
+                                <span>⚙️ Công Thức Hoa Hồng</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Tổng KOC / KOL</div>
+                            <div id="kpi-koc-count" class="text-xl font-black text-slate-800 mt-1">0</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Kênh tham gia</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Tổng Link Video</div>
+                            <div id="kpi-koc-total-videos" class="text-xl font-black text-indigo-600 mt-1">0</div>
+                            <div id="kpi-koc-total-views" class="text-[10px] text-slate-500 font-semibold mt-0.5">0 lượt xem</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-xs">
+                            <div class="text-[11px] font-bold text-emerald-700 uppercase">Đạt KPI (<span id="kpi-koc-min-view-label">≥200</span> view)</div>
+                            <div id="kpi-koc-qualified-videos" class="text-xl font-black text-emerald-600 mt-1">0</div>
+                            <div id="kpi-koc-payable-videos" class="text-[10px] text-emerald-700 font-semibold mt-0.5">Tính thưởng: 0 video</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-amber-200 bg-amber-50/30 shadow-xs">
+                            <div class="text-[11px] font-bold text-amber-700 uppercase">Chưa Đạt (&lt; View Sàn)</div>
+                            <div id="kpi-koc-under-videos" class="text-xl font-black text-amber-600 mt-1">0</div>
+                            <div id="kpi-koc-error-videos" class="text-[10px] text-slate-400 mt-0.5">Lỗi/riêng tư: 0</div>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-xl border border-pink-200 bg-pink-50/30 shadow-xs">
+                            <div class="text-[11px] font-bold text-pink-700 uppercase">Tổng Hoa Hồng Video</div>
+                            <div id="kpi-koc-commission" class="text-xl font-black text-pink-600 mt-1">0 đ</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Tự cộng vào Bảng Lương HRM</div>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Nguồn Sheet & Hoa Hồng Theo Nhân Viên Phụ Trách -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 p-4 space-y-2.5">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <div class="font-bold text-slate-800 text-xs">📊 Bảng Tính Hoa Hồng Video KOC Theo Nguồn Sheet &amp; Nhân Viên Phụ Trách</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5" id="koc-default-rules-text">—</div>
+                            </div>
+                            <button type="button" onclick="openAddKocVideoModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition cursor-pointer">+ Dán Thêm Link Video Lẻ</button>
+                        </div>
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2.5">Chiến Dịch / Nguồn Sheet</th>
+                                        <th class="p-2.5">Tháng</th>
+                                        <th class="p-2.5">NV Phụ Trách (HRM)</th>
+                                        <th class="p-2.5 text-center">Số KOC</th>
+                                        <th class="p-2.5 text-center">Tổng Video</th>
+                                        <th class="p-2.5 text-center text-emerald-700">Video Đạt View</th>
+                                        <th class="p-2.5 text-center text-amber-700">Dưới View</th>
+                                        <th class="p-2.5 text-center">Trừ KPI</th>
+                                        <th class="p-2.5 text-center text-indigo-700">Video Tính Thưởng</th>
+                                        <th class="p-2.5 text-right">Đơn Giá</th>
+                                        <th class="p-2.5 text-right text-pink-700">Thành Tiền Hoa Hồng</th>
+                                        <th class="p-2.5 text-center">Thao Tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="koc-sources-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="12" class="p-4 text-center text-slate-400">Chưa có nguồn Google Sheet nào. Bấm "🔗 + Thêm / Đổi Link Google Sheet" để kết nối.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Chuyển đổi xem: Danh sách Link Video & View  <->  Danh sách KOC / KOL -->
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+                        <div class="p-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 bg-slate-50/60">
+                            <div class="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg">
+                                <button type="button" id="btn-koc-view-videos" onclick="switchKocInnerView('videos')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-slate-900 shadow-2xs cursor-pointer transition">
+                                    📹 Danh Sách Link Video &amp; Lượt Xem (<span id="badge-koc-video-count">0</span>)
+                                </button>
+                                <button type="button" id="btn-koc-view-profiles" onclick="switchKocInnerView('profiles')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer transition">
+                                    👥 Danh Sách KOC / KOL (<span id="badge-koc-profile-count">0</span>)
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <select id="koc-video-kpi-filter" onchange="loadKocDetails()" class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white focus:outline-none">
+                                    <option value="all">Tất cả video</option>
+                                    <option value="qualified">✅ Đạt KPI (≥ view sàn)</option>
+                                    <option value="under">⚠️ Chưa đạt (&lt; view sàn)</option>
+                                </select>
+                                <div class="flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2.5 py-1">
+                                    <span class="text-slate-400">🔍</span>
+                                    <input type="text" id="koc-search-input" oninput="debounceKocSearch()" placeholder="Tìm @koc, link, sản phẩm..." class="text-xs font-medium text-slate-700 w-48 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bảng 1: Danh sách Link Video -->
+                        <div id="koc-pane-videos" class="overflow-x-auto max-h-[560px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] sticky top-0">
+                                    <tr>
+                                        <th class="p-2.5 w-10 text-center">#</th>
+                                        <th class="p-2.5">KOC / Tác Giả</th>
+                                        <th class="p-2.5">Link Video TikTok</th>
+                                        <th class="p-2.5">Sản Phẩm / Tiêu Đề</th>
+                                        <th class="p-2.5 text-right">Lượt Xem</th>
+                                        <th class="p-2.5 text-center">Kết Quả KPI</th>
+                                        <th class="p-2.5 text-center">Trạng Thái</th>
+                                        <th class="p-2.5">Cập Nhật Lúc</th>
+                                        <th class="p-2.5 text-center w-16">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="koc-videos-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="9" class="p-6 text-center text-slate-400">Chưa có dữ liệu video.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Bảng 2: Danh sách KOC / KOL -->
+                        <div id="koc-pane-profiles" class="hidden overflow-x-auto max-h-[560px]">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] sticky top-0">
+                                    <tr>
+                                        <th class="p-2.5 w-10 text-center">#</th>
+                                        <th class="p-2.5">ID KOC / Kênh</th>
+                                        <th class="p-2.5">Follow &amp; GMV</th>
+                                        <th class="p-2.5">Sản Phẩm Gửi Mẫu</th>
+                                        <th class="p-2.5 text-center">Duyệt</th>
+                                        <th class="p-2.5 text-right">Chi Phí Cast</th>
+                                        <th class="p-2.5 text-center">Video Đã Trả</th>
+                                        <th class="p-2.5 text-right">Tổng View</th>
+                                        <th class="p-2.5">Liên Hệ / Ghi Chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="koc-profiles-tbody" class="divide-y divide-slate-100">
+                                    <tr><td colspan="9" class="p-6 text-center text-slate-400">Chưa có danh sách KOC.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -16083,6 +16257,143 @@
                 <div class="flex justify-end gap-2 pt-2 border-t">
                     <button type="button" onclick="closePancakeRulesModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Hủy</button>
                     <button type="button" onclick="savePancakeRules()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs cursor-pointer">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: KẾT NỐI NGUỒN GOOGLE SHEET KOC / KOL ==================== -->
+    <div id="modal-koc-source" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs" onclick="if(event.target === this) closeKocSourceModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm" id="koc-source-modal-title">🎬 Kết Nối Google Sheet KOC / KOL (Không khóa cứng)</h3>
+                <button type="button" onclick="closeKocSourceModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <input type="hidden" id="koc-src-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Tên chiến dịch / Nguồn <span class="text-rose-500">*</span></label>
+                        <input id="koc-src-name" type="text" placeholder="VD: KOC Thanh Tháng 10/2026" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Tháng tính lương <span class="text-rose-500">*</span></label>
+                        <input id="koc-src-month" type="month" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Link Google Sheet (dán bất kỳ link Sheet nào chia sẻ quyền xem) <span class="text-rose-500">*</span></label>
+                    <div class="flex gap-2">
+                        <input id="koc-src-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="flex-1 border border-slate-300 rounded-lg p-2 font-mono text-slate-800 focus:outline-none focus:border-pink-500">
+                        <button type="button" id="btn-koc-inspect" onclick="inspectKocSheetTabs()" class="px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg font-bold transition cursor-pointer whitespace-nowrap">🔍 Tải DS Tab</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Tab DS KOC / Booking (tùy chọn)</label>
+                        <select id="koc-src-koc-tab" class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 bg-white focus:outline-none">
+                            <option value="">-- Không chọn / Tự trích từ video --</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-0.5">VD: THANH 102026, Đôn 62026 (có cột Link Air)</p>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Tab Tổng Hợp Link &amp; View (tùy chọn)</label>
+                        <select id="koc-src-video-tab" class="w-full border border-slate-300 rounded-lg p-2 font-semibold text-slate-800 bg-white focus:outline-none">
+                            <option value="">-- Không chọn --</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-0.5">VD: 2, Tiktok, Tiktok_ChiTiet (có cột Lượt xem)</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nhân viên POS phụ trách (để cộng hoa hồng vào Bảng Lương HRM)</label>
+                    <select id="koc-src-staff" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none">
+                        <option value="">-- Chưa gán nhân viên --</option>
+                    </select>
+                </div>
+                <div id="koc-src-inspect-msg" class="hidden p-2 rounded-lg text-[11px]"></div>
+                <div class="flex justify-between gap-2 pt-2 border-t">
+                    <button type="button" id="btn-koc-src-delete" onclick="deleteKocSourceModal()" class="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg font-semibold transition cursor-pointer">Xóa nguồn</button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeKocSourceModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Hủy</button>
+                        <button type="button" id="btn-koc-src-save" onclick="saveKocSourceAndSync()" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold shadow-xs transition cursor-pointer">💾 Lưu &amp; Đồng Bộ Ngay</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: CÔNG THỨC TÍNH HOA HỒNG VIDEO KOC ==================== -->
+    <div id="modal-koc-rules" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs" onclick="if(event.target === this) closeKocRulesModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm" id="koc-rules-title">⚙️ Công Thức Tính Hoa Hồng Video KOC</h3>
+                <button type="button" onclick="closeKocRulesModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <label id="koc-rules-use-default-wrap" class="flex items-center gap-2 font-bold text-slate-700">
+                    <input type="checkbox" id="koc-rules-use-default" onchange="toggleKocRulesInputs()" class="w-4 h-4"> Dùng công thức chung
+                </label>
+                <div id="koc-rules-inputs" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Mức view sàn đạt KPI (view)</label>
+                            <input id="koc-rule-min-views" type="number" min="0" step="10" value="200" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-right font-bold">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Định mức KPI trừ đi (video)</label>
+                            <input id="koc-rule-kpi-deduct" type="number" min="0" step="1" value="0" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-right font-bold">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Đơn giá hoa hồng / 1 video đạt KPI (đ)</label>
+                        <input id="koc-rule-rate" type="text" inputmode="numeric" oninput="formatCurrencyInputRealtime(this)" value="10.000" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-right font-bold text-emerald-700">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Mốc view Viral (view)</label>
+                            <input id="koc-rule-viral-views" type="number" min="0" step="100" value="1000" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-right">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Thưởng thêm Viral / video (đ)</label>
+                            <input id="koc-rule-viral-bonus" type="text" inputmode="numeric" oninput="formatCurrencyInputRealtime(this)" value="0" class="w-full border border-slate-300 rounded-lg p-2 font-mono text-right">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                        <b>Công thức:</b> Số video tính thưởng = <code>MAX(0, Số video ≥ Mức view sàn − Định mức KPI trừ đi)</code>.<br>
+                        Để <b>Định mức KPI trừ đi = 0</b> nếu tính tiền từ video đạt chuẩn đầu tiên; đặt <b>200</b> nếu chỉ tính phần vượt 200 video.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeKocRulesModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Hủy</button>
+                    <button type="button" onclick="saveKocRules()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs cursor-pointer">Lưu Công Thức</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL: DÁN THÊM LINK VIDEO TIKTOK LẺ ==================== -->
+    <div id="modal-koc-add-video" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-[85] p-4 backdrop-blur-xs" onclick="if(event.target === this) closeAddKocVideoModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 text-xs">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm">📹 Dán Thêm Link Video TikTok</h3>
+                <button type="button" onclick="closeAddKocVideoModal()" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition cursor-pointer text-base">&times;</button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Chiến dịch / Nguồn nhận</label>
+                    <select id="koc-add-video-source" class="w-full border border-slate-300 rounded-lg p-2 font-bold text-slate-800 bg-white focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Danh sách Link Video TikTok (mỗi dòng hoặc cách nhau khoảng trắng)</label>
+                    <textarea id="koc-add-video-urls" rows="4" placeholder="https://www.tiktok.com/@username/video/766..." class="w-full border border-slate-300 rounded-lg p-2 font-mono text-slate-800 focus:outline-none"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Sản phẩm / Ghi chú (tùy chọn)</label>
+                    <input id="koc-add-video-note" type="text" placeholder="VD: Xương orgo, Nước hoa juno..." class="w-full border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeAddKocVideoModal()" class="px-3.5 py-2 border border-slate-300 rounded-lg font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">Hủy</button>
+                    <button type="button" onclick="submitManualKocVideos()" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-bold shadow-xs cursor-pointer">Thêm Link</button>
                 </div>
             </div>
         </div>
