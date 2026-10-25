@@ -11,6 +11,38 @@ function toggleStaffAccountFields(checked) {
 }
 window.toggleStaffAccountFields = toggleStaffAccountFields;
 
+let staffSettingsFilter = 'active'; // 'active' | 'resigned' | 'all'
+
+function setStaffSettingsStatusFilter(status) {
+  staffSettingsFilter = status;
+  const btnAct = document.getElementById('btn-staff-settings-active');
+  const btnRes = document.getElementById('btn-staff-settings-resigned');
+  const btnAll = document.getElementById('btn-staff-settings-all');
+  const actCls = 'px-2.5 py-1 rounded-md text-indigo-700 bg-white shadow-xs font-bold transition';
+  const inactCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition';
+
+  if (btnAct) btnAct.className = (status === 'active' ? actCls : inactCls);
+  if (btnRes) btnRes.className = (status === 'resigned' ? actCls : inactCls);
+  if (btnAll) btnAll.className = (status === 'all' ? actCls : inactCls);
+
+  renderStaffTable();
+}
+window.setStaffSettingsStatusFilter = setStaffSettingsStatusFilter;
+
+function updateStaffSettingsFilterPills() {
+  const activeCount = (currentStaffList || []).filter(r => r.is_active !== 0).length;
+  const resignedCount = (currentStaffList || []).filter(r => r.is_active === 0).length;
+  const allCount = (currentStaffList || []).length;
+
+  const btnAct = document.getElementById('btn-staff-settings-active');
+  const btnRes = document.getElementById('btn-staff-settings-resigned');
+  const btnAll = document.getElementById('btn-staff-settings-all');
+
+  if (btnAct) btnAct.innerHTML = `🟢 Hoạt động (${activeCount})`;
+  if (btnRes) btnRes.innerHTML = `🔒 Đã nghỉ / Khóa (${resignedCount})`;
+  if (btnAll) btnAll.innerHTML = `Tất cả (${allCount})`;
+}
+
 async function loadStaffList() {
   const tbody = document.getElementById('staff-table-body');
   if (!tbody) return;
@@ -20,53 +52,74 @@ async function loadStaffList() {
     if (!res.ok) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-rose-500">Không có quyền xem</td></tr>`; return; }
     const rows = await res.json();
     currentStaffList = rows || [];
-    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">Chưa có nhân viên</td></tr>`; return; }
-    tbody.innerHTML = rows.map(r => {
-      const accountBadge = r.has_account
-        ? `<span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
-        : `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded italic">Chỉ hồ sơ lương</span>`;
-
-      const payrollBadge = r.is_payroll_staff
-        ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title="Nhân sự thuộc diện theo dõi chấm công & tính lương HRM">💼 HRM</span>`
-        : `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Tài khoản quản trị/hệ thống thuần túy (không tính lương)">👑 Hệ thống</span>`;
-
-      const roleText = r.has_account ? (ROLE_LABEL[r.role] || r.role) : '<span class="text-slate-400">Không đăng nhập</span>';
-
-      const codesInfo = [
-        r.employee_code ? `<span class="text-[10px] text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
-        r.device_code ? `<span class="text-[10px] text-indigo-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : ''
-      ].filter(Boolean).join(' | ');
-
-      return `
-        <tr class="border-t hover:bg-slate-50">
-          <td class="p-2.5 font-semibold">
-            <div>${r.name}</div>
-            ${codesInfo ? `<div class="mt-0.5">${codesInfo}</div>` : ''}
-            ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
-          </td>
-          <td class="p-2.5">
-            <div class="flex flex-col gap-1 items-start">
-              ${accountBadge}
-              ${payrollBadge}
-            </div>
-          </td>
-          <td class="p-2.5 font-semibold text-slate-700">${roleText}</td>
-          <td class="p-2.5">${r.phone || '-'}</td>
-          <td class="p-2.5 text-right font-mono">${r.commission_rate || 0}%</td>
-          <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600 font-bold">Đã khóa</span>'}</td>
-          <td class="p-2.5 text-center whitespace-nowrap">
-            ${r.has_account ? `<button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Gán hoặc đổi Gemini API Key riêng">🔑 Key AI</button>` : ''}
-            ${r.has_account ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
-            <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Sửa</button>
-            ${r.has_account ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Reset MK</button>` : `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">➕ Cấp TK</button>`}
-            <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="text-rose-600 hover:underline text-[11px] font-bold cursor-pointer">${r.is_active ? 'Khóa' : 'Mở khóa'}</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    updateStaffSettingsFilterPills();
+    renderStaffTable();
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-rose-500">Lỗi tải dữ liệu</td></tr>`;
   }
+}
+
+function renderStaffTable() {
+  const tbody = document.getElementById('staff-table-body');
+  if (!tbody) return;
+  const rows = (currentStaffList || []).filter(r => {
+    if (staffSettingsFilter === 'active') return r.is_active !== 0;
+    if (staffSettingsFilter === 'resigned') return r.is_active === 0;
+    return true;
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-400">Không có nhân viên nào trong danh sách này</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => {
+    const isResigned = (r.is_active === 0);
+    const rowClass = isResigned ? 'border-t hover:bg-slate-100 bg-slate-50/70 opacity-65 hover:opacity-100 transition' : 'border-t hover:bg-slate-50 transition';
+
+    const accountBadge = r.has_account
+      ? `<span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
+      : `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded italic">Chỉ hồ sơ lương</span>`;
+
+    const payrollBadge = r.is_payroll_staff
+      ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title="Nhân sự thuộc diện theo dõi chấm công & tính lương HRM">💼 HRM</span>`
+      : `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Tài khoản quản trị/hệ thống thuần túy (không tính lương)">👑 Hệ thống</span>`;
+
+    const roleText = r.has_account ? (ROLE_LABEL[r.role] || r.role) : '<span class="text-slate-400">Không đăng nhập</span>';
+
+    const codesInfo = [
+      r.employee_code ? `<span class="text-[10px] text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
+      r.device_code ? `<span class="text-[10px] text-indigo-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : '',
+      isResigned && r.leave_date ? `<span class="text-[10px] text-rose-600 font-bold">Nghỉ: ${r.leave_date}</span>` : ''
+    ].filter(Boolean).join(' | ');
+
+    return `
+      <tr class="${rowClass}">
+        <td class="p-2.5 font-semibold">
+          <div class="${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
+          ${codesInfo ? `<div class="mt-0.5">${codesInfo}</div>` : ''}
+          ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
+        </td>
+        <td class="p-2.5">
+          <div class="flex flex-col gap-1 items-start">
+            ${accountBadge}
+            ${payrollBadge}
+          </div>
+        </td>
+        <td class="p-2.5 font-semibold text-slate-700">${roleText}</td>
+        <td class="p-2.5">${r.phone || '-'}</td>
+        <td class="p-2.5 text-right font-mono">${r.commission_rate || 0}%</td>
+        <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold">Đã nghỉ / Khóa</span>'}</td>
+        <td class="p-2.5 text-center whitespace-nowrap">
+          ${r.has_account && !isResigned ? `<button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Gán hoặc đổi Gemini API Key riêng">🔑 Key AI</button>` : ''}
+          ${r.has_account && !isResigned ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
+          <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Sửa</button>
+          ${r.has_account && !isResigned ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Reset MK</button>` : (!r.has_account && !isResigned ? `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">➕ Cấp TK</button>` : '')}
+          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="${r.is_active ? 'text-rose-600' : 'text-sky-600'} hover:underline text-[11px] font-bold cursor-pointer">${r.is_active ? '🛑 Nghỉ việc' : '↩️ Mở lại'}</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 async function loadStaffWorkBlocks(selectedId) {
@@ -317,34 +370,46 @@ async function submitStaffForm() {
 
 async function toggleStaffActive(id, isActive) {
   const newState = isActive ? 0 : 1;
-  const actionText = newState ? 'Mở khóa' : 'Khóa';
+  const isResigning = (isActive !== 0);
+  const actionText = isResigning ? 'Nghỉ việc' : 'Mở lại';
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const confirmed = typeof window.showConfirmModal === 'function'
     ? await window.showConfirmModal({
-        title: `${actionText} Tài Khoản`,
-        message: `Bạn có chắc chắn muốn ${actionText.toLowerCase()} tài khoản nhân viên này?`,
-        type: newState ? 'primary' : 'warning',
-        confirmText: actionText,
+        title: isResigning ? 'Xác Nhận Nghỉ Việc' : 'Khôi Phục Nhân Viên',
+        message: isResigning
+          ? 'Bạn có chắc muốn chuyển nhân viên này sang trạng thái Nghỉ việc? Tài khoản sẽ bị khóa và ẩn khỏi danh sách làm việc.'
+          : 'Khôi phục và mở lại tài khoản cho nhân viên này trở lại làm việc?',
+        type: isResigning ? 'warning' : 'primary',
+        confirmText: isResigning ? '🛑 Nghỉ việc' : '↩️ Mở lại',
         cancelText: 'Hủy bỏ',
-        icon: newState ? '🔓' : '🔒'
+        icon: isResigning ? '🛑' : '↩️'
       })
-    : confirm(newState ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?');
+    : confirm(isResigning ? 'Xác nhận chuyển nhân viên sang trạng thái Nghỉ việc?' : 'Khôi phục nhân viên đi làm lại?');
+
   if (!confirmed) return;
   try {
+    const payload = {
+      is_active: newState,
+      leave_date: isResigning ? todayStr : null
+    };
     const res = await fetch(`/api/auth/staff/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: newState })
+      body: JSON.stringify(payload)
     });
     if (res.ok) {
-      if (typeof showToast === 'function') showToast(`Đã ${actionText.toLowerCase()} tài khoản thành công!`, 'success');
+      if (typeof showToast === 'function') {
+        showToast(isResigning ? 'Đã chuyển nhân viên sang trạng thái Nghỉ việc' : 'Đã khôi phục nhân viên thành công', 'success');
+      }
       loadStaffList();
+      if (typeof loadHrmStaff === 'function') loadHrmStaff();
     } else {
-      if (typeof showToast === 'function') showToast('❌ Lỗi cập nhật trạng thái', 'error');
-      else alert('❌ Lỗi cập nhật trạng thái');
+      const err = await res.json();
+      alert('❌ ' + (err.detail || 'Lỗi cập nhật trạng thái'));
     }
   } catch (e) {
-    if (typeof showToast === 'function') showToast('❌ Không kết nối được server', 'error');
-    else alert('❌ Không kết nối được server');
+    alert('❌ Không kết nối được server');
   }
 }
 

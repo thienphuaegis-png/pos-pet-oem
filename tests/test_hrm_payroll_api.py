@@ -22,6 +22,10 @@ def _db():
 def kho_emp():
     conn = _db(); cur = conn.cursor()
     cur.execute("DELETE FROM payroll_periods WHERE month = ?", (MONTH,))
+    cur.execute("DELETE FROM staff_attendance WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM staff_leaves WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM staff_overtime WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM hrm_salary_adjustments WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
     cur.execute("DELETE FROM staff WHERE employee_code IN ('TST01','TST02')")
     conn.commit()
     kho = cur.execute("SELECT id FROM hrm_work_blocks WHERE name='Kho'").fetchone()[0]
@@ -35,6 +39,10 @@ def kho_emp():
     conn = _db(); cur = conn.cursor()
     cur.execute("DELETE FROM payroll_periods WHERE month = ?", (MONTH,))
     cur.execute("DELETE FROM cashbook WHERE ref_type IN ('payroll','salary_advance') AND note LIKE '%NV Test Kho%'")
+    cur.execute("DELETE FROM staff_attendance WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM staff_leaves WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM staff_overtime WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
+    cur.execute("DELETE FROM hrm_salary_adjustments WHERE staff_id IN (SELECT id FROM staff WHERE employee_code IN ('TST01','TST02'))")
     cur.execute("DELETE FROM staff WHERE employee_code IN ('TST01','TST02')")
     conn.commit(); conn.close()
 

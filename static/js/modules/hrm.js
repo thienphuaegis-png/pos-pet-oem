@@ -1851,17 +1851,54 @@
                         (cfg.blocks || []).map(b => `<option value="${b.id}" ${curVal == b.id ? 'selected' : ''}>${b.name}</option>`).join('');
                 }
             }
-            renderHrmStaffTable(hrmStaffList);
+            updateHrmStaffFilterPills();
+            filterHrmStaffTable();
         } catch (e) {
             console.error("Lỗi nạp danh sách nhân sự:", e);
         }
     }
     window.loadHrmStaff = loadHrmStaff;
 
+    let hrmStaffStatusFilter = 'active'; // 'active' | 'resigned' | 'all'
+
+    function setHrmStaffStatusFilter(status) {
+        hrmStaffStatusFilter = status;
+        const btnAct = document.getElementById('btn-hrm-filter-active');
+        const btnRes = document.getElementById('btn-hrm-filter-resigned');
+        const btnAll = document.getElementById('btn-hrm-filter-all');
+        const activeCls = 'px-2.5 py-1 rounded-md text-emerald-700 bg-white shadow-xs font-bold transition';
+        const inactCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition';
+
+        if (btnAct) btnAct.className = (status === 'active' ? activeCls : inactCls);
+        if (btnRes) btnRes.className = (status === 'resigned' ? activeCls : inactCls);
+        if (btnAll) btnAll.className = (status === 'all' ? activeCls : inactCls);
+
+        filterHrmStaffTable();
+    }
+    window.setHrmStaffStatusFilter = setHrmStaffStatusFilter;
+
+    function updateHrmStaffFilterPills() {
+        const activeCount = hrmStaffList.filter(s => s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc').length;
+        const resignedCount = hrmStaffList.filter(s => s.is_active === 0 || s.contractual_status === 'Nghỉ việc').length;
+        const allCount = hrmStaffList.length;
+
+        const btnAct = document.getElementById('btn-hrm-filter-active');
+        const btnRes = document.getElementById('btn-hrm-filter-resigned');
+        const btnAll = document.getElementById('btn-hrm-filter-all');
+
+        if (btnAct) btnAct.innerHTML = `🟢 Đang làm việc (${activeCount})`;
+        if (btnRes) btnRes.innerHTML = `🔴 Đã nghỉ việc (${resignedCount})`;
+        if (btnAll) btnAll.innerHTML = `Tất cả (${allCount})`;
+    }
+
     function filterHrmStaffTable() {
         const q = (document.getElementById('hrm-staff-search')?.value || '').toLowerCase().trim();
         const blockId = document.getElementById('hrm-staff-filter-block')?.value;
         const filtered = hrmStaffList.filter(s => {
+            const isResigned = (s.is_active === 0 || s.contractual_status === 'Nghỉ việc');
+            if (hrmStaffStatusFilter === 'active' && isResigned) return false;
+            if (hrmStaffStatusFilter === 'resigned' && !isResigned) return false;
+
             const matchQ = !q || (s.name || '').toLowerCase().includes(q) || (s.phone || '').includes(q) || (s.employee_code || '').toLowerCase().includes(q);
             const matchBlock = !blockId || s.work_block_id == blockId;
             return matchQ && matchBlock;
@@ -1919,14 +1956,20 @@
 
             const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
 
+            const isResigned = (r.is_active === 0 || r.contractual_status === 'Nghỉ việc');
+            const rowClass = isResigned
+                ? 'hover:bg-slate-100 transition border-t border-slate-200 bg-slate-50/70 opacity-65 hover:opacity-100'
+                : 'hover:bg-slate-50 transition border-t border-slate-100';
+
             return `
-                <tr class="hover:bg-slate-50 transition border-t border-slate-100">
+                <tr class="${rowClass}">
                     <td class="p-2.5">
-                        <div class="font-bold text-slate-800 text-xs">${r.name}</div>
+                        <div class="font-bold text-slate-800 text-xs ${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
                         <div class="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
                             ${r.employee_code ? `<span class="bg-purple-50 text-purple-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
                             ${r.phone ? `<span>📞 ${r.phone}</span>` : ''}
                             ${r.is_spa_worker ? `<span class="bg-pink-50 text-pink-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
+                            ${isResigned && r.leave_date ? `<span class="bg-rose-50 text-rose-700 px-1 rounded font-bold">Nghỉ: ${r.leave_date}</span>` : ''}
                         </div>
                     </td>
                     <td class="p-2.5 text-slate-600 text-[11px]">${deptText}</td>
@@ -1942,12 +1985,83 @@
                     <td class="p-2.5 text-center whitespace-nowrap">
                         <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
                         <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
-                        ${!hasAcc ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[10px] font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
+                        ${isResigned 
+                            ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-[10px] font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">↩️ Đi làm lại</button>`
+                            : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-[10px] font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">🛑 Nghỉ việc</button>`
+                        }
+                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[10px] font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
                     </td>
                 </tr>
             `;
         }).join('');
     }
+
+    window.confirmHrmStaffResign = async function(staffId, staffName) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const confirmed = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Xác Nhận Nghỉ Việc',
+                message: `Bạn có chắc muốn chuyển nhân sự "${staffName}" sang trạng thái Nghỉ việc? Tài khoản đăng nhập (nếu có) sẽ tự động bị khóa và nhân sự được ẩn khỏi bảng làm việc hàng ngày.`,
+                type: 'warning',
+                confirmText: '🛑 Nghỉ việc',
+                cancelText: 'Hủy bỏ',
+                icon: '🛑'
+            })
+            : confirm(`Xác nhận chuyển nhân sự "${staffName}" sang trạng thái Nghỉ việc?\nTài khoản đăng nhập sẽ tự động bị khóa.`);
+
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}/resign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leave_date: todayStr })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (typeof showToast === 'function') showToast(data.message || 'Đã chuyển sang trạng thái nghỉ việc', 'success');
+                loadHrmStaff();
+                if (typeof loadStaffList === 'function') loadStaffList();
+            } else {
+                alert(data.detail || 'Lỗi khi thao tác');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Không thể kết nối máy chủ');
+        }
+    };
+
+    window.confirmHrmStaffRestore = async function(staffId, staffName) {
+        const confirmed = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Khôi Phục Nhân Sự',
+                message: `Khôi phục nhân sự "${staffName}" trở lại làm việc?`,
+                type: 'primary',
+                confirmText: '↩️ Đi làm lại',
+                cancelText: 'Hủy bỏ',
+                icon: '↩️'
+            })
+            : confirm(`Khôi phục nhân sự "${staffName}" trở lại làm việc?`);
+
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}/rehire`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (typeof showToast === 'function') showToast(data.message || 'Đã khôi phục nhân sự', 'success');
+                loadHrmStaff();
+                if (typeof loadStaffList === 'function') loadStaffList();
+            } else {
+                alert(data.detail || 'Lỗi khi thao tác');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Không thể kết nối máy chủ');
+        }
+    };
 
     // Modal Hồ sơ Nhân sự 3 Tab
     window.switchHrmModalTab = function(tabNum) {

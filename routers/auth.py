@@ -219,6 +219,7 @@ class StaffUpdate(BaseModel):
     allowance: Optional[float] = None
     work_block_id: Optional[int] = None
     hire_date: Optional[str] = None
+    leave_date: Optional[str] = None
     revoke_account: Optional[bool] = False
     is_payroll_staff: Optional[int] = None
 
@@ -231,7 +232,7 @@ def list_staff(current: dict = Depends(require_role("owner"))):
                (CASE WHEN ai_api_key IS NOT NULL AND TRIM(ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
                ai_model,
                (CASE WHEN username IS NOT NULL AND TRIM(username) != '' AND password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account,
-               device_code, employee_code, base_salary, allowance, work_block_id, hire_date,
+               device_code, employee_code, base_salary, allowance, work_block_id, hire_date, leave_date,
                COALESCE(is_payroll_staff, 1) as is_payroll_staff
         FROM staff ORDER BY id
     """)
@@ -355,6 +356,8 @@ def update_staff(staff_id: int, body: StaffUpdate, current: dict = Depends(requi
         fields.append("work_block_id=?"); vals.append(body.work_block_id or None)
     if body.hire_date is not None:
         fields.append("hire_date=?"); vals.append(body.hire_date.strip() or None)
+    if body.leave_date is not None:
+        fields.append("leave_date=?"); vals.append(body.leave_date.strip() or None)
     if body.is_payroll_staff is not None:
         fields.append("is_payroll_staff=?"); vals.append(int(body.is_payroll_staff))
 

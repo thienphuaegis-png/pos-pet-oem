@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Mockup Quản Lý Nhân Viên Nghỉ Việc</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; font-size: 13px; }
+        .box { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); padding: 16px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+        h3 { margin-top: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        .filter-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .segmented-group { display: inline-flex; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #cbd5e1; }
+        .seg-btn { padding: 4px 12px; font-size: 12px; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: #64748b; transition: all 0.2s; }
+        .seg-btn.active { background: white; color: #047857; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .seg-btn.active-dark { background: white; color: #4338ca; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th { background: #f8fafc; padding: 8px 10px; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; color: #64748b; }
+        td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        .badge-active { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .badge-resigned { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .badge-locked { background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+        .row-resigned { background: #f8fafc; opacity: 0.65; }
+        .row-resigned:hover { opacity: 0.95; }
+        .btn { padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-edit { background: #ecfdf5; color: #047857; }
+        .btn-restore { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .btn-off { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+    </style>
+</head>
+<body>
+
+    <!-- KHU VỰC 1: TAB NHÂN SỰ (HRM) -->
+    <div class="box" style="border-top: 4px solid #059669;">
+        <h3>
+            <span>💼 Tab "Nhân Sự" (HRM - Chấm Công & Lương)</span>
+            <span style="font-size: 11px; background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 12px; font-weight: bold;">Đề xuất bộ lọc 3 trạng thái</span>
+        </h3>
+        <p style="font-size: 12px; color: #64748b; margin-top: -4px;">
+            Mặc định chỉ hiện <strong>"Đang làm việc"</strong>. Nhân viên nghỉ việc được tự động ẩn đi, không làm rối mắt bảng lương và chấm công. Khi cần xem lại chỉ cần bấm nút <strong>"Đã nghỉ việc"</strong>.
+        </p>
+
+        <div class="filter-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" placeholder="🔍 Tìm theo tên, SĐT, mã NV..." style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px; width: 200px;">
+                <select style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 12px;">
+                    <option>-- Tất cả khối làm việc --</option>
+                </select>
+            </div>
+
+            <!-- NÚT CHUYỂN TRẠNG THÁI -->
+            <div class="segmented-group">
+                <button class="seg-btn active">🟢 Đang làm việc (18)</button>
+                <button class="seg-btn">🔴 Đã nghỉ việc (2)</button>
+                <button class="seg-btn">Tất cả (20)</button>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã NV & Họ Tên</th>
+                    <th>Bộ Phận</th>
+                    <th>Khối Ca</th>
+                    <th>Lương CB</th>
+                    <th style="text-align: center;">Tình Trạng</th>
+                    <th style="text-align: center;">Tài Khoản</th>
+                    <th style="text-align: center;">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Đang làm việc: Nổi bật, gọn gàng -->
+                <tr>
+                    <td><strong>NV02 • Trần Nguyễn Quế Đôn</strong><br><span style="color: #64748b; font-size: 10px;">0912 ••• 111</span></td>
+                    <td>Thu Ngân</td>
+                    <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">Ca Sáng (8h-17h)</span></td>
+                    <td style="font-weight: bold; color: #047857;">6.500.000 đ</td>
+                    <td style="text-align: center;"><span class="badge-active">Chính thức</span></td>
+                    <td style="text-align: center;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">quedon</span></td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-edit">✏️ Sửa</button>
+                        <button class="btn btn-off" title="Chuyển sang trạng thái nghỉ việc">🛑 Cho nghỉ</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>NV06 • Võ Nguyễn Hạ Huyên</strong><br><span style="color: #64748b; font-size: 10px;">0938 ••• 222</span></td>
+                    <td>Kho & Đóng Gói</td>
+                    <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">Ca Chiều (13h-21h)</span></td>
+                    <td style="font-weight: bold; color: #047857;">7.000.000 đ</td>
+                    <td style="text-align: center;"><span class="badge-active">Chính thức</span></td>
+                    <td style="text-align: center;"><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">hahuyen</span></td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-edit">✏️ Sửa</button>
+                        <button class="btn btn-off" title="Chuyển sang trạng thái nghỉ việc">🛑 Cho nghỉ</button>
+                    </td>
+                </tr>
+                <!-- Khi bấm sang "Đã nghỉ việc" hoặc "Tất cả" mới thấy dòng này (được làm mờ + có nút Khôi phục) -->
+                <tr class="row-resigned">
+                    <td><strong style="text-decoration: line-through; color: #94a3b8;">NV08 • Trương Văn Lộc</strong><br><span style="color: #94a3b8; font-size: 10px;">Nghỉ từ: 15/09/2026</span></td>
+                    <td>Giao hàng</td>
+                    <td><span style="color: #94a3b8;">—</span></td>
+                    <td style="color: #94a3b8;">0 đ</td>
+                    <td style="text-align: center;"><span class="badge-resigned">Đã nghỉ việc</span></td>
+                    <td style="text-align: center;"><span class="badge-locked">Đã khóa</span></td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-restore" title="Khôi phục lại nhân viên đi làm lại">↩️ Đi làm lại</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- KHU VỰC 2: TAB NHÂN VIÊN TRONG CÀI ĐẶT -->
+    <div class="box" style="border-top: 4px solid #4f46e5;">
+        <h3>
+            <span>⚙️ Tab "Nhân Viên" (Mục Cài Đặt Hệ Thống)</span>
+            <span style="font-size: 11px; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-weight: bold;">Đồng bộ bộ lọc</span>
+        </h3>
+        <p style="font-size: 12px; color: #64748b; margin-top: -4px;">
+            Mặc định chỉ hiện các tài khoản đang hoạt động. Nút bộ lọc cho phép hiển thị tài khoản đã nghỉ/khóa mà không gây rối màn hình làm việc hàng ngày.
+        </p>
+
+        <div class="filter-bar">
+            <div style="font-size: 12px; font-weight: bold; color: #334155;">Bộ lọc danh sách:</div>
+            <div class="segmented-group">
+                <button class="seg-btn active-dark">🟢 Hoạt động (8)</button>
+                <button class="seg-btn">🔒 Đã khóa / Nghỉ (2)</button>
+                <button class="seg-btn">Tất cả (10)</button>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Tên & Mã NV</th>
+                    <th>Phân Loại</th>
+                    <th>Vai Trò</th>
+                    <th>SĐT</th>
+                    <th style="text-align: center;">Trạng Thái</th>
+                    <th style="text-align: center;">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Trần Nguyễn Quế Đôn</strong><br><span style="font-size: 10px; color: #64748b;">NV: NV02</span></td>
+                    <td><span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">💼 HRM</span></td>
+                    <td>Thu Ngân</td>
+                    <td>0912 ••• 111</td>
+                    <td style="text-align: center;"><span class="badge-active">Hoạt động</span></td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-edit">Sửa</button>
+                        <button class="btn btn-off">Khóa / Nghỉ</button>
+                    </td>
+                </tr>
+                <tr class="row-resigned">
+                    <td><strong style="color: #94a3b8; text-decoration: line-through;">Trương Văn Lộc</strong><br><span style="font-size: 10px; color: #94a3b8;">NV: NV08</span></td>
+                    <td><span style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">💼 HRM</span></td>
+                    <td>Nhân Viên</td>
+                    <td>0903 ••• 999</td>
+                    <td style="text-align: center;"><span class="badge-locked">Đã khóa</span></td>
+                    <td style="text-align: center;">
+                        <button class="btn btn-restore">Mở lại</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

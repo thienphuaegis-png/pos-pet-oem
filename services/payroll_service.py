@@ -199,7 +199,7 @@ def day_to_dict(r) -> dict:
 
 def payroll_staff(cur, first: date) -> list:
     cur.execute("""SELECT * FROM staff
-                   WHERE (is_active = 1 OR (leave_date IS NOT NULL AND leave_date >= ?))
+                   WHERE (COALESCE(is_active, 1) = 1 OR (leave_date IS NOT NULL AND leave_date >= ?))
                      AND COALESCE(is_payroll_staff, 1) = 1
                      AND (COALESCE(base_salary,0) > 0 OR is_spa_worker = 1 OR COALESCE(employee_code,'') != '')
                    ORDER BY COALESCE(employee_code, 'zz'), id""", (first.isoformat(),))

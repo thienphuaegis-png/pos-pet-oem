@@ -235,6 +235,7 @@ class ProfileIn(BaseModel):
     is_spa_worker: Optional[int] = None
     commission_rate: Optional[float] = None
     is_payroll_staff: Optional[int] = 1
+    is_active: Optional[int] = None
 
 
 @router.get("/employees")
@@ -294,6 +295,8 @@ def update_profile(staff_id: int, body: ProfileIn, user=Depends(require_permissi
     for f in ("employee_code", "device_code"):
         if f in data:
             data[f] = (data[f] or "").strip() or None
+    if "is_active" in data and data["is_active"] is None:
+        data.pop("is_active")
     if not data:
         raise HTTPException(400, "Không có trường nào để cập nhật")
     conn = get_db(); cur = conn.cursor()
@@ -309,6 +312,57 @@ def update_profile(staff_id: int, body: ProfileIn, user=Depends(require_permissi
         raise
     conn.commit(); conn.close()
     return {"status": "ok"}
+
+
+class ResignIn(BaseModel):
+    leave_date: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.post("/employees/{staff_id}/resign")
+def resign_employee(staff_id: int, body: ResignIn = None, user=Depends(require_permission(PERM))):
+    """Đánh dấu nhân viên nghỉ việc: gán is_active=0, leave_date, hủy token phiên đăng nhập."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, name FROM staff WHERE id=?", (staff_id,))
+    st = cur.fetchone()
+    if not st:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+
+    leave_d = None
+    if body and body.leave_date:
+        leave_d = _date_or_none(body.leave_date, "leave_date")
+    if not leave_d:
+        leave_d = date.today().isoformat()
+
+    cur.execute("""
+        UPDATE staff
+        SET is_active = 0, leave_date = ?, token_version = token_version + 1
+        WHERE id = ?
+    """, (leave_d, staff_id))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã chuyển nhân viên {st['name']} sang trạng thái nghỉ việc (ngày {leave_d})"}
+
+
+@router.post("/employees/{staff_id}/rehire")
+def rehire_employee(staff_id: int, user=Depends(require_permission(PERM))):
+    """Khôi phục nhân viên đi làm lại: gán is_active=1, xóa leave_date."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, name FROM staff WHERE id=?", (staff_id,))
+    st = cur.fetchone()
+    if not st:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+
+    cur.execute("""
+        UPDATE staff
+        SET is_active = 1, leave_date = NULL
+        WHERE id = ?
+    """, (staff_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã khôi phục nhân viên {st['name']} đi làm lại"}
 
 
 class QuickAccountIn(BaseModel):
