@@ -28,6 +28,7 @@ STAFF_HR_COLUMNS = [
     ("contract_type", "TEXT DEFAULT 'Có thời hạn'"), ("dependents_count", "INTEGER DEFAULT 0"),
     ("insurance_salary", "REAL DEFAULT 0"), ("is_insurance_exempt", "INTEGER DEFAULT 0"),
     ("is_spa_worker", "INTEGER DEFAULT 0"), ("legacy_spa_staff_id", "INTEGER"),
+    ("is_payroll_staff", "INTEGER DEFAULT 1"),
 ]
 
 

@@ -628,7 +628,7 @@
                 // Chỉ hiện skeleton khi chưa có dữ liệu hoặc được chỉ định rõ ràng showSkeleton === true
                 const shouldSkeleton = (showSkeleton === true) || (showSkeleton === null && (!allPetServiceTickets || allPetServiceTickets.length === 0));
                 if (shouldSkeleton && typeof renderTableSkeleton === 'function' && typeof currentSpaView !== 'undefined' && currentSpaView === 'table') {
-                    renderTableSkeleton('table-pet-services', 6, 13);
+                    renderTableSkeleton('table-pet-services', 6, 11);
                 }
                 const res = await fetch('/api/pet-services');
                 if (!res.ok) {
@@ -1709,7 +1709,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400">Chưa có phiếu dịch vụ nào</td></tr>';
                 const pContainer = document.getElementById('pagination-pet-services');
                 if (pContainer) pContainer.innerHTML = '';
                 updateSpaBulkToolbar();
@@ -1724,12 +1724,20 @@
 
             tbody.innerHTML = pagedFiltered.map((t, idx) => {
                 const isDirty = spaSpreadsheetDirtyMap.has(t.id);
-                const dirtyClass = isDirty ? 'bg-amber-50/70 border-2 border-amber-400' : 'border-b border-slate-200 hover:bg-purple-50/40';
+                const isPaid = (t.payment_status === 'paid');
+                let rowClass = 'card-row card-row-anim transition text-[13px]';
+                if (isDirty) {
+                    rowClass += ' bg-amber-50/70 border-2 border-amber-400';
+                } else if (isPaid) {
+                    rowClass += ' bg-emerald-50/70 hover:bg-emerald-100/70 border-b border-emerald-200 border-l-4 border-l-emerald-500';
+                } else {
+                    rowClass += ' border-b border-slate-200 hover:bg-purple-50/40';
+                }
 
                 if (isSpaSpreadsheetMode) {
                     // CHẾ ĐỘ SỬA TRỰC TIẾP NHƯ EXCEL
                     return `
-                    <tr class="card-row card-row-anim ${dirtyClass} transition text-[13px]" style="--row-idx: ${idx};">
+                    <tr class="${rowClass}" style="--row-idx: ${idx};">
                         <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
                         <td class="p-2 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
                             <div class="flex items-center justify-center gap-1">
@@ -1743,17 +1751,16 @@
                                 <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa">🗑️</button>
                             </div>
                         </td>
-                        <!-- 2. Khách hàng -->
+                        <!-- 2. Khách hàng & Gọi điện -->
                         <td class="p-2 whitespace-nowrap min-w-[150px]">
                             <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-purple-700 hover:underline flex items-center gap-1 group transition" title="Bấm để xem nhanh hồ sơ khách, ví Spa & các bé cưng">
                                 <span>${t.customer_name || '-'}</span>
                                 <span class="text-[10px] text-purple-500 opacity-0 group-hover:opacity-100 transition">👁️</span>
                             </button>
                             <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
+                            <div class="mt-1">${callStatusSelector(t)}</div>
                         </td>
-                        <!-- 3. Gọi điện -->
-                        <td class="p-2 text-center">${callStatusSelector(t)}</td>
-                        <!-- 4. Thú cưng (Editable Cân nặng & Hotel) -->
+                        <!-- 3. Thú cưng (Editable Cân nặng & Hotel) -->
                         <td class="p-2">
                             <div class="font-bold text-pink-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
                             <div class="flex items-center gap-1 mt-1 text-[11px]">
@@ -1871,9 +1878,13 @@
                 const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 const isCheckedOut = (t.status === 'checked_out');
-                const rowClass = isCheckedOut 
-                    ? 'card-row card-row-anim text-[13px] bg-emerald-50/40 hover:bg-emerald-50/70 border-l-4 border-l-emerald-500'
-                    : 'card-row card-row-anim text-[13px]';
+                if (isPaid) {
+                    rowClass = 'card-row card-row-anim text-[13px] transition bg-emerald-50/70 hover:bg-emerald-100/70 border-l-4 border-l-emerald-500';
+                } else if (isCheckedOut) {
+                    rowClass = 'card-row card-row-anim text-[13px] bg-emerald-50/30 hover:bg-emerald-50/60 border-l-4 border-l-emerald-400';
+                } else {
+                    rowClass = 'card-row card-row-anim text-[13px] hover:bg-purple-50/40';
+                }
 
                 return `
                 <tr class="${rowClass}" style="--row-idx: ${idx};">
@@ -1896,14 +1907,13 @@
                             <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa phiếu">🗑️</button>
                         </div>
                     </td>
-                    <!-- 2. Khách hàng -->
+                    <!-- 2. Khách hàng & Gọi điện -->
                     <td class="p-3 whitespace-nowrap min-w-[150px]">
                         <div class="font-bold text-slate-800">${t.customer_name || '-'}</div>
                         <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
+                        <div class="mt-1">${callStatusSelector(t)}</div>
                     </td>
-                    <!-- 3. Trạng thái gọi điện -->
-                    <td class="p-3 text-center">${callStatusSelector(t)}</td>
-                    <!-- 4. Thú cưng -->
+                    <!-- 3. Thú cưng -->
                     <td class="p-3">
                         <div class="font-bold text-pink-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
                         <div class="text-[11px] text-gray-600 flex items-center gap-1.5 mt-0.5">

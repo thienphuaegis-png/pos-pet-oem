@@ -101,14 +101,21 @@ def run_import(db_path=DB_PATH):
         status_text = r[33].strip().lower() if len(r) > 33 else "đang làm"
         is_active = 0 if "nghỉ" in status_text else 1
 
-        # Kiểm tra tồn tại qua employee_code
+        # Kiểm tra tồn tại qua employee_code hoặc phone/name chưa có code
         cur.execute("SELECT id FROM staff WHERE employee_code = ?", (emp_code,))
         existing = cur.fetchone()
+        if not existing and phone:
+            cur.execute("SELECT id FROM staff WHERE phone = ? AND (employee_code IS NULL OR employee_code = '')", (phone,))
+            existing = cur.fetchone()
+        if not existing and name:
+            cur.execute("SELECT id FROM staff WHERE LOWER(TRIM(name)) = LOWER(?) AND (employee_code IS NULL OR employee_code = '')", (name.strip(),))
+            existing = cur.fetchone()
 
         if existing:
             sid = existing["id"]
             cur.execute("""
                 UPDATE staff SET
+                    employee_code = ?,
                     name = ?, phone = ?, birthday = ?, gender = ?,
                     work_block_id = ?, department = ?, position = ?,
                     id_card_number = ?, id_card_date = ?, id_card_place = ?,
@@ -116,9 +123,10 @@ def run_import(db_path=DB_PATH):
                     bank_account = ?, bank_name = ?, bank_branch = ?,
                     emergency_phone = ?, emergency_relation = ?,
                     hire_date = ?, probation_start = ?, official_date = ?, leave_date = ?,
-                    base_salary = ?, allowance = ?, is_active = ?
+                    base_salary = ?, allowance = ?, is_active = ?, is_payroll_staff = 1
                 WHERE id = ?
             """, (
+                emp_code,
                 name, phone, birthday, gender,
                 work_block_id, department, position,
                 id_card_num, id_card_date, id_card_place,
@@ -140,7 +148,7 @@ def run_import(db_path=DB_PATH):
                     bank_account, bank_name, bank_branch,
                     emergency_phone, emergency_relation,
                     hire_date, probation_start, official_date, leave_date,
-                    base_salary, allowance, commission_rate
+                    base_salary, allowance, commission_rate, is_payroll_staff
                 ) VALUES (
                     ?, ?, ?, 'staff', ?,
                     ?, ?, ?, ?, ?,
@@ -149,7 +157,7 @@ def run_import(db_path=DB_PATH):
                     ?, ?, ?,
                     ?, ?,
                     ?, ?, ?, ?,
-                    ?, ?, 0
+                    ?, ?, 0, 1
                 )
             """, (
                 emp_code, name, phone, is_active,

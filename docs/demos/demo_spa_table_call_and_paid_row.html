@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Mockup So Sánh Bảng Spa Dịch Vụ</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+        .box { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07); padding: 16px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+        h3 { margin-top: 0; font-size: 15px; display: flex; items-center; gap: 8px; }
+        .badge-old { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+        .badge-new { background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+        th { background: #f1f5f9; padding: 8px 10px; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .call-select { font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: 600; }
+        .phone-badge { display: inline-block; font-family: monospace; font-size: 11px; color: #7e22ce; background: #faf5ff; border: 1px solid #e9d5ff; padding: 1px 6px; border-radius: 4px; }
+        .row-paid { background-color: #ecfdf5 !important; border-left: 4px solid #10b981; }
+        .row-unpaid { background-color: #ffffff; }
+        .btn-action { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h3><span class="badge-old">HIỆN TẠI (12 cột - Cột Gọi Điện đứng riêng)</span></h3>
+        <p style="font-size: 12px; color: #64748b; margin-top: -6px;">Cột "Gọi Điện" chiếm 110px riêng. Dòng dù đã thanh toán vẫn màu trắng, khó phân biệt với đơn chưa thu tiền.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 110px;"># Phiếu</th>
+                    <th style="width: 150px;">Khách Hàng</th>
+                    <th style="width: 100px; text-align: center; color: #b91c1c; background: #fef2f2;">📞 Gọi Điện (Riêng)</th>
+                    <th>Thú Cưng</th>
+                    <th>Dịch Vụ</th>
+                    <th>Thợ Làm</th>
+                    <th>Tổng Tiền</th>
+                    <th style="text-align: center;">TT</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="row-unpaid">
+                    <td><strong>#06</strong><br><span style="font-size: 10px; color: #94a3b8;">DV261025...</span></td>
+                    <td><strong>test 3</strong><br><span class="phone-badge">0912 ••• 678</span></td>
+                    <td style="text-align: center; background: #fff5f5;"><select class="call-select"><option>📞 Chưa gọi</option></select></td>
+                    <td>🐾 <strong>aki</strong> (Poodle)<br><span style="font-size: 10px; color: #db2777;">3.0 kg</span></td>
+                    <td>Combo Vip 2</td>
+                    <td><span style="color: #94a3b8; font-style: italic;">Chưa gán</span></td>
+                    <td><strong style="color: #0369a1;">250.000 đ</strong></td>
+                    <td style="text-align: center;"><span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">Chưa TT</span></td>
+                </tr>
+                <!-- Dù ĐÃ THANH TOÁN nhưng dòng vẫn TRẮNG -->
+                <tr class="row-unpaid">
+                    <td><strong>#07</strong><br><span style="font-size: 10px; color: #94a3b8;">DV261025...</span></td>
+                    <td><strong>Anh Minh</strong><br><span class="phone-badge">0908 ••• 123</span></td>
+                    <td style="text-align: center; background: #fff5f5;"><select class="call-select" style="color: #15803d; border-color: #86efac; background: #f0fdf4;"><option>✅ Đã gọi đón</option></select></td>
+                    <td>🐾 <strong>LuLu</strong> (Corgi)<br><span style="font-size: 10px; color: #db2777;">9.2 kg</span></td>
+                    <td>Tắm Vệ Sinh</td>
+                    <td>✂️ Kiệt</td>
+                    <td><strong style="color: #0369a1;">180.000 đ</strong></td>
+                    <td style="text-align: center;"><span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">Đã TT</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="box" style="border: 2px solid #10b981;">
+        <h3><span class="badge-new">ĐỀ XUẤT MỚI (11 cột - Gộp Gọi Điện dưới SĐT & Tô Xanh Cả Dòng Đã TT)</span></h3>
+        <p style="font-size: 12px; color: #047857; margin-top: -6px;">Tiết kiệm ngay 110px. Dòng đã thanh toán phủ màu xanh ngọc nhẹ dịu mắt, thợ và thu ngân liếc vào là biết ngay khách này đã trả tiền!</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 110px;"># Phiếu</th>
+                    <th style="width: 160px; background: #f0fdf4; color: #166534;">Khách & Gọi Điện</th>
+                    <th>Thú Cưng</th>
+                    <th>Dịch Vụ</th>
+                    <th>Thợ Làm</th>
+                    <th>Tổng Tiền</th>
+                    <th style="text-align: center;">TT</th>
+                    <th>Ghi Chú & Thao Tác Thêm (Nhiều chỗ hơn)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Chưa thanh toán: Nền trắng sạch -->
+                <tr class="row-unpaid">
+                    <td><strong>#06</strong><br><span style="font-size: 10px; color: #94a3b8;">DV261025...</span></td>
+                    <td>
+                        <div style="font-weight: bold; color: #1e293b;">test 3</div>
+                        <div style="margin: 2px 0;"><span class="phone-badge">0912 ••• 678</span></div>
+                        <div><select class="call-select"><option>📞 Chưa gọi</option><option>✅ Đã gọi đón</option></select></div>
+                    </td>
+                    <td>🐾 <strong>aki</strong> (Poodle)<br><span style="font-size: 10px; color: #db2777; background: #fce7f3; padding: 1px 4px; border-radius: 3px;">3.0 kg</span></td>
+                    <td><strong>Combo Vip 2</strong></td>
+                    <td><span style="color: #94a3b8; font-style: italic;">Chưa gán</span></td>
+                    <td><strong style="color: #0369a1;">250.000 đ</strong></td>
+                    <td style="text-align: center;"><span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">Chưa TT</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Rộng rãi hơn, không lo tràn màn hình</span></td>
+                </tr>
+                <!-- ĐÃ THANH TOÁN: NGUYÊN CẢ DÒNG XANH NGỌC -->
+                <tr class="row-paid">
+                    <td><strong>#07</strong><br><span style="font-size: 10px; color: #94a3b8;">DV261025...</span></td>
+                    <td>
+                        <div style="font-weight: bold; color: #166534;">Anh Minh</div>
+                        <div style="margin: 2px 0;"><span class="phone-badge">0908 ••• 123</span></div>
+                        <div><select class="call-select" style="color: #15803d; border-color: #86efac; background: #ffffff;"><option>✅ Đã gọi đón</option><option>📞 Chưa gọi</option></select></div>
+                    </td>
+                    <td>🐾 <strong>LuLu</strong> (Corgi)<br><span style="font-size: 10px; color: #db2777; background: #fce7f3; padding: 1px 4px; border-radius: 3px;">9.2 kg</span></td>
+                    <td><strong>Tắm Vệ Sinh</strong></td>
+                    <td>✂️ Kiệt</td>
+                    <td><strong style="color: #15803d;">180.000 đ</strong></td>
+                    <td style="text-align: center;"><span style="background: #bbf7d0; color: #14532d; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">✓ Đã TT</span></td>
+                    <td><span style="color: #15803d; font-size: 11px; font-weight: 500;">✓ Khách đã trả tiền trước khi nhận bé</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

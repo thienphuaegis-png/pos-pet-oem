@@ -26,6 +26,10 @@ async function loadStaffList() {
         ? `<span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
         : `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded italic">Chỉ hồ sơ lương</span>`;
 
+      const payrollBadge = r.is_payroll_staff
+        ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title="Nhân sự thuộc diện theo dõi chấm công & tính lương HRM">💼 HRM</span>`
+        : `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Tài khoản quản trị/hệ thống thuần túy (không tính lương)">👑 Hệ thống</span>`;
+
       const roleText = r.has_account ? (ROLE_LABEL[r.role] || r.role) : '<span class="text-slate-400">Không đăng nhập</span>';
 
       const codesInfo = [
@@ -40,7 +44,12 @@ async function loadStaffList() {
             ${codesInfo ? `<div class="mt-0.5">${codesInfo}</div>` : ''}
             ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
           </td>
-          <td class="p-2.5">${accountBadge}</td>
+          <td class="p-2.5">
+            <div class="flex flex-col gap-1 items-start">
+              ${accountBadge}
+              ${payrollBadge}
+            </div>
+          </td>
           <td class="p-2.5 font-semibold text-slate-700">${roleText}</td>
           <td class="p-2.5">${r.phone || '-'}</td>
           <td class="p-2.5 text-right font-mono">${r.commission_rate || 0}%</td>
@@ -95,6 +104,9 @@ function openCreateStaffModal() {
   if (toggle) toggle.checked = false;
   toggleStaffAccountFields(false);
 
+  const payToggle = document.getElementById('staff-is-payroll-toggle');
+  if (payToggle) payToggle.checked = true;
+
   document.getElementById('staff-username').value = '';
   document.getElementById('staff-username').disabled = false;
   document.getElementById('staff-password').value = '';
@@ -134,6 +146,9 @@ function openEditStaffModal(id) {
   const toggle = document.getElementById('staff-has-account-toggle');
   if (toggle) toggle.checked = hasAccount;
   toggleStaffAccountFields(hasAccount);
+
+  const payToggle = document.getElementById('staff-is-payroll-toggle');
+  if (payToggle) payToggle.checked = Boolean(r.is_payroll_staff !== 0);
 
   document.getElementById('staff-username').value = r.username || '';
   document.getElementById('staff-username').disabled = false;

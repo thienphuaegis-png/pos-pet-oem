@@ -291,6 +291,85 @@ def _migrate_marketplace_pancake(cur):
                 (_dt.date.today().isoformat(),))
 
 
+def _migrate_staff_payroll_reconcile(cur):
+    """
+    1. Thêm cột is_payroll_staff (INTEGER DEFAULT 1) vào staff.
+    2. Đánh dấu is_payroll_staff = 0 cho tài khoản quản trị hệ thống thuần túy (admin, thanhtuan, nvkho).
+    3. Gộp các tài khoản cũ bị tách đôi vào hồ sơ nhân sự HRM:
+       - quedon (ID 4) -> NV02 (ID 13, Trần Nguyễn Quế Đôn)
+       - phiphung (ID 3) -> NV10 (ID 20, Hoàng Phi Phụng)
+       - hahuyen (ID 5) -> NV06 (ID 17, Võ Nguyễn Hạ Huyên)
+       - xtruong (ID 11) -> NV04 (ID 15, Trần Võ Xuân Trường)
+       Chuyển giao toàn bộ khóa ngoại (orders, draft_orders, activity_log, staff_permissions, purchase_requests, pancake_sellers)
+       rồi dọn dẹp các bản ghi cũ.
+    """
+    cur.execute("PRAGMA table_info(staff)")
+    cols = {c[1] for c in cur.fetchall()}
+    if "is_payroll_staff" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN is_payroll_staff INTEGER DEFAULT 1")
+
+    # Đặt is_payroll_staff = 0 cho admin, thanhtuan, nvkho hoặc role owner không có mã NV
+    cur.execute("""UPDATE staff SET is_payroll_staff = 0
+                   WHERE username IN ('admin', 'thanhtuan', 'nvkho')
+                      OR (role = 'owner' AND (employee_code IS NULL OR employee_code = ''))""")
+
+    # Gộp tài khoản trùng lặp
+    merge_map = [
+        ('quedon', 'NV02'),
+        ('phiphung', 'NV10'),
+        ('hahuyen', 'NV06'),
+        ('xtruong', 'NV04')
+    ]
+    for old_uname, target_code in merge_map:
+        cur.execute("SELECT id, name, username, password_hash, role, must_change_password, token_version FROM staff WHERE LOWER(username) = ?", (old_uname.lower(),))
+        old_staff = cur.fetchone()
+        cur.execute("SELECT id, name, employee_code, username FROM staff WHERE employee_code = ?", (target_code,))
+        target_staff = cur.fetchone()
+
+        if old_staff and target_staff and old_staff[0] != target_staff[0]:
+            old_id = old_staff[0]
+            target_id = target_staff[0]
+
+            # 1. Giải phóng username cũ để tránh dính unique constraint
+            cur.execute("UPDATE staff SET username = NULL WHERE id = ?", (old_id,))
+
+            # 2. Gán thông tin đăng nhập vào nhân sự đích
+            cur.execute("""UPDATE staff SET
+                               username = ?, password_hash = ?, role = ?,
+                               must_change_password = COALESCE(?, 0),
+                               token_version = COALESCE(?, 0),
+                               is_payroll_staff = 1
+                           WHERE id = ?""",
+                        (old_staff[2], old_staff[3], old_staff[4], old_staff[5], old_staff[6], target_id))
+
+            # 3. Chuyển giao toàn bộ khóa ngoại liên kết
+            for tbl, col in [
+                ("orders", "staff_id"),
+                ("draft_orders", "staff_id"),
+                ("activity_log", "staff_id"),
+                ("purchase_requests", "staff_id"),
+                ("pancake_sellers", "staff_id"),
+                ("staff_reminders", "staff_id"),
+                ("staff_reminders", "created_by"),
+            ]:
+                try:
+                    cur.execute(f"UPDATE {tbl} SET {col} = ? WHERE {col} = ?", (target_id, old_id))
+                except Exception:
+                    pass
+
+            # 4. Gộp permissions
+            try:
+                cur.execute("""INSERT OR IGNORE INTO staff_permissions (staff_id, perm_key, granted)
+                               SELECT ?, perm_key, granted FROM staff_permissions WHERE staff_id = ?""",
+                            (target_id, old_id))
+                cur.execute("DELETE FROM staff_permissions WHERE staff_id = ?", (old_id,))
+            except Exception:
+                pass
+
+            # 5. Xóa an toàn bản ghi cũ
+            cur.execute("DELETE FROM staff WHERE id = ?", (old_id,))
+
+
 def init_db():
     if os.environ.get("DATABASE_URL"):
         # Running against Supabase PostgreSQL: schema is already managed and migrated
@@ -2079,6 +2158,7 @@ def init_db():
     except Exception as _e:
         pass
     _migrate_marketplace_pancake(cur)
+    _migrate_staff_payroll_reconcile(cur)
 
     # Bảng lưu vết mã chứng từ vĩnh viễn (chống trùng mã kể cả khi đơn đã bị xóa hoặc hủy)
     cur.execute("""

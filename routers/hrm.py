@@ -25,7 +25,7 @@ PROFILE_FIELDS = (
     "emergency_phone", "emergency_relation",
     "has_contract", "contract_number", "contract_type", "dependents_count",
     "insurance_salary", "is_insurance_exempt",
-    "is_spa_worker", "commission_rate"
+    "is_spa_worker", "commission_rate", "is_payroll_staff"
 )
 
 
@@ -234,6 +234,7 @@ class ProfileIn(BaseModel):
     is_insurance_exempt: Optional[int] = None
     is_spa_worker: Optional[int] = None
     commission_rate: Optional[float] = None
+    is_payroll_staff: Optional[int] = 1
 
 
 @router.get("/employees")
@@ -243,6 +244,7 @@ def list_employees(user=Depends(require_permission(PERM))):
                    (CASE WHEN s.username IS NOT NULL AND TRIM(s.username) != '' AND s.password_hash IS NOT NULL THEN 1 ELSE 0 END) AS has_account,
                    {', '.join('s.' + f for f in PROFILE_FIELDS)},
                    b.name AS block_name FROM staff s LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+                   WHERE COALESCE(s.is_payroll_staff, 1) = 1
                    ORDER BY s.is_active DESC, COALESCE(s.employee_code,'zz'), s.id""")
     rows = []
     for r in cur.fetchall():
@@ -264,7 +266,7 @@ def create_employee(body: EmployeeCreate, user=Depends(require_permission(PERM))
     if not body.name.strip():
         raise HTTPException(400, "Tên nhân viên bắt buộc")
     conn = get_db(); cur = conn.cursor()
-    cur.execute("INSERT INTO staff (name, phone, role, is_active, commission_rate) VALUES (?, ?, 'staff', 1, 0)", (body.name.strip(), body.phone or ""))
+    cur.execute("INSERT INTO staff (name, phone, role, is_active, commission_rate, is_payroll_staff) VALUES (?, ?, 'staff', 1, 0, 1)", (body.name.strip(), body.phone or ""))
     sid = cur.lastrowid
     conn.commit(); conn.close()
     update_profile(sid, ProfileIn(**body.model_dump(exclude={"name", "phone"})), user)
@@ -713,7 +715,7 @@ def sync_leaves_from_sheets(user=Depends(require_permission(PERM))):
         return {"ok": True, "synced_count": 0, "message": "Google Sheet rỗng"}
 
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, employee_code, name FROM staff")
+    cur.execute("SELECT id, employee_code, name FROM staff WHERE COALESCE(is_payroll_staff, 1) = 1")
     staff_rows = cur.fetchall()
     staff_by_code = {r["employee_code"].strip().upper(): r for r in staff_rows if r["employee_code"]}
     staff_by_name = {r["name"].strip().lower(): r for r in staff_rows if r["name"]}
