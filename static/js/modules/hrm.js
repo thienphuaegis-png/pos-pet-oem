@@ -83,7 +83,7 @@
                 return `
                     <button type="button" onclick="selectHrmMonth('${mStr}')" class="flex flex-col items-start p-2 rounded-lg border text-left cursor-pointer transition-all ${isSelected ? 'bg-emerald-50 border-emerald-400 font-bold' : 'bg-slate-50 border-slate-200 hover:bg-white'}">
                         <span class="text-xs text-slate-800">Tháng ${String(mNum).padStart(2, '0')}</span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded mt-1 font-semibold ${badgeClass}">${statusLabel}</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded mt-1 font-semibold ${badgeClass}">${statusLabel}</span>
                     </button>
                 `;
             }).join('');
@@ -127,15 +127,15 @@
 
     window.switchHrmSubTab = function(sub) {
         currentSubTab = sub;
-        ['payroll', 'attendance', 'leaves', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
+        ['payroll', 'commissions', 'attendance', 'leaves', 'overtime', 'advances', 'adjustments', 'staff', 'config'].forEach(s => {
             const pane = document.getElementById(`hrm-subtab-${s}`);
             const btn = document.getElementById(`btn-hrm-tab-${s}`);
             if (pane) pane.classList.toggle('hidden', s !== sub);
             if (btn) {
                 if (s === sub) {
-                    btn.className = "px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer font-bold";
+                    btn.className = "px-3 py-1 rounded-md bg-white text-emerald-700 shadow-xs cursor-pointer font-bold flex items-center gap-1";
                 } else {
-                    btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer";
+                    btn.className = "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer flex items-center gap-1";
                 }
             }
         });
@@ -145,6 +145,7 @@
     window.loadHrmCurrentSubTab = function() {
         const month = getSelectedMonth();
         if (currentSubTab === 'payroll') loadHrmPayroll(month);
+        else if (currentSubTab === 'commissions') loadHrmCommissions(month);
         else if (currentSubTab === 'attendance') loadHrmAttendance(month);
         else if (currentSubTab === 'leaves') loadHrmLeaves(month);
         else if (currentSubTab === 'overtime') loadHrmOvertime(month);
@@ -180,7 +181,7 @@
         const btnPay = document.getElementById('btn-hrm-pay');
 
         if (data.status === 'locked') {
-            badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800";
+            badge.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800";
             badge.textContent = "ĐÃ CHỐT";
             lockInfo.textContent = `Chốt bởi ${data.locked_by || ''} lúc ${data.locked_at || ''}`;
             btnLock.classList.add('hidden');
@@ -227,17 +228,17 @@
                 <td class="p-2.5 text-right font-mono">${(l.allowance || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono">${(l.holiday_pay || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-sky-700">${(l.commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-purple-700">${(l.spa_commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-indigo-700">${(l.tips || 0).toLocaleString('vi-VN')}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${(l.spa_commission || 0).toLocaleString('vi-VN')}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${(l.tips || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-emerald-700">${(l.attendance_bonus || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono">${(l.birthday_bonus || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-amber-700">${(l.ot_pay || 0).toLocaleString('vi-VN')}</td>
                 <td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-right font-mono font-bold text-rose-600 cursor-pointer hover:bg-rose-50 hover:underline" title="Bấm xem chi tiết phút trễ & phạt vi phạm">-${(l.penalties || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.advances || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.insurance ? '-' + Number(l.insurance).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-indigo-700">${l.pit ? '-' + Number(l.pit).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-black text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
-                <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.insurance ? '-' + Number(l.insurance).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.pit ? '-' + Number(l.pit).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
+                <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
                     <button onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="text-emerald-700 hover:underline font-bold mr-2 cursor-pointer">Chi tiết công</button>
                     <button onclick="editHrmLine(${l.staff_id}, ${l.bonus_other || 0}, ${l.fuel_other || 0}, ${l.deduction_other || 0}, '${(l.manual_note || '').replace(/'/g, "\\'")}')" class="text-sky-600 hover:underline font-bold mr-2 cursor-pointer">Sửa số</button>
@@ -262,9 +263,9 @@
                 <td class="p-2.5 text-right font-mono">${(tot.ot_pay || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.penalties || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.advances || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-indigo-700">${tot.insurance ? '-' + Number(tot.insurance).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono text-indigo-700">${tot.pit ? '-' + Number(tot.pit).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-black text-emerald-800 text-sm">${(tot.net_pay || 0).toLocaleString('vi-VN')}đ</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${tot.insurance ? '-' + Number(tot.insurance).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${tot.pit ? '-' + Number(tot.pit).toLocaleString('vi-VN') : '—'}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-emerald-800 text-sm">${(tot.net_pay || 0).toLocaleString('vi-VN')}đ</td>
                 <td colspan="2"></td>
             </tr>
         `;
@@ -448,28 +449,28 @@
             const dayOfWeek = dayNames[dt.getDay()];
             const isSun = dt.getDay() === 0;
 
-            let codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-500">-</span>`;
-            if (day.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
-            else if (day.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
-            else if (day.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
-            else if (day.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
-            else if (day.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">OFF</span>`;
-            else if (day.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">L (Lễ)</span>`;
-            else if (day.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-50 text-slate-400">CN</span>`;
+            let codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-500">-</span>`;
+            if (day.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
+            else if (day.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
+            else if (day.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
+            else if (day.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
+            else if (day.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700">OFF</span>`;
+            else if (day.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">L (Lễ)</span>`;
+            else if (day.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-medium bg-slate-50 text-slate-400">CN</span>`;
 
             let viols = [];
             (day.violations || []).forEach(v => {
-                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Trễ ${day.late_min}p</span>`);
-                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Về sớm ${day.early_min}p</span>`);
-                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên vào (-50k)</span>`);
-                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên ra (-50k)</span>`);
-                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-[10px] font-bold">Vắng (-500k)</span>`);
+                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Trễ ${day.late_min}p</span>`);
+                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Về sớm ${day.early_min}p</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào (-50k)</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra (-50k)</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng (-500k)</span>`);
             });
 
             const workedHours = day.worked_min > 0 ? (day.worked_min / 60).toFixed(1) + 'h' : '—';
             const lateText = day.late_min > 0 ? `<span class="text-rose-600 font-bold">${day.late_min}p</span>` : '<span class="text-slate-300">—</span>';
             const earlyText = day.early_min > 0 ? `<span class="text-amber-600 font-bold">${day.early_min}p</span>` : '<span class="text-slate-300">—</span>';
-            const penText = day.penalty > 0 ? `<span class="text-rose-600 font-mono font-black">-${day.penalty.toLocaleString('vi-VN')}đ</span>` : (day.waive ? '<span class="text-emerald-700 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 text-[10px]">0đ (Miễn)</span>' : '<span class="text-slate-300">—</span>');
+            const penText = day.penalty > 0 ? `<span class="text-rose-600 font-mono font-bold">-${day.penalty.toLocaleString('vi-VN')}đ</span>` : (day.waive ? '<span class="text-emerald-700 font-bold bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 text-xs">0đ (Miễn)</span>' : '<span class="text-slate-300">—</span>');
 
             const switchHtml = `
                 <div class="flex items-center justify-center gap-1.5">
@@ -477,16 +478,16 @@
                         <input type="checkbox" onchange="toggleHrmWaive(${emp.staff_id}, '${day.date}', ${day.waive ? 'true' : 'false'})" class="sr-only peer" ${day.waive ? 'checked' : ''}>
                         <div class="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
                     </label>
-                    <span class="text-[10px] font-bold ${day.waive ? 'text-emerald-700' : 'text-slate-400'}">${day.waive ? 'Miễn' : 'Phạt'}</span>
+                    <span class="text-xs font-bold ${day.waive ? 'text-emerald-700' : 'text-slate-400'}">${day.waive ? 'Miễn' : 'Phạt'}</span>
                 </div>
             `;
 
-            const noteHtml = day.note ? `<span class="italic text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-[11px] block max-w-[160px] truncate" title="${day.note}">${day.note}</span>` : '<span class="text-slate-300">—</span>';
+            const noteHtml = day.note ? `<span class=" text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-xs block max-w-[160px] truncate" title="${day.note}">${day.note}</span>` : '<span class="text-slate-300">—</span>';
 
             return `
                 <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
                     <td class="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">${day.date} <span class="${isSun ? 'text-rose-600' : 'text-slate-500'}">(${dayOfWeek})</span></td>
-                    <td class="p-2.5 font-mono text-purple-700 font-bold">${emp.employee_code || 'NV' + emp.staff_id}</td>
+                    <td class="p-2.5 font-mono text-sky-700 font-bold">${emp.employee_code || 'NV' + emp.staff_id}</td>
                     <td class="p-2.5 font-bold text-slate-800 whitespace-nowrap">${emp.name}</td>
                     <td class="p-2.5 text-slate-600 whitespace-nowrap">${emp.block}</td>
                     <td class="p-2.5 text-center font-mono font-bold ${day.check_in ? 'text-slate-800' : 'text-slate-300'}">${day.check_in || '—'}</td>
@@ -500,7 +501,7 @@
                     <td class="p-2.5 text-center">${switchHtml}</td>
                     <td class="p-2.5">${noteHtml}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
-                        <button onclick="openHrmEditDayModal(${emp.staff_id}, '${day.date}', '${day.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-[11px]">✏️ Sửa</button>
+                        <button onclick="openHrmEditDayModal(${emp.staff_id}, '${day.date}', '${day.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-xs">✏️ Sửa</button>
                     </td>
                 </tr>
             `;
@@ -552,7 +553,7 @@
 
         let th = `<tr><th class="p-2 sticky left-0 bg-slate-50 z-10 border-r">Nhân Viên</th>`;
         for (let d = 1; d <= numDays; d++) {
-            th += `<th class="p-1 text-center w-8 text-[11px]">${d}</th>`;
+            th += `<th class="p-1 text-center w-8 text-xs">${d}</th>`;
         }
         th += `<th class="p-2 text-center border-l">Tổng công</th><th class="p-2 text-right">Phạt</th></tr>`;
         thead.innerHTML = th;
@@ -563,7 +564,7 @@
         }
 
         tbody.innerHTML = data.employees.map(e => {
-            let row = `<tr><td class="p-2 font-bold text-slate-800 sticky left-0 bg-white z-10 border-r whitespace-nowrap">${e.name} <span class="text-[10px] text-slate-400 font-normal">(${e.block})</span></td>`;
+            let row = `<tr><td class="p-2 font-bold text-slate-800 sticky left-0 bg-white z-10 border-r whitespace-nowrap">${e.name} <span class="text-xs text-slate-400 font-normal">(${e.block})</span></td>`;
             const dayMap = {};
             (e.days || []).forEach(d => {
                 const dayNum = parseInt(d.date.split('-')[2]);
@@ -580,10 +581,10 @@
                     else if (dayRes.code === 'TV') cls = "font-bold text-amber-600 bg-amber-50/50";
                     else if (dayRes.code === 'TV/2') cls = "font-bold text-amber-900 bg-amber-100/80 border border-amber-300";
                     else if (dayRes.code === 'OFF') cls = "text-slate-400 bg-slate-100";
-                    else if (dayRes.code === 'L') cls = "font-bold text-purple-700 bg-purple-50";
+                    else if (dayRes.code === 'L') cls = "font-bold text-sky-700 bg-sky-50";
 
                     if (dayRes.penalty > 0) cls += " border-b-2 border-rose-500";
-                    row += `<td onclick="openHrmEditDayModal(${e.staff_id}, '${dayRes.date}', '${dayRes.code}')" class="p-1 text-center text-[11px] cursor-pointer hover:ring-1 hover:ring-sky-500 ${cls}" title="${dayRes.punches?.join(', ') || ''}">${dayRes.code || '-'}</td>`;
+                    row += `<td onclick="openHrmEditDayModal(${e.staff_id}, '${dayRes.date}', '${dayRes.code}')" class="p-1 text-center text-xs cursor-pointer hover:ring-1 hover:ring-sky-500 ${cls}" title="${dayRes.punches?.join(', ') || ''}">${dayRes.code || '-'}</td>`;
                 }
             }
             row += `<td class="p-2 text-center font-bold text-emerald-700 border-l">${e.credit || 0}</td><td class="p-2 text-right font-mono text-rose-600">${(e.penalty || 0).toLocaleString('vi-VN')}</td></tr>`;
@@ -653,11 +654,11 @@
         }
 
         tbody.innerHTML = list.map(l => {
-            let badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">Off cả ngày</span>';
+            let badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">Off cả ngày</span>';
             if (l.leave_type === 'off_morning') {
-                badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800">Off Buổi Sáng (0.5 công)</span>';
+                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">Off Buổi Sáng (0.5 công)</span>';
             } else if (l.leave_type === 'off_afternoon') {
-                badge = '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">Off Buổi Chiều (0.5 công)</span>';
+                badge = '<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Off Buổi Chiều (0.5 công)</span>';
             }
 
             return `
@@ -816,7 +817,7 @@
                 <tr class="hover:bg-slate-50">
                     <td class="p-2.5 font-mono">${r.work_date}</td>
                     <td class="p-2.5 font-bold text-slate-800">${r.staff_name || ''}</td>
-                    <td class="p-2.5 font-bold text-purple-700 font-mono">${r.hours}h</td>
+                    <td class="p-2.5 font-bold text-sky-700 font-mono">${r.hours}h</td>
                     <td class="p-2.5 text-slate-600">${r.note || '-'}</td>
                     <td class="p-2.5 text-slate-500">${r.approved_by || '-'}</td>
                     <td class="p-2.5 text-center">
@@ -926,7 +927,7 @@
                     <td class="p-2.5 font-mono">${r.advance_date}</td>
                     <td class="p-2.5 font-bold text-slate-800">${r.staff_name || ''}</td>
                     <td class="p-2.5 text-right font-mono font-bold text-rose-600">${(r.amount || 0).toLocaleString('vi-VN')} đ</td>
-                    <td class="p-2.5">${r.cashbook_code ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">${r.cashbook_code}</span>` : `<span class="text-slate-400">--</span>`}</td>
+                    <td class="p-2.5">${r.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">${r.cashbook_code}</span>` : `<span class="text-slate-400">--</span>`}</td>
                     <td class="p-2.5 text-slate-600">${r.note || '-'}</td>
                     <td class="p-2.5 text-slate-500">${r.created_by || '-'}</td>
                     <td class="p-2.5 text-center">
@@ -1075,11 +1076,11 @@
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-slate-800 text-xs">${b.name}</span>
                             <div class="flex items-center gap-1">
-                                <button onclick="openEditBlockModal(${b.id})" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold cursor-pointer">✏️ Sửa</button>
-                                <button onclick="deleteHrmBlock(${b.id})" class="px-2 py-0.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-[11px] font-bold cursor-pointer" title="Xóa khối">🗑️</button>
+                                <button onclick="openEditBlockModal(${b.id})" class="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer">✏️ Sửa</button>
+                                <button onclick="deleteHrmBlock(${b.id})" class="px-2 py-0.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-xs font-bold cursor-pointer" title="Xóa khối">🗑️</button>
                             </div>
                         </div>
-                        <div class="text-[11px] text-slate-600 space-y-1">
+                        <div class="text-xs text-slate-600 space-y-1">
                             <div>Ca: <span class="font-bold text-slate-800 font-mono">${b.start_time} - ${b.end_time}</span> (Nghỉ trưa: ${b.lunch_minutes || 0}p)</div>
                             <div>Công chuẩn: <span class="font-bold text-slate-800">${b.std_hours || 8}h/ngày</span></div>
                             <div>Nghỉ: <span class="font-bold text-slate-800">${b.off_sunday ? 'Nghỉ Chủ Nhật' : (b.monthly_off_days + ' ngày/tháng')}</span></div>
@@ -1095,10 +1096,10 @@
                     holidaysList.innerHTML = `<div class="col-span-full text-slate-400 text-center py-2 text-xs">Chưa có ngày lễ nào được thiết lập.</div>`;
                 } else {
                     holidaysList.innerHTML = data.holidays.map(h => `
-                        <div class="p-2 bg-purple-50 border border-purple-200/70 rounded-lg flex items-center justify-between text-xs">
+                        <div class="p-2 bg-sky-50 border border-sky-200/70 rounded-lg flex items-center justify-between text-xs">
                             <div>
-                                <div class="font-bold text-purple-900">${h.name}</div>
-                                <div class="text-[10px] text-purple-600 font-mono">${h.holiday_date}</div>
+                                <div class="font-bold text-sky-900">${h.name}</div>
+                                <div class="text-xs text-sky-600 font-mono">${h.holiday_date}</div>
                             </div>
                             <button onclick="deleteHrmHoliday('${h.holiday_date}')" class="text-rose-600 hover:text-rose-800 font-bold p-1 cursor-pointer">✕</button>
                         </div>
@@ -1112,12 +1113,22 @@
                 if (!data.spa_rules || data.spa_rules.length === 0) {
                     spaRulesList.innerHTML = `<div class="text-slate-400 text-center py-2 text-xs">Chưa có quy tắc hoa hồng Spa.</div>`;
                 } else {
+                    const roleNames = {
+                        receiver: '📥 Nhận bé',
+                        worker_1: '🛁 Thợ Làm 1',
+                        worker_2: '🚿 Thợ Làm 2',
+                        cutter: '✂️ Thợ Cắt Tỉa',
+                        dyer: '🎨 Thợ Nhuộm'
+                    };
                     spaRulesList.innerHTML = `
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                             ${data.spa_rules.map(sr => `
-                                <div class="p-2.5 bg-slate-50 border rounded-lg">
-                                    <div class="font-bold text-slate-800 uppercase">${sr.role_key}</div>
-                                    <div class="text-slate-600 text-[11px] mt-1">${sr.service_name || 'Tất cả dịch vụ'}: <span class="font-bold text-purple-700">${sr.rate_percent ? sr.rate_percent + '%' : (sr.fixed_amount || 0).toLocaleString('vi-VN') + ' đ'}</span></div>
+                                <div class="p-2.5 bg-slate-50 border rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-slate-800">${roleNames[sr.role_key] || sr.role_key}</div>
+                                        <div class="text-slate-600 text-xs mt-0.5">${sr.service_name || 'Tất cả dịch vụ'}: <span class="font-bold text-sky-700">${sr.rate_type === 'percent' ? (sr.value + '%') : ((sr.value || 0).toLocaleString('vi-VN') + ' đ')}</span></div>
+                                    </div>
+                                    <button type="button" onclick="deleteHrmSpaCommissionRule(${sr.id})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 cursor-pointer">✕</button>
                                 </div>
                             `).join('')}
                         </div>
@@ -1136,7 +1147,7 @@
         if (fields) fields.classList.toggle('hidden', !isEnterprise);
         if (label) {
             label.textContent = isEnterprise ? "Doanh Nghiệp (HĐ, BHXH & Thuế)" : "SME (Lương Net)";
-            label.className = isEnterprise ? "text-xs font-bold text-indigo-700" : "text-xs font-bold text-slate-600";
+            label.className = isEnterprise ? "text-xs font-bold text-sky-700" : "text-xs font-bold text-slate-600";
         }
     };
 
@@ -1499,31 +1510,31 @@
             const dayOfWeek = dayNames[dt.getDay()];
             const isSun = dt.getDay() === 0;
 
-            let codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-500">-</span>`;
-            if (d.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
-            else if (d.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
-            else if (d.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
-            else if (d.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
-            else if (d.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-700">OFF</span>`;
-            else if (d.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">L (Lễ)</span>`;
-            else if (d.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-50 text-slate-400">CN nghỉ</span>`;
+            let codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-500">-</span>`;
+            if (d.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
+            else if (d.code === 'X/2') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">X/2 (0.5)</span>`;
+            else if (d.code === 'TV') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">TV (1.0)</span>`;
+            else if (d.code === 'TV/2') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-200 text-amber-900 border border-amber-300">TV/2 (0.5)</span>`;
+            else if (d.code === 'OFF') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700">OFF</span>`;
+            else if (d.code === 'L') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">L (Lễ)</span>`;
+            else if (d.code === 'CN') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-medium bg-slate-50 text-slate-400">CN nghỉ</span>`;
 
             let viols = [];
             (d.violations || []).forEach(v => {
-                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Trễ ${d.late_min}p</span>`);
-                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Về sớm ${d.early_min}p</span>`);
-                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên vào (-50k)</span>`);
-                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Quên ra (-50k)</span>`);
-                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-[10px] font-bold">Vắng không phép (-500k)</span>`);
+                if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Trễ ${d.late_min}p</span>`);
+                else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Về sớm ${d.early_min}p</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào (-50k)</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra (-50k)</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng không phép (-500k)</span>`);
             });
             if (d.waived) {
-                viols.push(`<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">Đã miễn phạt</span>`);
+                viols.push(`<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold">Đã miễn phạt</span>`);
             }
 
             const workedHours = d.worked_min > 0 ? (d.worked_min / 60).toFixed(1) + 'h' : '—';
             const lateText = d.late_min > 0 ? `<span class="text-rose-600 font-bold">${d.late_min}p</span>` : '<span class="text-slate-300">—</span>';
             const earlyText = d.early_min > 0 ? `<span class="text-amber-600 font-bold">${d.early_min}p</span>` : '<span class="text-slate-300">—</span>';
-            const penText = d.penalty > 0 ? `<span class="text-rose-600 font-mono font-black">-${d.penalty.toLocaleString('vi-VN')}đ</span>` : '<span class="text-slate-300">—</span>';
+            const penText = d.penalty > 0 ? `<span class="text-rose-600 font-mono font-bold">-${d.penalty.toLocaleString('vi-VN')}đ</span>` : '<span class="text-slate-300">—</span>';
 
             return `
                 <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
@@ -1538,7 +1549,7 @@
                     <td class="p-2.5 text-right">${penText}</td>
                     <td class="p-2.5 text-center">${codeBadge}</td>
                     <td class="p-2.5 text-center">
-                        <button onclick="openHrmEditDayModal(${staffId}, '${d.date}', '${d.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-[11px]">✏️ Sửa</button>
+                        <button onclick="openHrmEditDayModal(${staffId}, '${d.date}', '${d.code}')" class="text-sky-600 hover:underline font-bold cursor-pointer text-xs">✏️ Sửa</button>
                     </td>
                 </tr>
             `;
@@ -1678,9 +1689,9 @@
         const s = data.staff || {};
         const p = data.payslip || {};
         const statusMap = {
-            'draft': '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">TẠM TÍNH</span>',
-            'locked': '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">ĐÃ CHỐT</span>',
-            'paid': '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ĐÃ CHI TRẢ</span>'
+            'draft': '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">TẠM TÍNH</span>',
+            'locked': '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">ĐÃ CHỐT</span>',
+            'paid': '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">ĐÃ CHI TRẢ</span>'
         };
 
         const f = num => (num || 0).toLocaleString('vi-VN') + ' đ';
@@ -1719,7 +1730,7 @@
                     <td class="p-1.5 text-slate-700">${viols.join(', ') || 'Đúng giờ'}</td>
                     <td class="p-1.5 text-right font-mono font-bold ${d.penalty > 0 ? 'text-rose-600' : 'text-slate-500'}">${penStr}</td>
                     <td class="p-1.5 text-center font-bold text-slate-800">${d.code || '—'}</td>
-                    <td class="p-1.5 text-center text-[10px]">${statusPen}</td>
+                    <td class="p-1.5 text-center text-xs">${statusPen}</td>
                 </tr>
             `;
         }).join('');
@@ -1731,19 +1742,19 @@
                     <div>
                         <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
                             <span>${s.name}</span>
-                            <span class="text-[11px] font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md font-bold">${s.employee_code || 'NV' + s.id}</span>
+                            <span class="text-xs font-mono text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md font-bold">${s.employee_code || 'NV' + s.id}</span>
                         </div>
-                        <div class="text-[11px] text-slate-500 mt-1">Khối: <span class="font-bold text-slate-700">${s.block_name || p.block || '--'}</span> | Chức vụ: <span class="font-bold text-slate-700">${s.role || '--'}</span></div>
+                        <div class="text-xs text-slate-500 mt-1">Khối: <span class="font-bold text-slate-700">${s.block_name || p.block || '--'}</span> | Chức vụ: <span class="font-bold text-slate-700">${s.role || '--'}</span></div>
                     </div>
                     <div class="text-right">
                         ${statusMap[data.period_status] || ''}
-                        <div class="text-[10px] text-slate-400 mt-1">Tháng ${month.slice(5)}/${month.slice(0,4)}</div>
+                        <div class="text-xs text-slate-400 mt-1">Tháng ${month.slice(5)}/${month.slice(0,4)}</div>
                     </div>
                 </div>
 
                 <!-- Thẻ Thu Nhập -->
                 <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
-                    <h4 class="font-bold text-emerald-800 uppercase text-[11px] flex items-center gap-1 border-b pb-1">
+                    <h4 class="font-bold text-emerald-800 uppercase text-xs flex items-center gap-1 border-b pb-1">
                         <span>💰</span> I. Các Khoản Thu Nhập
                     </h4>
                     <div class="space-y-1.5 pt-1">
@@ -1754,8 +1765,8 @@
                         ${p.fuel_other ? `<div class="flex justify-between text-slate-600"><span>Phụ cấp khác:</span><span class="font-mono font-bold text-slate-800">${f(p.fuel_other)}</span></div>` : ''}
                         ${p.holiday_pay ? `<div class="flex justify-between text-slate-600"><span>Lương ngày lễ:</span><span class="font-mono font-bold text-slate-800">${f(p.holiday_pay)}</span></div>` : ''}
                         ${p.commission ? `<div class="flex justify-between text-slate-600"><span>Hoa hồng bán lẻ:</span><span class="font-mono font-bold text-sky-700">${f(p.commission)}</span></div>` : ''}
-                        ${p.spa_commission ? `<div class="flex justify-between text-slate-600"><span>Hoa hồng Spa / Dịch vụ:</span><span class="font-mono font-bold text-purple-700">${f(p.spa_commission)}</span></div>` : ''}
-                        ${p.tips ? `<div class="flex justify-between text-slate-600"><span>Tiền Tip khách cho:</span><span class="font-mono font-bold text-indigo-700">${f(p.tips)}</span></div>` : ''}
+                        ${p.spa_commission ? `<div class="flex justify-between text-slate-600"><span>Hoa hồng Spa / Dịch vụ:</span><span class="font-mono font-bold text-sky-700">${f(p.spa_commission)}</span></div>` : ''}
+                        ${p.tips ? `<div class="flex justify-between text-slate-600"><span>Tiền Tip khách cho:</span><span class="font-mono font-bold text-sky-700">${f(p.tips)}</span></div>` : ''}
                         ${p.attendance_bonus ? `<div class="flex justify-between text-slate-600"><span>Thưởng chuyên cần:</span><span class="font-mono font-bold text-emerald-700">${f(p.attendance_bonus)}</span></div>` : ''}
                         ${p.birthday_bonus ? `<div class="flex justify-between text-slate-600"><span>Thưởng sinh nhật:</span><span class="font-mono font-bold text-emerald-700">${f(p.birthday_bonus)}</span></div>` : ''}
                         ${p.bonus_other ? `<div class="flex justify-between text-slate-600"><span>Thưởng khác:</span><span class="font-mono font-bold text-emerald-700">${f(p.bonus_other)}</span></div>` : ''}
@@ -1765,7 +1776,7 @@
 
                 <!-- Thẻ Giảm Trừ -->
                 <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
-                    <h4 class="font-bold text-rose-800 uppercase text-[11px] flex items-center gap-1 border-b pb-1">
+                    <h4 class="font-bold text-rose-800 uppercase text-xs flex items-center gap-1 border-b pb-1">
                         <span>🔻</span> II. Các Khoản Giảm Trừ
                     </h4>
                     <div class="space-y-1.5 pt-1">
@@ -1776,26 +1787,26 @@
                 </div>
 
                 <!-- Thẻ Thực Lãnh Net -->
-                <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 p-4 rounded-2xl shadow-xs flex items-center justify-between">
+                <div class="bg-slate-50 border border-emerald-200 p-4 rounded-2xl shadow-xs flex items-center justify-between">
                     <div>
                         <div class="font-bold text-emerald-900 text-xs uppercase">III. Thực Lãnh Net</div>
-                        <div class="text-[10px] text-emerald-700 mt-0.5">${p.cashbook_code ? `Đã chi: ${p.cashbook_code}` : 'Chưa giải ngân'}</div>
+                        <div class="text-xs text-emerald-700 mt-0.5">${p.cashbook_code ? `Đã chi: ${p.cashbook_code}` : 'Chưa giải ngân'}</div>
                     </div>
                     <div class="text-right">
-                        <div class="font-mono font-black text-xl text-emerald-700">${(p.net_pay || p.net_rounded || 0).toLocaleString('vi-VN')} đ</div>
+                        <div class="font-mono font-bold text-xl text-emerald-700">${(p.net_pay || p.net_rounded || 0).toLocaleString('vi-VN')} đ</div>
                     </div>
                 </div>
 
                 <!-- Thẻ IV: Bảng Chi Tiết 30/31 Ngày Chấm Công (Minh Bạch Phạt Trễ) -->
                 <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 space-y-2">
                     <div class="flex items-center justify-between border-b pb-1">
-                        <h4 class="font-bold text-slate-800 uppercase text-[11px] flex items-center gap-1">
+                        <h4 class="font-bold text-slate-800 uppercase text-xs flex items-center gap-1">
                             <span>⏱️</span> IV. Bảng Chi Tiết 30/31 Ngày Chấm Công & Đi Trễ Trong Tháng
                         </h4>
-                        <span class="text-[10px] text-slate-400 font-medium">Toàn bộ các ngày trong kỳ lương</span>
+                        <span class="text-xs text-slate-400 font-medium">Toàn bộ các ngày trong kỳ lương</span>
                     </div>
                     <div class="border border-slate-200 rounded-xl overflow-x-auto max-h-[350px]">
-                        <table class="w-full text-left border-collapse text-[11px]">
+                        <table class="w-full text-left border-collapse text-xs">
                             <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
                                 <tr>
                                     <th class="p-1.5">Ngày</th>
@@ -1818,7 +1829,7 @@
                 </div>
 
                 ${p.manual_note ? `
-                    <div class="bg-slate-50 border border-slate-200/80 p-3 rounded-xl text-[11px] text-slate-600">
+                    <div class="bg-slate-50 border border-slate-200/80 p-3 rounded-xl text-xs text-slate-600">
                         <span class="font-bold text-slate-700">Ghi chú / Giải trình:</span> ${p.manual_note}
                     </div>
                 ` : ''}
@@ -1927,32 +1938,32 @@
             const hasAcc = Boolean(r.has_account);
             const block = hrmBlocksMap[r.work_block_id];
             const blockBadge = block
-                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">${block.name}</span>`
-                : `<span class="text-slate-400 italic text-[10px]">Chưa xếp</span>`;
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 whitespace-nowrap">${block.name}</span>`
+                : `<span class="text-slate-400  text-xs">Chưa xếp</span>`;
 
             const fMoney = v => v ? Number(v).toLocaleString('vi-VN') + ' đ' : '0 đ';
 
             const accountBadge = hasAcc
-                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
                      <span>👤</span> ${r.username}
                    </span>`
-                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold cursor-pointer transition shadow-2xs whitespace-nowrap" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
+                : `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-xs font-bold cursor-pointer transition shadow-2xs whitespace-nowrap" title="Cấp tài khoản đăng nhập (Phím tắt: F4)">
                      ⚡ Cấp TK
                    </button>`;
 
             const cStatus = r.contractual_status || (!r.official_date || (new Date(r.official_date) > new Date()) ? 'Thử việc' : 'Chính thức');
             const contractBadge = cStatus === 'Chính thức'
-                ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`
+                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Chính thức</span>`
                 : cStatus === 'Thử việc'
-                ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Thử việc</span>`
-                : `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">Nghỉ việc</span>`;
+                ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Thử việc</span>`
+                : `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-600">Nghỉ việc</span>`;
 
             const baseDelta = Number(r.total_base_delta || 0);
             const deltaBadge = baseDelta > 0
-                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer" title="Xem lịch sử điều chỉnh">+${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer" title="Xem lịch sử điều chỉnh">+${baseDelta.toLocaleString('vi-VN')} đ</button>`
                 : baseDelta < 0
-                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer" title="Xem lịch sử điều chỉnh">${baseDelta.toLocaleString('vi-VN')} đ</button>`
-                : `<span class="text-slate-300 font-mono text-[10px]">0 đ</span>`;
+                ? `<button onclick="filterHrmAdjByStaff(${r.id})" class="px-1.5 py-0.5 rounded text-xs font-mono font-bold bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer" title="Xem lịch sử điều chỉnh">${baseDelta.toLocaleString('vi-VN')} đ</button>`
+                : `<span class="text-slate-300 font-mono text-xs">0 đ</span>`;
 
             const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
 
@@ -1965,31 +1976,31 @@
                 <tr class="${rowClass}">
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs ${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
-                        <div class="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
-                            ${r.employee_code ? `<span class="bg-purple-50 text-purple-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
+                        <div class="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                            ${r.employee_code ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
                             ${r.phone ? `<span>📞 ${r.phone}</span>` : ''}
-                            ${r.is_spa_worker ? `<span class="bg-pink-50 text-pink-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
+                            ${r.is_spa_worker ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
                             ${isResigned && r.leave_date ? `<span class="bg-rose-50 text-rose-700 px-1 rounded font-bold">Nghỉ: ${r.leave_date}</span>` : ''}
                         </div>
                     </td>
-                    <td class="p-2.5 text-slate-600 text-[11px]">${deptText}</td>
+                    <td class="p-2.5 text-slate-600 text-xs">${deptText}</td>
                     <td class="p-2.5">${blockBadge}</td>
-                    <td class="p-2.5 text-right font-mono text-slate-500 text-[11px]">${fMoney(r.base_salary)}</td>
+                    <td class="p-2.5 text-right font-mono text-slate-500 text-xs">${fMoney(r.base_salary)}</td>
                     <td class="p-2.5 text-center">${deltaBadge}</td>
                     <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fMoney(r.base_salary_effective || r.base_salary)}</td>
                     <td class="p-2.5 text-right font-mono font-bold text-slate-700">${fMoney(r.allowance_effective !== undefined ? r.allowance_effective : r.allowance)}</td>
-                    <td class="p-2.5 text-right font-mono font-black text-indigo-700">${fMoney(r.total_salary || ((r.base_salary_effective || r.base_salary || 0) + (r.allowance_effective || r.allowance || 0)))}</td>
-                    <td class="p-2.5 text-center font-semibold text-slate-700 text-[10px] whitespace-nowrap">${r.tenure || '—'}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-sky-700">${fMoney(r.total_salary || ((r.base_salary_effective || r.base_salary || 0) + (r.allowance_effective || r.allowance || 0)))}</td>
+                    <td class="p-2.5 text-center font-semibold text-slate-700 text-xs whitespace-nowrap">${r.tenure || '—'}</td>
                     <td class="p-2.5 text-center">${contractBadge}</td>
                     <td class="p-2.5 text-center">${accountBadge}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
-                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
-                        <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[10px] font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
+                        <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
+                        <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
                         ${isResigned 
-                            ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-[10px] font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">↩️ Đi làm lại</button>`
-                            : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-[10px] font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">🛑 Nghỉ việc</button>`
+                            ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-xs font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">↩️ Đi làm lại</button>`
+                            : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">🛑 Nghỉ việc</button>`
                         }
-                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-[10px] font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
+                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
                     </td>
                 </tr>
             `;
@@ -2327,29 +2338,29 @@
             const aDelta = Number(r.allowance_delta || 0);
             const typeLabel = r.adjustment_type === 'salary' ? 'Lương' : r.adjustment_type === 'allowance' ? 'Phụ cấp' : 'Cả hai';
             const typeBadge = r.adjustment_type === 'salary'
-                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Lương</span>'
+                ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">Lương</span>'
                 : r.adjustment_type === 'allowance'
-                ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Phụ cấp</span>'
-                : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">Cả hai</span>';
+                ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Phụ cấp</span>'
+                : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">Cả hai</span>';
 
             const deptText = [r.department, r.position].filter(Boolean).join(' • ') || '—';
 
             return `
                 <tr class="hover:bg-slate-50 transition border-t border-slate-100">
-                    <td class="p-2.5 font-mono text-[11px] text-slate-600">${r.decision_date || r.effective_date}</td>
+                    <td class="p-2.5 font-mono text-xs text-slate-600">${r.decision_date || r.effective_date}</td>
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs">${r.staff_name || 'NV #' + r.staff_id}</div>
-                        <div class="text-[10px] text-purple-700 font-mono font-bold mt-0.5">${r.employee_code || ''}</div>
+                        <div class="text-xs text-sky-700 font-mono font-bold mt-0.5">${r.employee_code || ''}</div>
                     </td>
-                    <td class="p-2.5 text-slate-600 text-[11px]">${deptText}</td>
+                    <td class="p-2.5 text-slate-600 text-xs">${deptText}</td>
                     <td class="p-2.5 text-center">${typeBadge}</td>
                     <td class="p-2.5 text-right font-mono font-bold ${bDelta > 0 ? 'text-emerald-700' : bDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(bDelta)}</td>
                     <td class="p-2.5 text-right font-mono font-bold ${aDelta > 0 ? 'text-emerald-700' : aDelta < 0 ? 'text-rose-700' : 'text-slate-400'}">${fMoney(aDelta)}</td>
-                    <td class="p-2.5 text-center font-mono font-bold text-emerald-700 text-[11px]">${r.effective_date}</td>
+                    <td class="p-2.5 text-center font-mono font-bold text-emerald-700 text-xs">${r.effective_date}</td>
                     <td class="p-2.5 text-slate-700 text-xs">${r.reason || '—'}</td>
-                    <td class="p-2.5 text-center text-slate-500 text-[11px]">${r.created_by || 'Hệ thống'}</td>
+                    <td class="p-2.5 text-center text-slate-500 text-xs">${r.created_by || 'Hệ thống'}</td>
                     <td class="p-2.5 text-center">
-                        <button onclick="deleteHrmAdjustment(${r.id})" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-[10px] font-bold cursor-pointer" title="Xóa quyết định">🗑️ Xóa</button>
+                        <button onclick="deleteHrmAdjustment(${r.id})" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded text-xs font-bold cursor-pointer" title="Xóa quyết định">🗑️ Xóa</button>
                     </td>
                 </tr>
             `;
@@ -2541,6 +2552,922 @@
             loadHrmStaff();
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    // ── Xem & Tính Hoa Hồng Tổng Hợp (Subtab Hoa Hồng & Tip) ──
+    let currentCommData = null;
+    let activeCommDeptFilter = 'all';
+
+    async function loadHrmCommissions(month) {
+        const m = month || getSelectedMonth();
+        const tbody = document.getElementById('table-hrm-commissions');
+        if (tbody && !currentCommData) {
+            tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400">Đang tính toán hoa hồng tháng ${m}...</td></tr>`;
+        }
+        try {
+            const res = await fetch(`/api/hrm/commissions/${m}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            currentCommData = data;
+            renderHrmCommissionsUI(data);
+        } catch (e) {
+            console.error("loadHrmCommissions err:", e);
+        }
+    }
+    window.loadHrmCommissions = loadHrmCommissions;
+
+    window.filterCommByDept = function(dept) {
+        activeCommDeptFilter = dept || 'all';
+        const btnAll = document.getElementById('btn-comm-filter-all');
+        if (btnAll) {
+            btnAll.className = activeCommDeptFilter === 'all'
+                ? 'px-3 py-1 rounded-full bg-sky-600 text-white text-xs font-bold cursor-pointer transition'
+                : 'px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold cursor-pointer transition';
+        }
+        if (currentCommData) renderHrmCommissionsUI(currentCommData);
+    };
+
+    function renderHrmCommissionsUI(data) {
+        const s = data.summary || {};
+        const fmt = v => Math.round(v || 0).toLocaleString('vi-VN') + ' ₫';
+
+        const setEl = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        setEl('hrm-comm-kpi-pos', fmt(s.pos_commission_total));
+        setEl('hrm-comm-kpi-pos-sub', `Doanh số POS thuần: ${fmt(s.pos_net_total)}`);
+        setEl('hrm-comm-kpi-spa', fmt(s.spa_commission_total));
+        setEl('hrm-comm-kpi-spa-sub', `Doanh thu dịch vụ Spa: ${fmt(s.spa_revenue_total)}`);
+        setEl('hrm-comm-kpi-tips', fmt((s.spa_tips_total || 0) + (s.tmdt_commission_total || 0)));
+        setEl('hrm-comm-kpi-tips-sub', `Tip: ${fmt(s.spa_tips_total)} · TMĐT/KOC: ${fmt(s.tmdt_commission_total)}`);
+        setEl('hrm-comm-kpi-total', fmt(s.grand_total));
+
+        // 1. Render 4 Thẻ Quy Định Hoa Hồng Theo Bộ Phận (Tầng 1)
+        const deptCardsEl = document.getElementById('hrm-dept-policy-cards');
+        const deptPolicies = data.dept_policies || [];
+        if (deptCardsEl) {
+            deptCardsEl.innerHTML = deptPolicies.map((p, idx) => {
+                const safeDept = (p.dept || '').replace(/'/g, "\\'");
+                const isSelected = activeCommDeptFilter === p.dept;
+                const borderCls = isSelected
+                    ? 'border-sky-500 bg-sky-50/70 ring-2 ring-sky-200'
+                    : 'border-slate-200 bg-slate-50/70 hover:border-sky-300';
+                const countInDept = (data.items || []).filter(x => x.department === p.dept).length;
+                return `
+                    <div class="p-3 rounded-xl border transition flex flex-col justify-between gap-2 ${borderCls}">
+                        <div>
+                            <div class="flex items-center justify-between gap-1">
+                                <button type="button" onclick="filterCommByDept('${safeDept}')" class="font-bold text-xs text-slate-800 hover:text-sky-700 text-left flex items-center gap-1 cursor-pointer">
+                                    <span>${p.icon || '🏢'}</span>
+                                    <span>${p.dept}</span>
+                                </button>
+                                <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600">${countInDept} NV</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1 leading-snug">${p.desc || ''}</p>
+                        </div>
+
+                        <div class="bg-white p-2 rounded-lg border border-slate-200/80 space-y-1.5 text-xs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-600 font-semibold">% Bán lẻ POS:</span>
+                                <div class="inline-flex items-center gap-1">
+                                    <input type="number" step="0.5" min="0" max="100" id="dept-pol-rate-${idx}" value="${p.pos_rate || 0}"
+                                           class="w-14 border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-sky-700">
+                                    <span class="font-bold text-slate-500">%</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-700 font-semibold">
+                                    <input type="checkbox" id="dept-pol-spa-${idx}" ${p.spa_on ? 'checked' : ''} class="rounded text-sky-600">
+                                    <span>✂️ Hưởng HH Spa/Tip</span>
+                                </label>
+                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-700 font-semibold">
+                                    <input type="checkbox" id="dept-pol-tmdt-${idx}" ${p.tmdt_on ? 'checked' : ''} class="rounded text-amber-600">
+                                    <span>🛍️ Sàn/KOC</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="button" onclick="saveAndApplyDeptPolicy(${idx}, '${safeDept}')"
+                                class="w-full py-1.5 px-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-2xs cursor-pointer transition">
+                            ⚡ Lưu & Áp cho cả bộ phận (${countInDept})
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 2. Render Ma Trận Hoa Hồng Spa Đa Cơ Sở (Bậc Kg · Chính Thức / Thử Việc · 7 Cột Phụ Thu)
+        if (data.spa_matrix_config) {
+            currentSpaMatrixConfig = JSON.parse(JSON.stringify(data.spa_matrix_config));
+            renderSpaMatrixEditor(currentSpaMatrixConfig);
+        }
+
+        const rulesPills = document.getElementById('hrm-comm-rules-pills');
+        const roleLabels = {
+            receiver: 'Nhận bé',
+            worker_1: 'Thợ Làm 1',
+            worker_2: 'Thợ Làm 2',
+            cutter: 'Thợ Cắt Tỉa',
+            dyer: 'Thợ Nhuộm'
+        };
+        if (rulesPills) {
+            const rules = data.spa_rules || [];
+            if (rules.length === 0) {
+                rulesPills.innerHTML = `<span class="text-xs text-slate-400">Chưa có quy tắc hoa hồng Spa nào.</span>`;
+            } else {
+                rulesPills.innerHTML = rules.map(r => {
+                    const valTxt = r.rate_type === 'percent' ? `${r.value}%` : `${Math.round(r.value || 0).toLocaleString('vi-VN')}đ/ca`;
+                    return `
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-xs">
+                            <span class="font-bold text-sky-900">${roleLabels[r.role_key] || r.role_key}:</span>
+                            <span class="text-slate-600">${r.service_name || 'Mọi dịch vụ'}</span>
+                            <span class="font-bold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">${valTxt}</span>
+                            <button type="button" onclick="deleteHrmSpaCommissionRule(${r.id})" class="text-rose-500 hover:text-rose-700 font-bold ml-1 cursor-pointer" title="Xóa quy tắc">✕</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        const allItems = data.items || [];
+        const items = activeCommDeptFilter === 'all'
+            ? allItems
+            : allItems.filter(x => x.department === activeCommDeptFilter);
+
+        const hasUnlinked = allItems.some(x => x.is_unlinked_spa);
+        const btnSyncSpa = document.getElementById('btn-sync-unlinked-spa');
+        if (btnSyncSpa) btnSyncSpa.classList.toggle('hidden', !hasUnlinked);
+
+        const tbody = document.getElementById('table-hrm-commissions');
+        const tfoot = document.getElementById('table-hrm-commissions-foot');
+        if (!tbody) return;
+
+        if (items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400">Chưa có nhân viên nào thuộc bộ phận này trong tháng.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
+            return;
+        }
+
+        const deptNames = deptPolicies.length
+            ? deptPolicies.map(p => p.dept)
+            : ['Bán Lẻ POS', 'Spa & Grooming', 'Sales Online & TMĐT', 'Kho & Khách Sạn'];
+
+        tbody.innerHTML = items.map(it => {
+            const rc = it.spa_role_counts || {};
+            const roleBadges = [
+                rc.receiver ? `Nhận:${rc.receiver}` : '',
+                rc.worker_1 ? `Làm1:${rc.worker_1}` : '',
+                rc.worker_2 ? `Làm2:${rc.worker_2}` : '',
+                rc.cutter ? `Cắt:${rc.cutter}` : '',
+                rc.dyer ? `Nhuộm:${rc.dyer}` : ''
+            ].filter(Boolean).join(' · ');
+
+            const deptCell = it.staff_id
+                ? `<select onchange="updateStaffCommPolicy(${it.staff_id}, {department: this.value})"
+                           class="border border-slate-300 rounded-lg px-2 py-1 bg-white font-bold text-slate-800 text-xs cursor-pointer">
+                       ${deptNames.map(d => `<option value="${d}" ${it.department === d ? 'selected' : ''}>${d}</option>`).join('')}
+                   </select>`
+                : `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-bold text-xs">${it.department || 'Spa & Grooming'}</span>`;
+
+            const modeCell = it.staff_id
+                ? `<select onchange="updateStaffCommPolicy(${it.staff_id}, {policy_mode: this.value})"
+                           class="border rounded-lg px-2 py-1 font-bold text-xs cursor-pointer ${it.policy_mode === 'custom' ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-emerald-300 bg-emerald-50 text-emerald-800'}">
+                       <option value="dept" ${it.policy_mode !== 'custom' ? 'selected' : ''}>📌 Theo Bộ phận</option>
+                       <option value="custom" ${it.policy_mode === 'custom' ? 'selected' : ''}>✏️ Mức riêng</option>
+                   </select>`
+                : `<button type="button" onclick="syncUnlinkedSpaWorkers()" class="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs cursor-pointer">➕ Tạo hồ sơ NV</button>`;
+
+            const rateCell = it.staff_id
+                ? `<div class="inline-flex items-center gap-1">
+                       <input type="number" step="0.5" min="0" max="100" value="${it.commission_rate || 0}"
+                              onchange="saveStaffPosCommissionRate(${it.staff_id}, this.value)"
+                              class="w-14 border border-slate-300 rounded px-1.5 py-0.5 text-center font-mono font-bold text-sky-700 bg-white focus:ring-1 focus:ring-sky-500"
+                              title="Nhập % hoa hồng bán lẻ POS (sẽ tự chuyển sang Mức riêng)">
+                       <span class="text-slate-400 font-bold">%</span>
+                   </div>`
+                : `<span class="text-slate-400">${it.commission_rate || 0}%</span>`;
+
+            const spaTier = (it.spa_commission_tier || 'official') === 'probation' ? 'probation' : 'official';
+            const bd = it.spa_breakdown || {};
+            const bdText = [
+                bd.bath ? `Tắm:${Math.round(bd.bath/1000)}k` : '',
+                bd.cut ? `Cắt:${Math.round(bd.cut/1000)}k` : '',
+                bd.dye ? `Nhuộm:${Math.round(bd.dye/1000)}k` : '',
+                bd.surcharge ? `PT:${Math.round(bd.surcharge/1000)}k` : ''
+            ].filter(Boolean).join(' · ');
+
+            const spaToggleCell = it.staff_id
+                ? `<div class="flex flex-col items-center gap-1">
+                       <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                           <label class="inline-flex items-center gap-1 cursor-pointer text-xs font-bold ${it.enable_spa_commission ? 'text-sky-700' : 'text-slate-400'}">
+                               <input type="checkbox" ${it.enable_spa_commission ? 'checked' : ''}
+                                      onchange="updateStaffCommPolicy(${it.staff_id}, {enable_spa_commission: this.checked ? 1 : 0, policy_mode: 'custom', manual_override: true})">
+                               <span>${it.spa_tickets || 0} ca</span>
+                           </label>
+                           <select onchange="updateStaffCommPolicy(${it.staff_id}, {spa_commission_tier: this.value})"
+                                   class="border rounded px-1.5 py-0.5 text-[11px] font-bold cursor-pointer ${spaTier === 'probation' ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-emerald-50 text-emerald-800 border-emerald-300'}"
+                                   title="Chọn khung hoa hồng Spa: Nhân viên Chính thức hoặc Nhân viên Thử việc">
+                               <option value="official" ${spaTier === 'official' ? 'selected' : ''}>★ Chính thức</option>
+                               <option value="probation" ${spaTier === 'probation' ? 'selected' : ''}>⏳ Thử việc</option>
+                           </select>
+                       </div>
+                       ${roleBadges ? `<div class="text-xs text-sky-600 font-semibold">${roleBadges}</div>` : ''}
+                   </div>`
+                : `<div class="font-bold text-slate-800">${it.spa_tickets || 0} ca</div>${roleBadges ? `<div class="text-xs text-sky-600 font-semibold">${roleBadges}</div>` : ''}`;
+
+            const tmdtComm = (it.pancake_commission || 0) + (it.koc_commission || 0);
+            const tmdtToggleCell = it.staff_id
+                ? `<div class="flex items-center justify-end gap-1.5">
+                       <input type="checkbox" ${it.enable_tmdt_commission ? 'checked' : ''} title="Bật/tắt hưởng Hoa hồng Sàn TMĐT & KOC"
+                              onchange="updateStaffCommPolicy(${it.staff_id}, {enable_tmdt_commission: this.checked ? 1 : 0, policy_mode: 'custom', manual_override: true})">
+                       <span class="font-mono font-bold ${it.enable_tmdt_commission ? 'text-sky-600' : 'text-slate-300 line-through'}">${tmdtComm.toLocaleString('vi-VN')}</span>
+                   </div>`
+                : `<span class="font-mono text-slate-400">0</span>`;
+
+            const unlinkedBadge = it.is_unlinked_spa
+                ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">Chưa tạo NV</span>`
+                : '';
+
+            return `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-900">${it.name} ${unlinkedBadge}</div>
+                        <div class="text-xs font-mono text-slate-400">${it.employee_code} · ${it.position}</div>
+                    </td>
+                    <td class="p-2.5">${deptCell}</td>
+                    <td class="p-2.5">${modeCell}</td>
+                    <td class="p-2.5 text-center">${rateCell}</td>
+                    <td class="p-2.5 text-right font-mono">
+                        <div class="font-bold text-slate-700">${(it.pos_net || 0).toLocaleString('vi-VN')}</div>
+                        ${it.pos_orders ? `<div class="text-xs text-slate-400">${it.pos_orders} đơn</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-right font-mono font-bold text-sky-700">${(it.pos_commission || 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-center">${spaToggleCell}</td>
+                    <td class="p-2.5 text-right font-mono">
+                        <div class="font-bold ${it.enable_spa_commission ? 'text-sky-700' : 'text-slate-300 line-through'}">${(it.spa_commission || 0).toLocaleString('vi-VN')}</div>
+                        ${bdText && it.enable_spa_commission ? `<div class="text-[11px] text-slate-500 mt-0.5">${bdText}</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-right font-mono font-bold ${it.enable_spa_commission ? 'text-amber-600' : 'text-slate-300 line-through'}">${(it.spa_tips || 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-right">${tmdtToggleCell}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700">${(it.total_commission || 0).toLocaleString('vi-VN')} ₫</td>
+                </tr>
+            `;
+        }).join('');
+
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="4" class="p-2.5 text-right uppercase text-slate-600">Tổng cộng (${items.length} nhân sự):</td>
+                    <td class="p-2.5 text-right font-mono">${items.reduce((a, b) => a + (b.pos_net || 0), 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.pos_commission || 0), 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-center">${items.reduce((a, b) => a + (b.spa_tickets || 0), 0)} ca</td>
+                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.spa_commission || 0), 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-right font-mono text-amber-700">${items.reduce((a, b) => a + (b.spa_tips || 0), 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.pancake_commission || 0) + (b.koc_commission || 0), 0).toLocaleString('vi-VN')}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-800 text-sm">${items.reduce((a, b) => a + (b.total_commission || 0), 0).toLocaleString('vi-VN')} ₫</td>
+                </tr>
+            `;
+        }
+    }
+
+    window.saveAndApplyDeptPolicy = async function(idx, deptName) {
+        const month = getSelectedMonth();
+        const pos_rate = parseFloat(document.getElementById(`dept-pol-rate-${idx}`)?.value) || 0;
+        const spa_on = document.getElementById(`dept-pol-spa-${idx}`)?.checked ? 1 : 0;
+        const tmdt_on = document.getElementById(`dept-pol-tmdt-${idx}`)?.checked ? 1 : 0;
+        try {
+            // Nếu có thợ Spa chưa có hồ sơ và đang áp cho bộ phận Spa & Grooming thì đồng bộ luôn
+            if (deptName === 'Spa & Grooming') {
+                await fetch('/api/hrm/commissions/sync-spa-workers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ month })
+                });
+            }
+            const res = await fetch('/api/hrm/commissions/dept-policies', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dept: deptName,
+                    pos_rate,
+                    spa_on,
+                    tmdt_on,
+                    apply_to_staff: true,
+                    force_all: true,
+                    month
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Lỗi lưu quy định bộ phận');
+                return;
+            }
+            if (window.showToast) window.showToast(`Đã áp quy định bộ phận "${deptName}" cho ${data.updated_staff} nhân viên!`, 'success');
+            loadHrmCommissions(month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.updateStaffCommPolicy = async function(staffId, payload) {
+        const month = getSelectedMonth();
+        try {
+            const res = await fetch(`/api/hrm/commissions/staff-policy/${staffId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, month })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Lỗi cập nhật quy định nhân viên');
+                return;
+            }
+            if (window.showToast) window.showToast('Đã cập nhật bộ phận & quy định hoa hồng nhân viên!', 'success');
+            loadHrmCommissions(month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.saveStaffPosCommissionRate = async function(staffId, newRate) {
+        const month = getSelectedMonth();
+        try {
+            const res = await fetch(`/api/hrm/commissions/staff-rate/${staffId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commission_rate: parseFloat(newRate) || 0, month })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Lỗi lưu % hoa hồng');
+                return;
+            }
+            if (window.showToast) window.showToast('Đã cập nhật % hoa hồng bán lẻ POS', 'success');
+            loadHrmCommissions(month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.addHrmSpaCommissionRule = async function() {
+        const role_key = document.getElementById('hrm-comm-new-role')?.value || 'worker_1';
+        const service_name = (document.getElementById('hrm-comm-new-svc')?.value || '').trim();
+        const rate_type = document.getElementById('hrm-comm-new-type')?.value || 'percent';
+        const value = parseFloat(document.getElementById('hrm-comm-new-val')?.value);
+        if (isNaN(value) || value < 0) {
+            alert('Vui lòng nhập mức % hoặc số tiền hoa hồng hợp lệ!');
+            return;
+        }
+        try {
+            const res = await fetch('/api/hrm/config/spa-rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role_key, service_name: service_name || null, rate_type, value, is_active: 1 })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Lỗi lưu quy tắc hoa hồng Spa');
+                return;
+            }
+            if (document.getElementById('hrm-comm-new-val')) document.getElementById('hrm-comm-new-val').value = '';
+            if (document.getElementById('hrm-comm-new-svc')) document.getElementById('hrm-comm-new-svc').value = '';
+            if (window.showToast) window.showToast('Đã lưu quy tắc hoa hồng Spa', 'success');
+            loadHrmCommissions(getSelectedMonth());
+            if (typeof loadHrmConfig === 'function') loadHrmConfig();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.deleteHrmSpaCommissionRule = async function(ruleId) {
+        try {
+            const res = await fetch(`/api/hrm/config/spa-rules/${ruleId}`, { method: 'DELETE' });
+            if (res.ok) {
+                if (window.showToast) window.showToast('Đã xóa quy tắc hoa hồng Spa', 'success');
+                loadHrmCommissions(getSelectedMonth());
+                if (typeof loadHrmConfig === 'function') loadHrmConfig();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.syncUnlinkedSpaWorkers = async function() {
+        const month = getSelectedMonth();
+        try {
+            const res = await fetch('/api/hrm/commissions/sync-spa-workers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ month })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Lỗi đồng bộ thợ Spa');
+                return;
+            }
+            if (window.showToast) window.showToast(data.message, 'success');
+            loadHrmCommissions(month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.recalcAndSyncCommissionToPayroll = async function() {
+        const month = getSelectedMonth();
+        try {
+            // Đồng bộ các thợ Spa chưa có hồ sơ trước để họ có mặt trong Bảng Lương
+            await fetch('/api/hrm/commissions/sync-spa-workers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ month })
+            });
+            const res = await fetch(`/api/hrm/payroll/${month}/calculate`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Không thể tính lại bảng lương');
+                return;
+            }
+            if (window.showToast) window.showToast(`Đã tính toán hoa hồng & cập nhật vào Bảng Lương tháng ${month}!`, 'success');
+            await loadHrmCommissions(month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // =====================================================================
+    // MA TRẬN HOA HỒNG SPA ĐA CƠ SỞ (CHÍNH THỨC / THỬ VIỆC · BẬC KG · 7 PHỤ THU)
+    // =====================================================================
+    let currentSpaMatrixConfig = null;
+
+    function getActiveMatrixProfile() {
+        if (!currentSpaMatrixConfig || !Array.isArray(currentSpaMatrixConfig.profiles) || !currentSpaMatrixConfig.profiles.length) {
+            return null;
+        }
+        const actId = currentSpaMatrixConfig.active_profile_id;
+        return currentSpaMatrixConfig.profiles.find(p => p.id === actId) || currentSpaMatrixConfig.profiles[0];
+    }
+
+    function renderSpaMatrixEditor(cfg) {
+        if (!cfg || !Array.isArray(cfg.profiles)) return;
+        const sel = document.getElementById('hrm-spa-profile-select');
+        if (sel) {
+            sel.innerHTML = cfg.profiles.map(p =>
+                `<option value="${p.id}" ${p.id === cfg.active_profile_id ? 'selected' : ''}>🏢 ${p.name}</option>`
+            ).join('');
+        }
+
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+
+        const legacyWrap = document.getElementById('hrm-legacy-percent-rules-wrap');
+        if (legacyWrap) {
+            legacyWrap.classList.toggle('hidden', prof.calc_mode !== 'role_rules');
+        }
+
+        const container = document.getElementById('hrm-spa-matrix-editor-container');
+        if (!container) return;
+
+        const bathTiers = prof.bath_tiers || [];
+        const cutTiers = prof.cut_tiers || [];
+        const catRate = prof.cat_rate || { label: 'Mèo', range_label: 'Mọi kg', official: 60000, probation: 50000 };
+        const dyeRate = prof.dye_rate || { label: 'Nhuộm', range_label: 'Mọi kg', official: 50000, probation: 40000 };
+        const surchRules = prof.surcharge_rules || [];
+
+        const bathThCols = bathTiers.map((t, i) => `
+            <th class="p-1.5 border border-slate-200 bg-sky-50/70 text-center min-w-[92px]">
+                <div class="flex items-center justify-between gap-1">
+                    <input type="text" value="${t.label || ''}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'label', this.value)"
+                           class="w-full text-center font-bold text-sky-900 bg-white border border-sky-200 rounded px-1 py-0.5 text-xs">
+                    ${bathTiers.length > 1 ? `<button type="button" onclick="removeSpaMatrixTier('bath', ${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa bậc này">&times;</button>` : ''}
+                </div>
+            </th>
+        `).join('');
+
+        const cutThCols = cutTiers.map((t, i) => `
+            <th class="p-1.5 border border-slate-200 bg-emerald-50/70 text-center min-w-[100px]">
+                <div class="flex items-center justify-between gap-1">
+                    <input type="text" value="${t.label || ''}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'label', this.value)"
+                           class="w-full text-center font-bold text-emerald-900 bg-white border border-emerald-200 rounded px-1 py-0.5 text-xs">
+                    ${cutTiers.length > 1 ? `<button type="button" onclick="removeSpaMatrixTier('cut', ${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa bậc này">&times;</button>` : ''}
+                </div>
+            </th>
+        `).join('');
+
+        const bathRangeCols = bathTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200 bg-sky-50/30 text-center">
+                <input type="text" value="${t.range_label || ''}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'range_label', this.value)"
+                       class="w-full text-center font-mono font-bold text-sky-700 bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px]" title="Nhãn hiển thị mốc Kg">
+                <div class="flex items-center justify-center gap-0.5 mt-1 text-[10px] text-slate-500">
+                    <span>Trần:</span>
+                    <input type="number" step="0.5" value="${t.max_kg ?? 10}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'max_kg', parseFloat(this.value)||999)"
+                           class="w-12 text-center font-mono bg-white border border-slate-200 rounded px-0.5">
+                    <span>kg</span>
+                </div>
+            </td>
+        `).join('');
+
+        const cutRangeCols = cutTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200 bg-emerald-50/30 text-center">
+                <input type="text" value="${t.range_label || ''}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'range_label', this.value)"
+                       class="w-full text-center font-mono font-bold text-emerald-700 bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px]" title="Nhãn hiển thị mốc Kg">
+                <div class="flex items-center justify-center gap-0.5 mt-1 text-[10px] text-slate-500">
+                    <span>Trần:</span>
+                    <input type="number" step="0.5" value="${t.max_kg ?? 10}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'max_kg', parseFloat(this.value)||999)"
+                           class="w-12 text-center font-mono bg-white border border-slate-200 rounded px-0.5">
+                    <span>kg</span>
+                </div>
+            </td>
+        `).join('');
+
+        const bathOfficialCols = bathTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200">
+                <input type="text" value="${Math.round(t.official || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('bath_tier', ${i}, 'official', this.value)"
+                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs focus:border-sky-500 outline-none">
+            </td>
+        `).join('');
+
+        const cutOfficialCols = cutTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200">
+                <input type="text" value="${Math.round(t.official || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('cut_tier', ${i}, 'official', this.value)"
+                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs focus:border-emerald-500 outline-none">
+            </td>
+        `).join('');
+
+        const bathProbationCols = bathTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
+                <input type="text" value="${Math.round(t.probation || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('bath_tier', ${i}, 'probation', this.value)"
+                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs focus:border-amber-500 outline-none">
+            </td>
+        `).join('');
+
+        const cutProbationCols = cutTiers.map((t, i) => `
+            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
+                <input type="text" value="${Math.round(t.probation || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('cut_tier', ${i}, 'probation', this.value)"
+                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs focus:border-amber-500 outline-none">
+            </td>
+        `).join('');
+
+        const surchHeaderCols = surchRules.map((sr, i) => `
+            <th class="p-1.5 border border-slate-200 bg-slate-50 text-center min-w-[115px]">
+                <div class="flex items-center justify-between gap-1 mb-1">
+                    <input type="text" value="${sr.label || ''}" onchange="onSpaMatrixFieldChange('surcharge', ${i}, 'label', this.value)"
+                           class="w-full text-center font-bold text-sky-900 bg-white border border-slate-300 rounded px-1 py-0.5 text-xs">
+                    <button type="button" onclick="removeSpaMatrixSurcharge(${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa cột phụ thu này">&times;</button>
+                </div>
+                <select onchange="onSpaMatrixFieldChange('surcharge', ${i}, 'target_role', this.value)"
+                        class="w-full border border-slate-200 rounded px-1 py-0.5 text-[10.5px] font-semibold bg-white text-slate-600 cursor-pointer">
+                    <option value="cutter" ${sr.target_role === 'cutter' ? 'selected' : ''}>Hưởng: Thợ Cắt</option>
+                    <option value="bath" ${sr.target_role === 'bath' ? 'selected' : ''}>Hưởng: Thợ Tắm</option>
+                </select>
+            </th>
+        `).join('');
+
+        const surchOfficialCols = surchRules.map((sr, i) => `
+            <td class="p-1.5 border border-slate-200">
+                <input type="text" value="${Math.round(sr.official || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('surcharge', ${i}, 'official', this.value)"
+                       class="w-full text-right font-mono font-bold text-sky-800 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
+            </td>
+        `).join('');
+
+        const surchProbationCols = surchRules.map((sr, i) => `
+            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
+                <input type="text" value="${Math.round(sr.probation || 0).toLocaleString('vi-VN')}"
+                       onchange="onSpaMatrixMoneyChange('surcharge', ${i}, 'probation', this.value)"
+                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
+            </td>
+        `).join('');
+
+        container.innerHTML = `
+            <!-- Thanh thông số chung của Mẫu Cơ Sở -->
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-slate-700">Tên mẫu cơ sở:</span>
+                        <input type="text" value="${prof.name || ''}" onchange="onSpaMatrixProfileMetaChange('name', this.value)"
+                               class="border border-slate-300 rounded-lg px-2.5 py-1 bg-white font-bold text-slate-800 w-64">
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-slate-700">Chế độ tính:</span>
+                        <select onchange="onSpaMatrixProfileMetaChange('calc_mode', this.value)"
+                                class="border border-slate-300 rounded-lg px-2 py-1 bg-white font-bold text-sky-800 cursor-pointer">
+                            <option value="weight_matrix" ${prof.calc_mode !== 'role_rules' ? 'selected' : ''}>Bảng Bậc Cân Nặng & Phụ Thu (VNĐ)</option>
+                            <option value="role_rules" ${prof.calc_mode === 'role_rules' ? 'selected' : ''}>Tính Theo % Doanh Thu Dịch Vụ</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200" title="Khi 1 bé có cả Thợ Tắm 1 và Thợ Tắm 2 cùng làm">
+                        <span class="font-bold text-slate-700">Chia ca 2 Thợ Tắm:</span>
+                        <span class="text-slate-500">Thợ 1</span>
+                        <input type="number" step="5" min="0" max="100" value="${prof.worker1_share_pct ?? 50}"
+                               onchange="onSpaMatrixProfileMetaChange('worker1_share_pct', parseFloat(this.value)||50)"
+                               class="w-12 border border-slate-300 rounded px-1 py-0.5 text-center font-mono font-bold text-sky-700">%
+                        <span class="text-slate-400">/</span>
+                        <span class="text-slate-500">Thợ 2</span>
+                        <input type="number" step="5" min="0" max="100" value="${prof.worker2_share_pct ?? 50}"
+                               onchange="onSpaMatrixProfileMetaChange('worker2_share_pct', parseFloat(this.value)||50)"
+                               class="w-12 border border-slate-300 rounded px-1 py-0.5 text-center font-mono font-bold text-sky-700">%
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                        <span class="font-bold text-slate-700">NV Nhận bé:</span>
+                        <input type="number" step="1000" min="0" value="${prof.receiver_official ?? 0}"
+                               onchange="onSpaMatrixProfileMetaChange('receiver_official', parseFloat(this.value)||0)"
+                               class="w-20 border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-slate-700">
+                        <select onchange="onSpaMatrixProfileMetaChange('receiver_rate_type', this.value)"
+                                class="border border-slate-200 rounded px-1 py-0.5 text-xs font-semibold bg-slate-50">
+                            <option value="fixed" ${prof.receiver_rate_type !== 'percent' ? 'selected' : ''}>đ/ca</option>
+                            <option value="percent" ${prof.receiver_rate_type === 'percent' ? 'selected' : ''}>% DT</option>
+                        </select>
+                    </div>
+                </div>
+                ${cfg.profiles.length > 1 ? `
+                    <button type="button" onclick="deleteActiveSpaMatrixProfile()" class="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs cursor-pointer">
+                        <i class="ph ph-trash"></i> Xóa mẫu này
+                    </button>
+                ` : ''}
+            </div>
+
+            <!-- BẢNG 1: TẮM CHÓ (THEO BẬC KG) + MÈO + NHUỘM + CẮT TỈA (THEO BẬC KG) -->
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-xs font-bold text-slate-800 uppercase">1. Bảng Định Mức Hoa Hồng Chính (Tắm Chó · Mèo · Nhuộm · Cắt Tỉa) — Sửa trực tiếp số tiền & ngưỡng Kg</span>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="addSpaMatrixTier('bath')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-xs cursor-pointer">+ Thêm Bậc Kg Tắm</button>
+                        <button type="button" onclick="addSpaMatrixTier('cut')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs cursor-pointer">+ Thêm Bậc Kg Cắt</button>
+                    </div>
+                </div>
+                <table class="w-full border-collapse text-xs">
+                    <thead>
+                        <tr>
+                            <th class="p-2 border border-slate-200 bg-slate-100 text-left font-bold text-slate-700 min-w-[130px]">Phân Nhóm</th>
+                            <th colspan="${bathTiers.length}" class="p-1.5 border border-slate-200 bg-sky-100/80 text-sky-900 font-bold text-center">TẮM CHÓ (${bathTiers.length} BẬC CÂN NẶNG)</th>
+                            <th class="p-1.5 border border-slate-200 bg-amber-100/70 text-amber-900 font-bold text-center min-w-[90px]">MÈO</th>
+                            <th class="p-1.5 border border-slate-200 bg-sky-50 text-sky-900 font-bold text-center min-w-[90px]">NHUỘM</th>
+                            <th colspan="${cutTiers.length}" class="p-1.5 border border-slate-200 bg-emerald-100/80 text-emerald-900 font-bold text-center">CẮT TỈA (${cutTiers.length} BẬC CÂN NẶNG)</th>
+                        </tr>
+                        <tr>
+                            <th class="p-2 border border-slate-200 bg-slate-50 text-left font-bold text-slate-700">Size / Hạng Mục</th>
+                            ${bathThCols}
+                            <th class="p-1.5 border border-slate-200 bg-amber-50/60 font-bold text-slate-800 text-center">Mèo</th>
+                            <th class="p-1.5 border border-slate-200 bg-sky-50/40 font-bold text-slate-800 text-center">Nhuộm</th>
+                            ${cutThCols}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="p-2 border border-slate-200 bg-slate-50 font-bold text-sky-800">Ngưỡng Số Kg</td>
+                            ${bathRangeCols}
+                            <td class="p-1.5 border border-slate-200 bg-slate-50/50 text-center font-mono text-slate-500 text-[11px]">Mọi kg</td>
+                            <td class="p-1.5 border border-slate-200 bg-slate-50/50 text-center font-mono text-slate-500 text-[11px]">Mọi kg</td>
+                            ${cutRangeCols}
+                        </tr>
+                        <tr>
+                            <td class="p-2 border border-slate-200 bg-emerald-50/60 font-bold text-emerald-900">★ NV Chính thức</td>
+                            ${bathOfficialCols}
+                            <td class="p-1.5 border border-slate-200">
+                                <input type="text" value="${Math.round(catRate.official || 0).toLocaleString('vi-VN')}"
+                                       onchange="onSpaMatrixMoneyChange('cat_rate', 0, 'official', this.value)"
+                                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
+                            </td>
+                            <td class="p-1.5 border border-slate-200">
+                                <input type="text" value="${Math.round(dyeRate.official || 0).toLocaleString('vi-VN')}"
+                                       onchange="onSpaMatrixMoneyChange('dye_rate', 0, 'official', this.value)"
+                                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
+                            </td>
+                            ${cutOfficialCols}
+                        </tr>
+                        <tr>
+                            <td class="p-2 border border-slate-200 bg-amber-50 font-bold text-amber-900">⏳ NV Thử việc</td>
+                            ${bathProbationCols}
+                            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
+                                <input type="text" value="${Math.round(catRate.probation || 0).toLocaleString('vi-VN')}"
+                                       onchange="onSpaMatrixMoneyChange('cat_rate', 0, 'probation', this.value)"
+                                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
+                            </td>
+                            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
+                                <input type="text" value="${Math.round(dyeRate.probation || 0).toLocaleString('vi-VN')}"
+                                       onchange="onSpaMatrixMoneyChange('dye_rate', 0, 'probation', this.value)"
+                                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
+                            </td>
+                            ${cutProbationCols}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- BẢNG 2: 7 CỘT PHỤ THU (PT CẮT ĐẦU · CẮT NGHỆ THUẬT · PT GỠ RỐI 50K -> 250K) -->
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-bold text-slate-800 uppercase">2. Bảng Hoa Hồng Phụ Thu Chuyên Môn (Cắt Đầu · Nghệ Thuật · Gỡ Rối 50K – 250K)</span>
+                        <span class="text-xs text-slate-500">(PT Cắt đầu & Nghệ thuật cộng cho <b>Thợ Cắt</b> · PT Gỡ rối cộng cho <b>Thợ Tắm</b>)</span>
+                    </div>
+                    <button type="button" onclick="addSpaMatrixSurcharge()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-xs cursor-pointer">+ Thêm Cột Phụ Thu</button>
+                </div>
+                <table class="w-full border-collapse text-xs">
+                    <thead>
+                        <tr>
+                            <th class="p-2 border border-slate-200 bg-slate-50 text-left font-bold text-slate-700 min-w-[130px]">Khoản Phụ Thu</th>
+                            ${surchHeaderCols}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="p-2 border border-slate-200 bg-emerald-50/60 font-bold text-emerald-900">★ NV Chính thức</td>
+                            ${surchOfficialCols}
+                        </tr>
+                        <tr>
+                            <td class="p-2 border border-slate-200 bg-amber-50 font-bold text-amber-900">⏳ NV Thử việc</td>
+                            ${surchProbationCols}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function parseRawMoney(val) {
+        const cleaned = String(val || '').replace(/[^\d.-]/g, '');
+        return parseFloat(cleaned) || 0;
+    }
+
+    window.onSpaMatrixProfileMetaChange = function(field, val) {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        prof[field] = val;
+        if (field === 'calc_mode' || field === 'name') {
+            renderSpaMatrixEditor(currentSpaMatrixConfig);
+        }
+    };
+
+    window.onSpaMatrixFieldChange = function(group, idx, field, val) {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        if (group === 'bath_tier' && prof.bath_tiers && prof.bath_tiers[idx]) {
+            prof.bath_tiers[idx][field] = val;
+        } else if (group === 'cut_tier' && prof.cut_tiers && prof.cut_tiers[idx]) {
+            prof.cut_tiers[idx][field] = val;
+        } else if (group === 'surcharge' && prof.surcharge_rules && prof.surcharge_rules[idx]) {
+            prof.surcharge_rules[idx][field] = val;
+        }
+    };
+
+    window.onSpaMatrixMoneyChange = function(group, idx, tierKey, rawVal) {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        const num = parseRawMoney(rawVal);
+        if (group === 'bath_tier' && prof.bath_tiers && prof.bath_tiers[idx]) {
+            prof.bath_tiers[idx][tierKey] = num;
+        } else if (group === 'cut_tier' && prof.cut_tiers && prof.cut_tiers[idx]) {
+            prof.cut_tiers[idx][tierKey] = num;
+        } else if (group === 'cat_rate') {
+            prof.cat_rate = prof.cat_rate || {};
+            prof.cat_rate[tierKey] = num;
+        } else if (group === 'dye_rate') {
+            prof.dye_rate = prof.dye_rate || {};
+            prof.dye_rate[tierKey] = num;
+        } else if (group === 'surcharge' && prof.surcharge_rules && prof.surcharge_rules[idx]) {
+            prof.surcharge_rules[idx][tierKey] = num;
+        }
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+
+    window.switchSpaMatrixProfile = async function(profileId) {
+        if (!currentSpaMatrixConfig) return;
+        currentSpaMatrixConfig.active_profile_id = profileId;
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+        await saveSpaCommissionMatrix(true);
+    };
+
+    window.cloneNewSpaMatrixProfile = async function() {
+        const base = getActiveMatrixProfile();
+        if (!base) return;
+        const newName = prompt('Nhập tên Mẫu Hoa Hồng cho Cơ Sở Mới:', `${base.name} (Cơ sở mới)`);
+        if (!newName || !newName.trim()) return;
+        const cloned = JSON.parse(JSON.stringify(base));
+        cloned.id = 'branch_' + Date.now();
+        cloned.name = newName.trim();
+        currentSpaMatrixConfig.profiles.push(cloned);
+        currentSpaMatrixConfig.active_profile_id = cloned.id;
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+        await saveSpaCommissionMatrix();
+    };
+
+    window.deleteActiveSpaMatrixProfile = async function() {
+        if (!currentSpaMatrixConfig || currentSpaMatrixConfig.profiles.length <= 1) return;
+        const prof = getActiveMatrixProfile();
+        if (!confirm(`Bạn có chắc muốn xóa mẫu "${prof.name}"?`)) return;
+        currentSpaMatrixConfig.profiles = currentSpaMatrixConfig.profiles.filter(p => p.id !== prof.id);
+        currentSpaMatrixConfig.active_profile_id = currentSpaMatrixConfig.profiles[0].id;
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+        await saveSpaCommissionMatrix();
+    };
+
+    window.addSpaMatrixTier = function(type) {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        if (type === 'bath') {
+            prof.bath_tiers = prof.bath_tiers || [];
+            prof.bath_tiers.push({
+                id: 'bath_' + Date.now(),
+                label: 'Bậc mới',
+                range_label: '<=50kg',
+                max_kg: 50,
+                official: 150000,
+                probation: 125000
+            });
+        } else {
+            prof.cut_tiers = prof.cut_tiers || [];
+            prof.cut_tiers.push({
+                id: 'cut_' + Date.now(),
+                label: 'Cắt mới',
+                range_label: '>40kg',
+                max_kg: 999,
+                official: 140000,
+                probation: 120000
+            });
+        }
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+
+    window.removeSpaMatrixTier = function(type, idx) {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        if (type === 'bath' && prof.bath_tiers && prof.bath_tiers.length > 1) {
+            prof.bath_tiers.splice(idx, 1);
+        } else if (type === 'cut' && prof.cut_tiers && prof.cut_tiers.length > 1) {
+            prof.cut_tiers.splice(idx, 1);
+        }
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+
+    window.addSpaMatrixSurcharge = function() {
+        const prof = getActiveMatrixProfile();
+        if (!prof) return;
+        prof.surcharge_rules = prof.surcharge_rules || [];
+        prof.surcharge_rules.push({
+            id: 'pt_custom_' + Date.now(),
+            label: 'PT Mới',
+            target_role: 'cutter',
+            kind: 'custom',
+            fee_threshold: 0,
+            official: 25000,
+            probation: 25000
+        });
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+
+    window.removeSpaMatrixSurcharge = function(idx) {
+        const prof = getActiveMatrixProfile();
+        if (!prof || !prof.surcharge_rules) return;
+        prof.surcharge_rules.splice(idx, 1);
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+
+    window.exportImportSpaMatrixModal = async function() {
+        if (!currentSpaMatrixConfig) return;
+        const jsonStr = JSON.stringify(currentSpaMatrixConfig, null, 2);
+        const input = prompt(
+            'Sao chép chuỗi JSON dưới đây để mang sang Cơ sở khác, hoặc dán chuỗi JSON mới vào để Nhập (Import):',
+            jsonStr
+        );
+        if (!input || input.trim() === jsonStr.trim()) return;
+        try {
+            const parsed = JSON.parse(input);
+            if (!parsed || !Array.isArray(parsed.profiles) || !parsed.profiles.length) {
+                alert('Dữ liệu JSON không đúng định dạng mẫu hoa hồng Spa!');
+                return;
+            }
+            currentSpaMatrixConfig = parsed;
+            renderSpaMatrixEditor(currentSpaMatrixConfig);
+            await saveSpaCommissionMatrix();
+        } catch (e) {
+            alert('Lỗi đọc JSON: ' + e.message);
+        }
+    };
+
+    window.saveSpaCommissionMatrix = async function(silent = false) {
+        if (!currentSpaMatrixConfig) return;
+        const month = getSelectedMonth();
+        try {
+            const res = await fetch('/api/hrm/commissions/spa-matrix', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentSpaMatrixConfig)
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.detail || 'Lỗi lưu bảng hoa hồng Spa');
+                return;
+            }
+            if (!silent && window.showToast) {
+                window.showToast('Đã lưu Bảng Cài Đặt Ma Trận Hoa Hồng Spa & tính lại số liệu tháng!', 'success');
+            }
+            await loadHrmCommissions(month);
+        } catch (e) {
+            console.error('saveSpaCommissionMatrix err:', e);
         }
     };
 })();

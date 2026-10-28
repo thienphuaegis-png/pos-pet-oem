@@ -26,7 +26,7 @@
                 btnActual.className = "px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 border-b-2 border-transparent transition flex items-center gap-1.5 cursor-pointer";
             }
             if (btnRequests) {
-                btnRequests.className = "px-4 py-2 text-xs font-bold text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50 rounded-t-lg transition flex items-center gap-1.5 cursor-pointer";
+                btnRequests.className = "px-4 py-2 text-xs font-bold text-sky-700 border-b-2 border-sky-600 bg-sky-50/50 rounded-t-lg transition flex items-center gap-1.5 cursor-pointer";
             }
             loadExpenseRequests();
         } else {
@@ -111,7 +111,7 @@
         if (!tbody) return;
 
         if (!items || items.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="13" class="p-8 text-center text-xs text-slate-400 italic">Chưa có yêu cầu chi nào phù hợp bộ lọc.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="13" class="p-8 text-center text-xs text-slate-400 ">Chưa có yêu cầu chi nào phù hợp bộ lọc.</td></tr>`;
             const chkAll = document.getElementById('check-all-exp-requests');
             if (chkAll) { chkAll.checked = false; chkAll.indeterminate = false; }
             return;
@@ -136,30 +136,30 @@
             const isPending = item.status === 'pending';
             const isChecked = selectedExpenseRequestIds.has(item.id);
             const checkboxHtml = isPending
-                ? `<input type="checkbox" class="exp-row-checkbox w-4 h-4 rounded text-indigo-600 focus:ring-indigo-400 cursor-pointer" value="${item.id}" ${isChecked ? 'checked' : ''} onchange="toggleSelectExpenseRequest(${item.id}, this)">`
+                ? `<input type="checkbox" class="exp-row-checkbox w-4 h-4 rounded text-sky-600 focus:ring-sky-400 cursor-pointer" value="${item.id}" ${isChecked ? 'checked' : ''} onchange="toggleSelectExpenseRequest(${item.id}, this)">`
                 : `<span class="text-slate-300">-</span>`;
 
             const isReimb = item.type === 'reimbursement';
             const typeBadge = isReimb
-                ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">NV Chi Hộ</span>`
-                : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">Dự Chi Quán</span>`;
+                ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700 border border-sky-200">NV Chi Hộ</span>`
+                : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">Dự Chi Quán</span>`;
 
             let statusBadge = '';
             if (item.status === 'pending') {
-                statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">⏳ Chờ duyệt</span>`;
+                statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">⏳ Chờ duyệt</span>`;
             } else if (item.status === 'completed') {
-                statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Đã hoàn tiền</span>`;
+                statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Đã hoàn tiền</span>`;
             } else {
-                statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">✕ Đã hủy</span>`;
+                statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">✕ Đã hủy</span>`;
             }
 
             // Thumbnail bill
-            let imgHtml = `<span class="text-[11px] text-slate-300">-</span>`;
+            let imgHtml = `<span class="text-xs text-slate-300">-</span>`;
             if (item.bill_image) {
                 imgHtml = `
                     <div class="relative group cursor-pointer inline-block" onclick="viewExpenseBillModal('${encodeURIComponent(item.bill_image)}')">
                         <img src="${item.bill_image}" alt="Bill" class="w-8 h-8 object-cover rounded border border-slate-200 shadow-2xs group-hover:scale-110 transition" />
-                        <span class="absolute inset-0 bg-black/20 rounded opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold">🔍</span>
+                        <span class="absolute inset-0 bg-black/20 rounded opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold">🔍</span>
                     </div>
                 `;
             }
@@ -169,10 +169,10 @@
             if (item.status === 'pending') {
                 actionsHtml = `
                     <div class="flex items-center justify-end gap-1.5">
-                        <button onclick="openApproveExpenseModal(${item.id}, '${item.code}', '${escapeHtml(item.employee_name)}', ${item.amount})" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                        <button onclick="openApproveExpenseModal(${item.id}, '${item.code}', '${escapeHtml(item.employee_name)}', ${item.amount})" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition flex items-center gap-1 cursor-pointer">
                             <span>✓</span> <span>Duyệt & Chi</span>
                         </button>
-                        <button onclick="cancelExpenseRequest(${item.id}, '${item.code}')" class="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 font-medium text-[11px] border border-slate-200 transition cursor-pointer" title="Hủy yêu cầu">
+                        <button onclick="cancelExpenseRequest(${item.id}, '${item.code}')" class="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 font-medium text-xs border border-slate-200 transition cursor-pointer" title="Hủy yêu cầu">
                             <span>✕</span>
                         </button>
                     </div>
@@ -180,20 +180,20 @@
             } else if (item.status === 'completed' && item.cashbook_code) {
                 actionsHtml = `
                     <div class="text-right">
-                        <span class="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold" title="Đã hạch toán sang Sổ Quỹ">
+                        <span class="text-xs font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold" title="Đã hạch toán sang Sổ Quỹ">
                             Phiếu: ${item.cashbook_code}
                         </span>
                     </div>
                 `;
             } else {
-                actionsHtml = `<div class="text-right text-[11px] text-slate-400 italic">Không có</div>`;
+                actionsHtml = `<div class="text-right text-xs text-slate-400 ">Không có</div>`;
             }
 
-            const bankInfo = item.bank_account_info ? `<div class="text-[10px] text-slate-400 truncate max-w-[140px]" title="${escapeHtml(item.bank_account_info)}">🏦 ${escapeHtml(item.bank_account_info)}</div>` : '';
-            const dueDate = item.due_date ? `<div class="text-[10px] text-amber-600">Hạn: ${formatDate(item.due_date)}</div>` : '';
+            const bankInfo = item.bank_account_info ? `<div class="text-xs text-slate-400 truncate max-w-[140px]" title="${escapeHtml(item.bank_account_info)}">🏦 ${escapeHtml(item.bank_account_info)}</div>` : '';
+            const dueDate = item.due_date ? `<div class="text-xs text-amber-600">Hạn: ${formatDate(item.due_date)}</div>` : '';
 
             return `
-                <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition text-xs ${isChecked ? 'bg-indigo-50/40' : ''}">
+                <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition text-xs ${isChecked ? 'bg-sky-50/40' : ''}">
                     <td class="p-2.5 text-center">${checkboxHtml}</td>
                     <td class="p-2.5 font-mono font-bold text-slate-900">${item.code}</td>
                     <td class="p-2.5">${typeBadge}</td>
@@ -203,7 +203,7 @@
                     </td>
                     <td class="p-2.5 font-semibold text-slate-700 whitespace-nowrap">${formatDate(item.expense_date) || '<span class="text-gray-400">---</span>'}</td>
                     <td class="p-2.5 text-slate-700 font-medium whitespace-nowrap">${item.created_by || 'Nhân viên'}</td>
-                    <td class="p-2.5 text-slate-500 whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                    <td class="p-2.5 text-slate-500 whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-xs text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                     <td class="p-2.5 text-slate-600 font-medium">${escapeHtml(item.category)}</td>
                     <td class="p-2.5 font-bold text-rose-600 text-right">${formatVND(item.amount)}</td>
                     <td class="p-2.5 text-center">${imgHtml}</td>
@@ -583,7 +583,7 @@
                     <div>
                         <span class="font-mono font-bold text-slate-800">${it.code}</span>
                         <span class="text-slate-500 ml-1.5">${escapeHtml(it.employee_name)}</span>
-                        <span class="text-slate-400 text-[10px] block">${escapeHtml(it.category || '')}: ${escapeHtml(it.note || '-')}</span>
+                        <span class="text-slate-400 text-xs block">${escapeHtml(it.category || '')}: ${escapeHtml(it.note || '-')}</span>
                     </div>
                     <span class="font-bold text-rose-600">${formatVND(it.amount)}</span>
                 </div>

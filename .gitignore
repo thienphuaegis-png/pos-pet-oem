@@ -8,6 +8,7 @@ data/*.db-wal
 data/*.db-shm
 data/*.sql
 data/*.bak*
+data/demo_seed_manifest.json
 logs/
 *.log
 cf_tunnel.log

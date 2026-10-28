@@ -33,16 +33,29 @@ def clean_num(val):
 
 router = APIRouter(prefix="/api/price-lists", tags=["Price Lists"])
 
+def _is_base_retail_pl(cur, price_list_id: int) -> bool:
+    cur.execute("SELECT code FROM price_lists WHERE id = ?", (price_list_id,))
+    r = cur.fetchone()
+    return bool(r and str(r["code"] or "").strip().upper() == "PL-BANLE")
+
 # ========== PRICE LISTS ==========
 @router.get("")
 def list_price_lists():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        SELECT pl.*, 
-               (SELECT COUNT(*) FROM product_price_list ppl WHERE ppl.price_list_id = pl.id) as product_count
+        SELECT pl.*,
+               CASE
+                   WHEN UPPER(TRIM(pl.code)) = 'PL-BANLE' THEN (
+                       SELECT COUNT(*) FROM products p WHERE COALESCE(p.is_active, 1) = 1 AND COALESCE(p.type, 'product') != 'material'
+                   )
+                   ELSE (
+                       SELECT COUNT(*) FROM product_price_list ppl WHERE ppl.price_list_id = pl.id
+                   )
+               END as product_count,
+               CASE WHEN UPPER(TRIM(pl.code)) = 'PL-BANLE' THEN 1 ELSE 0 END as is_base_retail
         FROM price_lists pl
-        ORDER BY pl.id DESC
+        ORDER BY CASE WHEN UPPER(TRIM(pl.code)) = 'PL-BANLE' THEN 0 ELSE 1 END ASC, pl.id ASC
     """)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
@@ -119,26 +132,76 @@ def list_product_prices(price_list_id: int):
     conn.close()
     return rows
 
+@router.get("/compare-matrix")
+def get_compare_price_matrix(ids: str = "", search: Optional[str] = None, category: Optional[str] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    pl_ids = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+    if not pl_ids:
+        cur.execute("SELECT id FROM price_lists WHERE COALESCE(is_active, 1) = 1 ORDER BY CASE WHEN UPPER(TRIM(code)) = 'PL-BANLE' THEN 0 ELSE 1 END ASC, id ASC")
+        pl_ids = [r["id"] for r in cur.fetchall()]
+
+    placeholders = ",".join(["?"] * len(pl_ids)) if pl_ids else "0"
+    cur.execute(f"SELECT id, code, name, CASE WHEN UPPER(TRIM(code)) = 'PL-BANLE' THEN 1 ELSE 0 END as is_base_retail FROM price_lists WHERE id IN ({placeholders})", tuple(pl_ids))
+    pl_map = {r["id"]: dict(r) for r in cur.fetchall()}
+    ordered_pls = [pl_map[i] for i in pl_ids if i in pl_map]
+
+    query = """
+        SELECT p.id as product_id, p.code as product_code, p.name as product_name, p.unit,
+               COALESCE(p.category, 'Khác') as category,
+               COALESCE(p.cost_price, 0) as cost_price,
+               COALESCE(p.sell_price, 0) as default_retail_price,
+               COALESCE(p.image_url, '') as image_url
+        FROM products p
+        WHERE COALESCE(p.type, 'product') != 'material' AND COALESCE(p.is_active, 1) = 1
+    """
+    params = []
+    if search:
+        query += " AND (p.name LIKE ? OR p.code LIKE ?)"
+        s = f"%{search}%"
+        params.extend([s, s])
+    if category:
+        query += " AND COALESCE(p.category, 'Khác') = ?"
+        params.append(category)
+    query += " ORDER BY p.name ASC"
+    cur.execute(query, tuple(params))
+    prods = [dict(r) for r in cur.fetchall()]
+
+    cur.execute(f"SELECT product_id, price_list_id, price FROM product_price_list WHERE price_list_id IN ({placeholders})", tuple(pl_ids))
+    price_lookup = {}
+    for r in cur.fetchall():
+        price_lookup.setdefault(r["product_id"], {})[r["price_list_id"]] = r["price"]
+
+    for p in prods:
+        p["prices"] = price_lookup.get(p["product_id"], {})
+
+    conn.close()
+    return {"price_lists": ordered_pls, "items": prods}
+
 @router.get("/{price_list_id}/matrix")
 def get_price_list_matrix(price_list_id: int, search: Optional[str] = None, category: Optional[str] = None):
     conn = get_db()
     cur = conn.cursor()
+    is_base = _is_base_retail_pl(cur, price_list_id)
     query = """
         SELECT 
             p.id as product_id, p.code as product_code, p.name as product_name, p.unit,
             COALESCE(p.category, 'Khác') as category,
             COALESCE(p.sell_price, 0) as default_retail_price,
-            ppl.price as custom_price,
+            CASE WHEN ? = 1 THEN COALESCE(p.sell_price, 0) ELSE ppl.price END as custom_price,
             CASE 
+                WHEN ? = 1 THEN COALESCE(p.sell_price, 0)
                 WHEN ppl.price IS NOT NULL AND ppl.price > 0 THEN ppl.price 
                 ELSE COALESCE(p.sell_price, 0) 
             END as effective_price,
-            CASE WHEN (ppl.price IS NOT NULL AND ppl.price > 0) THEN 1 ELSE 0 END as is_custom
+            CASE WHEN ? = 1 THEN 1 WHEN (ppl.price IS NOT NULL AND ppl.price > 0) THEN 1 ELSE 0 END as is_custom,
+            ? as is_base_retail
         FROM products p
         LEFT JOIN product_price_list ppl ON ppl.product_id = p.id AND ppl.price_list_id = ?
-        WHERE (p.type = 'product' OR p.type IS NULL) AND COALESCE(p.is_active, 1) = 1
+        WHERE COALESCE(p.type, 'product') != 'material' AND COALESCE(p.is_active, 1) = 1
     """
-    params = [price_list_id]
+    b_flag = 1 if is_base else 0
+    params = [b_flag, b_flag, b_flag, b_flag, price_list_id]
     if search:
         query += " AND (p.name LIKE ? OR p.code LIKE ?)"
         s = f"%{search}%"
@@ -164,7 +227,8 @@ class BulkDiscountReq(BaseModel):
 def apply_bulk_discount(price_list_id: int, req: BulkDiscountReq, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    query = "SELECT id, sell_price FROM products WHERE (type = 'product' OR type IS NULL) AND sell_price > 0 AND COALESCE(is_active, 1) = 1"
+    is_base = _is_base_retail_pl(cur, price_list_id)
+    query = "SELECT id, sell_price FROM products WHERE COALESCE(type, 'product') != 'material' AND sell_price > 0 AND COALESCE(is_active, 1) = 1"
     params = []
     if req.category:
         query += " AND COALESCE(category, 'Khác') = ?"
@@ -175,11 +239,14 @@ def apply_bulk_discount(price_list_id: int, req: BulkDiscountReq, user=Depends(r
     factor = (100.0 - pct) / 100.0
     for p in prods:
         new_price = round((p['sell_price'] or 0) * factor, -2)
-        cur.execute("""
-            INSERT INTO product_price_list (product_id, price_list_id, price, min_qty, discount_percent)
-            VALUES (?, ?, ?, 1, ?)
-            ON CONFLICT(product_id, price_list_id) DO UPDATE SET price = excluded.price, discount_percent = excluded.discount_percent
-        """, (p['id'], price_list_id, new_price, pct))
+        if is_base:
+            cur.execute("UPDATE products SET sell_price = ? WHERE id = ?", (new_price, p['id']))
+        else:
+            cur.execute("""
+                INSERT INTO product_price_list (product_id, price_list_id, price, min_qty, discount_percent)
+                VALUES (?, ?, ?, 1, ?)
+                ON CONFLICT(product_id, price_list_id) DO UPDATE SET price = excluded.price, discount_percent = excluded.discount_percent
+            """, (p['id'], price_list_id, new_price, pct))
     conn.commit()
     conn.close()
     return {"status": "ok", "updated_count": len(prods)}
@@ -188,6 +255,12 @@ def apply_bulk_discount(price_list_id: int, req: BulkDiscountReq, user=Depends(r
 def set_single_product_price(price_list_id: int, req: SetProductPriceReq, user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
+    if _is_base_retail_pl(cur, price_list_id):
+        new_p = float(req.custom_price) if (req.custom_price is not None and req.custom_price >= 0) else 0.0
+        cur.execute("UPDATE products SET sell_price = ? WHERE id = ?", (new_p, req.product_id))
+        conn.commit()
+        conn.close()
+        return {"status": "ok"}
     if req.custom_price is None or req.custom_price <= 0:
         cur.execute("DELETE FROM product_price_list WHERE price_list_id = ? AND product_id = ?", (price_list_id, req.product_id))
     else:
@@ -332,15 +405,21 @@ def export_price_list_excel(price_list_id: int):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
+def _slug_code(text: str, prefix: str = "PL") -> str:
+    import unicodedata, re
+    raw = str(text or "").replace("đ", "d").replace("Đ", "D")
+    s = unicodedata.normalize("NFD", raw).encode("ascii", "ignore").decode("ascii").upper()
+    for drop in ("BANG GIA", "GIA KHACH", "GIA SI CHO", "GIA SI", "GIA"):
+        if s.startswith(drop):
+            s = s[len(drop):].strip()
+    s = re.sub(r"[^A-Z0-9]+", "-", s).strip("-") or "CUSTOM"
+    return f"{prefix}-{s}" if prefix else s
+
+@router.post("/import-excel")
 @router.post("/{price_list_id}/import-excel")
-async def import_price_list_excel(price_list_id: int, file: UploadFile = File(...), user=Depends(require_permission("price_lists.manage"))):
+async def import_price_list_excel(price_list_id: int = 0, file: UploadFile = File(...), user=Depends(require_permission("price_lists.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, name FROM price_lists WHERE id = ?", (price_list_id,))
-    pl = cur.fetchone()
-    if not pl:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Không tìm thấy bảng giá")
 
     content = await file.read()
     if not content:
@@ -366,7 +445,8 @@ async def import_price_list_excel(price_list_id: int, file: UploadFile = File(..
         conn.close()
         raise HTTPException(status_code=400, detail="File không có dữ liệu (yêu cầu tối thiểu 1 dòng tiêu đề và 1 dòng dữ liệu)")
 
-    header_row = [str(c or "").strip().lower() for c in rows[0]]
+    orig_headers = [str(c or "").strip() for c in rows[0]]
+    header_row = [h.lower() for h in orig_headers]
 
     def find_col(exact_matches, partial_matches=None):
         for idx, h in enumerate(header_row):
@@ -380,8 +460,8 @@ async def import_price_list_excel(price_list_id: int, file: UploadFile = File(..
                         return idx
         return -1
 
-    idx_code = find_col(["mã sản phẩm", "mã sp", "mã hàng", "mã", "code", "sku"], ["mã", "code", "sku"])
-    idx_name = find_col(["tên sản phẩm", "tên sp", "tên hàng", "tên hàng hóa", "tên", "name"], ["tên", "name", "sản phẩm"])
+    idx_code = find_col(["mã sản phẩm", "mã sp", "mã hàng", "mã", "code", "sku"], ["mã hàng", "mã sản phẩm", "mã sp", "code", "sku"])
+    idx_name = find_col(["tên sản phẩm", "tên sp", "tên hàng", "tên hàng hóa", "tên", "name"], ["tên hàng", "tên sản phẩm", "tên", "name"])
     if idx_name == idx_code and idx_name != -1:
         idx_name = -1
         for idx, h in enumerate(header_row):
@@ -389,30 +469,161 @@ async def import_price_list_excel(price_list_id: int, file: UploadFile = File(..
                 idx_name = idx
                 break
 
-    # Ưu tiên cột giá đại lý / giá riêng trước để tránh bắt nhầm cột 'Giá bán lẻ mặc định'
+    if idx_code == -1 and idx_name == -1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Mã sản phẩm' hoặc 'Tên sản phẩm' trong file!")
+
+    idx_base_retail = find_col(["bảng giá chung", "giá bán lẻ mặc định (đ)", "giá bán lẻ mặc định", "giá lẻ mặc định"])
+
+    # Nhận diện file Ma trận nhiều bảng giá KiotViet (BangGia_KV): có cột 'bảng giá chung' hoặc >=2 cột bảng giá riêng
+    meta_exact = {
+        "stt", "mã sản phẩm", "mã sp", "mã hàng", "mã", "code", "sku",
+        "tên sản phẩm", "tên sp", "tên hàng", "tên hàng hóa", "tên", "name",
+        "đơn vị tính", "đvt", "đơn vị", "unit",
+        "nhóm hàng", "nhóm hàng(3 cấp)", "nhóm", "category", "danh mục",
+        "tồn kho", "tồn", "số lượng", "stock",
+        "giá vốn", "vốn", "cost", "giá nhập cuối", "giá nhập",
+        "bảng giá chung", "giá bán lẻ mặc định (đ)", "giá bán lẻ mặc định", "giá lẻ mặc định",
+        "số lượng tối thiểu", "số lượng tối thiểu (min)", "min_qty", "sl tối thiểu",
+        "chiết khấu", "chiết khấu (%)", "chiết khấu %", "discount", "discount_percent", "% ck",
+        "giá riêng / giá đại lý (đ)"
+    }
+    kv_price_cols = []
+    for idx, h_low in enumerate(header_row):
+        if idx in (idx_code, idx_name, idx_base_retail) or not h_low or h_low in meta_exact:
+            continue
+        if any(k in h_low for k in ("bảng giá", "giá khách", "giá sỉ", "giá đại lý", "vip", "diamond", "gold", "titan", "nội bộ")):
+            kv_price_cols.append((idx, orig_headers[idx]))
+
+    cur.execute("SELECT id, code, name, sell_price FROM products WHERE COALESCE(is_active, 1) = 1")
+    all_prods = cur.fetchall()
+    prod_by_code = {str(p["code"]).strip().lower(): p for p in all_prods if p["code"]}
+    prod_by_name = {str(p["name"]).strip().lower(): p for p in all_prods if p["name"]}
+
+    # Nhánh 1: File KiotViet đa cột bảng giá (tự tạo Bảng giá + Hạng khách hàng + đồng bộ tất cả cột)
+    if kv_price_cols and (idx_base_retail != -1 or len(kv_price_cols) >= 2):
+        col_to_pl = {}
+        synced_list_names = []
+        for idx_col, col_title in kv_price_cols:
+            cur.execute("SELECT id, code, name FROM price_lists WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", (col_title,))
+            pl_row = cur.fetchone()
+            if not pl_row:
+                pl_code = _slug_code(col_title, "PL")
+                cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description, is_active) VALUES (?, ?, ?, 1)",
+                            (pl_code, col_title, f"Đồng bộ từ KiotViet ({col_title})"))
+                cur.execute("SELECT id, code, name FROM price_lists WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR code = ?", (col_title, pl_code))
+                pl_row = cur.fetchone()
+            pl_id = pl_row["id"]
+            col_to_pl[idx_col] = pl_id
+            synced_list_names.append(col_title)
+
+            # Tự động tạo / liên kết Hạng khách hàng tương ứng
+            seg_name = col_title
+            for prefix_rm in ("Bảng giá ", "Giá Khách ", "Giá sỉ cho ", "Giá "):
+                if seg_name.lower().startswith(prefix_rm.lower()):
+                    seg_name = seg_name[len(prefix_rm):].strip()
+                    break
+            if seg_name:
+                seg_name = seg_name[0].upper() + seg_name[1:]
+            seg_code = _slug_code(col_title, "")
+            cur.execute("SELECT id FROM customer_segments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR code = ?", (seg_name, seg_code))
+            seg_row = cur.fetchone()
+            if seg_row:
+                cur.execute("UPDATE customer_segments SET price_list_id = ? WHERE id = ?", (pl_id, seg_row["id"]))
+            else:
+                cur.execute(
+                    "INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, price_list_id, min_points, allow_points, is_active) VALUES (?, ?, 0, 10, ?, 0, 1, 1)",
+                    (seg_code, seg_name, pl_id)
+                )
+
+        # Đảm bảo có Bảng giá chung (PL-BANLE) và gắn với hạng Khách lẻ mặc định (LE)
+        cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description, is_active) VALUES ('PL-BANLE', 'Giá Bán Lẻ', 'Bảng giá chung (Giá bán lẻ mặc định)', 1)")
+        cur.execute("SELECT id FROM price_lists WHERE code = 'PL-BANLE'")
+        banle_pl = cur.fetchone()
+        banle_pl_id = banle_pl["id"] if banle_pl else None
+        cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, price_list_id, min_points, allow_points, is_active) VALUES ('LE', 'Bán lẻ', 0, 1, ?, 0, 1, 1)", (banle_pl_id,))
+        if banle_pl_id:
+            cur.execute("UPDATE customer_segments SET price_list_id = ? WHERE code = 'LE'", (banle_pl_id,))
+
+        created_count = 0
+        updated_count = 0
+        skipped_count = 0
+        errors = []
+
+        for row_idx, r in enumerate(rows[1:], start=2):
+            if not r or all(c is None or str(c).strip() == "" for c in r):
+                continue
+            code_val = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) and r[idx_code] is not None else ""
+            name_val = str(r[idx_name] or "").strip() if idx_name != -1 and idx_name < len(r) and r[idx_name] is not None else ""
+            if not code_val and not name_val:
+                continue
+
+            # Nếu có Mã hàng thì khớp chính xác theo Mã hàng (không fallback theo tên để tránh dòng ĐVT quy đổi đè giá món gốc)
+            p_obj = prod_by_code.get(code_val.lower()) if code_val else prod_by_name.get(name_val.lower())
+            if not p_obj:
+                skipped_count += 1
+                continue
+
+            pid = p_obj["id"]
+            base_retail = clean_num(r[idx_base_retail]) if idx_base_retail != -1 and idx_base_retail < len(r) and r[idx_base_retail] is not None else float(p_obj["sell_price"] or 0.0)
+            if idx_base_retail != -1 and base_retail > 0 and base_retail != float(p_obj["sell_price"] or 0.0):
+                cur.execute("UPDATE products SET sell_price = ? WHERE id = ?", (base_retail, pid))
+
+            for idx_col, pl_id in col_to_pl.items():
+                raw_p = r[idx_col] if idx_col < len(r) else None
+                if raw_p is None or str(raw_p).strip() == "":
+                    continue
+                p_val = clean_num(raw_p)
+                cur.execute("SELECT id FROM product_price_list WHERE product_id = ? AND price_list_id = ?", (pid, pl_id))
+                ex = cur.fetchone()
+                # Chỉ lưu vào bảng giá riêng khi p_val > 0 và khác Bảng giá chung
+                if p_val <= 0 or (base_retail > 0 and abs(p_val - base_retail) < 0.01):
+                    if ex:
+                        cur.execute("DELETE FROM product_price_list WHERE id = ?", (ex["id"],))
+                        updated_count += 1
+                    continue
+                if ex:
+                    cur.execute("UPDATE product_price_list SET price = ?, min_qty = 1, discount_percent = 0 WHERE id = ?", (p_val, ex["id"]))
+                    updated_count += 1
+                else:
+                    cur.execute("INSERT INTO product_price_list (product_id, price_list_id, price, min_qty, discount_percent) VALUES (?, ?, ?, 1, 0)", (pid, pl_id, p_val))
+                    created_count += 1
+
+        conn.commit()
+        conn.close()
+        return {
+            "success": True,
+            "multi_sync": True,
+            "synced_lists": synced_list_names,
+            "price_list_id": list(col_to_pl.values())[0] if col_to_pl else price_list_id,
+            "price_list_name": ", ".join(synced_list_names),
+            "created": created_count,
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "errors": errors,
+            "total": len(rows) - 1
+        }
+
+    # Nhánh 2: File 1 bảng giá đơn lẻ chuẩn của POS
+    cur.execute("SELECT id, name FROM price_lists WHERE id = ?", (price_list_id,))
+    pl = cur.fetchone()
+    if not pl:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Vui lòng chọn 1 bảng giá hoặc tải lên file Bảng giá tổng hợp KiotViet!")
+
     idx_price = find_col(
         ["giá riêng / giá đại lý (đ)", "giá riêng", "giá đại lý", "giá sỉ", "giá mới", "giá bảng giá", "giá riêng theo bảng", "giá đại lý (đ)", "giá riêng (đ)"],
-        ["đại lý", "giá riêng", "bảng giá", "giá sỉ"]
+        ["đại lý", "giá riêng", "giá sỉ"]
     )
     if idx_price == -1:
-        # Fallback tìm cột giá chung nếu file người dùng tự tạo đơn giản
         idx_price = find_col(["giá", "giá bán", "đơn giá", "price"], ["giá", "price", "đơn giá"])
 
     idx_min_qty = find_col(["số lượng tối thiểu", "số lượng tối thiểu (min)", "min_qty", "sl tối thiểu"], ["tối thiểu", "min_qty"])
     idx_discount = find_col(["chiết khấu", "chiết khấu (%)", "chiết khấu %", "discount", "discount_percent", "% ck"], ["chiết khấu", "discount"])
 
-    if idx_code == -1 and idx_name == -1:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Mã sản phẩm' hoặc 'Tên sản phẩm' trong file!")
-
     if idx_price == -1:
         conn.close()
         raise HTTPException(status_code=400, detail="Không tìm thấy cột 'Giá riêng / Giá đại lý' trong file!")
-
-    cur.execute("SELECT id, code, name FROM products WHERE (type = 'product' OR type IS NULL)")
-    all_prods = cur.fetchall()
-    prod_by_code = {str(p["code"]).strip().lower(): p["id"] for p in all_prods if p["code"]}
-    prod_by_name = {str(p["name"]).strip().lower(): p["id"] for p in all_prods if p["name"]}
 
     created_count = 0
     updated_count = 0
@@ -441,9 +652,9 @@ async def import_price_list_excel(price_list_id: int, file: UploadFile = File(..
 
         pid = None
         if code_val and code_val.lower() in prod_by_code:
-            pid = prod_by_code[code_val.lower()]
-        elif name_val and name_val.lower() in prod_by_name:
-            pid = prod_by_name[name_val.lower()]
+            pid = prod_by_code[code_val.lower()]["id"]
+        elif not code_val and name_val and name_val.lower() in prod_by_name:
+            pid = prod_by_name[name_val.lower()]["id"]
 
         if not pid:
             err_label = f"mã '{code_val}'" if code_val else f"tên '{name_val}'"

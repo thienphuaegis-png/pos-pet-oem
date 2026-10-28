@@ -483,6 +483,8 @@ def init_db():
         cur.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Khác'")
     if 'min_stock' not in prod_cols:
         cur.execute("ALTER TABLE products ADD COLUMN min_stock REAL DEFAULT 5.0")
+    if 'image_url' not in prod_cols:
+        cur.execute("ALTER TABLE products ADD COLUMN image_url TEXT DEFAULT ''")
 
     # Seed product_categories if empty & migrate existing categories
     cur.execute("SELECT COUNT(*) FROM product_categories")
@@ -1749,14 +1751,13 @@ def init_db():
     )''')
 
     # Default data
-    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-BANLE', 'Giá Bán Lẻ', 'Giá bán lẻ mặc định')")
-    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-SI', 'Giá Sỉ', 'Giá sỉ cho đơn số lượng lớn')")
-    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-DL', 'Giá Đại Lý', 'Giá đại lý')")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('LE', 'Bán lẻ', 0, 1, 0, 1)")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('SI', 'Sỉ', 5, 2, 0, 0)")
-    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, min_points, allow_points) VALUES ('DL', 'Đại Lý', 10, 3, 0, 0)")
-    # Đảm bảo Sỉ và Đại Lý có allow_points = 0 nếu đã tồn tại trước đó
-    cur.execute("UPDATE customer_segments SET allow_points = 0 WHERE code IN ('SI', 'DL') AND (allow_points IS NULL OR allow_points = 1)")
+    cur.execute("INSERT OR IGNORE INTO price_lists (code, name, description) VALUES ('PL-BANLE', 'Giá Bán Lẻ', 'Bảng giá chung (Giá bán lẻ mặc định)')")
+    cur.execute("SELECT id FROM price_lists WHERE code = 'PL-BANLE'")
+    banle_row = cur.fetchone()
+    banle_id = banle_row[0] if banle_row else None
+    cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, price_list_id, min_points, allow_points) VALUES ('LE', 'Bán lẻ', 0, 1, ?, 0, 1)", (banle_id,))
+    if banle_id:
+        cur.execute("UPDATE customer_segments SET price_list_id = ? WHERE code = 'LE' AND price_list_id IS NULL", (banle_id,))
 
     # Gói Topup Ví Spa mặc định
     cur.execute("SELECT COUNT(*) FROM topup_packages")
@@ -2277,6 +2278,25 @@ def init_db():
         sync_missing_cashbook_entries(conn)
     except Exception as e:
         logger.warning(f"Cashbook sync check skipped or failed: {e}")
+
+    # Composite Indexes tối ưu tốc độ truy vấn lớn (Filter Column trước -> Sort Column sau)
+    for _idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_pets_customer_id ON pets(customer_id)",
+        "CREATE INDEX IF NOT EXISTS idx_contacts_type_id ON contacts(type, id DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone)",
+        "CREATE INDEX IF NOT EXISTS idx_contacts_code ON contacts(code)",
+        "CREATE INDEX IF NOT EXISTS idx_purchases_supplier_debt ON purchases(supplier_id, status, debt_amount)",
+        "CREATE INDEX IF NOT EXISTS idx_oem_orders_partner_rem ON oem_orders(partner_id, status, remaining_payment)",
+        "CREATE INDEX IF NOT EXISTS idx_orders_customer_created ON orders(customer_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_pet_tickets_pet_date ON pet_service_tickets(pet_id, ticket_date DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_pet_tickets_cust_date ON pet_service_tickets(customer_id, ticket_date DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_pet_tickets_date_id ON pet_service_tickets(ticket_date DESC, id DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_pet_tickets_status_date ON pet_service_tickets(status, ticket_date DESC, id DESC)",
+    ]:
+        try:
+            cur.execute(_idx_sql)
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()

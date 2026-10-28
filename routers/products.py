@@ -323,8 +323,8 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
                         return idx
         return -1
 
-    idx_code = find_col(["mã hàng", "mã sản phẩm", "mã sp", "mã", "code", "sku"], ["mã", "code", "sku"])
-    idx_name = find_col(["tên hàng", "tên sản phẩm", "tên sp", "tên", "name"], ["tên", "name", "sản phẩm"])
+    idx_code = find_col(["mã hàng", "mã sản phẩm", "mã sp", "mã", "code", "sku"], ["mã hàng", "mã sản phẩm", "mã sp", "code", "sku"])
+    idx_name = find_col(["tên hàng", "tên hàng hóa", "tên sản phẩm", "tên sp", "tên", "name"], ["tên hàng", "tên sản phẩm", "tên", "name"])
     if idx_name == idx_code and idx_name != -1:
         idx_name = -1
         for idx, h in enumerate(header_row):
@@ -332,12 +332,17 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
                 idx_name = idx
                 break
 
-    idx_cat = find_col(["nhóm hàng", "nhóm", "group", "category", "danh mục"], ["nhóm", "group", "category", "danh mục"])
-    idx_type = find_col(["loại", "type", "phân loại"], ["loại", "type", "phân loại"])
-    idx_unit = find_col(["đvt", "đơn vị", "đơn vị tính", "unit"], ["đvt", "đơn vị", "unit"])
+    idx_cat = find_col(["nhóm hàng", "nhóm hàng(3 cấp)", "nhóm", "group", "category", "danh mục"], ["nhóm hàng", "nhóm", "group", "category", "danh mục"])
+    idx_type = find_col(["loại hàng", "loại", "type", "phân loại"], ["loại hàng", "phân loại", "loại", "type"])
+    idx_unit = find_col(["đvt", "đơn vị", "đơn vị tính", "unit"], ["đơn vị tính", "đvt", "unit"])
+    idx_base_code = find_col(["mã đvt cơ bản", "mã cơ bản", "base_code"], ["mã đvt cơ bản", "mã cơ bản"])
+    idx_ratio = find_col(["quy đổi", "hệ số quy đổi", "ratio"], ["quy đổi", "ratio"])
     idx_cost = find_col(["giá vốn", "vốn", "giá nhập", "cost"], ["giá vốn", "vốn", "giá nhập", "cost"])
     idx_sell = find_col(["giá bán", "bán", "price", "đơn giá"], ["giá bán", "bán", "price", "đơn giá"])
-    idx_stock = find_col(["tồn kho", "tồn", "số lượng", "stock", "sl"], ["tồn", "số lượng", "stock", "sl"])
+    idx_stock = find_col(["tồn kho", "tồn kho ban đầu", "tồn", "số lượng", "stock", "sl"], ["tồn kho", "số lượng", "stock"])
+    idx_min_stock = find_col(["tồn nhỏ nhất", "tồn tối thiểu", "min_stock"], ["tồn nhỏ nhất", "tồn tối thiểu", "min_stock"])
+    idx_img = find_col(["hình ảnh", "hình ảnh (url1,url2...)", "ảnh", "image", "image_url"], ["hình ảnh", "image"])
+    idx_active = find_col(["đang kinh doanh", "is_active", "trạng thái"], ["đang kinh doanh", "is_active"])
     idx_supp = find_col(["nhà cung cấp", "ncc", "supplier"], ["nhà cung cấp", "ncc", "supplier"])
 
     if idx_name == -1:
@@ -349,60 +354,91 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
 
     created_count = 0
     updated_count = 0
+    units_synced = 0
     errors = []
 
     conn = get_db()
     cur = conn.cursor()
 
+    def cell_str(row, col_i):
+        if col_i == -1 or col_i >= len(row) or row[col_i] is None:
+            return ""
+        return str(row[col_i]).strip()
+
+    base_rows = []
+    conv_rows = []
     for row_idx, r in enumerate(rows[1:], start=2):
         if not r or all(c is None or str(c).strip() == "" for c in r):
             continue
-        
-        name = str(r[idx_name] or "").strip() if idx_name < len(r) and r[idx_name] is not None else ""
+        name = cell_str(r, idx_name)
         if not name:
             continue
+        base_code = cell_str(r, idx_base_code)
+        ratio_val = clean_num(r[idx_ratio]) if idx_ratio != -1 and idx_ratio < len(r) and r[idx_ratio] is not None else 1.0
+        if ratio_val <= 0:
+            ratio_val = 1.0
+        code = cell_str(r, idx_code)
+        if base_code and base_code.upper() != code.upper() and ratio_val != 1.0:
+            conv_rows.append((row_idx, r, base_code, ratio_val))
+        else:
+            base_rows.append((row_idx, r))
 
-        code = str(r[idx_code] or "").strip() if idx_code != -1 and idx_code < len(r) and r[idx_code] is not None else ""
-        category_val = str(r[idx_cat] or "").strip() if idx_cat != -1 and idx_cat < len(r) and r[idx_cat] is not None else ""
-        raw_type = str(r[idx_type] or "").strip().lower() if idx_type != -1 and idx_type < len(r) and r[idx_type] is not None else ""
+    # PASS 1: Dòng sản phẩm gốc (đơn vị cơ bản)
+    for row_idx, r in base_rows:
+        name = cell_str(r, idx_name)
+        code = cell_str(r, idx_code)
+        raw_cat = cell_str(r, idx_cat)
+        category_val = raw_cat.split(">>")[-1].strip() if ">>" in raw_cat else raw_cat
+        raw_type = cell_str(r, idx_type).lower()
         item_type = "service" if ("dịch vụ" in raw_type or "service" in raw_type) else "product"
-        unit = str(r[idx_unit] or "cái").strip() if idx_unit != -1 and idx_unit < len(r) and r[idx_unit] is not None else "cái"
+        unit = cell_str(r, idx_unit) or "cái"
         cost_price = clean_num(r[idx_cost]) if idx_cost != -1 and idx_cost < len(r) else 0.0
         sell_price = clean_num(r[idx_sell]) if idx_sell != -1 and idx_sell < len(r) else 0.0
-        stock_qty = clean_num(r[idx_stock]) if idx_stock != -1 and idx_stock < len(r) else 0.0
-        supplier_name = str(r[idx_supp] or "").strip() if idx_supp != -1 and idx_supp < len(r) and r[idx_supp] is not None else ""
+        has_stock_col = idx_stock != -1 and idx_stock < len(r) and r[idx_stock] is not None and str(r[idx_stock]).strip() != ""
+        stock_qty = clean_num(r[idx_stock]) if has_stock_col else 0.0
+        has_min_col = idx_min_stock != -1 and idx_min_stock < len(r) and r[idx_min_stock] is not None and str(r[idx_min_stock]).strip() != ""
+        min_stock_val = clean_num(r[idx_min_stock]) if has_min_col else None
+        raw_img = cell_str(r, idx_img)
+        first_img = raw_img.split(",")[0].strip() if raw_img else ""
+        has_active_col = idx_active != -1 and idx_active < len(r) and r[idx_active] is not None and str(r[idx_active]).strip() != ""
+        is_active_val = (0 if str(r[idx_active]).strip() in ("0", "false", "False", "Ngừng kinh doanh") else 1) if has_active_col else 1
+        supplier_name = cell_str(r, idx_supp)
 
         try:
+            if category_val:
+                cur.execute("INSERT OR IGNORE INTO product_categories (name) VALUES (?)", (category_val,))
+
             existing = None
             if code:
-                cur.execute("SELECT id, code, name FROM products WHERE code = ?", (code,))
+                cur.execute("SELECT id, code, name, category, min_stock, image_url FROM products WHERE code = ?", (code,))
                 existing = cur.fetchone()
-            if not existing and name:
-                cur.execute("SELECT id, code, name FROM products WHERE name = ?", (name,))
+            else:
+                cur.execute("SELECT id, code, name, category, min_stock, image_url FROM products WHERE name = ?", (name,))
                 existing = cur.fetchone()
 
             if existing:
                 pid = existing["id"]
-                if category_val:
-                    cur.execute("""
-                        UPDATE products 
-                        SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, category = ?, is_active = 1
-                        WHERE id = ?
-                    """, (name, unit, item_type, cost_price, sell_price, category_val, pid))
-                else:
-                    cur.execute("""
-                        UPDATE products 
-                        SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, is_active = 1
-                        WHERE id = ?
-                    """, (name, unit, item_type, cost_price, sell_price, pid))
+                final_cat = category_val or existing["category"] or "Khác"
+                final_min = min_stock_val if min_stock_val is not None else (existing["min_stock"] if existing["min_stock"] is not None else 5.0)
+                final_img = first_img if first_img else (existing["image_url"] or "")
+                cur.execute("""
+                    UPDATE products 
+                    SET name = ?, unit = ?, type = ?, cost_price = ?, sell_price = ?, category = ?, min_stock = ?, image_url = ?, is_active = ?
+                    WHERE id = ?
+                """, (name, unit, item_type, cost_price, sell_price, final_cat, final_min, final_img, is_active_val, pid))
 
-                if item_type != "service" and stock_qty != 0:
+                if item_type != "service" and has_stock_col:
+                    cur.execute("SELECT quantity FROM product_inventory WHERE warehouse_id = ? AND product_id = ?", (warehouse_id, pid))
+                    old_inv = cur.fetchone()
+                    old_qty = float(old_inv["quantity"]) if old_inv else 0.0
+                    diff_qty = stock_qty - old_qty
+
                     cur.execute("""
                         INSERT INTO product_inventory (warehouse_id, product_id, quantity, updated_at)
                         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                         ON CONFLICT(warehouse_id, product_id) DO UPDATE SET
-                            quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-                    """, (warehouse_id, pid, stock_qty, stock_qty))
+                            quantity = excluded.quantity, updated_at = CURRENT_TIMESTAMP
+                    """, (warehouse_id, pid, stock_qty))
                     
                     cur.execute("""
                         UPDATE products SET stock = (
@@ -410,20 +446,22 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
                         ) WHERE id = ?
                     """, (pid, pid))
 
-                    cur.execute("""
-                        INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
-                        VALUES ('product', ?, ?, 'ADJUST', ?, (SELECT quantity FROM product_inventory WHERE warehouse_id=? AND product_id=?), 'Nhập từ file Excel')
-                    """, (pid, warehouse_id, stock_qty, warehouse_id, pid))
+                    if diff_qty != 0:
+                        cur.execute("""
+                            INSERT INTO inventory_logs (item_type, product_id, warehouse_id, change_type, quantity, balance_after, note)
+                            VALUES ('product', ?, ?, 'ADJUST', ?, ?, 'Đồng bộ từ file Excel')
+                        """, (pid, warehouse_id, diff_qty, stock_qty))
 
                 updated_count += 1
             else:
                 if not code:
                     code = f"SP-{int(time.time() * 1000) % 1000000:06d}"
                 cat = category_val or "Khác"
+                final_min = min_stock_val if min_stock_val is not None else 5.0
                 cur.execute("""
-                    INSERT INTO products (code, name, type, unit, cost_price, sell_price, stock, category, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """, (code, name, item_type, unit, cost_price, sell_price, stock_qty if item_type != "service" else 0, cat))
+                    INSERT INTO products (code, name, type, unit, cost_price, sell_price, stock, category, min_stock, image_url, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (code, name, item_type, unit, cost_price, sell_price, stock_qty if item_type != "service" else 0, cat, final_min, first_img, is_active_val))
                 pid = cur.lastrowid
 
                 if item_type != "service":
@@ -456,6 +494,43 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
         except Exception as err:
             errors.append(f"Dòng {row_idx} ({name}): {str(err)}")
 
+    # PASS 2: Dòng đơn vị quy đổi KiotViet -> gộp vào bảng item_units của sản phẩm gốc
+    for row_idx, r, base_code, ratio_val in conv_rows:
+        name = cell_str(r, idx_name)
+        conv_code = cell_str(r, idx_code)
+        unit_name = cell_str(r, idx_unit)
+        sell_price = clean_num(r[idx_sell]) if idx_sell != -1 and idx_sell < len(r) else 0.0
+        if not unit_name:
+            continue
+        try:
+            cur.execute("SELECT id FROM products WHERE UPPER(TRIM(code)) = UPPER(TRIM(?))", (base_code,))
+            base_prod = cur.fetchone()
+            if not base_prod:
+                errors.append(f"Dòng {row_idx} ({name}): Không tìm thấy mã ĐVT cơ bản '{base_code}'")
+                continue
+            base_pid = base_prod["id"]
+            cur.execute("""
+                INSERT INTO item_units (item_type, item_id, unit_name, ratio, sell_price, is_default_sale)
+                VALUES ('product', ?, ?, ?, ?, 0)
+                ON CONFLICT(item_type, item_id, unit_name) DO UPDATE SET
+                    ratio = excluded.ratio,
+                    sell_price = excluded.sell_price
+            """, (base_pid, unit_name, ratio_val, sell_price))
+            # Nếu trước đây lỡ import nhầm mã quy đổi thành 1 sản phẩm độc lập chưa có giao dịch thì dọn đi
+            if conv_code and conv_code.upper() != base_code.upper():
+                cur.execute("SELECT id FROM products WHERE UPPER(TRIM(code)) = UPPER(TRIM(?))", (conv_code,))
+                dup_prod = cur.fetchone()
+                if dup_prod:
+                    dup_id = dup_prod["id"]
+                    cur.execute("SELECT COUNT(*) FROM order_items WHERE product_id = ?", (dup_id,))
+                    has_orders = cur.fetchone()[0] > 0
+                    if not has_orders:
+                        cur.execute("DELETE FROM product_inventory WHERE product_id = ?", (dup_id,))
+                        cur.execute("DELETE FROM products WHERE id = ?", (dup_id,))
+            units_synced += 1
+        except Exception as err:
+            errors.append(f"Dòng {row_idx} ({name} - {unit_name}): {str(err)}")
+
     conn.commit()
     conn.close()
 
@@ -463,7 +538,8 @@ async def import_products_excel(file: UploadFile = File(...), warehouse_id: int 
         "success": True,
         "created": created_count,
         "updated": updated_count,
-        "total_processed": created_count + updated_count,
+        "units_synced": units_synced,
+        "total_processed": created_count + updated_count + units_synced,
         "errors": errors
     }
 
@@ -475,9 +551,10 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
         cat = p.category or "Khác"
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         min_stock = float(p.min_stock) if p.min_stock is not None else 5.0
+        img_url = (p.image_url or "").strip()
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -508,13 +585,17 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id, code, category, cost_price FROM products WHERE id = ?", (product_id,))
+        cur.execute("SELECT * FROM products WHERE id = ?", (product_id,))
         existing = cur.fetchone()
         if not existing:
             conn.close()
             raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
 
         code = p.code if p.code else existing["code"]
+        name = p.name if p.name is not None else existing["name"]
+        prod_type = p.type if p.type is not None else (existing["type"] or "product")
+        unit = p.unit if p.unit is not None else (existing["unit"] or "cái")
+        sell_price = p.sell_price if p.sell_price is not None else (existing["sell_price"] or 0)
         category = p.category if p.category is not None else (existing["category"] if "category" in existing.keys() else "Khác")
         # Không có quyền xem giá vốn (hoặc không gửi lên) -> giữ nguyên giá vốn cũ, không bị về 0
         cost_price = existing["cost_price"] or 0
@@ -524,12 +605,13 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         min_stock = float(p.min_stock) if p.min_stock is not None else (float(existing["min_stock"]) if "min_stock" in existing.keys() and existing["min_stock"] is not None else 5.0)
+        image_url = p.image_url if p.image_url is not None else (existing["image_url"] if "image_url" in existing.keys() else "")
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
-                updated_by = ?, updated_at = ?, min_stock = ?
+                updated_by = ?, updated_at = ?, min_stock = ?, image_url = ?
             WHERE id = ?
-        ''', (code, p.name, p.type, cost_price, p.sell_price, p.unit, category, user_name, now_vn, min_stock, product_id))
+        ''', (code, name, prod_type, cost_price, sell_price, unit, category, user_name, now_vn, min_stock, image_url, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))

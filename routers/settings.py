@@ -353,6 +353,64 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
 
     return {"status": "ok", "message": msg, "backup_file": backup_filename}
 
+@router.post("/clear-demo-seed")
+def clear_demo_seed_data(user=Depends(require_role("owner"))):
+    """Xóa sạch 90 bản ghi dữ liệu mẫu Demo (30 POS + 30 Spa + 30 Hotel) và hoàn trả công nợ khách hàng."""
+    from database import get_db, get_db_path
+    import json
+    conn = get_db()
+    cur = conn.cursor()
+    manifest_path = os.path.join(os.path.dirname(get_db_path()), "demo_seed_manifest.json")
+    try:
+        # Hoàn trả phần công nợ Demo đã cộng thêm vào khách hàng (nếu có trong manifest)
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+                for cid_str, delta_debt in (manifest.get("customer_debt_deltas") or {}).items():
+                    cur.execute("UPDATE contacts SET debt = MAX(0, COALESCE(debt, 0) - ?) WHERE id = ?", (float(delta_debt), int(cid_str)))
+            except Exception as e:
+                logger.warning(f"Không thể đọc manifest hoàn nợ demo: {e}")
+
+        # Xóa bút toán liên quan tới đơn POS Demo
+        cur.execute("DELETE FROM order_payments WHERE order_id IN (SELECT id FROM orders WHERE code LIKE 'HD-DEMO-%')")
+        cur.execute("DELETE FROM order_return_items WHERE return_id IN (SELECT id FROM order_returns WHERE code LIKE 'RET-DEMO-%')")
+        cur.execute("DELETE FROM order_returns WHERE code LIKE 'RET-DEMO-%'")
+        cur.execute("DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE code LIKE 'HD-DEMO-%')")
+        cur.execute("DELETE FROM spa_wallet_transactions WHERE order_id IN (SELECT id FROM orders WHERE code LIKE 'HD-DEMO-%') OR note LIKE '%[DEMO-SEED]%'")
+        cur.execute("DELETE FROM orders WHERE code LIKE 'HD-DEMO-%'")
+        cur.execute("DELETE FROM archived_codes WHERE code LIKE 'HD-DEMO-%' OR code LIKE 'RET-DEMO-%'")
+
+        # Xóa vé Spa Demo
+        cur.execute("DELETE FROM pet_service_tickets WHERE code LIKE 'SPA-DEMO-%'")
+
+        # Giải phóng các phòng đang bị giữ bởi booking Hotel Demo rồi xóa booking Hotel Demo
+        cur.execute("""
+            UPDATE hotel_rooms
+            SET status = 'available'
+            WHERE id IN (SELECT room_id FROM hotel_bookings WHERE code LIKE 'HT-DEMO-%')
+        """)
+        cur.execute("DELETE FROM hotel_bookings WHERE code LIKE 'HT-DEMO-%'")
+
+        # Xóa phiếu thu/chi Sổ quỹ Demo
+        cur.execute("DELETE FROM cashbook WHERE code LIKE 'PT-DEMO-%' OR code LIKE 'PC-DEMO-%' OR note LIKE '%[DEMO-SEED]%'")
+
+        conn.commit()
+        if os.path.exists(manifest_path):
+            try:
+                os.remove(manifest_path)
+            except Exception:
+                pass
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xóa dữ liệu mẫu Demo: {e}")
+    conn.close()
+    return {
+        "status": "ok",
+        "message": "Đã xóa sạch toàn bộ 90 phiếu dữ liệu mẫu Demo (30 POS, 30 Spa, 30 Khách Sạn) và khôi phục nguyên trạng!"
+    }
+
 @router.post("/backup-drive-now")
 def trigger_google_drive_backup(user=Depends(require_role("owner"))):
     """Kich hoat sao luu tuc thi len Google Drive qua Webhook"""

@@ -80,14 +80,14 @@
             <div onclick="selectMaskedProduct(${p.id})" class="p-2.5 hover:bg-amber-50 cursor-pointer border-b border-slate-100 flex items-center justify-between transition">
                 <div>
                     <div class="font-bold text-xs text-slate-900">${p.name}</div>
-                    <div class="text-[10px] text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+                    <div class="text-xs text-slate-400 font-mono flex items-center gap-2 mt-0.5">
                         <span>${p.code}</span>
                         <span class="bg-slate-100 px-1 py-0.2 rounded text-slate-600">${p.unit}</span>
                         <span class="bg-amber-50 text-amber-700 px-1 py-0.2 rounded font-semibold">${p.source_group}</span>
                     </div>
                 </div>
                 <div class="text-right">
-                    <div class="text-[10px] text-slate-400">Tồn kho</div>
+                    <div class="text-xs text-slate-400">Tồn kho</div>
                     <div class="text-xs font-mono font-bold ${p.stock <= 0 ? 'text-rose-600' : 'text-slate-700'}">${p.stock}</div>
                 </div>
             </div>
@@ -148,7 +148,7 @@
             <tr class="hover:bg-slate-50">
                 <td class="p-2">
                     <div class="font-bold text-slate-900">${it.name}</div>
-                    <div class="text-[10px] text-slate-400 font-mono">${it.code} &bull; ${it.unit} &bull; <span class="text-amber-700 font-semibold">${it.source_group}</span></div>
+                    <div class="text-xs text-slate-400 font-mono">${it.code} &bull; ${it.unit} &bull; <span class="text-amber-700 font-semibold">${it.source_group}</span></div>
                 </td>
                 <td class="p-2 text-right font-mono font-bold ${it.stock <= 0 ? 'text-rose-600' : 'text-slate-600'}">${it.stock}</td>
                 <td class="p-2 text-center">
@@ -248,29 +248,29 @@
             tbody.innerHTML = list.map(req => {
                 const isConverted = req.status === 'converted';
                 const statusBadge = isConverted 
-                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">✅ Đã lên PO: ${req.converted_purchase_code || ''}</span>`
-                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-[10px] font-bold">⏳ Chờ duyệt</span>`;
+                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-xs font-bold">✅ Đã lên PO: ${req.converted_purchase_code || ''}</span>`
+                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full text-xs font-bold">⏳ Chờ duyệt</span>`;
 
                 const priorityTag = req.priority === 'urgent'
-                    ? `<span class="bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.2 rounded text-[10px] font-bold">🔴 Cần gấp</span>`
-                    : `<span class="text-slate-400 text-[10px]">Bình thường</span>`;
+                    ? `<span class="bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.2 rounded text-xs font-bold">🔴 Cần gấp</span>`
+                    : `<span class="text-slate-400 text-xs">Bình thường</span>`;
 
                 const roleBadge = ROLE_LABELS[req.department] || req.department || 'Nhân viên';
-                const roleTag = `<span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-semibold">${roleBadge}</span>`;
+                const roleTag = `<span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-semibold">${roleBadge}</span>`;
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
                         <td class="p-2.5">
                             <div class="font-bold text-slate-900 font-mono">${req.code}</div>
-                            <div class="text-[10px] text-slate-400">${req.created_at ? req.created_at.substring(0, 16) : ''}</div>
+                            <div class="text-xs text-slate-400">${req.created_at ? req.created_at.substring(0, 16) : ''}</div>
                         </td>
                         <td class="p-2.5">
                             <div class="font-bold text-slate-800">${req.created_by || 'Nhân viên'}</div>
-                            <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">${roleTag} &bull; ${priorityTag}</div>
+                            <div class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">${roleTag} &bull; ${priorityTag}</div>
                         </td>
                         <td class="p-2.5 text-center font-mono">
                             <span class="font-bold text-slate-800">${req.item_count} món</span>
-                            <div class="text-[10px] text-slate-400">Tổng SL: ${req.total_qty}</div>
+                            <div class="text-xs text-slate-400">Tổng SL: ${req.total_qty}</div>
                         </td>
                         <td class="p-2.5 text-center">${statusBadge}</td>
                         <td class="p-2.5 text-center">
@@ -313,7 +313,7 @@
                 itemsTableHtml = `
                     <div class="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto mt-2">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-slate-50 border-b font-semibold text-[11px] text-slate-600">
+                            <thead class="bg-slate-50 border-b font-semibold text-xs text-slate-600">
                                 <tr>
                                     <th class="p-2">Sản phẩm</th>
                                     <th class="p-2 text-center">ĐVT</th>
@@ -323,7 +323,7 @@
                             <tbody class="divide-y divide-slate-100">
                                 ${items.map(it => `
                                     <tr>
-                                        <td class="p-2 font-bold text-slate-800">${it.product_name} <span class="text-slate-400 font-normal font-mono text-[10px]">(${it.product_code})</span></td>
+                                        <td class="p-2 font-bold text-slate-800">${it.product_name} <span class="text-slate-400 font-normal font-mono text-xs">(${it.product_code})</span></td>
                                         <td class="p-2 text-center text-slate-600">${it.unit}</td>
                                         <td class="p-2 text-right font-bold text-amber-700 font-mono">${it.quantity}</td>
                                     </tr>

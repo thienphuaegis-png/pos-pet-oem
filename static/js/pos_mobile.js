@@ -73,14 +73,14 @@ function renderProductGrid(filterQuery = '') {
                 <div>
                     <div class="h-14 bg-slate-50 rounded-xl flex items-center justify-center text-2xl mb-2">${icon}</div>
                     <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug">${p.name}</h3>
-                    <p class="text-[11px] text-slate-400 mt-1 truncate">Mã: ${p.code || '-'} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</p>
+                    <p class="text-xs text-slate-400 mt-1 truncate">Mã: ${p.code || '-'} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</p>
                 </div>
                 <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
-                    <span class="font-mono-num font-extrabold text-xs text-sky-600">${formatMoney(price)}</span>
+                    <span class="font-mono-num font-bold text-xs text-sky-600">${formatMoney(price)}</span>
                     ${inCartQty > 0 ? `
                         <div class="flex items-center gap-1.5 bg-sky-50 px-2 py-1 rounded-xl">
                             <button onclick="mobileCartMinus(${p.id})" class="w-6 h-6 rounded-lg bg-white text-sky-700 font-bold text-xs shadow-xs active:bg-slate-100">-</button>
-                            <span class="font-mono-num font-black text-xs text-sky-800">${inCartQty}</span>
+                            <span class="font-mono-num font-bold text-xs text-sky-800">${inCartQty}</span>
                             <button onclick="mobileCartAdd(${p.id})" class="w-6 h-6 rounded-lg bg-sky-600 text-white font-bold text-xs shadow-xs active:bg-sky-700">+</button>
                         </div>
                     ` : `
@@ -147,11 +147,11 @@ function updateCartUI() {
             <div class="py-2.5 flex items-center justify-between gap-2">
                 <div class="flex-1 min-w-0 pr-1">
                     <div class="font-bold text-xs text-slate-800 truncate">${item.product.name}</div>
-                    <div class="font-mono-num text-[11px] text-sky-600 font-semibold">${formatMoney(item.price)} × ${item.quantity} = ${formatMoney(lineTotal)}</div>
+                    <div class="font-mono-num text-xs text-sky-600 font-semibold">${formatMoney(item.price)} × ${item.quantity} = ${formatMoney(lineTotal)}</div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <button onclick="mobileCartMinus(${id})" class="w-8 h-8 rounded-xl bg-slate-100 font-bold text-sm text-slate-700 flex items-center justify-center active:bg-slate-200">-</button>
-                    <span class="w-6 text-center font-mono-num font-extrabold text-xs">${item.quantity}</span>
+                    <span class="w-6 text-center font-mono-num font-bold text-xs">${item.quantity}</span>
                     <button onclick="mobileCartAdd(${id})" class="w-8 h-8 rounded-xl bg-sky-50 font-bold text-sm text-sky-600 flex items-center justify-center active:bg-sky-100">+</button>
                     <button onclick="mobileCartRemove(${id})" class="w-8 h-8 text-slate-400 hover:text-rose-500 font-bold text-xs flex items-center justify-center">&times;</button>
                 </div>
@@ -325,7 +325,7 @@ function filterCustomerList(q) {
         <div onclick="selectCustomerQuick(${c.id})" class="py-2.5 flex justify-between items-center cursor-pointer active:bg-slate-50">
             <div>
                 <div class="font-bold text-slate-800">${c.name}</div>
-                <div class="text-[11px] text-slate-400">${c.phone || 'Không SĐT'}</div>
+                <div class="text-xs text-slate-400">${c.phone || 'Không SĐT'}</div>
             </div>
             <span class="text-sky-600 font-bold text-xs">Chọn</span>
         </div>

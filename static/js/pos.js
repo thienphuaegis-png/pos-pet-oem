@@ -8,7 +8,7 @@
                 .cart-grid-header,
                 .cart-row-responsive {
                     display: grid !important;
-                    grid-template-columns: 34px 34px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
+                    grid-template-columns: 34px 34px 44px 85px minmax(130px, 1fr) 48px 100px 175px 120px !important;
                     gap: 8px !important;
                 }
             }
@@ -153,7 +153,7 @@ function applyPriceListToCart(tab) {
 var invoiceTabs = [
     {
         id: 1,
-        name: "Hóa đơn 1",
+        name: "HD 1",
         cart: [], // { product_id, code, name, unit, price, original_price, discount_val, discount_type, quantity }
         customer: null, // { id, name, phone, points, spa_wallet_balance } hoặc null (khách lẻ)
         note: "",
@@ -393,20 +393,41 @@ async function reloadPOSData() {
 // ----------------------------------------------------
 // PHÍM TẮT TIỆN ÍCH (F3, F4, F9, F1)
 // ----------------------------------------------------
-// Tự động inject CSS cho dòng đang chọn: Nền xanh đậm chữ trắng nổi bật (chuẩn 2a)
+// Tự động inject CSS cho dòng đang chọn: Soft Tint + Viền phẳng 4 cạnh chuẩn Elaya (không đảo chữ trắng làm mù badge)
 if (typeof document !== 'undefined' && document.head && typeof document.head.appendChild === 'function' && !document.getElementById('pos-dropdown-nav-style')) {
     const st = document.createElement('style');
     st.id = 'pos-dropdown-nav-style';
     st.textContent = `
+        #pos-search-dropdown, #pos-customer-dropdown {
+            padding: 4px;
+        }
+        .pos-product-item, .pos-customer-item {
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 150ms cubic-bezier(0.22, 1, 0.36, 1),
+                        border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
         .pos-product-item.active, .pos-customer-item.active {
-            background-color: #0284c7 !important; /* sky-600 */
-            color: #ffffff !important;
+            background-color: #f0f9ff !important; /* sky-50 */
+            border-color: #38bdf8 !important;     /* sky-400 */
+            box-shadow: inset 0 0 0 1px #0284c7 !important;
         }
-        .pos-product-item.active *, .pos-customer-item.active * {
-            color: #ffffff !important;
+        .pos-product-item.active .pos-item-title,
+        .pos-customer-item.active .pos-cust-name {
+            color: #0369a1 !important; /* sky-700 */
         }
-        .pos-product-item.active span, .pos-customer-item.active span {
-            border-color: rgba(255, 255, 255, 0.4) !important;
+        .pos-customer-item.active .pos-cust-phone {
+            color: #334155 !important; /* slate-700 */
+        }
+        .pos-customer-item.active .pos-badge-seg {
+            background-color: #ffffff !important;
+            color: #0369a1 !important;
+            border-color: #7dd3fc !important;
+        }
+        .pos-customer-item.active .pos-badge-pts {
+            background-color: #0284c7 !important;
+            color: #ffffff !important;
         }
     `;
     document.head.appendChild(st);
@@ -702,7 +723,7 @@ function getActiveTab() {
 
 function reindexInvoiceTabs() {
     invoiceTabs.forEach((tab, idx) => {
-        tab.name = `Hóa đơn ${idx + 1}`;
+        tab.name = `HD ${idx + 1}`;
     });
 }
 
@@ -718,7 +739,7 @@ function renderInvoiceTabs() {
         return `
             <div onclick="switchInvoiceTab(${tab.id})" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition border ${isActive ? 'bg-sky-600 text-white border-sky-600 shadow-sm' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}">
                 <span>${tab.name}</span>
-                ${count > 0 ? `<span class="px-1.5 py-0.2 rounded-full text-[10px] ${isActive ? 'bg-sky-700 text-white' : 'bg-sky-100 text-sky-700'}">${count}</span>` : ''}
+                ${count > 0 ? `<span class="px-1.5 py-0.2 rounded-full text-xs ${isActive ? 'bg-sky-700 text-white' : 'bg-sky-100 text-sky-700'}">${count}</span>` : ''}
                 ${invoiceTabs.length > 1 ? `
                     <button onclick="closeInvoiceTab(event, ${tab.id})" class="ml-1 hover:text-red-300 text-xs font-bold p-0.5" title="Đóng đơn">&times;</button>
                 ` : ''}
@@ -749,7 +770,7 @@ function addNewInvoiceTab() {
     const newId = (invoiceTabs.reduce((max, t) => Math.max(max, t.id || 0), 0)) + 1;
     const newTab = {
         id: newId,
-        name: `Hóa đơn ${invoiceTabs.length + 1}`,
+        name: `HD ${invoiceTabs.length + 1}`,
         cart: [],
         customer: null,
         note: "",
@@ -793,7 +814,7 @@ async function closeInvoiceTab(e, tabId) {
     if (invoiceTabs.length === 0) {
         invoiceTabs = [{
             id: 1,
-            name: "Hóa đơn 1",
+            name: "HD 1",
             cart: [],
             customer: null,
             note: "",
@@ -831,48 +852,67 @@ function filterProductSearch(val) {
     const isSuggestion = !q;
 
     if (isSuggestion) {
-        matches = (posProducts || []).filter(p => p && p.type !== 'material').slice(0, 10);
+        for (const p of (posProducts || [])) {
+            if (p && p.type !== 'material') {
+                matches.push(p);
+                if (matches.length >= 10) break;
+            }
+        }
     } else {
-        matches = (posProducts || []).filter(p => {
-            if (!p || p.type === 'material') return false;
-            const text = `${p.name || ''} ${p.code || ''}`;
-            return fuzzyMatch(q, text);
-        }).slice(0, 10);
+        const qWords = removeVietnameseTones(q).split(/\s+/).filter(Boolean);
+        for (const p of (posProducts || [])) {
+            if (!p || p.type === 'material') continue;
+            const rawKey = `${p.name || ''} ${p.code || ''}`;
+            if (p._searchRaw !== rawKey) {
+                p._searchRaw = rawKey;
+                p._searchNorm = removeVietnameseTones(rawKey);
+            }
+            if (qWords.every(w => p._searchNorm.includes(w))) {
+                matches.push(p);
+                if (matches.length >= 10) break;
+            }
+        }
     }
 
     const total = matches.length;
     if (total === 0) {
         dropdown.innerHTML = isSuggestion
-            ? '<div class="p-3 text-center text-xs text-slate-400 italic">Chưa có hàng hóa nào</div>'
-            : '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy hàng hóa phù hợp</div>';
+            ? '<div class="p-3 text-center text-xs text-slate-400 ">Chưa có hàng hóa nào</div>'
+            : '<div class="p-3 text-center text-xs text-slate-400 ">Không tìm thấy hàng hóa phù hợp</div>';
         dropdown.classList.remove('hidden');
         return;
     }
 
     const header = isSuggestion ? `
-        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
-            <span class="flex items-center gap-1">✨ 10 mặt hàng gợi ý</span>
-            <span class="text-[10px] text-slate-400 font-normal">Gõ từ khóa để tìm thêm</span>
+        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 rounded-t-md flex items-center justify-between text-xs font-bold text-slate-600 mb-0.5">
+            <span class="flex items-center gap-1.5"><i class="ph ph-sparkle text-sky-600"></i> 10 mặt hàng gợi ý</span>
+            <span class="text-xs text-slate-400 font-normal">Gõ từ khóa để tìm thêm</span>
         </div>
     ` : '';
 
     dropdown.innerHTML = header + matches.map((p, idx) => {
         const clickHandler = `addProductToActiveCart(${p.id})`;
         const isCombo = p.type === 'combo';
-        const typeLabel = isCombo ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
-        const comboHint = isCombo && p.combo_summary ? `<div class="text-[10px] text-amber-700 italic truncate max-w-xs mt-0.5">📦 Gồm: ${p.combo_summary}</div>` : '';
+        const typeLabel = isCombo ? '<span class="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mr-1 border border-amber-200">COMBO</span>' : '';
+        const comboHint = isCombo && p.combo_summary ? `<div class="text-xs text-amber-700 truncate max-w-xs mt-0.5"><i class="ph ph-package"></i> Gồm: ${p.combo_summary}</div>` : '';
+        const thumbHtml = p.image_url
+            ? `<img src="${p.image_url}" class="w-8 h-8 rounded-md object-cover border border-slate-200 shrink-0" alt="">`
+            : `<div class="w-8 h-8 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-sm shrink-0"><i class="ph ph-package"></i></div>`;
         return `
-        <div onclick="${clickHandler}" onmouseenter="setProductActiveItem(${idx})" data-product-id="${p.id}" class="pos-product-item p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
-            <div>
-                <span class="font-mono text-[11px] text-slate-400 font-bold mr-1.5">[${p.code || '-'}]</span>
-                ${typeLabel}
-                <span class="font-bold text-slate-800">${p.name}</span>
-                <span class="text-slate-400 text-[11px] ml-1">(${p.unit || 'cái'})</span>
-                ${comboHint}
+        <div onclick="${clickHandler}" onmouseenter="setProductActiveItem(${idx})" data-product-id="${p.id}" class="pos-product-item p-2.5 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-0 flex justify-between items-center transition text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+                ${thumbHtml}
+                <div class="min-w-0">
+                    <span class="font-mono text-xs text-slate-500 font-bold mr-1.5">[${p.code || '-'}]</span>
+                    ${typeLabel}
+                    <span class="pos-item-title font-bold text-slate-900">${p.name}</span>
+                    <span class="text-slate-500 text-xs ml-1">(${p.unit || 'cái'})</span>
+                    ${comboHint}
+                </div>
             </div>
             <div class="text-right shrink-0 ml-2">
-                <div class="font-bold text-sky-600">${formatMoney(p.sell_price)}</div>
-                <div class="text-[10px] text-slate-400">Tồn: ${p.type === 'service' ? '∞' : (isCombo ? 'Gói' : (p.stock || 0))}</div>
+                <div class="font-mono font-bold text-sky-600">${formatMoney(p.sell_price)}</div>
+                <div class="text-xs text-slate-500 font-mono">Tồn: ${p.type === 'service' ? '∞' : (isCombo ? 'Gói' : (p.stock || 0))}</div>
             </div>
         </div>
         `;
@@ -921,6 +961,7 @@ async function addProductToActiveCart(productId) {
             product_id: p.id,
             code: p.code,
             name: p.name,
+            image_url: p.image_url || '',
             type: p.type || 'product',
             is_combo: isCombo,
             combo_summary: p.combo_summary || '',
@@ -985,6 +1026,7 @@ function syncBuyXGetYPromotionsInCart(tab = null) {
                     product_id: targetGiftProdId,
                     code: giftProdData.code || cartBuyItem.code,
                     name: `🎁 [QUÀ TẶNG] ${giftProdData.name}`,
+                    image_url: giftProdData.image_url || cartBuyItem.image_url || '',
                     unit: giftProdData.unit || 'cái',
                     price: 0,
                     original_price: giftProdData.sell_price || 0,
@@ -1051,19 +1093,19 @@ function renderActiveTabCart() {
                 : `-${formatMoney(itemDiscountVal)}`;
 
             const isComboItem = !!(item.is_combo || item.type === 'combo');
-            const comboBadge = isComboItem ? '<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
+            const comboBadge = isComboItem ? '<span class="text-xs font-bold text-amber-600 bg-amber-50 px-1 rounded mr-1 border border-amber-200">COMBO</span>' : '';
             const manualGiftBadge = item.is_manual_gift 
-                ? '<span class="px-1.5 py-0.2 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 mr-1">🎁 QUÀ TẶNG</span>' 
+                ? '<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 mr-1">🎁 QUÀ TẶNG</span>' 
                 : '';
 
             const comboSummaryText = item.combo_summary || (posProducts.find(x => x.id === item.product_id)?.combo_summary) || '';
-            const comboSubLine = isComboItem && comboSummaryText ? `<div class="text-[10px] text-amber-700 font-medium italic mt-0.5 truncate" title="Gồm: ${comboSummaryText}">📦 Gồm: ${comboSummaryText}</div>` : '';
+            const comboSubLine = isComboItem && comboSummaryText ? `<div class="text-xs text-amber-700 font-medium  mt-0.5 truncate" title="Gồm: ${comboSummaryText}">📦 Gồm: ${comboSummaryText}</div>` : '';
 
             const baseUnit = item.base_unit || item.unit || 'cái';
             const extraUnits = Array.isArray(item.units) ? item.units : [];
             const unitRatio = typeof item.unit_ratio === 'number' ? item.unit_ratio : (parseFloat(item.unit_ratio) || 1);
             const unitCell = extraUnits.length
-                ? `<select onchange="changeItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                ? `<select onchange="changeItemUnit(${idx}, this.value)" class="border border-sky-200 bg-sky-50/50 rounded px-1 py-0.5 text-xs font-semibold text-sky-800 cursor-pointer focus:outline-none focus:ring-1 focus:ring-sky-400">
                        <option value="1" ${unitRatio == 1 ? 'selected' : ''}>${baseUnit}</option>
                        ${extraUnits.map(u => `<option value="${u.ratio}" ${unitRatio == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
                    </select>`
@@ -1071,7 +1113,7 @@ function renderActiveTabCart() {
 
             // Hiện quy đổi ra đơn vị cơ bản khi đang bán theo thùng/lốc
             const convHint = (unitRatio && unitRatio != 1)
-                ? `<div class="text-[10px] text-indigo-600 font-semibold">= ${(itemQty * unitRatio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+                ? `<div class="text-xs text-sky-600 font-semibold">= ${(itemQty * unitRatio).toLocaleString('vi-VN')} ${baseUnit}</div>`
                 : '';
 
             return `
@@ -1086,8 +1128,18 @@ function renderActiveTabCart() {
                     <!-- STT -->
                     <div class="text-center font-bold text-slate-400 row-desktop-only">${idx + 1}</div>
 
+                    <!-- Ảnh SP -->
+                    <div class="text-center flex items-center justify-center">
+                        ${(() => {
+                            const imgUrl = item.image_url || (posProducts.find(x => x.id === item.product_id)?.image_url) || '';
+                            return imgUrl
+                                ? `<img src="${imgUrl}" onclick="if(window.viewExpenseBillModal) viewExpenseBillModal('${encodeURIComponent(imgUrl)}')" class="w-9 h-9 rounded-lg object-cover border border-slate-200 shrink-0 cursor-pointer hover:scale-110 transition shadow-2xs" title="Bấm phóng to ảnh" alt="">`
+                                : `<div class="w-9 h-9 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs shrink-0">📦</div>`;
+                        })()}
+                    </div>
+
                     <!-- Mã hàng -->
-                    <div class="font-mono font-bold text-slate-600 text-[11px] truncate row-desktop-only" title="${item.code || '-'}">
+                    <div class="font-mono font-bold text-slate-600 text-xs truncate row-desktop-only" title="${item.code || '-'}">
                         ${item.code || '-'}
                     </div>
 
@@ -1098,7 +1150,7 @@ function renderActiveTabCart() {
                     </div>
 
                     <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
-                    <div class="text-center text-slate-500 text-[11px] row-desktop-only">
+                    <div class="text-center text-slate-500 text-xs row-desktop-only">
                         ${unitCell}
                     </div>
 
@@ -1113,11 +1165,11 @@ function renderActiveTabCart() {
                         </div>
                         ${(!item.is_gift && itemQty >= 2) ? `
                         <div class="mt-1 flex justify-center">
-                            <button onclick="splitCartItemToGift(${idx}, 1)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 shadow-2xs transition inline-flex items-center gap-0.5" title="Tách 1 cái làm quà tặng 0đ"><span>🎁</span> Tách tặng</button>
+                            <button onclick="splitCartItemToGift(${idx}, 1)" class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 shadow-2xs transition inline-flex items-center gap-0.5" title="Tách 1 cái làm quà tặng 0đ"><span>🎁</span> Tách tặng</button>
                         </div>` : ''}
                         ${item.is_manual_gift ? `
                         <div class="mt-1 flex justify-center">
-                            <button onclick="mergeManualGiftItem(${idx})" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-2xs transition" title="Gộp lại vào dòng bán thường">🔄 Gộp lại</button>
+                            <button onclick="mergeManualGiftItem(${idx})" class="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-2xs transition" title="Gộp lại vào dòng bán thường">🔄 Gộp lại</button>
                         </div>` : ''}
                         ${convHint}
                     </div>
@@ -1127,21 +1179,21 @@ function renderActiveTabCart() {
                         <!-- Dòng 1: Giá bán thực tế + Badge + Bút -->
                         <div class="font-bold text-slate-800 hover:text-sky-600 flex items-center justify-end gap-1 flex-nowrap leading-tight">
                             <span class="font-bold text-slate-800 text-xs">${formatMoney(itemPrice)}</span>
-                            ${(item.vat_rate && item.vat_rate > 0) ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200 shrink-0">VAT ${item.vat_rate}%</span>` : ''}
-                            ${itemPrice !== itemOriginalPrice ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
-                            <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-[10px]">✏️</span>
+                            ${(item.vat_rate && item.vat_rate > 0) ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 shrink-0">VAT ${item.vat_rate}%</span>` : ''}
+                            ${itemPrice !== itemOriginalPrice ? `<span class="inline-flex items-center px-1 py-0.2 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">🏷️ ${item.price_list_name || 'Giá riêng'}</span>` : ''}
+                            <span class="opacity-0 group-hover:opacity-100 text-sky-500 text-xs">✏️</span>
                         </div>
                         <!-- Dòng 2: Giá niêm yết cũ & mức giảm đỏ (thẳng hàng bên dưới, không lấn sang trái) -->
                         ${(itemPrice !== itemOriginalPrice || hasDiscount) ? `
-                            <div class="flex items-center justify-end gap-1 text-[10px] leading-tight mt-0.5 whitespace-nowrap">
-                                ${itemPrice !== itemOriginalPrice ? `<span class="text-slate-400 line-through font-normal text-[10px]">${formatMoney(itemOriginalPrice)}</span>` : ''}
+                            <div class="flex items-center justify-end gap-1 text-xs leading-tight mt-0.5 whitespace-nowrap">
+                                ${itemPrice !== itemOriginalPrice ? `<span class="text-slate-400 line-through font-normal text-xs">${formatMoney(itemOriginalPrice)}</span>` : ''}
                                 ${hasDiscount ? `<span class="text-rose-500 font-bold">${discountText}</span>` : ''}
                             </div>
                         ` : ''}
                     </div>
 
                     <!-- Thành tiền -->
-                    <div class="text-right font-black text-sky-700 text-sm whitespace-nowrap subtotal-col">
+                    <div class="text-right font-bold text-sky-700 text-sm whitespace-nowrap subtotal-col">
                         ${formatMoney(itemSubtotal)}
                     </div>
                 </div>
@@ -1383,41 +1435,55 @@ function filterCustomerSearch(val) {
     const isSuggestion = !q;
 
     if (isSuggestion) {
-        matches = (posContacts || []).filter(c => c && c.name).slice(0, 10);
+        for (const c of (posContacts || [])) {
+            if (c && c.name) {
+                matches.push(c);
+                if (matches.length >= 10) break;
+            }
+        }
     } else {
-        matches = (posContacts || []).filter(c => {
-            const text = `${c.name || ''} ${c.phone || ''}`;
-            return fuzzyMatch(q, text);
-        }).slice(0, 10);
+        const qWords = removeVietnameseTones(q).split(/\s+/).filter(Boolean);
+        for (const c of (posContacts || [])) {
+            if (!c) continue;
+            const rawKey = `${c.name || ''} ${c.phone || ''}`;
+            if (c._searchRaw !== rawKey) {
+                c._searchRaw = rawKey;
+                c._searchNorm = removeVietnameseTones(rawKey);
+            }
+            if (qWords.every(w => c._searchNorm.includes(w))) {
+                matches.push(c);
+                if (matches.length >= 10) break;
+            }
+        }
     }
 
     if (matches.length === 0) {
         dropdown.innerHTML = isSuggestion
-            ? '<div class="p-3 text-center text-xs text-slate-400 italic">Chưa có khách hàng nào</div>'
-            : '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy khách hàng nào</div>';
+            ? '<div class="p-3 text-center text-xs text-slate-400 ">Chưa có khách hàng nào</div>'
+            : '<div class="p-3 text-center text-xs text-slate-400 ">Không tìm thấy khách hàng nào</div>';
         dropdown.classList.remove('hidden');
         return;
     }
 
     const header = isSuggestion ? `
-        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
-            <span class="flex items-center gap-1">✨ 10 khách hàng gợi ý</span>
-            <span class="text-[10px] text-slate-400 font-normal">Gõ tên/SĐT để tìm thêm</span>
+        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 rounded-t-md flex items-center justify-between text-xs font-bold text-slate-600 mb-0.5">
+            <span class="flex items-center gap-1.5"><i class="ph ph-sparkle text-sky-600"></i> 10 khách hàng gợi ý</span>
+            <span class="text-xs text-slate-400 font-normal">Gõ tên/SĐT để tìm thêm</span>
         </div>
     ` : '';
 
     dropdown.innerHTML = header + matches.map((c, idx) => `
-        <div onclick="selectCustomerForActiveTab(${c.id})" onmouseenter="setCustomerActiveItem(${idx})" data-customer-id="${c.id}" class="pos-customer-item p-2.5 hover:bg-sky-50 cursor-pointer border-b last:border-0 flex justify-between items-center transition text-xs">
+        <div onclick="selectCustomerForActiveTab(${c.id})" onmouseenter="setCustomerActiveItem(${idx})" data-customer-id="${c.id}" class="pos-customer-item p-2.5 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-0 flex justify-between items-center transition text-xs">
             <div>
                 <div class="flex items-center gap-1.5">
-                    <span class="font-bold text-slate-800">${c.name}</span>
-                    ${c.segment_name ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-1.5 py-0.5 rounded text-[10px]">🏷️ ${c.segment_name}</span>` : ''}
+                    <span class="pos-cust-name font-bold text-slate-900">${c.name}</span>
+                    ${c.segment_name ? `<span class="pos-badge-seg bg-sky-50 text-sky-700 border border-sky-200 font-semibold px-1.5 py-0.5 rounded-md text-xs inline-flex items-center gap-1"><i class="ph ph-tag"></i> ${c.segment_name}</span>` : ''}
                 </div>
-                <div class="text-[11px] text-slate-400">📞 ${c.phone || 'Không SĐT'}</div>
+                <div class="pos-cust-phone text-xs text-slate-500 mt-0.5 flex items-center gap-1 font-mono"><i class="ph ph-phone text-slate-400"></i> <span>${c.phone || 'Không SĐT'}</span></div>
             </div>
-            <div class="text-right space-y-0.5">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-700 block">🏆 ${c.points || c.reward_points || 0} pts</span>
-                ${(c.spa_wallet_balance && c.spa_wallet_balance > 0) ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 block">💆 ${Number(c.spa_wallet_balance).toLocaleString('vi-VN')} đ</span>` : ''}
+            <div class="text-right space-y-1">
+                <span class="pos-badge-pts px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-700 inline-flex items-center gap-1 font-mono"><i class="ph ph-trophy"></i> ${c.points || c.reward_points || 0} pts</span>
+                ${(c.spa_wallet_balance && c.spa_wallet_balance > 0) ? `<span class="px-1.5 py-0.5 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 block font-mono"><i class="ph ph-wallet"></i> ${Number(c.spa_wallet_balance).toLocaleString('vi-VN')} đ</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -1482,7 +1548,7 @@ function updateCustomerUI(cust) {
         // Mặc định Khách lẻ
         if (nameEl) nameEl.innerText = "Khách lẻ";
         if (phoneEl) phoneEl.innerText = "Không SĐT";
-        if (pointsEl) pointsEl.innerText = "🏆 Điểm: 0";
+        if (pointsEl) pointsEl.innerHTML = '<i class="ph ph-trophy"></i> Điểm: 0';
         if (segBadge) {
             segBadge.innerText = '';
             segBadge.classList.add('hidden');
@@ -1492,11 +1558,11 @@ function updateCustomerUI(cust) {
         if (walletBar) walletBar.classList.add('hidden');
     } else {
         if (nameEl) nameEl.innerText = cust.name;
-        if (phoneEl) phoneEl.innerText = cust.phone ? `📞 ${cust.phone}` : "Không SĐT";
-        if (pointsEl) pointsEl.innerText = `🏆 Điểm: ${cust.points || 0}`;
+        if (phoneEl) phoneEl.innerHTML = cust.phone ? `<i class="ph ph-phone"></i> ${cust.phone}` : "Không SĐT";
+        if (pointsEl) pointsEl.innerHTML = `<i class="ph ph-trophy"></i> Điểm: ${cust.points || 0}`;
         if (segBadge) {
             if (cust.segment_name) {
-                segBadge.innerText = `🏷️ ${cust.segment_name}`;
+                segBadge.innerHTML = `<i class="ph ph-tag"></i> ${cust.segment_name}`;
                 segBadge.classList.remove('hidden');
             } else {
                 segBadge.innerText = '';
@@ -1509,7 +1575,7 @@ function updateCustomerUI(cust) {
             walletBar.classList.add('hidden');
             if (walletBadge) {
                 const bal = cust.spa_wallet_balance || 0;
-                walletBadge.innerText = `💆 Ví Spa: ${Number(bal).toLocaleString('vi-VN')} đ`;
+                walletBadge.innerHTML = `<i class="ph ph-wallet"></i> Ví Spa: ${Number(bal).toLocaleString('vi-VN')} đ`;
             }
         }
     }
@@ -1555,7 +1621,7 @@ async function loadPurchaseHistory(custId) {
             return;
         }
         list.innerHTML = rows.map(r => `
-            <div class="border-b p-2 text-xs cursor-pointer hover:bg-purple-50" onclick="viewPurchaseHistoryDetail('${r.type}', '${r.code}', ${r.id})">
+            <div class="border-b p-2 text-xs cursor-pointer hover:bg-sky-50" onclick="viewPurchaseHistoryDetail('${r.type}', '${r.code}', ${r.id})">
                 <div class="flex justify-between">
                     <span class="font-semibold">${r.code || '-'}</span>
                     <span>${(r.total||0).toLocaleString('vi-VN')}đ</span>
@@ -1718,7 +1784,7 @@ function renderQuickCashButtons(finalAmount) {
     if (!container) return;
 
     if (finalAmount <= 0) {
-        container.innerHTML = '<div class="col-span-3 text-center text-slate-400 text-[11px]">Đơn hàng 0 đ</div>';
+        container.innerHTML = '<div class="col-span-3 text-center text-slate-400 text-xs">Đơn hàng 0 đ</div>';
         return;
     }
 
@@ -1735,11 +1801,11 @@ function renderQuickCashButtons(finalAmount) {
     const sorted = Array.from(presets).slice(0, 5);
 
     container.innerHTML = `
-        <button type="button" onclick="setPosFullDebt()" class="py-1 px-1 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 border border-amber-300 rounded-lg text-[11px] font-bold text-amber-800 transition flex items-center justify-center gap-0.5" title="Khách nợ toàn bộ (Trả 0đ)">
+        <button type="button" onclick="setPosFullDebt()" class="py-1 px-1 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 border border-amber-300 rounded-lg text-xs font-bold text-amber-800 transition flex items-center justify-center gap-0.5" title="Khách nợ toàn bộ (Trả 0đ)">
             <span>📒 Nợ 0đ</span>
         </button>
     ` + sorted.map(val => `
-        <button type="button" onclick="setQuickCash(${val})" class="py-1 px-1 bg-white hover:bg-sky-50 hover:border-sky-300 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 transition">
+        <button type="button" onclick="setQuickCash(${val})" class="py-1 px-1 bg-white hover:bg-sky-50 hover:border-sky-300 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 transition">
             ${formatMoney(val)}
         </button>
     `).join('');
@@ -1879,18 +1945,18 @@ function renderSplitPaymentLines() {
                 if (_pick) l.account_id = _pick.id;
             }
             const accountSelect = needsAccount ? `
-                <select class="border rounded px-1 py-1 text-[10px] w-28" onchange="tab_splitLines_setAccount(${idx}, this.value)">
+                <select class="border rounded px-1 py-1 text-xs w-28" onchange="tab_splitLines_setAccount(${idx}, this.value)">
                     <option value="">-- TK nhận --</option>
                     ${accountsFor(l.method).map(a => `<option value="${a.id}" ${l.account_id == a.id ? 'selected' : ''}>${a.name}</option>`).join('')}
                 </select>` : '';
             return `
             <div class="flex items-center gap-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
                 <span class="flex-1 font-bold text-slate-600">${SPLIT_METHOD_LABEL[l.method] || l.method}</span>
-                <span class="font-black text-emerald-600">${formatMoney(l.amount)}</span>
+                <span class="font-bold text-emerald-600">${formatMoney(l.amount)}</span>
                 ${accountSelect}
                 <button type="button" onclick="removeSplitPaymentLine(${idx})" class="text-rose-400 hover:text-rose-600 font-bold px-1">✕</button>
             </div>`;
-        }).join('') || '<div class="text-[11px] text-slate-400 text-center py-1">Chưa có dòng thanh toán nào</div>';
+        }).join('') || '<div class="text-xs text-slate-400 text-center py-1">Chưa có dòng thanh toán nào</div>';
     }
 
     const total = lines.reduce((s, l) => s + l.amount, 0);
@@ -3632,7 +3698,7 @@ function renderAndPrint(ord, isDraft = false) {
             txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
             txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
             txt = txt.replace(/{{con_no}}/g, printData.con_no);
-            content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
+            content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? '' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
         }
 
         let printY = e.y || 0;
@@ -3975,12 +4041,12 @@ async function openTopupSpaModal() {
                     <input type="radio" name="pos_topup_pkg" value="${pkg.id}" ${idx === 0 ? 'checked' : ''} onchange="onSelectTopupPackageRadio(${pkg.id})" class="text-emerald-600 focus:ring-emerald-500">
                     <div>
                         <div class="font-bold text-slate-800 text-xs">${pkg.name}</div>
-                        <div class="text-[11px] text-slate-500">Nộp: <strong class="text-slate-700">${Number(pkg.pay_amount).toLocaleString('vi-VN')} đ</strong></div>
+                        <div class="text-xs text-slate-500">Nộp: <strong class="text-slate-700">${Number(pkg.pay_amount).toLocaleString('vi-VN')} đ</strong></div>
                     </div>
                 </div>
                 <div class="text-right">
-                    <span class="text-emerald-700 font-black text-xs block">+${Number(pkg.receive_amount).toLocaleString('vi-VN')} đ</span>
-                    <span class="text-[10px] text-emerald-600 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">Tặng +${Number(pkg.receive_amount - pkg.pay_amount).toLocaleString('vi-VN')} đ</span>
+                    <span class="text-emerald-700 font-bold text-xs block">+${Number(pkg.receive_amount).toLocaleString('vi-VN')} đ</span>
+                    <span class="text-xs text-emerald-600 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">Tặng +${Number(pkg.receive_amount - pkg.pay_amount).toLocaleString('vi-VN')} đ</span>
                 </div>
             </label>
         `).join('');
@@ -4095,7 +4161,7 @@ function buildTopupReceiptHTML(data) {
 
       ${data.note ? `
       <div style="font-size: 11px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-        <em>Ghi chú: ${data.note}</em>
+        <span>Ghi chú: ${data.note}</span>
       </div>` : ''}
 
       <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; padding-bottom: 24px;">
@@ -4442,8 +4508,8 @@ async function showPosWalletHistory() {
             const isSpend = r.type === 'spend';
             const typeLabel = isTopup ? '⚡ Nạp gói' : (isSpend ? '🛒 Chi tiêu bill' : 'Hoàn tiền');
             const typeBadge = isTopup
-                ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
-                : (isSpend ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu bill</span>' : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
+                ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
+                : (isSpend ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu bill</span>' : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
             
             const sign = isTopup ? '+' : (isSpend ? '-' : '');
             const amountColor = isTopup ? 'text-emerald-600 font-bold' : (isSpend ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold');
@@ -4455,18 +4521,18 @@ async function showPosWalletHistory() {
                 actionHtml = `
                     <div class="inline-flex items-center gap-1 justify-center">
                         <button type="button" onclick="printHistoricalTopupReceipt(${cust.id}, ${r.id})" 
-                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
+                                class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 shadow-2xs transition" 
                                 title="In lại phiếu thu nạp ví K80">
                             🖨️ In
                         </button>
                         ${isAdmin ? `
                             <button type="button" onclick="openEditTopupTxModal(${r.id}, ${cust.id})"
-                                    class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 shadow-2xs transition"
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 shadow-2xs transition"
                                     title="Chỉnh sửa phiếu nạp ví">
                                 ✏️ Sửa
                             </button>
                             <button type="button" onclick="confirmDeleteTopupTx(${r.id}, ${cust.id})"
-                                    class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-2xs transition"
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 shadow-2xs transition"
                                     title="Xóa phiếu nạp ví và hoàn tác số dư">
                                 🗑️ Xóa
                             </button>
@@ -4755,7 +4821,7 @@ function renderTopupOrdersTable(rows) {
     if (!tbody) return;
 
     if (!rows || rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 italic">Không tìm thấy phiếu thu nạp ví nào</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 ">Không tìm thấy phiếu thu nạp ví nào</td></tr>';
         return;
     }
 
@@ -4773,13 +4839,13 @@ function renderTopupOrdersTable(rows) {
                 <td class="p-3 text-slate-500 font-mono">${typeof formatDateTime === 'function' ? formatDateTime(r.created_at) : (r.created_at || '')}</td>
                 <td class="p-3">
                     <div class="font-bold text-slate-800">${r.contact_name || 'Khách lẻ'}</div>
-                    <div class="text-[10px] text-slate-400 font-mono">${r.contact_phone || ''}</div>
+                    <div class="text-xs text-slate-400 font-mono">${r.contact_phone || ''}</div>
                 </td>
                 <td class="p-3 font-semibold text-slate-700">${r.package_name || r.note || 'Nạp ví Spa'}</td>
                 <td class="p-3 text-right font-mono font-bold text-slate-800">${payAmt.toLocaleString('vi-VN')} đ</td>
                 <td class="p-3 text-right font-mono font-bold text-emerald-600">+${recAmt.toLocaleString('vi-VN')} đ</td>
                 <td class="p-3 text-center">
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${pts > 0 ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-bold ${pts > 0 ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
                         +${pts} đ
                     </span>
                 </td>
@@ -4871,10 +4937,10 @@ function renderMobileCatalog(query = '', category = '') {
                 <div>
                     <div class="h-12 bg-slate-50 rounded-lg flex items-center justify-center text-xl mb-1">${icon}</div>
                     <div class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug" title="${p.name}">${p.name}</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5 truncate">${p.code || ''} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</div>
+                    <div class="text-xs text-slate-400 mt-0.5 truncate">${p.code || ''} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</div>
                 </div>
                 <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5">
-                    <span class="font-mono-num font-extrabold text-xs text-sky-600">${formatMoney(price)}</span>
+                    <span class="font-mono-num font-bold text-xs text-sky-600">${formatMoney(price)}</span>
                     <span class="w-6 h-6 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-sm">+</span>
                 </div>
             </div>

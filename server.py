@@ -28,9 +28,10 @@ if not os.environ.get("POS_JWT_SECRET"):
 # Thiết lập ghi log ra file pos_app.log và console
 stdout_stream = sys.stdout if sys.stdout is not None else open(os.devnull, "w", encoding="utf-8")
 handlers = [logging.StreamHandler(stdout_stream)]
+_RUNTIME_ROOT = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
 if not os.environ.get("VERCEL"):
     try:
-        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+        log_dir = os.path.join(_RUNTIME_ROOT, "logs")
         os.makedirs(log_dir, exist_ok=True)
         log_file = os.path.join(log_dir, "pos_app.log")
         handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
@@ -349,7 +350,7 @@ _client_logger = logging.getLogger("pos_client")
 _client_logger.propagate = False
 try:
     from logging.handlers import RotatingFileHandler
-    _cl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    _cl_dir = os.path.join(_RUNTIME_ROOT, "logs")
     os.makedirs(_cl_dir, exist_ok=True)
     _h = RotatingFileHandler(os.path.join(_cl_dir, "client.log"), maxBytes=2_000_000, backupCount=2, encoding="utf-8")
     _h.setFormatter(logging.Formatter("%(message)s"))

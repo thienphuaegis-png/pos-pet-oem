@@ -18,7 +18,7 @@ function setStaffSettingsStatusFilter(status) {
   const btnAct = document.getElementById('btn-staff-settings-active');
   const btnRes = document.getElementById('btn-staff-settings-resigned');
   const btnAll = document.getElementById('btn-staff-settings-all');
-  const actCls = 'px-2.5 py-1 rounded-md text-indigo-700 bg-white shadow-xs font-bold transition';
+  const actCls = 'px-2.5 py-1 rounded-md text-sky-700 bg-white shadow-xs font-bold transition';
   const inactCls = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition';
 
   if (btnAct) btnAct.className = (status === 'active' ? actCls : inactCls);
@@ -78,19 +78,19 @@ function renderStaffTable() {
     const rowClass = isResigned ? 'border-t hover:bg-slate-100 bg-slate-50/70 opacity-65 hover:opacity-100 transition' : 'border-t hover:bg-slate-50 transition';
 
     const accountBadge = r.has_account
-      ? `<span class="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
-      : `<span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded italic">Chỉ hồ sơ lương</span>`;
+      ? `<span class="inline-flex items-center gap-1 text-xs font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">${r.username || ''}</span>`
+      : `<span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded ">Chỉ hồ sơ lương</span>`;
 
     const payrollBadge = r.is_payroll_staff
-      ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title="Nhân sự thuộc diện theo dõi chấm công & tính lương HRM">💼 HRM</span>`
-      : `<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Tài khoản quản trị/hệ thống thuần túy (không tính lương)">👑 Hệ thống</span>`;
+      ? `<span class="inline-flex items-center gap-0.5 text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded" title="Nhân sự thuộc diện theo dõi chấm công & tính lương HRM">💼 HRM</span>`
+      : `<span class="inline-flex items-center gap-0.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded" title="Tài khoản quản trị/hệ thống thuần túy (không tính lương)">👑 Hệ thống</span>`;
 
     const roleText = r.has_account ? (ROLE_LABEL[r.role] || r.role) : '<span class="text-slate-400">Không đăng nhập</span>';
 
     const codesInfo = [
-      r.employee_code ? `<span class="text-[10px] text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
-      r.device_code ? `<span class="text-[10px] text-indigo-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : '',
-      isResigned && r.leave_date ? `<span class="text-[10px] text-rose-600 font-bold">Nghỉ: ${r.leave_date}</span>` : ''
+      r.employee_code ? `<span class="text-xs text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
+      r.device_code ? `<span class="text-xs text-sky-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : '',
+      isResigned && r.leave_date ? `<span class="text-xs text-rose-600 font-bold">Nghỉ: ${r.leave_date}</span>` : ''
     ].filter(Boolean).join(' | ');
 
     return `
@@ -98,7 +98,7 @@ function renderStaffTable() {
         <td class="p-2.5 font-semibold">
           <div class="${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
           ${codesInfo ? `<div class="mt-0.5">${codesInfo}</div>` : ''}
-          ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
+          ${r.has_ai_key ? `<span class="inline-flex items-center gap-0.5 text-xs text-sky-700 bg-sky-50 border border-sky-200 px-1.5 py-0.2 rounded font-mono font-bold mt-0.5" title="Đã có Gemini API Key riêng: ${r.ai_model || 'gemini-2.5-flash'}"><span>🔑</span><span>Key riêng</span></span>` : ''}
         </td>
         <td class="p-2.5">
           <div class="flex flex-col gap-1 items-start">
@@ -111,11 +111,11 @@ function renderStaffTable() {
         <td class="p-2.5 text-right font-mono">${r.commission_rate || 0}%</td>
         <td class="p-2.5 text-center">${r.is_active ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">Hoạt động</span>' : '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold">Đã nghỉ / Khóa</span>'}</td>
         <td class="p-2.5 text-center whitespace-nowrap">
-          ${r.has_account && !isResigned ? `<button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-purple-600 hover:text-purple-800 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Gán hoặc đổi Gemini API Key riêng">🔑 Key AI</button>` : ''}
-          ${r.has_account && !isResigned ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-[11px] font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
-          <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Sửa</button>
-          ${r.has_account && !isResigned ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">Reset MK</button>` : (!r.has_account && !isResigned ? `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-[11px] font-bold mr-2 cursor-pointer">➕ Cấp TK</button>` : '')}
-          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="${r.is_active ? 'text-rose-600' : 'text-sky-600'} hover:underline text-[11px] font-bold cursor-pointer">${r.is_active ? '🛑 Nghỉ việc' : '↩️ Mở lại'}</button>
+          ${r.has_account && !isResigned ? `<button onclick="openAssignStaffAIModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-sky-600 hover:text-sky-800 hover:underline text-xs font-bold mr-2 cursor-pointer" title="Gán hoặc đổi Gemini API Key riêng">🔑 Key AI</button>` : ''}
+          ${r.has_account && !isResigned ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-xs font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
+          <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Sửa</button>
+          ${r.has_account && !isResigned ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Reset MK</button>` : (!r.has_account && !isResigned ? `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-xs font-bold mr-2 cursor-pointer">➕ Cấp TK</button>` : '')}
+          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="${r.is_active ? 'text-rose-600' : 'text-sky-600'} hover:underline text-xs font-bold cursor-pointer">${r.is_active ? '🛑 Nghỉ việc' : '↩️ Mở lại'}</button>
         </td>
       </tr>
     `;
@@ -139,7 +139,7 @@ async function loadStaffWorkBlocks(selectedId) {
 
 function openCreateStaffModal() {
   const titleEl = document.getElementById('modal-staff-title');
-  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Thêm Nhân Viên</span>';
+  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-sky-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Thêm Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = '';
   document.getElementById('staff-name').value = '';
   document.getElementById('staff-employee-code').value = '';
@@ -181,7 +181,7 @@ function openEditStaffModal(id) {
   const r = (currentStaffList || []).find(s => s.id === id);
   if (!r) return;
   const titleEl = document.getElementById('modal-staff-title');
-  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-indigo-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Sửa Nhân Viên</span>';
+  if (titleEl) titleEl.innerHTML = '<svg class="w-5 h-5 text-sky-600 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> <span>Sửa Nhân Viên</span>';
   document.getElementById('staff-edit-id').value = r.id;
   document.getElementById('staff-name').value = r.name || '';
   document.getElementById('staff-employee-code').value = r.employee_code || '';
@@ -582,20 +582,20 @@ async function renderActivityLog() {
     }
 
     const roleBadges = {
-      owner: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">Chủ shop</span>',
-      admin: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700">Admin</span>',
-      cashier: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">Thu ngân</span>',
-      accountant: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700">Kế toán</span>',
-      warehouse: '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">Thủ kho</span>',
+      owner: '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-sky-100 text-sky-700">Chủ shop</span>',
+      admin: '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-sky-100 text-sky-700">Admin</span>',
+      cashier: '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-blue-100 text-blue-700">Thu ngân</span>',
+      accountant: '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">Kế toán</span>',
+      warehouse: '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800">Thủ kho</span>',
     };
 
     box.innerHTML = data.logs.map(l => `
       <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition">
         <td class="py-2.5 px-3 font-semibold text-slate-800">${l.staff_name || '(hệ thống)'}</td>
-        <td class="py-2.5 px-2">${roleBadges[l.role] || `<span class="px-2 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-600">${l.role || '—'}</span>`}</td>
+        <td class="py-2.5 px-2">${roleBadges[l.role] || `<span class="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">${l.role || '—'}</span>`}</td>
         <td class="py-2.5 px-3 text-slate-700 font-medium">${l.action}</td>
-        <td class="py-2.5 px-2 text-slate-400 font-mono text-[11px]">${l.ip || '—'}</td>
-        <td class="py-2.5 px-3 text-right text-slate-400 text-[11px] whitespace-nowrap">${formatDateTime(l.created_at) || '—'}</td>
+        <td class="py-2.5 px-2 text-slate-400 font-mono text-xs">${l.ip || '—'}</td>
+        <td class="py-2.5 px-3 text-right text-slate-400 text-xs whitespace-nowrap">${formatDateTime(l.created_at) || '—'}</td>
       </tr>
     `).join('');
   } catch (e) {
@@ -664,13 +664,13 @@ async function renderPermissionMatrix() {
         <td class="py-2.5 pr-2 font-medium text-slate-700">
           <div class="flex items-center gap-2">
             <span>${PERM_LABEL[pk] || pk}</span>
-            ${pk === 'shifts.bypass' ? '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-200">Tùy chọn không cần mở ca</span>' : ''}
+            ${pk === 'shifts.bypass' ? '<span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-200">Tùy chọn không cần mở ca</span>' : ''}
           </div>
         </td>
-        <td class="py-2.5 px-3 text-center bg-purple-50/40">
-          <div class="inline-flex items-center justify-center gap-1 text-purple-700 font-semibold" title="Admin luôn có toàn quyền cố định">
+        <td class="py-2.5 px-3 text-center bg-sky-50/40">
+          <div class="inline-flex items-center justify-center gap-1 text-sky-700 font-semibold" title="Admin luôn có toàn quyền cố định">
             <input type="checkbox" class="w-4 h-4 accent-purple-600 rounded cursor-not-allowed opacity-90" checked disabled>
-            <span class="text-[10px] text-purple-700 font-bold hidden sm:inline">Cố định</span>
+            <span class="text-xs text-sky-700 font-bold hidden sm:inline">Cố định</span>
           </div>
         </td>
         ${roles.map(role => `
@@ -724,7 +724,7 @@ async function openAssignStaffAIModal(staffId, staffName) {
     const res = await fetch(`/api/auth/staff/${staffId}/ai-config`);
     if (!res.ok) {
       if (badge && desc) {
-        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700";
+        badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700";
         badge.innerText = "Chưa có thông tin";
         desc.innerText = "Dán Gemini API Key riêng vào ô bên dưới để gán cho nhân viên này.";
       }
@@ -734,11 +734,11 @@ async function openAssignStaffAIModal(staffId, staffName) {
     if (modelSelect && data.ai_model) modelSelect.value = data.ai_model;
     if (badge && desc) {
       if (data.has_ai_key) {
-        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-purple-100 text-purple-800 border border-purple-200";
+        badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-sky-100 text-sky-800 border border-sky-200";
         badge.innerText = "🟢 Đã gán Key riêng";
         desc.innerText = `Key hiện tại: ${data.masked_key} (${data.ai_model})`;
       } else {
-        badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 border border-blue-200";
+        badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 border border-blue-200";
         badge.innerText = "🏢 Đang dùng Key chung của tiệm";
         desc.innerText = "Nhân viên chưa có key riêng, đang dùng quota tài khoản chung của shop.";
       }

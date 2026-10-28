@@ -62,116 +62,449 @@ def clear_draft(current: Optional[dict] = Depends(get_optional_user)):
     return {"message": "cleared"}
 
 
+def _clean_kv_phone(val) -> str:
+    import re
+    s = re.sub(r"[\s\.\-\(\)_/,]+", "", str(val or "").strip())
+    if s.endswith(".0"):
+        s = s[:-2]
+    if s.startswith("+84"):
+        s = "0" + s[3:]
+    elif s.startswith("84") and len(s) >= 11:
+        s = "0" + s[2:]
+    elif len(s) == 9 and s[0] in "35789":
+        s = "0" + s
+    # Nếu ghép 2 SĐT liền nhau (vd 20 chữ số 03331748530775899853) thì lấy 10 số đầu hợp lệ
+    if len(s) >= 19 and s[0] == "0":
+        s = s[:10]
+    if len(s) < 6 or set(s) == {"0"}:
+        return ""
+    return s
+
+
 @router.post("/api/orders/import-excel")
 async def import_orders_excel(file: UploadFile = File(...)):
     """
-    Import hóa đơn từ file Excel đa-sheet (Sheet Invoices + Sheet Order_Details)
+    Import lịch sử hóa đơn từ:
+    1) File chuẩn KiotViet "Xuất chi tiết hóa đơn" (1 Sheet phẳng 64 cột: lặp Mã hóa đơn theo từng dòng món)
+    2) File Excel 2 Sheet (Sheet Invoices + Sheet Order_Details)
+    Nguyên tắc an toàn tuyệt đối:
+    - Chỉ lưu lịch sử tra cứu & đối soát (orders + order_items + order_payments).
+    - KHÔNG trừ lại tồn kho hiện tại (products.quantity).
+    - KHÔNG sinh phiếu thu/chi vào Sổ quỹ (cashbook) hay cộng số dư tài khoản.
+    - KHÔNG cộng chồng công nợ vào contacts.debt đã chốt.
+    - KHÔNG tự tạo sản phẩm rác làm bẩn danh mục chuẩn (khớp Mã hàng -> Tên hàng + ĐVT quy đổi item_units -> nếu vẫn không có thì gắn product_id=NULL và ghi chú vào đơn).
     """
-    import openpyxl, io
+    import openpyxl, io, re
+    from datetime import datetime, date
+
     content = await file.read()
     try:
-        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"File Excel không hợp lệ: {str(e)}")
 
     sheet_names = wb.sheetnames
-    inv_sheet_name = 'Invoices' if 'Invoices' in sheet_names else sheet_names[0]
-    ws_inv = wb[inv_sheet_name]
-    inv_rows = list(ws_inv.iter_rows(values_only=True))
-    if len(inv_rows) <= 1:
-        raise HTTPException(status_code=400, detail="Sheet Invoices không có dữ liệu!")
+    ws0 = wb[sheet_names[0]]
+    rows0 = list(ws0.iter_rows(values_only=True))
+    if len(rows0) <= 1:
+        raise HTTPException(status_code=400, detail="File Excel không có dữ liệu!")
 
-    # Sheet chi tiết món
-    ws_items = wb['Order_Details'] if 'Order_Details' in sheet_names else (wb[sheet_names[1]] if len(sheet_names) > 1 else None)
-    item_rows = list(ws_items.iter_rows(values_only=True)) if ws_items else []
+    headers0 = [str(c or "").strip() for c in rows0[0]]
+    headers0_lower = [h.lower() for h in headers0]
+
+    def _find_col(candidates):
+        for cand in candidates:
+            cand_l = cand.lower()
+            for idx, h in enumerate(headers0_lower):
+                if h == cand_l:
+                    return idx
+        for cand in candidates:
+            cand_l = cand.lower()
+            for idx, h in enumerate(headers0_lower):
+                if cand_l in h:
+                    return idx
+        return -1
+
+    def _num(val, default=0.0):
+        if val is None or val == "":
+            return default
+        if isinstance(val, (int, float)):
+            return float(val)
+        s = re.sub(r"[^\d\.\-]+", "", str(val).replace(",", ""))
+        try:
+            return float(s) if s else default
+        except Exception:
+            return default
+
+    def _fmt_dt(val):
+        if isinstance(val, datetime):
+            return val.strftime("%Y-%m-%d %H:%M:%S")
+        if isinstance(val, date):
+            return val.strftime("%Y-%m-%d 00:00:00")
+        s = str(val or "").strip()
+        if not s:
+            return None
+        for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(s[:19], fmt)
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+        return s[:19]
+
+    is_kiotviet_flat = (
+        _find_col(["Mã hóa đơn"]) >= 0
+        and _find_col(["Mã hàng"]) >= 0
+        and _find_col(["Thành tiền"]) >= 0
+    )
 
     conn = get_db()
     cur = conn.cursor()
     try:
-        # Load maps
-        cur.execute("SELECT id, code FROM contacts WHERE type = 'customer'")
-        cust_map = {r["code"]: r["id"] for r in cur.fetchall()}
+        # 1. Load danh bạ khách hàng (code & phone)
+        cur.execute("SELECT id, UPPER(TRIM(code)) as ucode, phone FROM contacts WHERE type = 'customer'")
+        cust_by_code = {}
+        cust_by_phone = {}
+        for r in cur.fetchall():
+            if r["ucode"]:
+                cust_by_code[r["ucode"]] = r["id"]
+            p_clean = _clean_kv_phone(r["phone"])
+            if p_clean:
+                cust_by_phone[p_clean] = r["id"]
 
-        cur.execute("SELECT id, UPPER(code) as code FROM products")
-        prod_map = {r["code"]: r["id"] for r in cur.fetchall()}
+        # Map phân nhóm khách hàng từ tên Bảng giá KiotViet
+        cur.execute("SELECT id, UPPER(TRIM(code)) as ucode, UPPER(TRIM(name)) as uname FROM customer_segments")
+        seg_rows = cur.fetchall()
+        seg_map = {}
+        default_seg_id = 1
+        for sr in seg_rows:
+            seg_map[sr["ucode"]] = sr["id"]
+            seg_map[sr["uname"]] = sr["id"]
+            if sr["ucode"] == "LE":
+                default_seg_id = sr["id"]
 
-        # Map chi tiết món theo mã đơn
-        items_by_order = {}
-        if item_rows and len(item_rows) > 1:
-            for r in item_rows[1:]:
-                if not r or len(r) < 3 or not r[1]:
-                    continue
-                o_code = str(r[1]).strip()
-                p_code = str(r[2]).strip().upper()
-                p_id = prod_map.get(p_code)
-                if not p_id:
-                    # Tự tạo mặt hàng nếu chưa có để không mất dữ liệu
-                    cur.execute("""
-                        INSERT INTO products (code, name, type, cost_price, sell_price, unit, stock, category)
-                        VALUES (?, ?, 'product', 0, ?, 'cái', 0, 'Khác')
-                    """, (str(r[2]).strip(), f"Sản phẩm {r[2]}", float(r[4] or 0)))
-                    p_id = cur.lastrowid
-                    prod_map[p_code] = p_id
+        def _resolve_segment_from_pricelist(pl_name: str) -> int:
+            u = (pl_name or "").upper()
+            if "DIAMOND" in u:
+                return seg_map.get("DIAMOND", default_seg_id)
+            if "GOLD" in u:
+                return seg_map.get("GOLD", default_seg_id)
+            if "TITAN" in u:
+                return seg_map.get("TITAN", default_seg_id)
+            if "NỘI BỘ" in u or "NOI BO" in u:
+                return seg_map.get("NOI-BO", default_seg_id)
+            if "ĐẠI LÝ" in u or "DAI LY" in u or "SỈ" in u:
+                return seg_map.get("DL", default_seg_id)
+            return default_seg_id
 
-                qty = float(r[3] or 1)
-                price = float(r[4] or 0)
-                disc = float(r[5] or 0) if len(r) > 5 else 0
-                items_by_order.setdefault(o_code, []).append({
-                    "product_id": p_id,
-                    "quantity": qty,
-                    "price": price,
-                    "discount": disc
-                })
+        # 2. Load danh mục sản phẩm chuẩn & đơn vị quy đổi (item_units) - dùng .upper() của Python để đồng nhất Unicode tiếng Việt
+        cur.execute("SELECT id, code, name, unit FROM products")
+        prod_by_code = {}
+        prod_by_name = {}
+        for r in cur.fetchall():
+            ucode = str(r["code"] or "").strip().upper()
+            uname = str(r["name"] or "").strip().upper()
+            uunit = str(r["unit"] or "cái").strip()
+            if ucode:
+                prod_by_code[ucode] = (r["id"], uunit)
+            if uname:
+                prod_by_name[uname] = (r["id"], uunit)
+
+        cur.execute("SELECT item_id, unit_name, ratio FROM item_units WHERE item_type = 'product'")
+        unit_ratio_map = {}
+        for r in cur.fetchall():
+            uunit = str(r["unit_name"] or "").strip().upper()
+            unit_ratio_map[(r["item_id"], uunit)] = float(r["ratio"] or 1.0)
+
+        # Xóa các đơn mẫu HD-DEMO-% nếu còn tồn tại để tránh lẫn số liệu thật
+        cur.execute("SELECT id FROM orders WHERE code LIKE 'HD-DEMO-%'")
+        demo_ids = [r["id"] for r in cur.fetchall()]
+        if demo_ids:
+            q_marks = ",".join("?" * len(demo_ids))
+            cur.execute(f"DELETE FROM order_return_items WHERE original_item_id IN (SELECT id FROM order_items WHERE order_id IN ({q_marks}))", demo_ids)
+            cur.execute(f"DELETE FROM order_returns WHERE original_order_id IN ({q_marks}) OR exchange_order_id IN ({q_marks})", demo_ids + demo_ids)
+            cur.execute(f"UPDATE hotel_bookings SET order_id = NULL WHERE order_id IN ({q_marks})", demo_ids)
+            cur.execute(f"DELETE FROM order_items WHERE order_id IN ({q_marks})", demo_ids)
+            cur.execute(f"DELETE FROM order_payments WHERE order_id IN ({q_marks})", demo_ids)
+            cur.execute(f"DELETE FROM orders WHERE id IN ({q_marks})", demo_ids)
 
         orders_count = 0
         items_count = 0
+        new_customers_count = 0
+        unmatched_sku_notes = 0
 
-        for r in inv_rows[1:]:
-            if not r or not r[0]:
-                continue
-            code = str(r[0]).strip()
-            c_code = str(r[1] or "").strip()
-            cid = cust_map.get(c_code, 1) # Mặc định khách lẻ nếu ko tìm thấy
-            total = float(r[2] or 0)
-            disc = float(r[3] or 0)
-            ship = float(r[4] or 0) if len(r) > 4 else 0.0
-            final = float(r[5] or 0) if len(r) > 5 else (total - disc + ship)
-            paid = float(r[6] or 0) if len(r) > 6 else final
-            debt = float(r[7] or 0) if len(r) > 7 else max(0.0, final - paid)
-            note = str(r[8] or "") if len(r) > 8 else ""
-            status = str(r[9] or "completed") if len(r) > 9 else "completed"
-            c_at = str(r[10] or "") if len(r) > 10 else None
+        if is_kiotviet_flat:
+            c_inv_code = _find_col(["Mã hóa đơn"])
+            c_time = _find_col(["Thời gian", "Thời gian tạo", "Ngày tạo"])
+            c_cust_code = _find_col(["Mã khách hàng"])
+            c_cust_name = _find_col(["Tên khách hàng"])
+            c_cust_phone = _find_col(["Điện thoại"])
+            c_cust_addr = _find_col(["Địa chỉ (Khách hàng)", "Địa chỉ"])
+            c_pricelist = _find_col(["Bảng giá"])
+            c_seller = _find_col(["Người bán", "Người tạo"])
+            c_channel = _find_col(["Kênh bán"])
+            c_note = _find_col(["Ghi chú"])
+            c_total = _find_col(["Tổng tiền hàng"])
+            c_disc = _find_col(["Giảm giá hóa đơn"])
+            c_surcharge = _find_col(["Thu khác", "Phí giao hàng"])
+            c_final = _find_col(["Khách cần trả"])
+            c_paid = _find_col(["Khách đã trả"])
+            c_cash = _find_col(["Tiền mặt"])
+            c_card = _find_col(["Thẻ"])
+            c_wallet = _find_col(["Ví"])
+            c_transfer = _find_col(["Chuyển khoản"])
+            c_status = _find_col(["Trạng thái"])
+            c_pcode = _find_col(["Mã hàng"])
+            c_pname = _find_col(["Tên hàng"])
+            c_punit = _find_col(["ĐVT"])
+            c_pqty = _find_col(["Số lượng"])
+            c_pprice = _find_col(["Đơn giá"])
+            c_pdisc = _find_col(["Giảm giá"])
+            c_psell = _find_col(["Giá bán"])
+            c_psub = _find_col(["Thành tiền"])
 
-            # Xóa đơn cũ nếu trùng mã để ghi đè sạch sẽ
-            cur.execute("SELECT id FROM orders WHERE code = ?", (code,))
-            ex = cur.fetchone()
-            if ex:
-                cur.execute("DELETE FROM order_items WHERE order_id = ?", (ex["id"],))
-                cur.execute("DELETE FROM orders WHERE id = ?", (ex["id"],))
+            grouped_orders = {}
+            for r in rows0[1:]:
+                if not r or c_inv_code >= len(r):
+                    continue
+                inv_code = str(r[c_inv_code] or "").strip()
+                if not inv_code:
+                    continue
+                st_raw = str(r[c_status] or "").strip().lower() if c_status >= 0 and c_status < len(r) else ""
+                if "hủy" in st_raw or "cancelled" in st_raw:
+                    continue
 
-            cur.execute("""
-                INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, status, created_at)
-                VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now', 'localtime')))
-            """, (code, cid, total, disc, ship, final, paid, debt, note, status, c_at))
-            order_id = cur.lastrowid
-            orders_count += 1
+                if inv_code not in grouped_orders:
+                    grouped_orders[inv_code] = {
+                        "head": r,
+                        "items": [],
+                        "extra_ship": 0.0,
+                        "unmatched_notes": []
+                    }
 
-            # Insert order items
-            ord_items = items_by_order.get(code, [])
-            for itm in ord_items:
-                subtot = max(0.0, itm["quantity"] * itm["price"] - itm["discount"])
+                pcode = str(r[c_pcode] or "").strip().upper() if c_pcode >= 0 and c_pcode < len(r) else ""
+                pname = str(r[c_pname] or "").strip() if c_pname >= 0 and c_pname < len(r) else ""
+                punit = str(r[c_punit] or "").strip() if c_punit >= 0 and c_punit < len(r) else "cái"
+                qty = _num(r[c_pqty] if c_pqty >= 0 and c_pqty < len(r) else 1, 1.0)
+                unit_price = _num(r[c_psell] if c_psell >= 0 and c_psell < len(r) else (r[c_pprice] if c_pprice >= 0 else 0), 0.0)
+                if unit_price <= 0 and c_pprice >= 0 and c_pprice < len(r):
+                    orig_p = _num(r[c_pprice], 0.0)
+                    disc_p = _num(r[c_pdisc] if c_pdisc >= 0 and c_pdisc < len(r) else 0, 0.0)
+                    unit_price = max(0.0, orig_p - disc_p)
+                subtotal = _num(r[c_psub] if c_psub >= 0 and c_psub < len(r) else (qty * unit_price), qty * unit_price)
+
+                if pcode == "SHIP":
+                    grouped_orders[inv_code]["extra_ship"] += subtotal
+                    continue
+
+                pid = None
+                u_ratio = 1.0
+                u_name = punit or "cái"
+                if pcode and pcode in prod_by_code:
+                    pid, base_unit = prod_by_code[pcode]
+                    u_name = punit or base_unit
+                    u_ratio = unit_ratio_map.get((pid, u_name.upper()), 1.0)
+                elif pname and pname.upper() in prod_by_name:
+                    pid, base_unit = prod_by_name[pname.upper()]
+                    u_name = punit or base_unit
+                    u_ratio = unit_ratio_map.get((pid, u_name.upper()), 1.0)
+                else:
+                    unmatched_sku_notes += 1
+                    grouped_orders[inv_code]["unmatched_notes"].append(f"[{pcode or 'SP-CU'} {pname} x{qty:g}]")
+
+                grouped_orders[inv_code]["items"].append({
+                    "product_id": pid,
+                    "quantity": qty,
+                    "price": unit_price,
+                    "subtotal": subtotal,
+                    "unit_ratio": u_ratio,
+                    "unit": u_name
+                })
+
+            for inv_code, odata in grouped_orders.items():
+                hr = odata["head"]
+                ccode = str(hr[c_cust_code] or "").strip().upper() if c_cust_code >= 0 and c_cust_code < len(hr) else ""
+                cname = str(hr[c_cust_name] or "").strip() if c_cust_name >= 0 and c_cust_name < len(hr) else ""
+                cphone = _clean_kv_phone(hr[c_cust_phone] if c_cust_phone >= 0 and c_cust_phone < len(hr) else "")
+                caddr = str(hr[c_cust_addr] or "").strip() if c_cust_addr >= 0 and c_cust_addr < len(hr) else ""
+                pl_name = str(hr[c_pricelist] or "").strip() if c_pricelist >= 0 and c_pricelist < len(hr) else ""
+
+                cid = None
+                if ccode and ccode in cust_by_code:
+                    cid = cust_by_code[ccode]
+                elif cphone and cphone in cust_by_phone:
+                    cid = cust_by_phone[cphone]
+                elif (ccode or cphone) and cname and cname.lower() != "khách lẻ":
+                    seg_id = _resolve_segment_from_pricelist(pl_name)
+                    cur.execute("""
+                        INSERT INTO contacts (code, name, phone, address, type, segment_id, debt, points)
+                        VALUES (?, ?, ?, ?, 'customer', ?, 0, 0)
+                    """, (ccode or None, cname, cphone or "", caddr, seg_id))
+                    cid = cur.lastrowid
+                    new_customers_count += 1
+                    if ccode:
+                        cust_by_code[ccode] = cid
+                    if cphone:
+                        cust_by_phone[cphone] = cid
+
+                items_sum = sum(it["subtotal"] for it in odata["items"])
+                total = _num(hr[c_total] if c_total >= 0 and c_total < len(hr) else items_sum, items_sum)
+                disc = _num(hr[c_disc] if c_disc >= 0 and c_disc < len(hr) else 0.0, 0.0)
+                ship = _num(hr[c_surcharge] if c_surcharge >= 0 and c_surcharge < len(hr) else 0.0, 0.0) + odata["extra_ship"]
+                final = _num(hr[c_final] if c_final >= 0 and c_final < len(hr) else max(0.0, total - disc + ship), max(0.0, total - disc + ship))
+                paid = _num(hr[c_paid] if c_paid >= 0 and c_paid < len(hr) else final, final)
+                debt = max(0.0, final - paid)
+
+                cash_amt = _num(hr[c_cash] if c_cash >= 0 and c_cash < len(hr) else 0.0, 0.0)
+                transfer_amt = _num(hr[c_transfer] if c_transfer >= 0 and c_transfer < len(hr) else 0.0, 0.0)
+                card_amt = _num(hr[c_card] if c_card >= 0 and c_card < len(hr) else 0.0, 0.0)
+                wallet_amt = _num(hr[c_wallet] if c_wallet >= 0 and c_wallet < len(hr) else 0.0, 0.0)
+
+                note_parts = []
+                raw_note = str(hr[c_note] or "").strip() if c_note >= 0 and c_note < len(hr) else ""
+                if raw_note:
+                    note_parts.append(raw_note)
+                seller_str = str(hr[c_seller] or "").strip() if c_seller >= 0 and c_seller < len(hr) else ""
+                if seller_str:
+                    note_parts.append(f"Ca/NV: {seller_str}")
+                if odata["unmatched_notes"]:
+                    note_parts.append("SP cũ: " + ", ".join(odata["unmatched_notes"]))
+                note_final = " | ".join(note_parts)
+
+                c_at = _fmt_dt(hr[c_time]) if c_time >= 0 and c_time < len(hr) else None
+
+                cur.execute("SELECT id FROM orders WHERE code = ?", (inv_code,))
+                ex = cur.fetchone()
+                if ex:
+                    cur.execute("DELETE FROM order_items WHERE order_id = ?", (ex["id"],))
+                    cur.execute("DELETE FROM order_payments WHERE order_id = ?", (ex["id"],))
+                    cur.execute("DELETE FROM orders WHERE id = ?", (ex["id"],))
+
                 cur.execute("""
-                    INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit_ratio, unit)
-                    VALUES (?, ?, ?, ?, ?, 1, 'cái')
-                """, (order_id, itm["product_id"], itm["quantity"], itm["price"], subtot))
-                items_count += 1
+                    INSERT INTO orders (
+                        code, customer_id, staff_id, total_amount, discount, shipping_fee,
+                        final_amount, paid_amount, debt_amount, spa_wallet_deduction,
+                        note, status, created_at
+                    )
+                    VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', COALESCE(?, datetime('now', 'localtime')))
+                """, (inv_code, cid, total, disc, ship, final, paid, debt, wallet_amt, note_final, c_at))
+                order_id = cur.lastrowid
+                orders_count += 1
+
+                for itm in odata["items"]:
+                    if itm["product_id"] is None:
+                        continue
+                    cur.execute("""
+                        INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit_ratio, unit)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (order_id, itm["product_id"], itm["quantity"], itm["price"], itm["subtotal"], itm["unit_ratio"], itm["unit"]))
+                    items_count += 1
+
+                # Lưu phương thức thanh toán lịch sử vào order_payments (không chạm tới cashbook)
+                pay_entries = []
+                if cash_amt > 0:
+                    pay_entries.append(("cash", cash_amt))
+                if transfer_amt > 0:
+                    pay_entries.append(("transfer", transfer_amt))
+                if card_amt > 0:
+                    pay_entries.append(("card", card_amt))
+                if wallet_amt > 0:
+                    pay_entries.append(("wallet", wallet_amt))
+                if not pay_entries and paid > 0:
+                    pay_entries.append(("cash", paid))
+
+                for m_code, m_amt in pay_entries:
+                    cur.execute("""
+                        INSERT INTO order_payments (order_id, method, amount, created_at)
+                        VALUES (?, ?, ?, COALESCE(?, datetime('now', 'localtime')))
+                    """, (order_id, m_code, m_amt, c_at))
+        else:
+            # Định dạng 2: File Excel 2-Sheet (Invoices + Order_Details)
+            inv_sheet_name = 'Invoices' if 'Invoices' in sheet_names else sheet_names[0]
+            ws_inv = wb[inv_sheet_name]
+            inv_rows = list(ws_inv.iter_rows(values_only=True))
+            ws_items = wb['Order_Details'] if 'Order_Details' in sheet_names else (wb[sheet_names[1]] if len(sheet_names) > 1 else None)
+            item_rows = list(ws_items.iter_rows(values_only=True)) if ws_items else []
+
+            items_by_order = {}
+            unmatched_by_order = {}
+            if item_rows and len(item_rows) > 1:
+                for r in item_rows[1:]:
+                    if not r or len(r) < 3 or not r[1]:
+                        continue
+                    o_code = str(r[1]).strip()
+                    p_code = str(r[2] or "").strip().upper()
+                    qty = _num(r[3] if len(r) > 3 else 1, 1.0)
+                    price = _num(r[4] if len(r) > 4 else 0, 0.0)
+                    disc = _num(r[5] if len(r) > 5 else 0, 0.0)
+                    if p_code == "SHIP":
+                        continue
+                    pid = prod_by_code.get(p_code, (None, "cái"))[0]
+                    u_name = prod_by_code.get(p_code, (None, "cái"))[1]
+                    if not pid:
+                        unmatched_sku_notes += 1
+                        unmatched_by_order.setdefault(o_code, []).append(f"[{p_code} x{qty:g}]")
+                    items_by_order.setdefault(o_code, []).append({
+                        "product_id": pid,
+                        "quantity": qty,
+                        "price": price,
+                        "discount": disc,
+                        "unit": u_name
+                    })
+
+            for r in inv_rows[1:]:
+                if not r or not r[0]:
+                    continue
+                code = str(r[0]).strip()
+                c_code = str(r[1] or "").strip().upper()
+                cid = cust_by_code.get(c_code, None)
+                total = _num(r[2] if len(r) > 2 else 0)
+                disc = _num(r[3] if len(r) > 3 else 0)
+                ship = _num(r[4] if len(r) > 4 else 0)
+                final = _num(r[5] if len(r) > 5 else (total - disc + ship))
+                paid = _num(r[6] if len(r) > 6 else final)
+                debt = _num(r[7] if len(r) > 7 else max(0.0, final - paid))
+                note = str(r[8] or "") if len(r) > 8 else ""
+                if code in unmatched_by_order:
+                    note = (note + " | SP cũ: " + ", ".join(unmatched_by_order[code])).strip(" |")
+                status = str(r[9] or "completed") if len(r) > 9 else "completed"
+                c_at = _fmt_dt(r[10]) if len(r) > 10 else None
+
+                cur.execute("SELECT id FROM orders WHERE code = ?", (code,))
+                ex = cur.fetchone()
+                if ex:
+                    cur.execute("DELETE FROM order_items WHERE order_id = ?", (ex["id"],))
+                    cur.execute("DELETE FROM order_payments WHERE order_id = ?", (ex["id"],))
+                    cur.execute("DELETE FROM orders WHERE id = ?", (ex["id"],))
+
+                cur.execute("""
+                    INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, status, created_at)
+                    VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now', 'localtime')))
+                """, (code, cid, total, disc, ship, final, paid, debt, note, status, c_at))
+                order_id = cur.lastrowid
+                orders_count += 1
+
+                for itm in items_by_order.get(code, []):
+                    if itm["product_id"] is None:
+                        continue
+                    subtot = max(0.0, itm["quantity"] * itm["price"] - itm["discount"])
+                    cur.execute("""
+                        INSERT INTO order_items (order_id, product_id, quantity, price, subtotal, unit_ratio, unit)
+                        VALUES (?, ?, ?, ?, ?, 1, ?)
+                    """, (order_id, itm["product_id"], itm["quantity"], itm["price"], subtot, itm["unit"]))
+                    items_count += 1
 
         conn.commit()
         return {
             "success": True,
-            "message": f"Đã nhập thành công {orders_count} hóa đơn và {items_count} chi tiết sản phẩm!",
+            "message": (
+                f"Đã nhập thành công {orders_count:,} hóa đơn và {items_count:,} dòng hàng hóa lịch sử! "
+                f"(Bổ sung {new_customers_count} hồ sơ KH mới từ KiotViet; giữ nguyên 100% tồn kho, sổ quỹ & công nợ hiện tại)."
+            ),
             "orders_imported": orders_count,
-            "items_imported": items_count
+            "items_imported": items_count,
+            "new_customers": new_customers_count,
+            "unmatched_sku_notes": unmatched_sku_notes
         }
     except Exception as e:
         conn.rollback()

@@ -79,17 +79,19 @@ class ProductCreate(BaseModel):
     warehouse_id: Optional[int] = 1
     supplier_ids: Optional[List[int]] = None
     min_stock: Optional[float] = 5.0
+    image_url: Optional[str] = ""
 
 class ProductUpdate(BaseModel):
     code: Optional[str] = None
-    name: str
-    type: str = "product"
+    name: Optional[str] = None
+    type: Optional[str] = None
     cost_price: Optional[float] = None  # None = giữ nguyên giá vốn cũ (nhân viên không có quyền xem/sửa)
-    sell_price: float = 0
-    unit: str = "cái"
+    sell_price: Optional[float] = None
+    unit: Optional[str] = None
     category: Optional[str] = None
     supplier_ids: Optional[List[int]] = None
     min_stock: Optional[float] = None
+    image_url: Optional[str] = None
 
 class ProductBulkStatusIn(BaseModel):
     product_ids: List[int]

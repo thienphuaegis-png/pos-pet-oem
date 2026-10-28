@@ -61,7 +61,7 @@
 
             if (fund === 'ALL' && btnAll) btnAll.className = 'px-2.5 py-1 rounded font-bold bg-amber-500 text-slate-900';
             if (fund === 'COMPANY' && btnCty) btnCty.className = 'px-2.5 py-1 rounded font-bold bg-blue-600 text-white';
-            if (fund === 'PERSONAL' && btnPer) btnPer.className = 'px-2.5 py-1 rounded font-bold bg-purple-600 text-white';
+            if (fund === 'PERSONAL' && btnPer) btnPer.className = 'px-2.5 py-1 rounded font-bold bg-sky-600 text-white';
 
             renderCFDForecastList();
         }
@@ -76,7 +76,7 @@
             }
 
             if (items.length === 0) {
-                container.innerHTML = '<div class="text-center py-4 text-slate-400 text-xs italic">Không có khoản chi dự kiến nào trong giai đoạn này.</div>';
+                container.innerHTML = '<div class="text-center py-4 text-slate-400 text-xs ">Không có khoản chi dự kiến nào trong giai đoạn này.</div>';
                 return;
             }
 
@@ -86,25 +86,25 @@
                 const isDebtPlan = it.order_type === 'DEBT_PLAN';
 
                 return `
-                    <div class="flex flex-wrap items-center justify-between ${isDebtPlan ? 'bg-purple-50/70 border-purple-200' : 'bg-slate-50 border-slate-200'} hover:bg-slate-100 p-2.5 rounded-lg border text-xs gap-2 transition-colors">
+                    <div class="flex flex-wrap items-center justify-between ${isDebtPlan ? 'bg-sky-50/70 border-sky-200' : 'bg-slate-50 border-slate-200'} hover:bg-slate-100 p-2.5 rounded-lg border text-xs gap-2 transition-colors">
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-purple-100 text-purple-700 border border-purple-200'}">
+                            <span class="px-2 py-0.5 rounded font-mono font-bold text-xs ${isCty ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-sky-100 text-sky-700 border border-sky-200'}">
                                 ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
                             </span>
                             <div>
-                                <span class="font-bold ${isDebtPlan ? 'text-purple-900' : 'text-slate-800'}">${isDebtPlan ? '📌 [HẸN TRẢ NỢ NCC]' : it.code}</span> - 
+                                <span class="font-bold ${isDebtPlan ? 'text-sky-900' : 'text-slate-800'}">${isDebtPlan ? '📌 [HẸN TRẢ NỢ NCC]' : it.code}</span> - 
                                 <span class="text-slate-700 font-semibold">${it.partner_name || 'Nhà cung cấp'}</span>
-                                ${isDebtPlan ? `<span class="text-[11px] text-purple-700 italic ml-1 font-medium">"${it.note || 'Hẹn trả nợ'}"</span>` : `<span class="text-[10px] text-slate-500 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>`}
+                                ${isDebtPlan ? `<span class="text-xs text-sky-700  ml-1 font-medium">"${it.note || 'Hẹn trả nợ'}"</span>` : `<span class="text-xs text-slate-500 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>`}
                             </div>
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-500">${isDebtPlan ? 'Ngày hẹn trả:' : 'Hạn nhận (±1 ngày):'}</div>
-                                <div class="font-mono ${isDebtPlan ? 'text-purple-800' : 'text-slate-800'} font-bold">📅 ${dateStr}</div>
+                                <div class="text-xs text-slate-500">${isDebtPlan ? 'Ngày hẹn trả:' : 'Hạn nhận (±1 ngày):'}</div>
+                                <div class="font-mono ${isDebtPlan ? 'text-sky-800' : 'text-slate-800'} font-bold">📅 ${dateStr}</div>
                             </div>
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-500">${isDebtPlan ? 'Số tiền hẹn trả:' : 'Dự kiến chi:'}</div>
-                                <div class="font-mono font-black text-rose-600 text-sm">${formatMoney(it.amount)}</div>
+                                <div class="text-xs text-slate-500">${isDebtPlan ? 'Số tiền hẹn trả:' : 'Dự kiến chi:'}</div>
+                                <div class="font-mono font-bold text-rose-600 text-sm">${formatMoney(it.amount)}</div>
                             </div>
                             ${isDebtPlan ? `
                                 <div class="flex items-center gap-1.5 ml-1">
@@ -186,27 +186,27 @@
                             <div class="font-bold text-slate-800 flex items-center gap-1.5">
                                 <span>${s.warehouse_name ? '🏭' : '🏢'} ${s.name}</span>
                             </div>
-                            ${s.address ? `<div class="text-[10px] text-gray-400 mt-0.5">${s.address}</div>` : ''}
+                            ${s.address ? `<div class="text-xs text-gray-400 mt-0.5">${s.address}</div>` : ''}
                         </td>
-                        <td class="p-2.5 text-gray-600 font-mono text-[11px]">
+                        <td class="p-2.5 text-gray-600 font-mono text-xs">
                             ${s.phone || '-'}
                         </td>
                         <td class="p-2.5">
-                            ${s.warehouse_name ? `<span class="text-emerald-700 font-semibold text-[11px] bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">📦 ${s.warehouse_name}</span>` : '<span class="text-gray-400 text-[11px]">-</span>'}
+                            ${s.warehouse_name ? `<span class="text-emerald-700 font-semibold text-xs bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">📦 ${s.warehouse_name}</span>` : '<span class="text-gray-400 text-xs">-</span>'}
                         </td>
                         <td class="p-2.5 text-center">
                             ${totalDebtOrders > 0 
-                                ? `<span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full text-[10px]">${totalDebtOrders} đơn nợ</span>` 
-                                : '<span class="text-gray-400 text-[10px]">0</span>'
+                                ? `<span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full text-xs">${totalDebtOrders} đơn nợ</span>` 
+                                : '<span class="text-gray-400 text-xs">0</span>'
                             }
                         </td>
                         <td class="p-2.5 text-right font-mono font-bold text-sm text-blue-700">
                             ${formatMoney(s.debt_company || 0)}
                         </td>
-                        <td class="p-2.5 text-right font-mono font-bold text-sm text-purple-700">
+                        <td class="p-2.5 text-right font-mono font-bold text-sm text-sky-700">
                             ${formatMoney(s.debt_personal || 0)}
                         </td>
-                        <td class="p-2.5 text-right font-mono font-black text-sm ${hasDebt ? 'text-rose-600' : 'text-slate-400'}">
+                        <td class="p-2.5 text-right font-mono font-bold text-sm ${hasDebt ? 'text-rose-600' : 'text-slate-400'}">
                             ${formatMoney(totalDebt)}
                         </td>
                         <td class="p-2.5 text-center">
@@ -218,7 +218,7 @@
                                     ✏️ Sửa nợ
                                 </button>
                                 ${hasDebt ? `
-                                    <button onclick="openModalCreateDebtPlan(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${s.debt_company || 0}, ${s.debt_personal || 0})" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold border border-purple-200" title="Tạo kế hoạch hẹn ngày thanh toán nợ">
+                                    <button onclick="openModalCreateDebtPlan(${s.id}, '${s.name.replace(/'/g, "\\'")}', ${s.debt_company || 0}, ${s.debt_personal || 0})" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold border border-sky-200" title="Tạo kế hoạch hẹn ngày thanh toán nợ">
                                         📅 Hẹn trả
                                     </button>
                                     <button onclick="openModalPaySupplierDebt(${s.id})" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded font-bold shadow-sm">
@@ -261,26 +261,26 @@
                     <tr class="border-b hover:bg-slate-50">
                         <td class="p-2 font-mono font-bold text-slate-800">
                             <div>${o.code}</div>
-                            ${o.order_type === 'OEM' && o.paid_amount > 0 ? `<div class="text-[10px] text-emerald-700 font-normal">Đã cọc: ${formatMoney(o.paid_amount)} • Quyết toán thực nhận</div>` : ''}
+                            ${o.order_type === 'OEM' && o.paid_amount > 0 ? `<div class="text-xs text-emerald-700 font-normal">Đã cọc: ${formatMoney(o.paid_amount)} • Quyết toán thực nhận</div>` : ''}
                         </td>
                         <td class="p-2">
                             ${o.order_type === 'OEM' 
-                                ? '<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold text-[10px]">🏭 OEM</span>' 
-                                : '<span class="bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-bold text-[10px]">📥 Nhập hàng (PO)</span>'
+                                ? '<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold text-xs">🏭 OEM</span>' 
+                                : '<span class="bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-bold text-xs">📥 Nhập hàng (PO)</span>'
                             }
                         </td>
                         <td class="p-2 text-center">
                             ${o.has_vat 
-                                ? `<span class="bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-bold text-[10px]">🏢 Có VAT (${o.vat_rate || 0}%) • Quỹ Cty</span>` 
-                                : '<span class="bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded font-bold text-[10px]">👤 Không VAT • Quỹ Cá Nhân</span>'
+                                ? `<span class="bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-bold text-xs">🏢 Có VAT (${o.vat_rate || 0}%) • Quỹ Cty</span>` 
+                                : '<span class="bg-sky-100 text-sky-800 border border-sky-200 px-2 py-0.5 rounded font-bold text-xs">👤 Không VAT • Quỹ Cá Nhân</span>'
                             }
                         </td>
-                        <td class="p-2 text-gray-500 font-mono text-[11px]">${formatDateTime(o.created_at) || '-'}</td>
+                        <td class="p-2 text-gray-500 font-mono text-xs">${formatDateTime(o.created_at) || '-'}</td>
                         <td class="p-2 text-right font-mono font-bold text-slate-700">${formatMoney(o.total_amount || 0)}</td>
                         <td class="p-2 text-right font-mono font-bold text-emerald-600">${formatMoney(o.paid_amount || 0)}</td>
-                        <td class="p-2 text-right font-mono font-black text-rose-600">${formatMoney(o.debt_amount || 0)}</td>
+                        <td class="p-2 text-right font-mono font-bold text-rose-600">${formatMoney(o.debt_amount || 0)}</td>
                         <td class="p-2 text-center">
-                            <button onclick="openModalPaySingleOrder('${o.order_type}', ${o.id}, '${o.code}', ${o.debt_amount || 0}, ${supplierId}, '${supplierName.replace(/'/g, "\\'")}', ${o.has_vat ? 1 : 0})" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded font-bold text-[11px] shadow-sm">
+                            <button onclick="openModalPaySingleOrder('${o.order_type}', ${o.id}, '${o.code}', ${o.debt_amount || 0}, ${supplierId}, '${supplierName.replace(/'/g, "\\'")}', ${o.has_vat ? 1 : 0})" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded font-bold text-xs shadow-sm">
                                 💳 Trả đơn này
                             </button>
                         </td>
@@ -534,17 +534,17 @@
                                 <span class="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs">📦</span>
                                 <div>
                                     <div class="font-bold text-slate-800 text-xs">${s.name}</div>
-                                    <div class="text-[10px] text-slate-500">📞 ${s.phone || 'Chưa có SĐT'}</div>
-                                    <div class="text-[10px] space-x-1.5 mt-0.5">
+                                    <div class="text-xs text-slate-500">📞 ${s.phone || 'Chưa có SĐT'}</div>
+                                    <div class="text-xs space-x-1.5 mt-0.5">
                                         <span class="text-blue-700 font-semibold">Cty: ${formatMoney(dCty)}</span>
-                                        <span class="text-purple-700 font-semibold">Cá nhân: ${formatMoney(dPer)}</span>
+                                        <span class="text-sky-700 font-semibold">Cá nhân: ${formatMoney(dPer)}</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-400">Tổng nợ:</div>
+                                <div class="text-xs text-slate-400">Tổng nợ:</div>
                                 <div class="font-mono font-bold text-rose-600 text-xs">${formatMoney(total)}</div>
-                                <span class="text-[9px] text-amber-600 font-bold">Chọn ➔</span>
+                                <span class="text-xs text-amber-600 font-bold">Chọn ➔</span>
                             </div>
                         </div>
                     `;
@@ -901,7 +901,7 @@
             if (!container) return;
 
             if (currentPlanSupplierOrders.length === 0) {
-                container.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs italic">Không có đơn nợ lẻ nào của nhà cung cấp này.</div>';
+                container.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs ">Không có đơn nợ lẻ nào của nhà cung cấp này.</div>';
                 const dispCode = document.getElementById('plan-order-disp-code');
                 const dispSub = document.getElementById('plan-order-disp-sub');
                 if (dispCode) dispCode.innerText = '(Không có đơn nợ lẻ)';
@@ -912,20 +912,20 @@
             container.innerHTML = currentPlanSupplierOrders.map(o => {
                 const isCty = o.has_vat === 1 || o.has_vat === true;
                 return `
-                    <div onclick="selectPlanOrder(${o.id}, '${o.code}', ${o.debt_amount}, ${isCty})" class="p-2.5 rounded-lg border border-slate-200 hover:border-purple-400 hover:bg-purple-50/50 cursor-pointer flex items-center justify-between transition">
+                    <div onclick="selectPlanOrder(${o.id}, '${o.code}', ${o.debt_amount}, ${isCty})" class="p-2.5 rounded-lg border border-slate-200 hover:border-sky-400 hover:bg-sky-50/50 cursor-pointer flex items-center justify-between transition">
                         <div class="flex items-center gap-2">
-                            <span class="w-7 h-7 rounded-lg ${isCty ? 'bg-indigo-600' : 'bg-purple-600'} text-white flex items-center justify-center font-bold text-xs">🧾</span>
+                            <span class="w-7 h-7 rounded-lg ${isCty ? 'bg-sky-600' : 'bg-sky-600'} text-white flex items-center justify-center font-bold text-xs">🧾</span>
                             <div>
                                 <div class="font-bold text-slate-800 text-xs">${o.code}</div>
-                                <div class="text-[10px] ${isCty ? 'text-blue-700' : 'text-purple-700'} font-semibold">
+                                <div class="text-xs ${isCty ? 'text-blue-700' : 'text-sky-700'} font-semibold">
                                     ${isCty ? '🏢 Quỹ Cty (Có VAT)' : '👤 Quỹ Cá Nhân'} • ${o.order_type === 'OEM' ? 'OEM' : 'Nhập hàng'}
                                 </div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-[10px] text-slate-400">Còn nợ:</div>
+                            <div class="text-xs text-slate-400">Còn nợ:</div>
                             <div class="font-mono font-bold text-rose-600 text-xs">${formatMoney(o.debt_amount)}</div>
-                            <span class="text-[9px] text-purple-600 font-bold">Chọn ➔</span>
+                            <span class="text-xs text-sky-600 font-bold">Chọn ➔</span>
                         </div>
                     </div>
                 `;

@@ -394,7 +394,7 @@
             const res = await fetch('/api/auth/my-ai-config');
             if (!res.ok) {
                 if (badge && desc) {
-                    badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 border border-slate-200";
+                    badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 border border-slate-200";
                     badge.innerText = "Phiên cục bộ";
                     desc.innerText = "Nhập Google Gemini API Key cá nhân của bạn và bấm 'Lưu Key Cá Nhân' bên dưới.";
                 }
@@ -408,17 +408,17 @@
 
             if (badge && desc) {
                 if (data.active_source === 'personal') {
-                    badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-purple-100 text-purple-800 border border-purple-200";
+                    badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-sky-100 text-sky-800 border border-sky-200";
                     badge.innerText = "👤 Đang dùng Key cá nhân của bạn";
                     desc.innerText = `Key hiện tại: ${data.masked_key} (${data.ai_model})`;
                     const btnLabel = document.getElementById('btn-label-my-ai-key');
                     if (btnLabel) btnLabel.innerText = "Key Cá Nhân (Đã Bật)";
                 } else if (data.active_source === 'shop') {
-                    badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 border border-blue-200";
+                    badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 border border-blue-200";
                     badge.innerText = "🏢 Đang dùng Key mặc định của tiệm";
                     desc.innerText = "Bạn chưa cài key riêng. Quota đang được cấp từ tài khoản chung của tiệm.";
                 } else {
-                    badge.className = "font-bold px-2 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 border border-rose-200";
+                    badge.className = "font-bold px-2 py-0.5 rounded text-xs bg-rose-100 text-rose-800 border border-rose-200";
                     badge.innerText = "⚠️ Chưa có API Key nào";
                     desc.innerText = "Cả bạn và tiệm đều chưa nhập Gemini API Key. Vui lòng nhập key để sử dụng.";
                 }
@@ -532,11 +532,11 @@
             if (shiftBadge) {
                 shiftBadge.textContent = data.shift.status_label || "Đang kiểm tra ca";
                 shiftBadge.className = data.shift.is_open 
-                    ? "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
-                    : "px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                    ? "px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    : "px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
             }
             if (briefText) {
-                briefText.innerHTML = `🤖 <em>${data.briefing_desc || "Chúc bạn một ca làm việc thuận lợi!"}</em>`;
+                briefText.innerHTML = `<i class="ph ph-robot text-sky-600 text-sm"></i> <span class="font-medium text-slate-600">${data.briefing_desc || "Chúc bạn một ca làm việc thuận lợi!"}</span>`;
             }
 
             // 2. Cột 1: Danh sách việc cần làm & nhắc nhở
@@ -555,25 +555,25 @@
                 } else {
                     remListEl.innerHTML = items.map(r => {
                         const prioBadge = r.priority === 'urgent' 
-                            ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-100 text-rose-800 shrink-0">🔴 GẤP</span>`
+                            ? `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-rose-100 text-rose-800 shrink-0">🔴 GẤP</span>`
                             : (r.priority === 'low' 
-                                ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600 shrink-0">🟢 Lưu ý</span>`
-                                : `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">🟡 Bình thường</span>`);
+                                ? `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-slate-100 text-slate-600 shrink-0">🟢 Lưu ý</span>`
+                                : `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-800 shrink-0">🟡 Bình thường</span>`);
 
                         return `
-                            <div class="p-2.5 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1 hover:border-purple-300 transition ${r.is_done ? 'opacity-60 bg-slate-50' : ''}">
+                            <div class="p-2.5 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1 hover:border-sky-300 transition ${r.is_done ? 'opacity-60 bg-slate-50' : ''}">
                                 <div class="flex items-start justify-between gap-1">
                                     <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 flex-1 min-w-0">
-                                        <input type="checkbox" ${r.is_done ? 'checked' : ''} onchange="toggleStaffReminder(${r.id})" class="w-3.5 h-3.5 rounded text-purple-600 cursor-pointer">
+                                        <input type="checkbox" ${r.is_done ? 'checked' : ''} onchange="toggleStaffReminder(${r.id})" class="w-3.5 h-3.5 rounded text-sky-600 cursor-pointer">
                                         <span class="truncate ${r.is_done ? 'line-through text-slate-400' : ''}">${r.title}</span>
                                     </label>
                                     <div class="flex items-center gap-1 shrink-0">
-                                        ${r.remind_time ? `<span class="text-[10px] text-purple-700 font-mono font-bold bg-purple-50 px-1 rounded">${r.remind_time}</span>` : ''}
+                                        ${r.remind_time ? `<span class="text-xs text-sky-700 font-mono font-bold bg-sky-50 px-1 rounded">${r.remind_time}</span>` : ''}
                                         ${prioBadge}
                                         <button type="button" onclick="deleteStaffReminder(${r.id})" class="text-slate-300 hover:text-rose-600 font-bold px-1 text-xs" title="Xóa">✕</button>
                                     </div>
                                 </div>
-                                ${r.description ? `<div class="text-[11px] text-slate-500 pl-5">${r.description}</div>` : ''}
+                                ${r.description ? `<div class="text-xs text-slate-500 pl-5">${r.description}</div>` : ''}
                             </div>
                         `;
                     }).join('');
@@ -597,7 +597,7 @@
                 if (col2Title) col2Title.textContent = "Theo Dõi Nhập Hàng & Tiến Độ Về";
                 if (col2RoleBadge) {
                     col2RoleBadge.textContent = "Thủ Kho / OEM";
-                    col2RoleBadge.className = "text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200";
+                    col2RoleBadge.className = "text-xs text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200";
                 }
 
                 if (col2KpiGrid) {
@@ -608,28 +608,28 @@
                     col2KpiGrid.className = "grid grid-cols-3 gap-2 text-xs";
                     col2KpiGrid.innerHTML = `
                         <div onclick="openLowStockModal()" class="bg-white p-2 rounded-lg border border-rose-200 bg-rose-50/30 cursor-pointer hover:border-rose-400 transition group shadow-2xs">
-                            <div class="text-[10px] text-rose-700 font-bold flex items-center justify-between">
+                            <div class="text-xs text-rose-700 font-bold flex items-center justify-between">
                                 <span>Hàng Sắp Hết</span>
                                 <span class="group-hover:scale-110 transition-transform">🚨</span>
                             </div>
-                            <div class="text-sm font-black text-rose-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} món</div>
-                            <div class="text-[9px] text-rose-500 mt-0.5">Cần đặt NCC</div>
+                            <div class="text-sm font-bold text-rose-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} món</div>
+                            <div class="text-xs text-rose-500 mt-0.5">Cần đặt NCC</div>
                         </div>
                         <div onclick="if(typeof switchTab==='function') switchTab('purchase-requests')" class="bg-white p-2 rounded-lg border border-amber-200 bg-amber-50/30 cursor-pointer hover:border-amber-400 transition group shadow-2xs">
-                            <div class="text-[10px] text-amber-700 font-bold flex items-center justify-between">
+                            <div class="text-xs text-amber-700 font-bold flex items-center justify-between">
                                 <span>Chờ Duyệt</span>
                                 <span class="group-hover:scale-110 transition-transform">📋</span>
                             </div>
-                            <div class="text-sm font-black text-amber-600 font-mono mt-0.5">${pendingCount} phiếu</div>
-                            <div class="text-[9px] text-amber-600 mt-0.5">Yêu cầu nhập</div>
+                            <div class="text-sm font-bold text-amber-600 font-mono mt-0.5">${pendingCount} phiếu</div>
+                            <div class="text-xs text-amber-600 mt-0.5">Yêu cầu nhập</div>
                         </div>
-                        <div class="bg-white p-2 rounded-lg border border-purple-200 bg-purple-50/30 shadow-2xs">
-                            <div class="text-[10px] text-purple-700 font-bold flex items-center justify-between">
+                        <div class="bg-white p-2 rounded-lg border border-sky-200 bg-sky-50/30 shadow-2xs">
+                            <div class="text-xs text-sky-700 font-bold flex items-center justify-between">
                                 <span>Về Hôm Nay</span>
                                 <span class="animate-bounce">⚡</span>
                             </div>
-                            <div class="text-sm font-black text-purple-700 font-mono mt-0.5">${incomingToday} đơn</div>
-                            <div class="text-[9px] text-purple-600 mt-0.5">Dự kiến giao</div>
+                            <div class="text-sm font-bold text-sky-700 font-mono mt-0.5">${incomingToday} đơn</div>
+                            <div class="text-xs text-sky-600 mt-0.5">Dự kiến giao</div>
                         </div>
                     `;
                 }
@@ -646,7 +646,7 @@
                     if (pendingReqs.length > 0) {
                         html += `
                             <div class="space-y-1 pb-1">
-                                <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                                <div class="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
                                     <span>🔔</span> Phiếu Yêu Cầu Chờ Lên PO (${pendingReqs.length})
                                 </div>
                                 ${pendingReqs.map(pr => `
@@ -654,13 +654,13 @@
                                         <div class="truncate">
                                             <div class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
                                                 <span class="font-mono text-amber-800">${pr.code}</span>
-                                                <span class="text-[9px] bg-white border border-amber-300 text-amber-700 px-1 rounded font-bold">${pr.dept_label}</span>
+                                                <span class="text-xs bg-white border border-amber-300 text-amber-700 px-1 rounded font-bold">${pr.dept_label}</span>
                                             </div>
-                                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                            <div class="text-xs text-slate-500 mt-0.5">
                                                 ${pr.created_by} &bull; <b class="text-slate-700">${pr.item_count} món</b> (SL: ${pr.total_qty})
                                             </div>
                                         </div>
-                                        <button type="button" onclick="quickConvertRequestToPO(${pr.id}, '${pr.code}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[10px] shadow-2xs shrink-0 flex items-center gap-1">
+                                        <button type="button" onclick="quickConvertRequestToPO(${pr.id}, '${pr.code}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs shadow-2xs shrink-0 flex items-center gap-1">
                                             <span>⚡</span> Lên PO
                                         </button>
                                     </div>
@@ -673,7 +673,7 @@
                     if (shipments.length > 0) {
                         html += `
                             <div class="space-y-1 pt-1">
-                                <div class="text-[10px] font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1">
+                                <div class="text-xs font-bold text-sky-700 uppercase tracking-wider flex items-center gap-1">
                                     <span>🚚</span> Lô Hàng Đang Về Kho (${shipments.length})
                                 </div>
                                 ${shipments.map(s => {
@@ -682,23 +682,23 @@
                                         ? `if(typeof openReceiveModal==='function') openReceiveModal('${s.code}', false);`
                                         : `if(typeof openModalReceiveOEM==='function') openModalReceiveOEM(${s.id});`;
                                     const badge = isPurchase 
-                                        ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 shrink-0">📥 Nhập NCC</span>`
-                                        : `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-800 shrink-0">🏭 Đơn OEM</span>`;
-                                    const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-600 text-white shrink-0 animate-pulse">⚡ Hôm Nay</span>` : '';
-                                    const cardBg = s.is_today ? 'bg-purple-50/70 border-purple-300 shadow-2xs' : 'bg-slate-50 border-slate-200';
+                                        ? `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-amber-100 text-amber-800 shrink-0">📥 Nhập NCC</span>`
+                                        : `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-sky-100 text-sky-800 shrink-0">🏭 Đơn OEM</span>`;
+                                    const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-sky-600 text-white shrink-0 animate-pulse">⚡ Hôm Nay</span>` : '';
+                                    const cardBg = s.is_today ? 'bg-sky-50/70 border-sky-300 shadow-2xs' : 'bg-slate-50 border-slate-200';
 
                                     return `
-                                        <div onclick="${clickFn}" class="p-2 rounded-lg ${cardBg} hover:bg-purple-50/80 border hover:border-purple-300 transition cursor-pointer space-y-0.5 group">
+                                        <div onclick="${clickFn}" class="p-2 rounded-lg ${cardBg} hover:bg-sky-50/80 border hover:border-sky-300 transition cursor-pointer space-y-0.5 group">
                                             <div class="flex justify-between items-center font-bold text-slate-800">
                                                 <div class="flex items-center gap-1.5 truncate mr-2">
                                                     ${todayBadge}
                                                     ${badge}
-                                                    <span class="truncate group-hover:text-purple-700">${s.code}: ${s.partner_name}</span>
+                                                    <span class="truncate group-hover:text-sky-700">${s.code}: ${s.partner_name}</span>
                                                 </div>
-                                                <span class="text-purple-700 font-mono text-[10px] shrink-0 font-bold">${s.expected_date}</span>
+                                                <span class="text-sky-700 font-mono text-xs shrink-0 font-bold">${s.expected_date}</span>
                                             </div>
-                                            <div class="flex justify-between items-center text-[10px] text-slate-500">
-                                                <span class="text-purple-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
+                                            <div class="flex justify-between items-center text-xs text-slate-500">
+                                                <span class="text-sky-600 font-semibold group-hover:underline">👉 Bấm để kiểm đếm & nhận hàng</span>
                                                 <span class="font-bold text-slate-700 font-mono">${typeof formatMoney === 'function' ? formatMoney(s.amount) : s.amount}</span>
                                             </div>
                                         </div>
@@ -709,7 +709,7 @@
                     }
 
                     if (!html) {
-                        html = `<div class="text-slate-400 py-3 text-center italic text-xs">Hiện kho không có yêu cầu nhập hàng hay đơn hàng đang chờ về.</div>`;
+                        html = `<div class="text-slate-400 py-3 text-center  text-xs">Hiện kho không có yêu cầu nhập hàng hay đơn hàng đang chờ về.</div>`;
                     }
                     col2ListContent.innerHTML = html;
                 }
@@ -724,7 +724,7 @@
                                 <span class="font-bold text-rose-900">📑 Công nợ NCC & Xưởng còn nợ:</span>
                                 <span class="font-mono font-bold text-rose-700 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.total_payable || 0) : data.warehouse_kpi?.total_payable}</span>
                             </div>
-                            <div class="text-[10px] text-rose-700">
+                            <div class="text-xs text-rose-700">
                                 Nợ NCC: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_suppliers || 0) : 0} + Nợ xưởng OEM: ${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.debt_to_oem || 0) : 0}
                             </div>
                         `;
@@ -739,20 +739,20 @@
                 if (col2Title) col2Title.textContent = "Đối Soát Công Nợ & Sổ Quỹ";
                 if (col2RoleBadge) {
                     col2RoleBadge.textContent = "Kế Toán";
-                    col2RoleBadge.className = "text-[10px] text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200";
+                    col2RoleBadge.className = "text-xs text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200";
                 }
 
                 if (col2KpiGrid) {
                     col2KpiGrid.innerHTML = `
                         <div onclick="if(typeof switchTab==='function') switchTab('orders')" class="bg-white p-2.5 rounded-lg border border-sky-200 bg-sky-50/30 cursor-pointer hover:border-sky-400 transition shadow-2xs">
-                            <div class="text-[10px] text-sky-700 font-bold">Phải Thu (Khách Nợ)</div>
-                            <div class="text-sm font-black text-sky-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.receivable_debt || 0) : 0}</div>
-                            <div class="text-[9px] text-sky-500 mt-0.5">${data.accountant_kpi?.receivable_count || 0} khách hàng nợ</div>
+                            <div class="text-xs text-sky-700 font-bold">Phải Thu (Khách Nợ)</div>
+                            <div class="text-sm font-bold text-sky-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.receivable_debt || 0) : 0}</div>
+                            <div class="text-xs text-sky-500 mt-0.5">${data.accountant_kpi?.receivable_count || 0} khách hàng nợ</div>
                         </div>
                         <div onclick="if(typeof switchTab==='function') switchTab('purchases')" class="bg-white p-2.5 rounded-lg border border-rose-200 bg-rose-50/30 cursor-pointer hover:border-rose-400 transition shadow-2xs">
-                            <div class="text-[10px] text-rose-700 font-bold">Phải Trả (Nợ NCC/Xưởng)</div>
-                            <div class="text-sm font-black text-rose-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.payable_debt || 0) : 0}</div>
-                            <div class="text-[9px] text-rose-500 mt-0.5">Tiền hàng & gia công</div>
+                            <div class="text-xs text-rose-700 font-bold">Phải Trả (Nợ NCC/Xưởng)</div>
+                            <div class="text-sm font-bold text-rose-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.payable_debt || 0) : 0}</div>
+                            <div class="text-xs text-rose-500 mt-0.5">Tiền hàng & gia công</div>
                         </div>
                     `;
                 }
@@ -775,7 +775,7 @@
                             <span class="font-bold text-sky-900">🏦 Tài khoản thanh toán & Quỹ:</span>
                             <span class="font-mono font-bold text-sky-800 text-sm">${(data.accountant_kpi?.payment_accounts || []).length} tài khoản</span>
                         </div>
-                        <div class="text-[10px] text-sky-700">Theo dõi đối soát dòng tiền đa tài khoản</div>
+                        <div class="text-xs text-sky-700">Theo dõi đối soát dòng tiền đa tài khoản</div>
                     `;
                 }
 
@@ -784,7 +784,7 @@
                 if (col2Title) col2Title.textContent = "Tổng Quan Bán Hàng & Kho Vận";
                 if (col2RoleBadge) {
                     col2RoleBadge.textContent = "Chủ Tiệm";
-                    col2RoleBadge.className = "text-[10px] text-purple-700 font-bold bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200";
+                    col2RoleBadge.className = "text-xs text-sky-700 font-bold bg-sky-100 px-1.5 py-0.5 rounded border border-sky-200";
                 }
 
                 if (col2KpiGrid) {
@@ -792,19 +792,19 @@
                     col2KpiGrid.className = "grid grid-cols-3 gap-2 text-xs";
                     col2KpiGrid.innerHTML = `
                         <div class="bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                            <div class="text-[10px] text-slate-400 font-medium">Doanh số hôm nay</div>
-                            <div class="text-sm font-black text-sky-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.kpi.sales_today) : data.kpi.sales_today}</div>
-                            <div class="text-[9px] text-slate-500 mt-0.5">${data.kpi.orders_count || 0} hóa đơn</div>
+                            <div class="text-xs text-slate-400 font-medium">Doanh số hôm nay</div>
+                            <div class="text-sm font-bold text-sky-600 font-mono mt-0.5">${typeof formatMoney === 'function' ? formatMoney(data.kpi.sales_today) : data.kpi.sales_today}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">${data.kpi.orders_count || 0} hóa đơn</div>
                         </div>
                         <div onclick="openLowStockModal()" class="bg-white p-2 rounded-lg border border-amber-200 bg-amber-50/20 cursor-pointer hover:border-amber-400 transition shadow-2xs">
-                            <div class="text-[10px] text-amber-700 font-medium">Hàng sắp hết kho</div>
-                            <div class="text-sm font-black text-amber-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} mã</div>
-                            <div class="text-[9px] text-amber-500 mt-0.5">Tồn &le; định mức</div>
+                            <div class="text-xs text-amber-700 font-medium">Hàng sắp hết kho</div>
+                            <div class="text-sm font-bold text-amber-600 font-mono mt-0.5">${data.warehouse_kpi?.low_stock_count || 0} mã</div>
+                            <div class="text-xs text-amber-500 mt-0.5">Tồn &le; định mức</div>
                         </div>
-                        <div class="bg-white p-2 rounded-lg border border-purple-200 bg-purple-50/20 shadow-2xs">
-                            <div class="text-[10px] text-purple-700 font-medium">Hàng về hôm nay</div>
-                            <div class="text-sm font-black text-purple-700 font-mono mt-0.5">${incomingToday} đơn</div>
-                            <div class="text-[9px] text-purple-600 mt-0.5">Dự kiến giao</div>
+                        <div class="bg-white p-2 rounded-lg border border-sky-200 bg-sky-50/20 shadow-2xs">
+                            <div class="text-xs text-sky-700 font-medium">Hàng về hôm nay</div>
+                            <div class="text-sm font-bold text-sky-700 font-mono mt-0.5">${incomingToday} đơn</div>
+                            <div class="text-xs text-sky-600 mt-0.5">Dự kiến giao</div>
                         </div>
                     `;
                 }
@@ -815,21 +815,21 @@
                 if (col2ListContent) {
                     const shipments = data.warehouse_kpi?.incoming_shipments || [];
                     if (shipments.length === 0) {
-                        col2ListContent.innerHTML = `<div class="text-slate-400 py-2 text-center italic text-xs">Không có đơn hàng nào đang về</div>`;
+                        col2ListContent.innerHTML = `<div class="text-slate-400 py-2 text-center  text-xs">Không có đơn hàng nào đang về</div>`;
                     } else {
                         col2ListContent.innerHTML = shipments.map(s => {
                             const isPurchase = s.shipment_type === 'purchase';
                             const clickFn = isPurchase 
                                 ? `if(typeof openReceiveModal==='function') openReceiveModal('${s.code}', false);`
                                 : `if(typeof openModalReceiveOEM==='function') openModalReceiveOEM(${s.id});`;
-                            const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-purple-600 text-white shrink-0 mr-1 animate-pulse">⚡ Hôm Nay</span>` : '';
+                            const todayBadge = s.is_today ? `<span class="px-1.5 py-0.2 rounded text-xs font-bold bg-sky-600 text-white shrink-0 mr-1 animate-pulse">⚡ Hôm Nay</span>` : '';
                             return `
-                                <div onclick="${clickFn}" class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-b-0 text-[11px] hover:bg-purple-50/60 p-1 rounded cursor-pointer transition">
+                                <div onclick="${clickFn}" class="flex justify-between items-center py-1.5 border-b border-slate-100 last:border-b-0 text-xs hover:bg-sky-50/60 p-1 rounded cursor-pointer transition">
                                     <div class="truncate mr-2 flex items-center">
                                         ${todayBadge}
                                         <span class="font-bold text-slate-800">${s.code}</span>: <span class="text-slate-600 truncate ml-1">${s.partner_name}</span>
                                     </div>
-                                    <span class="font-mono font-bold text-purple-700 shrink-0">${s.expected_date}</span>
+                                    <span class="font-mono font-bold text-sky-700 shrink-0">${s.expected_date}</span>
                                 </div>
                             `;
                         }).join('');
@@ -837,13 +837,13 @@
                 }
 
                 if (col2FooterBox) {
-                    col2FooterBox.className = "p-2.5 bg-purple-50/80 border border-purple-200 rounded-lg text-xs space-y-1";
+                    col2FooterBox.className = "p-2.5 bg-sky-50/80 border border-sky-200 rounded-lg text-xs space-y-1";
                     col2FooterBox.innerHTML = `
                         <div class="flex items-center justify-between">
-                            <span class="font-bold text-purple-900">📑 Nợ NCC/Xưởng:</span>
-                            <span class="font-mono font-bold text-purple-800 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.total_payable || 0) : 0}</span>
+                            <span class="font-bold text-sky-900">📑 Nợ NCC/Xưởng:</span>
+                            <span class="font-mono font-bold text-sky-800 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.warehouse_kpi?.total_payable || 0) : 0}</span>
                         </div>
-                        <div class="text-[10px] text-purple-700">Tiền két: ${typeof formatMoney === 'function' ? formatMoney(data.kpi.cash_in_drawer) : data.kpi.cash_in_drawer} | Khách nợ: ${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.receivable_debt || 0) : 0}</div>
+                        <div class="text-xs text-sky-700">Tiền két: ${typeof formatMoney === 'function' ? formatMoney(data.kpi.cash_in_drawer) : data.kpi.cash_in_drawer} | Khách nợ: ${typeof formatMoney === 'function' ? formatMoney(data.accountant_kpi?.receivable_debt || 0) : 0}</div>
                     `;
                 }
 
@@ -852,20 +852,20 @@
                 if (col2Title) col2Title.textContent = "Hiệu Suất & Doanh Số Ca";
                 if (col2RoleBadge) {
                     col2RoleBadge.textContent = "Thu Ngân";
-                    col2RoleBadge.className = "text-[10px] text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200";
+                    col2RoleBadge.className = "text-xs text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200";
                 }
 
                 if (col2KpiGrid) {
                     col2KpiGrid.innerHTML = `
                         <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                            <div class="text-[10px] text-slate-400 font-medium">Doanh số ca này</div>
-                            <div class="text-sm font-black text-sky-600 font-mono mt-0.5" id="ai-kpi-sales">${typeof formatMoney === 'function' ? formatMoney(data.kpi.sales_today) : data.kpi.sales_today}</div>
-                            <div class="text-[9px] text-slate-500 mt-0.5" id="ai-kpi-orders-count">${data.kpi.orders_count || 0} hóa đơn</div>
+                            <div class="text-xs text-slate-400 font-medium">Doanh số ca này</div>
+                            <div class="text-sm font-bold text-sky-600 font-mono mt-0.5" id="ai-kpi-sales">${typeof formatMoney === 'function' ? formatMoney(data.kpi.sales_today) : data.kpi.sales_today}</div>
+                            <div class="text-xs text-slate-500 mt-0.5" id="ai-kpi-orders-count">${data.kpi.orders_count || 0} hóa đơn</div>
                         </div>
                         <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                            <div class="text-[10px] text-slate-400 font-medium">Hoa hồng tạm tính</div>
-                            <div class="text-sm font-black text-emerald-600 font-mono mt-0.5" id="ai-kpi-commission">${typeof formatMoney === 'function' ? formatMoney(data.kpi.commission_estimate) : data.kpi.commission_estimate}</div>
-                            <div class="text-[9px] text-slate-500 mt-0.5" id="ai-kpi-commission-rate">Định mức ${data.staff.commission_rate || 0}%</div>
+                            <div class="text-xs text-slate-400 font-medium">Hoa hồng tạm tính</div>
+                            <div class="text-sm font-bold text-emerald-600 font-mono mt-0.5" id="ai-kpi-commission">${typeof formatMoney === 'function' ? formatMoney(data.kpi.commission_estimate) : data.kpi.commission_estimate}</div>
+                            <div class="text-xs text-slate-500 mt-0.5" id="ai-kpi-commission-rate">Định mức ${data.staff.commission_rate || 0}%</div>
                         </div>
                     `;
                 }
@@ -876,10 +876,10 @@
                 if (col2ListContent) {
                     const acts = data.recent_activities || [];
                     if (acts.length === 0) {
-                        col2ListContent.innerHTML = `<div class="text-slate-400 py-2 italic text-xs">Chưa có giao dịch hôm nay</div>`;
+                        col2ListContent.innerHTML = `<div class="text-slate-400 py-2  text-xs">Chưa có giao dịch hôm nay</div>`;
                     } else {
                         col2ListContent.innerHTML = acts.map(a => `
-                            <div class="flex justify-between items-center py-1 border-b border-slate-100 last:border-b-0 text-[11px]">
+                            <div class="flex justify-between items-center py-1 border-b border-slate-100 last:border-b-0 text-xs">
                                 <span class="truncate mr-2">${a.title}</span>
                                 <span class="font-mono font-bold text-slate-800 shrink-0">${typeof formatMoney === 'function' ? formatMoney(a.amount) : a.amount}</span>
                             </div>
@@ -894,7 +894,7 @@
                             <span class="font-bold text-amber-900">💵 Tiền mặt trong két:</span>
                             <span class="font-mono font-bold text-amber-800 text-sm">${typeof formatMoney === 'function' ? formatMoney(data.kpi.cash_in_drawer) : data.kpi.cash_in_drawer}</span>
                         </div>
-                        <div class="text-[10px] text-amber-700">Đầu ca: ${typeof formatMoney === 'function' ? formatMoney(data.shift.opening_cash) : data.shift.opening_cash} + Thu chi tiền mặt</div>
+                        <div class="text-xs text-amber-700">Đầu ca: ${typeof formatMoney === 'function' ? formatMoney(data.shift.opening_cash) : data.shift.opening_cash} + Thu chi tiền mặt</div>
                     `;
                 }
             }
@@ -1031,9 +1031,9 @@
             });
 
             const currentVal = filterSel.value;
-            let optHtml = `<option value="ALL">📦 Tất cả đối tác (${list.length} món - ${uncoveredCount} cần đặt)</option>`;
+            let optHtml = `<option value="ALL">Tất cả đối tác (${list.length} món - ${uncoveredCount} cần đặt)</option>`;
             Object.values(partnerMap).forEach(part => {
-                optHtml += `<option value="${part.id}">🏢 ${part.name} (${part.uncovered} cần đặt / ${part.total} món)</option>`;
+                optHtml += `<option value="${part.id}">${part.name} (${part.uncovered} cần đặt / ${part.total} món)</option>`;
             });
             filterSel.innerHTML = optHtml;
             if (currentVal && Array.from(filterSel.options).some(o => o.value === currentVal)) {
@@ -1061,7 +1061,7 @@
                 lblBtn.innerText = 'Tạo Nháp Hàng Loạt';
             } else {
                 const opt = filterSel.options[filterSel.selectedIndex];
-                const cleanName = opt ? opt.text.split('(')[0].replace('🏢', '').trim() : 'NCC này';
+                const cleanName = opt ? opt.text.split('(')[0].trim() : 'NCC này';
                 lblBtn.innerText = `Tạo Nháp ${cleanName}`;
             }
         }
@@ -1088,19 +1088,19 @@
             let actionHtml = '';
             if (p.is_ordered) {
                 actionHtml = `
-                    <div class="flex items-center justify-center gap-1">
-                        <span class="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200" title="Đã có đơn đặt đang chờ giao">
-                            ✅ ${p.on_order_code || 'Đã đặt'} (${p.on_order_qty})
+                    <div class="flex items-center justify-center gap-1 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded font-bold text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1" title="Đã có đơn đặt đang chờ giao">
+                            <i class="ph ph-check-circle"></i> ${p.on_order_code || 'Đã đặt'} (${p.on_order_qty})
                         </span>
-                        <button type="button" onclick="viewOrderDraftDetail('${p.on_order_code}', '${p.partner_type}')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[10px] font-bold" title="Xem chi tiết đơn đã đặt">
-                            👁️
+                        <button type="button" onclick="viewOrderDraftDetail('${p.on_order_code}', '${p.partner_type}')" class="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-xs font-bold inline-flex items-center" title="Xem chi tiết đơn đã đặt">
+                            <i class="ph ph-eye"></i>
                         </button>
                     </div>
                 `;
             } else {
                 actionHtml = `
-                    <button type="button" onclick="quickCreateAIDraft(${p.id}, this, ${p.partner_id || 'null'})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold text-[10px] shadow-2xs transition inline-flex items-center gap-1" title="Gom toàn bộ mặt hàng sắp hết của đối tác này vào 1 đơn nháp">
-                        <span>⚡</span><span>Gom Nháp NCC</span>
+                    <button type="button" onclick="quickCreateAIDraft(${p.id}, this, ${p.partner_id || 'null'})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-2xs transition inline-flex items-center gap-1 whitespace-nowrap" title="Gom toàn bộ mặt hàng sắp hết của đối tác này vào 1 đơn nháp">
+                        <i class="ph ph-lightning"></i><span>Gom Nháp NCC</span>
                     </button>
                 `;
             }
@@ -1109,17 +1109,17 @@
                 <tr class="hover:bg-rose-50/50 ${p.is_ordered ? 'bg-emerald-50/20' : ''}">
                     <td class="p-2.5">
                         <div class="font-bold text-slate-900">${p.name}</div>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-[10px] text-slate-400 font-mono">${p.code}</span>
-                            <span class="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
-                                🏢 ${p.partner_name || 'Chưa gán NCC'}
+                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span class="text-xs text-slate-400 font-mono">${p.code}</span>
+                            <span class="text-xs text-sky-700 font-semibold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 inline-flex items-center gap-1">
+                                <i class="ph ph-buildings"></i> ${p.partner_name || 'Chưa gán NCC'}
                             </span>
                         </div>
                     </td>
-                    <td class="p-2.5 text-right font-mono font-black ${p.stock <= 0 ? 'text-rose-600' : 'text-amber-600'}">${p.stock}</td>
-                    <td class="p-2.5 text-right font-mono text-slate-500 font-bold">${p.min_stock}</td>
-                    <td class="p-2.5 text-center text-slate-600">${p.unit}</td>
-                    <td class="p-2.5 text-center">${actionHtml}</td>
+                    <td class="p-2.5 text-right font-mono font-bold whitespace-nowrap ${p.stock <= 0 ? 'text-rose-600' : 'text-amber-600'}">${p.stock}</td>
+                    <td class="p-2.5 text-right font-mono text-slate-500 font-bold whitespace-nowrap">${p.min_stock}</td>
+                    <td class="p-2.5 text-center text-slate-600 whitespace-nowrap">${p.unit}</td>
+                    <td class="p-2.5 text-center whitespace-nowrap">${actionHtml}</td>
                 </tr>
             `;
         }).join('');

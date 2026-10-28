@@ -450,7 +450,7 @@ function printShiftZReport(summaryData) {
 
       ${s.note ? `
       <div style="font-size: 11px; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-        <em>Ghi chú: ${s.note}</em>
+        <span>Ghi chú: ${s.note}</span>
       </div>` : ''}
 
       <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 16px; padding-bottom: 30px;">
@@ -475,7 +475,7 @@ function printShiftZReport(summaryData) {
   const printSubmitText = document.getElementById('print-modal-submit-text');
 
   if (printTitle) {
-    printTitle.innerHTML = '<svg class="w-4 h-4 text-purple-600 inline mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg><span>Xem Trước & In Phiếu Kết Ca (Z-Report)</span>';
+    printTitle.innerHTML = '<svg class="w-4 h-4 text-sky-600 inline mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg><span>Xem Trước & In Phiếu Kết Ca (Z-Report)</span>';
   }
   if (printSubmitText) {
     printSubmitText.textContent = 'Xác Nhận In Phiếu Ca';
@@ -516,9 +516,9 @@ async function loadShiftsHistory() {
     if (!rows.length) { tbody.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-400">Chưa có ca nào</td></tr>`; return; }
     const fmt = n => (n || 0).toLocaleString('vi-VN') + 'đ';
     const statusBadge = s => ({
-      open: '<span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 font-bold text-[10px]">Đang mở</span>',
-      closed: '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-[10px]">Chờ duyệt</span>',
-      approved: '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px]">Đã duyệt</span>'
+      open: '<span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 font-bold text-xs">Đang mở</span>',
+      closed: '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold text-xs">Chờ duyệt</span>',
+      approved: '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">Đã duyệt</span>'
     }[s] || s);
     tbody.innerHTML = rows.map(r => `
       <tr class="border-t hover:bg-slate-50/80 transition">

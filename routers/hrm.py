@@ -945,6 +945,523 @@ def delete_advance(adv_id: int, user=Depends(require_permission(PERM))):
     return {"status": "ok"}
 
 
+DEFAULT_DEPT_COMM_POLICIES = [
+    {
+        "dept": "Bán Lẻ POS",
+        "icon": "🛒",
+        "color": "sky",
+        "pos_rate": 3.0,
+        "spa_on": 0,
+        "tmdt_on": 0,
+        "desc": "Hưởng % trên Doanh số POS thuần (sau chiết khấu & trả hàng)."
+    },
+    {
+        "dept": "Spa & Grooming",
+        "icon": "✂️",
+        "color": "purple",
+        "pos_rate": 1.5,
+        "spa_on": 1,
+        "tmdt_on": 0,
+        "desc": "Hưởng hoa hồng theo vai trò trên phiếu Spa + 100% Tip + % bán kèm POS."
+    },
+    {
+        "dept": "Sales Online & TMĐT",
+        "icon": "🛍️",
+        "color": "amber",
+        "pos_rate": 2.0,
+        "spa_on": 0,
+        "tmdt_on": 1,
+        "desc": "Hưởng bậc thang đơn Sàn/POSCAKE + Thưởng video KOC/TikTok + % POS."
+    },
+    {
+        "dept": "Kho & Khách Sạn",
+        "icon": "🏨",
+        "color": "emerald",
+        "pos_rate": 1.0,
+        "spa_on": 0,
+        "tmdt_on": 0,
+        "desc": "Phụ trách lưu trú Khách sạn thú cưng & quản lý kho hàng."
+    },
+]
+
+
+def _load_dept_comm_policies(cur):
+    cur.execute("SELECT value FROM settings WHERE key = 'hrm_dept_commission_policies'")
+    row = cur.fetchone()
+    if row and row["value"]:
+        try:
+            data = json.loads(row["value"])
+            if isinstance(data, list) and len(data) > 0:
+                return data
+        except Exception:
+            pass
+    cur.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('hrm_dept_commission_policies', ?)",
+        (json.dumps(DEFAULT_DEPT_COMM_POLICIES, ensure_ascii=False),)
+    )
+    return DEFAULT_DEPT_COMM_POLICIES
+
+
+def _ensure_staff_comm_cols(cur):
+    cur.execute("PRAGMA table_info(staff)")
+    cols = {r[1] for r in cur.fetchall()}
+    if "commission_policy_mode" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN commission_policy_mode TEXT DEFAULT 'dept'")
+    if "enable_spa_commission" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN enable_spa_commission INTEGER DEFAULT 1")
+    if "enable_tmdt_commission" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN enable_tmdt_commission INTEGER DEFAULT 1")
+    if "spa_commission_tier" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_tier TEXT DEFAULT 'official'")
+    if "spa_commission_profile_id" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN spa_commission_profile_id TEXT DEFAULT ''")
+
+
+# ── Xem & Tính Hoa Hồng Tổng Hợp (POS + Spa + Sàn TMĐT + KOC) ──
+@router.get("/commissions/{month}")
+def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))):
+    y, m, first, last = ps.parse_month(month)
+    from_dt = f"{first.isoformat()} 00:00:00"
+    to_dt = f"{last.isoformat()} 23:59:59"
+
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    dept_policies = _load_dept_comm_policies(cur)
+    dept_policy_map = {p["dept"]: p for p in dept_policies}
+
+    # Tự động khởi tạo quy tắc hoa hồng Spa mặc định nếu bảng đang trống để tính ngay được
+    cur.execute("SELECT COUNT(*) FROM spa_commission_rules")
+    if cur.fetchone()[0] == 0:
+        default_spa_rules = [
+            ("receiver", None, "percent", 2.0, 1),
+            ("worker_1", None, "percent", 10.0, 1),
+            ("worker_2", None, "percent", 8.0, 1),
+            ("cutter", None, "percent", 12.0, 1),
+            ("dyer", None, "percent", 10.0, 1),
+        ]
+        cur.executemany(
+            "INSERT INTO spa_commission_rules (role_key, service_name, rate_type, value, is_active) VALUES (?,?,?,?,?)",
+            default_spa_rules
+        )
+    conn.commit()
+
+    cur.execute("SELECT * FROM spa_commission_rules ORDER BY role_key, id")
+    spa_rules = [dict(r) for r in cur.fetchall()]
+
+    from services.commission import (
+        sales_commission_by_staff,
+        spa_commission_by_name,
+        load_spa_commission_config,
+        EXCLUDED_ORDER_STATUSES,
+    )
+    from services.pancake import commission_by_staff as pancake_commission_by_staff
+    from services.koc_service import commission_by_staff as koc_commission_by_staff
+
+    spa_matrix_config = load_spa_commission_config(cur)
+    conn.commit()
+    pos_sales = sales_commission_by_staff(cur, from_dt, to_dt)
+    try:
+        pancake_sales = pancake_commission_by_staff(cur, first.isoformat(), last.isoformat())
+    except Exception:
+        pancake_sales = {}
+    try:
+        koc_sales = koc_commission_by_staff(cur, month)
+    except Exception:
+        koc_sales = {}
+    spa_map = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
+
+    # Đếm số đơn POS theo nhân viên
+    ph = ",".join("?" for _ in EXCLUDED_ORDER_STATUSES)
+    cur.execute(f"""
+        SELECT staff_id, COUNT(*) as cnt
+        FROM orders
+        WHERE staff_id IS NOT NULL
+          AND COALESCE(status, '') NOT IN ({ph})
+          AND datetime(created_at, '+7 hours') BETWEEN ? AND ?
+        GROUP BY staff_id
+    """, (*EXCLUDED_ORDER_STATUSES, from_dt, to_dt))
+    pos_order_counts = {r["staff_id"]: r["cnt"] for r in cur.fetchall()}
+
+    # Danh sách nhân viên
+    cur.execute("""
+        SELECT s.id, s.name, s.employee_code, s.department, s.position, s.role, s.commission_rate,
+               s.is_spa_worker, s.is_active,
+               COALESCE(s.commission_policy_mode, 'dept') as commission_policy_mode,
+               COALESCE(s.enable_spa_commission, 1) as enable_spa_commission,
+               COALESCE(s.enable_tmdt_commission, 1) as enable_tmdt_commission,
+               COALESCE(s.spa_commission_tier, 'official') as spa_commission_tier,
+               COALESCE(s.spa_commission_profile_id, '') as spa_commission_profile_id,
+               b.name as block_name
+        FROM staff s
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        WHERE COALESCE(s.is_active, 1) = 1
+        ORDER BY s.id ASC
+    """)
+    staff_rows = [dict(r) for r in cur.fetchall()]
+
+    matched_spa_keys = set()
+    items = []
+
+    for st in staff_rows:
+        sid = st["id"]
+        sname_low = (st["name"] or "").strip().lower()
+        p_info = pos_sales.get(sid, {})
+        pk_info = pancake_sales.get(sid, {})
+        kc_info = koc_sales.get(sid, {})
+        sp_info = spa_map.get(sname_low, {})
+        if sname_low in spa_map:
+            matched_spa_keys.add(sname_low)
+
+        dept = (st.get("department") or "").strip()
+        if not dept:
+            dept = "Spa & Grooming" if st.get("is_spa_worker") else "Bán Lẻ POS"
+
+        spa_on = int(st.get("enable_spa_commission", 1) or 0)
+        tmdt_on = int(st.get("enable_tmdt_commission", 1) or 0)
+
+        pos_rev = round(float(p_info.get("revenue") or 0))
+        pos_ret = round(float(p_info.get("returns") or 0))
+        pos_net = round(float(p_info.get("net") or 0))
+        pos_rate = float(st.get("commission_rate") or 0)
+        pos_comm = round(float(p_info.get("commission") or 0))
+
+        pk_rev = round(float(pk_info.get("revenue") or 0))
+        pk_comm = round(float(pk_info.get("commission") or 0)) if tmdt_on else 0
+        kc_comm = round(float(kc_info.get("commission") or 0)) if tmdt_on else 0
+
+        spa_tickets = int(sp_info.get("tickets") or 0)
+        spa_rev = round(float(sp_info.get("service_revenue") or 0))
+        spa_comm = round(float(sp_info.get("commission") or 0)) if spa_on else 0
+        spa_tips = round(float(sp_info.get("tips") or 0)) if spa_on else 0
+        role_counts = sp_info.get("role_counts") or {}
+
+        total_income_comm = pos_comm + pk_comm + kc_comm + spa_comm + spa_tips
+
+        items.append({
+            "staff_id": sid,
+            "employee_code": st.get("employee_code") or f"NV{sid:02d}",
+            "name": st["name"],
+            "department": dept,
+            "position": st.get("position") or st.get("role") or "Nhân viên",
+            "block_name": st.get("block_name") or "",
+            "is_unlinked_spa": False,
+            "policy_mode": st.get("commission_policy_mode") or "dept",
+            "commission_rate": pos_rate,
+            "enable_spa_commission": spa_on,
+            "enable_tmdt_commission": tmdt_on,
+            "spa_commission_tier": st.get("spa_commission_tier") or "official",
+            "spa_commission_profile_id": st.get("spa_commission_profile_id") or "",
+            "pos_orders": pos_order_counts.get(sid, 0),
+            "pos_revenue": pos_rev,
+            "pos_returns": pos_ret,
+            "pos_net": pos_net,
+            "pos_commission": pos_comm,
+            "pancake_revenue": pk_rev,
+            "pancake_commission": pk_comm,
+            "koc_commission": kc_comm,
+            "spa_tickets": spa_tickets,
+            "spa_revenue": spa_rev,
+            "spa_commission": spa_comm,
+            "spa_tips": spa_tips,
+            "spa_role_counts": role_counts,
+            "spa_breakdown": sp_info.get("breakdown") or {"bath": 0, "cut": 0, "dye": 0, "surcharge": 0, "receiver": 0},
+            "total_commission": total_income_comm
+        })
+
+    # Bổ sung những tên thợ Spa có trên phiếu dịch vụ nhưng chưa tạo hồ sơ nhân sự trong bảng `staff`
+    for k_low, sp_info in spa_map.items():
+        if k_low in matched_spa_keys:
+            continue
+        spa_comm = round(float(sp_info.get("commission") or 0))
+        spa_tips = round(float(sp_info.get("tips") or 0))
+        spa_pol = dept_policy_map.get("Spa & Grooming", {"pos_rate": 1.5})
+        items.append({
+            "staff_id": None,
+            "employee_code": "THO-SPA",
+            "name": sp_info.get("display_name") or k_low.title(),
+            "department": "Spa & Grooming",
+            "position": "Thợ Spa (Chưa tạo hồ sơ NV)",
+            "block_name": "Khối Spa",
+            "is_unlinked_spa": True,
+            "policy_mode": "dept",
+            "commission_rate": float(spa_pol.get("pos_rate") or 0),
+            "enable_spa_commission": 1,
+            "enable_tmdt_commission": 0,
+            "pos_orders": 0,
+            "pos_revenue": 0,
+            "pos_returns": 0,
+            "pos_net": 0,
+            "pos_commission": 0,
+            "pancake_revenue": 0,
+            "pancake_commission": 0,
+            "koc_commission": 0,
+            "spa_tickets": int(sp_info.get("tickets") or 0),
+            "spa_revenue": round(float(sp_info.get("service_revenue") or 0)),
+            "spa_commission": spa_comm,
+            "spa_tips": spa_tips,
+            "spa_commission_tier": "official",
+            "spa_commission_profile_id": "",
+            "spa_role_counts": sp_info.get("role_counts") or {},
+            "spa_breakdown": sp_info.get("breakdown") or {"bath": 0, "cut": 0, "dye": 0, "surcharge": 0, "receiver": 0},
+            "total_commission": spa_comm + spa_tips
+        })
+
+    items.sort(key=lambda x: (x["total_commission"], x["pos_net"], x["spa_revenue"]), reverse=True)
+
+    summary = {
+        "pos_net_total": sum(x["pos_net"] for x in items),
+        "pos_commission_total": sum(x["pos_commission"] for x in items),
+        "tmdt_commission_total": sum(x["pancake_commission"] + x["koc_commission"] for x in items),
+        "spa_revenue_total": sum(x["spa_revenue"] for x in items),
+        "spa_commission_total": sum(x["spa_commission"] for x in items),
+        "spa_tips_total": sum(x["spa_tips"] for x in items),
+        "grand_total": sum(x["total_commission"] for x in items)
+    }
+
+    conn.close()
+    return {
+        "month": month,
+        "summary": summary,
+        "dept_policies": dept_policies,
+        "spa_rules": spa_rules,
+        "spa_matrix_config": spa_matrix_config,
+        "items": items
+    }
+
+
+def _recalc_staff_orders_comm(cur, staff_id: int, rate: float, month: str | None):
+    if not month:
+        return
+    try:
+        _, _, first, last = ps.parse_month(month)
+        cur.execute("""
+            UPDATE orders
+            SET commission_amount = ROUND(MAX(0, COALESCE(total_amount,0) - COALESCE(discount,0)) * ? / 100.0)
+            WHERE staff_id = ?
+              AND datetime(created_at, '+7 hours') BETWEEN ? AND ?
+        """, (rate, staff_id, f"{first.isoformat()} 00:00:00", f"{last.isoformat()} 23:59:59"))
+    except Exception:
+        pass
+
+
+@router.put("/commissions/dept-policies")
+def update_dept_comm_policies(body: dict, user=Depends(require_permission(PERM))):
+    """Lưu quy định hoa hồng của Bộ phận và (tuỳ chọn) áp dụng cho toàn bộ nhân viên thuộc bộ phận đó."""
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    policies = _load_dept_comm_policies(cur)
+
+    target_dept = (body.get("dept") or "").strip()
+    pos_rate = float(body.get("pos_rate") or 0.0)
+    spa_on = 1 if body.get("spa_on") else 0
+    tmdt_on = 1 if body.get("tmdt_on") else 0
+    apply_to_staff = bool(body.get("apply_to_staff", True))
+    month = body.get("month")
+
+    found = False
+    for p in policies:
+        if p["dept"] == target_dept:
+            p["pos_rate"] = pos_rate
+            p["spa_on"] = spa_on
+            p["tmdt_on"] = tmdt_on
+            found = True
+            break
+    if not found and target_dept:
+        policies.append({
+            "dept": target_dept,
+            "icon": "🏢",
+            "color": "sky",
+            "pos_rate": pos_rate,
+            "spa_on": spa_on,
+            "tmdt_on": tmdt_on,
+            "desc": "Quy định hoa hồng theo bộ phận"
+        })
+
+    cur.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('hrm_dept_commission_policies', ?)",
+        (json.dumps(policies, ensure_ascii=False),)
+    )
+
+    updated_count = 0
+    if apply_to_staff and target_dept:
+        # Áp dụng cho tất cả nhân viên thuộc bộ phận này (trừ những người đang khóa 'custom' nếu force_all=False)
+        force_all = bool(body.get("force_all", True))
+        if force_all:
+            cur.execute("""
+                SELECT id FROM staff
+                WHERE COALESCE(is_active, 1) = 1
+                  AND (department = ? OR ((department IS NULL OR department = '') AND ? = CASE WHEN is_spa_worker = 1 THEN 'Spa & Grooming' ELSE 'Bán Lẻ POS' END))
+            """, (target_dept, target_dept))
+        else:
+            cur.execute("""
+                SELECT id FROM staff
+                WHERE COALESCE(is_active, 1) = 1
+                  AND COALESCE(commission_policy_mode, 'dept') = 'dept'
+                  AND (department = ? OR ((department IS NULL OR department = '') AND ? = CASE WHEN is_spa_worker = 1 THEN 'Spa & Grooming' ELSE 'Bán Lẻ POS' END))
+            """, (target_dept, target_dept))
+        staff_ids = [r["id"] for r in cur.fetchall()]
+        for sid in staff_ids:
+            cur.execute("""
+                UPDATE staff
+                SET department = ?,
+                    commission_policy_mode = 'dept',
+                    commission_rate = ?,
+                    enable_spa_commission = ?,
+                    enable_tmdt_commission = ?
+                WHERE id = ?
+            """, (target_dept, pos_rate, spa_on, tmdt_on, sid))
+            _recalc_staff_orders_comm(cur, sid, pos_rate, month)
+            updated_count += 1
+
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "updated_staff": updated_count, "dept_policies": policies}
+
+
+@router.put("/commissions/staff-policy/{staff_id}")
+def update_staff_commission_policy(staff_id: int, body: dict, user=Depends(require_permission(PERM))):
+    """Gán Bộ phận, Chế độ quy định ('dept'|'custom'), % POS, bật/tắt Hoa hồng Spa & TMĐT cho 1 nhân viên."""
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    policies = {p["dept"]: p for p in _load_dept_comm_policies(cur)}
+
+    cur.execute("SELECT * FROM staff WHERE id = ?", (staff_id,))
+    st = cur.fetchone()
+    if not st:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+    st = dict(st)
+
+    dept = (body.get("department") if "department" in body else st.get("department")) or "Bán Lẻ POS"
+    mode = (body.get("policy_mode") if "policy_mode" in body else st.get("commission_policy_mode")) or "dept"
+    month = body.get("month")
+
+    if mode == "dept" and dept in policies and not body.get("manual_override"):
+        pol = policies[dept]
+        pos_rate = float(pol.get("pos_rate") or 0.0)
+        spa_on = int(pol.get("spa_on") or 0)
+        tmdt_on = int(pol.get("tmdt_on") or 0)
+    else:
+        pos_rate = float(body.get("commission_rate") if "commission_rate" in body else (st.get("commission_rate") or 0.0))
+        spa_on = int(body.get("enable_spa_commission") if "enable_spa_commission" in body else st.get("enable_spa_commission", 1))
+        tmdt_on = int(body.get("enable_tmdt_commission") if "enable_tmdt_commission" in body else st.get("enable_tmdt_commission", 1))
+
+    is_spa_worker = 1 if dept == "Spa & Grooming" else int(st.get("is_spa_worker") or 0)
+    spa_tier = (body.get("spa_commission_tier") if "spa_commission_tier" in body else st.get("spa_commission_tier")) or "official"
+    if spa_tier not in ("official", "probation"):
+        spa_tier = "official"
+    spa_prof_id = (body.get("spa_commission_profile_id") if "spa_commission_profile_id" in body else st.get("spa_commission_profile_id")) or ""
+
+    cur.execute("""
+        UPDATE staff
+        SET department = ?,
+            commission_policy_mode = ?,
+            commission_rate = ?,
+            enable_spa_commission = ?,
+            enable_tmdt_commission = ?,
+            is_spa_worker = ?,
+            spa_commission_tier = ?,
+            spa_commission_profile_id = ?
+        WHERE id = ?
+    """, (dept, mode, pos_rate, spa_on, tmdt_on, is_spa_worker, spa_tier, spa_prof_id, staff_id))
+
+    _recalc_staff_orders_comm(cur, staff_id, pos_rate, month)
+    conn.commit()
+    conn.close()
+    return {
+        "status": "ok",
+        "staff_id": staff_id,
+        "department": dept,
+        "policy_mode": mode,
+        "commission_rate": pos_rate,
+        "enable_spa_commission": spa_on,
+        "enable_tmdt_commission": tmdt_on,
+        "spa_commission_tier": spa_tier,
+        "spa_commission_profile_id": spa_prof_id
+    }
+
+
+@router.put("/commissions/spa-matrix")
+def update_spa_commission_matrix(body: dict, user=Depends(require_permission(PERM))):
+    """Lưu cấu hình Ma trận Hoa hồng Spa Đa Cơ sở (Multi-Branch Profiles: Bậc cân nặng, Chính thức / Thử việc, 7 cột Phụ thu)."""
+    from services.commission import save_spa_commission_config
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    saved = save_spa_commission_config(cur, body)
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "spa_matrix_config": saved}
+
+
+@router.put("/commissions/staff-rate/{staff_id}")
+def update_staff_commission_rate(staff_id: int, body: dict, user=Depends(require_permission(PERM))):
+    try:
+        rate = float(body.get("commission_rate") or 0.0)
+    except Exception:
+        raise HTTPException(400, "Tỷ lệ hoa hồng không hợp lệ")
+    if rate < 0 or rate > 100:
+        raise HTTPException(400, "Tỷ lệ hoa hồng phải từ 0% đến 100%")
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    cur.execute("UPDATE staff SET commission_rate = ?, commission_policy_mode = 'custom' WHERE id = ?", (rate, staff_id))
+    _recalc_staff_orders_comm(cur, staff_id, rate, body.get("month"))
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "commission_rate": rate}
+
+
+@router.post("/commissions/sync-spa-workers")
+def sync_unlinked_spa_workers(body: dict, user=Depends(require_permission(PERM))):
+    """Tự động tạo hồ sơ nhân sự trong bảng `staff` cho các thợ Spa có tên trên phiếu nhưng chưa có hồ sơ."""
+    month = body.get("month") or date.today().strftime("%Y-%m")
+    _, _, first, last = ps.parse_month(month)
+    conn = get_db()
+    cur = conn.cursor()
+    _ensure_staff_comm_cols(cur)
+    policies = {p["dept"]: p for p in _load_dept_comm_policies(cur)}
+    spa_pol = policies.get("Spa & Grooming", {"pos_rate": 1.5, "spa_on": 1, "tmdt_on": 0})
+
+    from services.commission import spa_commission_by_name
+    spa_map = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
+    cur.execute("SELECT LOWER(TRIM(name)) as n FROM staff")
+    existing_names = {r["n"] for r in cur.fetchall() if r["n"]}
+    cur.execute("SELECT id FROM hrm_work_blocks ORDER BY id ASC LIMIT 1")
+    blk_row = cur.fetchone()
+    blk_id = blk_row["id"] if blk_row else None
+
+    created = 0
+    for k_low, sp_info in spa_map.items():
+        if k_low not in existing_names:
+            disp_name = sp_info.get("display_name") or k_low.title()
+            cur.execute("""
+                INSERT INTO staff (
+                    name, role, department, position, work_block_id,
+                    is_spa_worker, is_payroll_staff, is_active,
+                    commission_policy_mode, commission_rate,
+                    enable_spa_commission, enable_tmdt_commission, base_salary
+                )
+                VALUES (?, 'staff', 'Spa & Grooming', 'Chuyên viên Spa', ?, 1, 1, 1, 'dept', ?, ?, ?, 6000000)
+            """, (
+                disp_name, blk_id,
+                float(spa_pol.get("pos_rate") or 1.5),
+                int(spa_pol.get("spa_on", 1)),
+                int(spa_pol.get("tmdt_on", 0))
+            ))
+            sid = cur.lastrowid
+            cur.execute("UPDATE staff SET employee_code = ? WHERE id = ?", (f"SPA{sid:02d}", sid))
+            created += 1
+            existing_names.add(k_low)
+
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "created": created, "message": f"Đã đồng bộ {created} thợ Spa vào Bộ phận Spa & Grooming!"}
+
+
 # ── Bảng lương ──
 @router.get("/payroll/{month}")
 def get_payroll(month: str, user=Depends(require_permission(PERM))):

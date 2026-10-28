@@ -29,6 +29,9 @@ STAFF_HR_COLUMNS = [
     ("insurance_salary", "REAL DEFAULT 0"), ("is_insurance_exempt", "INTEGER DEFAULT 0"),
     ("is_spa_worker", "INTEGER DEFAULT 0"), ("legacy_spa_staff_id", "INTEGER"),
     ("is_payroll_staff", "INTEGER DEFAULT 1"),
+    ("commission_policy_mode", "TEXT DEFAULT 'dept'"),
+    ("enable_spa_commission", "INTEGER DEFAULT 1"),
+    ("enable_tmdt_commission", "INTEGER DEFAULT 1"),
 ]
 
 

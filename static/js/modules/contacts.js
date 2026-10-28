@@ -1,5 +1,19 @@
         let currentContactTab = 'customer';
         let contactSearchDebounceTimer = null;
+        let customerPage = 1;
+        let supplierPage = 1;
+
+        function changeCustomerPage(p) {
+            customerPage = p;
+            renderContactsTables();
+        }
+        window.changeCustomerPage = changeCustomerPage;
+
+        function changeSupplierPage(p) {
+            supplierPage = p;
+            renderContactsTables();
+        }
+        window.changeSupplierPage = changeSupplierPage;
 
         function switchContactTab(tabType) {
             currentContactTab = tabType;
@@ -30,6 +44,8 @@
         function debounceFilterContacts() {
             clearTimeout(contactSearchDebounceTimer);
             contactSearchDebounceTimer = setTimeout(() => {
+                customerPage = 1;
+                supplierPage = 1;
                 renderContactsTables();
             }, 200);
         }
@@ -71,18 +87,24 @@
                 return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.address || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q);
             });
 
-            // 1. Render Customers Table
+            // 1. Render Customers Table (phân trang 20 dòng/trang chống treo trình duyệt khi có 29.000 KH)
             if (tbodyCust) {
                 if (filteredCust.length === 0) {
                     tbodyCust.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
+                    if (typeof renderPaginationBar === 'function') renderPaginationBar('pagination-contacts-customer', 1, 1, 0, 'changeCustomerPage');
                 } else {
-                    tbodyCust.innerHTML = filteredCust.map((c, idx) => {
+                    const totalCust = filteredCust.length;
+                    const totalCustPages = Math.ceil(totalCust / 20) || 1;
+                    if (customerPage > totalCustPages) customerPage = totalCustPages;
+                    if (customerPage < 1) customerPage = 1;
+                    const pagedCust = filteredCust.slice((customerPage - 1) * 20, customerPage * 20);
+                    tbodyCust.innerHTML = pagedCust.map((c, idx) => {
                         const code = c.code || ('KH' + String(c.id).padStart(4, '0'));
                         const safeName = escapeJs(c.name || '');
                         const petCount = c.pets_count || c.pet_count || 0;
                         const groupBadge = c.group_name || (c.segment_name)
-                            ? `<span class="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200 text-[11px]">${c.group_name || c.segment_name}</span>`
-                            : `<span class="text-gray-400 italic text-[11px]">Mặc định</span>`;
+                            ? `<span class="bg-sky-50 text-sky-700 font-bold px-2 py-0.5 rounded border border-sky-200 text-xs">${c.group_name || c.segment_name}</span>`
+                            : `<span class="text-gray-400  text-xs">Mặc định</span>`;
                         const debtStyle = c.debt > 0 ? 'text-rose-600 font-bold' : 'text-gray-400';
                         const spaBal = Number(c.spa_wallet_balance || 0);
                         const spaBalHtml = spaBal > 0
@@ -96,7 +118,7 @@
                             <td class="p-2.5 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">---</span>'}</td>
                             <td class="p-2.5 text-gray-500">${c.address || '<span class="text-gray-300">---</span>'}</td>
                             <td class="p-2.5 text-center">
-                                <button onclick="openCustomerPetsModal(${c.id}, '${safeName}')" class="px-2 py-0.5 rounded font-bold text-[11px] bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 shadow-sm transition">
+                                <button onclick="openCustomerPetsModal(${c.id}, '${safeName}')" class="px-2 py-0.5 rounded font-bold text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 shadow-sm transition">
                                     🐾 ${petCount} bé
                                 </button>
                             </td>
@@ -104,14 +126,17 @@
                             <td class="p-2.5 text-right font-mono">${spaBalHtml}</td>
                             <td class="p-2.5 text-right font-mono ${debtStyle}">${formatMoney(c.debt || 0)}</td>
                             <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                                ${c.debt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">💵 Thu nợ</button>` : ''}
-                                <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-[10px] font-bold">👁️</button>
-                                <button onclick="editContact(${c.id})" class="text-sky-600 hover:text-sky-800 px-1.5 py-1 border border-sky-200 rounded text-[10px] font-bold">✏️</button>
-                                ${c.id !== 1 && (!c.debt || c.debt === 0) ? `<button onclick="deleteContact(${c.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-[10px] font-bold">🗑️</button>` : ''}
+                                ${c.debt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold shadow">💵 Thu nợ</button>` : ''}
+                                <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-xs font-bold">👁️</button>
+                                <button onclick="editContact(${c.id})" class="text-sky-600 hover:text-sky-800 px-1.5 py-1 border border-sky-200 rounded text-xs font-bold">✏️</button>
+                                ${c.id !== 1 && (!c.debt || c.debt === 0) ? `<button onclick="deleteContact(${c.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-xs font-bold">🗑️</button>` : ''}
                             </td>
                         </tr>
                         `;
                     }).join('');
+                    if (typeof renderPaginationBar === 'function') {
+                        renderPaginationBar('pagination-contacts-customer', customerPage, totalCustPages, totalCust, 'changeCustomerPage');
+                    }
                 }
             }
 
@@ -119,8 +144,14 @@
             if (tbodySupp) {
                 if (filteredSupp.length === 0) {
                     tbodySupp.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-gray-400">Không tìm thấy nhà cung cấp nào</td></tr>';
+                    if (typeof renderPaginationBar === 'function') renderPaginationBar('pagination-contacts-supplier', 1, 1, 0, 'changeSupplierPage');
                 } else {
-                    tbodySupp.innerHTML = filteredSupp.map((c, idx) => {
+                    const totalSupp = filteredSupp.length;
+                    const totalSuppPages = Math.ceil(totalSupp / 20) || 1;
+                    if (supplierPage > totalSuppPages) supplierPage = totalSuppPages;
+                    if (supplierPage < 1) supplierPage = 1;
+                    const pagedSupp = filteredSupp.slice((supplierPage - 1) * 20, supplierPage * 20);
+                    tbodySupp.innerHTML = pagedSupp.map((c, idx) => {
                         const code = c.code || ('NCC' + String(c.id).padStart(4, '0'));
                         const debtCompany = Number(c.debt_company ?? c.initial_debt_company ?? 0);
                         const debtPersonal = Number(c.debt_personal ?? c.initial_debt_personal ?? 0);
@@ -133,18 +164,21 @@
                             <td class="p-2.5 font-bold text-slate-800">${c.name}</td>
                             <td class="p-2.5 font-mono text-gray-600">${c.phone || '<span class="text-gray-300">---</span>'}</td>
                             <td class="p-2.5 text-gray-500">${c.address || '<span class="text-gray-300">---</span>'}</td>
-                            <td class="p-2.5 text-right font-mono ${debtCompany > 0 ? 'text-indigo-700 font-bold' : 'text-gray-400'}">${formatMoney(debtCompany)}</td>
+                            <td class="p-2.5 text-right font-mono ${debtCompany > 0 ? 'text-sky-700 font-bold' : 'text-gray-400'}">${formatMoney(debtCompany)}</td>
                             <td class="p-2.5 text-right font-mono ${debtPersonal > 0 ? 'text-amber-600 font-bold' : 'text-gray-400'}">${formatMoney(debtPersonal)}</td>
                             <td class="p-2.5 text-right font-mono ${debtStyle}">${formatMoney(totalDebt)}</td>
                             <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                                ${totalDebt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded text-[10px] font-bold shadow">💳 Trả nợ</button>` : ''}
-                                <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-[10px] font-bold">👁️</button>
-                                <button onclick="editContact(${c.id})" class="text-sky-600 hover:text-sky-800 px-1.5 py-1 border border-sky-200 rounded text-[10px] font-bold">✏️</button>
-                                ${c.id !== 1 && (!totalDebt || totalDebt === 0) ? `<button onclick="deleteContact(${c.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-[10px] font-bold">🗑️</button>` : ''}
+                                ${totalDebt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded text-xs font-bold shadow">💳 Trả nợ</button>` : ''}
+                                <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-xs font-bold">👁️</button>
+                                <button onclick="editContact(${c.id})" class="text-sky-600 hover:text-sky-800 px-1.5 py-1 border border-sky-200 rounded text-xs font-bold">✏️</button>
+                                ${c.id !== 1 && (!totalDebt || totalDebt === 0) ? `<button onclick="deleteContact(${c.id})" class="text-rose-600 hover:text-rose-800 px-1.5 py-1 border border-rose-200 rounded text-xs font-bold">🗑️</button>` : ''}
                             </td>
                         </tr>
                         `;
                     }).join('');
+                    if (typeof renderPaginationBar === 'function') {
+                        renderPaginationBar('pagination-contacts-supplier', supplierPage, totalSuppPages, totalSupp, 'changeSupplierPage');
+                    }
                 }
             }
         }
@@ -152,13 +186,15 @@
         async function loadContacts() {
             try {
                 const res = await fetch('/api/contacts');
-                allContacts = await res.json();
+                if (!res.ok) return;
+                const data = await res.json();
+                allContacts = Array.isArray(data) ? data : [];
                 
                 const custSelect = document.getElementById('pos-customer');
                 const suppSelect = document.getElementById('purchase-supplier');
                 
                 if (custSelect) {
-                    custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    custSelect.innerHTML = allContacts.filter(c => c.type === 'customer').slice(0, 200).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                 }
                 if (suppSelect) {
                     suppSelect.innerHTML = '<option value="">-- Chọn Nhà Cung Cấp --</option>' + 
@@ -551,8 +587,8 @@
                                 const isTopup = r.type === 'topup';
                                 const isSpend = r.type === 'spend';
                                 const typeBadge = isTopup
-                                    ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
-                                    : (isSpend ? '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu</span>' : '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
+                                    ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">⚡ Nạp gói</span>'
+                                    : (isSpend ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">🛒 Chi tiêu</span>' : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">Hoàn tiền</span>');
                                 const sign = isTopup ? '+' : (isSpend ? '-' : '');
                                 const amtColor = isTopup ? 'text-emerald-600 font-bold' : (isSpend ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold');
                                 const noteStr = r.note || (isTopup && r.package_name ? `Gói ${r.package_name}` : (r.order_code ? `Đơn ${r.order_code}` : '-'));

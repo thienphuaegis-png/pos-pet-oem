@@ -46,8 +46,8 @@
                         iconBg = 'bg-amber-100 text-amber-600 border border-amber-200';
                         icon = customIcon || '⚠️';
                     } else if (type === 'primary') {
-                        btnClass = 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200';
-                        iconBg = 'bg-indigo-100 text-indigo-600 border border-indigo-200';
+                        btnClass = 'bg-sky-600 hover:bg-sky-700 text-white shadow-indigo-200';
+                        iconBg = 'bg-sky-100 text-sky-600 border border-sky-200';
                         icon = customIcon || '✨';
                     } else if (type === 'transfer' || type === 'info') {
                         btnClass = 'bg-sky-600 hover:bg-sky-700 text-white shadow-sky-200';
@@ -73,7 +73,7 @@
                                     <div class="text-xs font-medium text-slate-700 mt-1.5 leading-relaxed break-words whitespace-pre-line">
                                         ${message}
                                     </div>
-                                    ${subMessage ? `<div class="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 mt-2.5 leading-normal whitespace-pre-line">${subMessage}</div>` : ''}
+                                    ${subMessage ? `<div class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 mt-2.5 leading-normal whitespace-pre-line">${subMessage}</div>` : ''}
                                 </div>
                             </div>
                             <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
@@ -202,7 +202,7 @@
 
                 const lower = String(message).toLowerCase();
                 let iconHtml = 'ℹ️';
-                let iconBadgeClass = 'bg-indigo-50 border border-indigo-200 text-indigo-600';
+                let iconBadgeClass = 'bg-sky-50 border border-sky-200 text-sky-600';
                 let defaultTitle = 'Thông báo hệ thống';
 
                 if (lower.includes('lỗi') || lower.includes('thất bại') || lower.includes('không thể') || lower.includes('vui lòng') || lower.includes('chưa') || lower.includes('bị xóa')) {
@@ -229,7 +229,7 @@
                             </div>
                         </div>
                         <div class="bg-slate-50/80 px-5 py-3 border-t border-slate-100 flex justify-end gap-2">
-                            <button type="button" id="btn-custom-alert-ok" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs shadow-sm shadow-indigo-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+                            <button type="button" id="btn-custom-alert-ok" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-bold text-xs shadow-sm shadow-indigo-100 transition focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1">
                                 Đã hiểu
                             </button>
                         </div>
@@ -302,7 +302,7 @@
                         : 'bg-amber-50 border border-amber-200 text-amber-600';
                     const okBtnClass = isDanger
                         ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-100'
-                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100';
+                        : 'bg-sky-600 hover:bg-sky-700 text-white shadow-indigo-100';
                     const okText = options.okText || (isDanger ? 'Xác Nhận Xóa' : 'Đồng ý');
                     const cancelText = options.cancelText || 'Hủy bỏ';
 
@@ -432,7 +432,7 @@
                     if (subId === 'reset-data') {
                         btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-rose-600 text-white shadow-sm flex items-center gap-1.5 font-bold';
                     } else {
-                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-purple-600 text-white shadow-sm flex items-center gap-1.5 font-bold';
+                        btn.className = 'settings-subtab-btn px-3 py-2 rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1.5 font-bold';
                     }
                 } else {
                     if (btn.dataset.sub === 'reset-data') {
@@ -610,7 +610,7 @@
             const actionText = isActive === 1 ? 'Kinh doanh lại' : 'Ngừng kinh doanh';
             const confirmed = await window.showConfirmModal({
                 title: `${actionText} Hàng Loạt`,
-                message: `Bạn có chắc chắn muốn chuyển <span class="font-bold text-indigo-600">${ids.length} mặt hàng</span> đã chọn sang trạng thái <strong>${actionText}</strong>?`,
+                message: `Bạn có chắc chắn muốn chuyển <span class="font-bold text-sky-600">${ids.length} mặt hàng</span> đã chọn sang trạng thái <strong>${actionText}</strong>?`,
                 subMessage: isActive === 1 ? 'Mặt hàng sẽ xuất hiện lại trên POS và đơn nhập hàng.' : 'Mặt hàng sẽ tạm ẩn khỏi màn hình POS để tránh bán nhầm.',
                 confirmText: 'Đồng ý',
                 cancelText: 'Hủy bỏ',
@@ -677,7 +677,7 @@
             if (!tbody) return;
 
             if (!unifiedInventoryData || unifiedInventoryData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="15" class="p-6 text-center text-gray-400">Không tìm thấy mặt hàng nào trong kho</td></tr>';
                 return;
             }
 
@@ -714,20 +714,20 @@
                 let badge = '';
                 if (isProd) {
                     if (isService) {
-                        badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">Dịch Vụ</span>';
+                        badge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700">Dịch Vụ</span>';
                     } else if (isCombo) {
-                        badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Gói Combo</span>';
+                        badge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Gói Combo</span>';
                     } else {
-                        badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>';
+                        badge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>';
                     }
                 } else {
-                    badge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                    badge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
                 }
                 const stockColor = item.quantity <= 0 ? 'text-red-600 font-bold' : (item.quantity <= 5 ? 'text-amber-600 font-bold' : 'font-bold text-slate-800');
 
                 const suppBadge = item.supplier_names 
-                    ? item.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
-                    : '<span class="text-gray-400 italic text-xs">---</span>';
+                    ? item.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                    : '<span class="text-gray-400  text-xs">---</span>';
 
                 // Thao tác: Hàng hóa có Thẻ kho, Sửa, Xóa; Nguyên liệu có Thẻ kho, Xóa
                 let actionButtons = '';
@@ -736,11 +736,11 @@
                         actionButtons = `
                             <div class="flex items-center justify-center gap-1">
                                 <button onclick="restoreProductItem(${item.id}, '${encodeURIComponent(item.name)}')" 
-                                        class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-[11px] font-bold" title="Bỏ ẩn / Khôi phục hàng hóa">
+                                        class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded text-xs font-bold" title="Bỏ ẩn / Khôi phục hàng hóa">
                                     👁️ Bỏ Ẩn
                                 </button>
                                 <button onclick="openModalEditProduct(${item.id})" 
-                                        class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-bold" title="Chỉnh sửa thông tin">
+                                        class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-xs font-bold" title="Chỉnh sửa thông tin">
                                     ✏️ Sửa
                                 </button>
                             </div>
@@ -750,16 +750,16 @@
                             <div class="flex items-center justify-center gap-1">
                                 ${isCombo ? '' : `
                                 <button onclick="openItemLogsModal('product', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
-                                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
+                                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold" title="Xem lịch sử thẻ kho">
                                     📜 Thẻ kho
                                 </button>
                                 `}
                                 <button onclick="openModalEditProduct(${item.id})" 
-                                        class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-[11px] font-bold" title="Chỉnh sửa thông tin">
+                                        class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded text-xs font-bold" title="Chỉnh sửa thông tin">
                                     ✏️ Sửa
                                 </button>
                                 <button onclick="deleteProductItem(${item.id}, '${encodeURIComponent(item.name)}')" 
-                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Ẩn hoặc xóa hàng hóa">
+                                        class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-bold" title="Ẩn hoặc xóa hàng hóa">
                                     🗑️ Xóa
                                 </button>
                             </div>
@@ -769,15 +769,15 @@
                     actionButtons = `
                         <div class="flex items-center justify-center gap-1">
                             <button onclick="convertCurrentIngredientToProduct(${item.id}, '${encodeURIComponent(item.name)}')" 
-                                    class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded text-[11px] font-bold" title="Chuyển đổi nguyên liệu này thành hàng hóa bán tại POS">
+                                    class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded text-xs font-bold" title="Chuyển đổi nguyên liệu này thành hàng hóa bán tại POS">
                                 🔄 Thành Hàng Hóa
                             </button>
                             <button onclick="openItemLogsModal('${item.item_type}', ${item.id}, '${encodeURIComponent(item.name)}', '${item.code || ''}', '${item.unit || ''}')" 
-                                    class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="Xem lịch sử thẻ kho">
+                                    class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold" title="Xem lịch sử thẻ kho">
                                 📜 Thẻ kho
                             </button>
                             <button onclick="deleteIngredientItem(${item.id}, '${encodeURIComponent(item.name)}')" 
-                                    class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold" title="Xóa nguyên liệu">
+                                    class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-bold" title="Xóa nguyên liệu">
                                 🗑️ Xóa
                             </button>
                         </div>
@@ -786,40 +786,45 @@
 
                 // Giá bán: nguyên liệu không bán trực tiếp -> gạch ngang
                 const sellCell = item.item_type === 'ingredient'
-                    ? '<span class="text-slate-300 italic">---</span>'
+                    ? '<span class="text-slate-300 ">---</span>'
                     : (item.sell_price > 0
                         ? `<span class="font-semibold text-sky-700">${formatMoney(item.sell_price)}</span>`
                         : '<span class="text-slate-400">0 đ</span>');
 
                 // Đơn vị quy đổi đã thiết lập (1 Thùng = 16 Chai)
                 const unitBadge = (item.units && item.units.length)
-                    ? ` <span class="ml-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200" title="${item.units.map(u => `1 ${u.unit_name} = ${u.ratio} ${item.unit || 'cái'}`).join(' | ')}">+${item.units.length} ĐV</span>`
+                    ? ` <span class="ml-1 text-xs font-bold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200" title="${item.units.map(u => `1 ${u.unit_name} = ${u.ratio} ${item.unit || 'cái'}`).join(' | ')}">+${item.units.length} ĐV</span>`
                     : '';
 
                 const isSelected = selectedUnifiedItemIds.has(item.id);
                 const chkCell = isProd
-                    ? `<td class="p-2.5 text-center"><input type="checkbox" data-id="${item.id}" onchange="toggleItemUnified(${item.id}, this.checked)" ${isSelected ? 'checked' : ''} class="chk-item-unified w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"></td>`
+                    ? `<td class="p-2.5 text-center"><input type="checkbox" data-id="${item.id}" onchange="toggleItemUnified(${item.id}, this.checked)" ${isSelected ? 'checked' : ''} class="chk-item-unified w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"></td>`
                     : '<td class="p-2.5 text-center text-slate-300">--</td>';
 
                 const qtyCell = isCombo 
-                    ? `<span class="text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 text-[10px]" title="Combo ảo, trừ kho món con khi bán">Gói (Ảo)</span>` 
+                    ? `<span class="text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 text-xs" title="Combo ảo, trừ kho món con khi bán">Gói (Ảo)</span>` 
                     : (isService ? `<span class="text-slate-400 font-bold">∞</span>` : (item.quantity || 0).toLocaleString('vi-VN'));
 
+                const thumbHtml = item.image_url
+                    ? `<img src="${item.image_url}" onclick="if(window.viewExpenseBillModal) viewExpenseBillModal('${encodeURIComponent(item.image_url)}')" class="w-9 h-9 rounded-lg object-cover border border-slate-200 mx-auto cursor-pointer hover:scale-110 transition shadow-2xs" title="Bấm phóng to ảnh" alt="">`
+                    : `<div class="w-9 h-9 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs mx-auto select-none">📦</div>`;
+
                 return `
-                    <tr class="card-row card-row-anim text-xs select-none ${isSelected ? 'bg-indigo-50/50' : ''}" style="--row-idx: ${idx};">
+                    <tr class="card-row card-row-anim text-xs select-none ${isSelected ? 'bg-sky-50/50' : ''}" style="--row-idx: ${idx};">
                         ${chkCell}
+                        <td class="p-2 text-center">${thumbHtml}</td>
                         <td class="p-2.5 font-mono font-bold text-slate-600">${item.code || '-'}</td>
-                        <td class="p-2.5 font-bold text-slate-800">${item.name} <span class="ml-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${item.category || 'Khác'}</span></td>
+                        <td class="p-2.5 font-bold text-slate-800">${item.name} <span class="ml-1 text-xs font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${item.category || 'Khác'}</span></td>
                         <td class="p-2.5 text-center">${badge}</td>
                         <td class="p-2.5">${suppBadge}</td>
                         <td class="p-2.5 font-medium text-slate-600">${item.warehouse_name}</td>
                         <td class="p-2.5 text-right ${isCombo || isService ? '' : stockColor}">${qtyCell}</td>
                         <td class="p-2.5 text-gray-500">${item.unit || 'cái'}${unitBadge}</td>
-                        <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${isCombo ? '<span class="text-slate-300 italic">Theo món</span>' : formatMoney(item.cost_price)}</td>
+                        <td class="p-2.5 text-right font-medium text-gray-700 col-cost">${isCombo ? '<span class="text-slate-300 ">Theo món</span>' : formatMoney(item.cost_price)}</td>
                         <td class="p-2.5 text-right">${sellCell}</td>
-                        <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${isCombo ? '<span class="text-slate-300 italic">---</span>' : formatMoney(item.total_value)}</td>
+                        <td class="p-2.5 text-right font-bold text-rose-600 col-cost">${isCombo ? '<span class="text-slate-300 ">---</span>' : formatMoney(item.total_value)}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${item.created_by || 'Hệ thống'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${item.updated_by ? `${item.updated_by} <span class="text-xs text-gray-400 block">${formatDateTime(item.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-2.5 text-center">${actionButtons}</td>
                     </tr>
                 `;
@@ -837,10 +842,10 @@
             document.getElementById('card-log-unit').innerText = unit || 'cái';
             const badge = document.getElementById('card-log-badge');
             if (itemType === 'product') {
-                badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700';
+                badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700';
                 badge.innerText = 'Hàng Hóa';
             } else {
-                badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700';
+                badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700';
                 badge.innerText = 'Nguyên Liệu';
             }
 
@@ -860,18 +865,18 @@
 
                 tbody.innerHTML = logs.map(l => {
                     let typeBadge = '';
-                    if (l.ref_type === 'SALE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Bán hàng (POS)</span>';
-                    else if (l.ref_type === 'PURCHASE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nhập NCC</span>';
-                    else if (l.ref_type === 'ADJUST') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">Kiểm kê / Cân bằng</span>';
-                    else if (l.ref_type === 'TRANSFER_IN') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-700">Nhận chuyển kho</span>';
-                    else if (l.ref_type === 'TRANSFER_OUT') typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Xuất chuyển kho</span>';
-                    else typeBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700">${l.ref_type || 'Biến động'}</span>`;
+                    if (l.ref_type === 'SALE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Bán hàng (POS)</span>';
+                    else if (l.ref_type === 'PURCHASE') typeBadge = '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Nhập NCC</span>';
+                    else if (l.ref_type === 'ADJUST') typeBadge = '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700">Kiểm kê / Cân bằng</span>';
+                    else if (l.ref_type === 'TRANSFER_IN') typeBadge = '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-cyan-100 text-cyan-700">Nhận chuyển kho</span>';
+                    else if (l.ref_type === 'TRANSFER_OUT') typeBadge = '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700">Xuất chuyển kho</span>';
+                    else typeBadge = `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-700">${l.ref_type || 'Biến động'}</span>`;
 
                     const changeClass = l.change_qty > 0 ? 'text-emerald-600 font-bold' : (l.change_qty < 0 ? 'text-rose-600 font-bold' : 'text-gray-600');
                     const changePrefix = l.change_qty > 0 ? '+' : '';
 
                     return `
-                        <tr class="border-b hover:bg-gray-50 text-[11px]">
+                        <tr class="border-b hover:bg-gray-50 text-xs">
                             <td class="p-2 text-gray-500 whitespace-nowrap">${formatDateTime(l.created_at) || '-'}</td>
                             <td class="p-2">${typeBadge}</td>
                             <td class="p-2 text-right ${changeClass}">${changePrefix}${l.change_qty.toLocaleString('vi-VN')}</td>
@@ -905,8 +910,8 @@
 
                 tbody.innerHTML = list.map(w => {
                     const statusBadge = w.is_active 
-                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Đang hoạt động</span>'
-                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500">Tạm khóa</span>';
+                        ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Đang hoạt động</span>'
+                        : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500">Tạm khóa</span>';
 
                     return `
                         <tr class="border-b hover:bg-gray-50 text-xs">
@@ -1143,7 +1148,7 @@
             const filtered = auditCategories.filter(cat => !keyword || cat.toLowerCase().includes(keyword));
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhóm hàng nào</div>';
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 ">Không tìm thấy nhóm hàng nào</div>';
                 return;
             }
 
@@ -1158,7 +1163,7 @@
                                    class="rounded text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer">
                             <span class="font-medium text-slate-800 group-hover:text-sky-700">${cat}</span>
                         </div>
-                        <span class="text-[10px] text-gray-400 font-mono">${count} món</span>
+                        <span class="text-xs text-gray-400 font-mono">${count} món</span>
                     </label>
                 `;
             }).join('');
@@ -1219,14 +1224,14 @@
             }
 
             if (selectedAuditCategories.includes('__NONE__')) {
-                tagsBox.innerHTML = '<span class="text-gray-400 italic">Chưa chọn nhóm hàng nào</span>';
+                tagsBox.innerHTML = '<span class="text-gray-400 ">Chưa chọn nhóm hàng nào</span>';
                 if (badgeEl) badgeEl.textContent = '0 nhóm';
                 return;
             }
 
             if (badgeEl) badgeEl.textContent = `${selectedAuditCategories.length}/${auditCategories.length} nhóm`;
             tagsBox.innerHTML = selectedAuditCategories.map(cat => `
-                <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded text-[11px] font-medium shadow-xs">
+                <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded text-xs font-medium shadow-xs">
                     <span>🏷️ ${cat}</span>
                     <button type="button" onclick="removeSelectedAuditCat('${cat.replace(/'/g, "\\'")}', event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
                 </span>
@@ -1276,7 +1281,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400 italic">Không có mặt hàng nào phù hợp với phạm vi đang chọn</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400 ">Không có mặt hàng nào phù hợp với phạm vi đang chọn</td></tr>';
                 updateAuditStats();
                 return;
             }
@@ -1298,10 +1303,10 @@
                         <td class="p-2 font-mono font-bold text-slate-700">${item.code || '-'}</td>
                         <td class="p-2">
                             <div class="font-bold text-slate-800">${item.name}</div>
-                            <div class="text-[10px] text-gray-400">${item.item_type === 'product' ? '📦 Hàng hóa' : '🧪 Nguyên liệu'}</div>
+                            <div class="text-xs text-gray-400">${item.item_type === 'product' ? '📦 Hàng hóa' : '🧪 Nguyên liệu'}</div>
                         </td>
                         <td class="p-2">
-                            <span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                            <span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold px-1.5 py-0.5 rounded truncate max-w-[120px]">
                                 ${item.category}
                             </span>
                         </td>
@@ -1319,7 +1324,7 @@
                         <td class="p-2">
                             <input type="text" placeholder="Lý do lệch..." value="${item.note || ''}" 
                                    oninput="updateAuditItemNote(${item.id}, '${item.item_type}', this.value)" 
-                                   class="border p-1 w-full rounded text-[11px] outline-none focus:border-sky-500">
+                                   class="border p-1 w-full rounded text-xs outline-none focus:border-sky-500">
                         </td>
                         <td class="p-2 text-center">
                             <button type="button" onclick="removeAuditItemFromList(${item.id}, '${item.item_type}')" 
@@ -1581,17 +1586,17 @@
 
                     return `
                         <tr class="border-b hover:bg-gray-50 text-xs">
-                            <td class="p-2.5 font-mono font-bold text-indigo-700">${a.audit_code}</td>
+                            <td class="p-2.5 font-mono font-bold text-sky-700">${a.audit_code}</td>
                             <td class="p-2.5 text-gray-500 whitespace-nowrap">${formatDateTime(a.created_at) || '-'}</td>
                             <td class="p-2.5 font-bold text-slate-800">${a.warehouse_name || 'Kho'}</td>
                             <td class="p-2.5 text-right font-medium">${(a.items_count || 0).toLocaleString('vi-VN')} món</td>
                             <td class="p-2.5 text-right ${diffColor}">${diffPrefix}${(a.total_diff || 0).toLocaleString('vi-VN')}</td>
                             <td class="p-2.5 text-gray-500">${a.note || '-'}</td>
                             <td class="p-2.5 text-center flex items-center justify-center gap-1">
-                                <button onclick="viewAuditDetail(${a.id})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[11px] font-bold">
+                                <button onclick="viewAuditDetail(${a.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-bold">
                                     👁️ Xem
                                 </button>
-                                <button onclick="printStockAuditA4(${a.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="In Phiếu Kiểm Kê A4">
+                                <button onclick="printStockAuditA4(${a.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold" title="In Phiếu Kiểm Kê A4">
                                     🖨️ In
                                 </button>
                             </td>
@@ -1625,7 +1630,7 @@
                     const diffPrefix = it.diff_qty > 0 ? '+' : '';
 
                     return `
-                        <tr class="border-b text-[11px]">
+                        <tr class="border-b text-xs">
                             <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
                             <td class="p-2 font-mono font-bold text-slate-600">${it.code || '-'}</td>
                             <td class="p-2 font-bold text-slate-800">${it.name}</td>
@@ -1909,7 +1914,7 @@
 
             if (!transferSourceItems || transferSourceItems.length === 0) {
                 resBox.innerHTML = `
-                    <div class="p-3 text-center text-gray-500 italic">
+                    <div class="p-3 text-center text-gray-500 ">
                         Kho xuất không có mặt hàng nào còn tồn (>0)
                     </div>
                 `;
@@ -1929,7 +1934,7 @@
 
             if (matches.length === 0) {
                 resBox.innerHTML = `
-                    <div class="p-3 text-center text-gray-500 italic">
+                    <div class="p-3 text-center text-gray-500 ">
                         Không tìm thấy mặt hàng phù hợp trong kho xuất
                     </div>
                 `;
@@ -1960,16 +1965,16 @@
             // 1. NHÓM CHƯA CHỌN VÀO PHIẾU
             if (unselectedList.length > 0) {
                 html += `
-                    <div class="bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <div class="bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                         <span>📦 Chưa chọn vào phiếu (${unselectedList.length})</span>
-                        <span class="text-slate-400 italic font-normal">Click để thêm nhanh</span>
+                        <span class="text-slate-400  font-normal">Click để thêm nhanh</span>
                     </div>
                 `;
                 html += unselectedList.slice(0, 30).map(m => {
                     const isProd = m.item_type === 'product';
                     const badge = isProd 
-                        ? '<span class="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>'
-                        : '<span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>';
+                        ? '<span class="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-xs font-bold">Hàng Hóa</span>'
+                        : '<span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-xs font-bold">Nguyên Liệu</span>';
 
                     return `
                     <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition group">
@@ -1977,13 +1982,13 @@
                             <span class="w-7 h-7 rounded-lg ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
                             <div>
                                 <div class="font-bold text-slate-800 group-hover:text-sky-900 text-xs">${m.name}</div>
-                                <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.sku || m.code || '---'} | ĐVT: <strong class="text-slate-700">${m.unit}</strong> • ${badge}</div>
+                                <div class="text-xs text-gray-500 font-mono">Mã: ${m.sku || m.code || '---'} | ĐVT: <strong class="text-slate-700">${m.unit}</strong> • ${badge}</div>
                             </div>
                         </div>
                         <div class="text-right flex items-center gap-2.5 shrink-0">
                             <div>
-                                <div class="text-[10px] text-gray-400">Tồn kho xuất:</div>
-                                <div class="font-bold text-sky-700 font-mono text-xs">${m.quantity.toLocaleString('vi-VN')} <span class="text-[10px] font-normal text-slate-500">${m.unit}</span></div>
+                                <div class="text-xs text-gray-400">Tồn kho xuất:</div>
+                                <div class="font-bold text-sky-700 font-mono text-xs">${m.quantity.toLocaleString('vi-VN')} <span class="text-xs font-normal text-slate-500">${m.unit}</span></div>
                             </div>
                             <span class="text-xs bg-slate-100 group-hover:bg-sky-600 group-hover:text-white px-2.5 py-1 rounded-md font-bold transition">
                                 + Thêm
@@ -1997,7 +2002,7 @@
             // 2. NHÓM ĐÃ CÓ TRONG PHIẾU (LÀM MỜ VÀ ĐẨY XUỐNG DƯỚI)
             if (selectedList.length > 0) {
                 html += `
-                    <div class="bg-emerald-50/70 px-3 py-1.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
+                    <div class="bg-emerald-50/70 px-3 py-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
                         <span>✓ Đã có trong phiếu (${selectedList.length})</span>
                         <span class="text-emerald-600 font-normal">Click để tăng thêm SL</span>
                     </div>
@@ -2006,14 +2011,14 @@
                     const isProd = m.item_type === 'product';
                     const currentQty = existingQtyMap.get(`${m.item_type}_${m.id}`) || 0;
                     return `
-                    <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group border-l-4 border-l-emerald-500">
+                    <div onclick="addTransferItemFromSearch('${m.item_type}', ${m.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group ">
                         <div class="flex items-center gap-2.5">
                             <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
                             <div>
                                 <div class="font-bold text-slate-700 line-through decoration-slate-400 group-hover:no-underline text-xs">${m.name}</div>
-                                <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                <div class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
                                     <span>ĐVT: ${m.unit}</span>
-                                    <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px]">Đã chuyển: ${currentQty.toLocaleString('vi-VN')} ${m.unit}</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-xs">Đã chuyển: ${currentQty.toLocaleString('vi-VN')} ${m.unit}</span>
                                     <span class="text-gray-400">(Tồn: ${m.quantity.toLocaleString('vi-VN')})</span>
                                 </div>
                             </div>
@@ -2114,8 +2119,8 @@
             tbody.innerHTML = currentTransferRows.map((row, idx) => {
                 const isProd = row.item_type === 'product';
                 const badge = isProd 
-                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
-                    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                    ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                    : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
 
                 return `
                     <tr class="border-b text-xs hover:bg-slate-50/50 transition">
@@ -2125,7 +2130,7 @@
                                 <span class="w-6 h-6 rounded ${isProd ? 'bg-sky-500' : 'bg-emerald-600'} text-white flex items-center justify-center font-bold text-xs shrink-0">${isProd ? '📦' : '🧪'}</span>
                                 <div>
                                     <div class="font-bold text-slate-800 text-xs">${row.name}</div>
-                                    <div class="text-[10px] text-gray-400 font-mono">Mã: ${row.sku || '---'}</div>
+                                    <div class="text-xs text-gray-400 font-mono">Mã: ${row.sku || '---'}</div>
                                 </div>
                             </div>
                         </td>
@@ -2197,11 +2202,11 @@
             const toWhName = toWhEl?.selectedOptions[0]?.text || 'Kho nhập';
 
             const previewItemsHtml = currentTransferRows.slice(0, 4).map(r => `
-                <div class="flex items-center justify-between text-[11px] py-1 border-b border-slate-100 last:border-0">
+                <div class="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-0">
                     <span class="truncate max-w-[220px] font-medium text-slate-800">• ${r.name}</span>
                     <span class="font-mono font-bold text-sky-700">${r.quantity.toLocaleString('vi-VN')} <span class="font-normal text-slate-500">${r.unit || 'cái'}</span></span>
                 </div>
-            `).join('') + (currentTransferRows.length > 4 ? `<div class="text-[10px] text-gray-400 italic text-center pt-1.5">...và ${currentTransferRows.length - 4} mặt hàng khác</div>` : '');
+            `).join('') + (currentTransferRows.length > 4 ? `<div class="text-xs text-gray-400  text-center pt-1.5">...và ${currentTransferRows.length - 4} mặt hàng khác</div>` : '');
 
             const confirmed = await window.showConfirmModal({
                 title: currentEditingTransferId ? 'Xác Nhận Cập Nhật Phiếu Chuyển Kho' : 'Xác Nhận Điều Chuyển Kho',
@@ -2210,21 +2215,21 @@
                     : `Bạn có chắc chắn muốn chuyển <strong class="text-sky-700 font-bold">${itemsPayload.length} mặt hàng</strong> sang kho nhận?`,
                 subMessage: `
                     <div class="space-y-2.5">
-                        <div class="grid grid-cols-2 gap-2 text-[11px] pb-2 border-b border-slate-200">
+                        <div class="grid grid-cols-2 gap-2 text-xs pb-2 border-b border-slate-200">
                             <div>
-                                <span class="text-gray-400 block text-[10px] uppercase font-bold">📤 Kho Xuất:</span>
+                                <span class="text-gray-400 block text-xs uppercase font-bold">📤 Kho Xuất:</span>
                                 <strong class="text-rose-700 font-bold block mt-0.5">${fromWhName}</strong>
                             </div>
                             <div>
-                                <span class="text-gray-400 block text-[10px] uppercase font-bold">📥 Kho Nhập:</span>
+                                <span class="text-gray-400 block text-xs uppercase font-bold">📥 Kho Nhập:</span>
                                 <strong class="text-emerald-700 font-bold block mt-0.5">${toWhName}</strong>
                             </div>
                         </div>
                         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Mặt hàng & số lượng chuyển:</div>
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Mặt hàng & số lượng chuyển:</div>
                             ${previewItemsHtml}
                         </div>
-                        ${note ? `<div class="text-[11px] text-slate-600 bg-amber-50/60 p-2 rounded border border-amber-200/80">📝 Ghi chú: <em>"${note}"</em></div>` : ''}
+                        ${note ? `<div class="text-xs text-slate-600 bg-amber-50/60 p-2 rounded border border-amber-200/80">📝 Ghi chú: <span>"${note}"</span></div>` : ''}
                     </div>
                 `,
                 confirmText: currentEditingTransferId ? '💾 Lưu Cập Nhật' : '🚀 Xác Nhận Chuyển',
@@ -2303,7 +2308,7 @@
             const submitBtn = document.getElementById('btn-submit-transfer');
             if (submitBtn) {
                 submitBtn.innerHTML = '🚀 Xác Nhận Điều Chuyển Hàng';
-                submitBtn.className = 'bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded shadow';
+                submitBtn.className = 'bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-4 py-2 rounded shadow';
             }
             const cancelBtn = document.getElementById('btn-cancel-edit-transfer');
             if (cancelBtn) cancelBtn.classList.add('hidden');
@@ -2423,7 +2428,7 @@
                 tbody.innerHTML = list.map(t => {
                     const creatorHtml = `
                         <div class="font-medium text-slate-800">👤 ${t.created_by || 'Admin'}</div>
-                        ${t.updated_by ? `<div class="text-[10px] text-amber-600 font-semibold italic">✏️ Sửa: ${t.updated_by}</div>` : ''}
+                        ${t.updated_by ? `<div class="text-xs text-amber-600 font-semibold ">✏️ Sửa: ${t.updated_by}</div>` : ''}
                     `;
                     return `
                     <tr class="border-b hover:bg-gray-50 text-xs">
@@ -2433,18 +2438,18 @@
                         <td class="p-2.5 font-bold text-emerald-700">${t.to_warehouse_name || 'Kho nhập'}</td>
                         <td class="p-2.5 text-right font-medium">${(t.items_count || t.item_count || 0).toLocaleString('vi-VN')} món</td>
                         <td class="p-2.5 text-gray-500">${t.note || '-'}</td>
-                        <td class="p-2.5 text-[11px]">${creatorHtml}</td>
+                        <td class="p-2.5 text-xs">${creatorHtml}</td>
                         <td class="p-2.5 text-center whitespace-nowrap space-x-1">
-                            <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-bold" title="Xem chi tiết">
+                            <button onclick="viewTransferDetail(${t.id})" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-bold" title="Xem chi tiết">
                                 👁️ Xem
                             </button>
-                            <button onclick="printStockTransferA4(${t.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold" title="In Phiếu Điều Chuyển A4">
+                            <button onclick="printStockTransferA4(${t.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-bold" title="In Phiếu Điều Chuyển A4">
                                 🖨️ In
                             </button>
-                            <button onclick="editStockTransfer(${t.id})" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-[11px] font-bold" title="Sửa phiếu chuyển kho">
+                            <button onclick="editStockTransfer(${t.id})" class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-xs font-bold" title="Sửa phiếu chuyển kho">
                                 ✏️ Sửa
                             </button>
-                            <button onclick="deleteStockTransfer(${t.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[11px] font-bold" title="Xóa phiếu chuyển kho (hoàn tác tồn kho)">
+                            <button onclick="deleteStockTransfer(${t.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-bold" title="Xóa phiếu chuyển kho (hoàn tác tồn kho)">
                                 🗑️ Xóa
                             </button>
                         </td>
@@ -2479,11 +2484,11 @@
 
                 tbody.innerHTML = (data.items || []).map((it, idx) => {
                     const badge = it.item_type === 'product'
-                        ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
-                        : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
+                        ? '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Hàng Hóa</span>'
+                        : '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Nguyên Liệu</span>';
 
                     return `
-                        <tr class="border-b text-[11px]">
+                        <tr class="border-b text-xs">
                             <td class="p-2 text-gray-400 text-center">${idx + 1}</td>
                             <td class="p-2 font-bold text-slate-800">${it.name || it.item_name}</td>
                             <td class="p-2 text-center">${badge}</td>
@@ -2770,13 +2775,13 @@
                 btn.innerText = '🚀 Bắt đầu Nhập';
 
                 if (res.ok && data.success) {
-                    let msg = `✅ Đã nhập thành công! Thêm mới: ${data.created}, Cập nhật: ${data.updated}`;
+                    let msg = `✅ Đã nhập thành công! Thêm mới: ${data.created}, Cập nhật: ${data.updated}` + (data.units_synced ? `, Quy đổi ĐVT: ${data.units_synced}` : '');
                     if (data.errors && data.errors.length > 0) {
                         msg += `\n⚠️ Có ${data.errors.length} dòng lỗi:\n` + data.errors.slice(0, 5).join('\n');
                     }
                     alert(msg);
                     closeModalImportProducts();
-                    await loadUnifiedInventory();
+                    await Promise.all([loadUnifiedInventory(), loadProductCategoriesDropdown()]);
                 } else {
                     statusBox.className = 'text-xs p-2 rounded bg-rose-50 text-rose-800 border border-rose-200 block';
                     statusBox.innerText = '❌ Lỗi: ' + (data.detail || 'Không thể nhập file');
@@ -2908,7 +2913,7 @@
                     const isKhac = (c.name === 'Khác');
                     const safeName = escapeJs(c.name);
                     const deleteBtn = isKhac 
-                        ? '<span class="text-slate-300 text-xs italic px-2 py-1">Mặc định</span>'
+                        ? '<span class="text-slate-300 text-xs  px-2 py-1">Mặc định</span>'
                         : `<button type="button" onclick="deleteCategory(${c.id}, '${safeName}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-semibold transition" title="Xóa nhóm">Xóa</button>`;
                     
                     return `
@@ -3125,14 +3130,14 @@
             if (!tbody) return;
             syncProdBaseUnitLabel();
             if (!prodUnitRows.length) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 italic py-2">Chưa thiết lập đơn vị quy đổi nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400  py-2">Chưa thiết lập đơn vị quy đổi nào</td></tr>';
                 return;
             }
             tbody.innerHTML = prodUnitRows.map((u, i) => `
                 <tr>
-                    <td class="py-1 pr-1"><input type="text" value="${u.unit_name || ''}" oninput="prodUnitRows[${i}].unit_name = this.value" placeholder="Thùng" class="border rounded px-1.5 py-1 w-full text-[11px]"></td>
-                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.ratio || ''}" oninput="prodUnitRows[${i}].ratio = this.value" placeholder="16" class="border rounded px-1.5 py-1 w-full text-right text-[11px]"></td>
-                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.sell_price || 0}" oninput="prodUnitRows[${i}].sell_price = this.value" class="border rounded px-1.5 py-1 w-full text-right text-[11px]"></td>
+                    <td class="py-1 pr-1"><input type="text" value="${u.unit_name || ''}" oninput="prodUnitRows[${i}].unit_name = this.value" placeholder="Thùng" class="border rounded px-1.5 py-1 w-full text-xs"></td>
+                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.ratio || ''}" oninput="prodUnitRows[${i}].ratio = this.value" placeholder="16" class="border rounded px-1.5 py-1 w-full text-right text-xs"></td>
+                    <td class="py-1 pr-1"><input type="number" step="any" min="0" value="${u.sell_price || 0}" oninput="prodUnitRows[${i}].sell_price = this.value" class="border rounded px-1.5 py-1 w-full text-right text-xs"></td>
                     <td class="py-1 text-center"><input type="radio" name="prod-unit-default" ${u.is_default_sale ? 'checked' : ''} onchange="setProdUnitDefault(${i})"></td>
                     <td class="py-1 text-center"><button type="button" onclick="removeProdUnitRow(${i})" class="text-rose-600 hover:text-rose-800 font-bold" title="Xóa đơn vị">×</button></td>
                 </tr>
@@ -3315,7 +3320,7 @@
             }).slice(0, 8);
 
             if (matches.length === 0) {
-                resultsContainer.innerHTML = '<div class="p-2.5 text-center text-slate-400 italic">Không tìm thấy sản phẩm phù hợp</div>';
+                resultsContainer.innerHTML = '<div class="p-2.5 text-center text-slate-400 ">Không tìm thấy sản phẩm phù hợp</div>';
                 resultsContainer.classList.remove('hidden');
                 return;
             }
@@ -3326,11 +3331,11 @@
                     <div>
                         <span class="font-mono font-bold text-slate-400 mr-1">[${p.code || '-'}]</span>
                         <span class="font-bold text-slate-800">${p.name}</span>
-                        <span class="text-slate-400 text-[11px]">(${p.unit || 'cái'})</span>
+                        <span class="text-slate-400 text-xs">(${p.unit || 'cái'})</span>
                     </div>
                     <div class="text-right shrink-0 ml-2">
                         <div class="font-bold text-emerald-600">${formatMoneyNumber(p.sell_price)} đ</div>
-                        <div class="text-[10px] text-slate-400">Tồn: ${p.stock || 0}</div>
+                        <div class="text-xs text-slate-400">Tồn: ${p.stock || 0}</div>
                     </div>
                 </div>
             `).join('');
@@ -3388,7 +3393,7 @@
             if (badge) badge.innerText = `${currentComboItems.length} món`;
 
             if (currentComboItems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400 italic py-3">Chưa có sản phẩm nào trong combo</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-400  py-3">Chưa có sản phẩm nào trong combo</td></tr>';
                 if (totalRetailEl) totalRetailEl.innerText = '0 đ';
                 calculateComboSavings();
                 return;
@@ -3402,7 +3407,7 @@
                     <tr class="border-b last:border-0 hover:bg-slate-50">
                         <td class="p-1.5">
                             <div class="font-bold text-slate-800">${item.name}</div>
-                            <div class="font-mono text-[10px] text-slate-400">[${item.code || '-'}] · ${item.unit || 'cái'}</div>
+                            <div class="font-mono text-xs text-slate-400">[${item.code || '-'}] · ${item.unit || 'cái'}</div>
                         </td>
                         <td class="p-1.5 text-right">
                             <input type="number" min="0.1" step="any" value="${item.quantity}" 
@@ -3451,12 +3456,98 @@
         window.calculateComboSavings = calculateComboSavings;
 
         // --- MODAL PRODUCT CRUD (THÊM / SỬA / XÓA HÀNG HÓA) ---
+        function setProductModalImage(val) {
+            const v = (val || '').trim();
+            const dataEl = document.getElementById('modal-prod-image-data');
+            const prevEl = document.getElementById('modal-prod-image-preview');
+            const phEl = document.getElementById('modal-prod-image-placeholder');
+            const clrBtn = document.getElementById('btn-clear-prod-image');
+            const urlInp = document.getElementById('modal-prod-image-url-input');
+            if (dataEl) dataEl.value = v;
+            if (urlInp && !v.startsWith('data:')) urlInp.value = v;
+            if (v) {
+                if (prevEl) { prevEl.src = v; prevEl.classList.remove('hidden'); }
+                if (phEl) phEl.classList.add('hidden');
+                if (clrBtn) clrBtn.classList.remove('hidden');
+            } else {
+                if (prevEl) { prevEl.src = ''; prevEl.classList.add('hidden'); }
+                if (phEl) phEl.classList.remove('hidden');
+                if (clrBtn) clrBtn.classList.add('hidden');
+            }
+        }
+        window.setProductModalImage = setProductModalImage;
+
+        function clearProductModalImage() {
+            const fileInp = document.getElementById('modal-prod-image-file');
+            const urlInp = document.getElementById('modal-prod-image-url-input');
+            if (fileInp) fileInp.value = '';
+            if (urlInp) urlInp.value = '';
+            setProductModalImage('');
+        }
+        window.clearProductModalImage = clearProductModalImage;
+
+        function compressProductImageFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    // ponytail: resize max 300px WebP ~15KB in SQLite; switch to file storage if catalog > 50k items
+                    const maxDim = 300;
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        else { w = Math.round(w * maxDim / h); h = maxDim; }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    let out = canvas.toDataURL('image/webp', 0.8);
+                    if (!out.startsWith('data:image/webp')) out = canvas.toDataURL('image/jpeg', 0.8);
+                    const urlInp = document.getElementById('modal-prod-image-url-input');
+                    if (urlInp) urlInp.value = '';
+                    setProductModalImage(out);
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleProductImageFile(input) {
+            const file = input && input.files && input.files[0];
+            if (file) compressProductImageFile(file);
+        }
+        window.handleProductImageFile = handleProductImageFile;
+
+        function handleProductImageUrlInput(val) {
+            setProductModalImage(val);
+        }
+        window.handleProductImageUrlInput = handleProductImageUrlInput;
+
+        document.addEventListener('paste', function(e) {
+            const modal = document.getElementById('modal-product');
+            if (!modal || modal.classList.contains('hidden')) return;
+            const items = (e.clipboardData || window.clipboardData)?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    compressProductImageFile(items[i].getAsFile());
+                    if (typeof showToast === 'function') showToast('Đã dán ảnh sản phẩm!', 'info');
+                    e.preventDefault();
+                    break;
+                }
+            }
+        });
+
         async function openModalProductUnified() {
             currentComboItems = [];
             document.getElementById('modal-prod-title').innerText = 'Thêm Hàng Hóa Mới';
             document.getElementById('modal-prod-id').value = '';
             document.getElementById('modal-prod-code').value = '';
             document.getElementById('modal-prod-name').value = '';
+            clearProductModalImage();
             document.getElementById('modal-prod-type').value = 'product';
             document.getElementById('modal-prod-unit').value = 'cái';
             document.getElementById('modal-prod-cost').value = '';
@@ -3491,6 +3582,8 @@
                 document.getElementById('modal-prod-id').value = p.id;
                 document.getElementById('modal-prod-code').value = p.code || '';
                 document.getElementById('modal-prod-name').value = p.name || '';
+                clearProductModalImage();
+                setProductModalImage(p.image_url || '');
                 document.getElementById('modal-prod-type').value = isCombo ? 'combo' : (p.type || p.sub_type || 'product');
                 document.getElementById('modal-prod-unit').value = p.unit || (isCombo ? 'combo' : 'cái');
                 document.getElementById('modal-prod-cost').value = p.cost_price ? formatMoneyNumber(p.cost_price) : '';
@@ -3673,7 +3766,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhà cung cấp nào</div>';
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 ">Không tìm thấy nhà cung cấp nào</div>';
                 return;
             }
 
@@ -3687,7 +3780,7 @@
                                    class="rounded text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer">
                             <span class="font-medium text-slate-800 group-hover:text-sky-700">${s.name}</span>
                         </div>
-                        ${s.phone ? `<span class="text-[10px] text-gray-400 font-mono">${s.phone}</span>` : ''}
+                        ${s.phone ? `<span class="text-xs text-gray-400 font-mono">${s.phone}</span>` : ''}
                     </label>
                 `;
             }).join('');
@@ -3732,7 +3825,7 @@
             if (!tagsBox) return;
 
             if (selectedProdSupplierIds.length === 0) {
-                tagsBox.innerHTML = '<span class="text-gray-400 italic">-- Bấm để chọn nhà cung cấp --</span>';
+                tagsBox.innerHTML = '<span class="text-gray-400 ">-- Bấm để chọn nhà cung cấp --</span>';
                 if (badgeEl) badgeEl.classList.add('hidden');
                 return;
             }
@@ -3746,7 +3839,7 @@
                 const s = currentProdSuppliers.find(x => x.id === id);
                 const name = s ? s.name : `NCC #${id}`;
                 return `
-                    <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-full text-[11px] font-medium shadow-xs">
+                    <span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-300 px-2 py-0.5 rounded-full text-xs font-medium shadow-xs">
                         <span>🏭 ${name}</span>
                         <button type="button" onclick="removeSelectedProdSupp(${id}, event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
                     </span>
@@ -3778,6 +3871,7 @@
             const sell_price = parseMoneyInput(document.getElementById('modal-prod-price').value);
             const stock = parseFloat(document.getElementById('modal-prod-stock').value) || 0;
             const min_stock = parseFloat(document.getElementById('modal-prod-min-stock')?.value) || 5.0;
+            const image_url = (document.getElementById('modal-prod-image-data')?.value || '').trim();
             const supplier_ids = [...selectedProdSupplierIds];
 
             if (!name) {
@@ -3816,11 +3910,11 @@
                                     items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
                                 })
                             });
-                            if (res.ok && category) {
+                            if (res.ok && (category || image_url !== undefined)) {
                                 await fetch(`/api/products/${id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ category })
+                                    body: JSON.stringify({ category, image_url })
                                 });
                             }
                         } else {
@@ -3839,7 +3933,7 @@
                                 await fetch(`/api/products/${id}`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ type: 'combo', category })
+                                    body: JSON.stringify({ type: 'combo', category, image_url })
                                 });
                             }
                         }
@@ -3856,7 +3950,7 @@
                                 items: currentComboItems.map(it => ({ product_id: it.product_id, quantity: it.quantity }))
                             })
                         });
-                        if (res.ok && category) {
+                        if (res.ok && (category || image_url)) {
                             try {
                                 const pListRes = await fetch('/api/products');
                                 const pList = await pListRes.json();
@@ -3865,7 +3959,7 @@
                                     await fetch(`/api/products/${pEntry.id}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ category })
+                                        body: JSON.stringify({ category, image_url })
                                     });
                                 }
                             } catch (eCat) {}
@@ -3876,14 +3970,14 @@
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock, image_url })
                     });
                 } else {
                     // Create
                     res = await fetch('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock, image_url })
                     });
                 }
 
@@ -3981,7 +4075,7 @@
             const name = decodeURIComponent(encodedName);
             const confirmed = await window.showConfirmModal({
                 title: 'Khôi Phục Hàng Hóa',
-                message: `Bạn có muốn BỎ ẨN (khôi phục) hàng hóa <span class="font-bold text-indigo-600">"${name}"</span>?`,
+                message: `Bạn có muốn BỎ ẨN (khôi phục) hàng hóa <span class="font-bold text-sky-600">"${name}"</span>?`,
                 subMessage: 'Hàng hóa sẽ xuất hiện lại bình thường trong bảng tồn kho và màn hình bán hàng POS.',
                 confirmText: 'Khôi phục ngay',
                 cancelText: 'Giữ nguyên',
@@ -4174,13 +4268,13 @@
         window.formatCurrencyInputRealtime = formatCurrencyInputRealtime;
 
         function formatMaskedPhone(phone) {
-            if (!phone) return '<span class="text-slate-400 italic">Chưa có</span>';
+            if (!phone) return '<span class="text-slate-400 ">Chưa có</span>';
             const clean = String(phone).trim();
             if (clean.length < 6) return `<span class="font-mono text-slate-700">${clean}</span>`;
             const prefix = clean.slice(0, 3);
             const suffix = clean.slice(-3);
             const masked = `${prefix}****${suffix}`;
-            return `<span class="masked-phone font-mono cursor-pointer text-slate-700 hover:text-indigo-600 transition-colors select-none" title="${clean} (Rê chuột xem, Click để sao chép)" data-full-phone="${clean}" onmouseenter="this.textContent=this.dataset.fullPhone" onmouseleave="this.textContent='${masked}'" onclick="if(navigator.clipboard){navigator.clipboard.writeText('${clean}');if(window.showToast)showToast('Đã sao chép SĐT: ${clean}');}">${masked}</span>`;
+            return `<span class="masked-phone font-mono cursor-pointer text-slate-700 hover:text-sky-600 transition-colors select-none" title="${clean} (Rê chuột xem, Click để sao chép)" data-full-phone="${clean}" onmouseenter="this.textContent=this.dataset.fullPhone" onmouseleave="this.textContent='${masked}'" onclick="if(navigator.clipboard){navigator.clipboard.writeText('${clean}');if(window.showToast)showToast('Đã sao chép SĐT: ${clean}');}">${masked}</span>`;
         }
         window.formatMaskedPhone = formatMaskedPhone;
 
@@ -4270,7 +4364,7 @@
             }
             startPageLoader();
 
-            document.querySelectorAll('[id^="tab-"]').forEach(el => {
+            document.querySelectorAll('[id^="tab-"]:not([id^="tab-sub-"])').forEach(el => {
                 el.classList.add('hidden');
                 el.classList.remove('tab-pane-content');
             });
@@ -4330,6 +4424,10 @@
                     b.classList.remove('active-tab');
                 }
             });
+            window.__currentActiveTabId = tabId;
+            if (typeof toggleRadialOrbitMenu === 'function') {
+                toggleRadialOrbitMenu(false);
+            }
 
             if (tabId === 'inventory') {
                 renderTableSkeleton('table-products', 6, 8);
@@ -4403,8 +4501,11 @@
             } else if (tabId === 'cashflow-debts') {
                 if(typeof loadCashflowDebtsData === 'function') loadCashflowDebtsData();
             } else if (tabId === 'guide') {
-                if (subTabId) switchGuideSubTab(subTabId);
-                else switchGuideSubTab('pos');
+                if (typeof window.switchGuideSubTab === 'function') {
+                    window.switchGuideSubTab(subTabId || 'pos');
+                } else {
+                    switchGuideSubTab(subTabId || 'pos');
+                }
             } else if (tabId === 'ai-agent') {
                 if (typeof window.syncMyAIBadge === 'function') window.syncMyAIBadge();
             } else if (tabId === 'purchase-requests') {
@@ -4430,14 +4531,14 @@
                 const guideKey = btn.dataset.guide;
                 const badge = btn.querySelector('span > span');
                 if (guideKey === subId) {
-                    btn.className = "guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold bg-purple-100 text-purple-800 transition";
+                    btn.className = "guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold bg-sky-100 text-sky-800 transition";
                     if (badge) {
-                        badge.className = "w-5 h-5 rounded-lg bg-purple-200 text-purple-800 flex items-center justify-center text-[10px] font-black shrink-0";
+                        badge.className = "w-5 h-5 rounded-lg bg-sky-200 text-sky-800 flex items-center justify-center text-xs font-bold shrink-0";
                     }
                 } else {
                     btn.className = "guide-nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition";
                     if (badge) {
-                        badge.className = "w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0";
+                        badge.className = "w-5 h-5 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0";
                     }
                 }
             });
@@ -4460,19 +4561,446 @@
             if (disp) disp.textContent = saved + '%';
         }
 
+        const POS_NAV_GROUPS = [
+            {
+                id: 'sales',
+                icon: '🛒',
+                title: '1. Quầy Bán & Spa',
+                shortLabel: 'Bán Hàng\n& Spa',
+                color: '#0284c7',
+                bg: '#e0f2fe',
+                items: [
+                    { tab: 'pos', icon: '🛒', label: 'Bán Hàng POS' },
+                    { tab: 'pet-services', icon: '🐾', label: 'Dịch Vụ & Spa' },
+                    { tab: 'hotel', icon: '🏨', label: 'Khách Sạn' },
+                    { tab: 'orders', icon: '🧾', label: 'Hóa Đơn' }
+                ]
+            },
+            {
+                id: 'inventory',
+                icon: '📦',
+                title: '2. Kho & Mua Hàng',
+                shortLabel: 'Kho &\nMua Hàng',
+                color: '#ea580c',
+                bg: '#ffedd5',
+                items: [
+                    { tab: 'inventory', icon: '📦', label: 'Hàng & Kho' },
+                    { tab: 'price-lists', icon: '🏷️', label: 'Bảng Giá' },
+                    { tab: 'purchases', icon: '🚚', label: 'Nhập Hàng' },
+                    { tab: 'purchase-requests', icon: '📋', label: 'Yêu Cầu Đặt' },
+                    { tab: 'oem', icon: '🏭', label: 'Gia Công OEM' }
+                ]
+            },
+            {
+                id: 'finance',
+                icon: '💰',
+                title: '3. Tài Chính & Đối Tác',
+                shortLabel: 'Tài Chính\n& Đối Tác',
+                color: '#059669',
+                bg: '#d1fae5',
+                items: [
+                    { tab: 'contacts', icon: '👥', label: 'Khách & NCC' },
+                    { tab: 'cashbook', icon: '💵', label: 'Sổ Quỹ' },
+                    { tab: 'cashflow-debts', icon: '🏦', label: 'Dòng Tiền/Nợ' },
+                    { tab: 'reports', icon: '📊', label: 'Báo Cáo' }
+                ]
+            },
+            {
+                id: 'hrm',
+                icon: '👨‍💼',
+                title: '4. Nhân Sự & Sàn TMĐT',
+                shortLabel: 'Nhân Sự\n& TMĐT',
+                color: '#7c3aed',
+                bg: '#ede9fe',
+                items: [
+                    { tab: 'marketplace', icon: '🛍️', label: 'Sàn TMĐT' },
+                    { tab: 'shifts', icon: '⏰', label: 'Ca Làm Việc' },
+                    { tab: 'hrm', icon: '💳', label: 'Bảng Lương' },
+                    { tab: 'my-payslip', icon: '🧾', label: 'Phiếu Lương' }
+                ]
+            },
+            {
+                id: 'system',
+                icon: '⚙️',
+                title: '5. AI & Hệ Thống',
+                shortLabel: 'AI & Hệ\nThống',
+                color: '#475569',
+                bg: '#f1f5f9',
+                items: [
+                    { tab: 'ai-agent', icon: '🤖', label: 'Tác Nhân AI' },
+                    { tab: 'guide', icon: '📖', label: 'Hướng Dẫn' },
+                    { tab: 'settings', icon: '⚙️', label: 'Cài Đặt' },
+                    { tab: '__pin_sidebar__', icon: '📌', label: 'Ghim Sidebar' }
+                ]
+            }
+        ];
+
+        function initGroupedSidebarNav() {
+            const nav = document.getElementById('sidebar-nav');
+            if (!nav || nav.dataset.groupedInit === '1') return;
+            nav.dataset.groupedInit = '1';
+
+            let collapsedGroups = {};
+            try {
+                collapsedGroups = JSON.parse(localStorage.getItem('pos_sidebar_collapsed_groups') || '{}') || {};
+            } catch (_) {}
+
+            const btnMap = {};
+            nav.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+                btnMap[btn.dataset.tab] = btn;
+            });
+
+            POS_NAV_GROUPS.forEach(grp => {
+                const sec = document.createElement('div');
+                sec.className = 'sidebar-group-section mb-1' + (collapsedGroups[grp.id] ? ' group-collapsed' : '');
+                sec.dataset.groupId = grp.id;
+
+                const hdr = document.createElement('div');
+                hdr.className = 'sidebar-group-header';
+                hdr.innerHTML = `<span class="truncate">${grp.title}</span><span class="sidebar-group-chevron">▾</span>`;
+                hdr.onclick = () => {
+                    sec.classList.toggle('group-collapsed');
+                    collapsedGroups[grp.id] = sec.classList.contains('group-collapsed');
+                    try {
+                        localStorage.setItem('pos_sidebar_collapsed_groups', JSON.stringify(collapsedGroups));
+                    } catch (_) {}
+                };
+
+                const itemsWrap = document.createElement('div');
+                itemsWrap.className = 'sidebar-group-items space-y-1';
+
+                grp.items.forEach(it => {
+                    if (it.tab === '__pin_sidebar__') return;
+                    const btn = btnMap[it.tab];
+                    if (btn) itemsWrap.appendChild(btn);
+                });
+
+                sec.appendChild(hdr);
+                sec.appendChild(itemsWrap);
+                nav.appendChild(sec);
+            });
+        }
+
+        let radialOrbitOpen = false;
+        let radialActiveGroupId = 'sales';
+
+        function isTabVisibleForCurrentUser(tabId) {
+            if (tabId === '__pin_sidebar__') return true;
+            const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (!btn) return true;
+            return btn.style.display !== 'none' && !btn.classList.contains('hidden');
+        }
+
+        function getValidRadialArc(cx, cy, W, H, margin) {
+            const validAngles = [];
+            for (let deg = -180; deg < 180; deg += 5) {
+                const rad = deg * Math.PI / 180;
+                const x = cx + Math.cos(rad) * margin;
+                const y = cy + Math.sin(rad) * margin;
+                if (x >= 38 && x <= W - 38 && y >= 38 && y <= H - 38) {
+                    validAngles.push(deg);
+                }
+            }
+            if (validAngles.length >= 60 || validAngles.length === 0) {
+                return { full: true, startDeg: -90, endDeg: 270 };
+            }
+            const validSet = new Set(validAngles);
+            let maxInvalidLen = 0, maxInvalidEnd = 0, curLen = 0;
+            for (let i = 0; i < 144; i++) {
+                const deg = -180 + ((i % 72) * 5);
+                if (!validSet.has(deg)) {
+                    curLen++;
+                    if (curLen > maxInvalidLen) {
+                        maxInvalidLen = curLen;
+                        maxInvalidEnd = deg;
+                    }
+                } else {
+                    curLen = 0;
+                }
+            }
+            const startDeg = maxInvalidEnd + 5;
+            const spanDeg = (72 - maxInvalidLen) * 5;
+            return { full: false, startDeg, endDeg: startDeg + spanDeg };
+        }
+
+        function renderRadialOrbitMenu() {
+            const root = document.getElementById('radial-orbit-root');
+            const grpLayer = document.getElementById('radial-group-nodes-layer');
+            const subLayer = document.getElementById('radial-sub-nodes-layer');
+            if (!root || !grpLayer || !subLayer) return;
+
+            const W = window.innerWidth || 1280;
+            const H = window.innerHeight || 800;
+            const cx = parseFloat(root.style.left) || (W - 56);
+            const cy = parseFloat(root.style.top) || (H - 76);
+
+            const visibleGroups = POS_NAV_GROUPS.map(g => ({
+                ...g,
+                visibleItems: g.items.filter(it => isTabVisibleForCurrentUser(it.tab))
+            })).filter(g => g.visibleItems.length > 0);
+
+            const R1 = 102;
+            const R2 = 186;
+            const arc = getValidRadialArc(cx, cy, W, H, R2);
+
+            grpLayer.innerHTML = '';
+            const groupAngles = {};
+
+            visibleGroups.forEach((g, i) => {
+                let deg;
+                if (arc.full) {
+                    deg = -90 + (i * 360 / visibleGroups.length);
+                } else {
+                    deg = visibleGroups.length === 1
+                        ? (arc.startDeg + arc.endDeg) / 2
+                        : arc.startDeg + (i * (arc.endDeg - arc.startDeg) / (visibleGroups.length - 1));
+                }
+                groupAngles[g.id] = deg;
+                const rad = deg * Math.PI / 180;
+                const gx = Math.cos(rad) * R1;
+                const gy = Math.sin(rad) * R1;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'radial-group-node' + (g.id === radialActiveGroupId ? ' active' : '');
+                btn.style.setProperty('--grp-color', g.color);
+                btn.style.setProperty('--grp-bg', g.bg);
+                btn.style.left = radialOrbitOpen ? `${gx}px` : '0px';
+                btn.style.top = radialOrbitOpen ? `${gy}px` : '0px';
+                btn.style.transform = radialOrbitOpen ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -50%) scale(0)';
+                btn.innerHTML = `<span class="text-lg leading-none">${g.icon}</span><span class="text-xs font-bold text-slate-800 leading-tight mt-1">${g.shortLabel.replace('\n', '<br>')}</span>`;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    radialActiveGroupId = (radialActiveGroupId === g.id) ? null : g.id;
+                    root.classList.toggle('sub-open', !!radialActiveGroupId);
+                    renderRadialOrbitMenu();
+                };
+                grpLayer.appendChild(btn);
+            });
+
+            subLayer.innerHTML = '';
+            const activeGrp = visibleGroups.find(g => g.id === radialActiveGroupId);
+            root.classList.toggle('sub-open', !!(radialOrbitOpen && activeGrp));
+            if (radialOrbitOpen && activeGrp) {
+                const baseDeg = groupAngles[activeGrp.id] || 0;
+                const count = activeGrp.visibleItems.length;
+                const stepDeg = 27;
+                let startSubDeg = baseDeg - ((count - 1) * stepDeg) / 2;
+
+                if (!arc.full) {
+                    if (startSubDeg < arc.startDeg) startSubDeg = arc.startDeg;
+                    const maxSubDeg = startSubDeg + (count - 1) * stepDeg;
+                    if (maxSubDeg > arc.endDeg) startSubDeg -= (maxSubDeg - arc.endDeg);
+                }
+
+                const curTab = window.__currentActiveTabId || 'pos';
+                activeGrp.visibleItems.forEach((item, idx) => {
+                    const sDeg = startSubDeg + idx * stepDeg;
+                    const sRad = sDeg * Math.PI / 180;
+                    const sx = Math.cos(sRad) * R2;
+                    const sy = Math.sin(sRad) * R2;
+
+                    const sBtn = document.createElement('button');
+                    sBtn.type = 'button';
+                    sBtn.className = 'radial-sub-node show' + (item.tab === curTab ? ' current-tab' : '');
+                    sBtn.style.left = `${sx}px`;
+                    sBtn.style.top = `${sy}px`;
+                    sBtn.style.transform = 'translate(-50%, -50%) scale(1)';
+                    sBtn.innerHTML = `<span class="text-base leading-none">${item.icon}</span><span class="text-xs font-bold leading-tight mt-1 max-w-[58px]">${item.label}</span>`;
+                    sBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (item.tab === '__pin_sidebar__') {
+                            toggleRadialOrbitMenu(false);
+                            setNavigationDisplayMode('expanded');
+                            return;
+                        }
+                        switchTab(item.tab);
+                    };
+                    subLayer.appendChild(sBtn);
+                });
+            }
+        }
+
+        function toggleRadialOrbitMenu(forceState) {
+            const root = document.getElementById('radial-orbit-root');
+            const backdrop = document.getElementById('radial-orbit-backdrop');
+            if (!root || !backdrop) return;
+            radialOrbitOpen = typeof forceState === 'boolean' ? forceState : !radialOrbitOpen;
+            root.classList.toggle('open', radialOrbitOpen);
+            backdrop.classList.toggle('open', radialOrbitOpen);
+            const iconEl = document.getElementById('radial-orb-icon');
+            const txtEl = document.getElementById('radial-orb-txt');
+            if (iconEl) iconEl.textContent = radialOrbitOpen ? '✕' : '🐾';
+            if (txtEl) txtEl.textContent = radialOrbitOpen ? 'ĐÓNG' : 'MENU';
+            if (radialOrbitOpen && !radialActiveGroupId) {
+                const curTab = window.__currentActiveTabId || 'pos';
+                const foundGrp = POS_NAV_GROUPS.find(g => g.items.some(i => i.tab === curTab));
+                radialActiveGroupId = foundGrp ? foundGrp.id : 'sales';
+            }
+            renderRadialOrbitMenu();
+        }
+        window.toggleRadialOrbitMenu = toggleRadialOrbitMenu;
+
+        function setNavigationDisplayMode(mode) {
+            const sidebar = document.getElementById('main-sidebar');
+            const orbRoot = document.getElementById('radial-orbit-root');
+            const btnToggle = document.getElementById('btn-toggle-sidebar');
+
+            if (mode === 'orb') {
+                document.body.classList.add('nav-mode-orb');
+                if (orbRoot) {
+                    orbRoot.classList.remove('hidden');
+                    ensureRadialOrbPosition();
+                }
+                try {
+                    localStorage.setItem('pos_nav_display_mode', 'orb');
+                } catch (_) {}
+            } else {
+                document.body.classList.remove('nav-mode-orb');
+                toggleRadialOrbitMenu(false);
+                if (orbRoot) orbRoot.classList.add('hidden');
+                const isCollapsed = (mode === 'collapsed');
+                if (sidebar) sidebar.classList.toggle('collapsed', isCollapsed);
+                if (btnToggle) {
+                    btnToggle.innerHTML = isCollapsed ? '▶' : '◀';
+                    btnToggle.title = isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu';
+                }
+                try {
+                    localStorage.setItem('pos_nav_display_mode', isCollapsed ? 'collapsed' : 'expanded');
+                    localStorage.setItem('pos_sidebar_collapsed', isCollapsed ? '1' : '0');
+                } catch (_) {}
+            }
+
+            // Highlight active mode button in Settings
+            ['expanded', 'collapsed', 'orb'].forEach(m => {
+                const b = document.getElementById('btn-navmode-' + m);
+                if (!b) return;
+                if (m === mode) {
+                    b.className = 'navmode-option-btn p-2.5 rounded-xl border-2 border-sky-500 bg-sky-50 text-left transition cursor-pointer shadow-xs';
+                } else {
+                    b.className = 'navmode-option-btn p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-sky-50/50 text-left transition cursor-pointer';
+                }
+            });
+        }
+        window.setNavigationDisplayMode = setNavigationDisplayMode;
+
+        function ensureRadialOrbPosition() {
+            const root = document.getElementById('radial-orbit-root');
+            if (!root) return;
+            const W = window.innerWidth || 1280;
+            const H = window.innerHeight || 800;
+            let savedPos = null;
+            try {
+                savedPos = JSON.parse(localStorage.getItem('pos_radial_orb_pos') || 'null');
+            } catch (_) {}
+            let x = (savedPos && typeof savedPos.x === 'number') ? savedPos.x : (W - 56);
+            let y = (savedPos && typeof savedPos.y === 'number') ? savedPos.y : (H - 76);
+            x = Math.max(38, Math.min(W - 38, x));
+            y = Math.max(38, Math.min(H - 38, y));
+            root.style.left = x + 'px';
+            root.style.top = y + 'px';
+        }
+
+        function initRadialOrbDrag() {
+            const orb = document.getElementById('radial-center-orb');
+            const root = document.getElementById('radial-orbit-root');
+            if (!orb || !root || orb.dataset.dragInit === '1') return;
+            orb.dataset.dragInit = '1';
+
+            let dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0;
+
+            const startDrag = (clientX, clientY) => {
+                dragging = true;
+                moved = false;
+                sx = clientX;
+                sy = clientY;
+                ox = parseFloat(root.style.left) || (window.innerWidth - 56);
+                oy = parseFloat(root.style.top) || (window.innerHeight - 76);
+            };
+
+            const moveDrag = (clientX, clientY) => {
+                if (!dragging) return;
+                const dx = clientX - sx;
+                const dy = clientY - sy;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+                const W = window.innerWidth || 1280;
+                const H = window.innerHeight || 800;
+                const nx = Math.max(38, Math.min(W - 38, ox + dx));
+                const ny = Math.max(38, Math.min(H - 38, oy + dy));
+                root.style.left = nx + 'px';
+                root.style.top = ny + 'px';
+                if (radialOrbitOpen) renderRadialOrbitMenu();
+            };
+
+            const endDrag = () => {
+                if (!dragging) return;
+                dragging = false;
+                if (moved) {
+                    try {
+                        localStorage.setItem('pos_radial_orb_pos', JSON.stringify({
+                            x: parseFloat(root.style.left),
+                            y: parseFloat(root.style.top)
+                        }));
+                    } catch (_) {}
+                } else {
+                    toggleRadialOrbitMenu();
+                }
+            };
+
+            orb.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                startDrag(e.clientX, e.clientY);
+            });
+            window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+            window.addEventListener('mouseup', endDrag);
+
+            orb.addEventListener('touchstart', (e) => {
+                const t = e.touches[0];
+                if (t) startDrag(t.clientX, t.clientY);
+            }, { passive: true });
+            window.addEventListener('touchmove', (e) => {
+                if (!dragging) return;
+                const t = e.touches[0];
+                if (t) moveDrag(t.clientX, t.clientY);
+            }, { passive: true });
+            window.addEventListener('touchend', endDrag);
+
+            orb.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                setNavigationDisplayMode('expanded');
+            });
+
+            window.addEventListener('resize', () => {
+                ensureRadialOrbPosition();
+                if (radialOrbitOpen) renderRadialOrbitMenu();
+            });
+        }
+
+        async function clearDemoSeedData() {
+            if (!confirm('Bạn muốn xóa sạch toàn bộ 90 phiếu dữ liệu mẫu Demo (30 POS + 30 Spa + 30 Khách Sạn) và giữ nguyên dữ liệu thật?')) return;
+            try {
+                const res = await fetch('/api/settings/clear-demo-seed', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert('Lỗi: ' + (data.detail || 'Không thể xóa dữ liệu mẫu'));
+                    return;
+                }
+                if (typeof showToast === 'function') showToast(data.message, 'success');
+                else alert(data.message);
+                if (typeof loadContacts === 'function') loadContacts();
+                if (typeof loadPetServicesList === 'function') loadPetServicesList();
+                if (typeof loadHotelRooms === 'function') loadHotelRooms();
+            } catch (e) {
+                alert('Lỗi kết nối máy chủ khi xóa dữ liệu mẫu Demo');
+            }
+        }
+        window.clearDemoSeedData = clearDemoSeedData;
+
         function toggleSidebarCollapse() {
             const sidebar = document.getElementById('main-sidebar');
             if (!sidebar) return;
-            sidebar.classList.toggle('collapsed');
-            const isCollapsed = sidebar.classList.contains('collapsed');
-            try {
-                localStorage.setItem('pos_sidebar_collapsed', isCollapsed ? '1' : '0');
-            } catch(e){}
-            const btn = document.getElementById('btn-toggle-sidebar');
-            if (btn) {
-                btn.innerHTML = isCollapsed ? '▶' : '◀';
-                btn.title = isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu';
-            }
+            const willCollapse = !sidebar.classList.contains('collapsed');
+            setNavigationDisplayMode(willCollapse ? 'collapsed' : 'expanded');
             const tooltip = document.getElementById('sidebar-floating-tooltip');
             if (tooltip) tooltip.classList.add('hidden');
         }
@@ -4519,17 +5047,13 @@
         window.initSidebarTooltip = initSidebarTooltip;
 
         function initSidebarState() {
+            initGroupedSidebarNav();
+            initRadialOrbDrag();
+            let savedMode = 'expanded';
             try {
-                if (localStorage.getItem('pos_sidebar_collapsed') === '1') {
-                    const sidebar = document.getElementById('main-sidebar');
-                    if (sidebar) sidebar.classList.add('collapsed');
-                    const btn = document.getElementById('btn-toggle-sidebar');
-                    if (btn) {
-                        btn.innerHTML = '▶';
-                        btn.title = 'Mở rộng menu';
-                    }
-                }
-            } catch(e){}
+                savedMode = localStorage.getItem('pos_nav_display_mode') || (localStorage.getItem('pos_sidebar_collapsed') === '1' ? 'collapsed' : 'expanded');
+            } catch (_) {}
+            setNavigationDisplayMode(savedMode);
             initSidebarTooltip();
         }
         window.initSidebarState = initSidebarState;
@@ -4570,11 +5094,11 @@
                 <tr class="border-b hover:bg-gray-50">
                     <td class="p-3 font-mono text-xs font-bold">${p.code}</td>
                     <td class="p-3 font-medium">${p.name}</td>
-                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.type === 'service' ? 'bg-indigo-100 text-indigo-700' : p.type === 'material' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${p.type}</span></td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${p.type === 'service' ? 'bg-sky-100 text-sky-700' : p.type === 'material' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${p.type}</span></td>
                     <td class="p-3">
                         ${p.supplier_names 
-                            ? p.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
-                            : '<span class="text-gray-400 italic text-xs">---</span>'}
+                            ? p.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                            : '<span class="text-gray-400  text-xs">---</span>'}
                     </td>
                     <td class="p-3 text-right">${formatMoney(p.cost_price)}</td>
                     <td class="p-3 text-right font-bold text-sky-600">${formatMoney(p.sell_price)}</td>
@@ -4592,7 +5116,9 @@
         async function loadStaff() {
             try {
                 const res = await fetch('/api/staff');
-                allStaff = await res.json();
+                if (!res.ok) return;
+                const data = await res.json();
+                allStaff = Array.isArray(data) ? data : [];
                 const staffSelect = document.getElementById('pos-staff') || document.getElementById('pos-staff-select');
                 if (staffSelect) {
                     staffSelect.innerHTML = allStaff.map(s => `<option value="${s.id}">${s.name} (${s.commission_rate}%)</option>`).join('');
@@ -4771,11 +5297,11 @@
 
             if (mode === 'clear_catalog_only') {
                 desc.innerHTML = `
-                    <div class="font-bold text-indigo-900 mb-1">Chế độ: DỌN SẠCH DANH MỤC HÀNG HÓA ĐỂ IMPORT MỚI</div>
+                    <div class="font-bold text-sky-900 mb-1">Chế độ: DỌN SẠCH DANH MỤC HÀNG HÓA ĐỂ IMPORT MỚI</div>
                     <ul class="list-disc pl-4 space-y-1 text-slate-700">
                         <li>Toàn bộ Hàng Hóa thành phẩm, đơn vị quy đổi và liên kết tồn kho thành phẩm sẽ bị xóa trắng.</li>
                         <li><strong>Giữ nguyên:</strong> Nguyên vật liệu xưởng, Sổ quỹ thu chi, Danh bạ Khách hàng và Hóa đơn cũ.</li>
-                        <li>Chuỗi xác thực bắt buộc: <strong class="text-indigo-700">XOA HANG HOA</strong></li>
+                        <li>Chuỗi xác thực bắt buộc: <strong class="text-sky-700">XOA HANG HOA</strong></li>
                     </ul>
                 `;
                 if (txt) txt.placeholder = "XOA HANG HOA";
@@ -5205,12 +5731,12 @@
                         <div class="pt-3 first:pt-0 space-y-2">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-black text-sm font-mono text-indigo-900">${log.tag}</span>
-                                    ${log.is_new ? '<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">Bản Hiện Tại</span>' : ''}
+                                    <span class="font-bold text-sm font-mono text-sky-900">${log.tag}</span>
+                                    ${log.is_new ? '<span class="px-1.5 py-0.2 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">Bản Hiện Tại</span>' : ''}
                                 </div>
-                                <span class="text-slate-400 font-mono text-[11px]">${log.date}</span>
+                                <span class="text-slate-400 font-mono text-xs">${log.date}</span>
                             </div>
-                            <div class="text-[11px] font-semibold text-slate-700">${log.title}</div>
+                            <div class="text-xs font-semibold text-slate-700">${log.title}</div>
                             <ul class="space-y-1.5 pl-1">
                                 ${(log.items || []).map(it => {
                                                     // Định dạng nếu là dòng commit có mã hash: [a1b2c3d] Tiêu đề (Ngày giờ)
@@ -5219,8 +5745,8 @@
                                                     if (m) {
                                                         const hash = m[1];
                                                         const text = m[2];
-                                                        const time = m[3] ? `<span class="text-slate-400 font-mono text-[10px] ml-1">(${m[3]})</span>` : '';
-                                                        contentHtml = `<span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded text-[10px] border border-indigo-200/60 mr-1">[${hash}]</span><span class="font-medium text-slate-700">${text}</span>${time}`;
+                                                        const time = m[3] ? `<span class="text-slate-400 font-mono text-xs ml-1">(${m[3]})</span>` : '';
+                                                        contentHtml = `<span class="font-mono font-bold text-sky-700 bg-sky-50 px-1 py-0.5 rounded text-xs border border-sky-200/60 mr-1">[${hash}]</span><span class="font-medium text-slate-700">${text}</span>${time}`;
                                                     }
                                                     return `
                                                     <li class="flex items-start gap-1.5 text-slate-600 text-xs">

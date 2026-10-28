@@ -62,7 +62,7 @@
                 });
 
             if (matches.length === 0) {
-                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy nhà cung cấp nào</div>';
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center ">Không tìm thấy nhà cung cấp nào</div>';
                 resBox.classList.remove('hidden');
                 return;
             }
@@ -72,7 +72,7 @@
                      class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition border-b last:border-0">
                     <div>
                         <span class="font-bold text-slate-800 text-xs">🏭 ${s.name}</span>
-                        <span class="text-[11px] text-gray-500 ml-1.5">${s.phone ? '📞 ' + s.phone : ''}</span>
+                        <span class="text-xs text-gray-500 ml-1.5">${s.phone ? '📞 ' + s.phone : ''}</span>
                     </div>
                     <span class="text-xs font-bold ${s.debt > 0 ? 'text-rose-600' : 'text-slate-400'}">
                         ${s.debt > 0 ? 'Nợ: ' + formatMoney(s.debt) + ' đ' : '0 đ'}
@@ -91,10 +91,15 @@
                     fetch('/api/products')
                 ]);
 
-                allWarehousesList = await whRes.json();
-                allSuppliersList = await suppRes.json();
-                costIngredients = await ingRes.json();
-                allProducts = await prodRes.json();
+                if (!whRes.ok) return;
+                const whData = await whRes.json();
+                const suppData = await suppRes.json();
+                const ingData = await ingRes.json();
+                const prodData = await prodRes.json();
+                allWarehousesList = Array.isArray(whData) ? whData : [];
+                allSuppliersList = Array.isArray(suppData) ? suppData : [];
+                costIngredients = Array.isArray(ingData) ? ingData : [];
+                allProducts = Array.isArray(prodData) ? prodData : [];
 
                 const whSel = document.getElementById('purchase-warehouse');
                 if (whSel) {
@@ -187,15 +192,15 @@
             }
 
             if (matches.length === 0) {
-                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy mặt hàng phù hợp</div>';
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center ">Không tìm thấy mặt hàng phù hợp</div>';
                 resBox.classList.remove('hidden');
                 return;
             }
 
             resBox.innerHTML = matches.slice(0, 20).map(m => {
                 const badge = m.type === 'ingredient' 
-                    ? '<span class="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Nguyên Liệu</span>'
-                    : '<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Hàng Hóa</span>';
+                    ? '<span class="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-xs font-bold">Nguyên Liệu</span>'
+                    : '<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-bold">Hàng Hóa</span>';
 
                 return `
                 <div onclick="addPurchaseItemFromFuzzy('${m.type}', ${m.id})" class="p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition-colors">
@@ -203,12 +208,12 @@
                         ${badge}
                         <div>
                             <div class="font-bold text-slate-800">${m.name}</div>
-                            <div class="text-[11px] text-gray-500 font-mono">Mã: ${m.code || '---'} | ĐVT: ${m.unit}</div>
+                            <div class="text-xs text-gray-500 font-mono">Mã: ${m.code || '---'} | ĐVT: ${m.unit}</div>
                         </div>
                     </div>
                     <div class="text-right">
                         <div class="font-bold text-slate-900 font-mono">${formatMoney(m.cost)}</div>
-                        <div class="text-[11px] text-gray-500">Tồn hiện tại: <span class="font-bold text-sky-700">${m.stock}</span></div>
+                        <div class="text-xs text-gray-500">Tồn hiện tại: <span class="font-bold text-sky-700">${m.stock}</span></div>
                     </div>
                 </div>
                 `;
@@ -341,20 +346,20 @@
                     const subtotal = qNum * cNum;
                     const isIng = item.item_type === 'ingredient';
                     const badge = isIng 
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>' 
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Nguyên Liệu</span>' 
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
 
                     // Nhập theo Thùng/Lốc: tồn kho vẫn cộng theo đơn vị cơ bản
                     const baseUnit = item.base_unit || item.unit || 'cái';
                     const extraUnits = item.units || [];
                     const unitCell = extraUnits.length
-                        ? `<select onchange="changePurchaseItemUnit(${idx}, this.value)" class="border border-indigo-200 bg-indigo-50/50 rounded px-1 py-0.5 text-[11px] font-semibold text-indigo-800 cursor-pointer">
+                        ? `<select onchange="changePurchaseItemUnit(${idx}, this.value)" class="border border-sky-200 bg-sky-50/50 rounded px-1 py-0.5 text-xs font-semibold text-sky-800 cursor-pointer">
                                <option value="1" ${(item.unit_ratio || 1) == 1 ? 'selected' : ''}>${baseUnit}</option>
                                ${extraUnits.map(u => `<option value="${u.ratio}" ${(item.unit_ratio || 1) == u.ratio ? 'selected' : ''}>${u.unit_name}</option>`).join('')}
                            </select>`
                         : (item.unit || '');
                     const convHint = (item.unit_ratio && item.unit_ratio != 1)
-                        ? `<div class="text-[10px] text-indigo-600 font-semibold mt-0.5">= ${(qNum * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
+                        ? `<div class="text-xs text-sky-600 font-semibold mt-0.5">= ${(qNum * item.unit_ratio).toLocaleString('vi-VN')} ${baseUnit}</div>`
                         : '';
 
                     return `
@@ -383,7 +388,7 @@
                             ${formatMoney(subtotal)}
                         </td>
                         <td class="p-2 text-center">
-                            <button onclick="removePurchaseItem(${idx})" class="text-rose-500 hover:text-rose-700 font-black text-sm px-1.5" title="Xóa món này khỏi phiếu">✕</button>
+                            <button onclick="removePurchaseItem(${idx})" class="text-rose-500 hover:text-rose-700 font-bold text-sm px-1.5" title="Xóa món này khỏi phiếu">✕</button>
                         </td>
                     </tr>
                     `;
@@ -676,7 +681,7 @@
             if (priceHistView) priceHistView.classList.add('hidden');
 
             const inactiveCls = "py-1.5 px-3 rounded-md font-semibold text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5";
-            const activeCls = "py-1.5 px-3 rounded-md font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-xs";
+            const activeCls = "py-1.5 px-3 rounded-md font-bold transition flex items-center gap-1.5 bg-sky-600 text-white shadow-xs";
 
             if (tabList) tabList.className = inactiveCls;
             if (tabCompare) tabCompare.className = inactiveCls;
@@ -751,8 +756,8 @@
                 tbody.innerHTML = items.map(item => {
                     const isProduct = item.item_type === 'product';
                     const typeBadge = isProduct 
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">📦 Hàng Hóa</span>' 
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">🧪 Nguyên Liệu</span>';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">📦 Hàng Hóa</span>' 
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">🧪 Nguyên Liệu</span>';
 
                     // Render danh sách NCC và giá
                     const suppliersHtml = item.suppliers.map(s => {
@@ -761,9 +766,9 @@
 
                         let highlightBadge = '';
                         if (isMin) {
-                            highlightBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px] ml-1">⭐ Rẻ nhất</span>';
+                            highlightBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-xs ml-1">⭐ Rẻ nhất</span>';
                         } else if (isMax) {
-                            highlightBadge = '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[10px] ml-1">Cao nhất</span>';
+                            highlightBadge = '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-xs ml-1">Cao nhất</span>';
                         }
 
                         const dateStr = s.latest_purchase_date ? `(${s.latest_purchase_date.substring(0, 10)})` : '(Giá mặc định)';
@@ -776,19 +781,19 @@
                                 </div>
                                 <div class="text-right whitespace-nowrap">
                                     <span class="font-mono font-bold ${isMin ? 'text-emerald-700' : 'text-slate-800'}">${formatMoney(s.effective_price)}</span>
-                                    <span class="text-[10px] text-gray-400 block">${dateStr}</span>
+                                    <span class="text-xs text-gray-400 block">${dateStr}</span>
                                 </div>
                             </div>
                         `;
                     }).join('');
 
                     // Độ chênh lệch giữa NCC rẻ nhất và đắt nhất
-                    let diffHtml = '<span class="text-gray-400 italic">1 NCC</span>';
+                    let diffHtml = '<span class="text-gray-400 ">1 NCC</span>';
                     if (item.min_price && item.max_price && item.suppliers.length > 1) {
                         const diff = item.max_price - item.min_price;
                         if (diff > 0) {
                             const pct = Math.round((diff / item.min_price) * 100);
-                            diffHtml = `<span class="text-rose-600 font-bold">+${formatMoney(diff)}</span> <span class="text-[10px] text-gray-400 block">(chênh ${pct}%)</span>`;
+                            diffHtml = `<span class="text-rose-600 font-bold">+${formatMoney(diff)}</span> <span class="text-xs text-gray-400 block">(chênh ${pct}%)</span>`;
                         } else {
                             diffHtml = '<span class="text-emerald-600 font-bold">Giá đồng nhất</span>';
                         }
@@ -807,7 +812,7 @@
                             </td>
                             <td class="p-2.5 text-right whitespace-nowrap">${diffHtml}</td>
                             <td class="p-2.5 text-center whitespace-nowrap">
-                                <button onclick="goToPurchaseTabWithItem('${item.item_type}', ${item.item_id})" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded text-xs font-bold shadow-sm">
+                                <button onclick="goToPurchaseTabWithItem('${item.item_type}', ${item.item_id})" class="bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded text-xs font-bold shadow-sm">
                                     📥 Nhập Hàng
                                 </button>
                             </td>
@@ -854,47 +859,47 @@
                 tbody.innerHTML = list.map(item => {
                     const isProduct = item.item_type === 'product';
                     const typeBadge = isProduct 
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">📦 Hàng Hóa</span>' 
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">🧪 Nguyên Liệu</span>';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">📦 Hàng Hóa</span>' 
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">🧪 Nguyên Liệu</span>';
 
                     // Biến động so với lần liền trước
                     let diffPrevHtml = '<span class="text-gray-400 font-medium">Không đổi</span>';
                     if (item.diff_prev > 0) {
-                        diffPrevHtml = `<span class="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1">🔺 +${formatMoney(item.diff_prev)} (+${item.pct_prev}%)</span>`;
+                        diffPrevHtml = `<span class="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-xs inline-flex items-center gap-1">🔺 +${formatMoney(item.diff_prev)} (+${item.pct_prev}%)</span>`;
                     } else if (item.diff_prev < 0) {
-                        diffPrevHtml = `<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1">🔻 -${formatMoney(Math.abs(item.diff_prev))} (${item.pct_prev}%)</span>`;
+                        diffPrevHtml = `<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-xs inline-flex items-center gap-1">🔻 -${formatMoney(Math.abs(item.diff_prev))} (${item.pct_prev}%)</span>`;
                     } else if (item.total_purchases === 1) {
-                        diffPrevHtml = '<span class="text-gray-400 italic text-[10px]">Mới nhập 1 lần</span>';
+                        diffPrevHtml = '<span class="text-gray-400  text-xs">Mới nhập 1 lần</span>';
                     }
 
                     // Biến động toàn kỳ (so với lần đầu tiên)
                     let diffFirstHtml = '<span class="text-gray-400 font-medium">0đ</span>';
                     if (item.diff_first > 0) {
-                        diffFirstHtml = `<span class="text-rose-600 font-bold">+${formatMoney(item.diff_first)}</span> <span class="text-[10px] text-gray-400 block">(+${item.pct_first}%)</span>`;
+                        diffFirstHtml = `<span class="text-rose-600 font-bold">+${formatMoney(item.diff_first)}</span> <span class="text-xs text-gray-400 block">(+${item.pct_first}%)</span>`;
                     } else if (item.diff_first < 0) {
-                        diffFirstHtml = `<span class="text-emerald-600 font-bold">-${formatMoney(Math.abs(item.diff_first))}</span> <span class="text-[10px] text-gray-400 block">(${item.pct_first}%)</span>`;
+                        diffFirstHtml = `<span class="text-emerald-600 font-bold">-${formatMoney(Math.abs(item.diff_first))}</span> <span class="text-xs text-gray-400 block">(${item.pct_first}%)</span>`;
                     } else if (item.total_purchases === 1) {
-                        diffFirstHtml = '<span class="text-gray-400 italic text-[10px]">-</span>';
+                        diffFirstHtml = '<span class="text-gray-400  text-xs">-</span>';
                     }
 
                     // Tooltip / Danh sách lịch sử các đợt nhập của mặt hàng này
                     const historyHtml = item.history.map((h, idx) => `
-                        <div class="text-[10px] py-0.5 border-b border-gray-100 last:border-0 flex justify-between gap-2">
+                        <div class="text-xs py-0.5 border-b border-gray-100 last:border-0 flex justify-between gap-2">
                             <span>#${idx + 1} (${(h.created_at || '').substring(0, 10)}) - ${h.supplier_name || 'NCC'}:</span>
                             <span class="font-mono font-bold">${formatMoney(h.cost_price)}</span>
                         </div>
                     `).join('');
 
                     return `
-                        <tr class="border-b hover:bg-gray-50 text-[11px]">
+                        <tr class="border-b hover:bg-gray-50 text-xs">
                             <td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${item.item_code || '-'}</td>
                             <td class="p-2.5 font-bold text-slate-800">
                                 ${item.item_name}
-                                <span class="text-[10px] text-gray-400 block">Gần nhất: ${item.latest_date ? item.latest_date.substring(0, 10) : '-'} (${item.latest_supplier || 'NCC'})</span>
+                                <span class="text-xs text-gray-400 block">Gần nhất: ${item.latest_date ? item.latest_date.substring(0, 10) : '-'} (${item.latest_supplier || 'NCC'})</span>
                             </td>
                             <td class="p-2.5 text-center whitespace-nowrap">${typeBadge}</td>
                             <td class="p-2.5 text-center">
-                                <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full text-[10px]">${item.total_purchases} lần</span>
+                                <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full text-xs">${item.total_purchases} lần</span>
                             </td>
                             <td class="p-2.5 text-right font-mono text-gray-600">${formatMoney(item.first_price)}</td>
                             <td class="p-2.5 text-right font-mono text-gray-600">${formatMoney(item.previous_price)}</td>
@@ -903,7 +908,7 @@
                             <td class="p-2.5 text-center whitespace-nowrap">${diffFirstHtml}</td>
                             <td class="p-2.5">
                                 <details class="cursor-pointer group">
-                                    <summary class="text-sky-600 hover:underline font-medium text-[10px] select-none text-center">Xem ${item.total_purchases} đợt</summary>
+                                    <summary class="text-sky-600 hover:underline font-medium text-xs select-none text-center">Xem ${item.total_purchases} đợt</summary>
                                     <div class="mt-1 p-2 bg-slate-50 border rounded shadow-sm max-h-36 overflow-y-auto min-w-[200px]">
                                         ${historyHtml}
                                     </div>
@@ -1050,13 +1055,13 @@
                 tbody.innerHTML = list.map((p, idx) => {
                     let statusBadge = '';
                     if (p.status === 'received') {
-                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhập Kho</span></span>';
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhập Kho</span></span>';
                     } else if (p.status === 'cancelled') {
-                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200"><span>❌</span><span>Đã Hủy</span></span>';
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200"><span>❌</span><span>Đã Hủy</span></span>';
                     } else if (p.status === 'draft') {
-                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
+                        statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
                     } else {
-                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Chờ Nhận</span></span>';
+                        statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Chờ Nhận</span></span>';
                     }
 
                     const isCompany = (p.fund_source || 'PERSONAL') === 'COMPANY' || (p.vat_rate > 0);
@@ -1068,7 +1073,7 @@
                     const pct = totalAmt > 0 ? Math.min(100, Math.max(0, Math.round((paidAmt / totalAmt) * 100))) : (paidAmt > 0 ? 100 : 0);
 
                     const cashbookBadge = p.cashbook_code 
-                        ? `<button type="button" onclick="event.stopPropagation(); viewPurchaseCashbook('${escapeHtml(p.cashbook_code)}')" class="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded transition mt-0.5" title="Bấm để xem phiếu chi trong Sổ Quỹ"><span>📄</span><span>${escapeHtml(p.cashbook_code)}</span></button>` 
+                        ? `<button type="button" onclick="event.stopPropagation(); viewPurchaseCashbook('${escapeHtml(p.cashbook_code)}')" class="inline-flex items-center gap-1 text-xs font-mono font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 px-1.5 py-0.5 rounded transition mt-0.5" title="Bấm để xem phiếu chi trong Sổ Quỹ"><span>📄</span><span>${escapeHtml(p.cashbook_code)}</span></button>` 
                         : '';
 
                     let primaryActionBtn = '';
@@ -1103,28 +1108,28 @@
                             <td class="p-3 font-mono font-bold text-sky-700">
                                 <span>${escapeHtml(p.code)}</span>
                             </td>
-                            <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            <td class="p-3 font-mono text-xs text-slate-500 whitespace-nowrap">
                                 ${typeof formatDateTime === 'function' ? (formatDateTime(p.created_at) || '—') : (p.created_at || '—')}
                             </td>
                             <td class="p-3">
                                 <div class="font-bold text-slate-900">${escapeHtml(p.supplier_name || 'NCC Mặc định')}</div>
-                                <div class="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                <div class="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                                     <span>📦 ${escapeHtml(p.warehouse_name || 'Kho Tổng')}</span>
                                 </div>
                             </td>
                             <td class="p-3 text-right">
                                 <div class="font-mono font-bold text-slate-900 text-xs">${formatMoney(totalAmt)}</div>
-                                <div class="text-[10px] text-slate-400 font-normal">${fundText}</div>
+                                <div class="text-xs text-slate-400 font-normal">${fundText}</div>
                             </td>
                             <td class="p-3 text-right">
                                 <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1 overflow-hidden">
                                     <div class="${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'} h-1.5 rounded-full" style="width: ${pct}%"></div>
                                 </div>
-                                <div class="font-mono text-[11px] font-semibold text-emerald-700">
+                                <div class="font-mono text-xs font-semibold text-emerald-700">
                                     Đã trả: ${formatMoney(paidAmt)} <span class="text-slate-400 font-normal">(${pct}%)</span>
                                     ${cashbookBadge}
                                 </div>
-                                <div class="font-mono text-[10px] ${debtAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
+                                <div class="font-mono text-xs ${debtAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
                                     ${debtAmt > 0 ? `Còn nợ: ${formatMoney(debtAmt)} (${100 - pct}%)` : '✅ Đã xong (0 đ)'}
                                 </div>
                             </td>
@@ -1147,7 +1152,7 @@
                                                 <button type="button" onclick="closeAllPurchaseActionMenus(); openReceiveModal('${escapeHtml(p.code)}', true)" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                     <span>👁️</span> <span>Chi tiết</span>
                                                 </button>
-                                                <button type="button" onclick="closeAllPurchaseActionMenus(); openWithAuth('/api/purchases/${escapeHtml(p.code)}/print-checklist')" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-indigo-700">
+                                                <button type="button" onclick="closeAllPurchaseActionMenus(); openWithAuth('/api/purchases/${escapeHtml(p.code)}/print-checklist')" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-sky-700">
                                                     <span>🖨️</span> <span>In phiếu kiểm</span>
                                                 </button>
                                                 ${(p.status === 'pending' || p.status === 'draft') ? `
@@ -1234,8 +1239,8 @@
 
                 tbody.innerHTML = (data.items || []).map((it, idx) => {
                     const badge = it.item_type === 'ingredient'
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Nguyên Liệu</span>'
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Nguyên Liệu</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">Hàng Hóa</span>';
 
                     const qtyInput = isReceived 
                         ? `<span class="font-bold text-slate-800">${it.quantity}</span>`
@@ -1512,7 +1517,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center py-8 text-gray-400 italic">Không có mặt hàng nào phù hợp với bộ lọc</div>';
+                container.innerHTML = '<div class="text-center py-8 text-gray-400 ">Không có mặt hàng nào phù hợp với bộ lọc</div>';
                 updateAssignItemsSummary();
                 return;
             }
@@ -1521,10 +1526,10 @@
                 const rawIdx = assignSupplierItemsRaw.indexOf(it);
                 const isProd = it.item_type === 'product';
                 const badge = isProd 
-                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">Hàng Hóa</span>'
-                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Nguyên Liệu</span>';
+                    ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">Hàng Hóa</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Nguyên Liệu</span>';
                 const bomBadge = isProd
-                    ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${it.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">${it.bom_count > 0 ? 'BOM: Có' : 'Chưa BOM'}</span>`
+                    ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold ${it.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}">${it.bom_count > 0 ? 'BOM: Có' : 'Chưa BOM'}</span>`
                     : '';
 
                 return `
@@ -1539,13 +1544,13 @@
                                     ${badge}
                                     ${bomBadge}
                                 </div>
-                                <div class="text-[11px] text-gray-400 font-mono">
+                                <div class="text-xs text-gray-400 font-mono">
                                     Mã: ${it.code || '-'} | ĐVT: ${it.unit} | Giá vốn: ${Number(it.cost_price || 0).toLocaleString('vi-VN')} đ
                                 </div>
                             </div>
                         </div>
                         <div class="text-right shrink-0">
-                            <span class="text-[11px] font-bold ${it.is_assigned ? 'text-sky-600' : 'text-gray-300'}">
+                            <span class="text-xs font-bold ${it.is_assigned ? 'text-sky-600' : 'text-gray-300'}">
                                 ${it.is_assigned ? '✓ Đang cấp' : 'Chưa cấp'}
                             </span>
                         </div>

@@ -59,10 +59,10 @@
                                     <span class="text-base">${p.species === 'Mèo' ? '🐱' : '🐶'}</span>
                                     <div>
                                         <div class="font-bold text-slate-800 text-xs">${escapeSpaHtml(p.name)} <span class="font-normal text-slate-500">(${escapeSpaHtml(p.breed || p.species || 'Cún')})</span></div>
-                                        <div class="text-[10px] text-slate-400">Màu: ${escapeSpaHtml(p.color || '-')} | Cân nặng: <strong class="text-purple-700">${p.weight ? p.weight + ' kg' : '-'}</strong></div>
+                                        <div class="text-xs text-slate-400">Màu: ${escapeSpaHtml(p.color || '-')} | Cân nặng: <strong class="text-sky-700">${p.weight ? p.weight + ' kg' : '-'}</strong></div>
                                     </div>
                                 </div>
-                                <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-pink-50 text-pink-700 border border-pink-200">#${p.id}</span>
+                                <span class="text-xs px-2 py-0.5 rounded font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">#${p.id}</span>
                             </div>
                         `).join('');
                     }
@@ -75,16 +75,16 @@
                         qcSpaHistory.innerHTML = '<div class="p-3 text-center text-slate-400">Chưa có lịch sử làm Spa hôm nay.</div>';
                     } else {
                         qcSpaHistory.innerHTML = custTickets.map(t => `
-                            <div class="flex items-center justify-between p-2 hover:bg-slate-50 transition text-[11px]">
+                            <div class="flex items-center justify-between p-2 hover:bg-slate-50 transition text-xs">
                                 <div>
                                     <div class="font-bold text-slate-800">
-                                        <span class="font-mono text-purple-700 font-bold">${t.code || '#' + t.id}</span> · ${escapeSpaHtml(t.pet_name || 'Bé cưng')}
+                                        <span class="font-mono text-sky-700 font-bold">${t.code || '#' + t.id}</span> · ${escapeSpaHtml(t.pet_name || 'Bé cưng')}
                                     </div>
-                                    <div class="text-[10px] text-slate-500 mt-0.5">${escapeSpaHtml(t.service_type || 'Spa')} · ${t.ticket_date || ''}</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">${escapeSpaHtml(t.service_type || 'Spa')} · ${t.ticket_date || ''}</div>
                                 </div>
                                 <div class="text-right">
                                     <div class="font-mono font-bold text-slate-800">${formatMoney(t.price || 0)}</div>
-                                    <span class="text-[9px] px-1.5 py-0.2 rounded font-bold ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}">${t.status}</span>
+                                    <span class="text-xs px-1.5 py-0.2 rounded font-bold ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'}">${t.status}</span>
                                 </div>
                             </div>
                         `).join('');
@@ -130,11 +130,75 @@
         }
         window.closeQuickCustomerInfoModal = closeQuickCustomerInfoModal;
 
+        var currentCustomerPetsCache = [];
+
+        function resetPetForm() {
+            const editIdEl = document.getElementById('editing-pet-id');
+            if (editIdEl) editIdEl.value = '';
+            const titleEl = document.getElementById('pet-form-title');
+            if (titleEl) titleEl.textContent = '➕ Thêm Thú Cưng Mới:';
+            const btnSave = document.getElementById('btn-save-pet');
+            if (btnSave) btnSave.textContent = '+ Thêm Bé';
+            const btnCancel = document.getElementById('btn-cancel-edit-pet');
+            if (btnCancel) btnCancel.classList.add('hidden');
+            if (document.getElementById('new-pet-name')) document.getElementById('new-pet-name').value = '';
+            if (document.getElementById('new-pet-weight')) document.getElementById('new-pet-weight').value = '';
+            if (document.getElementById('new-pet-note')) document.getElementById('new-pet-note').value = '';
+        }
+        window.resetPetForm = resetPetForm;
+
+        function startEditPet(petId) {
+            const pet = (currentCustomerPetsCache || []).find(x => x.id === petId);
+            if (!pet) return;
+            const editIdEl = document.getElementById('editing-pet-id');
+            if (editIdEl) editIdEl.value = String(pet.id);
+            const titleEl = document.getElementById('pet-form-title');
+            if (titleEl) titleEl.textContent = `✏️ Đang sửa hồ sơ bé: ${pet.name}`;
+            const btnSave = document.getElementById('btn-save-pet');
+            if (btnSave) btnSave.textContent = '💾 Lưu Cập Nhật';
+            const btnCancel = document.getElementById('btn-cancel-edit-pet');
+            if (btnCancel) btnCancel.classList.remove('hidden');
+
+            const nameEl = document.getElementById('new-pet-name');
+            if (nameEl) { nameEl.value = pet.name || ''; nameEl.focus(); }
+
+            const spEl = document.getElementById('new-pet-species');
+            if (spEl && pet.species) {
+                spEl.value = pet.species;
+                if (typeof filterPetBreedOptions === 'function') filterPetBreedOptions(pet.species);
+            }
+
+            const ensureSelectValue = (selId, val) => {
+                const sel = document.getElementById(selId);
+                if (!sel || !val) return;
+                if (![...sel.options].some(o => o.value === val)) {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = val;
+                    sel.appendChild(opt);
+                }
+                sel.value = val;
+            };
+            ensureSelectValue('new-pet-breed', pet.breed || '');
+            ensureSelectValue('new-pet-color', pet.color || '');
+
+            if (document.getElementById('new-pet-weight')) {
+                document.getElementById('new-pet-weight').value = pet.weight ? String(pet.weight) : '';
+            }
+            if (document.getElementById('new-pet-note')) {
+                document.getElementById('new-pet-note').value = pet.note || '';
+            }
+        }
+        window.startEditPet = startEditPet;
+
         function openCustomerPetsModal(customerId, customerName) {
             currentPetCustomerId = customerId;
             const modal = document.getElementById('modal-customer-pets');
+            const custNameEl = document.getElementById('pet-modal-cust-name');
+            if (custNameEl) custNameEl.textContent = customerName || '';
             const titleEl = document.getElementById('modal-pets-title');
             if (titleEl) titleEl.textContent = `🐾 Hồ Sơ Thú Cưng: ${customerName}`;
+            resetPetForm();
             if (modal) modal.classList.remove('hidden');
             loadCustomerPets(customerId);
         }
@@ -142,6 +206,7 @@
         function closeCustomerPetsModal() {
             const modal = document.getElementById('modal-customer-pets');
             if (modal) modal.classList.add('hidden');
+            resetPetForm();
             currentPetCustomerId = null;
         }
 
@@ -152,21 +217,23 @@
                 tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-400">Đang tải danh sách thú cưng...</td></tr>';
                 const res = await fetch(`/api/contacts/${customerId}/pets`);
                 const pets = await res.json();
+                currentCustomerPetsCache = pets || [];
                 if (pets.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-gray-400">Khách hàng này chưa có thú cưng nào. Hãy thêm bé mới bên dưới!</td></tr>';
                     return;
                 }
                 tbody.innerHTML = pets.map((p, idx) => `
                     <tr class="border-b hover:bg-slate-50 transition text-xs">
-                        <td class="p-2 text-center text-gray-500">${idx + 1}</td>
-                        <td class="p-2 font-bold text-slate-800">${p.name}</td>
-                        <td class="p-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.species === 'Mèo' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}">${p.species || 'Chó'}</span></td>
-                        <td class="p-2 text-gray-700">${p.breed || '-'}</td>
-                        <td class="p-2 text-gray-600">${p.color || '-'}</td>
-                        <td class="p-2 text-center font-bold text-purple-700">${p.weight ? p.weight + ' kg' : '-'}</td>
-                        <td class="p-2 text-gray-500 max-w-xs truncate">${p.note || '-'}</td>
-                        <td class="p-2 text-center">
-                            <button onclick="deletePet(${p.id})" class="text-rose-600 hover:text-rose-800 px-2 py-1 rounded border border-rose-200 text-[10px] font-bold">🗑️ Xóa</button>
+                        <td class="p-2.5 text-center text-gray-500">${idx + 1}</td>
+                        <td class="p-2.5 font-bold text-slate-800">${p.name}</td>
+                        <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded text-xs font-bold ${p.species === 'Mèo' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}">${p.species || 'Chó'}</span></td>
+                        <td class="p-2.5 text-gray-700">${p.breed || '-'}</td>
+                        <td class="p-2.5 text-gray-600">${p.color || '-'}</td>
+                        <td class="p-2.5 text-center font-bold text-sky-700">${p.weight ? p.weight + ' kg' : '-'}</td>
+                        <td class="p-2.5 text-gray-500 max-w-xs truncate" title="${(p.note || '').replace(/"/g, '&quot;')}">${p.note || '-'}</td>
+                        <td class="p-2.5 text-center whitespace-nowrap space-x-1">
+                            <button onclick="startEditPet(${p.id})" class="text-sky-600 hover:text-sky-800 px-2 py-1 rounded border border-sky-200 bg-sky-50/50 text-xs font-bold">✏️ Sửa</button>
+                            <button onclick="deletePet(${p.id})" class="text-rose-600 hover:text-rose-800 px-2 py-1 rounded border border-rose-200 text-xs font-bold">🗑️ Xóa</button>
                         </td>
                     </tr>
                 `).join('');
@@ -181,6 +248,7 @@
                 alert('Chưa chọn khách hàng!');
                 return;
             }
+            const editingPetId = document.getElementById('editing-pet-id')?.value.trim();
             const name = document.getElementById('new-pet-name')?.value.trim();
             const species = document.getElementById('new-pet-species')?.value;
             const breed = document.getElementById('new-pet-breed')?.value.trim();
@@ -195,23 +263,19 @@
             }
 
             try {
-                const res = await fetch(`/api/contacts/${currentPetCustomerId}/pets`, {
-                    method: 'POST',
+                const url = editingPetId ? `/api/pets/${editingPetId}` : `/api/contacts/${currentPetCustomerId}/pets`;
+                const method = editingPetId ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, species, breed, color, weight, note })
                 });
                 if (!res.ok) {
                     const err = await res.json();
-                    alert('Lỗi thêm bé: ' + (err.detail || 'Không thể thêm'));
+                    alert('Lỗi lưu hồ sơ bé: ' + (err.detail || 'Không thể lưu'));
                     return;
                 }
-                // Reset inputs
-                if (document.getElementById('new-pet-name')) document.getElementById('new-pet-name').value = '';
-                if (document.getElementById('new-pet-breed')) document.getElementById('new-pet-breed').value = '';
-                if (document.getElementById('new-pet-color')) document.getElementById('new-pet-color').value = '';
-                if (document.getElementById('new-pet-weight')) document.getElementById('new-pet-weight').value = '';
-                if (document.getElementById('new-pet-note')) document.getElementById('new-pet-note').value = '';
-
+                resetPetForm();
                 await loadCustomerPets(currentPetCustomerId);
                 await loadContacts(); // Refresh pet count badge
                 if (typeof loadAllPetsList === 'function') loadAllPetsList();
@@ -338,17 +402,17 @@
                     <td class="p-2.5 text-center text-gray-500">${idx + 1}</td>
                     <td class="p-2.5 font-bold text-slate-800 text-sm">${p.name}</td>
                     <td class="p-2.5 text-center">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.species === 'Mèo' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}">${p.species || 'Chó'}</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${p.species === 'Mèo' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}">${p.species || 'Chó'}</span>
                     </td>
                     <td class="p-2.5 text-gray-700">${p.breed || '-'}</td>
                     <td class="p-2.5 text-gray-600">${p.color || '-'}</td>
-                    <td class="p-2.5 text-center font-bold text-purple-700 font-mono">${p.weight ? p.weight + ' kg' : '-'}</td>
+                    <td class="p-2.5 text-center font-bold text-sky-700 font-mono">${p.weight ? p.weight + ' kg' : '-'}</td>
                     <td class="p-2.5 font-bold text-sky-700">${p.customer_name || '-'}</td>
                     <td class="p-2.5 font-mono text-gray-600">${formatMaskedPhone(p.customer_phone)}</td>
                     <td class="p-2.5 text-gray-500 max-w-xs truncate">${p.note || '-'}</td>
                     <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                        <button onclick="openCustomerPetsModal(${p.customer_id}, '${escapeJs(p.customer_name || '')}')" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded border border-sky-200 text-[10px] font-bold">🐾 Chi tiết</button>
-                        <button onclick="deletePet(${p.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded border border-rose-200 text-[10px] font-bold">🗑️</button>
+                        <button onclick="openCustomerPetsModal(${p.customer_id}, '${escapeJs(p.customer_name || '')}')" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded border border-sky-200 text-xs font-bold">🐾 Chi tiết</button>
+                        <button onclick="deletePet(${p.id})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded border border-rose-200 text-xs font-bold">🗑️</button>
                     </td>
                 </tr>
             `).join('');
@@ -374,9 +438,9 @@
         var selectedSpaTicketIds = new Set();
 
         function formatPhoneBadge(phone) {
-            if (!phone) return '<span class="text-slate-400 italic text-[11px] whitespace-nowrap">Chưa có SĐT</span>';
+            if (!phone) return '<span class="text-slate-400  text-xs whitespace-nowrap">Chưa có SĐT</span>';
             const clean = String(phone).replace(/\s+/g, '').trim();
-            if (!clean) return '<span class="text-slate-400 italic text-[11px] whitespace-nowrap">Chưa có SĐT</span>';
+            if (!clean) return '<span class="text-slate-400  text-xs whitespace-nowrap">Chưa có SĐT</span>';
 
             let formatted = clean;
             let masked = clean;
@@ -391,11 +455,11 @@
             }
 
             return `
-                <div class="inline-flex items-center px-2 py-0.5 mt-0.5 bg-purple-50/90 hover:bg-purple-100 border border-purple-200/80 rounded-md transition shadow-2xs cursor-pointer select-none group/phone whitespace-nowrap"
+                <div class="inline-flex items-center px-2 py-0.5 mt-0.5 bg-sky-50/90 hover:bg-sky-100 border border-sky-200/80 rounded-md transition shadow-2xs cursor-pointer select-none group/phone whitespace-nowrap"
                      title="Rê chuột để xem số thật • Bấm để sao chép: ${clean}"
                      onclick="event.stopPropagation(); if(navigator.clipboard){navigator.clipboard.writeText('${clean}');if(window.showToast)showToast('Đã sao chép SĐT: ${clean}');}">
-                    <span class="font-mono text-sm font-black text-purple-950 tracking-wide inline group-hover/phone:hidden whitespace-nowrap">${masked}</span>
-                    <span class="font-mono text-sm font-black text-purple-700 tracking-wide hidden group-hover/phone:inline whitespace-nowrap">${formatted}</span>
+                    <span class="font-mono text-sm font-bold text-sky-950 tracking-wide inline group-hover/phone:hidden whitespace-nowrap">${masked}</span>
+                    <span class="font-mono text-sm font-bold text-sky-700 tracking-wide hidden group-hover/phone:inline whitespace-nowrap">${formatted}</span>
                 </div>
             `.trim();
         }
@@ -432,32 +496,17 @@
         var currentSpaView = 'table';
 
         function switchSpaView(view) {
-            currentSpaView = (view === 'kanban') ? 'kanban' : 'table';
-            ['table', 'kanban'].forEach(v => {
-                const elView = document.getElementById('spa-view-' + v);
-                const btn = document.getElementById('btn-spa-view-' + v);
-                if (elView) {
-                    if (v === currentSpaView) {
-                        elView.classList.remove('hidden');
-                    } else {
-                        elView.classList.add('hidden');
-                    }
-                }
-                if (btn) {
-                    if (v === currentSpaView) {
-                        btn.className = `px-3 py-1.5 font-bold bg-purple-700 text-white ${v === 'table' ? 'rounded-l-lg' : 'rounded-r-lg'}`;
-                    } else {
-                        btn.className = `px-3 py-1.5 font-bold text-slate-600 hover:bg-purple-50 ${v === 'table' ? 'rounded-l-lg' : 'border-l rounded-r-lg'}`;
-                    }
-                }
-            });
+            currentSpaView = 'table';
+            const elTable = document.getElementById('spa-view-table');
+            if (elTable) elTable.classList.remove('hidden');
+            const elKanban = document.getElementById('spa-view-kanban');
+            if (elKanban) elKanban.classList.add('hidden');
             renderActiveSpaView();
         }
 
         function renderActiveSpaView() {
             renderSpaDateStrip();
             renderPetServicesTable();
-            renderKanbanBoard();
             if (document.getElementById('spa-invoices-table-body') && Array.isArray(allSpaInvoicesData) && allSpaInvoicesData.length > 0) {
                 if (typeof filterSpaInvoicesList === 'function') filterSpaInvoicesList();
             }
@@ -469,7 +518,7 @@
             ['all','pending','in_progress','completed','checked_out'].forEach(s => {
                 const btn = document.getElementById('btn-svc-filter-' + s);
                 if (btn) btn.className = s === status
-                    ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-purple-700 text-white shadow'
+                    ? 'px-3 py-1.5 text-xs font-bold rounded-md bg-sky-700 text-white shadow'
                     : 'px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-700 border hover:bg-gray-50';
             });
         }
@@ -497,7 +546,7 @@
             const btnUnreturned = document.getElementById('btn-spa-filter-daily-unreturned');
             const btnReturned = document.getElementById('btn-spa-filter-daily-returned');
 
-            const activeBtn = 'px-3 py-1.5 font-bold rounded-md bg-purple-700 text-white shadow-xs transition';
+            const activeBtn = 'px-3 py-1.5 font-bold rounded-md bg-sky-700 text-white shadow-xs transition';
             const inactiveBtn = 'px-3 py-1.5 font-medium text-slate-600 hover:text-slate-900 rounded-md transition';
 
             if (btnAll) btnAll.className = (type === 'all' ? activeBtn : inactiveBtn);
@@ -547,15 +596,15 @@
                 const dayLabel = isToday ? 'Hôm nay' : dayNames[d.getDay()];
                 const count = countsByDate[dateStr] || 0;
 
-                const activeClass = 'bg-purple-700 text-white font-bold border-purple-700 shadow-sm ring-2 ring-purple-300';
-                const inactiveClass = 'bg-white text-slate-700 font-medium border-slate-200 hover:bg-purple-50 hover:border-purple-300';
+                const activeClass = 'bg-sky-700 text-white font-bold border-sky-700 shadow-sm ring-2 ring-sky-300';
+                const inactiveClass = 'bg-white text-slate-700 font-medium border-slate-200 hover:bg-sky-50 hover:border-sky-300';
 
                 html += `
                     <button type="button" onclick="selectSpaStripDate('${dateStr}')" ${(!canPick && !isToday) ? 'disabled' : ''}
                         class="px-2.5 py-1 rounded-lg border text-xs transition flex flex-col items-center min-w-[56px] select-none ${isSelected ? activeClass : inactiveClass} ${(!canPick && !isToday) ? 'opacity-40 cursor-not-allowed' : ''}">
-                        <span class="text-[9px] ${isSelected ? 'text-purple-200' : 'text-slate-400'} uppercase font-extrabold">${dayLabel}</span>
-                        <span class="font-black text-xs my-0.5">${dd}/${mm}</span>
-                        <span class="text-[9px] ${isSelected ? 'bg-purple-900/60 text-amber-300' : (count > 0 ? 'bg-purple-100 text-purple-800' : 'text-slate-300')} px-1 rounded font-bold">
+                        <span class="text-xs ${isSelected ? 'text-sky-200' : 'text-slate-400'} uppercase font-bold">${dayLabel}</span>
+                        <span class="font-bold text-xs my-0.5">${dd}/${mm}</span>
+                        <span class="text-xs ${isSelected ? 'bg-sky-900/60 text-amber-300' : (count > 0 ? 'bg-sky-100 text-sky-800' : 'text-slate-300')} px-1 rounded font-bold">
                             ${count > 0 ? `${count} ca` : '-'}
                         </span>
                     </button>
@@ -578,12 +627,12 @@
             const inputCustom = document.getElementById('input-spa-date-custom');
             if (btnToday) {
                 btnToday.className = (mode === 'today') 
-                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-purple-700 text-white shadow'
+                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-sky-700 text-white shadow'
                     : 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-white text-slate-700 hover:bg-gray-50';
             }
             if (btnAll) {
                 btnAll.className = (mode === 'all')
-                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-purple-700 shadow border-r border-purple-700'
+                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-sky-700 shadow border-r border-sky-700'
                     : 'px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-gray-50 border-r border-slate-200';
             }
             if (inputCustom && mode !== 'today' && mode !== 'all') {
@@ -652,10 +701,10 @@
             if (s === 'pending') colorClass = 'bg-amber-50 text-amber-800 border-amber-300';
             if (s === 'in_progress') colorClass = 'bg-sky-50 text-sky-800 border-sky-300';
             if (s === 'completed') colorClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
-            if (s === 'checked_out') colorClass = 'bg-purple-50 text-purple-800 border-purple-300';
+            if (s === 'checked_out') colorClass = 'bg-sky-50 text-sky-800 border-sky-300';
 
             return `
-                <select onchange="updateServiceStatus(${t.id}, this.value, this)" class="text-[11px] font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
+                <select onchange="updateServiceStatus(${t.id}, this.value, this)" class="text-xs font-bold py-1 px-1.5 rounded border ${colorClass} outline-none cursor-pointer">
                     <option value="pending" ${s === 'pending' ? 'selected' : ''}>⏳ Chờ</option>
                     <option value="in_progress" ${s === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
                     <option value="completed" ${s === 'completed' ? 'selected' : ''}>✅ Xong</option>
@@ -673,7 +722,7 @@
             if (cs === 'Hẹn giờ đón') csClass = 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
 
             return `
-                <select onchange="updateServiceCallStatus(${t.id}, this.value, this)" class="text-[10px] py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
+                <select onchange="updateServiceCallStatus(${t.id}, this.value, this)" class="text-xs py-0.5 px-1 rounded border ${csClass} outline-none cursor-pointer">
                     <option value="Chưa gọi" ${cs === 'Chưa gọi' ? 'selected' : ''}>📞 Chưa gọi</option>
                     <option value="Đã gọi đón" ${cs === 'Đã gọi đón' ? 'selected' : ''}>✅ Đã gọi đón</option>
                     <option value="Không nghe máy" ${cs === 'Không nghe máy' ? 'selected' : ''}>❌ Không nghe</option>
@@ -1085,7 +1134,7 @@
 
             const items = Array.from(compactBulkStateMap.values());
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 italic">Không có phiếu dịch vụ nào để cập nhật</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400 ">Không có phiếu dịch vụ nào để cập nhật</td></tr>';
                 updateCompactBulkCounts();
                 return;
             }
@@ -1137,41 +1186,41 @@
                 return `
                     <tr class="border-b transition ${rowBg}">
                         <td class="p-2.5 text-center">
-                            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="onCompactBulkCheckboxToggle(${item.id}, this.checked)" class="compact-bulk-row-cb rounded text-purple-600 cursor-pointer">
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="onCompactBulkCheckboxToggle(${item.id}, this.checked)" class="compact-bulk-row-cb rounded text-sky-600 cursor-pointer">
                         </td>
                         <td class="p-2.5 text-center font-mono">
-                            <div class="font-extrabold text-purple-700">#${t.ticket_number || t.id}</div>
-                            <div class="text-[10px] text-slate-500">${t.code || ''}</div>
+                            <div class="font-bold text-sky-700">#${t.ticket_number || t.id}</div>
+                            <div class="text-xs text-slate-500">${t.code || ''}</div>
                         </td>
                         <td class="p-2.5">
                             <div class="font-bold text-slate-800">${escapeSpaHtml(t.customer_name || 'Khách lẻ')}</div>
                             <div>${formatPhoneBadge(t.customer_phone)}</div>
                         </td>
                         <td class="p-2.5">
-                            <div class="font-bold text-pink-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
-                            <div class="text-[11px] text-slate-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
+                            <div class="font-bold text-sky-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
+                            <div class="text-xs text-slate-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
                         </td>
                         <td class="p-2.5">
                             <div class="font-bold text-slate-800">${escapeSpaHtml(t.service_type || '-')}</div>
-                            ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-medium">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                            ${t.dye_package ? `<div class="text-xs text-sky-700 font-medium">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
                         </td>
                         <td class="p-2.5">
-                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_cutter', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_cutter !== (t.staff_cutter || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_cutter', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_cutter !== (t.staff_cutter || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-sky-500">
                                 ${cutterOptions}
                             </select>
                         </td>
                         <td class="p-2.5">
-                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_1', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_1 !== (t.staff_worker_1 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_1', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_1 !== (t.staff_worker_1 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-sky-500">
                                 ${workerOptions}
                             </select>
                         </td>
                         <td class="p-2.5">
-                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_2', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_2 !== (t.staff_worker_2 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'staff_worker_2', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.staff_worker_2 !== (t.staff_worker_2 || '') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-sky-500">
                                 ${worker2Options}
                             </select>
                         </td>
                         <td class="p-2.5 text-center">
-                            <select onchange="onCompactBulkRowChange(${item.id}, 'status', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.status !== (t.status || 'pending') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-purple-500">
+                            <select onchange="onCompactBulkRowChange(${item.id}, 'status', this.value)" class="w-full text-xs font-semibold p-1.5 rounded-lg border ${item.isDirty && item.status !== (t.status || 'pending') ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold' : 'border-slate-200 bg-white text-slate-800'} outline-none focus:border-sky-500">
                                 ${statusOptions}
                             </select>
                         </td>
@@ -1725,13 +1774,13 @@
             tbody.innerHTML = pagedFiltered.map((t, idx) => {
                 const isDirty = spaSpreadsheetDirtyMap.has(t.id);
                 const isPaid = (t.payment_status === 'paid');
-                let rowClass = 'card-row card-row-anim transition text-[13px]';
+                let rowClass = 'card-row card-row-anim transition text-sm';
                 if (isDirty) {
                     rowClass += ' bg-amber-50/70 border-2 border-amber-400';
                 } else if (isPaid) {
-                    rowClass += ' bg-emerald-50/70 hover:bg-emerald-100/70 border-b border-emerald-200 border-l-4 border-l-emerald-500';
+                    rowClass += ' spa-paid-row bg-emerald-50/70 hover:bg-emerald-100/70 border-l-4 border-l-emerald-500 ';
                 } else {
-                    rowClass += ' border-b border-slate-200 hover:bg-purple-50/40';
+                    rowClass += ' border-b border-slate-200 hover:bg-sky-50/40';
                 }
 
                 if (isSpaSpreadsheetMode) {
@@ -1739,34 +1788,33 @@
                     return `
                     <tr class="${rowClass}" style="--row-idx: ${idx};">
                         <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
-                        <td class="p-2 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
+                        <td class="p-2 text-center font-mono font-bold text-sky-700 border-r border-slate-200 min-w-[130px]">
                             <div class="flex items-center justify-center gap-1">
-                                ${t.ticket_number ? `<span class="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                                ${t.ticket_number ? `<span class="bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded text-sm font-bold shadow-xs">#${t.ticket_number}</span>` : '-'}
                             </div>
-                            <div class="text-[10px] text-gray-400 font-mono my-1">${t.code || ''}</div>
+                            <div class="text-xs text-gray-400 font-mono my-1">${t.code || ''}</div>
                             <div class="flex flex-wrap items-center justify-center gap-1 pt-1 border-t border-slate-200">
-                                <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Chi tiết đầy đủ">✏️ Sửa</button>
-                                <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu nhận K80">🖨️</button>
-                                <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In hóa đơn K80">🧾</button>
-                                <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa">🗑️</button>
+                                <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In 2 phiếu: Phiếu nhận Spa + Số thứ tự dán chuồng">🖨️</button>
+                                <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In hóa đơn K80">🧾</button>
+                                <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-xs font-bold" title="Xóa">🗑️</button>
                             </div>
                         </td>
                         <!-- 2. Khách hàng & Gọi điện -->
                         <td class="p-2 whitespace-nowrap min-w-[150px]">
-                            <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-purple-700 hover:underline flex items-center gap-1 group transition" title="Bấm để xem nhanh hồ sơ khách, ví Spa & các bé cưng">
+                            <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-sky-700 hover:underline flex items-center gap-1 group transition" title="Bấm để xem nhanh hồ sơ khách, ví Spa & các bé cưng">
                                 <span>${t.customer_name || '-'}</span>
-                                <span class="text-[10px] text-purple-500 opacity-0 group-hover:opacity-100 transition">👁️</span>
+                                <span class="text-xs text-sky-500 opacity-0 group-hover:opacity-100 transition">👁️</span>
                             </button>
                             <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
                             <div class="mt-1">${callStatusSelector(t)}</div>
                         </td>
                         <!-- 3. Thú cưng (Editable Cân nặng & Hotel) -->
                         <td class="p-2">
-                            <div class="font-bold text-pink-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
-                            <div class="flex items-center gap-1 mt-1 text-[11px]">
+                            <div class="font-bold text-sky-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
+                            <div class="flex items-center gap-1 mt-1 text-xs">
                                 <span class="text-slate-400">Kg:</span>
-                                <input type="text" class="w-14 border-2 border-pink-200 p-0.5 rounded text-xs text-center font-bold text-pink-700 bg-white" value="${t.weight_at_service ? String(t.weight_at_service).replace('.', ',') : ''}" placeholder="Kg" oninput="onSpaSpreadsheetWeightChange(${t.id}, this)">
-                                <label class="inline-flex items-center gap-0.5 text-[10px] text-sky-800 font-bold ml-1 cursor-pointer" title="Spa xong gửi hotel">
+                                <input type="text" class="w-14 border-2 border-sky-200 p-0.5 rounded text-xs text-center font-bold text-sky-700 bg-white" value="${t.weight_at_service ? String(t.weight_at_service).replace('.', ',') : ''}" placeholder="Kg" oninput="onSpaSpreadsheetWeightChange(${t.id}, this)">
+                                <label class="inline-flex items-center gap-0.5 text-xs text-sky-800 font-bold ml-1 cursor-pointer" title="Spa xong gửi hotel">
                                     <input type="checkbox" ${t.send_to_hotel ? 'checked' : ''} onchange="markTicketDirty(${t.id}, 'send_to_hotel', this.checked ? 1 : 0, this)"> 🏨
                                 </label>
                             </div>
@@ -1774,7 +1822,7 @@
                         <!-- 5. Dịch vụ -->
                         <td class="p-2">
                             <div class="font-bold text-slate-800 text-xs">${t.service_type || '-'}</div>
-                            ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${t.dye_package}</div>` : ''}
+                            ${t.dye_package ? `<div class="text-xs text-sky-700 font-semibold">🎨 ${t.dye_package}</div>` : ''}
                         </td>
                         <!-- 6. Yêu cầu & Phụ kiện (Editable) -->
                         <td class="p-2 space-y-1">
@@ -1784,13 +1832,13 @@
                         </td>
                         <!-- 7. Thợ phụ trách (Editable) -->
                         <td class="p-2 space-y-1">
-                            <input type="text" class="w-full border p-1 rounded text-xs bg-white font-medium text-pink-700" value="${t.staff_cutter || ''}" placeholder="✂️ Thợ cắt..." oninput="markTicketDirty(${t.id}, 'staff_cutter', this.value, this)">
+                            <input type="text" class="w-full border p-1 rounded text-xs bg-white font-medium text-sky-700" value="${t.staff_cutter || ''}" placeholder="✂️ Thợ cắt..." oninput="markTicketDirty(${t.id}, 'staff_cutter', this.value, this)">
                             <input type="text" class="w-full border p-1 rounded text-xs bg-white font-medium text-sky-700" value="${t.staff_worker_1 || ''}" placeholder="🛁 Thợ tắm..." oninput="markTicketDirty(${t.id}, 'staff_worker_1', this.value, this)">
-                            <input type="text" class="w-full border p-1 rounded text-xs bg-white font-medium text-purple-700" value="${t.staff_receiver || ''}" placeholder="📥 Thợ nhận..." oninput="markTicketDirty(${t.id}, 'staff_receiver', this.value, this)">
+                            <input type="text" class="w-full border p-1 rounded text-xs bg-white font-medium text-sky-700" value="${t.staff_receiver || ''}" placeholder="📥 Thợ nhận..." oninput="markTicketDirty(${t.id}, 'staff_receiver', this.value, this)">
                         </td>
                         <!-- 8. Trạng thái làm (Editable) -->
-                        <td class="p-2 text-center border-r-2 border-purple-300">
-                            <select class="w-full border p-1 rounded text-xs font-bold ${t.status === 'completed' ? 'text-emerald-700 bg-emerald-50' : (t.status === 'in_progress' ? 'text-purple-700 bg-purple-50' : 'text-slate-700 bg-white')}" onchange="markTicketDirty(${t.id}, 'status', this.value, this)">
+                        <td class="p-2 text-center border-r-2 border-sky-300">
+                            <select class="w-full border p-1 rounded text-xs font-bold ${t.status === 'completed' ? 'text-emerald-700 bg-emerald-50' : (t.status === 'in_progress' ? 'text-sky-700 bg-sky-50' : 'text-slate-700 bg-white')}" onchange="markTicketDirty(${t.id}, 'status', this.value, this)">
                                 <option value="pending" ${t.status === 'pending' ? 'selected' : ''}>⏳ Chờ làm</option>
                                 <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>🔄 Đang làm</option>
                                 <option value="completed" ${t.status === 'completed' ? 'selected' : ''}>✅ Đã xong</option>
@@ -1799,41 +1847,41 @@
                         </td>
                         <!-- 9. Phụ thu chi tiết (Editable qua Checkbox + Nhập tiền) -->
                         <td class="p-2 text-right space-y-1">
-                            <div class="flex items-center justify-end gap-1 text-[11px]">
+                            <div class="flex items-center justify-end gap-1 text-xs">
                                 <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-600">
-                                    <input type="checkbox" ${t.teeth_cleaning > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'teeth_cleaning', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('teeth').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-purple-600 rounded">
+                                    <input type="checkbox" ${t.teeth_cleaning > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'teeth_cleaning', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('teeth').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-sky-600 rounded">
                                     <span>Răng:</span>
                                 </label>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono" value="${t.teeth_cleaning ? t.teeth_cleaning.toLocaleString('vi-VN') : ''}" placeholder="0" oninput="onMoneyInputChange(this); onSpaSpreadsheetDetailFeeChange(${t.id}, 'teeth_cleaning', this)">
                             </div>
-                            <div class="flex items-center justify-end gap-1 text-[11px]">
+                            <div class="flex items-center justify-end gap-1 text-xs">
                                 <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-600">
-                                    <input type="checkbox" ${t.art_cutting_fee > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'art_cutting_fee', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('art').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-purple-600 rounded">
+                                    <input type="checkbox" ${t.art_cutting_fee > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'art_cutting_fee', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('art').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-sky-600 rounded">
                                     <span>Cắt NT:</span>
                                 </label>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono" value="${t.art_cutting_fee ? t.art_cutting_fee.toLocaleString('vi-VN') : ''}" placeholder="0" oninput="onMoneyInputChange(this); onSpaSpreadsheetDetailFeeChange(${t.id}, 'art_cutting_fee', this)">
                             </div>
-                            <div class="flex items-center justify-end gap-1 text-[11px]">
+                            <div class="flex items-center justify-end gap-1 text-xs">
                                 <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-600">
-                                    <input type="checkbox" ${t.surcharge > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'surcharge', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('surch').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-purple-600 rounded">
+                                    <input type="checkbox" ${t.surcharge > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'surcharge', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('surch').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-sky-600 rounded">
                                     <span>Gỡ rối:</span>
                                 </label>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono font-bold" value="${t.surcharge ? t.surcharge.toLocaleString('vi-VN') : ''}" placeholder="0" oninput="onMoneyInputChange(this); onSpaSpreadsheetDetailFeeChange(${t.id}, 'surcharge', this)">
                             </div>
-                            <div class="flex items-center justify-end gap-1 text-[11px]">
+                            <div class="flex items-center justify-end gap-1 text-xs">
                                 <label class="inline-flex items-center gap-1 cursor-pointer select-none text-slate-600">
-                                    <input type="checkbox" ${t.shipping_fee > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'shipping_fee', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('ship').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-purple-600 rounded">
+                                    <input type="checkbox" ${t.shipping_fee > 0 ? 'checked' : ''} onchange="toggleSpaSpreadsheetCheckboxFee(${t.id}, 'shipping_fee', this.checked); this.parentElement.nextElementSibling.value = this.checked ? getSvcSurchargePrice('ship').toLocaleString('vi-VN') : '';" class="w-3 h-3 text-sky-600 rounded">
                                     <span>Ship:</span>
                                 </label>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono" value="${t.shipping_fee ? t.shipping_fee.toLocaleString('vi-VN') : ''}" placeholder="0" oninput="onMoneyInputChange(this); onSpaSpreadsheetDetailFeeChange(${t.id}, 'shipping_fee', this)">
                             </div>
-                            <div class="flex items-center justify-end gap-1 text-[11px]">
+                            <div class="flex items-center justify-end gap-1 text-xs">
                                 <span class="text-emerald-700 font-bold">Tip:</span>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-right font-mono font-bold text-emerald-700" value="${t.tip_amount ? t.tip_amount.toLocaleString('vi-VN') : ''}" placeholder="0" oninput="onMoneyInputChange(this); onSpaSpreadsheetDetailFeeChange(${t.id}, 'tip_amount', this)">
                             </div>
                         </td>
                         <!-- 10. Tổng tiền -->
-                        <td class="p-2 text-right font-mono font-black text-sky-700 text-sm">
+                        <td class="p-2 text-right font-mono font-bold text-sky-700 text-sm">
                             <span id="spreadsheet-row-total-${t.id}">${formatMoney(t.price || 0)}</span>
                         </td>
                         <!-- 11. Thanh toán (Editable) -->
@@ -1846,11 +1894,11 @@
                         <!-- 12. Đưa đón & Giờ Hẹn (Editable) -->
                         <td class="p-2 text-center text-xs space-y-1">
                             <div class="flex items-center justify-center gap-1">
-                                <span class="text-purple-700 font-bold text-[10px]">Đến:</span>
+                                <span class="text-sky-700 font-bold text-xs">Đến:</span>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-center font-mono" value="${t.received_time || ''}" placeholder="Giờ đến" oninput="markTicketDirty(${t.id}, 'received_time', this.value, this)">
                             </div>
                             <div class="flex items-center justify-center gap-1">
-                                <span class="text-emerald-700 font-bold text-[10px]">Về:</span>
+                                <span class="text-emerald-700 font-bold text-xs">Về:</span>
                                 <input type="text" class="w-14 border p-0.5 rounded text-xs text-center font-mono" value="${t.checkout_time || ''}" placeholder="Giờ về" oninput="markTicketDirty(${t.id}, 'checkout_time', this.value, this)">
                             </div>
                         </td>
@@ -1861,11 +1909,11 @@
                 // CHẾ ĐỘ XEM BÌNH THƯỜNG
                 // Thợ làm
                 let staffDisplay = [];
-                if (t.staff_receiver) staffDisplay.push(`<span class="text-purple-700 font-bold" title="Nhận">📥 ${t.staff_receiver}</span>`);
-                if (t.staff_cutter) staffDisplay.push(`<span class="text-pink-700 font-bold" title="Cắt">✂️ ${t.staff_cutter}</span>`);
+                if (t.staff_receiver) staffDisplay.push(`<span class="text-sky-700 font-bold" title="Nhận">📥 ${t.staff_receiver}</span>`);
+                if (t.staff_cutter) staffDisplay.push(`<span class="text-sky-700 font-bold" title="Cắt">✂️ ${t.staff_cutter}</span>`);
                 if (t.staff_worker_1) staffDisplay.push(`<span class="text-sky-700" title="Tắm/Làm 1">🛁 ${t.staff_worker_1}</span>`);
                 if (t.staff_dyer) staffDisplay.push(`<span class="text-amber-700" title="Nhuộm">🎨 ${t.staff_dyer}</span>`);
-                const staffHtml = staffDisplay.length > 0 ? staffDisplay.join('<br>') : '<span class="text-gray-400 italic">Chưa phân công</span>';
+                const staffHtml = staffDisplay.length > 0 ? staffDisplay.join('<br>') : '<span class="text-gray-400 ">Chưa phân công</span>';
 
                 // Phụ thu
                 let extraFees = [];
@@ -1875,36 +1923,35 @@
                 if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
                 if (t.tip_amount) extraFees.push(`<span class="text-emerald-700 font-bold">🎁 Tip: ${formatMoney(t.tip_amount)}</span>`);
                 if (t.deposit_amount) extraFees.push(`<span class="text-sky-700 font-bold">💳 Đã cọc: ${formatMoney(t.deposit_amount)}</span>`);
-                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
+                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-xs text-amber-800 font-semibold space-y-0.5">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 const isCheckedOut = (t.status === 'checked_out');
                 if (isPaid) {
-                    rowClass = 'card-row card-row-anim text-[13px] transition bg-emerald-50/70 hover:bg-emerald-100/70 border-l-4 border-l-emerald-500';
+                    rowClass = 'card-row card-row-anim spa-paid-row text-sm transition bg-emerald-50/70 hover:bg-emerald-100/70 border-l-4 border-l-emerald-500';
                 } else if (isCheckedOut) {
-                    rowClass = 'card-row card-row-anim text-[13px] bg-emerald-50/30 hover:bg-emerald-50/60 border-l-4 border-l-emerald-400';
+                    rowClass = 'card-row card-row-anim text-sm bg-emerald-50/30 hover:bg-emerald-50/60 ';
                 } else {
-                    rowClass = 'card-row card-row-anim text-[13px] hover:bg-purple-50/40';
+                    rowClass = 'card-row card-row-anim text-sm hover:bg-sky-50/40';
                 }
 
                 return `
                 <tr class="${rowClass}" style="--row-idx: ${idx};">
                     <!-- 1. STT / Mã & Thao Tác Trực Tiếp -->
-                    <td class="p-2.5 text-center font-mono font-bold text-purple-700 border-r border-slate-200 min-w-[130px]">
+                    <td class="p-2.5 text-center font-mono font-bold text-sky-700 border-r border-slate-200 min-w-[130px]">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
-                            <input type="checkbox" class="spa-row-select w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer" value="${t.id}" onchange="onSpaRowCheckboxChange(this, ${t.id})" ${selectedSpaTicketIds && selectedSpaTicketIds.has(t.id) ? 'checked' : ''} title="Chọn phiếu #${t.ticket_number || t.id}">
-                            ${t.ticket_number ? `<span class="${isCheckedOut ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-purple-100 text-purple-900 border-purple-300'} border px-2 py-0.5 rounded text-sm font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                            <input type="checkbox" class="spa-row-select w-3.5 h-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer" value="${t.id}" onchange="onSpaRowCheckboxChange(this, ${t.id})" ${selectedSpaTicketIds && selectedSpaTicketIds.has(t.id) ? 'checked' : ''} title="Chọn phiếu #${t.ticket_number || t.id}">
+                            ${t.ticket_number ? `<span class="${isCheckedOut ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-sky-100 text-sky-900 border-sky-300'} border px-2 py-0.5 rounded text-sm font-bold shadow-xs">#${t.ticket_number}</span>` : '-'}
                         </div>
-                        <div class="text-[10px] text-gray-400 font-mono my-1">${t.code || ''}</div>
+                        <div class="text-xs text-gray-400 font-mono my-1">${t.code || ''}</div>
                         <!-- Cụm nút thao tác trực tiếp dưới số phiếu -->
                         <div class="flex flex-wrap items-center justify-center gap-1 pt-1 border-t border-slate-200">
-                            <button onclick="openServiceProgressModal(${t.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Cập nhật thợ làm, phụ thu & trả bé">✏️ Sửa</button>
-                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-purple-600 hover:bg-purple-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tiếp nhận (2 chữ ký)">🖨️</button>
-                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In hóa đơn thanh toán K80 (Tách Dịch Vụ, Cọc, Tip)">🧾</button>
-                            ${!isCheckedOut ? `<button onclick="openSpaCheckoutModal(${t.id})" class="bg-emerald-700 hover:bg-emerald-800 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Thu tiền & trả bé">💰 Trả bé</button>` : ''}
-                            ${isCheckedOut ? `<button onclick="reopenCheckedOutTicket(${t.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1 py-0.5 rounded text-[10px] font-bold shadow-xs" title="Hoàn tác về chờ đón">↩️</button>` : ''}
-                            ${t.tip_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'tip_slip')" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In phiếu tip riêng cho thợ">🎁</button>` : ''}
-                            ${t.deposit_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'deposit_slip')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shadow-xs" title="In biên nhận cọc">💳</button>` : ''}
-                            <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-[10px] font-bold" title="Xóa phiếu">🗑️</button>
+                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In 2 phiếu: Phiếu tiếp nhận Spa + Số thứ tự dán chuồng">🖨️</button>
+                            <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In hóa đơn thanh toán K80 (Tách Dịch Vụ, Cọc, Tip)">🧾</button>
+                            ${!isCheckedOut ? `<button onclick="openSpaCheckoutModal(${t.id})" class="bg-emerald-700 hover:bg-emerald-800 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="Thu tiền & trả bé">💰 Trả bé</button>` : ''}
+                            ${isCheckedOut ? `<button onclick="reopenCheckedOutTicket(${t.id})" class="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-1 py-0.5 rounded text-xs font-bold shadow-xs" title="Hoàn tác về chờ đón">↩️</button>` : ''}
+                            ${t.tip_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'tip_slip')" class="bg-amber-500 hover:bg-amber-600 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In phiếu tip riêng cho thợ">🎁</button>` : ''}
+                            ${t.deposit_amount > 0 ? `<button onclick="printPetServiceTicketDirectly(${t.id}, 'deposit_slip')" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-xs font-bold shadow-xs" title="In biên nhận cọc">💳</button>` : ''}
+                            <button onclick="deletePetService(${t.id})" class="text-rose-600 hover:text-rose-800 px-1 py-0.5 border border-rose-200 rounded text-xs font-bold" title="Xóa phiếu">🗑️</button>
                         </div>
                     </td>
                     <!-- 2. Khách hàng & Gọi điện -->
@@ -1915,83 +1962,83 @@
                     </td>
                     <!-- 3. Thú cưng -->
                     <td class="p-3">
-                        <div class="font-bold text-pink-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
-                        <div class="text-[11px] text-gray-600 flex items-center gap-1.5 mt-0.5">
+                        <div class="font-bold text-sky-700">🐾 ${t.pet_name || 'Bé cưng'} <span class="text-xs font-medium text-slate-600">(${t.pet_breed || t.pet_species || 'Cún'})</span></div>
+                        <div class="text-xs text-gray-600 flex items-center gap-1.5 mt-0.5">
                             <span>${t.pet_color || '-'}${t.pet_gender ? ' / ' + t.pet_gender : ''}</span>
-                            ${t.weight_at_service ? `<span class="bg-pink-100 text-pink-800 font-bold px-1.5 py-0.2 rounded text-[11px]">${String(t.weight_at_service).replace('.', ',')} kg</span>` : ''}
-                            ${t.send_to_hotel ? `<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded text-[11px]" title="Spa xong gửi hotel">🏨</span>` : ''}
+                            ${t.weight_at_service ? `<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded text-xs">${String(t.weight_at_service).replace('.', ',')} kg</span>` : ''}
+                            ${t.send_to_hotel ? `<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.2 rounded text-xs" title="Spa xong gửi hotel">🏨</span>` : ''}
                         </div>
                     </td>
                     <!-- 5. Dịch vụ -->
-                    <td class="p-3 cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'service')" title="Bấm để chọn hoặc đổi gói dịch vụ">
+                    <td class="p-3 cursor-pointer hover:bg-sky-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'service')" title="Bấm để chọn hoặc đổi gói dịch vụ">
                         <div class="flex items-center justify-between gap-1">
                             <div>
                                 ${t.original_service_type && t.original_service_type !== t.service_type ? `
-                                    <div class="text-[11px] text-slate-400 line-through decoration-rose-500 font-medium">
+                                    <div class="text-xs text-slate-400 line-through decoration-rose-500 font-medium">
                                         ${escapeSpaHtml(t.original_service_type)} ${t.original_price ? `(${formatMoney(t.original_price)})` : ''}
                                     </div>
                                     <div class="flex items-center gap-1">
                                         <span class="text-xs text-rose-600 font-bold">👉</span>
-                                        <span class="font-extrabold text-purple-900 group-hover:text-purple-700 transition">${escapeSpaHtml(t.service_type || '-')}</span>
+                                        <span class="font-bold text-sky-900 group-hover:text-sky-700 transition">${escapeSpaHtml(t.service_type || '-')}</span>
                                     </div>
-                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black mt-0.5" title="${escapeSpaHtml(t.service_change_reason || 'Đổi dịch vụ')}">
+                                    <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold mt-0.5" title="${escapeSpaHtml(t.service_change_reason || 'Đổi dịch vụ')}">
                                         <span>🔄 Đổi DV:</span>
                                         <span class="truncate max-w-[120px]">${escapeSpaHtml(t.service_change_reason || 'Theo hiện trạng')}</span>
                                     </div>
                                 ` : `
-                                    <div class="font-bold text-slate-800 group-hover:text-purple-700 transition">${escapeSpaHtml(t.service_type || '-')}</div>
+                                    <div class="font-bold text-slate-800 group-hover:text-sky-700 transition">${escapeSpaHtml(t.service_type || '-')}</div>
                                 `}
-                                ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                                ${t.dye_package ? `<div class="text-xs text-sky-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
                             </div>
-                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                            <span class="text-slate-300 group-hover:text-sky-600 text-xs font-bold">▾</span>
                         </div>
                     </td>
                     <!-- 6. Lưu ý & Yêu cầu -->
-                    <td class="p-3 text-xs text-gray-700 max-w-xs cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'request')" title="Bấm để sửa nhanh yêu cầu & phụ kiện">
+                    <td class="p-3 text-xs text-gray-700 max-w-xs cursor-pointer hover:bg-sky-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'request')" title="Bấm để sửa nhanh yêu cầu & phụ kiện">
                         <div class="flex items-start justify-between gap-1">
                             <div>
-                                ${t.shaving_feet ? `<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px] mr-1">${t.shaving_feet}</span>` : ''}
+                                ${t.shaving_feet ? `<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-xs mr-1">${t.shaving_feet}</span>` : ''}
                                 ${t.customer_request ? `<div class="font-medium text-slate-700">${t.customer_request}</div>` : ''}
-                                ${t.accessories ? `<div class="text-[11px] text-amber-700 font-medium">🎒 ${t.accessories}</div>` : ''}
-                                ${t.note ? `<div class="text-[11px] italic text-gray-500">📝 ${t.note}</div>` : ''}
-                                ${(!t.shaving_feet && !t.customer_request && !t.accessories && !t.note) ? '<span class="text-gray-400 italic">Không có yêu cầu</span>' : ''}
+                                ${t.accessories ? `<div class="text-xs text-amber-700 font-medium">🎒 ${t.accessories}</div>` : ''}
+                                ${t.note ? `<div class="text-xs  text-gray-500">📝 ${t.note}</div>` : ''}
+                                ${(!t.shaving_feet && !t.customer_request && !t.accessories && !t.note) ? '<span class="text-gray-400 ">Không có yêu cầu</span>' : ''}
                             </div>
-                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                            <span class="text-slate-300 group-hover:text-sky-600 text-xs font-bold">▾</span>
                         </div>
                     </td>
                     <!-- 7. Thợ phụ trách -->
-                    <td class="p-3 text-xs cursor-pointer hover:bg-purple-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'staff')" title="Bấm để phân công thợ làm">
+                    <td class="p-3 text-xs cursor-pointer hover:bg-sky-50 transition group" onclick="openSpaCellDroplist(event, ${t.id}, 'staff')" title="Bấm để phân công thợ làm">
                         <div class="flex items-center justify-between gap-1">
                             <div>${staffHtml}</div>
-                            <span class="text-slate-300 group-hover:text-purple-600 text-xs font-bold">▾</span>
+                            <span class="text-slate-300 group-hover:text-sky-600 text-xs font-bold">▾</span>
                         </div>
                     </td>
                     <!-- 8. Trạng thái làm -->
-                    <td class="p-3 text-center border-r-2 border-purple-300">${statusSelector(t)}</td>
+                    <td class="p-3 text-center border-r-2 border-sky-300">${statusSelector(t)}</td>
                     <!-- 9. Phụ thu -->
                     <td class="p-3 text-right font-medium">${extraFeesHtml}</td>
                     <!-- 10. Tổng tiền & Thực thu tách bạch -->
                     <td class="p-3 text-right">
-                        <div class="font-mono font-black text-sky-700 text-sm">${formatMoney(t.price || 0)}</div>
+                        <div class="font-mono font-bold text-sky-700 text-sm">${formatMoney(t.price || 0)}</div>
                         ${(t.tip_amount || t.deposit_amount || t.spa_wallet_deduction) ? `
-                            <div class="text-[10px] text-gray-500 font-mono mt-0.5">
+                            <div class="text-xs text-gray-500 font-mono mt-0.5">
                                 ${t.tip_amount ? `<span class="text-emerald-700 font-bold">+${formatMoney(t.tip_amount)} tip</span> ` : ''}
                                 ${t.deposit_amount ? `<span class="text-sky-700 font-bold">-${formatMoney(t.deposit_amount)} cọc</span> ` : ''}
-                                ${t.spa_wallet_deduction ? `<span class="text-purple-700 font-bold">-${formatMoney(t.spa_wallet_deduction)} ví</span>` : ''}
+                                ${t.spa_wallet_deduction ? `<span class="text-sky-700 font-bold">-${formatMoney(t.spa_wallet_deduction)} ví</span>` : ''}
                             </div>
-                            <div class="text-[11.5px] font-black text-slate-800 font-mono mt-0.5" title="Thực thu tiền mặt/chuyển khoản ngoài (Tổng - Cọc - Ví)">
+                            <div class="text-[11.5px] font-bold text-slate-800 font-mono mt-0.5" title="Thực thu tiền mặt/chuyển khoản ngoài (Tổng - Cọc - Ví)">
                                 👉 ${formatMoney(Math.max(0, (t.price || 0) - (t.deposit_amount || 0) - (t.spa_wallet_deduction || 0)))}
                             </div>
                         ` : ''}
                     </td>
                     <!-- 11. Thanh toán -->
                     <td class="p-3 text-center">
-                        ${t.payment_status === 'paid' ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Đã TT</span>' : '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[11px]">Chưa TT</span>'}
+                        ${t.payment_status === 'paid' ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-xs">Đã TT</span>' : '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">Chưa TT</span>'}
                     </td>
                     <!-- 12. Đưa đón -->
-                    <td class="p-3 text-center text-[11px] text-gray-600">
-                        <div><span class="text-purple-700 font-bold">Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
-                        <div><span class="text-emerald-700 font-bold">Về:</span> <strong>${t.checkout_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.return_method || 'Tự về'})</span></div>
+                    <td class="p-3 text-center text-xs text-gray-600">
+                        <div><span class="text-sky-700 font-bold">Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-xs text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
+                        <div><span class="text-emerald-700 font-bold">Về:</span> <strong>${t.checkout_time || '-'}</strong> <span class="text-xs text-gray-500">(${t.return_method || 'Tự về'})</span></div>
                     </td>
                 </tr>
                 `;
@@ -2038,15 +2085,15 @@
                 if (!colEl) return;
 
                 if (ticketsInCol.length === 0) {
-                    colEl.innerHTML = '<div class="text-xs text-gray-400 italic text-center py-12">Không có phiếu</div>';
+                    colEl.innerHTML = '<div class="text-xs text-gray-400  text-center py-12">Không có phiếu</div>';
                     return;
                 }
 
                 colEl.innerHTML = ticketsInCol.map(t => {
                     // Thợ phụ trách
                     let staffPills = [];
-                    if (t.staff_receiver) staffPills.push(`<span class="text-purple-700 font-semibold">📥 ${t.staff_receiver}</span>`);
-                    if (t.staff_cutter) staffPills.push(`<span class="text-pink-700 font-semibold">✂️ ${t.staff_cutter}</span>`);
+                    if (t.staff_receiver) staffPills.push(`<span class="text-sky-700 font-semibold">📥 ${t.staff_receiver}</span>`);
+                    if (t.staff_cutter) staffPills.push(`<span class="text-sky-700 font-semibold">✂️ ${t.staff_cutter}</span>`);
                     if (t.staff_worker_1) staffPills.push(`<span class="text-sky-700">🛁 ${t.staff_worker_1}</span>`);
                     if (t.staff_dyer) staffPills.push(`<span class="text-amber-700">🎨 ${t.staff_dyer}</span>`);
 
@@ -2060,12 +2107,12 @@
                     const extraFeesText = extraFees.length > 0 ? extraFees.join(', ') : '';
 
                     return `
-                        <div class="bg-white rounded-xl border-2 border-slate-200 p-3.5 shadow-sm space-y-2.5 hover:border-purple-400 hover:shadow-md transition">
+                        <div class="bg-white rounded-xl border-2 border-slate-200 p-3.5 shadow-sm space-y-2.5 hover:border-sky-400 hover:shadow-md transition">
                             <!-- Header thẻ: STT to nổi bật + Dropdown đổi trạng thái trực tiếp -->
                             <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xl font-black font-mono text-purple-900 bg-purple-100 border-2 border-purple-300 px-3 py-0.5 rounded-lg shadow-xs">#${t.ticket_number || t.id}</span>
-                                    <span class="text-[11px] text-gray-400 font-mono">${t.code || ''}</span>
+                                    <span class="text-xl font-bold font-mono text-sky-900 bg-sky-100 border-2 border-sky-300 px-3 py-0.5 rounded-lg shadow-xs">#${t.ticket_number || t.id}</span>
+                                    <span class="text-xs text-gray-400 font-mono">${t.code || ''}</span>
                                 </div>
                                 <div>
                                     ${statusSelector(t)}
@@ -2073,18 +2120,18 @@
                             </div>
 
                             <!-- Giờ nhận / Giờ trả -->
-                            <div class="text-[11px] bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center justify-between text-slate-600">
-                                <div><span class="text-purple-700 font-bold">📥 Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-[10px] text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
+                            <div class="text-xs bg-slate-50 px-2 py-1 rounded-md border border-slate-100 flex items-center justify-between text-slate-600">
+                                <div><span class="text-sky-700 font-bold">📥 Đến:</span> <strong>${t.received_time || '-'}</strong> <span class="text-xs text-gray-500">(${t.arrival_method || 'Tự đến'})</span></div>
                                 ${t.checkout_time ? `<div><span class="text-emerald-700 font-bold">📤 Về:</span> <strong>${t.checkout_time}</strong></div>` : ''}
                             </div>
 
                             <!-- Khách hàng & Cập nhật Gọi Điện Ngay Tại Thẻ -->
                             <div class="flex items-center justify-between gap-2 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
                                 <div class="min-w-0 flex-1">
-                                    <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-purple-700 hover:underline text-xs truncate block" title="Xem nhanh hồ sơ khách">
+                                    <button type="button" onclick="openQuickCustomerInfoModal(${t.customer_id}, '${escapeJs(t.customer_name || '')}')" class="text-left font-bold text-slate-800 hover:text-sky-700 hover:underline text-xs truncate block" title="Xem nhanh hồ sơ khách">
                                         👤 ${t.customer_name || 'Khách lẻ'}
                                     </button>
-                                    <div class="font-mono text-[11px] text-gray-500 mt-0.5">${formatMaskedPhone(t.customer_phone)}</div>
+                                    <div class="font-mono text-xs text-gray-500 mt-0.5">${formatMaskedPhone(t.customer_phone)}</div>
                                 </div>
                                 <div class="flex-shrink-0">
                                     ${callStatusSelector(t)}
@@ -2094,35 +2141,35 @@
                             <!-- Thông tin bé cưng -->
                             <div>
                                 <div class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                                    <span class="text-pink-600 font-black">🐾 ${t.pet_name || 'Bé cưng'}</span>
+                                    <span class="text-sky-600 font-bold">🐾 ${t.pet_name || 'Bé cưng'}</span>
                                     <span class="text-xs font-normal text-slate-500">(${t.pet_breed || t.pet_species || 'Cún'})</span>
                                 </div>
-                                <div class="text-xs text-pink-700 font-bold mt-0.5 flex items-center gap-2">
-                                    <span class="bg-pink-100 text-pink-800 px-2 py-0.2 rounded font-bold">${t.weight_at_service ? String(t.weight_at_service).replace('.', ',') + ' kg' : '-'}</span>
+                                <div class="text-xs text-sky-700 font-bold mt-0.5 flex items-center gap-2">
+                                    <span class="bg-sky-100 text-sky-800 px-2 py-0.2 rounded font-bold">${t.weight_at_service ? String(t.weight_at_service).replace('.', ',') + ' kg' : '-'}</span>
                                     <span class="text-slate-600 font-normal">${t.pet_color || '-'}${t.pet_gender ? ' / ' + t.pet_gender : ''}</span>
                                 </div>
                             </div>
 
                             <!-- Gói dịch vụ & Ghi chú -->
-                            <div class="text-xs bg-purple-50/50 p-2 rounded-lg border border-purple-100 space-y-1">
-                                <div class="font-bold text-purple-950">${t.service_type || '-'}</div>
-                                ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 Nhuộm: ${t.dye_package}</div>` : ''}
-                                ${t.shaving_feet ? `<div class="text-[11px] text-purple-800 font-medium">⚡ Cạo bàn: <strong>${t.shaving_feet}</strong></div>` : ''}
-                                ${t.customer_request ? `<div class="text-[11px] text-slate-700">✂️ Y/c: ${t.customer_request}</div>` : ''}
-                                ${t.accessories ? `<div class="text-[11px] text-amber-700">🎒 PK: ${t.accessories}</div>` : ''}
-                                ${t.note ? `<div class="text-[11px] text-gray-500 italic">📝 ${t.note}</div>` : ''}
+                            <div class="text-xs bg-sky-50/50 p-2 rounded-lg border border-sky-100 space-y-1">
+                                <div class="font-bold text-sky-950">${t.service_type || '-'}</div>
+                                ${t.dye_package ? `<div class="text-xs text-sky-700 font-semibold">🎨 Nhuộm: ${t.dye_package}</div>` : ''}
+                                ${t.shaving_feet ? `<div class="text-xs text-sky-800 font-medium">⚡ Cạo bàn: <strong>${t.shaving_feet}</strong></div>` : ''}
+                                ${t.customer_request ? `<div class="text-xs text-slate-700">✂️ Y/c: ${t.customer_request}</div>` : ''}
+                                ${t.accessories ? `<div class="text-xs text-amber-700">🎒 PK: ${t.accessories}</div>` : ''}
+                                ${t.note ? `<div class="text-xs text-gray-500 ">📝 ${t.note}</div>` : ''}
                             </div>
 
                             <!-- Thợ phụ trách -->
                             ${staffPills.length > 0 ? `
-                                <div class="text-[11px] bg-slate-100/80 p-1.5 rounded-lg flex flex-wrap gap-x-2 gap-y-1">
+                                <div class="text-xs bg-slate-100/80 p-1.5 rounded-lg flex flex-wrap gap-x-2 gap-y-1">
                                     ${staffPills.join('')}
                                 </div>
                             ` : ''}
 
                             <!-- Phụ thu (nếu có) -->
                             ${extraFeesText ? `
-                                <div class="text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                <div class="text-xs text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
                                     <strong>Phụ thu:</strong> ${extraFeesText}
                                 </div>
                             ` : ''}
@@ -2130,19 +2177,18 @@
                             <!-- Tổng tiền & TT -->
                             <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
                                 <div>
-                                    <span class="text-[11px] text-gray-500">Tổng thu:</span>
-                                    <span class="font-mono font-black text-sky-700 text-sm ml-1">${formatMoney(t.price || 0)}</span>
+                                    <span class="text-xs text-gray-500">Tổng thu:</span>
+                                    <span class="font-mono font-bold text-sky-700 text-sm ml-1">${formatMoney(t.price || 0)}</span>
                                 </div>
                                 <div>
-                                    ${t.payment_status === 'paid' ? '<span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Đã TT</span>' : '<span class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">Chưa TT</span>'}
+                                    ${t.payment_status === 'paid' ? '<span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Đã TT</span>' : '<span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">Chưa TT</span>'}
                                 </div>
                             </div>
 
                             <!-- Nút chuyển tiến độ 1-click & Nút hoàn tác (Đã về vẫn hoàn tác lại được) -->
                             <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
                                 <div class="flex items-center gap-1">
-                                    <button onclick="openServiceProgressModal(${t.id})" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded border border-indigo-200" title="Cập nhật tiến độ & phụ thu">✏️ Sửa</button>
-                                    <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="text-xs bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold px-2 py-1 rounded border border-purple-200" title="In phiếu nhận K80">🖨️ Nhận</button>
+                                    <button onclick="printPetServiceTicketDirectly(${t.id}, 'intake')" class="text-xs bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold px-2 py-1 rounded border border-sky-200" title="In phiếu nhận K80">🖨️ Nhận</button>
                                     <button onclick="printPetServiceTicketDirectly(${t.id}, 'invoice')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded border border-emerald-200" title="In hóa đơn thanh toán K80">🧾 Trả</button>
                                     ${t.status !== 'checked_out' ? `<button onclick="openSpaCheckoutModal(${t.id})" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-2 py-1 rounded" title="Thu tiền & trả bé">💰 Trả bé</button>` : ''}
                                     <button onclick="deletePetService(${t.id})" class="text-xs text-rose-600 hover:text-rose-800 p-1 border border-rose-200 rounded font-bold" title="Xóa phiếu">🗑️</button>
@@ -2158,10 +2204,10 @@
                                     ${t.status === 'completed' ? `
                                         <div class="flex items-center gap-1">
                                             <button onclick="updateServiceStatus(${t.id}, 'in_progress')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-1.5 py-1 rounded border" title="Quay lại đang làm">◀️</button>
-                                            <button onclick="updateServiceStatus(${t.id}, 'checked_out')" class="text-xs bg-purple-600 hover:bg-purple-700 text-white font-bold px-2.5 py-1 rounded shadow-sm">🏠 Trả Bé</button>
+                                            <button onclick="updateServiceStatus(${t.id}, 'checked_out')" class="text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold px-2.5 py-1 rounded shadow-sm">🏠 Trả Bé</button>
                                         </div>
                                     ` : ''}
-                                    ${t.status === 'checked_out' ? `<button onclick="updateServiceStatus(${t.id}, 'completed')" class="text-[11px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded shadow-xs" title="Hoàn tác về Xong (chờ đón)">↩️ Mở lại</button>` : ''}
+                                    ${t.status === 'checked_out' ? `<button onclick="updateServiceStatus(${t.id}, 'completed')" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-1 rounded shadow-xs" title="Hoàn tác về Xong (chờ đón)">↩️ Mở lại</button>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -2189,9 +2235,9 @@
 
             const activeRetailClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
             const inactiveRetailClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
-            const activeSpaClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-pink-600 text-pink-700 flex items-center gap-1.5 transition';
+            const activeSpaClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
             const inactiveSpaClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
-            const activeHotelClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-indigo-600 text-indigo-700 flex items-center gap-1.5 transition';
+            const activeHotelClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-sky-600 text-sky-700 flex items-center gap-1.5 transition';
             const inactiveHotelClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
             const activeTopupClass = 'px-4 py-2.5 text-xs font-bold border-b-2 border-amber-600 text-amber-700 flex items-center gap-1.5 transition';
             const inactiveTopupClass = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition border-b-0';
@@ -2227,12 +2273,12 @@
             const inputCustom = document.getElementById('input-spa-inv-date-custom');
             if (btnToday) {
                 btnToday.className = (mode === 'today')
-                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-pink-700 text-white shadow'
+                    ? 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-sky-700 text-white shadow'
                     : 'px-2.5 py-1.5 text-xs font-bold rounded-l-md bg-white text-slate-700 hover:bg-gray-50';
             }
             if (btnAll) {
                 btnAll.className = (mode === 'all')
-                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-pink-700 shadow border-r border-pink-700'
+                    ? 'px-2.5 py-1.5 text-xs font-bold text-white bg-sky-700 shadow border-r border-sky-700'
                     : 'px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-gray-50 border-r border-slate-200';
             }
             if (inputCustom && mode !== 'today' && mode !== 'all') {
@@ -2254,7 +2300,7 @@
         async function loadSpaInvoicesList() {
             const tbody = document.getElementById('spa-invoices-table-body');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-gray-400 italic">Đang tải lịch sử hóa đơn Spa...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-gray-400 ">Đang tải lịch sử hóa đơn Spa...</td></tr>';
             try {
                 const res = await fetch('/api/pet-services?limit=500');
                 if (!res.ok) throw new Error('Không thể tải hóa đơn spa');
@@ -2262,7 +2308,7 @@
                 filterSpaInvoicesList();
             } catch (e) {
                 console.error("loadSpaInvoicesList error:", e);
-                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-red-500 italic">Lỗi khi tải lịch sử hóa đơn Spa!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-red-500 ">Lỗi khi tải lịch sử hóa đơn Spa!</td></tr>';
             }
         }
         window.loadSpaInvoicesList = loadSpaInvoicesList;
@@ -2324,7 +2370,7 @@
             const items = filteredTickets || [];
 
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-slate-400 italic">Không tìm thấy hóa đơn dịch vụ Spa nào phù hợp</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="p-8 text-center text-slate-400 ">Không tìm thấy hóa đơn dịch vụ Spa nào phù hợp</td></tr>';
                 const pContainer = document.getElementById('pagination-spa-invoices');
                 if (pContainer) pContainer.innerHTML = '';
                 return;
@@ -2339,10 +2385,10 @@
             tbody.innerHTML = paged.map((t) => {
                 // Thợ phụ trách
                 let staffHtml = '';
-                if (t.staff_cutter) staffHtml += `<div class="font-bold text-pink-700">✂️ ${escapeSpaHtml(t.staff_cutter)}</div>`;
-                if (t.staff_worker_1) staffHtml += `<div class="text-[11px] text-sky-700">🛁 ${escapeSpaHtml(t.staff_worker_1)}</div>`;
-                if (t.staff_receiver) staffHtml += `<div class="text-[11px] text-purple-700">📥 ${escapeSpaHtml(t.staff_receiver)}</div>`;
-                if (!staffHtml) staffHtml = '<span class="text-gray-400 italic">-</span>';
+                if (t.staff_cutter) staffHtml += `<div class="font-bold text-sky-700">✂️ ${escapeSpaHtml(t.staff_cutter)}</div>`;
+                if (t.staff_worker_1) staffHtml += `<div class="text-xs text-sky-700">🛁 ${escapeSpaHtml(t.staff_worker_1)}</div>`;
+                if (t.staff_receiver) staffHtml += `<div class="text-xs text-sky-700">📥 ${escapeSpaHtml(t.staff_receiver)}</div>`;
+                if (!staffHtml) staffHtml = '<span class="text-gray-400 ">-</span>';
 
                 // Phụ thu
                 let extraFees = [];
@@ -2350,55 +2396,55 @@
                 if (t.art_cutting_fee) extraFees.push(`Cắt NT: ${formatMoney(t.art_cutting_fee)}`);
                 if (t.surcharge) extraFees.push(`Gỡ rối: ${formatMoney(t.surcharge)}`);
                 if (t.shipping_fee) extraFees.push(`Ship: ${formatMoney(t.shipping_fee)}`);
-                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-[11px] text-amber-800 font-semibold">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
+                const extraFeesHtml = extraFees.length > 0 ? `<div class="text-xs text-amber-800 font-semibold">${extraFees.join('<br>')}</div>` : '<span class="text-gray-400">-</span>';
 
                 // Trạng thái badge
                 let statusBadge = '';
-                if (t.status === 'checked_out') statusBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[11px]">🏠 Đã về</span>';
-                else if (t.status === 'completed') statusBadge = '<span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[11px]">✅ Đã xong</span>';
-                else if (t.status === 'in_progress') statusBadge = '<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-[11px]">🔄 Đang làm</span>';
-                else statusBadge = '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[11px]">⏳ Chờ</span>';
+                if (t.status === 'checked_out') statusBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-xs">🏠 Đã về</span>';
+                else if (t.status === 'completed') statusBadge = '<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-xs">✅ Đã xong</span>';
+                else if (t.status === 'in_progress') statusBadge = '<span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-xs">🔄 Đang làm</span>';
+                else statusBadge = '<span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">⏳ Chờ</span>';
 
                 const payBadge = t.payment_status === 'paid' 
-                    ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Đã TT</span>'
-                    : '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[10px]">Chưa TT</span>';
+                    ? '<span class="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-xs">Đã TT</span>'
+                    : '<span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-xs">Chưa TT</span>';
 
                 const walletDed = Number(t.spa_wallet_deduction || 0);
                 const totalActual = Math.max(0, (Number(t.price) || 0) - walletDed - (Number(t.deposit_amount) || 0));
 
                 return `
-                <tr class="hover:bg-pink-50/20 transition text-[12px] border-b border-slate-100">
-                    <td class="p-2.5 text-center font-mono font-bold text-pink-700 border-r border-slate-200">
+                <tr class="hover:bg-sky-50/20 transition text-[12px] border-b border-slate-100">
+                    <td class="p-2.5 text-center font-mono font-bold text-sky-700 border-r border-slate-200">
                         <div class="flex items-center justify-center gap-1">
-                            ${t.ticket_number ? `<span class="bg-pink-100 text-pink-900 border border-pink-300 px-2 py-0.5 rounded text-xs font-black shadow-xs">#${t.ticket_number}</span>` : '-'}
+                            ${t.ticket_number ? `<span class="bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded text-xs font-bold shadow-xs">#${t.ticket_number}</span>` : '-'}
                         </div>
-                        <div class="text-[10px] text-gray-400 font-mono my-0.5">${t.code || ''}</div>
+                        <div class="text-xs text-gray-400 font-mono my-0.5">${t.code || ''}</div>
                     </td>
                     <td class="p-3 whitespace-nowrap text-slate-600">
                         <div class="font-bold text-slate-800">${t.ticket_date || '-'}</div>
-                        <div class="text-[10px] text-gray-400">Đến: ${t.received_time || '-'}</div>
-                        ${t.checkout_time ? `<div class="text-[10px] text-emerald-600 font-semibold">Về: ${t.checkout_time}</div>` : ''}
+                        <div class="text-xs text-gray-400">Đến: ${t.received_time || '-'}</div>
+                        ${t.checkout_time ? `<div class="text-xs text-emerald-600 font-semibold">Về: ${t.checkout_time}</div>` : ''}
                     </td>
                     <td class="p-3 whitespace-nowrap min-w-[130px]">
                         <div class="font-bold text-slate-800">${escapeSpaHtml(t.customer_name || '-')}</div>
                         <div class="mt-0.5 whitespace-nowrap">${formatMaskedPhone(t.customer_phone)}</div>
                     </td>
                     <td class="p-3">
-                        <div class="font-bold text-pink-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
-                        <div class="text-[11px] text-gray-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
+                        <div class="font-bold text-sky-700">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</div>
+                        <div class="text-xs text-gray-500">${escapeSpaHtml(t.pet_breed || t.pet_species || 'Cún')} ${t.weight_at_service ? `(${String(t.weight_at_service).replace('.', ',')} kg)` : ''}</div>
                     </td>
                     <td class="p-3">
                         <div class="font-bold text-slate-800">${escapeSpaHtml(t.service_type || '-')}</div>
-                        ${t.dye_package ? `<div class="text-[11px] text-purple-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
+                        ${t.dye_package ? `<div class="text-xs text-sky-700 font-semibold">🎨 ${escapeSpaHtml(t.dye_package)}</div>` : ''}
                         ${extraFeesHtml}
                     </td>
                     <td class="p-3 text-xs">${staffHtml}</td>
                     <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(t.price || 0)}</td>
                     <td class="p-3 text-right font-mono text-emerald-700 text-xs">${t.tip_amount ? `+${formatMoney(t.tip_amount)}` : '-'}</td>
                     <td class="p-3 text-right font-mono text-amber-700 text-xs">${t.deposit_amount ? `-${formatMoney(t.deposit_amount)}` : '-'}</td>
-                    <td class="p-3 text-right font-mono font-black text-purple-700 text-sm">
+                    <td class="p-3 text-right font-mono font-bold text-sky-700 text-sm">
                         <div>${formatMoney(totalActual)}</div>
-                        ${walletDed > 0 ? `<div class="text-[10px] text-purple-700 font-bold font-mono">Ví: -${formatMoney(walletDed)}</div>` : ''}
+                        ${walletDed > 0 ? `<div class="text-xs text-sky-700 font-bold font-mono">Ví: -${formatMoney(walletDed)}</div>` : ''}
                     </td>
                     <td class="p-3 text-center">
                         <div class="flex flex-col items-center gap-1">
@@ -2473,10 +2519,10 @@
                 return `
                 <label class="flex items-center gap-2 border rounded-lg px-2 py-1.5 cursor-pointer hover:bg-slate-50 ${t.id === t0.id ? 'border-emerald-400 bg-emerald-50/40' : ''}">
                     <input type="checkbox" class="spapay-tick w-4 h-4 text-emerald-600 rounded" value="${t.id}" checked onchange="recalcSpaCheckout()">
-                    <span class="font-mono font-black text-purple-800 bg-purple-100 border border-purple-300 rounded px-1">#${t.ticket_number || t.id}</span>
+                    <span class="font-mono font-bold text-sky-800 bg-sky-100 border border-sky-300 rounded px-1">#${t.ticket_number || t.id}</span>
                     <span class="font-bold text-slate-800">🐾 ${escapeSpaHtml(t.pet_name || 'Bé cưng')}</span>
                     <span class="text-slate-500 truncate flex-1">${escapeSpaHtml(t.service_type || '')}</span>
-                    ${paid ? '<span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Đã TT</span>'
+                    ${paid ? '<span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Đã TT</span>'
                            : `<span class="font-mono font-bold text-rose-700">${formatMoneyString(due)} đ</span>`}
                 </label>`;
             }).join('');
@@ -2692,7 +2738,7 @@
             if (syncAll) {
                 renderActiveSpaView();
             } else if (selectElem) {
-                let csClass = 'text-[10px] py-0.5 px-1 rounded border outline-none cursor-pointer ';
+                let csClass = 'text-xs py-0.5 px-1 rounded border outline-none cursor-pointer ';
                 if (callStatus === 'Đã gọi đón') csClass += 'bg-emerald-50 text-emerald-700 border-emerald-300 font-bold';
                 else if (callStatus === 'Không nghe máy') csClass += 'bg-rose-50 text-rose-700 border-rose-300 font-bold';
                 else if (callStatus === 'Hẹn giờ đón') csClass += 'bg-amber-50 text-amber-700 border-amber-300 font-bold';
@@ -3125,7 +3171,7 @@
                     const isDefault = (c.name.trim().toLowerCase() === 'dịch vụ lẻ chó');
                     const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const deleteBtn = isDefault 
-                        ? '<span class="text-slate-300 text-xs italic px-2 py-1">Mặc định</span>'
+                        ? '<span class="text-slate-300 text-xs  px-2 py-1">Mặc định</span>'
                         : `<button type="button" onclick="deleteSpaCategoryFromManager(${c.id}, '${safeName}', ${c.item_count || 0})" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-semibold transition" title="Xóa phân loại">Xóa</button>`;
                     
                     return `
@@ -3502,9 +3548,9 @@
 
             tbody.innerHTML = filtered.map((item, idx) => {
                 const catClass = {
-                    'Gói Combo Chó': 'bg-purple-100 text-purple-700 border border-purple-200',
+                    'Gói Combo Chó': 'bg-sky-100 text-sky-700 border border-sky-200',
                     'Dịch Vụ Lẻ Chó': 'bg-blue-100 text-blue-700 border border-blue-200',
-                    'Spa Mèo': 'bg-pink-100 text-pink-700 border border-pink-200',
+                    'Spa Mèo': 'bg-sky-100 text-sky-700 border border-sky-200',
                     'Nhuộm Lông': 'bg-amber-100 text-amber-700 border border-amber-200',
                     'Trị Liệu & Phụ Thu': 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                 }[item.category] || 'bg-slate-100 text-slate-700 border border-slate-200';
@@ -3513,7 +3559,7 @@
                 <tr class="border-b hover:bg-slate-50 transition text-xs">
                     <td class="p-2.5 text-center text-slate-400 font-mono">${idx + 1}</td>
                     <td class="p-2.5">
-                        <span class="px-2 py-0.5 rounded text-[11px] font-bold ${catClass}">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${catClass}">
                             ${item.category || 'Dịch Vụ'}
                         </span>
                     </td>
@@ -3523,8 +3569,8 @@
                     </td>
                     <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${formatMoney(item.price || 0)}</td>
                     <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
-                        <button onclick="openEditPetPricingModal(${item.id})" class="text-sky-600 hover:text-sky-800 px-2 py-1 border rounded text-[11px] font-bold">✏️ Sửa</button>
-                        <button onclick="deletePetPricingItem(${item.id})" class="text-rose-600 hover:text-rose-800 px-2 py-1 border rounded text-[11px] font-bold">🗑️</button>
+                        <button onclick="openEditPetPricingModal(${item.id})" class="text-sky-600 hover:text-sky-800 px-2 py-1 border rounded text-xs font-bold">✏️ Sửa</button>
+                        <button onclick="deletePetPricingItem(${item.id})" class="text-rose-600 hover:text-rose-800 px-2 py-1 border rounded text-xs font-bold">🗑️</button>
                     </td>
                 </tr>
             `}).join('');
@@ -3627,15 +3673,25 @@
 
         async function loadSpaStaffList() {
             const tbody = document.getElementById('table-spa-staff');
-            if (!tbody) return;
+            const monthInput = document.getElementById('spa-staff-filter-month');
+            if (monthInput && !monthInput.value) {
+                const now = new Date();
+                monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            }
+            const monthVal = monthInput ? monthInput.value : '';
             try {
-                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">Đang tải danh sách thợ Spa...</td></tr>';
-                const res = await fetch('/api/pet-services/staff');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Đang tải danh sách thợ Spa...</td></tr>';
+                }
+                const url = monthVal ? `/api/pet-services/staff?month=${encodeURIComponent(monthVal)}` : '/api/pet-services/staff';
+                const res = await fetch(url);
                 allSpaStaffList = await res.json();
                 renderSpaStaffTable();
             } catch(e) {
                 console.error("loadSpaStaffList err:", e);
-                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-rose-500 font-semibold">Lỗi tải danh sách nhân viên Spa</td></tr>';
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-rose-500 font-semibold">Lỗi tải danh sách nhân viên Spa</td></tr>';
+                }
             }
         }
 
@@ -3643,23 +3699,93 @@
             const tbody = document.getElementById('table-spa-staff');
             if (!tbody) return;
             if (!Array.isArray(allSpaStaffList) || allSpaStaffList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-gray-400">Chưa có nhân viên Spa nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400">Chưa có nhân viên Spa nào</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = allSpaStaffList.map(s => `
+            tbody.innerHTML = allSpaStaffList.map(s => {
+                const cRec = Number(s.count_receiver || 0);
+                const cWash = Number(s.count_washer || 0);
+                const cCut = Number(s.count_cutter || 0);
+                const cDye = Number(s.count_dyer || 0);
+                const totalCases = Number(s.total_cases || (cRec + cWash + cCut + cDye));
+                const commAmt = Number(s.commission_amount || 0);
+                const tipAmt = Number(s.tip_amount || 0);
+                const spaTier = (s.spa_commission_tier || 'official') === 'probation' ? 'probation' : 'official';
+                const bd = s.spa_breakdown || {};
+                const bdParts = [
+                    bd.bath ? `Tắm:${(bd.bath/1000).toFixed(0)}k` : '',
+                    bd.cut ? `Cắt:${(bd.cut/1000).toFixed(0)}k` : '',
+                    bd.dye ? `Nhuộm:${(bd.dye/1000).toFixed(0)}k` : '',
+                    bd.surcharge ? `PT:${(bd.surcharge/1000).toFixed(0)}k` : ''
+                ].filter(Boolean).join(' · ');
+                return `
                 <tr class="border-b hover:bg-slate-50 transition text-xs">
-                    <td class="p-3 text-center font-mono font-bold text-purple-700">#${s.staff_code || s.id}</td>
-                    <td class="p-3 font-bold text-slate-800">${s.name}</td>
-                    <td class="p-3 font-mono text-gray-600">${s.phone || '-'}</td>
-                    <td class="p-3"><span class="bg-purple-100 text-purple-800 text-[11px] font-semibold px-2 py-0.5 rounded">${s.role || 'Thợ Spa'}</span></td>
-                    <td class="p-3 text-center space-x-2">
-                        <button onclick="editSpaStaff(${s.id})" class="text-blue-600 hover:text-blue-800 font-bold">✏️ Sửa</button>
-                        <button onclick="deleteSpaStaff(${s.id})" class="text-rose-600 hover:text-rose-800 font-bold">🗑️ Xóa</button>
+                    <td class="p-3 text-center font-mono font-bold text-sky-700">#${s.staff_code || s.id}</td>
+                    <td class="p-3">
+                        <div class="font-bold text-slate-800 text-sm">${s.name}</div>
+                        <div class="font-mono text-slate-500 mt-0.5"><i class="ph ph-phone"></i> ${s.phone || 'Chưa cập nhật SĐT'}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="bg-sky-100 text-sky-800 text-xs font-semibold px-2 py-0.5 rounded">${s.role || 'Chuyên viên Spa'}</span>
+                            <select onchange="toggleSpaStaffTierQuick(${s.id}, this.value)"
+                                    class="border rounded px-1.5 py-0.5 text-xs font-bold cursor-pointer ${spaTier === 'probation' ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-emerald-50 text-emerald-800 border-emerald-300'}">
+                                <option value="official" ${spaTier === 'official' ? 'selected' : ''}>★ Chính thức</option>
+                                <option value="probation" ${spaTier === 'probation' ? 'selected' : ''}>⏳ Thử việc</option>
+                            </select>
+                        </div>
+                        <div class="text-slate-400 mt-0.5">${s.department || 'Spa & Grooming'}</div>
+                    </td>
+                    <td class="p-3 text-center">
+                        ${totalCases > 0 ? `
+                            <div class="inline-flex flex-wrap items-center justify-center gap-1">
+                                ${cRec > 0 ? `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono font-semibold" title="Số ca tiếp nhận bé"><i class="ph ph-tray-arrow-down"></i> Nhận: ${cRec}</span>` : ''}
+                                ${cWash > 0 ? `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-mono font-semibold" title="Số ca tắm vệ sinh"><i class="ph ph-bathtub"></i> Tắm: ${cWash}</span>` : ''}
+                                ${cCut > 0 ? `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-semibold" title="Số ca cắt tỉa"><i class="ph ph-scissors"></i> Cắt: ${cCut}</span>` : ''}
+                                ${cDye > 0 ? `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-mono font-semibold" title="Số ca nhuộm lông"><i class="ph ph-paint-brush"></i> Nhuộm: ${cDye}</span>` : ''}
+                            </div>
+                        ` : `<span class="text-slate-400">Chưa phát sinh ca</span>`}
+                    </td>
+                    <td class="p-3 text-right font-mono">
+                        <div class="font-bold text-sky-700" title="Hoa hồng dịch vụ Spa trong tháng">${formatMoney(commAmt)}</div>
+                        ${bdParts ? `<div class="text-[11px] text-slate-500 mt-0.5">${bdParts}</div>` : ''}
+                        ${tipAmt > 0 ? `<div class="text-emerald-700 font-semibold mt-0.5" title="Tiền Tip khách thưởng riêng">+${formatMoney(tipAmt)} tip</div>` : `<div class="text-slate-400 mt-0.5">0đ tip</div>`}
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="mb-1">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                                <i class="ph ph-check-circle"></i> Đang làm
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 mt-1">
+                            <button onclick="editSpaStaff(${s.id})" class="text-sky-600 hover:text-sky-800 font-bold inline-flex items-center gap-0.5"><i class="ph ph-pencil-simple"></i> Sửa</button>
+                            <button onclick="deleteSpaStaff(${s.id})" class="text-rose-600 hover:text-rose-800 font-bold inline-flex items-center gap-0.5"><i class="ph ph-trash"></i> Xóa</button>
+                        </div>
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         }
+
+        async function toggleSpaStaffTierQuick(staffId, newTier) {
+            try {
+                const res = await fetch(`/api/hrm/commissions/staff-policy/${staffId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ spa_commission_tier: newTier })
+                });
+                if (res.ok) {
+                    if (typeof showToast === 'function') {
+                        showToast(`Đã đổi cấp bậc sang ${newTier === 'probation' ? 'NV Thử việc' : 'NV Chính thức'}`, 'success');
+                    }
+                    await loadSpaStaffList();
+                }
+            } catch (e) {
+                console.error("toggleSpaStaffTierQuick err:", e);
+            }
+        }
+        window.toggleSpaStaffTierQuick = toggleSpaStaffTierQuick;
 
         function openSpaStaffModal(staff = null) {
             const modal = document.getElementById('modal-spa-staff-form');
@@ -3888,7 +4014,7 @@
             const tbodyBatch = document.getElementById('tbody-batch-pets');
             if (tbodyBatch) tbodyBatch.innerHTML = '';
             const batchContainer = document.getElementById('batch-pet-checkboxes-container');
-            if (batchContainer) batchContainer.innerHTML = '<div class="text-[11px] text-slate-400 italic">Vui lòng chọn khách hàng ở trên để hiển thị danh sách các bé</div>';
+            if (batchContainer) batchContainer.innerHTML = '<div class="text-xs text-slate-400 ">Vui lòng chọn khách hàng ở trên để hiển thị danh sách các bé</div>';
             const batchCountBadge = document.getElementById('batch-selected-pet-count');
             if (batchCountBadge) batchCountBadge.textContent = '0 bé';
             calcBatchGrandTotal();
@@ -3947,10 +4073,10 @@
                 if (footerSingle) footerSingle.classList.remove('hidden');
                 if (footerBatch) footerBatch.classList.add('hidden');
                 if (btnSingle) {
-                    btnSingle.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-800 shadow-sm border border-purple-200';
+                    btnSingle.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-800 shadow-sm border border-sky-200';
                 }
                 if (btnBatch) {
-                    btnBatch.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-purple-700';
+                    btnBatch.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-sky-700';
                 }
             } else {
                 if (singleView) singleView.classList.add('hidden');
@@ -3958,10 +4084,10 @@
                 if (footerSingle) footerSingle.classList.add('hidden');
                 if (footerBatch) footerBatch.classList.remove('hidden');
                 if (btnSingle) {
-                    btnSingle.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-purple-700';
+                    btnSingle.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-sky-700';
                 }
                 if (btnBatch) {
-                    btnBatch.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-800 shadow-sm border border-purple-200';
+                    btnBatch.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-sky-800 shadow-sm border border-sky-200';
                 }
                 // Cập nhật thanh chọn bé và nạp các dòng tương ứng
                 renderBatchPetSelector();
@@ -4112,38 +4238,38 @@
                 const extraTipStr = h.tip_amount ? `${formatMoneyString(h.tip_amount)} đ` : '0 đ';
 
                 return `
-                    <div class="bg-white p-2.5 rounded-lg border border-slate-200 hover:border-purple-300 shadow-sm transition-all space-y-1">
+                    <div class="bg-white p-2.5 rounded-lg border border-slate-200 hover:border-sky-300 shadow-sm transition-all space-y-1">
                         <div class="cursor-pointer select-none" onclick="toggleCustomerSpaHistoryDetail(${h.id})">
                             <div class="flex justify-between items-start">
                                 <span class="font-bold text-slate-800 text-xs flex items-center gap-1">
-                                    <span id="spa-hist-arrow-${h.id}" class="text-[10px] text-purple-600 font-mono transition-transform inline-block">▶</span>
+                                    <span id="spa-hist-arrow-${h.id}" class="text-xs text-sky-600 font-mono transition-transform inline-block">▶</span>
                                     <span>${petTitle}</span>
                                     <span class="text-slate-400 font-normal">(${weightStr})</span>
                                 </span>
-                                <span class="font-bold text-purple-700 font-mono text-xs">${priceStr}</span>
+                                <span class="font-bold text-sky-700 font-mono text-xs">${priceStr}</span>
                             </div>
-                            <div class="text-[11px] text-slate-700 font-medium pl-3.5">${h.service_type || 'Spa & Làm đẹp'}</div>
-                            <div class="flex justify-between items-center text-[10px] text-slate-400 pl-3.5 pt-0.5">
+                            <div class="text-xs text-slate-700 font-medium pl-3.5">${h.service_type || 'Spa & Làm đẹp'}</div>
+                            <div class="flex justify-between items-center text-xs text-slate-400 pl-3.5 pt-0.5">
                                 <span>📅 ${dateStr} · ✂️ ${staffStr}</span>
                                 <span class="px-1.5 py-0.2 rounded font-semibold ${h.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${h.status}</span>
                             </div>
                         </div>
 
                         <!-- CHI TIẾT LỊCH SỬ KHI CLICK (EXPANDABLE) -->
-                        <div id="spa-hist-detail-${h.id}" class="hidden mt-2 pt-2 border-t border-purple-100 bg-purple-50/50 p-2 rounded text-[11px] text-slate-700 space-y-1.5">
-                            <div class="flex justify-between items-center font-bold text-purple-900 border-b border-purple-200/60 pb-1">
+                        <div id="spa-hist-detail-${h.id}" class="hidden mt-2 pt-2 border-t border-sky-100 bg-sky-50/50 p-2 rounded text-xs text-slate-700 space-y-1.5">
+                            <div class="flex justify-between items-center font-bold text-sky-900 border-b border-sky-200/60 pb-1">
                                 <span>Số phiếu: #${h.ticket_number || h.id} (${h.code || '-'})</span>
-                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-200/70 text-purple-800">${h.batch_code || 'Phiếu đơn'}</span>
+                                <span class="text-xs px-1.5 py-0.5 rounded bg-sky-200/70 text-sky-800">${h.batch_code || 'Phiếu đơn'}</span>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-1 text-[10px]">
+                            <div class="grid grid-cols-2 gap-1 text-xs">
                                 <div><strong>Cân nặng:</strong> ${weightStr || '-'}</div>
                                 <div><strong>Cạo bàn:</strong> ${h.shaving_feet || 'Không'}</div>
                                 <div><strong>Giống/Màu:</strong> ${(h.pet_breed || '') + ' ' + (h.pet_color || '')}</div>
                                 <div><strong>Gói nhuộm:</strong> ${h.dye_package || 'Không'}</div>
                             </div>
 
-                            <div class="bg-white p-1.5 rounded border border-purple-200 text-[10px] space-y-0.5">
+                            <div class="bg-white p-1.5 rounded border border-sky-200 text-xs space-y-0.5">
                                 <div class="font-bold text-slate-800">Chi tiết phụ thu:</div>
                                 <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-600">
                                     <span>🦷 Đánh răng: <b>${extraTeethStr}</b></span>
@@ -4154,12 +4280,12 @@
                                 </div>
                             </div>
 
-                            <div class="text-[10px] text-slate-600 space-y-0.5">
+                            <div class="text-xs text-slate-600 space-y-0.5">
                                 <div><strong>Thợ:</strong> Cắt: ${h.staff_cutter || '-'} | Tắm: ${h.staff_worker_1 || '-'} | Nhận: ${h.staff_receiver || '-'}</div>
                                 <div><strong>Giờ nhận/về:</strong> ${h.received_time || '-'} ➔ ${h.checkout_time || '-'}</div>
-                                ${h.customer_request ? `<div class="italic text-purple-700">📝 Yêu cầu: ${h.customer_request}</div>` : ''}
-                                ${h.accessories ? `<div class="italic text-slate-500">🎒 Phụ kiện: ${h.accessories}</div>` : ''}
-                                ${h.note ? `<div class="italic text-slate-500">⚠️ Lưu ý: ${h.note}</div>` : ''}
+                                ${h.customer_request ? `<div class=" text-sky-700">📝 Yêu cầu: ${h.customer_request}</div>` : ''}
+                                ${h.accessories ? `<div class=" text-slate-500">🎒 Phụ kiện: ${h.accessories}</div>` : ''}
+                                ${h.note ? `<div class=" text-slate-500">⚠️ Lưu ý: ${h.note}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -4246,26 +4372,26 @@
             }).slice(0, 15);
 
             if (matches.length === 0) {
-                dropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 italic">Không tìm thấy hàng hóa phù hợp</div>';
+                dropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 ">Không tìm thấy hàng hóa phù hợp</div>';
                 dropdown.classList.remove('hidden');
                 return;
             }
 
             dropdown.innerHTML = matches.map(p => {
-                const typeLabel = p.type === 'combo' ? '<span class="text-[10px] font-bold text-amber-600 mr-1">COMBO</span>' : '';
+                const typeLabel = p.type === 'combo' ? '<span class="text-xs font-bold text-amber-600 mr-1">COMBO</span>' : '';
                 const sellPrice = p.sell_price ?? p.price ?? 0;
                 const stockStr = p.type === 'service' ? '∞' : (p.stock || 0);
                 return `
                 <div onmousedown="addSvcRetailProduct(${p.id})" class="p-2 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-0 flex justify-between items-center transition text-xs">
                     <div>
-                        <span class="font-mono text-[11px] text-slate-400 font-bold mr-1.5">[${p.code || '-'}]</span>
+                        <span class="font-mono text-xs text-slate-400 font-bold mr-1.5">[${p.code || '-'}]</span>
                         ${typeLabel}
                         <span class="font-bold text-slate-800">${p.name}</span>
-                        <span class="text-slate-400 text-[11px] ml-1">(${p.unit || 'cái'})</span>
+                        <span class="text-slate-400 text-xs ml-1">(${p.unit || 'cái'})</span>
                     </div>
                     <div class="text-right shrink-0 ml-2">
                         <div class="font-bold text-sky-600 font-mono">${formatMoneyString(sellPrice)} đ</div>
-                        <div class="text-[10px] text-slate-400">Tồn: ${stockStr}</div>
+                        <div class="text-xs text-slate-400">Tồn: ${stockStr}</div>
                     </div>
                 </div>
                 `;
@@ -4328,7 +4454,7 @@
 
             if (!listEl) return;
             if (currentSvcRetailProducts.length === 0) {
-                listEl.innerHTML = '<div class="text-[10px] text-slate-400 italic text-center py-1">Chưa chọn sản phẩm kèm theo</div>';
+                listEl.innerHTML = '<div class="text-xs text-slate-400  text-center py-1">Chưa chọn sản phẩm kèm theo</div>';
                 if (badgeEl) badgeEl.textContent = '0 đ';
                 if (selectedBox) selectedBox.classList.add('hidden');
                 if (priceRow) priceRow.classList.add('hidden');
@@ -4348,8 +4474,8 @@
                 return `
                     <div class="flex items-center justify-between bg-white px-2 py-1 rounded border border-sky-200 text-xs">
                         <div class="flex-1 truncate mr-2">
-                            <span class="font-bold text-slate-800 text-[11px]">${item.name}</span>
-                            <span class="text-[10px] text-slate-400 block">${formatMoneyString(item.price)} đ</span>
+                            <span class="font-bold text-slate-800 text-xs">${item.name}</span>
+                            <span class="text-xs text-slate-400 block">${formatMoneyString(item.price)} đ</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <button type="button" onclick="changeSvcRetailQty(${idx}, -1)" class="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">-</button>
@@ -4379,7 +4505,7 @@
             if (!listEl) return;
 
             if (currentSvcExtraServices.length === 0) {
-                listEl.innerHTML = '<div class="text-[10px] text-slate-400 italic text-center py-1.5">Chưa có phụ thu nào (bấm gợi ý ở trên hoặc thêm dòng)</div>';
+                listEl.innerHTML = '<div class="text-xs text-slate-400  text-center py-1.5">Chưa có phụ thu nào (bấm gợi ý ở trên hoặc thêm dòng)</div>';
                 return;
             }
 
@@ -4391,7 +4517,7 @@
                     <input type="text" value="${item.price ? Number(item.price).toLocaleString('vi-VN') : ''}" placeholder="0"
                         oninput="onMoneyInputChange(this); updateSvcExtraService(${idx}, 'price', parseMoneyInput(this.value))"
                         class="w-24 border p-1 rounded text-xs text-right font-mono font-bold text-amber-900 bg-white">
-                    <span class="text-[10px] text-slate-500 font-bold">đ</span>
+                    <span class="text-xs text-slate-500 font-bold">đ</span>
                     <button type="button" onclick="removeSvcExtraService(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded text-xs" title="Xóa dòng phụ thu">✕</button>
                 </div>
             `).join('');
@@ -4606,31 +4732,42 @@
                     .replace(/đ/g, 'd');
             };
 
-            const matched = tokens.length === 0 ? custs.slice(0, 20) : custs.filter(c => {
-                const normName = (c.name || '').toLowerCase();
-                const normPhone = (c.phone || '').toLowerCase();
-                const cleanName = removeVnAccents(normName);
-                const haystack = normName + ' ' + normPhone + ' ' + cleanName;
-                return tokens.every(tok => {
-                    const cleanTok = removeVnAccents(tok);
-                    return haystack.includes(tok) || haystack.includes(cleanTok);
-                });
-            });
+            const matched = [];
+            if (tokens.length === 0) {
+                for (const c of custs) {
+                    matched.push(c);
+                    if (matched.length >= 20) break;
+                }
+            } else {
+                const cleanTokens = tokens.map(t => removeVnAccents(t));
+                for (const c of custs) {
+                    const rawKey = `${c.name || ''} ${c.phone || ''}`;
+                    if (c._spaSearchRaw !== rawKey) {
+                        c._spaSearchRaw = rawKey;
+                        c._spaSearchHaystack = rawKey.toLowerCase() + ' ' + removeVnAccents(rawKey);
+                    }
+                    const h = c._spaSearchHaystack;
+                    if (tokens.every((tok, idx) => h.includes(tok) || h.includes(cleanTokens[idx]))) {
+                        matched.push(c);
+                        if (matched.length >= 30) break;
+                    }
+                }
+            }
 
             if (matched.length === 0) {
-                dropdown.innerHTML = '<div class="px-3 py-2.5 text-xs text-slate-400 italic">Không tìm thấy khách hàng nào phù hợp</div>';
+                dropdown.innerHTML = '<div class="px-3 py-2.5 text-xs text-slate-400 ">Không tìm thấy khách hàng nào phù hợp</div>';
             } else {
                 dropdown.innerHTML = matched.slice(0, 30).map(c => `
-                    <div class="px-3 py-2 text-xs hover:bg-purple-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition"
+                    <div class="px-3 py-2 text-xs hover:bg-sky-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition"
                         onmousedown="selectSvcCustomer(${c.id})">
                         <div>
                             <div class="font-bold text-slate-800 flex items-center gap-1.5">
                                 <span>${escapeSpaHtml(c.name)}</span>
-                                ${c.is_flagged ? '<span class="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded-full">Lưu ý</span>' : ''}
+                                ${c.is_flagged ? '<span class="text-xs bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded-full">Lưu ý</span>' : ''}
                             </div>
-                            <div class="text-[11px] text-slate-500 font-mono">${c.phone || 'Chưa có SĐT'}</div>
+                            <div class="text-xs text-slate-500 font-mono">${c.phone || 'Chưa có SĐT'}</div>
                         </div>
-                        <div class="text-right text-[11px] text-purple-700 font-medium">
+                        <div class="text-right text-xs text-sky-700 font-medium">
                             ${c.pets_count ? `🐾 ${c.pets_count} bé` : ''}
                         </div>
                     </div>
@@ -5091,7 +5228,7 @@
                             <span class="text-sm">✨</span>
                             <span>Khách có <strong>${formatMoneyString(balance)} đ</strong> trong ví ➔ Đã tự động chọn <strong>Trừ Ví Spa</strong></span>
                         </div>
-                        <button type="button" onclick="setSvcPaymentMethodFallback('cash')" class="text-[11px] text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
+                        <button type="button" onclick="setSvcPaymentMethodFallback('cash')" class="text-xs text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
                     </div>
                 `;
             } else {
@@ -5104,13 +5241,13 @@
                                 <span>⚠️</span>
                                 <span>Ví còn <strong>${formatMoneyString(balance)} đ</strong> (Thiếu <strong>${formatMoneyString(remaining)} đ</strong>)</span>
                             </div>
-                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px] shadow-xs cursor-pointer">⚡ Nạp Gói</button>
+                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs shadow-xs cursor-pointer">⚡ Nạp Gói</button>
                         </div>
                         <div class="flex items-center gap-2 pt-0.5">
-                            <button type="button" onclick="applySplitWalletPayment('svc', ${balance}, ${remaining})" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-[11px] shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ toàn bộ số dư ví hiện có và thu phần còn lại bên ngoài">
+                            <button type="button" onclick="applySplitWalletPayment('svc', ${balance}, ${remaining})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold text-xs shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ toàn bộ số dư ví hiện có và thu phần còn lại bên ngoài">
                                 ⚡ Trừ hết ví (${formatMoneyString(balance)} đ) + Thu ngoài (${formatMoneyString(remaining)} đ)
                             </button>
-                            <button type="button" onclick="applyFullCashPayment('svc')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-[11px] shadow-xs cursor-pointer">
+                            <button type="button" onclick="applyFullCashPayment('svc')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-xs shadow-xs cursor-pointer">
                                 💵 Thu ngoài 100%
                             </button>
                         </div>
@@ -5154,7 +5291,7 @@
                             <span class="text-sm">✨</span>
                             <span>Khách có <strong>${formatMoneyString(balance)} đ</strong> trong ví ➔ Đã tự động chọn <strong>Trừ Ví Spa</strong> cho cả đợt</span>
                         </div>
-                        <button type="button" onclick="setBatchPaymentMethodFallback('cash')" class="text-[11px] text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
+                        <button type="button" onclick="setBatchPaymentMethodFallback('cash')" class="text-xs text-emerald-700 underline hover:text-emerald-900 font-semibold cursor-pointer">Đổi tiền mặt</button>
                     </div>
                 `;
             } else {
@@ -5166,13 +5303,13 @@
                                 <span>⚠️</span>
                                 <span>Ví còn <strong>${formatMoneyString(balance)} đ</strong> (Cả đợt thiếu <strong>${formatMoneyString(remaining)} đ</strong>)</span>
                             </div>
-                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px] shadow-xs cursor-pointer">⚡ Nạp Gói</button>
+                            <button type="button" onclick="openTopupSpaModal()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs shadow-xs cursor-pointer">⚡ Nạp Gói</button>
                         </div>
                         <div class="flex items-center gap-2 pt-0.5">
-                            <button type="button" onclick="applySplitWalletPayment('batch', ${balance}, ${remaining})" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold text-[11px] shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ hết ví và thu phần thiếu bằng tiền mặt/chuyển khoản ngoài">
+                            <button type="button" onclick="applySplitWalletPayment('batch', ${balance}, ${remaining})" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold text-xs shadow-xs flex-1 text-center cursor-pointer" title="Cấn trừ hết ví và thu phần thiếu bằng tiền mặt/chuyển khoản ngoài">
                                 ⚡ Trừ hết ví (${formatMoneyString(balance)} đ) + Thu ngoài (${formatMoneyString(remaining)} đ)
                             </button>
-                            <button type="button" onclick="applyFullCashPayment('batch')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-[11px] shadow-xs cursor-pointer">
+                            <button type="button" onclick="applyFullCashPayment('batch')" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded font-medium text-xs shadow-xs cursor-pointer">
                                 💵 Thu ngoài 100%
                             </button>
                         </div>
@@ -5191,9 +5328,9 @@
                 const banner = document.getElementById('svc-wallet-helper-banner');
                 if (banner) {
                     banner.innerHTML = `
-                        <div class="p-2 rounded-lg bg-purple-50 border border-purple-300 text-xs text-purple-950 flex items-center justify-between shadow-xs">
+                        <div class="p-2 rounded-lg bg-sky-50 border border-sky-300 text-xs text-sky-950 flex items-center justify-between shadow-xs">
                             <span class="font-bold flex items-center gap-1"><span>⚡</span><span>Đã chọn: Trừ sạch ví <strong>${formatMoneyString(balance)} đ</strong> + Thu ngoài <strong>${formatMoneyString(remaining)} đ</strong></span></span>
-                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-[11px] text-purple-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-xs text-sky-700 underline font-semibold cursor-pointer">Đổi lại</button>
                         </div>
                     `;
                 }
@@ -5205,9 +5342,9 @@
                 const banner = document.getElementById('batch-wallet-helper-banner');
                 if (banner) {
                     banner.innerHTML = `
-                        <div class="p-2 rounded-lg bg-purple-50 border border-purple-300 text-xs text-purple-950 flex items-center justify-between shadow-xs">
+                        <div class="p-2 rounded-lg bg-sky-50 border border-sky-300 text-xs text-sky-950 flex items-center justify-between shadow-xs">
                             <span class="font-bold flex items-center gap-1"><span>⚡</span><span>Đã chọn: Trừ sạch ví <strong>${formatMoneyString(balance)} đ</strong> + Thu ngoài <strong>${formatMoneyString(remaining)} đ</strong></span></span>
-                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-[11px] text-purple-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-xs text-sky-700 underline font-semibold cursor-pointer">Đổi lại</button>
                         </div>
                     `;
                 }
@@ -5224,7 +5361,7 @@
                     banner.innerHTML = `
                         <div class="p-2 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-800 flex items-center justify-between shadow-xs">
                             <span class="font-medium">💵 Đã chọn: Thu ngoài 100% (Giữ nguyên số dư ví)</span>
-                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-[11px] text-indigo-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                            <button type="button" onclick="syncSvcWalletPaymentSuggestion()" class="text-xs text-sky-700 underline font-semibold cursor-pointer">Đổi lại</button>
                         </div>
                     `;
                 }
@@ -5236,7 +5373,7 @@
                     banner.innerHTML = `
                         <div class="p-2 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-800 flex items-center justify-between shadow-xs">
                             <span class="font-medium">💵 Đã chọn: Thu ngoài 100% (Giữ nguyên số dư ví)</span>
-                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-[11px] text-indigo-700 underline font-semibold cursor-pointer">Đổi lại</button>
+                            <button type="button" onclick="syncBatchWalletPaymentSuggestion()" class="text-xs text-sky-700 underline font-semibold cursor-pointer">Đổi lại</button>
                         </div>
                     `;
                 }
@@ -5462,7 +5599,7 @@
                 await loadPetServicesKPI();
 
                 if (andPrint && result.id) {
-                    printPetServiceTicketDirectly(result.id, paymentStatus === 'paid' ? 'invoice' : 'intake');
+                    printPetServiceTicketDirectly(result.id, 'intake');
                 } else {
                     alert(`✅ Đã lập thành công Phiếu Tiếp Nhận Spa #${result.ticket_number || ''} (${result.code})!`);
                 }
@@ -5482,7 +5619,7 @@
             if (!container) return;
 
             if (!Array.isArray(currentSvcPetsList) || currentSvcPetsList.length === 0) {
-                container.innerHTML = '<div class="text-[11px] text-slate-400 italic">Khách hàng chưa có hồ sơ thú cưng (nhấn "+ Thêm bé mới" để nhập)</div>';
+                container.innerHTML = '<div class="text-xs text-slate-400 ">Khách hàng chưa có hồ sơ thú cưng (nhấn "+ Thêm bé mới" để nhập)</div>';
                 if (countBadge) countBadge.textContent = '0 bé';
                 if (tbody && tbody.children.length === 0) {
                     addBatchPetRow();
@@ -5493,10 +5630,10 @@
             container.innerHTML = currentSvcPetsList.map(p => {
                 const wStr = p.weight ? String(p.weight).replace('.', ',') + 'kg' : 'Chưa cân';
                 return `
-                    <label class="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-purple-200 hover:border-purple-400 rounded-lg cursor-pointer text-xs select-none shadow-xs transition-all">
-                        <input type="checkbox" value="${p.id}" checked class="batch-pet-check w-3.5 h-3.5 text-purple-600 rounded" onchange="onBatchPetCheckToggled(${p.id}, this.checked)">
+                    <label class="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-sky-200 hover:border-sky-400 rounded-lg cursor-pointer text-xs select-none shadow-xs transition-all">
+                        <input type="checkbox" value="${p.id}" checked class="batch-pet-check w-3.5 h-3.5 text-sky-600 rounded" onchange="onBatchPetCheckToggled(${p.id}, this.checked)">
                         <span class="font-bold text-slate-800">🐾 ${p.name}</span>
-                        <span class="text-[10px] text-purple-700 font-mono">(${p.breed || p.species || 'Cún'} - ${wStr})</span>
+                        <span class="text-xs text-sky-700 font-mono">(${p.breed || p.species || 'Cún'} - ${wStr})</span>
                     </label>
                 `;
             }).join('');
@@ -5713,7 +5850,7 @@
 
             let rowSurchButtons = surchNames.map(name => `
                 <button type="button" onclick="pickBatchRowChip(this, '${escapeSpaHtml(name)}')" data-surch-name="${escapeSpaHtml(name)}"
-                    class="batch-surch-chip px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
+                    class="batch-surch-chip px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 transition cursor-pointer select-none">
                     + ${escapeSpaHtml(name)}
                 </button>
             `).join('');
@@ -5721,14 +5858,14 @@
             tr.innerHTML = `
                 <td class="p-2 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <input type="checkbox" class="batch-row-checkbox w-3.5 h-3.5 text-purple-600 rounded cursor-pointer" checked>
-                        <span class="font-mono text-slate-500 font-bold batch-row-stt text-[11px]">${rowIdx}</span>
+                        <input type="checkbox" class="batch-row-checkbox w-3.5 h-3.5 text-sky-600 rounded cursor-pointer" checked>
+                        <span class="font-mono text-slate-500 font-bold batch-row-stt text-xs">${rowIdx}</span>
                     </div>
-                    <div class="batch-row-ticketno mt-0.5 font-mono font-black text-[10px] text-purple-800 bg-purple-100 border border-purple-300 rounded px-1" title="Số phiếu của bé này">#--</div>
+                    <div class="batch-row-ticketno mt-0.5 font-mono font-bold text-xs text-sky-800 bg-sky-100 border border-sky-300 rounded px-1" title="Số phiếu của bé này">#--</div>
                 </td>
                 <td class="p-2">
                     <div class="space-y-1">
-                        <select class="w-full border p-1 rounded text-xs font-bold text-purple-800 batch-pet-select" onchange="onBatchRowPetChanged(this)">
+                        <select class="w-full border p-1 rounded text-xs font-bold text-sky-800 batch-pet-select" onchange="onBatchRowPetChanged(this)">
                             ${petOpts}
                         </select>
                         <input type="text" class="w-full border p-1 rounded text-xs font-bold batch-pet-name ${petData && petData.id ? 'hidden' : ''}" placeholder="Tên bé (*)" value="${initialName}">
@@ -5738,7 +5875,7 @@
                     </div>
                 </td>
                 <td class="p-2 text-center">
-                    <input type="text" class="w-16 border-2 border-pink-200 p-1 rounded text-xs text-center font-bold font-mono text-pink-700 batch-pet-weight" placeholder="VD: 3.5" value="${initialWeight}" oninput="calcBatchRowTotal(this.closest('tr'))">
+                    <input type="text" class="w-16 border-2 border-sky-200 p-1 rounded text-xs text-center font-bold font-mono text-sky-700 batch-pet-weight" placeholder="VD: 3.5" value="${initialWeight}" oninput="calcBatchRowTotal(this.closest('tr'))">
                 </td>
                 <td class="p-2">
                     <select class="w-full border p-1 rounded text-xs font-medium text-slate-800 batch-pet-primary" onchange="calcBatchRowTotal(this.closest('tr'))">
@@ -5765,7 +5902,7 @@
                         <div class="batch-surch-chips-pool flex flex-wrap gap-1">
                             ${rowSurchButtons}
                         </div>
-                        <button type="button" onclick="addCustomBatchRowSurcharge(this)" class="text-amber-800 hover:text-amber-950 font-bold text-[10px] bg-amber-100/70 hover:bg-amber-200 px-1.5 py-0.5 rounded border border-amber-300 transition">➕ Tự thêm dòng</button>
+                        <button type="button" onclick="addCustomBatchRowSurcharge(this)" class="text-amber-800 hover:text-amber-950 font-bold text-xs bg-amber-100/70 hover:bg-amber-200 px-1.5 py-0.5 rounded border border-amber-300 transition">➕ Tự thêm dòng</button>
                     </div>
                 </td>
                 <td class="p-2 text-right">
@@ -5774,7 +5911,7 @@
                 </td>
                 <td class="p-2 space-y-1">
                     <input type="text" class="w-full border p-1 rounded text-xs batch-pet-notes" placeholder="Yêu cầu cắt, sấy...">
-                    <input type="text" class="w-full border p-0.5 rounded text-[11px] text-amber-800 batch-pet-accessories" placeholder="Phụ kiện gửi lại (dây, chuồng...)">
+                    <input type="text" class="w-full border p-0.5 rounded text-xs text-amber-800 batch-pet-accessories" placeholder="Phụ kiện gửi lại (dây, chuồng...)">
                     <input type="hidden" class="batch-pet-cutter" value="">
                     <input type="hidden" class="batch-pet-hotel" value="0">
                 </td>
@@ -5833,11 +5970,11 @@
                     <div class="batch-surch-item flex items-center gap-1 bg-amber-50 p-0.5 rounded border border-amber-200" data-idx="${i}">
                         <input type="text" value="${escapeSpaHtml(it.name || '')}" placeholder="Tên phụ thu"
                             oninput="onBatchSurchEdit(this, 'name')"
-                            class="batch-surch-name flex-1 min-w-0 border p-0.5 rounded text-[11px] bg-white font-medium text-slate-800">
+                            class="batch-surch-name flex-1 min-w-0 border p-0.5 rounded text-xs bg-white font-medium text-slate-800">
                         <input type="text" value="${it.price ? Number(it.price).toLocaleString('vi-VN') : ''}" placeholder="0"
                             oninput="onMoneyInputChange(this); onBatchSurchEdit(this, 'price')"
-                            class="batch-surch-price w-16 border p-0.5 rounded text-[11px] text-right font-mono font-bold text-amber-900 bg-white">
-                        <span class="text-[10px] text-slate-500 font-bold">đ</span>
+                            class="batch-surch-price w-16 border p-0.5 rounded text-xs text-right font-mono font-bold text-amber-900 bg-white">
+                        <span class="text-xs text-slate-500 font-bold">đ</span>
                         <button type="button" onclick="cancelBatchRowChip(this)" class="text-rose-500 hover:text-rose-700 font-bold px-1 text-xs" title="Bỏ phụ thu này">✕</button>
                     </div>
                 `).join('');
@@ -6761,9 +6898,57 @@
                         <!-- Dọn khoảng cách dòng cắt giấy máy in nhiệt (chống cắt phạm chữ) -->
                         <div style="height: 18mm; width: 100%;"></div>
                     </div>
+                    <!-- PHIẾU THỨ 2: PHIẾU SỐ THỨ TỰ DÁN LÊN CHUỒNG (NGẮT TRANG ĐỂ MÁY IN K80 CẮT RỜI) -->
+                    <div style="page-break-before: always !important; break-before: page !important;">
+                        ${generateCageTagHtml(ticket, dateStr, weightDisplay)}
+                    </div>
                 `;
             }
         }
+
+        function generateCageTagHtml(ticket, dateStrOverride = '', weightDisplayOverride = '') {
+            if (!ticket) return '';
+            const now = new Date();
+            const dateStr = dateStrOverride || (now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}));
+            const weightDisplay = weightDisplayOverride || (ticket.weight_at_service ? String(ticket.weight_at_service).replace('.', ',') + ' kg' : (ticket.pet_weight ? String(ticket.pet_weight).replace('.', ',') + ' kg' : '-'));
+            return `
+                <div class="thermal-k80-wrapper" style="width: 72mm; max-width: 72mm; margin: 0 auto; box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; line-height: 1.35; color: #000; padding: 2mm 1mm;">
+                    <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+                        <div style="font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">PHIẾU SỐ THỨ TỰ DÁN CHUỒNG</div>
+                        <div style="display: inline-block; border: 3px solid #000; font-size: 44px; font-weight: 900; line-height: 1.05; padding: 6px 20px; border-radius: 8px; margin: 6px 0 4px 0;">
+                            #${ticket.ticket_number || ticket.id}
+                        </div>
+                        <div style="font-size: 11px; font-family: monospace; font-weight: 800;">Mã: ${ticket.code || '-'} · ${dateStr}</div>
+                    </div>
+
+                    <div style="border: 2px solid #000; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px;">
+                        <div style="font-size: 16px; font-weight: 900; text-transform: uppercase;">🐕 BÉ: ${ticket.pet_name || 'Bé cưng'}</div>
+                        <div style="font-size: 12px; margin-top: 2px;"><strong>Giống/Màu:</strong> ${ticket.pet_breed || ticket.pet_species || 'Chó cảnh'} | ${ticket.pet_color || '-'}</div>
+                        <div style="font-size: 13px; margin-top: 2px;"><strong>Cân nặng:</strong> <span style="font-size: 15px; font-weight: 900;">${weightDisplay}</span></div>
+                        <div style="font-size: 12px; margin-top: 3px; padding-top: 3px; border-top: 1px dashed #000;">
+                            <strong>Khách:</strong> ${ticket.customer_name || 'Khách lẻ'} (${ticket.customer_phone || '-'})
+                        </div>
+                    </div>
+
+                    <div style="border: 1.5px solid #000; border-radius: 6px; padding: 6px 8px; margin-bottom: 6px;">
+                        <div style="font-size: 13px; font-weight: 900;">✂️ DỊCH VỤ: ${ticket.service_type || '-'}</div>
+                        <div style="font-size: 12px; margin-top: 2px;"><strong>Cạo bàn:</strong> <span style="text-decoration: underline;">${ticket.shaving_feet || 'Không cạo bàn'}</span></div>
+                        ${ticket.dye_package ? `<div style="font-size: 12px; margin-top: 2px;"><strong>Nhuộm:</strong> ${ticket.dye_package}</div>` : ''}
+                        ${ticket.customer_request ? `<div style="font-size: 12px; margin-top: 2px;"><strong>Yêu cầu cắt:</strong> ${ticket.customer_request}</div>` : ''}
+                        <div style="font-size: 12px; margin-top: 3px; padding-top: 3px; border-top: 1px dashed #000;">
+                            <strong>🎒 PHỤ KIỆN GỬI KÈM:</strong> <span style="font-size: 13px; font-weight: 900; text-decoration: underline;">${ticket.accessories || 'Không có'}</span>
+                        </div>
+                        ${ticket.note ? `<div style="font-size: 12px; margin-top: 2px;"><strong>📝 Lưu ý:</strong> ${ticket.note}</div>` : ''}
+                        <div style="font-size: 11px; margin-top: 3px;">
+                            <strong>Giờ nhận:</strong> ${ticket.received_time || '-'} (${ticket.arrival_method || 'Tự đến'}) ${ticket.send_to_hotel ? '· 🏨 GỬI HOTEL' : ''}
+                        </div>
+                    </div>
+                    <!-- Khoảng giấy trống dưới cùng để máy in nhiệt cắt rời hoàn toàn -->
+                    <div style="height: 18mm; width: 100%;"></div>
+                </div>
+            `;
+        }
+        window.generateCageTagHtml = generateCageTagHtml;
 
         async function printPetServiceTicketDirectly(ticketIdOrObj, type = 'intake') {
             let ticket = null;
@@ -7051,10 +7236,16 @@
             let pagesHtml = '';
             if (consolidated) {
                 const ticketInner = generateBatchConsolidatedTicketHtml(fullTickets, type);
+                const cageTagsHtml = (type === 'intake') ? fullTickets.map(t => `
+                    <div class="thermal-ticket-page" style="page-break-before: always; break-before: page; width: 72mm; max-width: 72mm; margin: 0 auto; color: #000; padding: 4px 0;">
+                        ${generateCageTagHtml(t)}
+                    </div>
+                `).join('') : '';
                 pagesHtml = `
                     <div class="thermal-ticket-page" style="width: 72mm; max-width: 72mm; margin: 0 auto; color: #000; padding: 4px 0;">
                         ${ticketInner}
                     </div>
+                    ${cageTagsHtml}
                 `;
             } else {
                 pagesHtml = fullTickets.map((t, idx) => {
@@ -7243,13 +7434,13 @@
                 contentEl.innerHTML = `
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">Gói Dịch Vụ Chính:</label>
-                        <select id="quick-edit-val-service" onchange="onQuickEditServiceChange(${ticket.id})" class="w-full border p-2 rounded bg-white text-xs font-bold text-slate-800 focus:border-purple-600 outline-none">
+                        <select id="quick-edit-val-service" onchange="onQuickEditServiceChange(${ticket.id})" class="w-full border p-2 rounded bg-white text-xs font-bold text-slate-800 focus:border-sky-600 outline-none">
                             ${optionsHtml}
                         </select>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">🎨 Gói Nhuộm Lông (nếu có):</label>
-                        <select id="quick-edit-val-dye" class="w-full border p-2 rounded bg-white text-xs text-purple-700 font-semibold focus:border-purple-600 outline-none">
+                        <select id="quick-edit-val-dye" class="w-full border p-2 rounded bg-white text-xs text-sky-700 font-semibold focus:border-sky-600 outline-none">
                             ${dyeHtml}
                         </select>
                     </div>
@@ -7259,17 +7450,17 @@
                         <div class="flex items-center gap-1.5 font-bold text-amber-900">
                             <span>⚠️</span> <span>XÁC NHẬN ĐIỀU CHỈNH GÓI DỊCH VỤ</span>
                         </div>
-                        <div class="text-[11px] text-amber-800" id="quick-edit-service-change-diff">
+                        <div class="text-xs text-amber-800" id="quick-edit-service-change-diff">
                             <!-- Chênh lệch giá -->
                         </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">Lý do điều chỉnh (in lên bill & lưu đối soát):</label>
                             <input type="text" id="quick-edit-service-change-reason" class="w-full border border-amber-300 rounded p-1.5 bg-white text-xs font-medium text-slate-800" placeholder="VD: Lông rối bết nhiều, Khách đổi ý...">
                             <div class="flex flex-wrap gap-1 mt-1.5">
-                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Lông rối bết nhiều không gỡ được'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Lông rối bết</span>
-                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Viêm da / Ve rận phát sinh'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Viêm da/Ve rận</span>
-                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Bé hung dữ / không hợp tác cắt'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Bé khó làm</span>
-                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Khách đổi ý theo hiện trạng bé'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100 font-medium">+ Khách đổi ý</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Lông rối bết nhiều không gỡ được'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100 font-medium">+ Lông rối bết</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Viêm da / Ve rận phát sinh'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100 font-medium">+ Viêm da/Ve rận</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Bé hung dữ / không hợp tác cắt'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100 font-medium">+ Bé khó làm</span>
+                                <span onclick="document.getElementById('quick-edit-service-change-reason').value='Khách đổi ý theo hiện trạng bé'" class="cursor-pointer bg-white text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100 font-medium">+ Khách đổi ý</span>
                             </div>
                         </div>
                     </div>
@@ -7287,7 +7478,7 @@
                 contentEl.innerHTML = `
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">Cạo Bàn:</label>
-                        <select id="quick-edit-val-shaving" class="w-full border p-1.5 rounded bg-white text-xs font-bold text-purple-800">
+                        <select id="quick-edit-val-shaving" class="w-full border p-1.5 rounded bg-white text-xs font-bold text-sky-800">
                             ${shavingHtml}
                         </select>
                     </div>
@@ -7295,20 +7486,20 @@
                         <label class="block font-bold text-slate-700 mb-1">✂️ Yêu Cầu Cắt Tỉa:</label>
                         <input type="text" id="quick-edit-val-req" class="w-full border p-1.5 rounded bg-white text-xs font-medium text-slate-800" value="${escapeSpaHtml(ticket.customer_request || '')}" placeholder="VD: Cắt tròn mặt teddy, bo chân bông...">
                         <div class="flex flex-wrap gap-1 mt-1.5">
-                            <span onclick="setQuickInput('quick-edit-val-req', 'Mặt tròn teddy')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Mặt teddy</span>
-                            <span onclick="setQuickInput('quick-edit-val-req', 'Cắt ngắn gọn mát mẻ')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Ngắn mát</span>
-                            <span onclick="setQuickInput('quick-edit-val-req', 'Bo tròn chân bông')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Chân bông</span>
-                            <span onclick="setQuickInput('quick-edit-val-req', 'Tỉa phom gọn gàng')" class="cursor-pointer bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] border border-purple-200 hover:bg-purple-100">+ Tỉa gọn</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Mặt tròn teddy')" class="cursor-pointer bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded text-xs border border-sky-200 hover:bg-sky-100">+ Mặt teddy</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Cắt ngắn gọn mát mẻ')" class="cursor-pointer bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded text-xs border border-sky-200 hover:bg-sky-100">+ Ngắn mát</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Bo tròn chân bông')" class="cursor-pointer bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded text-xs border border-sky-200 hover:bg-sky-100">+ Chân bông</span>
+                            <span onclick="setQuickInput('quick-edit-val-req', 'Tỉa phom gọn gàng')" class="cursor-pointer bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded text-xs border border-sky-200 hover:bg-sky-100">+ Tỉa gọn</span>
                         </div>
                     </div>
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">🎒 Phụ Kiện Gửi Lại:</label>
                         <input type="text" id="quick-edit-val-acc" class="w-full border p-1.5 rounded bg-white text-xs font-medium text-amber-800" value="${escapeSpaHtml(ticket.accessories || '')}" placeholder="VD: Dây dắt, chuồng xách tay...">
                         <div class="flex flex-wrap gap-1 mt-1.5">
-                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Dây dắt')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Dây dắt</span>
-                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Vòng cổ')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Vòng cổ</span>
-                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Chuồng xách tay')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Chuồng</span>
-                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Balo')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] border border-amber-200 hover:bg-amber-100">+ Balo</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Dây dắt')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100">+ Dây dắt</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Vòng cổ')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100">+ Vòng cổ</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Chuồng xách tay')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100">+ Chuồng</span>
+                            <span onclick="appendQuickInput('quick-edit-val-acc', 'Balo')" class="cursor-pointer bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-xs border border-amber-200 hover:bg-amber-100">+ Balo</span>
                         </div>
                     </div>
                     <div>
@@ -7330,7 +7521,7 @@
                 contentEl.innerHTML = `
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">✂️ Thợ Cắt Tỉa / Tạo Kiểu:</label>
-                        <select id="quick-edit-val-cutter" class="w-full border p-2 rounded bg-white text-xs font-bold text-pink-700">
+                        <select id="quick-edit-val-cutter" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
                             ${staffOpts}
                         </select>
                     </div>
@@ -7342,7 +7533,7 @@
                     </div>
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">📥 Thợ Tiếp Nhận / Trả Bé:</label>
-                        <select id="quick-edit-val-receiver" class="w-full border p-2 rounded bg-white text-xs font-bold text-purple-700">
+                        <select id="quick-edit-val-receiver" class="w-full border p-2 rounded bg-white text-xs font-bold text-sky-700">
                             ${staffOpts}
                         </select>
                     </div>
@@ -7553,7 +7744,7 @@
             if (!grid) return;
             if (!allGroomingGallery || allGroomingGallery.length === 0) {
                 grid.innerHTML = `
-                    <div class="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-pink-300 p-6 space-y-2">
+                    <div class="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-sky-300 p-6 space-y-2">
                         <span class="text-3xl">🐾</span>
                         <div class="font-bold text-slate-700 text-sm">Chưa có hình mẫu cắt tỉa nào</div>
                         <p class="text-xs text-slate-400">Bấm nút "➕ Thêm Mẫu Cắt Mới" ở góc trên để thêm các kiểu cắt đẹp cho shop</p>
@@ -7571,18 +7762,18 @@
                             <div class="w-full h-full flex items-center justify-center text-4xl text-slate-300">🐕</div>
                         `}
                         ${item.breed ? `
-                            <span class="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur-xs">
+                            <span class="absolute top-2 left-2 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded backdrop-blur-xs">
                                 ${escapeSpaHtml(item.breed)}
                             </span>
                         ` : ''}
                     </div>
                     <div class="p-2.5 flex-1 flex flex-col justify-between space-y-1">
                         <div>
-                            <div class="font-black text-slate-900 text-xs truncate" title="${escapeSpaHtml(item.title)}">${escapeSpaHtml(item.title)}</div>
-                            ${item.description ? `<p class="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-snug">${escapeSpaHtml(item.description)}</p>` : ''}
+                            <div class="font-bold text-slate-900 text-xs truncate" title="${escapeSpaHtml(item.title)}">${escapeSpaHtml(item.title)}</div>
+                            ${item.description ? `<p class="text-xs text-slate-500 line-clamp-2 mt-0.5 leading-snug">${escapeSpaHtml(item.description)}</p>` : ''}
                         </div>
                         <div class="pt-1.5 flex justify-between items-center border-t border-slate-100">
-                            <button type="button" onclick="deleteGroomingStyle(${item.id})" class="text-rose-500 hover:text-rose-700 text-[11px] font-bold cursor-pointer" title="Xóa mẫu này">🗑️ Xóa</button>
+                            <button type="button" onclick="deleteGroomingStyle(${item.id})" class="text-rose-500 hover:text-rose-700 text-xs font-bold cursor-pointer" title="Xóa mẫu này">🗑️ Xóa</button>
                         </div>
                     </div>
                 </div>
@@ -7694,7 +7885,7 @@
                     grid.innerHTML = `
                         <div class="col-span-full py-10 text-center text-slate-400">
                             <div>Chưa có mẫu cắt nào trong thư viện.</div>
-                            <div class="text-[11px] text-pink-600 mt-2 cursor-pointer font-bold inline-block bg-pink-50 px-3 py-1 rounded-lg border border-pink-200" onclick="closeGroomingGalleryPicker(); switchPetSubTab('gallery'); openAddGroomingModal();">
+                            <div class="text-xs text-sky-600 mt-2 cursor-pointer font-bold inline-block bg-sky-50 px-3 py-1 rounded-lg border border-sky-200" onclick="closeGroomingGalleryPicker(); switchPetSubTab('gallery'); openAddGroomingModal();">
                                 ➕ Mở Thư Viện Thêm Mẫu Mới
                             </div>
                         </div>
@@ -7703,19 +7894,19 @@
                 }
 
                 grid.innerHTML = allGroomingGallery.map(item => `
-                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:border-pink-500 hover:shadow-md transition cursor-pointer flex flex-col group" onclick="selectGroomingStyleForIntake('${escapeSpaHtml(item.title)}')">
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:border-sky-500 hover:shadow-md transition cursor-pointer flex flex-col group" onclick="selectGroomingStyleForIntake('${escapeSpaHtml(item.title)}')">
                         <div class="h-56 bg-slate-100 overflow-hidden relative">
                             ${item.image_data ? `
                                 <img src="${item.image_data}" alt="${escapeSpaHtml(item.title)}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
                             ` : `
                                 <div class="w-full h-full flex items-center justify-center text-3xl text-slate-300">🐕</div>
                             `}
-                            ${item.breed ? `<span class="absolute top-1.5 left-1.5 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">${escapeSpaHtml(item.breed)}</span>` : ''}
+                            ${item.breed ? `<span class="absolute top-1.5 left-1.5 bg-black/60 text-white text-xs font-bold px-1.5 py-0.5 rounded">${escapeSpaHtml(item.breed)}</span>` : ''}
                         </div>
                         <div class="p-2 space-y-1">
-                            <div class="font-black text-slate-900 text-xs truncate">${escapeSpaHtml(item.title)}</div>
-                            ${item.description ? `<p class="text-[10px] text-slate-500 line-clamp-1">${escapeSpaHtml(item.description)}</p>` : ''}
-                            <button type="button" class="w-full mt-1 bg-pink-50 group-hover:bg-pink-600 group-hover:text-white text-pink-700 text-[10px] font-bold py-1 rounded transition">
+                            <div class="font-bold text-slate-900 text-xs truncate">${escapeSpaHtml(item.title)}</div>
+                            ${item.description ? `<p class="text-xs text-slate-500 line-clamp-1">${escapeSpaHtml(item.description)}</p>` : ''}
+                            <button type="button" class="w-full mt-1 bg-sky-50 group-hover:bg-sky-600 group-hover:text-white text-sky-700 text-xs font-bold py-1 rounded transition">
                                 👉 Chọn mẫu này
                             </button>
                         </div>
@@ -7859,12 +8050,12 @@
             const colorsCont = document.getElementById('pet-colors-container');
             if (colorsCont) {
                 if (colors.length === 0) {
-                    colorsCont.innerHTML = `<span class="text-xs text-slate-400 italic">Chưa có màu nào. Bấm 'Reset màu gốc' để khôi phục.</span>`;
+                    colorsCont.innerHTML = `<span class="text-xs text-slate-400 ">Chưa có màu nào. Bấm 'Reset màu gốc' để khôi phục.</span>`;
                 } else {
                     colorsCont.innerHTML = colors.map((c, idx) => `
-                        <span class="inline-flex items-center gap-1.5 bg-white border border-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-2xs hover:border-purple-400 transition group">
+                        <span class="inline-flex items-center gap-1.5 bg-white border border-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-2xs hover:border-sky-400 transition group">
                             <span>${escapeSpaHtml(c)}</span>
-                            <button type="button" onclick="removePetColorTag(${idx})" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px] transition" title="Xóa màu này">✕</button>
+                            <button type="button" onclick="removePetColorTag(${idx})" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center text-xs transition" title="Xóa màu này">✕</button>
                         </span>
                     `).join('');
                 }
@@ -7873,12 +8064,12 @@
             const breedsCont = document.getElementById('pet-breeds-container');
             if (breedsCont) {
                 if (breeds.length === 0) {
-                    breedsCont.innerHTML = `<span class="text-xs text-slate-400 italic">Chưa có giống loài nào. Bấm 'Reset giống gốc' để khôi phục.</span>`;
+                    breedsCont.innerHTML = `<span class="text-xs text-slate-400 ">Chưa có giống loài nào. Bấm 'Reset giống gốc' để khôi phục.</span>`;
                 } else {
                     breedsCont.innerHTML = breeds.map((b, idx) => `
-                        <span class="inline-flex items-center gap-1.5 bg-white border border-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-2xs hover:border-purple-400 transition group">
+                        <span class="inline-flex items-center gap-1.5 bg-white border border-slate-300 text-slate-800 text-xs font-semibold px-2.5 py-1 rounded-lg shadow-2xs hover:border-sky-400 transition group">
                             <span>🐾 ${escapeSpaHtml(b)}</span>
-                            <button type="button" onclick="removePetBreedTag(${idx})" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[10px] transition" title="Xóa giống này">✕</button>
+                            <button type="button" onclick="removePetBreedTag(${idx})" class="w-4 h-4 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 flex items-center justify-center text-xs transition" title="Xóa giống này">✕</button>
                         </span>
                     `).join('');
                 }

@@ -689,269 +689,415 @@ def report_summary():
 def get_reports_analytics(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    cat_mode: str = "exclude",
+    cat_list: Optional[str] = None,
     user=Depends(get_current_user)
 ):
     """
-    Truy vấn báo cáo phân tích kinh doanh đa chiều:
-    - Summary KPI
-    - Timeline xu hướng doanh thu theo ngày
-    - Dòng tiền theo phương thức thanh toán
-    - Tách biệt Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
-    - Doanh số và hoa hồng theo nhân viên
-    - Top sản phẩm bán chạy nhất
+    Truy vấn báo cáo phân tích kinh doanh đa chiều (Tinh hoa KiotViet + POS PetCare):
+    - 6 KPI chuẩn kế toán KiotViet (Số hóa đơn, Doanh thu, Giá trị trả, Doanh thu thuần, Tổng giá vốn, Lợi nhuận gộp) + TB/ngày + % So với kỳ trước
+    - 3 KPI dòng tiền & vận hành POS PetCare (Thực thu tại quầy, Công nợ phát sinh, Cơ cấu Hàng hóa / Spa / Khách sạn)
+    - Bộ lọc Thêm / Loại trừ Nhóm hàng hóa & Dịch vụ đặc biệt (cat_mode='exclude'|'include', cat_list='Thú Cưng||Vận chuyển')
+    - Timeline 4 đường chuẩn KiotViet (Doanh thu, Trả hàng, Tổng giá vốn, Lợi nhuận gộp) + bóc tách kênh
     """
+    from datetime import timedelta
+    import json as json_mod
+
     now = datetime.now()
     if not from_date:
         from_date = now.strftime("%Y-%m-%d")
     if not to_date:
         to_date = now.strftime("%Y-%m-%d")
 
-    from_dt_str = f"{from_date} 00:00:00"
-    to_dt_str = f"{to_date} 23:59:59"
+    try:
+        d_start = datetime.strptime(from_date, "%Y-%m-%d").date()
+        d_end = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except Exception:
+        d_start = now.date()
+        d_end = now.date()
+    if d_end < d_start:
+        d_start, d_end = d_end, d_start
+
+    days_count = max(1, (d_end - d_start).days + 1)
+    prev_end = d_start - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=days_count - 1)
+
+    selected_cats = set(
+        [c.strip() for c in (cat_list or "").split("||") if c.strip()]
+    )
+    mode_clean = "include" if (cat_mode or "").strip().lower() == "include" else "exclude"
+
+    def is_cat_allowed(cat_name: str) -> bool:
+        c = (cat_name or "Khác").strip() or "Khác"
+        if not selected_cats:
+            return True
+        if mode_clean == "exclude":
+            return c not in selected_cats
+        return c in selected_cats
 
     conn = get_db()
     cur = conn.cursor()
 
-    # 1. KPI Tổng quan
-    cur.execute("""
-    SELECT 
-        COUNT(id) as order_count,
-        COALESCE(SUM(final_amount), 0) as total_revenue,
-        COALESCE(SUM(paid_amount), 0) as total_paid,
-        COALESCE(SUM(debt_amount), 0) as total_debt,
-        COALESCE(SUM(commission_amount), 0) as total_commission
-    FROM orders
-    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
-    """, (from_dt_str, to_dt_str))
-    stat_row = cur.fetchone()
-    order_count = stat_row["order_count"] or 0
-    total_rev = stat_row["total_revenue"] or 0
-    total_paid = stat_row["total_paid"] or 0
-    total_debt = stat_row["total_debt"] or 0
-    from services.commission import sales_commission_by_staff
-    comm_by_staff = sales_commission_by_staff(cur, from_dt_str, to_dt_str)
-    total_comm = sum(v["commission"] for v in comm_by_staff.values())
+    # Lấy toàn bộ danh mục Nhóm hàng đang có trong hệ thống + 2 nhóm dịch vụ đặc thù
+    cur.execute("SELECT DISTINCT COALESCE(NULLIF(TRIM(category), ''), 'Khác') as cat FROM products ORDER BY cat ASC")
+    all_db_cats = [r["cat"] for r in cur.fetchall()]
+    for special_c in ["Dịch vụ Spa & Grooming", "Khách sạn thú cưng"]:
+        if special_c not in all_db_cats:
+            all_db_cats.append(special_c)
 
-    # 2. Timeline xu hướng doanh thu & số đơn (gom theo ngày)
-    cur.execute("""
-    SELECT 
-        strftime('%d/%m', datetime(created_at, '+7 hours')) as day_label,
-        strftime('%Y-%m-%d', datetime(created_at, '+7 hours')) as raw_date,
-        COUNT(id) as orders,
-        COALESCE(SUM(final_amount), 0) as revenue
-    FROM orders
-    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
-    GROUP BY strftime('%Y-%m-%d', datetime(created_at, '+7 hours'))
-    ORDER BY raw_date ASC
-    """, (from_dt_str, to_dt_str))
-    timeline_rows = [
-        {"label": r["day_label"], "raw_date": r["raw_date"], "revenue": r["revenue"], "orders": r["orders"]}
-        for r in cur.fetchall()
-    ]
-    # Fallback nếu trong ngày chưa có đơn nào
-    if not timeline_rows:
-        timeline_rows = [{"label": datetime.strptime(from_date, "%Y-%m-%d").strftime("%d/%m"), "raw_date": from_date, "revenue": 0, "orders": 0}]
+    def compute_period_metrics(p_from_str: str, p_to_str: str, collect_details: bool = False):
+        p_from_dt = f"{p_from_str} 00:00:00"
+        p_to_dt = f"{p_to_str} 23:59:59"
 
-    # 3. Phân loại theo hình thức thanh toán
-    cur.execute("""
-    SELECT 
-        op.method,
-        COUNT(op.id) as count,
-        COALESCE(SUM(op.amount), 0) as amount
-    FROM order_payments op
-    JOIN orders o ON op.order_id = o.id
-    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
-    GROUP BY op.method
-    """, (from_dt_str, to_dt_str))
-    payment_map = {r["method"]: {"count": r["count"], "amount": r["amount"]} for r in cur.fetchall()}
+        daily_map = {}
+        cat_stats = {}
+        prod_stats = {}
+        staff_stats = {}
+        payment_map = {}
 
-    # Thêm dòng cấn trừ ví Spa từ đơn POS nếu có
-    cur.execute("""
-    SELECT 
-        COUNT(id) as count,
-        COALESCE(SUM(spa_wallet_deduction), 0) as amount
-    FROM orders
-    WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ? AND spa_wallet_deduction > 0
-    """, (from_dt_str, to_dt_str))
-    wallet_row = cur.fetchone()
-    if wallet_row and wallet_row["amount"] > 0:
-        payment_map["wallet"] = {"count": wallet_row["count"], "amount": wallet_row["amount"]}
+        def add_daily(d_str, rev=0.0, ret=0.0, cost=0.0, orders=0, goods=0.0, spa=0.0, hotel=0.0):
+            if d_str not in daily_map:
+                daily_map[d_str] = {
+                    "revenue": 0.0, "returns": 0.0, "cost": 0.0, "orders": 0,
+                    "goods_rev": 0.0, "spa_rev": 0.0, "hotel_rev": 0.0
+                }
+            daily_map[d_str]["revenue"] += rev
+            daily_map[d_str]["returns"] += ret
+            daily_map[d_str]["cost"] += cost
+            daily_map[d_str]["orders"] += orders
+            daily_map[d_str]["goods_rev"] += goods
+            daily_map[d_str]["spa_rev"] += spa
+            daily_map[d_str]["hotel_rev"] += hotel
 
-    # Fallback nếu đơn cũ chỉ ghi cashbook hoặc đơn lẻ tiền mặt
-    if not payment_map and total_paid > 0:
-        payment_map["cash"] = {"count": order_count, "amount": total_paid}
+        def add_cat(cat_name, ch_type, rev=0.0, cost=0.0, ret=0.0, qty=0.0):
+            c = (cat_name or "Khác").strip() or "Khác"
+            if c not in cat_stats:
+                cat_stats[c] = {"category": c, "channel": ch_type, "revenue": 0.0, "cost": 0.0, "returns": 0.0, "qty": 0.0}
+            cat_stats[c]["revenue"] += rev
+            cat_stats[c]["cost"] += cost
+            cat_stats[c]["returns"] += ret
+            cat_stats[c]["qty"] += qty
 
-    # 4. Bóc tách Hàng Hóa vs Dịch Vụ Spa vs Khách Sạn
-    cur.execute("""
-    SELECT 
-        COALESCE(p.type, 'product') as item_type,
-        COUNT(oi.id) as line_count,
-        COALESCE(SUM(oi.quantity), 0) as total_qty,
-        COALESCE(SUM(oi.subtotal), 0) as total_subtotal
-    FROM order_items oi
-    JOIN orders o ON oi.order_id = o.id
-    LEFT JOIN products p ON oi.product_id = p.id
-    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
-    GROUP BY COALESCE(p.type, 'product')
-    """, (from_dt_str, to_dt_str))
-    g_vs_s_rows = cur.fetchall()
-    goods_rev = 0
-    goods_qty = 0
-    services_rev = 0
-    services_qty = 0
-    for r in g_vs_s_rows:
-        if r["item_type"] == "service":
-            services_rev += r["total_subtotal"]
-            services_qty += r["total_qty"]
-        else:
-            goods_rev += r["total_subtotal"]
-            goods_qty += r["total_qty"]
-
-    # Doanh thu phòng khách sạn
-    hotel_rev = 0
-    hotel_count = 0
-    try:
+        # 1. Đơn hàng POS (orders + order_items)
         cur.execute("""
-        SELECT COUNT(id) as cnt, COALESCE(SUM(total_amount), 0) as total_hotel
-        FROM hotel_bookings
-        WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
-        """, (from_dt_str, to_dt_str))
-        h_row = cur.fetchone()
-        if h_row:
-            hotel_rev = h_row["total_hotel"] or 0
-            hotel_count = h_row["cnt"] or 0
-    except Exception:
-        pass
+            SELECT o.id, o.code, o.staff_id, COALESCE(s.name, 'Quản trị viên') as staff_name,
+                   o.total_amount, o.discount, o.shipping_fee, o.final_amount,
+                   o.paid_amount, o.debt_amount, o.commission_amount, o.spa_wallet_deduction,
+                   strftime('%Y-%m-%d', datetime(o.created_at, '+7 hours')) as raw_date
+            FROM orders o
+            LEFT JOIN staff s ON o.staff_id = s.id
+            WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+              AND COALESCE(o.status, 'completed') != 'cancelled'
+        """, (p_from_dt, p_to_dt))
+        orders_rows = cur.fetchall()
+        orders_by_id = {r["id"]: dict(r) for r in orders_rows}
 
-    # T8: Bổ sung doanh thu Spa từ pet_service_tickets, tách hàng bán kèm vs dịch vụ
-    spa_goods_rev = 0.0
-    spa_goods_qty = 0
-    spa_services_rev = 0.0
-    spa_services_qty = 0
-    spa_paid = 0.0
-    spa_debt = 0.0
-    spa_daily_map = {}
-    spa_tickets_count = 0
-
-    try:
-        import json as json_mod
         cur.execute("""
-        SELECT id, code, price, services_json, tip_amount, deposit_amount, spa_wallet_deduction, payment_method, payment_status, ticket_date
-        FROM pet_service_tickets
-        WHERE ticket_date >= ? AND ticket_date <= ?
-          AND (payment_status = 'paid' OR status IN ('completed', 'checked_out', 'done'))
-        """, (from_date, to_date))
-        spa_tickets = cur.fetchall()
-        spa_tickets_count = len(spa_tickets)
+            SELECT oi.order_id, oi.product_id, oi.quantity, oi.price, oi.subtotal, oi.unit_ratio,
+                   COALESCE(p.code, 'SP') as p_code,
+                   COALESCE(p.name, 'Sản phẩm') as p_name,
+                   COALESCE(NULLIF(TRIM(p.category), ''), 'Khác') as category,
+                   COALESCE(p.type, 'product') as p_type,
+                   COALESCE(p.unit, 'Cái') as p_unit,
+                   COALESCE(p.cost_price, 0) as cost_price
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            LEFT JOIN products p ON oi.product_id = p.id
+            WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+              AND COALESCE(o.status, 'completed') != 'cancelled'
+        """, (p_from_dt, p_to_dt))
+        oi_rows = cur.fetchall()
 
-        for st in spa_tickets:
+        items_by_order = {}
+        for it in oi_rows:
+            items_by_order.setdefault(it["order_id"], []).append(dict(it))
+
+        pos_orders_count = 0
+        pos_rev = 0.0
+        pos_cost = 0.0
+        pos_paid = 0.0
+        pos_debt = 0.0
+        goods_rev = 0.0
+        goods_qty = 0.0
+        services_rev = 0.0
+        services_qty = 0.0
+        order_kept_ratio = {}
+
+        for oid, o in orders_by_id.items():
+            o_items = items_by_order.get(oid, [])
+            raw_total = sum(float(x["subtotal"] or 0) for x in o_items) or float(o["total_amount"] or 0) or 1.0
+            disc_factor = float(o["final_amount"] or 0) / raw_total if raw_total > 0 else 1.0
+
+            # Ghi nhận thống kê cho tất cả nhóm hàng (để hiển thị trong bảng Ma trận Nhóm hàng kể cả khi bị gạch bỏ)
+            kept_sub = 0.0
+            kept_cost = 0.0
+            kept_goods = 0.0
+            kept_serv = 0.0
+
+            for x in o_items:
+                cat = x["category"]
+                sub_net = float(x["subtotal"] or 0) * disc_factor
+                ratio = float(x["unit_ratio"] or 1.0)
+                c_amt = float(x["quantity"] or 0) * ratio * float(x["cost_price"] or 0)
+                ch_type = "spa" if x["p_type"] == "service" else "goods"
+                if collect_details:
+                    add_cat(cat, ch_type, rev=sub_net, cost=c_amt, qty=float(x["quantity"] or 0))
+
+                if is_cat_allowed(cat):
+                    kept_sub += sub_net
+                    kept_cost += c_amt
+                    if x["p_type"] == "service":
+                        services_rev += sub_net
+                        services_qty += float(x["quantity"] or 0)
+                        kept_serv += sub_net
+                    else:
+                        goods_rev += sub_net
+                        goods_qty += float(x["quantity"] or 0)
+                        kept_goods += sub_net
+
+                    if collect_details:
+                        pid = x["product_id"] or 0
+                        if pid not in prod_stats:
+                            prod_stats[pid] = {
+                                "product_id": pid, "code": x["p_code"], "name": x["p_name"],
+                                "category": cat, "type": x["p_type"], "unit": x["p_unit"],
+                                "qty_sold": 0.0, "revenue": 0.0, "cost": 0.0
+                            }
+                        prod_stats[pid]["qty_sold"] += float(x["quantity"] or 0)
+                        prod_stats[pid]["revenue"] += sub_net
+                        prod_stats[pid]["cost"] += c_amt
+
+            if kept_sub > 0 or not o_items:
+                pos_orders_count += 1
+                share = (kept_sub / float(o["final_amount"] or 1.0)) if float(o["final_amount"] or 0) > 0 else 1.0
+                share = min(1.0, max(0.0, share))
+                order_kept_ratio[oid] = share
+                o_paid = float(o["paid_amount"] or 0) * share
+                o_debt = float(o["debt_amount"] or 0) * share
+                pos_rev += kept_sub
+                pos_cost += kept_cost
+                pos_paid += o_paid
+                pos_debt += o_debt
+                add_daily(o["raw_date"], rev=kept_sub, cost=kept_cost, orders=1, goods=kept_goods, spa=kept_serv)
+
+                if collect_details:
+                    sid = o["staff_id"] or 1
+                    if sid not in staff_stats:
+                        staff_stats[sid] = {
+                            "staff_id": sid, "staff_name": o["staff_name"],
+                            "order_count": 0, "revenue": 0.0, "paid_revenue": 0.0, "commission": 0.0
+                        }
+                    staff_stats[sid]["order_count"] += 1
+                    staff_stats[sid]["revenue"] += kept_sub
+                    staff_stats[sid]["paid_revenue"] += o_paid
+                    staff_stats[sid]["commission"] += float(o["commission_amount"] or 0) * share
+
+        # 2. Giá trị trả hàng (order_returns + order_return_items)
+        cur.execute("""
+            SELECT ori.return_id, ori.product_id, ori.quantity, ori.subtotal,
+                   COALESCE(NULLIF(TRIM(p.category), ''), 'Khác') as category,
+                   COALESCE(p.cost_price, 0) as cost_price,
+                   strftime('%Y-%m-%d', datetime(r.created_at, '+7 hours')) as raw_date
+            FROM order_return_items ori
+            JOIN order_returns r ON ori.return_id = r.id
+            LEFT JOIN products p ON ori.product_id = p.id
+            WHERE datetime(r.created_at, '+7 hours') >= ? AND datetime(r.created_at, '+7 hours') <= ?
+        """, (p_from_dt, p_to_dt))
+        ret_rows = cur.fetchall()
+        total_returns = 0.0
+        returned_cost = 0.0
+        for rr in ret_rows:
+            r_cat = rr["category"]
+            r_sub = float(rr["subtotal"] or 0)
+            r_cost = float(rr["quantity"] or 0) * float(rr["cost_price"] or 0)
+            if collect_details:
+                add_cat(r_cat, "goods", ret=r_sub)
+            if is_cat_allowed(r_cat):
+                total_returns += r_sub
+                returned_cost += r_cost
+                add_daily(rr["raw_date"], ret=r_sub, cost=-r_cost)
+
+        # 3. Vé Dịch vụ Spa (pet_service_tickets)
+        spa_rev = 0.0
+        spa_cost = 0.0
+        spa_paid = 0.0
+        spa_debt = 0.0
+        spa_count = 0
+        cur.execute("""
+            SELECT id, code, price, services_json, tip_amount, deposit_amount,
+                   spa_wallet_deduction, payment_method, payment_status, ticket_date, staff_worker_1
+            FROM pet_service_tickets
+            WHERE ticket_date >= ? AND ticket_date <= ?
+              AND (payment_status = 'paid' OR status IN ('completed', 'checked_out', 'done'))
+              AND COALESCE(status, '') != 'cancelled'
+        """, (p_from_str, p_to_str))
+        for st in cur.fetchall():
             t_price = float(st["price"] or 0.0)
             t_tip = float(st["tip_amount"] or 0.0)
             t_dep = float(st["deposit_amount"] or 0.0)
             t_wallet = float(st["spa_wallet_deduction"] or 0.0)
-            t_date = st["ticket_date"] or from_date
+            t_date = st["ticket_date"] or p_from_str
+            shop_rev = max(0.0, t_price - t_tip)
+            est_spa_cost = round(shop_rev * 0.18, 0)  # Chi phí vật tư/sữa tắm/khấu hao Spa (~18%)
 
-            parsed_items = []
-            if st["services_json"]:
-                try:
-                    parsed_items = json_mod.loads(st["services_json"])
-                except Exception:
-                    parsed_items = []
+            if collect_details:
+                add_cat("Dịch vụ Spa & Grooming", "spa", rev=shop_rev, cost=est_spa_cost, qty=1)
 
-            t_goods = 0.0
-            t_goods_qty = 0
-            t_serv = 0.0
-            t_serv_qty = 0
-            t_tip_item = 0.0
-
-            for it in parsed_items:
-                q = it.get("quantity") or 1
-                p = it.get("price") or 0.0
-                sub = q * p
-                if it.get("is_retail"):
-                    t_goods += sub
-                    t_goods_qty += q
-                elif it.get("is_tip") or it.get("name") == "Tiền tip thợ":
-                    t_tip_item += sub
+            if is_cat_allowed("Dịch vụ Spa & Grooming") or is_cat_allowed("Dịch vụ Spa combo") or is_cat_allowed("Dịch Vụ spa lẻ"):
+                spa_count += 1
+                spa_rev += shop_rev
+                spa_cost += est_spa_cost
+                services_rev += shop_rev
+                services_qty += 1
+                if st["payment_status"] == "paid":
+                    spa_paid += shop_rev
                 else:
-                    t_serv += sub
-                    t_serv_qty += q
+                    spa_paid += min(t_dep, shop_rev)
+                    spa_debt += max(0.0, shop_rev - t_dep)
+                add_daily(t_date, rev=shop_rev, cost=est_spa_cost, orders=1, spa=shop_rev)
 
-            if not parsed_items:
-                t_serv = max(0.0, t_price - t_tip)
-                t_serv_qty = 1
-
-            spa_goods_rev += t_goods
-            spa_goods_qty += t_goods_qty
-            spa_services_rev += t_serv
-            spa_services_qty += t_serv_qty
-
-            shop_ticket_rev = t_goods + t_serv
-
-            if st["payment_status"] == 'paid':
-                spa_paid += shop_ticket_rev
-            else:
-                spa_paid += min(t_dep, shop_ticket_rev)
-                spa_debt += max(0.0, shop_ticket_rev - t_dep)
-
-            if t_date not in spa_daily_map:
-                spa_daily_map[t_date] = {"revenue": 0.0, "orders": 0}
-            spa_daily_map[t_date]["revenue"] += shop_ticket_rev
-            spa_daily_map[t_date]["orders"] += 1
-
-            # Cộng vào payment_map
-            if st["payment_status"] == 'paid':
-                p_method = st["payment_method"] or 'cash'
-                if t_wallet > 0:
-                    payment_map["wallet"] = payment_map.get("wallet", {"count": 0, "amount": 0})
-                    payment_map["wallet"]["count"] += 1
-                    payment_map["wallet"]["amount"] += t_wallet
-                    rem = max(0.0, shop_ticket_rev - t_wallet)
+                if collect_details and st["payment_status"] == "paid":
+                    p_method = st["payment_method"] or "cash"
+                    if t_wallet > 0:
+                        payment_map["wallet"] = payment_map.get("wallet", {"count": 0, "amount": 0.0})
+                        payment_map["wallet"]["count"] += 1
+                        payment_map["wallet"]["amount"] += t_wallet
+                    rem = max(0.0, shop_rev - t_wallet)
                     if rem > 0:
-                        c_method = 'bank' if p_method in ('transfer', 'card') else 'cash'
-                        payment_map[c_method] = payment_map.get(c_method, {"count": 0, "amount": 0})
-                        payment_map[c_method]["count"] += 1
-                        payment_map[c_method]["amount"] += rem
+                        c_m = "bank" if p_method in ("transfer", "card") else "cash"
+                        payment_map[c_m] = payment_map.get(c_m, {"count": 0, "amount": 0.0})
+                        payment_map[c_m]["count"] += 1
+                        payment_map[c_m]["amount"] += rem
+
+        # 4. Phiếu Khách sạn thú cưng (hotel_bookings)
+        hotel_rev = 0.0
+        hotel_cost = 0.0
+        hotel_paid = 0.0
+        hotel_debt = 0.0
+        hotel_count = 0
+        cur.execute("""
+            SELECT id, code, total_amount, deposit_amount, status,
+                   strftime('%Y-%m-%d', datetime(created_at, '+7 hours')) as raw_date
+            FROM hotel_bookings
+            WHERE datetime(created_at, '+7 hours') >= ? AND datetime(created_at, '+7 hours') <= ?
+              AND COALESCE(status, '') != 'cancelled'
+        """, (p_from_dt, p_to_dt))
+        for hb in cur.fetchall():
+            h_amt = float(hb["total_amount"] or 0.0)
+            h_dep = float(hb["deposit_amount"] or 0.0)
+            h_cost = round(h_amt * 0.15, 0)  # Chi phí thức ăn/vệ sinh lưu chuồng (~15%)
+            if collect_details:
+                add_cat("Khách sạn thú cưng", "hotel", rev=h_amt, cost=h_cost, qty=1)
+
+            if is_cat_allowed("Khách sạn thú cưng") or is_cat_allowed("Khách sạn"):
+                hotel_count += 1
+                hotel_rev += h_amt
+                hotel_cost += h_cost
+                if hb["status"] == "completed":
+                    hotel_paid += h_amt
                 else:
-                    p_code = 'bank' if p_method in ('transfer', 'card') else ('cash' if p_method == 'cash' else p_method)
-                    payment_map[p_code] = payment_map.get(p_code, {"count": 0, "amount": 0})
-                    payment_map[p_code]["count"] += 1
-                    payment_map[p_code]["amount"] += shop_ticket_rev
-    except Exception as e:
-        logger.warning(f"Lỗi tính doanh thu Spa trong báo cáo: {e}")
+                    hotel_paid += min(h_dep, h_amt)
+                    hotel_debt += max(0.0, h_amt - h_dep)
+                add_daily(hb["raw_date"] or p_from_str, rev=h_amt, cost=h_cost, orders=1, hotel=h_amt)
+                if collect_details and hb["status"] == "completed" and h_amt > 0:
+                    payment_map["bank"] = payment_map.get("bank", {"count": 0, "amount": 0.0})
+                    payment_map["bank"]["count"] += 1
+                    payment_map["bank"]["amount"] += h_amt
 
-    # Bổ sung số liệu Spa vào doanh thu tổng & phân loại
-    goods_rev += spa_goods_rev
-    goods_qty += spa_goods_qty
-    services_rev += spa_services_rev
-    services_qty += spa_services_qty
+        # 5. Kênh thanh toán đơn POS
+        if collect_details:
+            cur.execute("""
+                SELECT op.order_id, op.method, op.amount
+                FROM order_payments op
+                JOIN orders o ON op.order_id = o.id
+                WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
+                  AND COALESCE(o.status, 'completed') != 'cancelled'
+            """, (p_from_dt, p_to_dt))
+            for op in cur.fetchall():
+                oid = op["order_id"]
+                if oid not in order_kept_ratio:
+                    continue
+                scaled_amt = float(op["amount"] or 0) * order_kept_ratio[oid]
+                if scaled_amt <= 0:
+                    continue
+                m = op["method"] or "cash"
+                payment_map[m] = payment_map.get(m, {"count": 0, "amount": 0.0})
+                payment_map[m]["count"] += 1
+                payment_map[m]["amount"] += scaled_amt
 
-    total_rev += (spa_goods_rev + spa_services_rev)
-    total_paid += spa_paid
-    total_debt += spa_debt
-    order_count += spa_tickets_count
-    aov = round(total_rev / order_count) if order_count > 0 else 0
+            for oid, share in order_kept_ratio.items():
+                o = orders_by_id.get(oid)
+                w_ded = float((o or {}).get("spa_wallet_deduction") or 0) * share
+                if w_ded > 0:
+                    payment_map["wallet"] = payment_map.get("wallet", {"count": 0, "amount": 0.0})
+                    payment_map["wallet"]["count"] += 1
+                    payment_map["wallet"]["amount"] += w_ded
 
-    # Ghép timeline Spa
-    timeline_dict = {r["raw_date"]: r for r in timeline_rows}
-    for d_str, s_data in spa_daily_map.items():
-        if d_str in timeline_dict:
-            timeline_dict[d_str]["revenue"] += s_data["revenue"]
-            timeline_dict[d_str]["orders"] += s_data["orders"]
-        else:
-            try:
-                d_label = datetime.strptime(d_str, "%Y-%m-%d").strftime("%d/%m")
-            except Exception:
-                d_label = d_str
-            timeline_dict[d_str] = {
-                "label": d_label,
-                "raw_date": d_str,
-                "revenue": s_data["revenue"],
-                "orders": s_data["orders"]
-            }
-    timeline_rows = sorted(timeline_dict.values(), key=lambda x: x.get("raw_date", ""))
+        gross_rev = pos_rev + spa_rev + hotel_rev
+        net_rev = max(0.0, gross_rev - total_returns)
+        total_cost = max(0.0, pos_cost + spa_cost + hotel_cost - returned_cost)
+        gross_profit = net_rev - total_cost
+        total_orders = pos_orders_count + spa_count + hotel_count
+        total_paid = pos_paid + spa_paid + hotel_paid
+        total_debt = pos_debt + spa_debt + hotel_debt
 
-    total_pay_sum = sum(p["amount"] for p in payment_map.values()) or 1.0
+        return {
+            "order_count": total_orders,
+            "gross_revenue": gross_rev,
+            "return_amount": total_returns,
+            "net_revenue": net_rev,
+            "total_cost": total_cost,
+            "gross_profit": gross_profit,
+            "total_paid": total_paid,
+            "total_debt": total_debt,
+            "goods_rev": goods_rev,
+            "goods_qty": goods_qty,
+            "services_rev": services_rev,
+            "services_qty": services_qty,
+            "hotel_rev": hotel_rev,
+            "hotel_count": hotel_count,
+            "daily_map": daily_map,
+            "cat_stats": cat_stats,
+            "prod_stats": prod_stats,
+            "staff_stats": staff_stats,
+            "payment_map": payment_map,
+        }
+
+    cur_m = compute_period_metrics(from_date, to_date, collect_details=True)
+    prev_m = compute_period_metrics(prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"), collect_details=False)
+
+    def calc_growth(cur_val: float, prev_val: float) -> float:
+        if prev_val <= 0:
+            return 100.0 if cur_val > 0 else 0.0
+        return round(((cur_val - prev_val) / prev_val) * 100.0, 2)
+
+    # Xây dựng timeline đầy đủ từng ngày trong kỳ (4 đường KiotViet + 3 kênh)
+    timeline_rows = []
+    for day_idx in range(days_count):
+        d_obj = d_start + timedelta(days=day_idx)
+        d_str = d_obj.strftime("%Y-%m-%d")
+        d_lbl = d_obj.strftime("%d/%m")
+        dm = cur_m["daily_map"].get(d_str, {})
+        d_rev = round(dm.get("revenue", 0.0), 0)
+        d_ret = round(dm.get("returns", 0.0), 0)
+        d_net = max(0.0, d_rev - d_ret)
+        d_cost = round(max(0.0, dm.get("cost", 0.0)), 0)
+        d_prof = d_net - d_cost
+        timeline_rows.append({
+            "label": d_lbl,
+            "raw_date": d_str,
+            "revenue": d_rev,
+            "returns": d_ret,
+            "net_revenue": d_net,
+            "cost": d_cost,
+            "profit": d_prof,
+            "orders": dm.get("orders", 0),
+            "goods_rev": round(dm.get("goods_rev", 0.0), 0),
+            "spa_rev": round(dm.get("spa_rev", 0.0), 0),
+            "hotel_rev": round(dm.get("hotel_rev", 0.0), 0),
+        })
+
+    # Chuẩn hóa danh sách kênh thanh toán
     method_names = {
         "cash": "Tiền mặt",
         "transfer": "Chuyển khoản (VietQR)",
@@ -961,79 +1107,99 @@ def get_reports_analytics(
         "ewallet": "Ví điện tử",
         "pos_card": "Thẻ quẹt POS"
     }
+    merged_pay = {}
+    for m_code, val in cur_m["payment_map"].items():
+        norm_code = "transfer" if m_code in ("transfer", "bank") else m_code
+        if norm_code not in merged_pay:
+            merged_pay[norm_code] = {"method": norm_code, "name": method_names.get(norm_code, norm_code.upper()), "count": 0, "amount": 0.0}
+        merged_pay[norm_code]["count"] += val["count"]
+        merged_pay[norm_code]["amount"] += val["amount"]
+
+    total_pay_sum = sum(p["amount"] for p in merged_pay.values()) or 1.0
     payments_list = []
-    for m_code, val in payment_map.items():
-        m_name = method_names.get(m_code, m_code.upper())
-        pct = round((val["amount"] / total_pay_sum) * 100, 1)
-        payments_list.append({
-            "method": m_code,
-            "name": m_name,
-            "count": val["count"],
-            "amount": val["amount"],
-            "pct": pct
-        })
+    for p in merged_pay.values():
+        p["pct"] = round((p["amount"] / total_pay_sum) * 100.0, 1)
+        payments_list.append(p)
     payments_list.sort(key=lambda x: x["amount"], reverse=True)
 
-    # 5. Báo cáo Nhân Viên (Doanh số & Hoa hồng)
-    cur.execute("""
-    SELECT 
-        COALESCE(s.id, 0) as staff_id,
-        COALESCE(s.name, 'Chưa gán / Thu ngân chung') as staff_name,
-        COUNT(o.id) as order_count,
-        COALESCE(SUM(o.final_amount), 0) as revenue,
-        COALESCE(SUM(o.paid_amount), 0) as paid_revenue,
-        COALESCE(SUM(o.commission_amount), 0) as commission
-    FROM orders o
-    LEFT JOIN staff s ON o.staff_id = s.id
-    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
-    GROUP BY o.staff_id
-    ORDER BY revenue DESC
-    """, (from_dt_str, to_dt_str))
-    staff_rows = [dict(r) for r in cur.fetchall()]
-    for s in staff_rows:
-        s["commission"] = comm_by_staff.get(s["staff_id"], {}).get("commission", 0)
+    # Danh sách Ma trận Nhóm hàng (bao gồm cả nhóm có phát sinh và nhóm trong kho)
+    categories_breakdown = []
+    for c_name, st in cur_m["cat_stats"].items():
+        c_net = max(0.0, st["revenue"] - st["returns"])
+        c_prof = c_net - st["cost"]
+        c_margin = round((c_prof / c_net) * 100.0, 1) if c_net > 0 else 0.0
+        categories_breakdown.append({
+            "category": c_name,
+            "channel": st["channel"],
+            "revenue": round(st["revenue"], 0),
+            "returns": round(st["returns"], 0),
+            "net_revenue": round(c_net, 0),
+            "cost": round(st["cost"], 0),
+            "profit": round(c_prof, 0),
+            "margin_pct": c_margin,
+            "qty": st["qty"],
+            "is_included": is_cat_allowed(c_name)
+        })
+    categories_breakdown.sort(key=lambda x: x["revenue"], reverse=True)
 
-    # 6. Top Mặt Hàng & Dịch Vụ Bán Chạy Nhất (Top 20)
-    cur.execute("""
-    SELECT 
-        oi.product_id,
-        COALESCE(p.code, 'N/A') as code,
-        COALESCE(p.name, 'Sản phẩm đã xóa') as name,
-        COALESCE(p.type, 'product') as type,
-        COALESCE(p.unit, 'cái') as unit,
-        COALESCE(SUM(oi.quantity), 0) as qty_sold,
-        COALESCE(SUM(oi.subtotal), 0) as revenue
-    FROM order_items oi
-    JOIN orders o ON oi.order_id = o.id
-    LEFT JOIN products p ON oi.product_id = p.id
-    WHERE datetime(o.created_at, '+7 hours') >= ? AND datetime(o.created_at, '+7 hours') <= ?
-    GROUP BY oi.product_id
-    ORDER BY revenue DESC, qty_sold DESC
-    LIMIT 20
-    """, (from_dt_str, to_dt_str))
-    top_products = [dict(r) for r in cur.fetchall()]
+    top_products = sorted(cur_m["prod_stats"].values(), key=lambda x: (x["revenue"], x["qty_sold"]), reverse=True)[:20]
+    staff_rows = sorted(cur_m["staff_stats"].values(), key=lambda x: x["revenue"], reverse=True)
+    total_comm = sum(s["commission"] for s in staff_rows)
+    aov = round(cur_m["net_revenue"] / cur_m["order_count"]) if cur_m["order_count"] > 0 else 0
 
     conn.close()
 
     return {
-        "range": {"from_date": from_date, "to_date": to_date},
+        "range": {
+            "from_date": from_date,
+            "to_date": to_date,
+            "days_count": days_count,
+            "prev_from": prev_start.strftime("%Y-%m-%d"),
+            "prev_to": prev_end.strftime("%Y-%m-%d"),
+        },
+        "all_categories": all_db_cats,
+        "categories_breakdown": categories_breakdown,
         "summary": {
-            "total_revenue": total_rev,
-            "total_paid": total_paid,
-            "total_debt": total_debt,
-            "order_count": order_count,
+            "order_count": cur_m["order_count"],
+            "avg_orders_per_day": round(cur_m["order_count"] / days_count, 2),
+            "growth_orders": calc_growth(cur_m["order_count"], prev_m["order_count"]),
+
+            "gross_revenue": cur_m["gross_revenue"],
+            "avg_gross_per_day": round(cur_m["gross_revenue"] / days_count, 0),
+            "growth_gross": calc_growth(cur_m["gross_revenue"], prev_m["gross_revenue"]),
+
+            "return_amount": cur_m["return_amount"],
+            "avg_return_per_day": round(cur_m["return_amount"] / days_count, 0),
+            "growth_return": calc_growth(cur_m["return_amount"], prev_m["return_amount"]),
+
+            "total_revenue": cur_m["net_revenue"],
+            "net_revenue": cur_m["net_revenue"],
+            "avg_net_per_day": round(cur_m["net_revenue"] / days_count, 0),
+            "growth_net": calc_growth(cur_m["net_revenue"], prev_m["net_revenue"]),
+
+            "total_cost": cur_m["total_cost"],
+            "avg_cost_per_day": round(cur_m["total_cost"] / days_count, 0),
+            "growth_cost": calc_growth(cur_m["total_cost"], prev_m["total_cost"]),
+
+            "gross_profit": cur_m["gross_profit"],
+            "avg_profit_per_day": round(cur_m["gross_profit"] / days_count, 0),
+            "growth_profit": calc_growth(cur_m["gross_profit"], prev_m["gross_profit"]),
+            "margin_pct": round((cur_m["gross_profit"] / cur_m["net_revenue"]) * 100.0, 1) if cur_m["net_revenue"] > 0 else 0.0,
+
+            "total_paid": cur_m["total_paid"],
+            "total_debt": cur_m["total_debt"],
             "total_commission": total_comm,
             "aov": aov
         },
         "timeline": timeline_rows,
         "payments": payments_list,
         "goods_vs_services": {
-            "goods_revenue": goods_rev,
-            "goods_items_sold": goods_qty,
-            "services_revenue": services_rev,
-            "services_items_sold": services_qty,
-            "hotel_revenue": hotel_rev,
-            "hotel_bookings": hotel_count
+            "goods_revenue": cur_m["goods_rev"],
+            "goods_items_sold": cur_m["goods_qty"],
+            "services_revenue": cur_m["services_rev"],
+            "services_items_sold": cur_m["services_qty"],
+            "hotel_revenue": cur_m["hotel_rev"],
+            "hotel_bookings": cur_m["hotel_count"]
         },
         "staff_performance": staff_rows,
         "top_products": top_products

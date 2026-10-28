@@ -10,10 +10,15 @@
                     fetch('/api/bom')
                 ]);
 
-                allWarehousesList = await whRes.json();
-                allProducts = await prodRes.json();
-                costIngredients = await ingRes.json();
-                costBOMList = await bomRes.json();
+                if (!whRes.ok) return;
+                const whData = await whRes.json();
+                const prodData = await prodRes.json();
+                const ingData = await ingRes.json();
+                const bomData = await bomRes.json();
+                allWarehousesList = Array.isArray(whData) ? whData : [];
+                allProducts = Array.isArray(prodData) ? prodData : [];
+                costIngredients = Array.isArray(ingData) ? ingData : [];
+                costBOMList = Array.isArray(bomData) ? bomData : [];
 
                 const whSel = document.getElementById('prod-warehouse');
                 if (whSel) {
@@ -61,7 +66,7 @@
             });
 
             if (matches.length === 0) {
-                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center italic">Không tìm thấy thành phẩm có định lượng BOM phù hợp</div>';
+                resBox.innerHTML = '<div class="p-3 text-gray-400 text-center ">Không tìm thấy thành phẩm có định lượng BOM phù hợp</div>';
                 resBox.classList.remove('hidden');
                 return;
             }
@@ -70,11 +75,11 @@
                 <div onclick="addProductionItem(${p.id})" class="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors">
                     <div>
                         <div class="font-bold text-slate-800">${p.name}</div>
-                        <div class="text-[11px] text-gray-500 font-mono">Mã: ${p.code || '---'} | ĐVT: ${p.unit || 'cái'}</div>
+                        <div class="text-xs text-gray-500 font-mono">Mã: ${p.code || '---'} | ĐVT: ${p.unit || 'cái'}</div>
                     </div>
                     <div class="text-right">
                         <div class="font-bold text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</div>
-                        <div class="text-[11px] text-gray-500">Tồn hiện tại: <span class="font-bold text-slate-800">${p.stock || 0}</span></div>
+                        <div class="text-xs text-gray-500">Tồn hiện tại: <span class="font-bold text-slate-800">${p.stock || 0}</span></div>
                     </div>
                 </div>
             `).join('');
@@ -232,8 +237,8 @@
                         if (isShort) hasShortage = true;
 
                         const badge = isShort
-                            ? '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold text-[10px]">Thiếu ' + (Math.round((m.qtyNeeded - m.stock)*100)/100) + ' ' + m.unit + '</span>'
-                            : '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px]">Đủ kho</span>';
+                            ? '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold text-xs">Thiếu ' + (Math.round((m.qtyNeeded - m.stock)*100)/100) + ' ' + m.unit + '</span>'
+                            : '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-xs">Đủ kho</span>';
 
                         return `
                         <tr class="border-b hover:bg-gray-50 text-xs ${isShort ? 'bg-rose-50/30' : ''}">
@@ -340,7 +345,7 @@
                         <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatMoney(p.total_cost || 0)}</td>
                         <td class="p-2.5 text-gray-500">${p.note || '-'}</td>
                         <td class="p-2.5 text-center">
-                            <button onclick="openProdDetailModal('${p.code}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-[11px]">👁️ Xem</button>
+                            <button onclick="openProdDetailModal('${p.code}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1 border rounded text-xs">👁️ Xem</button>
                         </td>
                     </tr>
                 `).join('');
@@ -416,15 +421,15 @@
 
                 if (popupContainer) {
                     let itemsHtml = `
-                        <div onclick="selectCashbookAcc('', 'Tất cả tài khoản / quỹ', '', '', 0)" class="p-2.5 rounded-lg border ${!currentVal ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-200'} hover:border-indigo-400 hover:bg-indigo-50/30 cursor-pointer flex items-center justify-between transition">
+                        <div onclick="selectCashbookAcc('', 'Tất cả tài khoản / quỹ', '', '', 0)" class="p-2.5 rounded-lg border ${!currentVal ? 'border-sky-400 bg-sky-50/50' : 'border-slate-200'} hover:border-sky-400 hover:bg-sky-50/30 cursor-pointer flex items-center justify-between transition">
                             <div class="flex items-center gap-2">
                                 <div class="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs">🏦</div>
                                 <div>
                                     <div class="font-bold text-slate-800">Tất cả tài khoản / quỹ</div>
-                                    <div class="text-[10px] text-slate-500">Xem toàn bộ dòng tiền vào ra</div>
+                                    <div class="text-xs text-slate-500">Xem toàn bộ dòng tiền vào ra</div>
                                 </div>
                             </div>
-                            <span class="text-[10px] font-bold ${!currentVal ? 'text-indigo-600' : 'text-slate-400'}">● Mặc định</span>
+                            <span class="text-xs font-bold ${!currentVal ? 'text-sky-600' : 'text-slate-400'}">● Mặc định</span>
                         </div>
                     `;
 
@@ -434,19 +439,19 @@
                         const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         const isSelected = currentVal == a.id;
                         itemsHtml += `
-                            <div onclick="selectCashbookAcc(${a.id}, '${a.name.replace(/'/g, "\\'")}', '${a.code}', '${a.owner_type}', ${a.current_balance || 0})" class="p-2.5 rounded-lg border ${isSelected ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200'} hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer flex items-center justify-between transition">
+                            <div onclick="selectCashbookAcc(${a.id}, '${a.name.replace(/'/g, "\\'")}', '${a.code}', '${a.owner_type}', ${a.current_balance || 0})" class="p-2.5 rounded-lg border ${isSelected ? 'border-sky-500 bg-sky-50/60' : 'border-slate-200'} hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer flex items-center justify-between transition">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-lg ${isCty ? 'bg-indigo-600' : 'bg-purple-600'} text-white flex items-center justify-center font-bold text-xs">${icon}</div>
+                                    <div class="w-7 h-7 rounded-lg ${isCty ? 'bg-sky-600' : 'bg-sky-600'} text-white flex items-center justify-center font-bold text-xs">${icon}</div>
                                     <div>
                                         <div class="font-bold text-slate-800 text-xs">${a.name}</div>
-                                        <div class="text-[10px] ${isCty ? 'text-blue-700' : 'text-purple-700'} font-semibold">
+                                        <div class="text-xs ${isCty ? 'text-blue-700' : 'text-sky-700'} font-semibold">
                                             ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'} • ${a.code} ${a.is_default ? '★' : ''}
                                         </div>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <div class="font-mono font-bold text-xs ${(a.current_balance || 0) >= 0 ? 'text-slate-800' : 'text-rose-600'}">${formatMoney(a.current_balance || 0)}</div>
-                                    <span class="text-[9px] text-indigo-600 font-bold">Chọn ➔</span>
+                                    <span class="text-xs text-sky-600 font-bold">Chọn ➔</span>
                                 </div>
                             </div>
                         `;
@@ -472,22 +477,22 @@
                         const isCty = a.owner_type === 'COMPANY';
                         const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         return `
-                            <div class="bg-white p-3 rounded-lg border shadow-xs hover:shadow-md transition cursor-pointer ${a.is_default ? 'border-indigo-400 bg-indigo-50/20' : 'border-slate-200'}" onclick="filterCashbookByAccount(${a.id})">
+                            <div class="bg-white p-3 rounded-lg border shadow-xs hover:shadow-md transition cursor-pointer ${a.is_default ? 'border-sky-400 bg-sky-50/20' : 'border-slate-200'}" onclick="filterCashbookByAccount(${a.id})">
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
                                         <span>${icon}</span>
                                         <span class="truncate max-w-[130px]" title="${a.name}">${a.name}</span>
                                     </span>
-                                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
+                                    <span class="text-xs font-bold px-1.5 py-0.5 rounded ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-sky-100 text-sky-700'}">
                                         ${isCty ? 'Cty' : 'Cá nhân'}
                                     </span>
                                 </div>
-                                <div class="mt-1.5 font-mono text-base font-black ${a.current_balance >= 0 ? 'text-slate-800' : 'text-rose-600'}">
+                                <div class="mt-1.5 font-mono text-base font-bold ${a.current_balance >= 0 ? 'text-slate-800' : 'text-rose-600'}">
                                     ${formatMoney(a.current_balance || 0)}
                                 </div>
-                                <div class="text-[10px] text-gray-400 flex items-center justify-between mt-1">
+                                <div class="text-xs text-gray-400 flex items-center justify-between mt-1">
                                     <span class="font-mono font-semibold text-slate-500">${a.code}</span>
-                                    ${a.is_default ? '<span class="text-indigo-600 font-bold">★ Mặc định</span>' : ''}
+                                    ${a.is_default ? '<span class="text-sky-600 font-bold">★ Mặc định</span>' : ''}
                                 </div>
                             </div>
                         `;
@@ -653,7 +658,7 @@
             const badgeType = document.getElementById('drawer-cash-badge-type');
             if (badgeType) {
                 badgeType.textContent = isThu ? '🟢 Thu Tiền' : '🔴 Chi Tiền';
-                badgeType.className = isThu ? 'px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800';
+                badgeType.className = isThu ? 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800';
             }
 
             // Nút sửa, xóa phiếu cho quyền admin/owner
@@ -699,55 +704,55 @@
             // Render khung tóm tắt phiếu thu chi trước
             const amountHtml = `
                 <div class="p-3.5 rounded-xl border text-center ${isThu ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50/70 border-rose-200'}">
-                    <div class="text-[10px] font-bold uppercase tracking-wider ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
+                    <div class="text-xs font-bold uppercase tracking-wider ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
                         SỐ TIỀN THỰC TẾ GHI NHẬN SỔ QUỸ
                     </div>
-                    <div class="text-2xl font-black font-mono mt-1 ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
+                    <div class="text-2xl font-bold font-mono mt-1 ${isThu ? 'text-emerald-700' : 'text-rose-700'}">
                         ${isThu ? '+' : '-'}${formatMoney(c.amount || 0)}
                     </div>
                 </div>
             `;
 
             const infoGridHtml = `
-                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-[11px]">
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs">
                     <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Hạng Mục:</span>
+                        <span class="text-slate-400 block text-xs uppercase font-bold">Hạng Mục:</span>
                         <span class="font-bold text-slate-800 block truncate mt-0.5">${c.category || '-'}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Tài Khoản / Két:</span>
+                        <span class="text-slate-400 block text-xs uppercase font-bold">Tài Khoản / Két:</span>
                         <span class="font-semibold text-slate-800 block truncate mt-0.5">${accLabel}</span>
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Người Nộp / Nhận:</span>
+                        <span class="text-slate-400 block text-xs uppercase font-bold">Người Nộp / Nhận:</span>
                         <span class="font-bold text-slate-800 block truncate mt-0.5">${c.contact_name || 'Khách lẻ / Nội bộ'}</span>
                         ${c.contact_phone ? `
-                            <span class="inline-flex items-center gap-1 font-mono text-[10px] text-purple-800 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold mt-1">
+                            <span class="inline-flex items-center gap-1 font-mono text-xs text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.2 rounded font-semibold mt-1">
                                 <span>📞</span><span>${c.contact_phone}</span>
                             </span>
                         ` : ''}
                     </div>
                     <div>
-                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Thời Gian Ghi Sổ:</span>
+                        <span class="text-slate-400 block text-xs uppercase font-bold">Thời Gian Ghi Sổ:</span>
                         <span class="font-mono text-slate-600 block mt-0.5">${formatDateTime(c.created_at) || '-'}</span>
                     </div>
                 </div>
             `;
 
             const noteHtml = `
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px]">
-                    <span class="text-slate-400 block text-[10px] uppercase font-bold">Ghi Chú Sổ Quỹ:</span>
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
+                    <span class="text-slate-400 block text-xs uppercase font-bold">Ghi Chú Sổ Quỹ:</span>
                     <p class="text-slate-700 mt-0.5 font-medium whitespace-pre-line">${c.note || '(Không có ghi chú)'}</p>
                 </div>
             `;
 
             const originLoadingHtml = `
-                <div id="drawer-origin-content" class="border border-indigo-200 bg-indigo-50/40 p-3 rounded-xl space-y-2">
+                <div id="drawer-origin-content" class="border border-sky-200 bg-sky-50/40 p-3 rounded-xl space-y-2">
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                        <span class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
                             <span>🔗</span> <span>Nguồn Gốc Giao Dịch</span>
                         </span>
-                        <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC (READ-ONLY)</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded font-bold bg-sky-100 text-sky-800 border border-sky-200">CHỈ ĐỌC (READ-ONLY)</span>
                     </div>
                     <div class="py-4 text-center text-slate-400 text-xs">
                         <span class="animate-spin inline-block mr-1">🔄</span> Đang đối soát chứng từ gốc...
@@ -801,8 +806,8 @@
                         else totalServices += subtotal;
 
                         const typeBadge = isRetail
-                            ? '<span class="px-1 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-700">SP</span>'
-                            : '<span class="px-1 py-0.2 rounded text-[9px] font-bold bg-purple-100 text-purple-700">SPA</span>';
+                            ? '<span class="px-1 py-0.2 rounded text-xs font-bold bg-blue-100 text-blue-700">SP</span>'
+                            : '<span class="px-1 py-0.2 rounded text-xs font-bold bg-sky-100 text-sky-700">SPA</span>';
 
                         return `
                             <tr class="border-b border-slate-100">
@@ -826,21 +831,21 @@
                     const finalCash = Math.max(0, (totalServices - walletDeduct) + totalProducts + tipAmt - depositAmt);
 
                     originBox.innerHTML = `
-                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                        <div class="flex items-center justify-between border-b pb-2 border-sky-100">
                             <div>
-                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                <span class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
                                     <span>🐾</span> <span>Phiếu Spa: ${ticket.code || 'DV#' + ticket.id}</span>
                                 </span>
-                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                <div class="text-xs text-slate-500 mt-0.5">
                                     Khách: <strong>${ticket.customer_name || 'Khách lẻ'}</strong> (${phoneMasked}) | Bé: <strong>${ticket.pet_name || 'Bé cưng'}</strong> (${ticket.pet_breed || '-'})
                                 </div>
                             </div>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded font-bold bg-sky-100 text-sky-800 border border-sky-200">CHỈ ĐỌC</span>
                         </div>
 
                         <!-- Bảng chi tiết dịch vụ & sản phẩm -->
                         <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
-                            <table class="w-full text-left border-collapse text-[10px]">
+                            <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-slate-100 border-b text-slate-600 font-bold">
                                     <tr>
                                         <th class="p-1.5 text-center w-6">#</th>
@@ -858,14 +863,14 @@
                         </div>
 
                         <!-- Thợ phụ trách -->
-                        <div class="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap gap-x-3 gap-y-1">
+                        <div class="text-xs text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex flex-wrap gap-x-3 gap-y-1">
                             <span>✂️ Thợ cắt: <strong>${ticket.staff_cutter || '-'}</strong></span>
                             <span>🛁 Thợ tắm: <strong>${ticket.staff_worker_1 || '-'}</strong></span>
                             <span>👋 Tiếp nhận: <strong>${ticket.staff_receiver || '-'}</strong></span>
                         </div>
 
                         <!-- Phân bổ dòng tiền minh bạch -->
-                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-xs">
                             <div class="flex justify-between items-center text-slate-600">
                                 <span>💆 Tiền dịch vụ Spa:</span>
                                 <span class="font-mono font-bold text-slate-800">${formatMoney(totalServices)}</span>
@@ -877,7 +882,7 @@
                                 </div>
                             ` : ''}
                             ${walletDeduct > 0 ? `
-                                <div class="flex justify-between items-center text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                                <div class="flex justify-between items-center text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
                                     <span>💳 Khấu trừ Ví Spa (dịch vụ):</span>
                                     <span class="font-mono font-bold">-${formatMoney(walletDeduct)}</span>
                                 </div>
@@ -889,7 +894,7 @@
                                 </div>
                             ` : ''}
                             ${tipAmt > 0 ? `
-                                <div class="flex justify-between items-center text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                <div class="flex justify-between items-center text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
                                     <span>🎁 Tip thợ:</span>
                                     <span class="font-mono font-bold">+${formatMoney(tipAmt)}</span>
                                 </div>
@@ -918,21 +923,21 @@
                     `).join('');
 
                     originBox.innerHTML = `
-                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                        <div class="flex items-center justify-between border-b pb-2 border-sky-100">
                             <div>
-                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                <span class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
                                     <span>🧾</span> <span>Hóa Đơn Bán Lẻ: #${ord.code}</span>
                                 </span>
-                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                <div class="text-xs text-slate-500 mt-0.5">
                                     Khách: <strong>${ord.customer_name || 'Khách lẻ'}</strong> | Thu ngân: <strong>${ord.cashier_name || 'Admin'}</strong>
                                 </div>
                             </div>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">CHỈ ĐỌC</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded font-bold bg-sky-100 text-sky-800 border border-sky-200">CHỈ ĐỌC</span>
                         </div>
 
                         <!-- Bảng chi tiết sản phẩm -->
                         <div class="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
-                            <table class="w-full text-left border-collapse text-[10px]">
+                            <table class="w-full text-left border-collapse text-xs">
                                 <thead class="bg-slate-100 border-b text-slate-600 font-bold">
                                     <tr>
                                         <th class="p-1.5 text-center w-6">#</th>
@@ -949,7 +954,7 @@
                         </div>
 
                         <!-- Dòng tiền đơn hàng -->
-                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-xs">
                             <div class="flex justify-between items-center text-slate-600">
                                 <span>📦 Tổng tiền hàng:</span>
                                 <span class="font-mono font-bold text-slate-800">${formatMoney(ord.total_amount || 0)}</span>
@@ -961,7 +966,7 @@
                                 </div>
                             ` : ''}
                             ${(ord.spa_wallet_deduction || 0) > 0 ? `
-                                <div class="flex justify-between items-center text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                                <div class="flex justify-between items-center text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
                                     <span>💳 Trừ Ví Spa:</span>
                                     <span class="font-mono font-bold">-${formatMoney(ord.spa_wallet_deduction)}</span>
                                 </div>
@@ -980,38 +985,38 @@
                     `;
                 } else if (linkedType === 'topup') {
                     originBox.innerHTML = `
-                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                        <div class="flex items-center justify-between border-b pb-2 border-sky-100">
                             <div>
-                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                <span class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
                                     <span>💳</span> <span>Giao Dịch Nạp Tiền Vào Ví Spa</span>
                                 </span>
-                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                <div class="text-xs text-slate-500 mt-0.5">
                                     Khách hàng: <strong>${c.contact_name || 'Khách tích lũy'}</strong>
                                 </div>
                             </div>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200">VÍ TÍCH LŨY</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-200">VÍ TÍCH LŨY</span>
                         </div>
-                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-xs">
                             <div class="flex justify-between items-center text-slate-600">
                                 <span>Khách nộp tiền vào quỹ:</span>
                                 <span class="font-mono font-bold text-emerald-700">+${formatMoney(c.amount || 0)}</span>
                             </div>
-                            <div class="text-[10px] text-slate-500 italic mt-1">
+                            <div class="text-xs text-slate-500  mt-1">
                                 * Tiền nạp ví được cộng vào số dư Ví Spa của khách để khấu trừ khi dùng dịch vụ làm đẹp.
                             </div>
                         </div>
                     `;
                 } else {
                     originBox.innerHTML = `
-                        <div class="flex items-center justify-between border-b pb-2 border-indigo-100">
+                        <div class="flex items-center justify-between border-b pb-2 border-sky-100">
                             <div>
-                                <span class="font-bold text-indigo-900 text-xs flex items-center gap-1.5">
+                                <span class="font-bold text-sky-900 text-xs flex items-center gap-1.5">
                                     <span>📌</span> <span>Chứng Từ Thu Chi Nội Bộ</span>
                                 </span>
                             </div>
-                            <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">NỘI BỘ</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded font-bold bg-slate-100 text-slate-700 border border-slate-200">NỘI BỘ</span>
                         </div>
-                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-[11px]">
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1 text-xs">
                             <p class="text-slate-600">${c.note || 'Khoản thu chi nội bộ cửa hàng, không phát sinh từ đơn bán lẻ hay vé dịch vụ Spa.'}</p>
                         </div>
                     `;
@@ -1019,7 +1024,7 @@
             } catch(e) {
                 console.error('Lỗi khi nạp chi tiết chứng từ:', e);
                 originBox.innerHTML = `
-                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800">
+                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
                         ⚠️ Không tìm thấy chi tiết hóa đơn/vé gốc liên kết (Mã: ${linkedTarget || c.ref_id || 'N/A'}).
                     </div>
                 `;
@@ -1084,7 +1089,7 @@
 
             const editAmtEl = document.getElementById('edit-cash-amount');
             if (editAmtEl) {
-                editAmtEl.className = `w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-black font-mono text-right ${isThu ? 'text-emerald-600' : 'text-rose-600'} focus:outline-none focus:ring-2 focus:ring-amber-400`;
+                editAmtEl.className = `w-full bg-white border border-slate-300 rounded-lg p-2 text-xs font-bold font-mono text-right ${isThu ? 'text-emerald-600' : 'text-rose-600'} focus:outline-none focus:ring-2 focus:ring-amber-400`;
                 const val = c.amount || 0;
                 editAmtEl.value = val > 0 ? (new Intl.NumberFormat('vi-VN').format(val) + ' đ') : '';
                 handleEditCashAmountInput(editAmtEl);
@@ -1286,8 +1291,8 @@
                         }
 
                         const typeBadge = isRetail
-                            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">📦 SP</span>'
-                            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">💆 SPA</span>';
+                            ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">📦 SP</span>'
+                            : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">💆 SPA</span>';
 
                         return `
                             <tr class="border-b border-slate-100 hover:bg-slate-50/80">
@@ -1766,7 +1771,7 @@
                 const ownerType = c.account_owner_type || c.fund_source || 'COMPANY';
                 const isCty = ownerType === 'COMPANY';
                 const accLabel = c.account_name || (isCty ? '🏢 Quỹ Cty' : '👤 Quỹ Cá Nhân');
-                const accCode = c.account_code ? `<span class="font-mono text-[10px] text-gray-400 block">${c.account_code}</span>` : '';
+                const accCode = c.account_code ? `<span class="font-mono text-xs text-gray-400 block">${c.account_code}</span>` : '';
 
                 // Phát hiện chứng từ liên kết
                 let linkedType = c.ref_type || '';
@@ -1793,41 +1798,41 @@
                     const dispCode = c.ref_order_code || (typeof linkedTarget === 'string' && linkedTarget.startsWith('HD') ? linkedTarget : `Đơn #${c.ref_id}`);
                     linkedBadge = `
                         <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})" 
-                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs transition" 
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 shadow-2xs transition" 
                                 title="Bấm xem nguồn gốc hóa đơn ${dispCode}">
-                            <span>🧾</span> <span>${dispCode}</span> <span class="text-[9px]">↗</span>
+                            <span>🧾</span> <span>${dispCode}</span> <span class="text-xs">↗</span>
                         </button>
                     `;
                 } else if (linkedType === 'pet_service') {
                     const dispCode = c.ref_pet_service_code || (typeof linkedTarget === 'string' && linkedTarget.startsWith('DV') ? linkedTarget : `Phiếu #${c.ref_id}`);
                     linkedBadge = `
                         <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})" 
-                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs transition" 
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold font-mono bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 shadow-2xs transition" 
                                 title="Bấm xem nguồn gốc phiếu dịch vụ Spa ${dispCode}">
-                            <span>🐾</span> <span>${dispCode}</span> <span class="text-[9px]">↗</span>
+                            <span>🐾</span> <span>${dispCode}</span> <span class="text-xs">↗</span>
                         </button>
                     `;
                 } else if (linkedType === 'topup') {
                     linkedBadge = `
                         <button type="button" onclick="event.stopPropagation(); openCashbookDrawer(${c.id})"
-                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" title="Bấm xem chi tiết phiếu thu nạp ví">
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold font-mono bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200" title="Bấm xem chi tiết phiếu thu nạp ví">
                             <span>💳 Nạp ví</span>
                         </button>
                     `;
                 }
 
                 return `
-                    <tr onclick="openCashbookDrawer(${c.id})" class="border-b hover:bg-indigo-50/60 cursor-pointer transition">
+                    <tr onclick="openCashbookDrawer(${c.id})" class="border-b hover:bg-sky-50/60 cursor-pointer transition">
                         <td class="p-2.5">
                             <div class="font-mono text-xs font-bold text-slate-800 flex items-center gap-1.5">
                                 <span>${c.code || '-'}</span>
-                                <span class="text-[10px] text-indigo-500 font-normal" title="Bấm dòng để xem nguồn gốc chứng từ (Drawer)">📑</span>
+                                <span class="text-xs text-sky-500 font-normal" title="Bấm dòng để xem nguồn gốc chứng từ (Drawer)">📑</span>
                             </div>
                             ${linkedBadge ? `<div class="mt-1">${linkedBadge}</div>` : ''}
                         </td>
                         <td class="p-2.5">
                             <div class="flex items-center gap-1.5">
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${isCty ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                                <span class="px-1.5 py-0.5 rounded text-xs font-bold ${isCty ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
                                     ${isCty ? 'Cty' : 'Cá nhân'}
                                 </span>
                                 <span class="font-semibold text-slate-700 text-xs">${accLabel}</span>
@@ -1835,7 +1840,7 @@
                             ${accCode}
                         </td>
                         <td class="p-2.5 text-center">
-                            <span class="px-2 py-0.5 rounded text-[11px] font-bold ${isThu ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold ${isThu ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                                 ${isThu ? '🟢 Thu' : '🔴 Chi'}
                             </span>
                         </td>
@@ -1843,7 +1848,7 @@
                         <td class="p-2.5 text-slate-700">
                             <div class="font-bold text-xs text-slate-800">${c.contact_name || '-'}</div>
                             ${c.contact_phone ? `
-                                <div class="mt-0.5 inline-flex items-center gap-1 font-mono text-[10px] text-purple-800 bg-purple-50 border border-purple-200 px-1.5 py-0.2 rounded font-semibold" title="SĐT khách hàng">
+                                <div class="mt-0.5 inline-flex items-center gap-1 font-mono text-xs text-sky-800 bg-sky-50 border border-sky-200 px-1.5 py-0.2 rounded font-semibold" title="SĐT khách hàng">
                                     <span>📞</span><span>${c.contact_phone}</span>
                                 </div>
                             ` : ''}
@@ -1854,7 +1859,7 @@
                         <td class="p-2.5 text-slate-500 text-xs max-w-[200px] truncate" title="${c.note || ''}">${c.note || '-'}</td>
                         <td class="p-2.5 text-xs text-gray-500 font-mono whitespace-nowrap">${formatDateTime(c.created_at) || '-'}</td>
                         <td class="p-2.5 text-slate-700 text-xs font-medium whitespace-nowrap">${c.created_by || 'Hệ thống'}</td>
-                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${c.updated_by ? `${c.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(c.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-2.5 text-slate-500 text-xs whitespace-nowrap">${c.updated_by ? `${c.updated_by} <span class="text-xs text-gray-400 block">${formatDateTime(c.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                     </tr>
                 `;
             }).join('');
@@ -2081,31 +2086,31 @@
                 <div onclick="selectCashContact('', '-- Không chọn đối tác --', '', '', 0)" 
                      class="p-2.5 hover:bg-slate-100 cursor-pointer flex items-center justify-between text-slate-500 font-medium border-b">
                     <span>-- Không chọn đối tác --</span>
-                    <span class="text-[10px] text-slate-400">Bỏ chọn</span>
+                    <span class="text-xs text-slate-400">Bỏ chọn</span>
                 </div>
             `;
 
             if (matches.length === 0) {
-                html += `<div class="p-3 text-center text-slate-400 italic">Không tìm thấy đối tác nào phù hợp</div>`;
+                html += `<div class="p-3 text-center text-slate-400 ">Không tìm thấy đối tác nào phù hợp</div>`;
             } else {
                 const list = matches.slice(0, 40);
                 html += list.map(c => {
                     const isCust = c.type === 'customer';
                     const badge = isCust 
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">Khách</span>'
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">NCC</span>';
-                    const phoneStr = c.phone ? `<span class="text-slate-400 text-[10px] font-mono ml-1">📞 ${escapeHtml(c.phone)}</span>` : '';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">Khách</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">NCC</span>';
+                    const phoneStr = c.phone ? `<span class="text-slate-400 text-xs font-mono ml-1">📞 ${escapeHtml(c.phone)}</span>` : '';
                     const debt = Number(c.debt || 0);
-                    const debtStr = debt > 0 ? `<span class="text-rose-600 font-bold font-mono text-[10px]">Nợ: ${formatMoney(debt)}</span>` : '';
+                    const debtStr = debt > 0 ? `<span class="text-rose-600 font-bold font-mono text-xs">Nợ: ${formatMoney(debt)}</span>` : '';
                     const safeName = (c.name || '').replace(/'/g, "\\'");
                     const safePhone = (c.phone || '').replace(/'/g, "\\'");
 
                     return `
                         <div onclick="selectCashContact(${c.id}, '${safeName}', '${c.type}', '${safePhone}', ${debt})" 
-                             class="p-2.5 hover:bg-indigo-50/70 cursor-pointer flex items-center justify-between transition group">
+                             class="p-2.5 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between transition group">
                             <div class="flex items-center gap-1.5 overflow-hidden pr-2">
                                 ${badge}
-                                <span class="font-bold text-slate-800 text-xs truncate group-hover:text-indigo-900">${escapeHtml(c.name)}</span>
+                                <span class="font-bold text-slate-800 text-xs truncate group-hover:text-sky-900">${escapeHtml(c.name)}</span>
                                 ${phoneStr}
                             </div>
                             <div class="shrink-0 text-right">
@@ -2133,7 +2138,7 @@
             if (id) {
                 const tag = type === 'customer' ? '[Khách]' : '[NCC]';
                 if (searchInput) searchInput.value = `${tag} ${name}${phone ? ' (' + phone + ')' : ''}`;
-                if (badgeEl) badgeEl.innerHTML = `<span class="text-indigo-600 font-bold">${tag} ${escapeHtml(name)}</span>`;
+                if (badgeEl) badgeEl.innerHTML = `<span class="text-sky-600 font-bold">${tag} ${escapeHtml(name)}</span>`;
                 if (clearBtn) clearBtn.classList.remove('hidden');
             } else {
                 if (searchInput) searchInput.value = '';
@@ -2176,7 +2181,7 @@
             const dateContainer = document.getElementById('cash-date-container');
 
             if (type === 'transfer') {
-                if (btnTransfer) btnTransfer.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-indigo-50 border-indigo-500 text-indigo-700 cursor-pointer';
+                if (btnTransfer) btnTransfer.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-sky-50 border-sky-500 text-sky-700 cursor-pointer';
                 if (btnIn) btnIn.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer';
                 if (btnOut) btnOut.className = 'py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer';
 
@@ -2191,7 +2196,7 @@
                 if (titleEl) titleEl.innerText = 'Chuyển Tiền / Quỹ Nội Bộ (Rút - Nộp)';
                 if (iconEl) iconEl.innerText = '🔄';
                 if (btnSubmit) {
-                    btnSubmit.className = 'px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer';
+                    btnSubmit.className = 'px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer';
                     btnSubmit.innerHTML = '<span>🔄</span> <span>Xác Nhận Chuyển Tiền</span>';
                 }
             } else if (type === 'in') {
@@ -2367,11 +2372,11 @@
                     const safeName = (c.name || '').replace(/'/g, "\\'");
                     let typeBadge = '';
                     if (c.type === 'in') {
-                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">🟢 Thu</span>';
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">🟢 Thu</span>';
                     } else if (c.type === 'out') {
-                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">🔴 Chi</span>';
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">🔴 Chi</span>';
                     } else {
-                        typeBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">🔄 Cả 2</span>';
+                        typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">🔄 Cả 2</span>';
                     }
 
                     return `
@@ -2440,7 +2445,7 @@
             const safeCurrent = (currentName || '').replace(/"/g, '&quot;');
             cell.innerHTML = `
                 <div class="flex items-center gap-1.5">
-                    <input type="text" id="inline-cash-cat-${id}" value="${safeCurrent}" class="border border-indigo-400 rounded px-2 py-1 text-xs font-bold text-slate-800 flex-1 focus:ring-1 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter') saveCashCategoryInline(${id}, '${currentType}'); if(event.key==='Escape') renderCashCategoryManagerList();">
+                    <input type="text" id="inline-cash-cat-${id}" value="${safeCurrent}" class="border border-sky-400 rounded px-2 py-1 text-xs font-bold text-slate-800 flex-1 focus:ring-1 focus:ring-sky-500 outline-none" onkeydown="if(event.key==='Enter') saveCashCategoryInline(${id}, '${currentType}'); if(event.key==='Escape') renderCashCategoryManagerList();">
                     <button type="button" onclick="saveCashCategoryInline(${id}, '${currentType}')" class="px-2 py-1 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700">✓</button>
                     <button type="button" onclick="renderCashCategoryManagerList()" class="px-2 py-1 bg-slate-200 text-slate-600 rounded text-xs hover:bg-slate-300">✕</button>
                 </div>
@@ -2637,18 +2642,18 @@
                         const icon = isBank ? '🏦' : (a.account_type === 'ewallet' ? '📱' : (a.account_type === 'pos_card' ? '💳' : '💵'));
                         const bankInfo = isBank 
                             ? `<span class="font-bold text-slate-800">${a.bank_name ? getBankDisplayName(a.bank_name) : '-'}</span> - STK: <span class="font-mono font-bold">${a.account_number || '-'}</span> (${a.account_holder || '-'})`
-                            : `<span class="text-gray-400 italic">Tiền mặt / không có STK</span>`;
+                            : `<span class="text-gray-400 ">Tiền mặt / không có STK</span>`;
 
                         return `
                             <tr class="border-b hover:bg-slate-50 transition">
-                                <td class="p-2.5 font-mono font-bold text-xs text-indigo-700">${a.code}</td>
+                                <td class="p-2.5 font-mono font-bold text-xs text-sky-700">${a.code}</td>
                                 <td class="p-2.5 font-bold text-slate-800 flex items-center gap-1.5">
                                     <span>${icon}</span>
                                     <span>${a.name}</span>
-                                    ${a.is_default ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">Mặc định</span>' : ''}
+                                    ${a.is_default ? '<span class="bg-amber-100 text-amber-800 text-xs px-1.5 py-0.5 rounded font-bold">Mặc định</span>' : ''}
                                 </td>
                                 <td class="p-2.5 text-center">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}">
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold ${isCty ? 'bg-blue-100 text-blue-700' : 'bg-sky-100 text-sky-700'}">
                                         ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
                                     </span>
                                 </td>
@@ -3021,7 +3026,7 @@
             }
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 italic">🔍 Không tìm thấy nguyên liệu nào phù hợp ${kw ? `với "${kw}"` : ''}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-400 ">🔍 Không tìm thấy nguyên liệu nào phù hợp ${kw ? `với "${kw}"` : ''}</td></tr>`;
                 return;
             }
 
@@ -3030,14 +3035,14 @@
                     <td class="p-2 font-mono font-bold text-slate-700">${ing.code || '-'}</td>
                     <td class="p-2 font-medium text-slate-800">${ing.name}</td>
                     <td class="p-2 text-center">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${ing.type === 'SERVICE' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}">
                             ${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}
                         </span>
                     </td>
                     <td class="p-2">
                         ${ing.supplier_names 
-                            ? ing.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
-                            : '<span class="text-gray-400 italic text-xs">---</span>'}
+                            ? ing.supplier_names.split(',').map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium px-1.5 py-0.5 rounded mr-1 mb-0.5">🏭 ${s.trim()}</span>`).join('')
+                            : '<span class="text-gray-400  text-xs">---</span>'}
                     </td>
                     <td class="p-2 text-right font-bold ${ing.type === 'SERVICE' ? 'text-gray-400' : (ing.total_stock <= 5 ? 'text-rose-600' : 'text-slate-700')}">
                         ${ing.type === 'SERVICE' ? '-' : ing.total_stock}
@@ -3141,7 +3146,7 @@
             });
 
             if (filtered.length === 0) {
-                dd.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy sản phẩm nào trong nhóm này</div>';
+                dd.innerHTML = '<div class="p-3 text-center text-gray-400 ">Không tìm thấy sản phẩm nào trong nhóm này</div>';
                 return;
             }
 
@@ -3149,8 +3154,8 @@
                 const isChecked = selectedBOMProductIds.includes(p.id);
                 const hasBOM = (p.bom_count || 0) > 0;
                 const badgeBOM = hasBOM
-                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">⚡ Đã có BOM (${p.bom_count} tp)</span>`
-                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0">⚪ Chưa có BOM</span>`;
+                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded text-xs font-bold shrink-0">⚡ Đã có BOM (${p.bom_count} tp)</span>`
+                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">⚪ Chưa có BOM</span>`;
 
                 return `
                     <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer transition select-none ${hasBOM ? 'bg-emerald-50/20' : ''}" onclick="toggleSelectBOMProduct(${p.id})">
@@ -3158,7 +3163,7 @@
                             <input type="checkbox" ${isChecked ? 'checked' : ''} class="rounded pointer-events-none text-sky-600 shrink-0">
                             <div class="min-w-0">
                                 <div class="font-bold text-slate-800 truncate">${p.name}</div>
-                                <div class="font-mono text-slate-500 text-[11px]">${p.code || '-'}</div>
+                                <div class="font-mono text-slate-500 text-xs">${p.code || '-'}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -3210,7 +3215,7 @@
             if (!container) return;
 
             if (selectedBOMProductIds.length === 0) {
-                container.innerHTML = '<span class="text-[11px] text-gray-400 italic">Chưa chọn sản phẩm nào (Bấm ô tìm kiếm để chọn nhiều sản phẩm)</span>';
+                container.innerHTML = '<span class="text-xs text-gray-400 ">Chưa chọn sản phẩm nào (Bấm ô tìm kiếm để chọn nhiều sản phẩm)</span>';
                 return;
             }
 
@@ -3220,7 +3225,7 @@
                 return `
                     <span class="inline-flex items-center gap-1 bg-sky-100 text-sky-800 border border-sky-200 text-xs px-2 py-0.5 rounded-full font-bold">
                         <span>${prod.name}</span>
-                        <button onclick="removeSelectedBOMProduct(${id})" class="text-sky-600 hover:text-rose-600 ml-1 font-black">×</button>
+                        <button onclick="removeSelectedBOMProduct(${id})" class="text-sky-600 hover:text-rose-600 ml-1 font-bold">×</button>
                     </span>
                 `;
             }).join('');
@@ -3284,7 +3289,7 @@
                                        class="w-20 border rounded px-1.5 py-0.5 text-right font-mono font-bold text-slate-800 focus:ring-1 focus:ring-sky-500 text-xs bg-white shadow-inner" 
                                        onchange="updateSingleBOMItemQty(${item.ingredient_id}, this.value)" 
                                        title="Chỉnh sửa định lượng tiêu hao và bấm Enter / ra ngoài để lưu">
-                                <span class="text-[11px] text-gray-500 font-medium">${item.unit}</span>
+                                <span class="text-xs text-gray-500 font-medium">${item.unit}</span>
                             </div>
                         </td>
                         <td class="p-1.5 text-right text-rose-600 font-medium">${formatMoney(item.line_cost)}</td>
@@ -3375,7 +3380,7 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="p-3 text-center text-gray-400 italic">Không tìm thấy nhà cung cấp nào</div>';
+                container.innerHTML = '<div class="p-3 text-center text-gray-400 ">Không tìm thấy nhà cung cấp nào</div>';
                 return;
             }
 
@@ -3389,7 +3394,7 @@
                                    class="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer">
                             <span class="font-medium text-slate-800 group-hover:text-emerald-700">${s.name}</span>
                         </div>
-                        ${s.phone ? `<span class="text-[10px] text-gray-400 font-mono">${s.phone}</span>` : ''}
+                        ${s.phone ? `<span class="text-xs text-gray-400 font-mono">${s.phone}</span>` : ''}
                     </label>
                 `;
             }).join('');
@@ -3434,7 +3439,7 @@
             if (!tagsBox) return;
 
             if (selectedIngSupplierIds.length === 0) {
-                tagsBox.innerHTML = '<span class="text-gray-400 italic">-- Bấm để chọn nhà cung cấp --</span>';
+                tagsBox.innerHTML = '<span class="text-gray-400 ">-- Bấm để chọn nhà cung cấp --</span>';
                 if (badgeEl) badgeEl.classList.add('hidden');
                 return;
             }
@@ -3448,7 +3453,7 @@
                 const s = currentIngSuppliers.find(x => x.id === id);
                 const name = s ? s.name : `NCC #${id}`;
                 return `
-                    <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full text-[11px] font-medium shadow-xs">
+                    <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full text-xs font-medium shadow-xs">
                         <span>🏭 ${name}</span>
                         <button type="button" onclick="removeSelectedIngSupp(${id}, event)" class="hover:text-rose-600 font-bold ml-0.5 text-xs">✕</button>
                     </span>
@@ -3731,7 +3736,7 @@
 
             btn.disabled = true;
             btn.innerText = '⏳ Đang xử lý...';
-            statusBox.className = 'text-xs p-2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 block';
+            statusBox.className = 'text-xs p-2 rounded bg-sky-50 text-sky-800 border border-sky-200 block';
             statusBox.innerText = 'Đang đọc file, thiết lập định lượng và tự động tính lại giá cost...';
 
             const formData = new FormData();
@@ -3821,12 +3826,12 @@
             const items = dd.querySelectorAll('.bom-quick-search-item');
             items.forEach((el, i) => {
                 if (i === bomQuickActiveIdx) {
-                    el.classList.add('bg-indigo-100', 'ring-1', 'ring-indigo-400');
-                    el.classList.remove('hover:bg-indigo-50');
+                    el.classList.add('bg-sky-100', 'ring-1', 'ring-sky-400');
+                    el.classList.remove('hover:bg-sky-50');
                     el.scrollIntoView({ block: 'nearest' });
                 } else {
-                    el.classList.remove('bg-indigo-100', 'ring-1', 'ring-indigo-400');
-                    el.classList.add('hover:bg-indigo-50');
+                    el.classList.remove('bg-sky-100', 'ring-1', 'ring-sky-400');
+                    el.classList.add('hover:bg-sky-50');
                 }
             });
         }
@@ -3897,17 +3902,17 @@
             }
 
             dd.innerHTML = bomQuickFilteredList.slice(0, 30).map((ing, idx) => `
-                <div onclick="quickAddBOMIngredient(${ing.id})" onmouseenter="setBOMQuickActiveItem(${idx})" class="bom-quick-search-item p-2.5 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition group">
+                <div onclick="quickAddBOMIngredient(${ing.id})" onmouseenter="setBOMQuickActiveItem(${idx})" class="bom-quick-search-item p-2.5 hover:bg-sky-50 cursor-pointer flex justify-between items-center transition group">
                     <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-indigo-100 text-slate-600 group-hover:text-indigo-700 flex items-center justify-center font-bold text-xs">📦</span>
+                        <span class="w-6 h-6 rounded-md bg-slate-100 group-hover:bg-sky-100 text-slate-600 group-hover:text-sky-700 flex items-center justify-center font-bold text-xs">📦</span>
                         <div>
-                            <div class="font-bold text-slate-800 group-hover:text-indigo-900">${ing.name}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">Mã: ${ing.code || '-'} | ĐVT: <span class="font-bold text-slate-600">${ing.unit}</span></div>
+                            <div class="font-bold text-slate-800 group-hover:text-sky-900">${ing.name}</div>
+                            <div class="text-xs text-slate-400 font-mono">Mã: ${ing.code || '-'} | ĐVT: <span class="font-bold text-slate-600">${ing.unit}</span></div>
                         </div>
                     </div>
                     <div class="text-right">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</span>
-                        <div class="text-[11px] font-bold text-slate-700 mt-0.5">${formatMoney(ing.latest_cost || 0)}</div>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${ing.type === 'SERVICE' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}">${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</span>
+                        <div class="text-xs font-bold text-slate-700 mt-0.5">${formatMoney(ing.latest_cost || 0)}</div>
                     </div>
                 </div>
             `).join('');
@@ -3994,10 +3999,10 @@
                 const badge = document.getElementById('ai-bom-engine-badge');
                 if (badge) {
                     if (data.source === 'gemini') {
-                        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200';
+                        badge.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-700 border border-sky-200';
                         badge.textContent = '✨ Gemini 2.5 Flash';
                     } else {
-                        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200';
+                        badge.className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200';
                         badge.textContent = '⚡ Heuristic Engine';
                     }
                 }
@@ -4009,22 +4014,22 @@
                     tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Không tìm thấy nguyên liệu nào trong kho khớp với sản phẩm này.</td></tr>';
                 } else {
                     tbody.innerHTML = currentAISuggestions.map((item, idx) => `
-                        <tr class="hover:bg-indigo-50/50 transition">
+                        <tr class="hover:bg-sky-50/50 transition">
                             <td class="p-2.5 text-center">
-                                <input type="checkbox" id="ai-bom-chk-${idx}" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                                <input type="checkbox" id="ai-bom-chk-${idx}" checked class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500">
                             </td>
                             <td class="p-2.5">
                                 <div class="font-bold text-slate-800">${item.ingredient_name}</div>
-                                <div class="text-[10px] text-slate-400 font-mono">Mã: ${item.ingredient_code} | Loại: ${item.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</div>
+                                <div class="text-xs text-slate-400 font-mono">Mã: ${item.ingredient_code} | Loại: ${item.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</div>
                             </td>
                             <td class="p-2.5 text-right font-mono">
                                 <div class="flex items-center justify-end gap-1">
-                                    <input type="number" id="ai-bom-qty-${idx}" step="any" min="0.0001" value="${item.quantity}" class="w-20 border border-slate-300 rounded px-2 py-1 text-right font-bold text-indigo-700 bg-white text-xs focus:ring-1 focus:ring-indigo-500">
-                                    <span class="text-[11px] font-semibold text-slate-500">${item.unit}</span>
+                                    <input type="number" id="ai-bom-qty-${idx}" step="any" min="0.0001" value="${item.quantity}" class="w-20 border border-slate-300 rounded px-2 py-1 text-right font-bold text-sky-700 bg-white text-xs focus:ring-1 focus:ring-sky-500">
+                                    <span class="text-xs font-semibold text-slate-500">${item.unit}</span>
                                 </div>
                             </td>
                             <td class="p-2.5 text-slate-600 text-xs">
-                                <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium text-[11px]">${item.reason || 'Đề xuất'}</span>
+                                <span class="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-md font-medium text-xs">${item.reason || 'Đề xuất'}</span>
                             </td>
                         </tr>
                     `).join('');
@@ -4200,10 +4205,10 @@
                 <div onclick="selectBOMIngredient(${ing.id})" class="p-2 hover:bg-sky-50 cursor-pointer flex justify-between items-center">
                     <div>
                         <span class="font-bold text-slate-700">${ing.name}</span>
-                        <span class="text-[10px] text-gray-400 font-mono ml-1">(${ing.code || '-'})</span>
+                        <span class="text-xs text-gray-400 font-mono ml-1">(${ing.code || '-'})</span>
                     </div>
                     <div class="text-right">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${ing.type === 'SERVICE' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}">${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</span>
+                        <span class="px-1.5 py-0.5 rounded text-xs font-bold ${ing.type === 'SERVICE' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}">${ing.type === 'SERVICE' ? 'Dịch vụ' : 'Vật lý'}</span>
                         <span class="text-xs text-gray-500 ml-1">ĐVT: ${ing.unit}</span>
                     </div>
                 </div>
@@ -4371,7 +4376,7 @@
                 const suppEl = document.getElementById('ing-detail-suppliers');
                 if (suppEl) {
                     if (data.suppliers && data.suppliers.length > 0) {
-                        suppEl.innerHTML = data.suppliers.map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] mr-1">🏭 ${s.name}</span>`).join('');
+                        suppEl.innerHTML = data.suppliers.map(s => `<span class="inline-block bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded text-xs mr-1">🏭 ${s.name}</span>`).join('');
                     } else {
                         suppEl.textContent = 'Chưa gán';
                     }
@@ -4380,24 +4385,24 @@
                 const badge = document.getElementById('ing-detail-badge');
                 if (ing.type === 'SERVICE') {
                     badge.textContent = 'Dịch vụ';
-                    badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700';
+                    badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700';
                 } else {
                     badge.textContent = 'Vật lý (Tồn kho)';
-                    badge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700';
+                    badge.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700';
                 }
 
                 // 1. Tồn kho theo từng kho
                 const stocksEl = document.getElementById('ing-detail-stocks');
                 if (ing.type === 'SERVICE') {
-                    stocksEl.innerHTML = '<div class="text-gray-400 italic py-1">Thành phần Dịch Vụ không lưu trữ tồn kho.</div>';
+                    stocksEl.innerHTML = '<div class="text-gray-400  py-1">Thành phần Dịch Vụ không lưu trữ tồn kho.</div>';
                 } else if (!data.stocks || data.stocks.length === 0) {
-                    stocksEl.innerHTML = '<div class="text-gray-400 italic py-1">Chưa có dữ liệu tồn kho tại các kho.</div>';
+                    stocksEl.innerHTML = '<div class="text-gray-400  py-1">Chưa có dữ liệu tồn kho tại các kho.</div>';
                 } else {
                     stocksEl.innerHTML = data.stocks.map(s => `
-                        <div class="flex justify-between items-center bg-white border p-1.5 rounded text-[11px]">
+                        <div class="flex justify-between items-center bg-white border p-1.5 rounded text-xs">
                             <div>
                                 <span class="font-bold text-slate-800">${s.warehouse_name}</span>
-                                <span class="text-gray-400 text-[10px] ml-1">(${s.warehouse_address || 'Tại shop'})</span>
+                                <span class="text-gray-400 text-xs ml-1">(${s.warehouse_address || 'Tại shop'})</span>
                             </div>
                             <span class="font-mono font-bold text-sky-700">${s.quantity} ${ing.unit}</span>
                         </div>
@@ -4407,13 +4412,13 @@
                 // 2. Lịch sử giá nhập theo NCC
                 const pricesEl = document.getElementById('ing-detail-prices');
                 if (!data.price_history || data.price_history.length === 0) {
-                    pricesEl.innerHTML = '<div class="text-gray-400 italic py-1">Chưa có lịch sử giá nhập.</div>';
+                    pricesEl.innerHTML = '<div class="text-gray-400  py-1">Chưa có lịch sử giá nhập.</div>';
                 } else {
                     pricesEl.innerHTML = data.price_history.map(p => `
-                        <div class="flex justify-between items-center bg-white border p-1.5 rounded text-[11px]">
+                        <div class="flex justify-between items-center bg-white border p-1.5 rounded text-xs">
                             <div>
                                 <span class="font-medium text-slate-800">${p.supplier_name || 'NCC Mặc định / Chưa gán'}</span>
-                                <span class="text-gray-400 text-[10px] ml-1">(${p.effective_date ? p.effective_date.substring(0, 10) : ''})</span>
+                                <span class="text-gray-400 text-xs ml-1">(${p.effective_date ? p.effective_date.substring(0, 10) : ''})</span>
                             </div>
                             <span class="font-mono font-bold text-rose-600">${formatMoney(p.purchase_price)}</span>
                         </div>
@@ -4429,15 +4434,15 @@
                         const isSale = l.change_type === 'SALE';
                         const isPurchase = l.change_type === 'PURCHASE';
                         const typeBadge = isSale 
-                            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">🛒 Xuất Bán</span>' 
-                            : (isPurchase ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">📥 Nhập Hàng</span>' : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-700">✏️ Điều Chỉnh</span>');
+                            ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700">🛒 Xuất Bán</span>' 
+                            : (isPurchase ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-700">📥 Nhập Hàng</span>' : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">✏️ Điều Chỉnh</span>');
 
                         const qtyDisplay = l.quantity > 0 
                             ? `<span class="text-emerald-600 font-bold">+${l.quantity}</span>` 
                             : `<span class="text-rose-600 font-bold">${l.quantity}</span>`;
 
                         const refDisplay = l.order_code 
-                            ? `<button onclick="viewOrderDetailModal('${l.order_code}')" class="font-mono font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded border border-sky-300 text-[11px] underline flex items-center gap-1 inline-flex" title="Bấm để xem hóa đơn này">🧾 ${l.order_code}</button>` 
+                            ? `<button onclick="viewOrderDetailModal('${l.order_code}')" class="font-mono font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded border border-sky-300 text-xs underline flex items-center gap-1 inline-flex" title="Bấm để xem hóa đơn này">🧾 ${l.order_code}</button>` 
                             : (l.supplier_name ? `<span class="font-medium text-slate-700">🏢 ${l.supplier_name}</span>` : '-');
 
                         return `
@@ -4575,7 +4580,7 @@
         async function applyOrdersFilters() {
             const tbody = document.getElementById('orders-table-body');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Đang lọc danh sách hóa đơn từ máy chủ...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 ">Đang lọc danh sách hóa đơn từ máy chủ...</td></tr>';
 
             const fromDate = document.getElementById('filter-order-from-date')?.value || '';
             const toDate = document.getElementById('filter-order-to-date')?.value || '';
@@ -4605,7 +4610,7 @@
                 renderOrdersTable(allOrdersData);
             } catch (e) {
                 console.error("applyOrdersFilters error:", e);
-                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-red-500 italic">Lỗi khi lọc danh sách hóa đơn!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-red-500 ">Lỗi khi lọc danh sách hóa đơn!</td></tr>';
             }
         }
         window.applyOrdersFilters = applyOrdersFilters;
@@ -4647,7 +4652,7 @@
             if (!tbody) return;
 
             if (!allCachedOrders || allCachedOrders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 italic">Không có hóa đơn nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="p-6 text-center text-gray-400 ">Không có hóa đơn nào</td></tr>';
                 const pContainer = document.getElementById('pagination-orders');
                 if (pContainer) pContainer.innerHTML = '';
                 updateOrdersBulkActionBar();
@@ -4679,7 +4684,7 @@
                         <td class="p-3 font-medium text-slate-800">${ord.customer_name || 'Khách lẻ'}</td>
                         <td class="p-3 text-gray-600">${ord.staff_name || 'Thu ngân'}</td>
                         <td class="p-3 text-slate-700 font-medium whitespace-nowrap">${ord.created_by || ord.staff_name || 'Thu ngân'}</td>
-                        <td class="p-3 text-slate-500 whitespace-nowrap">${ord.updated_by ? `${ord.updated_by} <span class="text-[10px] text-gray-400 block">${formatDateTime(ord.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
+                        <td class="p-3 text-slate-500 whitespace-nowrap">${ord.updated_by ? `${ord.updated_by} <span class="text-xs text-gray-400 block">${formatDateTime(ord.updated_at)}</span>` : '<span class="text-gray-300">---</span>'}</td>
                         <td class="p-3 text-center font-mono font-bold">${ord.item_count || 0}</td>
                         <td class="p-3 text-right font-mono font-bold text-slate-800">${formatMoney(ord.final_amount)}</td>
                         <td class="p-3 text-right font-mono text-gray-500">${formatMoney(ord.discount || 0)}</td>
@@ -4891,8 +4896,8 @@
                         prodTotal += sub;
                     }
                     const typeBadge = isSvc 
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
-                        : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
+                        ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
+                        : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
 
                     return `
                     <tr class="border-b hover:bg-gray-50">
@@ -5087,10 +5092,10 @@
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100 ${canReturn ? '' : 'opacity-50 bg-slate-50'}">
                         <td class="p-2">
                             <div class="font-bold text-slate-800">${item.product_name}</div>
-                            <div class="text-[10px] text-gray-500">${item.product_code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
+                            <div class="text-xs text-gray-500">${item.product_code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
                             <input type="text" placeholder="Lý do trả (nếu có)..." value="${item.reason || ''}"
                                    onchange="onReturnItemReasonChange(${idx}, this.value)"
-                                   class="w-full text-[11px] text-slate-600 mt-1 border border-dashed border-slate-200 rounded px-1.5 py-0.5 bg-transparent focus:bg-white focus:border-indigo-400 focus:outline-none"
+                                   class="w-full text-xs text-slate-600 mt-1 border border-dashed border-slate-200 rounded px-1.5 py-0.5 bg-transparent focus:bg-white focus:border-sky-400 focus:outline-none"
                                    ${canReturn ? '' : 'disabled'}>
                         </td>
                         <td class="p-2 text-right font-mono text-slate-700 whitespace-nowrap">
@@ -5098,20 +5103,20 @@
                         </td>
                         <td class="p-2 text-center font-mono">
                             <span class="font-bold ${item.quantity_available > 0 ? 'text-emerald-700' : 'text-gray-400'}">${item.quantity_available}</span>
-                            <span class="text-[10px] text-gray-400 block">(Mua ${item.quantity_bought}${item.quantity_returned > 0 ? `, đã trả ${item.quantity_returned}` : ''})</span>
+                            <span class="text-xs text-gray-400 block">(Mua ${item.quantity_bought}${item.quantity_returned > 0 ? `, đã trả ${item.quantity_returned}` : ''})</span>
                         </td>
                         <td class="p-2 text-center">
                             <input type="number" min="0" max="${item.quantity_available}" step="any"
                                    value="${item.return_qty}"
                                    oninput="onReturnItemQtyChange(${idx}, this.value)"
-                                   class="w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-indigo-500 ${item.return_qty > 0 ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white'}"
+                                   class="w-16 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-sky-500 ${item.return_qty > 0 ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-white'}"
                                    ${canReturn ? '' : 'disabled'}>
                         </td>
                         <td class="p-2 text-center">
                             <input type="checkbox" ${item.return_to_stock ? 'checked' : ''}
                                    onchange="onReturnItemStockToggle(${idx}, this.checked)"
                                    title="Nhập lại tồn kho"
-                                   class="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer w-4 h-4"
+                                   class="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4"
                                    ${canReturn ? '' : 'disabled'}>
                         </td>
                     </tr>
@@ -5184,14 +5189,14 @@
             dd.innerHTML = matches.map(p => {
                 const priceFmt = (typeof formatMoney === 'function') ? formatMoney(p.sell_price) : (p.sell_price || 0).toLocaleString('vi-VN') + ' đ';
                 return `
-                    <div class="px-3 py-2 hover:bg-indigo-50 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0"
+                    <div class="px-3 py-2 hover:bg-sky-50 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0"
                          onclick="addExchangeItem(${p.id})">
                         <div>
                             <span class="font-bold text-slate-800">${p.name}</span>
-                            <span class="text-[10px] text-gray-500 ml-1.5 font-mono">(${p.code || ''})</span>
-                            <span class="text-[10px] text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>
+                            <span class="text-xs text-gray-500 ml-1.5 font-mono">(${p.code || ''})</span>
+                            <span class="text-xs text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>
                         </div>
-                        <div class="font-mono font-bold text-indigo-600 text-right">${priceFmt}</div>
+                        <div class="font-mono font-bold text-sky-600 text-right">${priceFmt}</div>
                     </div>
                 `;
             }).join('');
@@ -5264,7 +5269,7 @@
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                         <td class="p-2">
                             <div class="font-bold text-slate-800">${item.name}</div>
-                            <div class="text-[10px] text-gray-500">${item.code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
+                            <div class="text-xs text-gray-500">${item.code || ''} ${item.unit ? `(${item.unit})` : ''}</div>
                         </td>
                         <td class="p-2 text-right font-mono text-slate-700 whitespace-nowrap">
                             ${priceFmt}
@@ -5272,7 +5277,7 @@
                         <td class="p-2 text-center">
                             <input type="number" min="0.1" step="any" value="${item.quantity}"
                                    oninput="onExchangeItemQtyChange(${idx}, this.value)"
-                                   class="w-14 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-indigo-500 bg-white">
+                                   class="w-14 px-1.5 py-1 text-center font-mono font-bold text-xs border rounded border-slate-300 focus:ring-1 focus:ring-sky-500 bg-white">
                         </td>
                         <td class="p-2 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
                             ${subFmt}
@@ -5308,7 +5313,7 @@
                 if (elIcon) elIcon.textContent = '📥';
                 if (elDiff) {
                     elDiff.textContent = '+' + ((typeof formatMoney === 'function') ? formatMoney(diff) : diff.toLocaleString('vi-VN') + ' đ');
-                    elDiff.className = 'font-mono text-base font-black text-emerald-700';
+                    elDiff.className = 'font-mono text-base font-bold text-emerald-700';
                 }
                 if (box) {
                     box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-emerald-300 bg-emerald-50/70';
@@ -5320,7 +5325,7 @@
                 if (elIcon) elIcon.textContent = '📤';
                 if (elDiff) {
                     elDiff.textContent = '-' + ((typeof formatMoney === 'function') ? formatMoney(absDiff) : absDiff.toLocaleString('vi-VN') + ' đ');
-                    elDiff.className = 'font-mono text-base font-black text-rose-600';
+                    elDiff.className = 'font-mono text-base font-bold text-rose-600';
                 }
                 if (box) {
                     box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-rose-300 bg-rose-50/70';
@@ -5331,7 +5336,7 @@
                 if (elIcon) elIcon.textContent = '⚖️';
                 if (elDiff) {
                     elDiff.textContent = '0 đ';
-                    elDiff.className = 'font-mono text-base font-black text-slate-800';
+                    elDiff.className = 'font-mono text-base font-bold text-slate-800';
                 }
                 if (box) {
                     box.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-white';
@@ -5576,8 +5581,8 @@
             tbody.innerHTML = editingOrderData.items.map((item, idx) => {
                 const isSvc = item.product_type === 'service' || (!item.product_type && item.product_name && /(dịch vụ|vé spa|gói tắm|tiền công)/i.test(item.product_name));
                 const typeBadge = isSvc 
-                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
-                    : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
+                    ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700 mr-1.5 whitespace-nowrap">💆 Dịch vụ</span>'
+                    : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 mr-1.5 whitespace-nowrap">📦 Sản phẩm</span>';
 
                 return `
                 <tr class="border-b hover:bg-slate-50">
@@ -7381,7 +7386,7 @@
                              oninput="onInlineTextInput(event, '${e.id}')"
                              onkeydown="onInlineTextKeyDown(event, '${e.id}')"
                              onclick="onInlineTextClick(event, '${e.id}')"
-                             style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap; line-height: 1.3; outline: none; border-radius: 2px; cursor: text;"
+                             style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? '' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap; line-height: 1.3; outline: none; border-radius: 2px; cursor: text;"
                              title="Nhấp vào để sửa chữ trực tiếp">${txt}</div>
                     `;
                 }
@@ -7390,7 +7395,7 @@
 
                 // Chỉ hiển thị thanh công cụ điều khiển khi khối được chọn (Clean Canvas)
                 const actionBarHTML = isSel ? `
-                    <div class="element-action-bar flex items-center justify-between pb-1 mb-1 text-[10px] text-sky-800 bg-sky-50 p-1 rounded border border-sky-200 select-none shadow-2xs">
+                    <div class="element-action-bar flex items-center justify-between pb-1 mb-1 text-xs text-sky-800 bg-sky-50 p-1 rounded border border-sky-200 select-none shadow-2xs">
                         <span class="font-bold flex items-center gap-1.5 text-sky-900">
                             <span class="cursor-grab text-sky-600 font-mono text-xs">⠿</span>
                             <span>${e.label || ''}</span>
@@ -7432,7 +7437,7 @@
             if (!panel) return;
             const elem = canvasElements.find(e => e.id === selectedElementId);
             if (!elem) {
-                panel.innerHTML = '<div class="text-gray-400 italic">Click vào một khối trên trang giấy để chỉnh sửa...</div>';
+                panel.innerHTML = '<div class="text-gray-400 ">Click vào một khối trên trang giấy để chỉnh sửa...</div>';
                 return;
             }
 
@@ -7443,7 +7448,7 @@
                 <div class="space-y-3">
                     <div class="flex items-center justify-between pb-1 border-b">
                         <span class="font-bold text-sky-700">${elem.label}</span>
-                        <span class="text-[10px] px-2 py-0.5 rounded font-bold ${zoneColor}">VÙNG: ${zoneName}</span>
+                        <span class="text-xs px-2 py-0.5 rounded font-bold ${zoneColor}">VÙNG: ${zoneName}</span>
                     </div>
 
                     <div class="bg-amber-50 border border-amber-200 rounded p-2 text-xs">
@@ -7482,7 +7487,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="block font-semibold text-xs">Chiều cao tối đa Logo (px):</label>
-                            <span class="text-[10px] text-purple-600 font-bold">${elem.h || 65}px</span>
+                            <span class="text-xs text-sky-600 font-bold">${elem.h || 65}px</span>
                         </div>
                         <input type="range" min="30" max="150" step="5" class="w-full accent-purple-600 cursor-pointer" value="${elem.h || 65}" oninput="updateProp('h', parseInt(this.value) || 65)">
                     </div>` : ''}
@@ -7494,7 +7499,7 @@
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="block font-semibold text-xs">Độ rộng khối (px):</label>
-                            <span class="text-[10px] text-sky-600">Hoặc kéo tay cầm 🟦 trên giấy</span>
+                            <span class="text-xs text-sky-600">Hoặc kéo tay cầm 🟦 trên giấy</span>
                         </div>
                         <input id="prop-w" type="number" class="border p-1.5 rounded w-full text-xs" value="${elem.w || 200}" oninput="updateProp('w', parseInt(this.value) || 100)">
                     </div>
@@ -7507,7 +7512,7 @@
                         ${elem.bold !== undefined ? `
                         <button onclick="updateProp('bold', !${elem.bold})" class="p-1.5 border rounded ${elem.bold ? 'bg-slate-800 text-white font-bold' : 'bg-white'}">In Đậm [B]</button>` : ''}
                         ${elem.italic !== undefined ? `
-                        <button onclick="updateProp('italic', !${elem.italic})" class="p-1.5 border rounded ${elem.italic ? 'bg-slate-800 text-white italic' : 'bg-white'}">In Nghiêng [I]</button>` : ''}
+                        <button onclick="updateProp('', !${elem.italic})" class="p-1.5 border rounded ${elem.italic ? 'bg-slate-800 text-white ' : 'bg-white'}">In Nghiêng [I]</button>` : ''}
                     </div>
                     ${elem.align !== undefined ? `
                     <div>
@@ -7521,7 +7526,7 @@
                     ${elem.type === 'table_b2b' || elem.type === 'table' ? `
                     <div class="p-2 bg-slate-50 border border-slate-200 rounded text-xs space-y-1.5">
                         <label class="block font-bold text-slate-800">Cấu hình cột bảng:</label>
-                        <div class="grid grid-cols-2 gap-1 text-[11px]">
+                        <div class="grid grid-cols-2 gap-1 text-xs">
                             <label class="flex items-center gap-1 cursor-pointer">
                                 <input type="checkbox" ${elem.hide_code ? '' : 'checked'} onchange="updateProp('hide_code', !this.checked)">
                                 <span>Mã hàng / SKU</span>
@@ -8427,7 +8432,7 @@
                     txt = txt.replace(/{{phai_tra}}/g, printData.phai_tra);
                     txt = txt.replace(/{{khach_tra}}/g, printData.khach_tra);
                     txt = txt.replace(/{{con_no}}/g, printData.con_no);
-                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
+                    content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? '' : 'normal'}; text-align: ${e.align || 'left'};">${txt}</div>`;
                 }
 
                 // deltaY cho footer elements
@@ -8726,13 +8731,13 @@
             tbody.innerHTML = orders.map(o => {
                 let statusBadge = '';
                 if (o.status === 'DRAFT') {
-                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
+                    statusBadge = '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">Bản Nháp</span>';
                 } else if (o.status === 'DEPOSITED') {
-                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Đang SX</span></span>';
+                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><span>⏳</span><span>Đang SX</span></span>';
                 } else if (o.status === 'RECEIVED') {
-                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhận Hàng</span></span>';
+                    statusBadge = '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><span>✅</span><span>Đã Nhận Hàng</span></span>';
                 } else {
-                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">${o.status}</span>`;
+                    statusBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">${o.status}</span>`;
                 }
 
                 const fundText = o.fund_source === 'COMPANY' ? '🏢 Quỹ Cty (VAT)' : '👤 Quỹ Cá Nhân';
@@ -8756,7 +8761,7 @@
                     `;
                 } else {
                     primaryActionBtn = `
-                        <button type="button" onclick="printOEMInspectionSheet(${o.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200 transition" title="In phiếu kiểm nhận hàng">
+                        <button type="button" onclick="printOEMInspectionSheet(${o.id})" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-xs font-bold border border-sky-200 transition" title="In phiếu kiểm nhận hàng">
                             🖨️ In Phiếu
                         </button>
                     `;
@@ -8767,27 +8772,27 @@
                         <td class="p-3 font-mono font-bold text-amber-700">
                             <span>${escapeHtml(o.code)}</span>
                         </td>
-                        <td class="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                        <td class="p-3 font-mono text-xs text-slate-500 whitespace-nowrap">
                             ${typeof formatDateTime === 'function' ? (formatDateTime(o.created_at) || '—') : (o.created_at || '—')}
                         </td>
                         <td class="p-3">
                             <div class="font-bold text-slate-900">${escapeHtml(o.partner_name || 'Xưởng gia công')}</div>
-                            <div class="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <div class="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                                 <span>📦 ${escapeHtml(o.oem_warehouse_name || 'Kho xưởng')}</span>
                             </div>
                         </td>
                         <td class="p-3 text-right">
                             <div class="font-mono font-bold text-slate-900 text-xs">${formatMoney(totalAmt)}</div>
-                            <div class="text-[10px] text-slate-400 font-normal">${fundText}</div>
+                            <div class="text-xs text-slate-400 font-normal">${fundText}</div>
                         </td>
                         <td class="p-3 text-right">
                             <div class="w-full bg-slate-200 rounded-full h-1.5 mb-1 overflow-hidden">
                                 <div class="${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'} h-1.5 rounded-full" style="width: ${pct}%"></div>
                             </div>
-                            <div class="font-mono text-[11px] font-semibold text-emerald-700">
+                            <div class="font-mono text-xs font-semibold text-emerald-700">
                                 Cọc: ${formatMoney(depositAmt)} <span class="text-slate-400 font-normal">(${pct}%)</span>
                             </div>
-                            <div class="font-mono text-[10px] ${remainingAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
+                            <div class="font-mono text-xs ${remainingAmt > 0 ? 'text-rose-600 font-medium' : 'text-emerald-600 font-bold'}">
                                 ${remainingAmt > 0 ? `Còn: ${formatMoney(remainingAmt)} (${100 - pct}%)` : '✅ Đã xong (0 đ)'}
                             </div>
                         </td>
@@ -8811,7 +8816,7 @@
                                             <button type="button" onclick="closeAllOEMActionMenus(); viewOEMOrderDetail(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-slate-700">
                                                 <span>ℹ️</span> <span>Chi tiết</span>
                                             </button>
-                                            <button type="button" onclick="closeAllOEMActionMenus(); printOEMInspectionSheet(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-indigo-700">
+                                            <button type="button" onclick="closeAllOEMActionMenus(); printOEMInspectionSheet(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-sky-700">
                                                 <span>🖨️</span> <span>In phiếu kiểm</span>
                                             </button>
                                             <button type="button" onclick="closeAllOEMActionMenus(); openModalEditOEM(${o.id})" class="w-full px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 text-sky-700">
@@ -8896,7 +8901,7 @@
 
             if (fund === 'ALL' && btnAll) btnAll.className = 'px-2.5 py-1 rounded font-bold bg-amber-500 text-slate-900';
             else if (fund === 'COMPANY' && btnCty) btnCty.className = 'px-2.5 py-1 rounded font-bold bg-blue-500 text-white';
-            else if (fund === 'PERSONAL' && btnPer) btnPer.className = 'px-2.5 py-1 rounded font-bold bg-purple-500 text-white';
+            else if (fund === 'PERSONAL' && btnPer) btnPer.className = 'px-2.5 py-1 rounded font-bold bg-sky-500 text-white';
 
             renderCashflowForecast();
         }
@@ -8911,7 +8916,7 @@
             }
 
             if (items.length === 0) {
-                container.innerHTML = '<div class="text-center py-3 text-slate-400 text-xs italic">Không có khoản chi dự báo nào trong khoảng thời gian này.</div>';
+                container.innerHTML = '<div class="text-center py-3 text-slate-400 text-xs ">Không có khoản chi dự báo nào trong khoảng thời gian này.</div>';
                 return;
             }
 
@@ -8921,22 +8926,22 @@
                 return `
                     <div class="flex flex-wrap items-center justify-between bg-slate-800/90 hover:bg-slate-800 p-2.5 rounded-lg border border-slate-700 text-xs gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] ${isCty ? 'bg-blue-900 text-blue-300 border border-blue-700' : 'bg-purple-900 text-purple-300 border border-purple-700'}">
+                            <span class="px-2 py-0.5 rounded font-mono font-bold text-xs ${isCty ? 'bg-blue-900 text-blue-300 border border-blue-700' : 'bg-sky-900 text-sky-300 border border-sky-700'}">
                                 ${isCty ? '🏢 Quỹ Cty' : '👤 Cá Nhân'}
                             </span>
                             <div>
                                 <span class="font-bold text-amber-300">${it.code}</span> - 
                                 <span class="text-slate-200">${it.partner_name || 'Nhà cung cấp'}</span>
-                                <span class="text-[10px] text-slate-400 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>
+                                <span class="text-xs text-slate-400 ml-1">(${it.order_type === 'OEM' ? 'Gia công OEM' : 'Nhập hàng'})</span>
                             </div>
                         </div>
                         <div class="flex items-center gap-4">
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-400">Hạn nhận (trừ hao ±1 ngày):</div>
+                                <div class="text-xs text-slate-400">Hạn nhận (trừ hao ±1 ngày):</div>
                                 <div class="font-mono text-slate-200 font-bold">📅 ${dateStr}</div>
                             </div>
                             <div class="text-right">
-                                <div class="text-[10px] text-slate-400">Dự kiến chi:</div>
+                                <div class="text-xs text-slate-400">Dự kiến chi:</div>
                                 <div class="font-mono font-bold text-amber-400 text-sm">${formatMoney(it.amount)}</div>
                             </div>
                         </div>
@@ -9068,15 +9073,15 @@
                         <div>
                             <div class="font-bold text-slate-800 flex items-center gap-1.5">
                                 <span>🏭 ${f.name}</span>
-                                ${f.phone ? `<span class="text-gray-400 text-[10px]">(${f.phone})</span>` : ''}
+                                ${f.phone ? `<span class="text-gray-400 text-xs">(${f.phone})</span>` : ''}
                             </div>
-                            <div class="text-[11px] text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
+                            <div class="text-xs text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
                                 <span>📦 Kho xưởng:</span>
                                 <strong class="underline">${f.warehouse_name}</strong>
                             </div>
                         </div>
                         <div class="text-right">
-                            <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px]">${f.product_count} SP gia công</span>
+                            <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-xs">${f.product_count} SP gia công</span>
                         </div>
                     </div>
                 `).join('');
@@ -9244,9 +9249,9 @@
                 // 1. NHÓM CHƯA CHỌN
                 if (unselectedList.length > 0) {
                     html += `
-                        <div class="bg-slate-50 px-3 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        <div class="bg-slate-50 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                             <span>📦 Chưa chọn vào đơn (${unselectedList.length})</span>
-                            <span class="text-slate-400 italic font-normal">Click để thêm nhanh</span>
+                            <span class="text-slate-400  font-normal">Click để thêm nhanh</span>
                         </div>
                     `;
                     html += unselectedList.map(p => `
@@ -9255,11 +9260,11 @@
                                 <span class="w-6 h-6 rounded bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">📦</span>
                                 <div>
                                     <div class="font-bold text-slate-800 group-hover:text-amber-900">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
-                                    <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | Đơn giá niêm yết: <strong class="text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</strong></div>
+                                    <div class="text-xs text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | Đơn giá niêm yết: <strong class="text-emerald-700 font-mono">${formatMoney(p.cost_price || 0)}</strong></div>
                                 </div>
                             </div>
                             <div class="text-right flex items-center gap-2 shrink-0">
-                                <span class="text-[10px] ${p.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'} px-1.5 py-0.5 rounded font-bold">
+                                <span class="text-xs ${p.bom_count > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'} px-1.5 py-0.5 rounded font-bold">
                                     ${p.bom_count > 0 ? 'Có BOM' : 'Chưa BOM'}
                                 </span>
                                 <span class="text-xs bg-slate-100 group-hover:bg-amber-600 group-hover:text-white px-2.5 py-1 rounded-md font-bold transition">
@@ -9273,7 +9278,7 @@
                 // 2. NHÓM ĐÃ CHỌN (ĐẨY XUỐNG DƯỚI & LÀM MỜ)
                 if (selectedList.length > 0) {
                     html += `
-                        <div class="bg-emerald-50/70 px-3 py-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
+                        <div class="bg-emerald-50/70 px-3 py-1 text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center justify-between border-t border-emerald-200">
                             <span>✓ Đã có trong đơn (${selectedList.length})</span>
                             <span class="text-emerald-600 font-normal">Click để tăng thêm SL</span>
                         </div>
@@ -9281,19 +9286,19 @@
                     html += selectedList.map(p => {
                         const currentQty = existingQtyMap.get(p.id) || 0;
                         return `
-                            <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group border-l-4 border-l-emerald-500">
+                            <div onclick="quickAddOEMProduct(${p.id})" class="p-2.5 bg-slate-50/60 hover:bg-emerald-50/60 cursor-pointer flex justify-between items-center transition opacity-60 hover:opacity-100 group ">
                                 <div class="flex items-center gap-2">
                                     <span class="w-6 h-6 rounded bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
                                     <div>
                                         <div class="font-bold text-slate-700 line-through decoration-slate-400 group-hover:no-underline">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
-                                        <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                        <div class="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
                                             <span>ĐVT: ${p.unit || 'chai'}</span>
-                                            <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-[10px]">Đã lên đơn: ${currentQty.toLocaleString('vi-VN')} ${p.unit || 'chai'}</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 text-xs">Đã lên đơn: ${currentQty.toLocaleString('vi-VN')} ${p.unit || 'chai'}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="text-right shrink-0">
-                                    <span class="text-[11px] bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white text-slate-700 px-2 py-1 rounded-md font-bold transition">
+                                    <span class="text-xs bg-slate-200 group-hover:bg-emerald-600 group-hover:text-white text-slate-700 px-2 py-1 rounded-md font-bold transition">
                                         + Tăng SL
                                     </span>
                                 </div>
@@ -9344,7 +9349,7 @@
                 tr.innerHTML = `
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs">${p.code ? '['+p.code+'] ' : ''}${p.name}</div>
-                        <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | ${p.bom_count > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 italic">Chưa có định mức BOM</span>'}</div>
+                        <div class="text-xs text-gray-500">ĐVT: <strong class="text-slate-700">${p.unit || 'chai'}</strong> | ${p.bom_count > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 ">Chưa có định mức BOM</span>'}</div>
                         <input type="hidden" class="oem-prod-id" value="${p.id}">
                         <input type="hidden" class="oem-prod-unit" value="${p.unit || 'chai'}">
                     </td>
@@ -9405,7 +9410,7 @@
             tr.innerHTML = `
                 <td class="p-2.5">
                     <div class="font-bold text-slate-800 text-xs">${code ? '['+code+'] ' : ''}${name}</div>
-                    <div class="text-[10px] text-gray-500">ĐVT: <strong class="text-slate-700">${unit}</strong> | ${bomCount > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 italic">Chưa có định mức BOM</span>'}</div>
+                    <div class="text-xs text-gray-500">ĐVT: <strong class="text-slate-700">${unit}</strong> | ${bomCount > 0 ? '<span class="text-emerald-700 font-semibold">Đã cấu hình định mức BOM</span>' : '<span class="text-amber-600 ">Chưa có định mức BOM</span>'}</div>
                     <input type="hidden" class="oem-prod-id" value="${item.product_id}">
                     <input type="hidden" class="oem-prod-unit" value="${unit}">
                 </td>
@@ -9614,7 +9619,7 @@
             const oemWhId = parseInt(document.getElementById('oem-create-warehouse')?.value) || 1;
 
             if (selectedItems.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-500 italic">Chưa chọn sản phẩm hoặc số lượng đặt bằng 0.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-500 ">Chưa chọn sản phẩm hoặc số lượng đặt bằng 0.</td></tr>';
                 return;
             }
 
@@ -9629,13 +9634,13 @@
                 });
 
                 if (!res.ok) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-rose-500 italic">Lỗi tính toán tồn kho vật tư xưởng.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-rose-500 ">Lỗi tính toán tồn kho vật tư xưởng.</td></tr>';
                     return;
                 }
 
                 const materials = await res.json();
                 if (materials.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-500 italic">Các sản phẩm này chưa được thiết lập công thức BOM (vỏ chai, tem nhãn...).</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-500 ">Các sản phẩm này chưa được thiết lập công thức BOM (vỏ chai, tem nhãn...).</td></tr>';
                     return;
                 }
 
@@ -9651,7 +9656,7 @@
                             <td class="p-2 text-right font-mono font-bold text-slate-800">
                                 ${m.needed_qty.toLocaleString('vi-VN')}
                             </td>
-                            <td class="p-2 text-right font-mono font-black ${m.current_stock > 0 ? 'text-emerald-700' : 'text-rose-700'}">
+                            <td class="p-2 text-right font-mono font-bold ${m.current_stock > 0 ? 'text-emerald-700' : 'text-rose-700'}">
                                 ${m.current_stock.toLocaleString('vi-VN')}
                             </td>
                             <td class="p-2 text-right font-mono font-bold ${isOk ? 'text-emerald-600' : 'text-rose-600'}">
@@ -9659,11 +9664,11 @@
                             </td>
                             <td class="p-2 text-center">
                                 ${isOk ? `
-                                    <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                                    <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-xs">
                                         ✅ Đủ tồn kho
                                     </span>
                                 ` : `
-                                    <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] animate-pulse">
+                                    <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-xs animate-pulse">
                                         ⚠️ Thiếu ${Math.abs(m.diff_qty).toLocaleString('vi-VN')} ${m.unit} (Cần gửi)
                                     </span>
                                 `}
@@ -9674,7 +9679,7 @@
 
             } catch (err) {
                 console.error('Lỗi check BOM stock:', err);
-                tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-rose-500 italic">Lỗi kết nối máy chủ khi đối chiếu tồn kho.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-rose-500 ">Lỗi kết nối máy chủ khi đối chiếu tồn kho.</td></tr>';
             }
         }
 
@@ -10056,7 +10061,7 @@
             });
 
             if (filtered.length === 0) {
-                dd.innerHTML = '<div class="p-3 text-slate-400 text-center italic text-xs">Không tìm thấy nhà cung cấp nào phù hợp</div>';
+                dd.innerHTML = '<div class="p-3 text-slate-400 text-center  text-xs">Không tìm thấy nhà cung cấp nào phù hợp</div>';
                 dd.classList.remove('hidden');
                 return;
             }
@@ -10066,9 +10071,9 @@
                      class="p-2.5 hover:bg-amber-50 cursor-pointer flex justify-between items-center transition group">
                     <div>
                         <div class="font-bold text-slate-800 group-hover:text-amber-900">🏭 ${s.name}</div>
-                        ${s.phone ? `<div class="text-[10px] text-slate-400 font-mono">SĐT: ${s.phone}</div>` : ''}
+                        ${s.phone ? `<div class="text-xs text-slate-400 font-mono">SĐT: ${s.phone}</div>` : ''}
                     </div>
-                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold group-hover:bg-amber-100 group-hover:text-amber-800">Chọn</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold group-hover:bg-amber-100 group-hover:text-amber-800">Chọn</span>
                 </div>
             `).join('');
             dd.classList.remove('hidden');
@@ -10106,7 +10111,7 @@
             await loadOEMFactoriesList();
 
             if (allOEMFactories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400 italic">Chưa có nhà máy nào được gán kho xưởng. Hãy chọn ở ô phía trên để gán!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400 ">Chưa có nhà máy nào được gán kho xưởng. Hãy chọn ở ô phía trên để gán!</td></tr>';
                 return;
             }
 
@@ -10114,21 +10119,21 @@
                 <tr class="border-b hover:bg-slate-50 transition">
                     <td class="p-2 font-bold text-slate-800">
                         🏭 ${f.name}
-                        ${f.phone ? `<span class="text-gray-400 text-[10px] ml-1">(${f.phone})</span>` : ''}
+                        ${f.phone ? `<span class="text-gray-400 text-xs ml-1">(${f.phone})</span>` : ''}
                     </td>
                     <td class="p-2 font-semibold text-emerald-700">
                         📦 ${f.warehouse_name}
                     </td>
                     <td class="p-2 text-center">
                         <button type="button" onclick="openQuickAssignSupplierModal(${f.id}, '${(f.name || '').replace(/'/g, "\\'")}', () => renderManageFactoriesTable(), 'PRODUCT')"
-                                class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-[11px] font-bold transition flex items-center justify-center gap-1 mx-auto"
+                                class="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded text-xs font-bold transition flex items-center justify-center gap-1 mx-auto"
                                 title="Gán hoặc quản lý sản phẩm gia công cho nhà máy này">
                             <span>📦</span> <span>${f.product_count} SP (Gán)</span>
                         </button>
                     </td>
                     <td class="p-2 text-center">
                         <button type="button" onclick="unlinkFactoryWarehouse(${f.warehouse_id}, '${(f.name || '').replace(/'/g, "\\'")}', '${(f.warehouse_name || '').replace(/'/g, "\\'")}')"
-                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[11px] font-bold transition flex items-center justify-center gap-1 mx-auto"
+                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-xs font-bold transition flex items-center justify-center gap-1 mx-auto"
                                 title="Gỡ kho này khỏi nhà máy">
                             <span>🔗✕</span> <span>Gỡ kho</span>
                         </button>
@@ -10337,14 +10342,14 @@
 
             const mList = Object.values(materialMap);
             if (mList.length === 0) {
-                container.innerHTML = '<div class="text-gray-500 italic p-1">Không có nguyên liệu vật lý nào trong BOM.</div>';
+                container.innerHTML = '<div class="text-gray-500  p-1">Không có nguyên liệu vật lý nào trong BOM.</div>';
                 return;
             }
 
             container.innerHTML = mList.map(m => `
                 <div class="bg-white p-1.5 rounded border border-rose-300 flex justify-between items-center shadow-sm">
                     <span class="font-bold text-slate-800">${m.name}:</span>
-                    <span class="font-mono font-black text-rose-600">- ${m.deduct_qty.toLocaleString('vi-VN')} ${m.unit}</span>
+                    <span class="font-mono font-bold text-rose-600">- ${m.deduct_qty.toLocaleString('vi-VN')} ${m.unit}</span>
                 </div>
             `).join('');
         }
@@ -10424,7 +10429,7 @@
                         <div>Nhà máy: <strong class="text-slate-800">${ord.partner_name || '-'}</strong></div>
                         <div>Kho xưởng NVL: <strong class="text-slate-800">${ord.oem_warehouse_name || '-'}</strong></div>
                         <div>Hẹn nhận hàng: <strong class="font-mono text-slate-800">${ord.expected_delivery_date || '-'}</strong></div>
-                        <div>Nguồn tiền: <strong class="${ord.fund_source === 'COMPANY' ? 'text-blue-700' : 'text-purple-700'}">${ord.fund_source === 'COMPANY' ? '🏢 Quỹ Công Ty' : '👤 Quỹ Cá Nhân'}</strong></div>
+                        <div>Nguồn tiền: <strong class="${ord.fund_source === 'COMPANY' ? 'text-blue-700' : 'text-sky-700'}">${ord.fund_source === 'COMPANY' ? '🏢 Quỹ Công Ty' : '👤 Quỹ Cá Nhân'}</strong></div>
                         <div>Tiền hàng thô: <strong class="font-mono text-slate-700">${formatMoney(ord.total_raw_amount)}</strong></div>
                         <div>Chiết khấu: <strong class="text-emerald-600">${ord.discount_percent}%</strong> | VAT: <strong class="text-rose-600">${ord.vat_percent}%</strong></div>
                         <div>Đã cọc đợt 1: <strong class="text-emerald-600 font-mono font-bold">${formatMoney(ord.deposit_amount)}</strong></div>
@@ -10437,18 +10442,18 @@
                         <div class="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
                             <div class="font-bold text-slate-700 flex justify-between items-center">
                                 <span>1. Hợp đồng đặt cọc ban đầu</span>
-                                <span class="bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-mono font-bold text-[11px]">${totalOrderedQty.toLocaleString('vi-VN')} SP</span>
+                                <span class="bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-mono font-bold text-xs">${totalOrderedQty.toLocaleString('vi-VN')} SP</span>
                             </div>
                             <div class="flex justify-between text-slate-600 pt-1">
                                 <span>Tiền cọc đợt 1 (Đã chi):</span>
                                 <span class="font-mono font-bold text-emerald-600">${formatMoney(ord.deposit_amount)}</span>
                             </div>
-                            <div class="text-[11px] text-gray-500 italic">Đã xuất phiếu chi Sổ Quỹ theo hợp đồng đặt cọc</div>
+                            <div class="text-xs text-gray-500 ">Đã xuất phiếu chi Sổ Quỹ theo hợp đồng đặt cọc</div>
                         </div>
                         <div class="bg-emerald-50/80 p-2.5 rounded border border-emerald-300 space-y-1">
                             <div class="font-bold text-emerald-900 flex justify-between items-center">
                                 <span>2. Quyết toán thực nhận tại kho</span>
-                                <span class="px-1.5 py-0.5 rounded font-mono font-bold text-[11px] ${diffTotalQty < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                                <span class="px-1.5 py-0.5 rounded font-mono font-bold text-xs ${diffTotalQty < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
                                     Thực nhận: ${totalReceivedQty.toLocaleString('vi-VN')} SP ${diffTotalQty !== 0 ? `(${diffTotalQty < 0 ? 'thiếu ' + Math.abs(diffTotalQty).toLocaleString('vi-VN') : 'thừa +' + diffTotalQty.toLocaleString('vi-VN')})` : ''}
                                 </span>
                             </div>
@@ -10484,14 +10489,14 @@
                                         const ordQty = Number(it.ordered_qty) || 0;
                                         const recQty = Number(it.received_qty) || 0;
                                         const itDiff = recQty - ordQty;
-                                        let diffBadge = '<span class="text-slate-400 font-mono text-[11px]">-</span>';
+                                        let diffBadge = '<span class="text-slate-400 font-mono text-xs">-</span>';
                                         if (isReceived) {
                                             if (itDiff < 0) {
-                                                diffBadge = `<span class="bg-rose-100 text-rose-800 px-1 py-0.5 rounded font-mono font-bold text-[10px]">-${Math.abs(itDiff).toLocaleString('vi-VN')}</span>`;
+                                                diffBadge = `<span class="bg-rose-100 text-rose-800 px-1 py-0.5 rounded font-mono font-bold text-xs">-${Math.abs(itDiff).toLocaleString('vi-VN')}</span>`;
                                             } else if (itDiff > 0) {
-                                                diffBadge = `<span class="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-mono font-bold text-[10px]">+${itDiff.toLocaleString('vi-VN')}</span>`;
+                                                diffBadge = `<span class="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-mono font-bold text-xs">+${itDiff.toLocaleString('vi-VN')}</span>`;
                                             } else {
-                                                diffBadge = `<span class="text-slate-500 font-mono text-[11px]">Đủ</span>`;
+                                                diffBadge = `<span class="text-slate-500 font-mono text-xs">Đủ</span>`;
                                             }
                                         }
                                         const rowTotal = (isReceived && recQty > 0 ? recQty : ordQty) * (Number(it.unit_price) || 0);
@@ -10529,7 +10534,7 @@
                                     ${(ord.materials_needed || []).map(m => `
                                         <tr class="border-b">
                                             <td class="p-2 font-medium">${m.ingredient_name}</td>
-                                            <td class="p-2"><span class="text-[10px] px-1.5 py-0.5 rounded font-bold ${m.ingredient_type==='IS_PHYSICAL'?'bg-emerald-100 text-emerald-800':'bg-indigo-100 text-indigo-800'}">${m.ingredient_type==='IS_PHYSICAL'?'Vật lý':'Dịch vụ'}</span></td>
+                                            <td class="p-2"><span class="text-xs px-1.5 py-0.5 rounded font-bold ${m.ingredient_type==='IS_PHYSICAL'?'bg-emerald-100 text-emerald-800':'bg-sky-100 text-sky-800'}">${m.ingredient_type==='IS_PHYSICAL'?'Vật lý':'Dịch vụ'}</span></td>
                                             <td class="p-2 text-right font-mono">${m.bom_qty} ${m.ingredient_unit}</td>
                                             <td class="p-2 text-right font-mono font-bold text-amber-700">${m.needed_qty.toLocaleString('vi-VN')} ${m.ingredient_unit}</td>
                                             <td class="p-2 text-right font-mono font-bold ${m.current_stock_at_oem < m.needed_qty ? 'text-rose-600' : 'text-slate-700'}">${m.current_stock_at_oem.toLocaleString('vi-VN')} ${m.ingredient_unit}</td>
@@ -10651,7 +10656,7 @@
                             <div>• Kho nhận thành phẩm: <strong>${ord.dest_warehouse_name || 'Kho Tổng'}</strong></div>
                             <div>• Ngày hẹn giao: <strong style="font-family: monospace;">${ord.expected_delivery_date || '-'}</strong></div>
                             <div>• Nguồn tiền thanh toán: <strong>${ord.fund_source === 'COMPANY' ? 'Quỹ Công Ty (Cty)' : 'Quỹ Cá Nhân (Cá nhân)'}</strong></div>
-                            <div>• Ghi chú đơn: <em>${ord.note || '(Không có)'}</em></div>
+                            <div>• Ghi chú đơn: <span>${ord.note || '(Không có)'}</span></div>
                         </div>
 
                         <div style="margin-bottom: 12px;">

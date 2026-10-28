@@ -227,7 +227,7 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
                 (s["id"], first.isoformat(), last.isoformat()))
     advances = int(round(float(cur.fetchone()[0])))
     bday = _d(s["birthday"])
-    spa_rec = spa.get((s["name"] or "").strip().lower(), {})
+    spa_rec = spa.get((s["name"] or "").strip().lower(), {}) if int(s.get("enable_spa_commission", 1) or 0) else {}
     p = calc_payslip(
         base_salary=base, allowance=allowance, std_days_month=std_days(block, y, m), std_hours=block.std_hours,
         days=days, ot_hours_official=ot_off, ot_hours_probation=ot_prob,
@@ -272,16 +272,22 @@ def calculate_period(cur, month: str, today: date = None) -> dict:
     if period["status"] != "draft":
         raise HTTPException(400, "Bảng lương đã chốt, mở khóa trước khi tính lại")
     rules, blocks = load_rules(cur), load_blocks(cur)
+    cur.execute("SELECT id, COALESCE(enable_tmdt_commission, 1) as tmdt_on FROM staff")
+    tmdt_flags = {r["id"]: int(r["tmdt_on"]) for r in cur.fetchall()}
     sales = sales_commission_by_staff(cur, f"{first} 00:00:00", f"{last} 23:59:59")
     # Cộng hoa hồng Sales Pancake (đơn POSCAKE theo NV đã gán ở TMĐT > Pancake) vào dòng "Hoa hồng bán"
     from services.pancake import commission_by_staff as pancake_commission_by_staff
     for sid, pc in pancake_commission_by_staff(cur, first.isoformat(), last.isoformat()).items():
+        if not tmdt_flags.get(sid, 1):
+            continue
         rec = sales.setdefault(sid, {"commission": 0, "net": 0})
         rec["commission"] = rec.get("commission", 0) + pc["commission"]
         rec["net"] = rec.get("net", 0) + pc["revenue"]
     # Cộng hoa hồng KOC/KOL TikTok (theo nguồn/chiến dịch đã gán nhân viên phụ trách ở TMĐT > KOC/KOL)
     from services.koc_service import commission_by_staff as koc_commission_by_staff
     for sid, kc in koc_commission_by_staff(cur, month).items():
+        if not tmdt_flags.get(sid, 1):
+            continue
         rec = sales.setdefault(sid, {"commission": 0, "net": 0})
         rec["commission"] = rec.get("commission", 0) + kc["commission"]
     spa = spa_commission_by_name(cur, first.isoformat(), last.isoformat())

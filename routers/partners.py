@@ -79,9 +79,9 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
     query = """
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                pl.name as price_list_name,
-               (SELECT COUNT(*) FROM pets p WHERE p.customer_id = c.id) as pets_count,
-               -- Tính nợ công ty thực tế (Đơn PO có thuế + OEM có thuế + nợ cty đầu kỳ)
-               (
+               COALESCE(pc.pets_count, 0) as pets_count,
+               -- Chỉ tính nợ công ty thực tế khi là supplier (tránh 4 correlated subqueries trên 13.000+ khách lẻ)
+               CASE WHEN c.type = 'supplier' THEN (
                    COALESCE(c.initial_debt_company, 0) +
                    COALESCE((
                        SELECT SUM(p.debt_amount) FROM purchases p 
@@ -93,9 +93,9 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
                        WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
                          AND (o.vat_percent > 0 OR o.fund_source = 'COMPANY')
                    ), 0)
-               ) as calc_debt_company,
-               -- Tính nợ cá nhân thực tế (Đơn PO ko thuế + OEM ko thuế + nợ cá nhân đầu kỳ)
-               (
+               ) ELSE 0 END as calc_debt_company,
+               -- Chỉ tính nợ cá nhân thực tế khi là supplier
+               CASE WHEN c.type = 'supplier' THEN (
                    COALESCE(c.initial_debt_personal, 0) +
                    COALESCE((
                        SELECT SUM(p.debt_amount) FROM purchases p 
@@ -107,10 +107,11 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
                        WHERE o.partner_id = c.id AND o.remaining_payment > 0 AND o.status != 'CANCELLED'
                          AND (o.vat_percent = 0 OR o.vat_percent IS NULL) AND (o.fund_source != 'COMPANY' OR o.fund_source IS NULL)
                    ), 0)
-               ) as calc_debt_personal
+               ) ELSE 0 END as calc_debt_personal
         FROM contacts c
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
         LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
+        LEFT JOIN (SELECT customer_id, COUNT(*) as pets_count FROM pets GROUP BY customer_id) pc ON pc.customer_id = c.id
         WHERE 1=1
     """
     params = []
@@ -311,10 +312,10 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
                         return idx
         return -1
 
-    idx_code = find_col(["mã khách hàng", "mã kh", "mã ncc", "mã đối tác", "mã", "code", "id", "customerid"], ["mã kh", "mã ncc", "mã"])
+    idx_code = find_col(["mã khách hàng", "mã kh", "mã nhà cung cấp", "mã ncc", "mã đối tác", "mã", "code", "id", "customerid"], ["mã khách hàng", "mã nhà cung cấp", "mã kh", "mã ncc", "mã"])
     idx_name = find_col(
         ["tên khách hàng", "tên khách", "tên ncc", "tên nhà cung cấp", "họ và tên", "họ tên", "tên", "name"],
-        ["tên", "name", "khách hàng", "nhà cung cấp"]
+        ["tên khách hàng", "tên nhà cung cấp", "tên", "name"]
     )
     if idx_name == idx_code and idx_name != -1:
         idx_name = -1
@@ -323,16 +324,16 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
                 idx_name = idx
                 break
 
-    idx_phone = find_col(["số điện thoại", "điện thoại", "sđt", "phone", "hotline", "tel"], ["thoại", "sđt", "phone", "điện thoại"])
+    idx_phone = find_col(["số điện thoại", "điện thoại", "sđt", "phone", "hotline", "tel"], ["điện thoại", "sđt", "phone"])
     idx_addr = find_col(["địa chỉ", "địa chỉ giao hàng", "address"], ["địa chỉ", "address"])
-    idx_group = find_col(["nhóm khách hàng", "nhóm đối tác", "nhóm", "phân loại", "segment", "group", "customergroup"], ["nhóm", "phân loại", "segment", "group"])
+    idx_group = find_col(["nhóm khách hàng", "nhóm nhà cung cấp", "nhóm đối tác", "nhóm", "phân loại", "segment", "group", "customergroup"], ["nhóm khách hàng", "nhóm", "phân loại", "segment", "group"])
     idx_debt_comp = find_col(["nợ quỹ công ty", "nợ cty", "công nợ công ty", "công nợ cty", "nợ công ty ban đầu", "quỹ cty"], ["nợ cty", "nợ công ty", "quỹ cty", "quỹ công ty"])
     idx_debt_pers = find_col(["nợ quỹ cá nhân", "nợ cá nhân", "công nợ cá nhân", "nợ cá nhân ban đầu", "quỹ cá nhân"], ["nợ cá nhân", "quỹ cá nhân"])
-    idx_debt = find_col(["công nợ ban đầu", "công nợ", "nợ", "debt", "nợ cũ"], ["công nợ ban đầu", "nợ cũ", "công nợ", "nợ", "debt"])
+    idx_debt = find_col(["nợ cần thu hiện tại", "nợ cần trả hiện tại", "công nợ ban đầu", "công nợ", "nợ", "debt", "nợ cũ"], ["nợ cần thu", "nợ cần trả", "công nợ ban đầu", "nợ cũ", "công nợ", "nợ", "debt"])
     if idx_debt != -1 and idx_debt in (idx_debt_comp, idx_debt_pers):
         idx_debt = -1
 
-    idx_points = find_col(["điểm", "điểm tích lũy", "points"], ["điểm", "point"])
+    idx_points = find_col(["điểm hiện tại", "điểm tích lũy", "điểm", "points"], ["điểm hiện tại", "điểm tích lũy", "điểm", "point"])
     idx_email = find_col(["email", "thư điện tử", "mail"], ["email", "mail"])
     idx_note = find_col(["ghi chú", "note", "notes", "lưu ý"], ["ghi chú", "note"])
 
@@ -342,9 +343,42 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
     conn = get_db()
     cur = conn.cursor()
 
-    # Load nhóm khách hàng để map
-    cur.execute("SELECT id, name FROM customer_segments")
-    segments_map = {r["name"].strip().lower(): r["id"] for r in cur.fetchall()}
+    # Load nhóm khách hàng để map (bao gồm cả alias 'nhân viên nội bộ' -> 'nội bộ', 'đại lý|titan'...)
+    cur.execute("SELECT id, code, name FROM customer_segments")
+    segments_map = {}
+    default_le_seg_id = None
+    for r in cur.fetchall():
+        sname = (r["name"] or "").strip().lower()
+        scode = (r["code"] or "").strip().lower()
+        segments_map[sname] = r["id"]
+        if scode:
+            segments_map[scode] = r["id"]
+        if scode == "le" or sname in ("bán lẻ", "khách lẻ"):
+            default_le_seg_id = r["id"]
+        if "nội bộ" in sname:
+            segments_map["nhân viên nội bộ"] = r["id"]
+
+    def resolve_segment_id(raw_group: str):
+        if not raw_group:
+            return default_le_seg_id
+        parts = [p.strip().lower() for p in str(raw_group).split("|") if p.strip()]
+        # Ưu tiên hạng cao trước: diamond > gold > titan > nội bộ > đại lý
+        for pref in ("diamond", "gold", "titan", "nhân viên nội bộ", "nội bộ", "đại lý"):
+            for pt in parts:
+                if pref in pt and pref in segments_map:
+                    return segments_map[pref]
+        for pt in parts:
+            if pt in segments_map:
+                return segments_map[pt]
+            # Tự tạo nhóm khách hàng nếu chưa có (VD: Shopee, Online, Học viên...)
+            cur.execute("INSERT OR IGNORE INTO customer_segments (code, name, discount_percent, priority, price_list_id, min_points, allow_points, is_active) VALUES (?, ?, 0, 20, ?, 0, 1, 1)",
+                        (pt.upper()[:20], pt.title(), default_le_seg_id))
+            cur.execute("SELECT id FROM customer_segments WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) OR LOWER(TRIM(code)) = LOWER(TRIM(?))", (pt, pt[:20]))
+            nr = cur.fetchone()
+            if nr:
+                segments_map[pt] = nr["id"]
+                return nr["id"]
+        return default_le_seg_id
 
     def clean_phone_number(val) -> str:
         if val is None:
@@ -387,26 +421,29 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         note = str(r[idx_note] or "").strip() if idx_note != -1 and idx_note < len(r) else ""
         
         segment_id = None
-        if type == "customer" and idx_group != -1 and idx_group < len(r):
-            group_name = str(r[idx_group] or "").strip().lower()
-            segment_id = segments_map.get(group_name)
+        if type == "customer":
+            raw_grp = str(r[idx_group] or "").strip() if idx_group != -1 and idx_group < len(r) and r[idx_group] is not None else ""
+            segment_id = resolve_segment_id(raw_grp)
 
+        has_debt_col = idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None and str(r[idx_debt]).strip() != ""
         debt = 0.0
-        if idx_debt != -1 and idx_debt < len(r) and r[idx_debt] is not None:
+        if has_debt_col:
             try:
                 debt = float(str(r[idx_debt]).replace(",", "").strip())
             except Exception:
                 debt = 0.0
 
+        has_comp_col = type == "supplier" and idx_debt_comp != -1 and idx_debt_comp < len(r) and r[idx_debt_comp] is not None and str(r[idx_debt_comp]).strip() != ""
         debt_comp = 0.0
-        if type == "supplier" and idx_debt_comp != -1 and idx_debt_comp < len(r) and r[idx_debt_comp] is not None:
+        if has_comp_col:
             try:
                 debt_comp = float(str(r[idx_debt_comp]).replace(",", "").strip())
             except Exception:
                 debt_comp = 0.0
 
+        has_pers_col = type == "supplier" and idx_debt_pers != -1 and idx_debt_pers < len(r) and r[idx_debt_pers] is not None and str(r[idx_debt_pers]).strip() != ""
         debt_pers = 0.0
-        if type == "supplier" and idx_debt_pers != -1 and idx_debt_pers < len(r) and r[idx_debt_pers] is not None:
+        if has_pers_col:
             try:
                 debt_pers = float(str(r[idx_debt_pers]).replace(",", "").strip())
             except Exception:
@@ -418,25 +455,26 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             elif debt != 0 and debt_comp == 0 and debt_pers == 0:
                 debt_pers = debt
 
+        has_pts_col = idx_points != -1 and idx_points < len(r) and r[idx_points] is not None and str(r[idx_points]).strip() != ""
         points = 0
-        if idx_points != -1 and idx_points < len(r) and r[idx_points] is not None:
+        if has_pts_col:
             try:
                 points = int(float(r[idx_points]))
             except Exception:
                 points = 0
 
-        email = str(r[idx_email] or "").strip() if idx_email != -1 and idx_email < len(r) else ""
+        email = str(r[idx_email] or "").strip() if idx_email != -1 and idx_email < len(r) and r[idx_email] is not None else ""
 
-        # Kiểm tra trùng khớp 3 tầng (bằng Python Unicode sạch 100%):
+        # Kiểm tra trùng khớp:
         # Tầng 1: So khớp Mã KH/NCC (nếu có mã)
         existing = None
         if norm_code and norm_code in contacts_by_code:
             existing = contacts_by_code[norm_code]
-        # Tầng 2: So khớp SĐT chuẩn hóa (nếu có SĐT)
-        elif phone and phone in contacts_by_phone:
+        # Tầng 2: So khớp SĐT chuẩn hóa (nếu có SĐT hợp lệ >= 6 ký tự và không phải chuỗi toàn số 0)
+        elif phone and len(phone) >= 6 and set(phone) != {"0"} and phone in contacts_by_phone:
             existing = contacts_by_phone[phone]
-        # Tầng 3: Nếu không có SĐT hoặc chưa khớp SĐT, so khớp theo Tên chuẩn hóa
-        elif norm_name in contacts_by_name:
+        # Tầng 3: Chỉ so khớp theo Tên khi cả Mã và SĐT đều trống (tránh gộp nhầm 2.243 khách trùng tên kiểu 'Chị Hà', 'Anh Tuấn')
+        elif not norm_code and not phone and norm_name in contacts_by_name:
             existing = contacts_by_name[norm_name]
 
         if existing:
@@ -446,10 +484,11 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             new_email = email if email else (existing.get("email") or "")
             new_address = address if address else (existing.get("address") or "")
             new_note = note if note else (existing.get("note") or "")
-            new_debt = float(existing.get("debt") or 0.0) + (debt if debt != 0.0 else 0.0)
-            new_debt_comp = float(existing.get("initial_debt_company") or 0.0) + (debt_comp if debt_comp != 0.0 else 0.0)
-            new_debt_pers = float(existing.get("initial_debt_personal") or 0.0) + (debt_pers if debt_pers != 0.0 else 0.0)
-            new_points = int(existing.get("points") or 0) + (points if points > 0 else 0)
+            # Ghi đè (=) theo đúng số dư công nợ và điểm trong file đồng bộ KiotViet
+            new_debt = debt if (has_debt_col or has_comp_col or has_pers_col) else float(existing.get("debt") or 0.0)
+            new_debt_comp = debt_comp if (has_comp_col or has_debt_col) else float(existing.get("initial_debt_company") or 0.0)
+            new_debt_pers = debt_pers if (has_pers_col or has_debt_col) else float(existing.get("initial_debt_personal") or 0.0)
+            new_points = points if has_pts_col else int(existing.get("points") or 0)
 
             cur.execute("""
                 UPDATE contacts 
@@ -1137,21 +1176,129 @@ class GroomingGalleryItem(BaseModel):
 service_router = APIRouter(prefix="/api/pet-services", tags=["PetServices"])
 
 @service_router.get("/staff")
-def list_spa_staff():
+def list_spa_staff(month: Optional[str] = None):
+    from datetime import datetime
+    from services.commission import spa_commission_by_name, ensure_staff_spa_tier_cols
+
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM spa_staff WHERE is_active = 1 ORDER BY staff_code, id ASC")
-    rows = [dict(r) for r in cur.fetchall()]
+    ensure_staff_spa_tier_cols(cur)
+
+    # Đảm bảo đồng bộ 1 chiều nếu bảng spa_staff cũ còn dữ liệu chưa sang staff
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
+    if cur.fetchone():
+        cur.execute("SELECT * FROM spa_staff WHERE is_active = 1")
+        for s in cur.fetchall():
+            cur.execute("SELECT id FROM staff WHERE legacy_spa_staff_id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?))", (s["id"], s["name"]))
+            if not cur.fetchone():
+                cur.execute(
+                    """INSERT INTO staff (employee_code, name, phone, role, position, department, is_spa_worker, is_payroll_staff, enable_spa_commission, is_active, legacy_spa_staff_id)
+                       VALUES (?, ?, ?, 'staff', ?, 'Spa & Grooming', 1, 1, 1, 1, ?)""",
+                    (s["staff_code"] or f"SPA{s['id']}", s["name"], s["phone"] or "", s["role"] or "Chuyên viên Spa", s["id"])
+                )
+        conn.commit()
+
+    # Lấy danh sách thợ Spa đang làm việc từ bảng staff trung tâm (HRM)
+    cur.execute("""
+        SELECT id, employee_code, name, phone, position, department, is_active, leave_date,
+               COALESCE(spa_commission_tier, 'official') AS spa_commission_tier
+        FROM staff
+        WHERE (is_spa_worker = 1 OR department LIKE '%Spa%')
+          AND COALESCE(is_active, 1) = 1
+          AND (leave_date IS NULL OR TRIM(leave_date) = '')
+        ORDER BY id ASC
+    """)
+    staff_rows = [dict(r) for r in cur.fetchall()]
+
+    target_month = (month or "").strip()
+    if not target_month or len(target_month) != 7:
+        target_month = datetime.now().strftime("%Y-%m")
+    from_date = f"{target_month}-01"
+    to_date = f"{target_month}-31"
+
+    comm_map = {}
+    try:
+        comm_map = spa_commission_by_name(cur, from_date, to_date)
+    except Exception:
+        comm_map = {}
+
+    # Đếm trực tiếp số ca Nhận / Tắm / Cắt / Nhuộm trên toàn bộ phiếu trong tháng (kể cả phiếu đang làm)
+    cur.execute("""
+        SELECT staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer
+        FROM pet_service_tickets
+        WHERE COALESCE(status, '') NOT IN ('cancelled', 'Đã hủy')
+          AND substr(COALESCE(ticket_date, created_at), 1, 7) = ?
+    """, (target_month,))
+    role_counter = {}
+    for tr in cur.fetchall():
+        for r_col, r_key in (
+            ("staff_receiver", "receiver"),
+            ("staff_worker_1", "washer"),
+            ("staff_worker_2", "washer"),
+            ("staff_cutter", "cutter"),
+            ("staff_dyer", "dyer"),
+        ):
+            raw_val = (tr[r_col] or "").strip()
+            if not raw_val:
+                continue
+            for part in raw_val.split(","):
+                k = part.strip().lower()
+                if not k:
+                    continue
+                bucket = role_counter.setdefault(k, {"receiver": 0, "washer": 0, "cutter": 0, "dyer": 0})
+                bucket[r_key] += 1
+
+    out = []
+    for r in staff_rows:
+        sname = (r["name"] or "").strip()
+        k_low = sname.lower()
+        rc = role_counter.get(k_low, {"receiver": 0, "washer": 0, "cutter": 0, "dyer": 0})
+        cm = comm_map.get(k_low, {})
+        total_cases = rc["receiver"] + rc["washer"] + rc["cutter"] + rc["dyer"]
+        out.append({
+            "id": r["id"],
+            "staff_code": r["employee_code"] or f"SPA{r['id']}",
+            "name": sname,
+            "phone": r["phone"] or "",
+            "role": r["position"] or "Chuyên viên Spa",
+            "department": r["department"] or "Spa & Grooming",
+            "is_active": 1,
+            "month": target_month,
+            "count_receiver": rc["receiver"],
+            "count_washer": rc["washer"],
+            "count_cutter": rc["cutter"],
+            "count_dyer": rc["dyer"],
+            "total_cases": total_cases,
+            "commission_amount": round(float(cm.get("commission") or 0)),
+            "tip_amount": round(float(cm.get("tips") or 0)),
+            "service_revenue": round(float(cm.get("service_revenue") or 0)),
+            "spa_commission_tier": r.get("spa_commission_tier") or "official",
+            "spa_breakdown": cm.get("breakdown") or {"bath": 0, "cut": 0, "dye": 0, "surcharge": 0, "receiver": 0},
+        })
+
     conn.close()
-    return rows
+    return out
 
 @service_router.post("/staff")
 def create_spa_staff(s: SpaStaffCreate):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("INSERT INTO spa_staff (staff_code, name, phone, role, is_active) VALUES (?, ?, ?, ?, ?)",
-                (s.staff_code or "", s.name.strip(), s.phone or "", s.role or "Thợ Spa", s.is_active if s.is_active is not None else 1))
+    code_val = (s.staff_code or "").strip()
+    name_val = s.name.strip()
+    phone_val = (s.phone or "").strip()
+    role_val = (s.role or "Chuyên viên Spa").strip()
+    active_val = s.is_active if s.is_active is not None else 1
+
+    cur.execute("""
+        INSERT INTO staff (
+            employee_code, name, phone, role, position, department,
+            is_spa_worker, is_payroll_staff, enable_spa_commission, is_active
+        )
+        VALUES (?, ?, ?, 'staff', ?, 'Spa & Grooming', 1, 1, 1, ?)
+    """, (code_val or None, name_val, phone_val, role_val, active_val))
     new_id = cur.lastrowid
+    if not code_val:
+        cur.execute("UPDATE staff SET employee_code = ? WHERE id = ?", (f"SPA{new_id}", new_id))
     conn.commit()
     conn.close()
     return {"status": "ok", "id": new_id}
@@ -1160,8 +1307,11 @@ def create_spa_staff(s: SpaStaffCreate):
 def update_spa_staff(staff_id: int, s: SpaStaffCreate):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE spa_staff SET staff_code = ?, name = ?, phone = ?, role = ?, is_active = ? WHERE id = ?",
-                (s.staff_code or "", s.name.strip(), s.phone or "", s.role or "Thợ Spa", s.is_active if s.is_active is not None else 1, staff_id))
+    cur.execute("""
+        UPDATE staff
+        SET employee_code = ?, name = ?, phone = ?, position = ?, is_active = ?
+        WHERE id = ?
+    """, ((s.staff_code or f"SPA{staff_id}").strip(), s.name.strip(), (s.phone or "").strip(), (s.role or "Chuyên viên Spa").strip(), s.is_active if s.is_active is not None else 1, staff_id))
     conn.commit()
     conn.close()
     return {"status": "ok"}
@@ -1170,7 +1320,7 @@ def update_spa_staff(staff_id: int, s: SpaStaffCreate):
 def delete_spa_staff(staff_id: int):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE spa_staff SET is_active = 0 WHERE id = ?", (staff_id,))
+    cur.execute("UPDATE staff SET is_active = 0 WHERE id = ?", (staff_id,))
     conn.commit()
     conn.close()
     return {"status": "ok"}
@@ -1340,7 +1490,7 @@ def get_pet_service_history(pet_id: int, limit: int = 10):
     return rows
 
 @service_router.get("")
-def list_pet_services(status: str = "all", q: str = ""):
+def list_pet_services(status: str = "all", q: str = "", limit: int = 500):
     conn = get_db()
     cur = conn.cursor()
     sql = """
@@ -1359,7 +1509,10 @@ def list_pet_services(status: str = "all", q: str = ""):
         search = f"%{q.strip()}%"
         sql += " AND (s.code LIKE ? OR c.name LIKE ? OR c.phone LIKE ? OR p.name LIKE ? OR s.service_type LIKE ?)"
         params.extend([search, search, search, search, search])
-    sql += " ORDER BY s.id DESC"
+    sql += " ORDER BY s.ticket_date DESC, s.id DESC"
+    if limit and limit > 0:
+        sql += " LIMIT ?"
+        params.append(limit)
     cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()

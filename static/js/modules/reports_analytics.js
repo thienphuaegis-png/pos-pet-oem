@@ -2,7 +2,94 @@
 
 let currentReportsData = null;
 let activeReportsSubTab = 'tab-sub-overview';
-let activeQuickFilter = 'today';
+let activeQuickFilter = '7days';
+let reportsTimelineMode = 'kv4'; // 'kv4' (4 đường KiotViet) hoặc 'stacked' (Cột chồng 3 kênh)
+let reportsCatFilterMode = 'exclude'; // 'exclude' hoặc 'include'
+let reportsSelectedCats = new Set();
+
+try {
+    const savedMode = localStorage.getItem('pos_rep_cat_mode');
+    if (savedMode === 'include' || savedMode === 'exclude') reportsCatFilterMode = savedMode;
+    const savedList = JSON.parse(localStorage.getItem('pos_rep_cat_list') || 'null');
+    if (Array.isArray(savedList)) reportsSelectedCats = new Set(savedList);
+} catch (_) {}
+
+function saveReportsCatFilterState() {
+    try {
+        localStorage.setItem('pos_rep_cat_mode', reportsCatFilterMode);
+        localStorage.setItem('pos_rep_cat_list', JSON.stringify([...reportsSelectedCats]));
+    } catch (_) {}
+}
+
+function toggleReportsCatPopover(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById('rep-cat-popover');
+    if (pop) pop.classList.toggle('hidden');
+}
+window.toggleReportsCatPopover = toggleReportsCatPopover;
+
+document.addEventListener('click', () => {
+    const pop = document.getElementById('rep-cat-popover');
+    if (pop && !pop.classList.contains('hidden')) pop.classList.add('hidden');
+});
+
+function setReportsCatMode(mode) {
+    reportsCatFilterMode = mode === 'include' ? 'include' : 'exclude';
+    const btnEx = document.getElementById('rep-catmode-exclude');
+    const btnInc = document.getElementById('rep-catmode-include');
+    if (btnEx) {
+        btnEx.className = reportsCatFilterMode === 'exclude'
+            ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-rose-600 text-white transition cursor-pointer'
+            : 'px-2.5 py-1 rounded-md text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    }
+    if (btnInc) {
+        btnInc.className = reportsCatFilterMode === 'include'
+            ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-600 text-white transition cursor-pointer'
+            : 'px-2.5 py-1 rounded-md text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    }
+    saveReportsCatFilterState();
+    loadReportsAnalytics();
+}
+window.setReportsCatMode = setReportsCatMode;
+
+function toggleReportsCategoryItem(catName) {
+    if (!catName) return;
+    if (reportsSelectedCats.has(catName)) reportsSelectedCats.delete(catName);
+    else reportsSelectedCats.add(catName);
+    saveReportsCatFilterState();
+    loadReportsAnalytics();
+}
+window.toggleReportsCategoryItem = toggleReportsCategoryItem;
+
+function applyReportsSpecialPreset(preset) {
+    if (preset === 'no_ship_pet') {
+        reportsCatFilterMode = 'exclude';
+        reportsSelectedCats = new Set(['Vận chuyển', 'Thú Cưng']);
+    } else {
+        reportsCatFilterMode = 'exclude';
+        reportsSelectedCats.clear();
+    }
+    setReportsCatMode(reportsCatFilterMode);
+}
+window.applyReportsSpecialPreset = applyReportsSpecialPreset;
+
+function setReportsTimelineMode(mode) {
+    reportsTimelineMode = mode === 'stacked' ? 'stacked' : 'kv4';
+    const bKv = document.getElementById('btn-chartmode-kv4');
+    const bSt = document.getElementById('btn-chartmode-stacked');
+    if (bKv) {
+        bKv.className = reportsTimelineMode === 'kv4'
+            ? 'px-2.5 py-1 rounded-md bg-sky-600 text-white transition cursor-pointer'
+            : 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    }
+    if (bSt) {
+        bSt.className = reportsTimelineMode === 'stacked'
+            ? 'px-2.5 py-1 rounded-md bg-sky-600 text-white transition cursor-pointer'
+            : 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    }
+    if (currentReportsData) renderVisualCharts(currentReportsData);
+}
+window.setReportsTimelineMode = setReportsTimelineMode;
 
 // Instances của Chart.js để hủy trước khi vẽ lại
 let chartTimelineInstance = null;
@@ -11,12 +98,16 @@ let chartPaymentsInstance = null;
 let chartStaffInstance = null;
 
 function initReportsAnalytics() {
-    // Gán mặc định ngày hôm nay
-    const today = getLocalTodayDateStr();
     const fromInput = document.getElementById('rep-filter-from');
     const toInput = document.getElementById('rep-filter-to');
-    if (fromInput && !fromInput.value) fromInput.value = today;
-    if (toInput && !toInput.value) toInput.value = today;
+    if (fromInput && toInput && (!fromInput.value || !toInput.value)) {
+        // Mặc định mở 7 ngày qua để biểu đồ 4 đường KiotViet lên xu hướng đẹp mắt ngay khi vào
+        selectQuickDateFilter('7days');
+        return;
+    }
+
+    // Khôi phục sub-tab đang chọn (bởi switchTab('[id^="tab-"]') của app.js đã gắn class 'hidden' vào #tab-sub-overview)
+    switchReportsSubTab(activeReportsSubTab || 'tab-sub-overview');
 
     // Load dữ liệu
     loadReportsAnalytics();
@@ -116,7 +207,8 @@ async function loadReportsAnalytics() {
     renderReportsSkeleton();
 
     try {
-        const url = `/api/reports/analytics?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}`;
+        const catListParam = [...reportsSelectedCats].join('||');
+        const url = `/api/reports/analytics?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}&cat_mode=${encodeURIComponent(reportsCatFilterMode)}&cat_list=${encodeURIComponent(catListParam)}`;
         const headers = { 'Accept': 'application/json' };
         if (typeof Auth !== 'undefined' && Auth.getToken()) {
             headers['Authorization'] = `Bearer ${Auth.getToken()}`;
@@ -132,8 +224,15 @@ async function loadReportsAnalytics() {
         const data = await res.json();
         currentReportsData = data;
 
+        // Đảm bảo sub-tab hiện tại không bị ẩn bởi switchTab('[id^="tab-"]')
+        const activePane = document.getElementById(activeReportsSubTab || 'tab-sub-overview');
+        if (activePane && activePane.classList.contains('hidden')) {
+            switchReportsSubTab(activeReportsSubTab || 'tab-sub-overview');
+        }
+
         // Render các khối dữ liệu
-        renderReportsSummaryKPI(data.summary);
+        renderReportsCategoryFilterUI(data);
+        renderReportsSummaryKPI(data.summary, data.goods_vs_services);
         renderVisualCharts(data);
         renderPaymentsTable(data.payments);
         renderGoodsVsServices(data.goods_vs_services);
@@ -149,20 +248,156 @@ async function loadReportsAnalytics() {
     }
 }
 
-function renderReportsSummaryKPI(s) {
-    if (!s) return;
-    const revEl = document.getElementById('rep-kpi-revenue');
-    const paidEl = document.getElementById('rep-kpi-paid');
-    const debtEl = document.getElementById('rep-kpi-debt');
-    const aovEl = document.getElementById('rep-kpi-aov');
+function formatGrowthBadge(pct, inverseColor = false) {
+    const val = parseFloat(pct || 0);
+    const sign = val > 0 ? '+' : '';
+    const isGood = inverseColor ? (val <= 0) : (val >= 0);
+    const cls = val === 0 ? 'text-slate-500' : (isGood ? 'text-emerald-600' : 'text-rose-600');
+    return `<span class="font-bold ${cls}">${sign}${val}%</span>`;
+}
 
-    if (revEl) revEl.innerText = formatMoney(s.total_revenue || 0);
-    if (paidEl) paidEl.innerText = formatMoney(s.total_paid || 0);
-    if (debtEl) debtEl.innerText = formatMoney(s.total_debt || 0);
-    if (aovEl) {
-        const orderTxt = (s.order_count || 0) + ' đơn';
-        const aovTxt = formatMoney(s.aov || 0) + '/đơn';
-        aovEl.innerHTML = `<span class="text-base text-slate-800">${orderTxt}</span> · <span class="text-xs text-slate-500">${aovTxt}</span>`;
+function renderReportsCategoryFilterUI(data) {
+    const allCats = data.all_categories || [];
+    const breakdown = data.categories_breakdown || [];
+    const popList = document.getElementById('rep-cat-popover-list');
+    const strip = document.getElementById('rep-active-cat-strip');
+    const badge = document.getElementById('rep-cat-filter-badge');
+    const matrixEl = document.getElementById('rep-cat-interactive-matrix');
+
+    if (badge) {
+        if (reportsSelectedCats.size === 0) {
+            badge.textContent = 'Tất cả';
+            badge.className = 'px-1.5 py-0.5 rounded-full bg-sky-600 text-white text-xs font-bold';
+        } else if (reportsCatFilterMode === 'exclude') {
+            badge.textContent = `Loại trừ ${reportsSelectedCats.size}`;
+            badge.className = 'px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-xs font-bold';
+        } else {
+            badge.textContent = `Chỉ tính ${reportsSelectedCats.size}`;
+            badge.className = 'px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-bold';
+        }
+    }
+
+    if (popList) {
+        const revByCat = {};
+        breakdown.forEach(b => { revByCat[b.category] = b.revenue || 0; });
+        const sortedCats = [...allCats].sort((a, b) => (revByCat[b] || 0) - (revByCat[a] || 0));
+        popList.innerHTML = sortedCats.map(c => {
+            const safeC = c.replace(/'/g, "\\'");
+            const picked = reportsSelectedCats.has(c);
+            const rev = revByCat[c] || 0;
+            let cls = 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+            let icon = '☐';
+            if (picked) {
+                if (reportsCatFilterMode === 'exclude') {
+                    cls = 'border-rose-300 bg-rose-50 text-rose-700 line-through font-bold';
+                    icon = '🚫';
+                } else {
+                    cls = 'border-emerald-300 bg-emerald-50 text-emerald-800 font-bold';
+                    icon = '✅';
+                }
+            }
+            return `
+                <button type="button" onclick="toggleReportsCategoryItem('${safeC}')" class="p-2 rounded-lg border text-left text-xs flex items-center justify-between gap-1 transition cursor-pointer ${cls}">
+                    <span class="truncate">${icon} ${c}</span>
+                    ${rev > 0 ? `<span class="text-xs font-mono shrink-0 opacity-75">${Math.round(rev / 1000)}k</span>` : ''}
+                </button>
+            `;
+        }).join('');
+    }
+
+    if (strip) {
+        if (reportsSelectedCats.size === 0) {
+            strip.innerHTML = `<span class="text-slate-500">✨ Đang tổng hợp <b>toàn bộ các nhóm hàng hóa & dịch vụ</b>. Bấm vào bảng <b>Tỷ Trọng Nhóm Hàng</b> bên dưới hoặc nút <b>🎯 Lọc nhóm hàng đặc biệt</b> để loại trừ Phí ship, Thú cưng...</span>`;
+        } else {
+            const prefix = reportsCatFilterMode === 'exclude'
+                ? `<span class="font-bold text-rose-600">🚫 Đang loại trừ khỏi báo cáo:</span>`
+                : `<span class="font-bold text-emerald-700">✅ Chỉ tính doanh thu các nhóm:</span>`;
+            const chipCls = reportsCatFilterMode === 'exclude'
+                ? 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200'
+                : 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200';
+            const chips = [...reportsSelectedCats].map(c => {
+                const safeC = c.replace(/'/g, "\\'");
+                return `<button type="button" onclick="toggleReportsCategoryItem('${safeC}')" class="px-2.5 py-0.5 rounded-full border font-bold text-xs inline-flex items-center gap-1 transition cursor-pointer ${chipCls}"><span>${c}</span><span>✕</span></button>`;
+            }).join('');
+            strip.innerHTML = `${prefix} ${chips} <button type="button" onclick="applyReportsSpecialPreset('all')" class="ml-auto text-sky-600 hover:underline font-bold text-xs cursor-pointer">↺ Hiện tất cả</button>`;
+        }
+    }
+
+    if (matrixEl) {
+        if (!breakdown.length) {
+            matrixEl.innerHTML = '<div class="p-6 text-center text-slate-400">Chưa có phát sinh theo nhóm hàng trong kỳ này</div>';
+        } else {
+            const totalIncludedRev = breakdown.filter(b => b.is_included).reduce((s, b) => s + (b.revenue || 0), 0) || 1;
+            matrixEl.innerHTML = breakdown.map(b => {
+                const safeC = (b.category || '').replace(/'/g, "\\'");
+                const inc = b.is_included;
+                const share = inc ? Math.min(100, Math.round(((b.revenue || 0) / totalIncludedRev) * 100)) : 0;
+                const chIcon = b.channel === 'spa' ? '🐾' : (b.channel === 'hotel' ? '🏨' : '📦');
+                return `
+                    <div onclick="toggleReportsCategoryItem('${safeC}')" title="Bấm để ${inc ? 'loại trừ' : 'bật lại'} nhóm ${b.category}" class="p-2 rounded-lg border transition cursor-pointer flex items-center justify-between gap-2 ${inc ? 'bg-white border-slate-200 hover:border-sky-300' : 'bg-rose-50/60 border-rose-200 opacity-55 line-through'}">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-slate-800 truncate flex items-center gap-1">
+                                <span>${inc ? '✅' : '🚫'}</span>
+                                <span>${chIcon}</span>
+                                <span class="truncate">${b.category}</span>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <div class="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-sky-600 h-full rounded-full" style="width:${share}%"></div>
+                                </div>
+                                <span class="text-xs font-mono font-bold text-slate-600">${formatMoney(b.revenue || 0)} (${share}%)</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-xs">${b.margin_pct || 0}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function renderReportsSummaryKPI(s, g) {
+    if (!s) return;
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+    const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+    // 6 Thẻ chuẩn KiotViet
+    setTxt('rep-kv-orders', (s.order_count || 0).toLocaleString('vi-VN'));
+    setTxt('rep-kv-orders-avg', String(s.avg_orders_per_day || 0));
+    setHtml('rep-kv-orders-growth', formatGrowthBadge(s.growth_orders));
+
+    setTxt('rep-kv-gross', formatMoney(s.gross_revenue || 0));
+    setTxt('rep-kv-gross-avg', formatMoney(s.avg_gross_per_day || 0));
+    setHtml('rep-kv-gross-growth', formatGrowthBadge(s.growth_gross));
+
+    setTxt('rep-kv-return', formatMoney(s.return_amount || 0));
+    setTxt('rep-kv-return-avg', formatMoney(s.avg_return_per_day || 0));
+    setHtml('rep-kv-return-growth', formatGrowthBadge(s.growth_return, true));
+
+    setTxt('rep-kpi-revenue', formatMoney(s.net_revenue ?? s.total_revenue ?? 0));
+    setTxt('rep-kv-net-avg', formatMoney(s.avg_net_per_day || 0));
+    setHtml('rep-kv-net-growth', formatGrowthBadge(s.growth_net));
+
+    setTxt('rep-kv-cost', formatMoney(s.total_cost || 0));
+    setTxt('rep-kv-cost-avg', formatMoney(s.avg_cost_per_day || 0));
+    setHtml('rep-kv-cost-growth', formatGrowthBadge(s.growth_cost, true));
+
+    setTxt('rep-kv-profit', formatMoney(s.gross_profit || 0));
+    setTxt('rep-kv-profit-avg', formatMoney(s.avg_profit_per_day || 0));
+    setHtml('rep-kv-profit-growth', formatGrowthBadge(s.growth_profit));
+    setTxt('rep-kv-margin-badge', `Biên: ${s.margin_pct || 0}%`);
+
+    // Dải Thực thu / Công nợ / 3 Kênh POS PetCare
+    setTxt('rep-kpi-paid', formatMoney(s.total_paid || 0));
+    setTxt('rep-kpi-debt', formatMoney(s.total_debt || 0));
+    setTxt('rep-kpi-aov', `TB: ${formatMoney(s.aov || 0)}/đơn`);
+
+    if (g) {
+        setTxt('rep-strip-goods', formatMoney(g.goods_revenue || 0));
+        setTxt('rep-strip-spa', formatMoney(g.services_revenue || 0));
+        setTxt('rep-strip-hotel', formatMoney(g.hotel_revenue || 0));
     }
 }
 
@@ -172,65 +407,133 @@ function renderVisualCharts(data) {
         return;
     }
 
-    // 1. Biểu đồ Timeline (Doanh thu & Số đơn)
+    // 1. Biểu đồ Timeline (Chế độ 4 đường KiotViet hoặc Cột chồng 3 kênh)
     const ctxTimeline = document.getElementById('chart-rep-timeline')?.getContext('2d');
     if (ctxTimeline) {
         if (chartTimelineInstance) chartTimelineInstance.destroy();
         const labels = data.timeline.map(t => t.label);
-        const revenues = data.timeline.map(t => t.revenue);
-        const orders = data.timeline.map(t => t.orders);
 
-        chartTimelineInstance = new Chart(ctxTimeline, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Doanh thu (đ)',
-                        data: revenues,
-                        backgroundColor: 'rgba(2, 132, 199, 0.75)',
-                        borderColor: '#0284c7',
-                        borderWidth: 1.5,
-                        borderRadius: 6,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Số đơn hàng',
-                        data: orders,
-                        type: 'line',
-                        borderColor: '#f59e0b',
-                        backgroundColor: '#f59e0b',
-                        borderWidth: 2.5,
-                        pointRadius: 4,
-                        tension: 0.25,
-                        yAxisID: 'y1'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        grid: { drawOnChartArea: true },
-                        ticks: {
-                            callback: val => val >= 1000000 ? (val / 1000000) + 'Tr' : (val / 1000) + 'k'
+        if (reportsTimelineMode === 'stacked') {
+            chartTimelineInstance = new Chart(ctxTimeline, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Hàng hóa bán lẻ',
+                            data: data.timeline.map(t => t.goods_rev || 0),
+                            backgroundColor: '#0284c7',
+                            borderRadius: 4,
+                            stack: 'rev'
+                        },
+                        {
+                            label: 'Dịch vụ Spa & Grooming',
+                            data: data.timeline.map(t => t.spa_rev || 0),
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 4,
+                            stack: 'rev'
+                        },
+                        {
+                            label: 'Khách sạn thú cưng',
+                            data: data.timeline.map(t => t.hotel_rev || 0),
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 4,
+                            stack: 'rev'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.dataset.label}: ${formatMoney(ctx.raw)}`
+                            }
                         }
                     },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        grid: { drawOnChartArea: false },
-                        ticks: { precision: 0 }
+                    scales: {
+                        x: { stacked: true },
+                        y: {
+                            stacked: true,
+                            ticks: {
+                                callback: val => val >= 1000000 ? (val / 1000000) + 'Tr' : (val / 1000) + 'k'
+                            }
+                        }
                     }
                 }
-            }
-        });
+            });
+        } else {
+            // Chế độ 4 đường chuẩn KiotViet: Doanh thu, Trả hàng, Tổng giá vốn, Lợi nhuận gộp
+            chartTimelineInstance = new Chart(ctxTimeline, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Doanh thu',
+                            data: data.timeline.map(t => t.revenue || 0),
+                            borderColor: '#0070F4',
+                            backgroundColor: 'rgba(0, 112, 244, 0.08)',
+                            borderWidth: 2.2,
+                            pointRadius: 3.5,
+                            tension: 0.15,
+                            fill: true
+                        },
+                        {
+                            label: 'Trả hàng',
+                            data: data.timeline.map(t => t.returns || 0),
+                            borderColor: '#EF4444',
+                            backgroundColor: '#EF4444',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.15
+                        },
+                        {
+                            label: 'Tổng giá vốn',
+                            data: data.timeline.map(t => t.cost || 0),
+                            borderColor: '#F59E0B',
+                            backgroundColor: '#F59E0B',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            tension: 0.15
+                        },
+                        {
+                            label: 'Lợi nhuận gộp',
+                            data: data.timeline.map(t => t.profit || 0),
+                            borderColor: '#10B981',
+                            backgroundColor: '#10B981',
+                            borderWidth: 2.2,
+                            pointRadius: 3.5,
+                            tension: 0.15
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.dataset.label}: ${formatMoney(ctx.raw)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: val => val >= 1000000 ? (val / 1000000) + 'Tr' : (val / 1000) + 'k'
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 
     // 2. Biểu đồ Cơ cấu Nguồn thu (Doughnut)
@@ -361,7 +664,7 @@ function renderPaymentsTable(payments) {
             <td class="p-3 text-center text-slate-400 font-bold">${idx + 1}</td>
             <td class="p-3 font-bold text-slate-800">${p.name}</td>
             <td class="p-3 text-center text-slate-600 font-medium">${p.count} lượt</td>
-            <td class="p-3 text-right font-black font-mono text-emerald-600 text-sm">${formatMoney(p.amount)}</td>
+            <td class="p-3 text-right font-bold font-mono text-emerald-600 text-sm">${formatMoney(p.amount)}</td>
             <td class="p-3 text-right">
                 <div class="flex items-center justify-end gap-2">
                     <div class="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -401,7 +704,7 @@ function renderStaffPerformance(staff) {
                 <span>${s.staff_name}</span>
             </td>
             <td class="p-3 text-center font-semibold text-slate-600">${s.order_count} đơn</td>
-            <td class="p-3 text-right font-black font-mono text-sky-700 text-sm">${formatMoney(s.revenue)}</td>
+            <td class="p-3 text-right font-bold font-mono text-sky-700 text-sm">${formatMoney(s.revenue)}</td>
             <td class="p-3 text-right font-bold font-mono text-emerald-600">${formatMoney(s.paid_revenue)}</td>
             <td class="p-3 text-right font-bold font-mono text-amber-600">${formatMoney(s.commission || 0)}</td>
         </tr>
@@ -418,18 +721,18 @@ function renderTopProducts(products) {
     tbody.innerHTML = products.map((item, idx) => {
         const isSvc = item.type === 'service';
         const typeBadge = isSvc
-            ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">💆 Dịch vụ</span>'
-            : '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">📦 Hàng hóa</span>';
+            ? '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-700">💆 Dịch vụ</span>'
+            : '<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">📦 Hàng hóa</span>';
 
         return `
             <tr class="border-b border-slate-100 hover:bg-slate-50 transition text-xs">
-                <td class="p-3 text-center font-extrabold text-slate-400">${idx + 1}</td>
+                <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
                 <td class="p-3 font-mono font-bold text-slate-500">${item.code || '-'}</td>
                 <td class="p-3 font-bold text-slate-800">${item.name}</td>
                 <td class="p-3 text-center">${typeBadge}</td>
                 <td class="p-3 text-center text-slate-500">${item.unit || 'cái'}</td>
-                <td class="p-3 text-center font-black font-mono text-slate-700 text-sm">${item.qty_sold}</td>
-                <td class="p-3 text-right font-black font-mono text-sky-700 text-sm">${formatMoney(item.revenue)}</td>
+                <td class="p-3 text-center font-bold font-mono text-slate-700 text-sm">${item.qty_sold}</td>
+                <td class="p-3 text-right font-bold font-mono text-sky-700 text-sm">${formatMoney(item.revenue)}</td>
             </tr>
         `;
     }).join('');

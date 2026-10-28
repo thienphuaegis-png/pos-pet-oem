@@ -59,9 +59,9 @@
                     if (t === 'shopee') btn.className += 'border-orange-500 text-orange-600';
                     else if (t === 'tiktok') btn.className += 'border-slate-900 text-slate-900';
                     else if (t === 'pancake') btn.className += 'border-amber-500 text-amber-700';
-                    else if (t === 'koc') btn.className += 'border-pink-600 text-pink-700';
-                    else if (t === 'mapping') btn.className += 'border-indigo-600 text-indigo-700';
-                    else btn.className += 'border-purple-600 text-purple-700';
+                    else if (t === 'koc') btn.className += 'border-sky-600 text-sky-700';
+                    else if (t === 'mapping') btn.className += 'border-sky-600 text-sky-700';
+                    else btn.className += 'border-sky-600 text-sky-700';
                 } else {
                     btn.className = 'px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-2 transition cursor-pointer';
                 }
@@ -163,9 +163,9 @@
         if (!badge) return;
         badge.textContent = text;
         if (ok) {
-            badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800';
+            badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
         } else {
-            badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800';
+            badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
         }
     }
 
@@ -174,9 +174,9 @@
         if (!badge) return;
         badge.textContent = text;
         if (ok) {
-            badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800';
+            badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
         } else {
-            badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800';
+            badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
         }
     }
 
@@ -241,7 +241,7 @@
 
         if (!resDiv) return;
         resDiv.classList.remove('hidden');
-        resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        resDiv.className = 'mt-2 p-2 rounded-lg text-xs bg-slate-100 text-slate-700 font-bold';
         resDiv.innerHTML = '⏳ Đang gửi request kiểm tra tới Shopee...';
         if (btn) btn.disabled = true;
 
@@ -253,14 +253,14 @@
             });
             const data = await res.json();
             if (data.status === 'ok') {
-                resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-emerald-100 text-emerald-800 font-bold';
+                resDiv.className = 'mt-2 p-2 rounded-lg text-xs bg-emerald-100 text-emerald-800 font-bold';
                 resDiv.innerHTML = `✅ ${escapeHtml(data.message)} (SPC_CDS: ${data.spc_cds || 'OK'})`;
             } else {
-                resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+                resDiv.className = 'mt-2 p-2 rounded-lg text-xs bg-rose-100 text-rose-800 font-bold';
                 resDiv.innerHTML = `❌ ${escapeHtml(data.message)}`;
             }
         } catch (e) {
-            resDiv.className = 'mt-2 p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+            resDiv.className = 'mt-2 p-2 rounded-lg text-xs bg-rose-100 text-rose-800 font-bold';
             resDiv.innerHTML = `❌ Lỗi: ${e.message}`;
         } finally {
             if (btn) btn.disabled = false;
@@ -838,8 +838,8 @@
             tbody.innerHTML = orders.map(o => {
                 const itemsHtml = (o.items || []).map(it => {
                     const mappedBadge = it.mapped_product_id
-                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
-                        : `<button type="button" onclick="promptMapItem('shopee', '${escapeHtml(it.platform_product_name)}', '${escapeHtml(it.platform_variation || '')}')" class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition">⚠️ Map ngay</button>`;
+                        ? `<span class="px-1.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
+                        : `<button type="button" onclick="promptMapItem('shopee', '${escapeHtml(it.platform_product_name)}', '${escapeHtml(it.platform_variation || '')}')" class="px-1.5 py-0.5 rounded text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition">⚠️ Map ngay</button>`;
 
                     return `
                         <div class="py-1 border-b border-slate-50 last:border-0 flex items-center justify-between gap-2">
@@ -857,12 +857,12 @@
 
                 const isFullyMapped = (o.items || []).every(it => it.mapped_product_id);
                 const orderMappedStatus = isFullyMapped
-                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
-                    : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
+                    ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
+                    : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
 
                 const totalFee = (o.fee_fixed || 0) + (o.fee_service || 0) + (o.fee_payment || 0) + (o.shop_voucher || 0);
                 const netPayout = o.net_payout > 0 ? o.net_payout : Math.max(0, (o.total_amount || 0) - totalFee);
-                const trackingBadge = o.tracking_number ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
+                const trackingBadge = o.tracking_number ? `<div class="text-xs text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
                 const isSelected = selectedMktOrderIds.has(o.id);
 
                 return `
@@ -882,7 +882,7 @@
                         <td class="p-3 text-right font-medium text-rose-600 font-mono">-${formatMoney(totalFee)}</td>
                         <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(netPayout)}</td>
                         <td class="p-3 text-center font-medium">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
                         </td>
                         <td class="p-3 text-center">${orderMappedStatus}</td>
                         <td class="p-3 text-center">
@@ -1128,10 +1128,10 @@
             tbody.innerHTML = orders.map(o => {
                 const itemsHtml = (o.items || []).map(it => {
                     const mappedBadge = it.mapped_product_id
-                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
-                        : `<button type="button" onclick="promptMapItem('tiktok', '${escapeHtml(it.platform_product_name)}', '${escapeHtml(it.platform_variation || '')}')" class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition">⚠️ Map ngay</button>`;
+                        ? `<span class="px-1.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ Kho: ${escapeHtml(it.pos_product_code || '')}</span>`
+                        : `<button type="button" onclick="promptMapItem('tiktok', '${escapeHtml(it.platform_product_name)}', '${escapeHtml(it.platform_variation || '')}')" class="px-1.5 py-0.5 rounded text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition">⚠️ Map ngay</button>`;
 
-                    const skuHint = it.platform_sku ? `<span class="text-[10px] text-slate-400 font-mono">[${escapeHtml(it.platform_sku)}]</span> ` : '';
+                    const skuHint = it.platform_sku ? `<span class="text-xs text-slate-400 font-mono">[${escapeHtml(it.platform_sku)}]</span> ` : '';
 
                     return `
                         <div class="py-1 border-b border-slate-50 last:border-0 flex items-center justify-between gap-2">
@@ -1149,12 +1149,12 @@
 
                 const isFullyMapped = (o.items || []).every(it => it.mapped_product_id);
                 const orderMappedStatus = isFullyMapped
-                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
-                    : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
+                    ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">100% Đã Map</span>'
+                    : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Cần Ánh Xạ</span>';
 
                 const shopVoucher = o.shop_voucher || 0;
                 const netPayout = o.net_payout > 0 ? o.net_payout : Math.max(0, (o.total_amount || 0) - shopVoucher);
-                const trackingBadge = o.tracking_number ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
+                const trackingBadge = o.tracking_number ? `<div class="text-xs text-slate-400 font-mono mt-0.5">🚚 ${escapeHtml(o.tracking_number)}</div>` : '';
                 const isSelected = selectedMktOrderIds.has(o.id);
 
                 return `
@@ -1174,7 +1174,7 @@
                         <td class="p-3 text-right font-medium text-rose-600 font-mono">${shopVoucher > 0 ? '-' + formatMoney(shopVoucher) : '0 đ'}</td>
                         <td class="p-3 text-right font-bold text-emerald-600 font-mono">${formatMoney(netPayout)}</td>
                         <td class="p-3 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span>
                         </td>
                         <td class="p-3 text-center">${orderMappedStatus}</td>
                         <td class="p-3 text-center">
@@ -1236,7 +1236,7 @@
             const hasSelection = sel && sel.productId;
             const displayLabel = hasSelection ? `[${sel.productCode}] ${sel.productName}` : '';
             const aiBadge = sel && sel.isAi 
-                ? '<span class="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 font-bold px-1.5 py-0.5 rounded ml-1 animate-pulse">🤖 Gợi ý</span>' 
+                ? '<span class="text-xs text-sky-700 bg-sky-50 border border-sky-200 font-bold px-1.5 py-0.5 rounded ml-1 animate-pulse">🤖 Gợi ý</span>' 
                 : '';
 
             return `
@@ -1244,7 +1244,7 @@
                     <td class="p-2.5">${platformBadge}</td>
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800">${escapeHtml(it.platform_product_name)}</div>
-                        ${it.platform_sku ? `<div class="text-[10px] text-slate-400 font-mono mt-0.5">SKU: ${escapeHtml(it.platform_sku)}</div>` : ''}
+                        ${it.platform_sku ? `<div class="text-xs text-slate-400 font-mono mt-0.5">SKU: ${escapeHtml(it.platform_sku)}</div>` : ''}
                     </td>
                     <td class="p-2.5 text-slate-500 font-medium">${escapeHtml(it.platform_variation || 'Mặc định')}</td>
                     <td class="p-2.5 text-center font-bold text-orange-600 font-mono">${it.total_sold_qty || 1}</td>
@@ -1256,7 +1256,7 @@
                                    autocomplete="off"
                                    onfocus="showMktProductCombobox(${idx})" 
                                    oninput="filterMktProductCombobox(${idx}, this.value)"
-                                   class="w-full border ${sel && sel.isAi ? 'border-indigo-400 bg-indigo-50/30 font-bold text-indigo-900' : 'border-slate-300 bg-white font-medium text-slate-800'} rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none">
+                                   class="w-full border ${sel && sel.isAi ? 'border-sky-400 bg-sky-50/30 font-bold text-sky-900' : 'border-slate-300 bg-white font-medium text-slate-800'} rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 outline-none">
                             <div id="mkt-map-dropdown-${idx}" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs">
                             </div>
                         </div>
@@ -1293,7 +1293,7 @@
         }).slice(0, 15);
 
         if (matches.length === 0) {
-            dd.innerHTML = '<div class="p-3 text-center text-slate-400 italic">Không tìm thấy sản phẩm nào trong kho</div>';
+            dd.innerHTML = '<div class="p-3 text-center text-slate-400 ">Không tìm thấy sản phẩm nào trong kho</div>';
             dd.classList.remove('hidden');
             return;
         }
@@ -1304,10 +1304,10 @@
                 <div>
                     <span class="font-mono font-bold text-slate-500 mr-1">[${p.code || '-'}]</span>
                     <span class="font-bold text-slate-800">${p.name}</span>
-                    <span class="text-slate-400 text-[11px] ml-1">(${p.unit || 'cái'})</span>
+                    <span class="text-slate-400 text-xs ml-1">(${p.unit || 'cái'})</span>
                 </div>
                 <div class="text-right shrink-0 ml-2">
-                    <span class="text-[10px] text-slate-400">Tồn: <strong class="text-slate-700">${p.stock || 0}</strong></span>
+                    <span class="text-xs text-slate-400">Tồn: <strong class="text-slate-700">${p.stock || 0}</strong></span>
                 </div>
             </div>
         `).join('');
@@ -1551,7 +1551,7 @@
                         <td class="p-2.5">${platformBadge}</td>
                         <td class="p-2.5 font-bold text-slate-800">${escapeHtml(m.platform_item_name)}</td>
                         <td class="p-2.5 text-slate-500">${escapeHtml(m.platform_variation || 'Mặc định')}</td>
-                        <td class="p-2.5 font-bold text-indigo-700">
+                        <td class="p-2.5 font-bold text-sky-700">
                             [${escapeHtml(m.pos_code)}] ${escapeHtml(m.pos_name)}
                         </td>
                         <td class="p-2.5 text-center font-mono font-bold text-slate-800">${m.pos_stock} ${m.pos_unit || ''}</td>
@@ -1701,13 +1701,13 @@
                     <tr class="hover:bg-slate-50 transition">
                         <td class="p-2.5">
                             <div class="font-bold text-slate-900">${escapeHtml(it.name)}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(it.code)}</div>
+                            <div class="text-xs text-slate-400 font-mono">${escapeHtml(it.code)}</div>
                         </td>
                         <td class="p-2.5 text-center text-slate-500 font-medium">${escapeHtml(it.unit || '')}</td>
                         <td class="p-2.5 text-center font-bold text-sky-600 font-mono">${it.pos_qty}</td>
                         <td class="p-2.5 text-center font-bold text-orange-600 font-mono">${it.shopee_qty}</td>
                         <td class="p-2.5 text-center font-bold text-slate-900 font-mono">${it.tiktok_qty}</td>
-                        <td class="p-2.5 text-center font-bold text-indigo-700 font-mono bg-indigo-50/50 text-sm">${it.total_qty}</td>
+                        <td class="p-2.5 text-center font-bold text-sky-700 font-mono bg-sky-50/50 text-sm">${it.total_qty}</td>
                         <td class="p-2.5 text-center font-mono ${stockWarning}">${it.stock}</td>
                     </tr>
                 `;
@@ -1737,7 +1737,7 @@
 
         // Render user message
         const userMsgDiv = document.createElement('div');
-        userMsgDiv.className = 'bg-indigo-600 text-white p-2.5 rounded-lg ml-8 text-xs font-medium';
+        userMsgDiv.className = 'bg-sky-600 text-white p-2.5 rounded-lg ml-8 text-xs font-medium';
         userMsgDiv.textContent = prompt;
         container.appendChild(userMsgDiv);
         inp.value = '';
@@ -1745,7 +1745,7 @@
         // Render thinking message
         const aiMsgDiv = document.createElement('div');
         aiMsgDiv.className = 'bg-white p-3 rounded-lg border border-slate-200 shadow-2xs mr-8 text-xs text-slate-700 space-y-1.5';
-        aiMsgDiv.innerHTML = '<div class="text-purple-600 font-bold flex items-center gap-1.5"><span>⏳</span> AI đang tổng hợp và phân tích dữ liệu...</div>';
+        aiMsgDiv.innerHTML = '<div class="text-sky-600 font-bold flex items-center gap-1.5"><span>⏳</span> AI đang tổng hợp và phân tích dữ liệu...</div>';
         container.appendChild(aiMsgDiv);
         container.scrollTop = container.scrollHeight;
 
@@ -1762,7 +1762,7 @@
                 .replace(/\n/g, '<br>');
 
             aiMsgDiv.innerHTML = `
-                <div class="font-bold text-purple-700 flex items-center gap-1 text-[11px]">
+                <div class="font-bold text-sky-700 flex items-center gap-1 text-xs">
                     <span>✨ Phân Tích Doanh Số (Gemini AI):</span>
                 </div>
                 <div class="leading-relaxed text-slate-800">${replyHtml}</div>
@@ -1775,9 +1775,9 @@
     window.sendMarketplaceAIChat = sendMarketplaceAIChat;
 
     function mktPlatformBadge(p) {
-        if (p === 'shopee') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Shopee</span>';
-        if (p === 'pancake') return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Pancake</span>';
-        return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">TikTok</span>';
+        if (p === 'shopee') return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">Shopee</span>';
+        if (p === 'pancake') return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">Pancake</span>';
+        return '<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-900 text-white">TikTok</span>';
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -1834,7 +1834,7 @@
             return `<button type="button" onclick="openPancakeShopModal(${a.id})" class="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 text-left cursor-pointer transition" title="Bấm để sửa">
                 <span>${ok ? '🟢' : '🔴'}</span>
                 <span><span class="block font-bold text-xs text-amber-900">${escapeHtml(a.shop_name)}</span>
-                <span class="block text-[10px] text-slate-500 font-mono">ID ${escapeHtml(sid || '?')}${a.last_sync_at ? ' · sync ' + escapeHtml(a.last_sync_at.slice(5, 16)) : ''}</span></span>
+                <span class="block text-xs text-slate-500 font-mono">ID ${escapeHtml(sid || '?')}${a.last_sync_at ? ' · sync ' + escapeHtml(a.last_sync_at.slice(5, 16)) : ''}</span></span>
             </button>`;
         }).join('');
     }
@@ -1888,7 +1888,7 @@
                     <td class="p-2.5 text-center font-mono">${s.rate ? s.rate + '%' : '-'}</td>
                     <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${pcMoney(s.commission)}</td>
                     <td class="p-2.5 text-right font-mono text-emerald-700">${pcMoney(s.bonus)}</td>
-                    <td class="p-2.5 text-center"><button type="button" onclick="openPancakeRulesModal(${i})" class="px-2 py-1 rounded text-[10px] font-bold cursor-pointer ${s.custom_rules ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${s.custom_rules ? 'Riêng ✎' : 'Chung ✎'}</button></td>
+                    <td class="p-2.5 text-center"><button type="button" onclick="openPancakeRulesModal(${i})" class="px-2 py-1 rounded text-xs font-bold cursor-pointer ${s.custom_rules ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${s.custom_rules ? 'Riêng ✎' : 'Chung ✎'}</button></td>
                 </tr>`).join('');
             const tot = pcSellers.reduce((a, s) => ({ n: a.n + s.orders, r: a.r + s.revenue, c: a.c + s.collected }), { n: 0, r: 0, c: 0 });
             document.getElementById('kpi-pancake-revenue').textContent = pcMoney(tot.r);
@@ -2033,19 +2033,19 @@
             tbody.innerHTML = orders.map(o => {
                 const items = (o.items || []).map(it => {
                     const badge = it.mapped_product_id
-                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ ${escapeHtml(it.pos_product_code || '')}</span>`
-                        : `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold" title="Vào tab Ánh Xạ Sản Phẩm để gán">⚠️ Chưa map</span>`;
+                        ? `<span class="px-1.5 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 font-bold" title="${escapeHtml(it.pos_product_name || '')}">✓ ${escapeHtml(it.pos_product_code || '')}</span>`
+                        : `<span class="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-800 font-bold" title="Vào tab Ánh Xạ Sản Phẩm để gán">⚠️ Chưa map</span>`;
                     const ret = it.returned_qty ? ` <span class="text-rose-600 font-bold">(hoàn ${it.returned_qty})</span>` : '';
                     return `<div class="py-0.5 flex items-center justify-between gap-2"><span>${escapeHtml(it.platform_product_name)}${it.platform_variation ? ' <span class="text-slate-400">(' + escapeHtml(it.platform_variation) + ')</span>' : ''} <b class="text-amber-700">x${it.quantity}</b>${ret}</span>${badge}</div>`;
                 }).join('');
                 return `<tr class="hover:bg-slate-50 align-top">
-                    <td class="p-3 font-mono font-bold text-slate-900">${escapeHtml(o.order_sn)}${o.tracking_number ? `<div class="text-[10px] text-slate-400">🚚 ${escapeHtml(o.tracking_number)}</div>` : ''}</td>
+                    <td class="p-3 font-mono font-bold text-slate-900">${escapeHtml(o.order_sn)}${o.tracking_number ? `<div class="text-xs text-slate-400">🚚 ${escapeHtml(o.tracking_number)}</div>` : ''}</td>
                     <td class="p-3 text-slate-500">${formatDateTime(o.order_date)}</td>
-                    <td class="p-3"><div class="font-semibold text-slate-700">${escapeHtml(o.shop_name || '')}</div><div class="text-[10px] text-slate-500">${escapeHtml(o.seller_name || '')}</div></td>
+                    <td class="p-3"><div class="font-semibold text-slate-700">${escapeHtml(o.shop_name || '')}</div><div class="text-xs text-slate-500">${escapeHtml(o.seller_name || '')}</div></td>
                     <td class="p-3 text-slate-700">${escapeHtml(o.buyer_username || '')}</td>
                     <td class="p-3 min-w-[260px]">${items}</td>
                     <td class="p-3 text-right font-mono font-bold">${pcMoney(o.total_amount)}</td>
-                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span></td>
+                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700">${escapeHtml(o.order_status)}</span></td>
                 </tr>`;
             }).join('');
         } catch (e) {
@@ -2077,7 +2077,7 @@
     async function testPancakeShop() {
         const box = document.getElementById('pc-shop-test-result');
         const id = document.getElementById('pc-shop-id-db').value;
-        box.className = 'p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        box.className = 'p-2 rounded-lg text-xs bg-slate-100 text-slate-700 font-bold';
         box.textContent = '⏳ Đang kiểm tra...';
         try {
             const res = await fetch('/api/marketplace/pancake/test', {
@@ -2090,10 +2090,10 @@
             });
             const data = await res.json();
             const ok = data.status === 'ok';
-            box.className = `p-2 rounded-lg text-[11px] font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`;
+            box.className = `p-2 rounded-lg text-xs font-bold ${ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`;
             box.textContent = (ok ? '✅ ' : '❌ ') + (data.message || data.detail || '');
         } catch (e) {
-            box.className = 'p-2 rounded-lg text-[11px] font-bold bg-rose-100 text-rose-800';
+            box.className = 'p-2 rounded-lg text-xs font-bold bg-rose-100 text-rose-800';
             box.textContent = '❌ ' + e.message;
         }
     }
@@ -2267,12 +2267,12 @@
                 s.video_tab_name ? `View: ${s.video_tab_name}` : ''
             ].filter(Boolean).join(' · ') || 'Chưa chọn tab';
 
-            return `<tr class="hover:bg-slate-50 ${String(s.id) === String(kocSelectedSourceId) ? 'bg-pink-50/40' : ''}">
+            return `<tr class="hover:bg-slate-50 ${String(s.id) === String(kocSelectedSourceId) ? 'bg-sky-50/40' : ''}">
                 <td class="p-2.5">
                     <div class="font-bold text-slate-800 flex items-center gap-1.5">
-                        <a href="${escapeHtml(s.sheet_url)}" target="_blank" class="text-pink-700 hover:underline" title="Mở Google Sheet gốc">🔗 ${escapeHtml(s.name)}</a>
+                        <a href="${escapeHtml(s.sheet_url)}" target="_blank" class="text-sky-700 hover:underline" title="Mở Google Sheet gốc">🔗 ${escapeHtml(s.name)}</a>
                     </div>
-                    <div class="text-[10px] text-slate-500">${escapeHtml(tabsInfo)}${s.last_sync_at ? ' · Sync: ' + escapeHtml(s.last_sync_at.slice(5, 16)) : ''}</div>
+                    <div class="text-xs text-slate-500">${escapeHtml(tabsInfo)}${s.last_sync_at ? ' · Sync: ' + escapeHtml(s.last_sync_at.slice(5, 16)) : ''}</div>
                 </td>
                 <td class="p-2.5 font-mono font-bold text-slate-700">${escapeHtml(s.month)}</td>
                 <td class="p-2.5">
@@ -2282,16 +2282,16 @@
                 </td>
                 <td class="p-2.5 text-center font-bold">${s.koc_count || 0}</td>
                 <td class="p-2.5 text-center font-mono font-bold">${st.total_videos || 0}</td>
-                <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} <span class="text-[10px] text-slate-400 font-normal">(≥${r.min_views})</span></td>
+                <td class="p-2.5 text-center font-mono font-bold text-emerald-700">${st.qualified_videos || 0} <span class="text-xs text-slate-400 font-normal">(≥${r.min_views})</span></td>
                 <td class="p-2.5 text-center font-mono text-amber-700">${st.under_kpi_videos || 0}</td>
                 <td class="p-2.5 text-center font-mono text-slate-600">${r.kpi_deduct_videos || 0}</td>
-                <td class="p-2.5 text-center font-mono font-black text-indigo-700">${st.payable_videos || 0}</td>
+                <td class="p-2.5 text-center font-mono font-bold text-sky-700">${st.payable_videos || 0}</td>
                 <td class="p-2.5 text-right font-mono">${pcMoney(r.rate_per_video)}</td>
-                <td class="p-2.5 text-right font-mono font-black text-pink-600">${pcMoney(st.commission)}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sky-600">${pcMoney(st.commission)}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
-                    <button type="button" onclick="syncSingleKocSource(${s.id})" class="px-2 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer" title="Đồng bộ lại từ Google Sheet">🔄 Sync</button>
-                    <button type="button" onclick="openKocRulesModal(${idx})" class="px-2 py-1 rounded text-[10px] font-bold ${s.custom_rules ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'} hover:bg-indigo-200 cursor-pointer" title="Chỉnh công thức tính">${s.custom_rules ? '⚙️ Riêng' : '⚙️ Chung'}</button>
-                    <button type="button" onclick="openKocSourceModal(${s.id})" class="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Đổi link / đổi tab">✏️ Sửa</button>
+                    <button type="button" onclick="syncSingleKocSource(${s.id})" class="px-2 py-1 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer" title="Đồng bộ lại từ Google Sheet">🔄 Sync</button>
+                    <button type="button" onclick="openKocRulesModal(${idx})" class="px-2 py-1 rounded text-xs font-bold ${s.custom_rules ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-600'} hover:bg-sky-200 cursor-pointer" title="Chỉnh công thức tính">${s.custom_rules ? '⚙️ Riêng' : '⚙️ Chung'}</button>
+                    <button type="button" onclick="openKocSourceModal(${s.id})" class="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Đổi link / đổi tab">✏️ Sửa</button>
                 </td>
             </tr>`;
         }).join('');
@@ -2392,28 +2392,28 @@
                         const views = Number(v.views || 0);
                         const isQual = views >= minV;
                         const kpiBadge = isQual
-                            ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ Đạt (≥${minV})</span>`
-                            : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Chưa đạt</span>`;
+                            ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">✅ Đạt (≥${minV})</span>`
+                            : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Chưa đạt</span>`;
                         const uname = v.koc_username ? '@' + v.koc_username.replace(/^\/?@/, '') : '—';
                         return `<tr class="hover:bg-slate-50 ${isQual ? 'bg-emerald-50/20' : ''}">
                             <td class="p-2.5 text-center text-slate-400 font-mono">${i + 1}</td>
                             <td class="p-2.5 font-bold text-slate-800">
-                                <a href="https://www.tiktok.com/${escapeHtml(uname)}" target="_blank" class="hover:text-pink-600 hover:underline">${escapeHtml(uname)}</a>
-                                <div class="text-[10px] text-slate-400 font-normal">${escapeHtml(v.source_name || '')}</div>
+                                <a href="https://www.tiktok.com/${escapeHtml(uname)}" target="_blank" class="hover:text-sky-600 hover:underline">${escapeHtml(uname)}</a>
+                                <div class="text-xs text-slate-400 font-normal">${escapeHtml(v.source_name || '')}</div>
                             </td>
                             <td class="p-2.5 max-w-[280px] truncate font-mono">
                                 <a href="${escapeHtml(v.video_url)}" target="_blank" class="text-sky-700 hover:underline" title="${escapeHtml(v.video_url)}">${escapeHtml(v.video_url)}</a>
                             </td>
                             <td class="p-2.5 max-w-[220px]">
                                 <div class="font-semibold text-slate-700">${escapeHtml(v.product_note || '')}</div>
-                                <div class="text-[10px] text-slate-400 truncate" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
+                                <div class="text-xs text-slate-400 truncate" title="${escapeHtml(v.title || '')}">${escapeHtml(v.title || '')}</div>
                             </td>
                             <td class="p-2.5 text-right">
-                                <input type="number" min="0" value="${views}" onchange="updateSingleKocVideoViews(${v.id}, this.value)" class="w-24 border border-slate-200 focus:border-pink-500 rounded px-2 py-1 text-right font-mono font-bold ${isQual ? 'text-emerald-700 bg-white' : 'text-slate-700 bg-slate-50'}" title="Sửa nhanh số view">
+                                <input type="number" min="0" value="${views}" onchange="updateSingleKocVideoViews(${v.id}, this.value)" class="w-24 border border-slate-200 focus:border-sky-500 rounded px-2 py-1 text-right font-mono font-bold ${isQual ? 'text-emerald-700 bg-white' : 'text-slate-700 bg-slate-50'}" title="Sửa nhanh số view">
                             </td>
                             <td class="p-2.5 text-center">${kpiBadge}</td>
-                            <td class="p-2.5 text-center"><span class="text-[10px] font-semibold text-slate-600">${escapeHtml(v.status || 'OK')}</span></td>
-                            <td class="p-2.5 text-[10px] text-slate-500 font-mono">${escapeHtml((v.updated_at || '').slice(0, 16))}</td>
+                            <td class="p-2.5 text-center"><span class="text-xs font-semibold text-slate-600">${escapeHtml(v.status || 'OK')}</span></td>
+                            <td class="p-2.5 text-xs text-slate-500 font-mono">${escapeHtml((v.updated_at || '').slice(0, 16))}</td>
                             <td class="p-2.5 text-center">
                                 <button type="button" onclick="deleteSingleKocVideo(${v.id})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5 py-0.5 cursor-pointer" title="Xóa link này">🗑️</button>
                             </td>
@@ -2432,17 +2432,17 @@
                         return `<tr class="hover:bg-slate-50">
                             <td class="p-2.5 text-center text-slate-400 font-mono">${i + 1}</td>
                             <td class="p-2.5">
-                                <a href="${escapeHtml(p.channel_url || 'https://www.tiktok.com/' + uname)}" target="_blank" class="font-bold text-pink-700 hover:underline">${escapeHtml(uname)}</a>
-                                <div class="text-[10px] text-slate-400">${escapeHtml(p.source_name || '')}</div>
+                                <a href="${escapeHtml(p.channel_url || 'https://www.tiktok.com/' + uname)}" target="_blank" class="font-bold text-sky-700 hover:underline">${escapeHtml(uname)}</a>
+                                <div class="text-xs text-slate-400">${escapeHtml(p.source_name || '')}</div>
                             </td>
                             <td class="p-2.5 text-slate-700">
                                 <div>FL: <b>${escapeHtml(p.followers || '—')}</b></div>
-                                ${p.gmv_text ? `<div class="text-[10px] text-emerald-700">GMV: ${escapeHtml(p.gmv_text)}</div>` : ''}
+                                ${p.gmv_text ? `<div class="text-xs text-emerald-700">GMV: ${escapeHtml(p.gmv_text)}</div>` : ''}
                             </td>
                             <td class="p-2.5 font-semibold text-slate-700">${escapeHtml(p.product_sample || '—')}</td>
-                            <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${escapeHtml(p.approval_status || 'DUYỆT')}</span></td>
+                            <td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">${escapeHtml(p.approval_status || 'DUYỆT')}</span></td>
                             <td class="p-2.5 text-right font-mono">${p.cast_fee > 0 ? pcMoney(p.cast_fee) : '<span class="text-slate-400">Freecast</span>'}</td>
-                            <td class="p-2.5 text-center font-mono font-bold text-indigo-700">${p.actual_videos || p.videos_returned || 0}</td>
+                            <td class="p-2.5 text-center font-mono font-bold text-sky-700">${p.actual_videos || p.videos_returned || 0}</td>
                             <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${Number(p.total_views || 0).toLocaleString('vi-VN')}</td>
                             <td class="p-2.5 text-slate-600 max-w-[220px] truncate" title="${escapeHtml((p.contact_info || '') + ' ' + (p.note || ''))}">${escapeHtml(p.contact_info || p.note || '—')}</td>
                         </tr>`;
@@ -2511,7 +2511,7 @@
         const btn = document.getElementById('btn-koc-inspect');
         if (!url) return pcToast('Vui lòng dán link Google Sheet trước', 'warning');
 
-        msgBox.className = 'p-2 rounded-lg text-[11px] bg-slate-100 text-slate-700 font-bold';
+        msgBox.className = 'p-2 rounded-lg text-xs bg-slate-100 text-slate-700 font-bold';
         msgBox.textContent = '⏳ Đang kết nối và đọc danh sách các Tab trong Google Sheet...';
         msgBox.classList.remove('hidden');
         if (btn) btn.disabled = true;
@@ -2538,10 +2538,10 @@
             if (curKoc && tabs.some(t => t.name === curKoc)) kocTabSel.value = curKoc;
             if (curVid && tabs.some(t => t.name === curVid)) vidTabSel.value = curVid;
 
-            msgBox.className = 'p-2 rounded-lg text-[11px] bg-emerald-100 text-emerald-800 font-bold';
+            msgBox.className = 'p-2 rounded-lg text-xs bg-emerald-100 text-emerald-800 font-bold';
             msgBox.textContent = `✅ Đã tìm thấy ${tabs.length} tab trong Google Sheet! Hãy chọn tab tương ứng bên trên.`;
         } catch (e) {
-            msgBox.className = 'p-2 rounded-lg text-[11px] bg-rose-100 text-rose-800 font-bold';
+            msgBox.className = 'p-2 rounded-lg text-xs bg-rose-100 text-rose-800 font-bold';
             msgBox.textContent = '❌ ' + e.message;
         } finally {
             if (btn) btn.disabled = false;
