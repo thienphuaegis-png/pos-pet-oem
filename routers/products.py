@@ -548,13 +548,15 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     try:
+        code = (p.code or "").strip() or f"SP-{int(time.time() * 1000)}"
+        cost_price = float(p.cost_price) if p.cost_price is not None else 0.0
         cat = p.category or "Khác"
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         min_stock = float(p.min_stock) if p.min_stock is not None else 5.0
         img_url = (p.image_url or "").strip()
         cur.execute(
             "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (p.code, p.name, p.type, p.cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url)
+            (code, p.name, p.type, cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -571,7 +573,7 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
             for s_id in p.supplier_ids:
                 cur.execute(
                     "INSERT INTO supplier_items (supplier_id, item_type, product_id, default_cost) VALUES (?, 'product', ?, ?)",
-                    (s_id, pid, p.cost_price)
+                    (s_id, pid, cost_price)
                 )
         conn.commit()
     except Exception as e:

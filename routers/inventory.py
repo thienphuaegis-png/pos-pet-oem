@@ -186,11 +186,14 @@ def list_ingredients(warehouse_id: Optional[int] = None):
 def create_ingredient(ing: IngredientCreate, user=Depends(require_permission("inventory.manage"))):
     conn = get_db()
     cur = conn.cursor()
-    code = ing.code or f"NL-{int(time.time() * 1000)}"
+    code = (ing.code or "").strip() or f"NL-{int(time.time() * 1000)}"
+    unit = (ing.unit or "").strip() or "cái"
+    initial_stock = float(ing.initial_stock or 0)
+    initial_cost = float(ing.initial_cost or 0)
     try:
         cur.execute(
             "INSERT INTO ingredients (code, name, unit, type) VALUES (?, ?, ?, ?)",
-            (code, ing.name, ing.unit, ing.type)
+            (code, ing.name, unit, ing.type)
         )
         ing_id = cur.lastrowid
 
@@ -199,19 +202,19 @@ def create_ingredient(ing: IngredientCreate, user=Depends(require_permission("in
             wh_id = ing.warehouse_id or 1
             cur.execute(
                 "INSERT OR IGNORE INTO inventory (warehouse_id, ingredient_id, quantity) VALUES (?, ?, ?)",
-                (wh_id, ing_id, ing.initial_stock or 0)
+                (wh_id, ing_id, initial_stock)
             )
-            if ing.initial_stock and ing.initial_stock > 0:
+            if initial_stock > 0:
                 cur.execute(
                     "INSERT INTO inventory_logs (item_type, ingredient_id, warehouse_id, change_type, quantity, balance_after, note) VALUES ('ingredient', ?, ?, 'ADJUST', ?, ?, 'Tồn kho ban đầu')",
-                    (ing_id, wh_id, ing.initial_stock, ing.initial_stock)
+                    (ing_id, wh_id, initial_stock, initial_stock)
                 )
 
         # Lưu giá nhập ban đầu vào lịch sử nếu có
-        if ing.initial_cost > 0:
+        if initial_cost > 0:
             cur.execute(
                 "INSERT INTO price_history (ingredient_id, purchase_price, note) VALUES (?, ?, ?)",
-                (ing_id, ing.initial_cost, "Khởi tạo ban đầu")
+                (ing_id, initial_cost, "Khởi tạo ban đầu")
             )
 
         # Gắn nhiều nhà cung cấp nếu có
@@ -219,7 +222,7 @@ def create_ingredient(ing: IngredientCreate, user=Depends(require_permission("in
             for s_id in ing.supplier_ids:
                 cur.execute(
                     "INSERT OR IGNORE INTO supplier_items (supplier_id, item_type, ingredient_id, default_cost) VALUES (?, 'ingredient', ?, ?)",
-                    (s_id, ing_id, ing.initial_cost or 0)
+                    (s_id, ing_id, initial_cost)
                 )
 
         conn.commit()

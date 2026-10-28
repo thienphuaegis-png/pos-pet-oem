@@ -88,6 +88,25 @@ def test_ingredient_multiple_suppliers_lifecycle():
         item_s2 = next(it for it in items_s2_after if it["id"] == ing_id and it["item_type"] == "ingredient")
         assert item_s2["cost_price"] == 70000
 
+        # 8. Tạo nguyên liệu để trống mã (code=None) -> tự sinh mã NL-...
+        req_auto = IngredientCreate(
+            code=None,
+            name="Nguyên Liệu Tự Sinh Mã Test",
+            unit="kg",
+            type="IS_PHYSICAL",
+            initial_stock=0,
+            initial_cost=0,
+            supplier_ids=[]
+        )
+        res_auto = create_ingredient(req_auto, user=user)
+        assert res_auto["status"] == "ok"
+        assert res_auto["code"].startswith("NL-")
+        conn_c = get_db()
+        conn_c.execute("DELETE FROM inventory WHERE ingredient_id = ?", (res_auto["id"],))
+        conn_c.execute("DELETE FROM ingredients WHERE id = ?", (res_auto["id"],))
+        conn_c.commit()
+        conn_c.close()
+
     finally:
         # Dọn dẹp
         conn = get_db()

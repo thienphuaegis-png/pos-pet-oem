@@ -68,10 +68,10 @@ class CreateReturnRequest(BaseModel):
 
 # --- Products & Catalog ---
 class ProductCreate(BaseModel):
-    code: str
+    code: Optional[str] = None
     name: str
     type: str # product, service, material
-    cost_price: float = 0
+    cost_price: Optional[float] = 0
     sell_price: float = 0
     unit: str = "cái"
     stock: float = 0
@@ -117,12 +117,12 @@ class WriteOffCreate(BaseModel):
 
 # --- Ingredients & Inventory ---
 class IngredientCreate(BaseModel):
-    code: str
+    code: Optional[str] = None
     name: str
-    unit: str
-    type: str = "RAW"
-    initial_stock: float = 0
-    initial_cost: float = 0
+    unit: Optional[str] = "cái"
+    type: str = "IS_PHYSICAL"
+    initial_stock: Optional[float] = 0
+    initial_cost: Optional[float] = 0
     warehouse_id: Optional[int] = 1
     supplier_ids: Optional[List[int]] = None
 

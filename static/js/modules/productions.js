@@ -3574,7 +3574,8 @@
                     }
                 } else {
                     const err = await res.json();
-                    alert('Lỗi: ' + (err.detail || 'Không thể cập nhật nguyên liệu'));
+                    const msg = Array.isArray(err.detail) ? err.detail.map(e => e.msg || JSON.stringify(e)).join(', ') : err.detail;
+                    alert('Lỗi: ' + (msg || 'Không thể cập nhật nguyên liệu'));
                 }
             } else {
                 // Thêm mới
@@ -3600,7 +3601,8 @@
                     alert('Đã thêm nguyên liệu thành công!');
                 } else {
                     const err = await res.json();
-                    alert('Lỗi: ' + (err.detail || 'Không thể tạo nguyên liệu'));
+                    const msg = Array.isArray(err.detail) ? err.detail.map(e => e.msg || JSON.stringify(e)).join(', ') : err.detail;
+                    alert('Lỗi: ' + (msg || 'Không thể tạo nguyên liệu'));
                 }
             }
         }
