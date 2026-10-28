@@ -220,8 +220,11 @@
                 { icon: 'ph-truck', title: 'Quy tắc tách Phí Vận Chuyển (Shipping Fee)', desc: 'Phí ship được hạch toán riêng tại cột shipping_fee trên hóa đơn, không cộng vào doanh thu hàng hóa tính hoa hồng và không làm sai lệch tồn kho.' }
             ],
             tourSteps: [
-                { tab: 'pos', selector: '#sidebar-nav button[data-tab="pos"]', title: '1. Mở Phân Hệ Bán Hàng Quầy POS', desc: 'Bấm vào mục Bán Hàng để vào màn hình thu ngân chuyên dụng với tab HD 1, HD 2.' },
-                { tab: 'orders', selector: '#sidebar-nav button[data-tab="orders"]', title: '2. Tra Cứu & Quản Lý Hóa Đơn Bán Hàng', desc: 'Toàn bộ hóa đơn sau khi thanh toán tại POS hoặc Import từ KiotViet đều được lưu trữ và lọc đa chiều tại đây.' }
+                { tab: 'pos', selector: '#pos-search-input', title: '1. Ô Tìm Hàng Hóa & Quét Mã Vạch (F3)', desc: 'Gõ tên sản phẩm hoặc quét mã vạch tại đây để thêm món vào giỏ hàng tức thì.' },
+                { tab: 'pos', selector: '#invoice-tabs-bar', title: '2. Thanh Đa Hóa Đơn (HD 1, HD 2 - Phím F1 / F2)', desc: 'Bấm dấu (+) hoặc phím F1 để mở thêm đơn mới, bấm F2 để chuyển qua lại giữa các khách đang mua.' },
+                { tab: 'pos', selector: '#pos-customer-search', title: '3. Tìm & Chọn Khách Hàng VIP (Phím F4)', desc: 'Nhập 4 số cuối SĐT hoặc tên khách để tự động áp dụng chiết khấu Hạng Thẻ (Titan, Gold, Diamond).' },
+                { tab: 'pos', selector: '#btn-submit-order', title: '4. Hoàn Tất Thanh Toán & In Hóa Đơn (Phím F9)', desc: 'Chọn phương thức (Tiền mặt / Chuyển khoản VietQR / Thẻ) rồi bấm Thanh Toán (F9) để trừ kho và in bill.' },
+                { tab: 'orders', selector: '#filter-order-payment', title: '5. Tra Cứu & Lọc Hóa Đơn Đã Bán', desc: 'Mọi hóa đơn sau khi thanh toán đều nằm tại tab Hóa Đơn để lọc theo ngày, hình thức thanh toán hoặc đổi trả.' }
             ]
         },
 
@@ -348,9 +351,10 @@
                 { icon: 'ph-printer', title: 'Quy chuẩn in 2 phiếu khi tiếp nhận', desc: 'Mỗi lần bấm In phiếu nhận, hệ thống luôn xuất đủ Phiếu tiếp nhận (có 2 chữ ký) kèm Phiếu số thứ tự dán chuồng ở trang kế tiếp.' }
             ],
             tourSteps: [
-                { tab: 'pet-services', selector: '#btn-spa-sub-services', title: '1. Bảng Điều Phối Spa Trong Ngày', desc: 'Màn hình trung tâm quản lý toàn bộ ca Spa theo ngày, tô màu xanh ngọc toàn bộ dòng Đã Thanh Toán.' },
-                { tab: 'pet-services', selector: '#btn-spa-sub-pricing', title: '2. Bảng Giá 79 Bậc Theo Cân Nặng', desc: 'Thiết lập đơn giá tự động theo từng khoảng cân nặng cho Gói Combo Chó, Dịch Vụ Lẻ, Spa Mèo và Nhuộm.' },
-                { tab: 'pet-services', selector: '#btn-spa-sub-staff', title: '3. Thống Kê Sản Lượng & Hoa Hồng Thợ Spa', desc: 'Đồng bộ 2 chiều với bảng lương HRM: theo dõi số ca Nhận, Tắm, Cắt, Nhuộm và tiền Tip của từng thợ theo tháng.' }
+                { tab: 'pet-services', selector: 'button[onclick="openCreateServiceTicketModal()"]', title: '1. Tiếp Nhận Dịch Vụ Spa Mới (Phím F2)', desc: 'Bấm nút này (hoặc phím F2) để nhận bé, nhập cân nặng tự nhảy giá theo 79 bậc và in 2 phiếu K80.' },
+                { tab: 'pet-services', selector: '#btn-pet-sub-services', title: '2. Bảng Điều Phối Spa Trong Ngày', desc: 'Quản lý danh sách bé đang làm, bấm trực tiếp vào ô Thợ / Dịch vụ để sửa 1-chạm và tô xanh ngọc dòng Đã Thanh Toán.' },
+                { tab: 'pet-services', selector: '#btn-pet-sub-pricing', title: '3. Bảng Giá 79 Bậc Theo Cân Nặng', desc: 'Thiết lập đơn giá tự động theo từng mức cân nặng cho Gói Combo Chó, Dịch Vụ Lẻ, Spa Mèo và Nhuộm.' },
+                { tab: 'pet-services', selector: '#btn-pet-sub-staff', title: '4. Sản Lượng & Hoa Hồng Thợ Spa', desc: 'Đồng bộ 2 chiều với bảng lương HRM: tự động đếm số ca Nhận, Tắm, Cắt, Nhuộm và tiền Tip của từng thợ.' }
             ]
         },
 
@@ -431,7 +435,8 @@
                 { icon: 'ph-lock-key', title: 'Tách biệt Ví Spa và Doanh thu Phòng', desc: 'Tiền phòng Hotel luôn thu bằng Tiền mặt / Chuyển khoản / Thẻ để bảo toàn tỷ suất lợi nhuận buồng phòng.' }
             ],
             tourSteps: [
-                { tab: 'hotel', selector: '#sidebar-nav button[data-tab="hotel"]', title: '1. Mở Phân Hệ Khách Sạn Thú Cưng', desc: 'Quản lý toàn bộ 16 buồng phòng lưu trú chó mèo và lịch đặt phòng.' }
+                { tab: 'hotel', selector: '#btn-hotel-view-grid', title: '1. Chuyển Đổi Chế Độ Xem (Lưới / Bảng / Gantt)', desc: 'Xem sơ đồ 16 buồng phòng trực quan theo Lưới, Bảng danh sách hoặc Lịch dòng thời gian Gantt.' },
+                { tab: 'hotel', selector: 'button[onclick="window.hotelManager.openHotelCheckinModal()"]', title: '2. Nhận Phòng Lưu Trú Mới (+ Check-in)', desc: 'Bấm để chọn khách, chọn phòng trống, ghi chế độ ăn uống, thu tiền đặt cọc và in phiếu nhận lưu trú.' }
             ]
         },
 
@@ -490,7 +495,9 @@
                 { icon: 'ph-shield-warning', title: 'Quy tắc sắt: Phạm vi sử dụng Ví Spa', desc: 'Ví Spa chỉ được phép khấu trừ cho phần Tiền Dịch Vụ Spa. Các sản phẩm thức ăn/phụ kiện mua kèm vẫn thanh toán bằng Tiền mặt hoặc Chuyển khoản.' }
             ],
             tourSteps: [
-                { tab: 'price-lists', selector: '#sidebar-nav button[data-tab="price-lists"]', title: '1. Mở Phân Hệ Bảng Giá & Gói Nạp Ví', desc: 'Quản lý bảng giá theo phân khúc khách hàng và các gói nạp Ví Spa trả trước.' }
+                { tab: 'price-lists', selector: '#btn-subtab-pl-matrix', title: '1. Bảng Giá & Ma Trận Giá Sản Phẩm', desc: 'Thiết lập bảng giá bán sỉ, đại lý hoặc giá ưu đãi riêng cho từng nhóm khách hàng.' },
+                { tab: 'price-lists', selector: '#btn-subtab-pl-segments', title: '2. Phân Nhóm & Thăng Hạng Thành Viên VIP', desc: 'Cấu hình 5 hạng thẻ (Diamond, Gold, Titan, Đại Lý, Nội Bộ) và mức chiết khấu tự động.' },
+                { tab: 'price-lists', selector: '#btn-subtab-pl-topup', title: '3. Gói Nạp Ví Trả Trước (Topup Spa)', desc: 'Tạo các gói nạp Ví Spa tặng thêm tiền khuyến mãi và theo dõi số dư ví của khách.' }
             ]
         },
 
@@ -546,7 +553,9 @@
                 { icon: 'ph-file-magnifying-glass', title: 'Drawer đối soát chứng từ gốc (Read-only)', desc: 'Bấm vào mã tham chiếu trên bất kỳ dòng phiếu Thu/Chi nào trong Sổ Quỹ để mở ngăn kéo xem lại nguyên vẹn hóa đơn gốc.' }
             ],
             tourSteps: [
-                { tab: 'cashbook', selector: '#sidebar-nav button[data-tab="cashbook"]', title: '1. Mở Phân Hệ Sổ Quỹ & Dòng Tiền', desc: 'Quản lý toàn bộ phiếu thu, phiếu chi, chuyển quỹ nội bộ và dự chi.' }
+                { tab: 'cashbook', selector: '#btn-subtab-cashbook-actual', title: '1. Sổ Quỹ Thực Tế (Thu / Chi / Chuyển Quỹ)', desc: 'Theo dõi dòng tiền thực tế theo từng tài khoản ngân hàng và két tiền mặt.' },
+                { tab: 'cashbook', selector: 'button[onclick="openCreateCashModal(\'in\')"]', title: '2. Lập Phiếu Thu / Phiếu Chi Mới', desc: 'Tạo phiếu thu/chi nhanh hoặc dùng Trợ Lý Thu Chi AI để bóc tách chứng từ tự động.' },
+                { tab: 'cashbook', selector: '#btn-subtab-cashbook-requests', title: '3. Duyệt Dự Chi & Hoàn Ứng Nhân Viên', desc: 'Nhân viên gửi phiếu đề xuất chi kèm ảnh bill, chủ shop bấm duyệt hàng loạt 1-chạm.' }
             ]
         },
 
@@ -602,7 +611,10 @@
                 { icon: 'ph-calculator', title: 'Giá vốn Bình Quân Gia Quyền (MAC)', desc: 'Mỗi khi hoàn tất phiếu nhập hàng PO hoặc nhận hàng OEM, hệ thống tự động tính lại giá vốn bình quân gia quyền.' }
             ],
             tourSteps: [
-                { tab: 'inventory', selector: '#sidebar-nav button[data-tab="inventory"]', title: '1. Mở Phân Hệ Kho Hàng & Định Mức', desc: 'Quản lý danh mục 935+ sản phẩm, nguyên vật liệu, kiểm kho và thẻ kho.' }
+                { tab: 'inventory', selector: 'button.inv-subtab-btn[data-sub="unified"]', title: '1. Tồn Kho Tổng Hợp & Đa Đơn Vị Tính', desc: 'Quản lý 935+ sản phẩm và nguyên vật liệu, hỗ trợ quy đổi Gói / Hộp / Thùng 2-Pass.' },
+                { tab: 'inventory', selector: 'button.inv-subtab-btn[data-sub="cost"]', title: '2. Nguyên Liệu & Định Mức Giá Vốn (BOM)', desc: 'Thiết lập công thức cấu thành sản phẩm (BOM) để tự động tính giá vốn và trừ nguyên liệu.' },
+                { tab: 'inventory', selector: 'button.inv-subtab-btn[data-sub="audit"]', title: '3. Kiểm Kê Kho & Cân Bằng Tồn', desc: 'Lập phiếu kiểm kho thực tế, tự động đối chiếu lệch tồn và điều chỉnh thẻ kho.' },
+                { tab: 'inventory', selector: 'button.inv-subtab-btn[data-sub="production"]', title: '4. Lệnh Sản Xuất Nội Bộ', desc: 'Chạy lệnh sản xuất thành phẩm, tự động khấu trừ vỏ chai, tem nhãn theo định mức BOM.' }
             ]
         },
 
@@ -659,7 +671,9 @@
                 { icon: 'ph-storefront', title: 'Đối soát Phí Sàn Minh Bạch', desc: 'Tách rõ Phí cố định, Phí dịch vụ, Phí thanh toán và Voucher shop tài trợ để tính đúng lợi nhuận ròng.' }
             ],
             tourSteps: [
-                { tab: 'marketplace', selector: '#sidebar-nav button[data-tab="marketplace"]', title: '1. Mở Phân Hệ Sàn TMĐT & KOC', desc: 'Quản lý tập trung đơn hàng Shopee, TikTok Shop, đối soát phí sàn và theo dõi KOC/KOL.' }
+                { tab: 'marketplace', selector: '#btn-subtab-mkt-shopee', title: '1. Đồng Bộ Đơn Shopee & TikTok Shop', desc: 'Tải file Excel đơn sàn hoặc đồng bộ API, tự động trừ kho theo SKU và đối soát phí sàn.' },
+                { tab: 'marketplace', selector: '#btn-subtab-mkt-koc', title: '2. Quản Lý KOC / KOL & Quét Lượt Xem Video', desc: 'Đồng bộ KOC từ Google Sheet, tự động quét lượt xem TikTok thật và tính hoa hồng Affiliate.' },
+                { tab: 'marketplace', selector: '#btn-subtab-mkt-mapping', title: '3. Ánh Xạ SKU Sàn Về Sản Phẩm Kho', desc: 'Gắn mã SKU trên Shopee/TikTok với sản phẩm thật trong kho để tự động trừ tồn chính xác.' }
             ]
         },
 
@@ -715,7 +729,9 @@
                 { icon: 'ph-user-minus', title: 'Tự động lọc nhân sự nghỉ việc', desc: 'Nhân viên có trạng thái Ngừng hoạt động hoặc đã điền Ngày nghỉ việc sẽ tự động ẩn khỏi bảng chấm công và các ô chọn thợ.' }
             ],
             tourSteps: [
-                { tab: 'hrm', selector: '#sidebar-nav button[data-tab="hrm"]', title: '1. Mở Phân Hệ Nhân Sự & Bảng Lương', desc: 'Quản lý hồ sơ nhân viên, chấm công, tạm ứng, cấu hình hoa hồng và bảng lương động.' }
+                { tab: 'hrm', selector: '#btn-hrm-tab-payroll', title: '1. Bảng Lương Động 4 Tầng', desc: 'Tự động tổng hợp Lương ngày công + Phụ cấp + Hoa hồng POS/Spa + Tiền Tip - Tạm ứng.' },
+                { tab: 'hrm', selector: '#btn-hrm-tab-commissions', title: '2. Cấu Hình Hoa Hồng & Tiền Tip', desc: 'Thiết lập bậc thang KPI doanh số, tỷ lệ hoa hồng 4 vai trò Spa (Nhận/Tắm/Cắt/Nhuộm) và chia Tip.' },
+                { tab: 'hrm', selector: '#btn-hrm-tab-attendance', title: '3. Bảng Chấm Công & Khối Làm Việc', desc: 'Theo dõi ngày công thực tế, ca làm việc, đi trễ và đồng bộ máy chấm công.' }
             ]
         },
 
@@ -772,7 +788,9 @@
                 { icon: 'ph-database', title: 'Bảo vệ tuyệt đối Danh mục 935 Sản phẩm chuẩn', desc: 'Khi import hóa đơn lịch sử, hệ thống khớp theo Mã hàng -> Tên hàng + ĐVT quy đổi; tuyệt đối không tự tạo sản phẩm rác vào kho.' }
             ],
             tourSteps: [
-                { tab: 'ai-agent', selector: '#sidebar-nav button[data-tab="ai-agent"]', title: '1. Trung Tâm Tác Nhân AI Copilot', desc: 'Màn hình chào ca thông minh, quản lý việc cần làm, bóc tách chứng từ bằng AI và cảnh báo hàng sắp hết.' }
+                { tab: 'ai-agent', selector: '#ai-col2-card', title: '1. Trung Tâm Nghiệp Vụ Thích Ứng Theo Vai Trò', desc: 'Tự động hiển thị doanh số ca, hoa hồng tạm tính hoặc cảnh báo hàng sắp hết tùy theo vai trò nhân viên.' },
+                { tab: 'ai-agent', selector: '#ai-agent-dropzone-empty', title: '2. Bóc Tách Hóa Đơn & Chứng Từ Bằng AI (Ctrl+V)', desc: 'Thả ảnh hoặc dán trực tiếp (Ctrl+V) hóa đơn mua hàng / bill chuyển khoản để AI tự tạo phiếu nháp.' },
+                { tab: 'ai-agent', selector: 'button[onclick="openCreateReminderModal()"]', title: '3. Giao Việc & Tạo Nhắc Nhở Đầu Ca', desc: 'Tạo lời nhắc bàn giao công việc giữa các ca hoặc nhắc lịch gọi khách đón bé.' }
             ]
         },
 
@@ -823,7 +841,9 @@
                 { icon: 'ph-magnifying-glass-plus', title: 'Phóng to / Thu nhỏ giao diện (Zoom 80% - 150%)', desc: 'Sử dụng cụm nút [-] [100%] [+] ở góc dưới thanh menu trái để điều chỉnh tỷ lệ chữ phù hợp với màn hình quầy thu ngân.' }
             ],
             tourSteps: [
-                { tab: 'settings', selector: '#sidebar-nav button[data-tab="settings"]', title: '1. Mở Phân Hệ Cài Đặt Hệ Thống & Mẫu In', desc: 'Thiết lập thông tin cửa hàng, tài khoản ngân hàng VietQR, phân quyền nhân viên và tùy chỉnh 12 mẫu in.' }
+                { tab: 'settings', selector: 'button.settings-subtab-btn[data-sub="templates"]', title: '1. Thiết Kế 12 Mẫu In Hóa Đơn (K80 & A4)', desc: 'Tùy biến bố cục mẫu in K80 nhiệt và A4 bán sỉ 9 cột, hỗ trợ lưu thành mẫu mới.' },
+                { tab: 'settings', selector: 'button.settings-subtab-btn[data-sub="company"]', title: '2. Thông Tin Cửa Hàng, Logo & Chế Độ Menu', desc: 'Đổi tên ứng dụng, tải logo cửa hàng và chọn kiểu thanh điều hướng (Menu Trái / Icon / Phím Nổi).' },
+                { tab: 'settings', selector: 'button.settings-subtab-btn[data-sub="permissions"]', title: '3. Phân Quyền Nhân Viên & Bật/Tắt Module', desc: 'Cấu hình quyền chi tiết cho từng nhân viên và bật/tắt các phân hệ (Spa, Hotel, OEM, Sàn TMĐT).' }
             ]
         }
     };
@@ -1073,42 +1093,137 @@
 
     var activeTourSteps = [];
     var activeTourIdx = 0;
+    var activeTourTargetCleanup = null;
+    var tourRenderTimer = null;
+
+    function clearActiveTourTargetListener() {
+        if (typeof activeTourTargetCleanup === 'function') {
+            try { activeTourTargetCleanup(); } catch (_) {}
+            activeTourTargetCleanup = null;
+        }
+    }
+
+    function isTourActive() {
+        const root = document.getElementById('elaya-spotlight-tour-root');
+        return Boolean(root && root.style.display !== 'none' && activeTourSteps.length > 0);
+    }
 
     function ensureTourOverlayElements() {
         let root = document.getElementById('elaya-spotlight-tour-root');
         if (root) return root;
         root = document.createElement('div');
         root.id = 'elaya-spotlight-tour-root';
-        root.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;font-family:sans-serif;';
+        root.style.cssText = 'display:none;position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:sans-serif;';
         root.innerHTML = `
-            <div id="elaya-tour-highlight" style="position:fixed;border-radius:12px;transition:all 0.3s ease;pointer-events:none;box-shadow:0 0 0 9999px rgba(15,23,42,0.62), 0 0 0 3px #0284c7, 0 0 0 6px rgba(2,132,199,0.28);"></div>
-            <div id="elaya-tour-popover" style="position:fixed;background:#ffffff;border-radius:14px;border:1px solid #cbd5e1;box-shadow:0 20px 25px -5px rgba(0,0,0,0.25);padding:14px;width:320px;max-width:92vw;pointer-events:auto;transition:all 0.3s ease;font-size:12px;color:#0f172a;">
+            <div id="elaya-tour-highlight" style="position:fixed;border-radius:12px;transition:all 0.25s ease;pointer-events:none;box-shadow:0 0 0 9999px rgba(15,23,42,0.58), 0 0 0 3px #0284c7, 0 0 0 6px rgba(2,132,199,0.28);"></div>
+            <div id="elaya-tour-top-exit-bar" style="position:fixed;top:12px;right:16px;z-index:100001;pointer-events:auto;display:flex;align-items:center;gap:8px;background:#0f172a;color:#ffffff;padding:6px 12px;border-radius:999px;box-shadow:0 10px 25px rgba(0,0,0,0.35);border:1px solid #334155;font-size:12px;">
+                <span style="color:#38bdf8;font-weight:700;">🧭 Đang dẫn đường</span>
+                <button type="button" onclick="stopLiveSpotlightTour(true)" style="background:#1e293b;color:#e2e8f0;border:1px solid #475569;padding:3px 9px;border-radius:999px;font-weight:600;font-size:11px;cursor:pointer;">Về Cẩm Nang</button>
+                <button type="button" onclick="stopLiveSpotlightTour(false)" style="background:#e11d48;color:#ffffff;border:none;padding:3px 10px;border-radius:999px;font-weight:700;font-size:11px;cursor:pointer;">✕ Dừng hướng dẫn (Esc)</button>
+            </div>
+            <div id="elaya-tour-popover" style="position:fixed;z-index:100002;background:#ffffff;border-radius:14px;border:1.5px solid #0284c7;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);padding:14px;width:330px;max-width:92vw;pointer-events:auto;transition:all 0.25s ease;font-size:12px;color:#0f172a;">
                 <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:8px;margin-bottom:8px;">
                     <span id="elaya-tour-step-badge" style="padding:2px 8px;border-radius:6px;background:#0284c7;color:#fff;font-family:monospace;font-weight:700;font-size:11px;">Bước 1/3</span>
-                    <button type="button" onclick="stopLiveSpotlightTour()" style="background:none;border:none;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">&times; Đóng</button>
+                    <button type="button" onclick="stopLiveSpotlightTour(false)" style="background:#ffe4e6;border:1px solid #fecdd3;color:#be123c;padding:2px 8px;border-radius:6px;font-weight:700;font-size:11.5px;cursor:pointer;">✕ Ngưng ngang</button>
                 </div>
                 <div id="elaya-tour-title" style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:4px;"></div>
-                <p id="elaya-tour-desc" style="color:#475569;line-height:1.45;margin:0 0 10px 0;"></p>
+                <p id="elaya-tour-desc" style="color:#475569;line-height:1.45;margin:0 0 8px 0;"></p>
+                <div style="font-size:11px;color:#0369a1;background:#f0f9ff;padding:5px 8px;border-radius:6px;margin-bottom:10px;border:1px solid #bae6fd;">
+                    💡 Bấm trực tiếp vào vùng khoanh sáng (hoặc bấm <b>Tiếp theo →</b> / phím <b>→</b>) để qua bước kế tiếp. Bấm <b>Esc</b> để thoát ngay.
+                </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid #f1f5f9;">
                     <button type="button" id="elaya-tour-prev" onclick="moveLiveSpotlightStep(-1)" style="padding:5px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;color:#475569;font-weight:600;cursor:pointer;">← Trước</button>
                     <div style="display:flex;gap:6px;">
-                        <button type="button" onclick="stopLiveSpotlightTour(true)" style="padding:5px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#f1f5f9;color:#334155;font-weight:600;cursor:pointer;">Về Hướng Dẫn</button>
+                        <button type="button" onclick="stopLiveSpotlightTour(true)" style="padding:5px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#f1f5f9;color:#334155;font-weight:600;cursor:pointer;">Về Cẩm Nang</button>
                         <button type="button" id="elaya-tour-next" onclick="moveLiveSpotlightStep(1)" style="padding:5px 12px;border-radius:6px;border:none;background:#0284c7;color:#fff;font-weight:700;cursor:pointer;">Tiếp theo →</button>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(root);
+
+        window.addEventListener('keydown', function (ev) {
+            if (!isTourActive()) return;
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                stopLiveSpotlightTour(false);
+            } else if (ev.key === 'ArrowRight') {
+                ev.preventDefault();
+                moveLiveSpotlightStep(1);
+            } else if (ev.key === 'ArrowLeft') {
+                ev.preventDefault();
+                moveLiveSpotlightStep(-1);
+            }
+        }, true);
+
+        window.addEventListener('resize', function () {
+            if (isTourActive()) positionTourSpotlightOnElement();
+        });
+        window.addEventListener('scroll', function () {
+            if (isTourActive()) positionTourSpotlightOnElement();
+        }, true);
+
         return root;
+    }
+
+    function findVisibleTourTarget(selector) {
+        if (!selector) return null;
+        const nodes = document.querySelectorAll(selector);
+        for (let i = 0; i < nodes.length; i++) {
+            const el = nodes[i];
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            if (rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none') {
+                return el;
+            }
+        }
+        return null;
+    }
+
+    function positionTourSpotlightOnElement() {
+        const step = activeTourSteps[activeTourIdx];
+        const hl = document.getElementById('elaya-tour-highlight');
+        const pop = document.getElementById('elaya-tour-popover');
+        if (!step || !hl || !pop) return null;
+
+        const targetEl = findVisibleTourTarget(step.selector);
+        if (targetEl) {
+            const rect = targetEl.getBoundingClientRect();
+            const pad = 6;
+            hl.style.display = 'block';
+            hl.style.top = Math.max(4, rect.top - pad) + 'px';
+            hl.style.left = Math.max(4, rect.left - pad) + 'px';
+            hl.style.width = Math.max(40, rect.width + pad * 2) + 'px';
+            hl.style.height = Math.max(32, rect.height + pad * 2) + 'px';
+
+            const popHeight = pop.offsetHeight || 225;
+            const popWidth = pop.offsetWidth || 330;
+            let popTop = rect.bottom + 14;
+            if (popTop + popHeight > window.innerHeight - 12) {
+                popTop = rect.top - popHeight - 14;
+            }
+            if (popTop < 56) {
+                popTop = Math.min(window.innerHeight - popHeight - 16, Math.max(56, rect.bottom + 10));
+            }
+            const popLeft = Math.min(window.innerWidth - popWidth - 16, Math.max(16, rect.left));
+            pop.style.top = popTop + 'px';
+            pop.style.left = popLeft + 'px';
+            return targetEl;
+        } else {
+            hl.style.top = '50%';
+            hl.style.left = '50%';
+            hl.style.width = '0px';
+            hl.style.height = '0px';
+            pop.style.top = '72px';
+            pop.style.left = Math.max(16, Math.round((window.innerWidth - 330) / 2)) + 'px';
+            return null;
+        }
     }
 
     function startLiveSpotlightTour(guideKey) {
         stopGuideAutoPlay();
         const data = GUIDE_SOP_DATA[guideKey] || GUIDE_SOP_DATA[currentGuideKey] || GUIDE_SOP_DATA.pos;
-        if (!document.getElementById('sidebar-nav')) {
-            toggleGuideAutoPlay();
-            return;
-        }
         activeTourSteps = data.tourSteps || [];
         if (activeTourSteps.length === 0) return;
         activeTourIdx = 0;
@@ -1118,62 +1233,64 @@
     }
 
     function renderCurrentSpotlightStep() {
+        clearActiveTourTargetListener();
+        if (tourRenderTimer) {
+            clearTimeout(tourRenderTimer);
+            tourRenderTimer = null;
+        }
         const step = activeTourSteps[activeTourIdx];
         if (!step) {
-            stopLiveSpotlightTour();
+            stopLiveSpotlightTour(false);
             return;
         }
-        if (step.tab && typeof window.switchTab === 'function') {
+        if (step.tab && typeof window.switchTab === 'function' && window.__currentActiveTabId !== step.tab) {
             window.switchTab(step.tab);
         }
-        setTimeout(() => {
-            const hl = document.getElementById('elaya-tour-highlight');
-            const pop = document.getElementById('elaya-tour-popover');
-            const badge = document.getElementById('elaya-tour-step-badge');
-            const titleEl = document.getElementById('elaya-tour-title');
-            const descEl = document.getElementById('elaya-tour-desc');
-            const prevBtn = document.getElementById('elaya-tour-prev');
-            const nextBtn = document.getElementById('elaya-tour-next');
-            if (!hl || !pop) return;
 
-            badge.textContent = `Bước ${activeTourIdx + 1}/${activeTourSteps.length}`;
-            titleEl.textContent = step.title;
-            descEl.textContent = step.desc;
-            prevBtn.style.visibility = activeTourIdx > 0 ? 'visible' : 'hidden';
-            nextBtn.textContent = activeTourIdx === activeTourSteps.length - 1 ? '✓ Hoàn tất' : 'Tiếp theo →';
+        const badge = document.getElementById('elaya-tour-step-badge');
+        const titleEl = document.getElementById('elaya-tour-title');
+        const descEl = document.getElementById('elaya-tour-desc');
+        const prevBtn = document.getElementById('elaya-tour-prev');
+        const nextBtn = document.getElementById('elaya-tour-next');
+        if (badge) badge.textContent = `Bước ${activeTourIdx + 1}/${activeTourSteps.length}`;
+        if (titleEl) titleEl.textContent = step.title;
+        if (descEl) descEl.textContent = step.desc;
+        if (prevBtn) prevBtn.style.visibility = activeTourIdx > 0 ? 'visible' : 'hidden';
+        if (nextBtn) nextBtn.textContent = activeTourIdx === activeTourSteps.length - 1 ? '✓ Hoàn tất' : 'Tiếp theo →';
 
-            const targetEl = step.selector ? document.querySelector(step.selector) : null;
+        tourRenderTimer = setTimeout(() => {
+            const targetEl = findVisibleTourTarget(step.selector);
             if (targetEl) {
-                try { targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
-                const rect = targetEl.getBoundingClientRect();
-                const pad = 6;
-                hl.style.top = Math.max(4, rect.top - pad) + 'px';
-                hl.style.left = Math.max(4, rect.left - pad) + 'px';
-                hl.style.width = Math.max(40, rect.width + pad * 2) + 'px';
-                hl.style.height = Math.max(32, rect.height + pad * 2) + 'px';
-
-                const popTop = (rect.bottom + 14 + 200 < window.innerHeight)
-                    ? (rect.bottom + 14)
-                    : Math.max(16, rect.top - 195);
-                const popLeft = Math.min(window.innerWidth - 340, Math.max(16, rect.left));
-                pop.style.top = popTop + 'px';
-                pop.style.left = popLeft + 'px';
-            } else {
-                hl.style.top = '50%';
-                hl.style.left = '50%';
-                hl.style.width = '0px';
-                hl.style.height = '0px';
-                pop.style.top = '20%';
-                pop.style.left = 'calc(50% - 160px)';
+                try { targetEl.scrollIntoView({ behavior: 'instant', block: 'nearest' }); } catch (e) {}
             }
-        }, 260);
+            const positionedEl = positionTourSpotlightOnElement();
+            if (positionedEl) {
+                const advanceHandler = function () {
+                    clearActiveTourTargetListener();
+                    setTimeout(() => {
+                        if (!isTourActive()) return;
+                        moveLiveSpotlightStep(1);
+                    }, 320);
+                };
+                positionedEl.addEventListener('click', advanceHandler, { once: true });
+                positionedEl.addEventListener('keydown', function onKey(e) {
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                        positionedEl.removeEventListener('keydown', onKey);
+                        advanceHandler();
+                    }
+                });
+                activeTourTargetCleanup = function () {
+                    positionedEl.removeEventListener('click', advanceHandler);
+                };
+            }
+        }, 120);
     }
 
     function moveLiveSpotlightStep(delta) {
         const next = activeTourIdx + delta;
         if (next < 0) return;
         if (next >= activeTourSteps.length) {
-            stopLiveSpotlightTour();
+            stopLiveSpotlightTour(false);
             return;
         }
         activeTourIdx = next;
@@ -1181,6 +1298,13 @@
     }
 
     function stopLiveSpotlightTour(backToGuide = false) {
+        clearActiveTourTargetListener();
+        if (tourRenderTimer) {
+            clearTimeout(tourRenderTimer);
+            tourRenderTimer = null;
+        }
+        activeTourSteps = [];
+        activeTourIdx = 0;
         const root = document.getElementById('elaya-spotlight-tour-root');
         if (root) root.style.display = 'none';
         if (backToGuide && typeof window.switchTab === 'function') {
