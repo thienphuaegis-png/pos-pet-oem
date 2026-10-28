@@ -19,8 +19,7 @@ def _tracked():
 
 
 def test_no_forbidden_extensions():
-    # POS_Mastercare.exe được đặc cách track trong git theo thiết kế triển khai máy tiệm (.gitignore có !POS_Mastercare.exe)
-    bad = [f for f in _tracked() if f.lower().endswith(FORBIDDEN_EXT) and f != "POS_Mastercare.exe"]
+    bad = [f for f in _tracked() if f.lower().endswith(FORBIDDEN_EXT)]
     assert not bad, f"Git đang track file không được phép: {bad}"
 
 

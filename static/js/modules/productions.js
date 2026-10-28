@@ -2812,24 +2812,36 @@
             if (appNameInput) appNameInput.value = appName;
             updateAppTitleUI(appName, currentSettings.shop_logo);
 
-            document.getElementById('comp-name').value = currentSettings.shop_name || '';
-            document.getElementById('comp-address').value = currentSettings.shop_address || '';
-            document.getElementById('comp-phone').value = currentSettings.shop_phone || '';
-            document.getElementById('comp-footer').value = currentSettings.shop_footer || '';
-            fillBankSelect(document.getElementById('comp-bank-code'), currentSettings.shop_bank_code || 'MB');
-            document.getElementById('comp-bank-account').value = currentSettings.shop_bank_account || '';
-            document.getElementById('comp-bank-owner').value = currentSettings.shop_bank_owner || '';
-            document.getElementById('comp-qr-mode').value = currentSettings.shop_qr_mode || 'vietqr';
+            const nameEl = document.getElementById('comp-name');
+            if (nameEl) nameEl.value = currentSettings.shop_name || '';
+            const addrEl = document.getElementById('comp-address');
+            if (addrEl) addrEl.value = currentSettings.shop_address || '';
+            const phoneEl = document.getElementById('comp-phone');
+            if (phoneEl) phoneEl.value = currentSettings.shop_phone || '';
+            const footerEl = document.getElementById('comp-footer');
+            if (footerEl) footerEl.value = currentSettings.shop_footer || '';
+            const bankCodeEl = document.getElementById('comp-bank-code');
+            if (bankCodeEl) fillBankSelect(bankCodeEl, currentSettings.shop_bank_code || 'MB');
+            const bankAccEl = document.getElementById('comp-bank-account');
+            if (bankAccEl) bankAccEl.value = currentSettings.shop_bank_account || '';
+            const bankOwnerEl = document.getElementById('comp-bank-owner');
+            if (bankOwnerEl) bankOwnerEl.value = currentSettings.shop_bank_owner || '';
+            const qrModeEl = document.getElementById('comp-qr-mode');
+            if (qrModeEl) qrModeEl.value = currentSettings.shop_qr_mode || 'vietqr';
             
-            if (currentSettings.shop_logo) {
-                const img = document.getElementById('comp-logo-preview');
-                img.src = currentSettings.shop_logo;
-                img.classList.remove('hidden');
+            const logoImg = document.getElementById('comp-logo-preview');
+            if (logoImg) {
+                if (currentSettings.shop_logo) {
+                    logoImg.src = currentSettings.shop_logo;
+                    logoImg.classList.remove('hidden');
+                } else {
+                    logoImg.classList.add('hidden');
+                }
             }
-            if (currentSettings.shop_qr_image) {
-                const img = document.getElementById('comp-qr-preview');
-                img.src = currentSettings.shop_qr_image;
-                img.classList.remove('hidden');
+            const qrImg = document.getElementById('comp-qr-preview');
+            if (qrImg && currentSettings.shop_qr_image) {
+                qrImg.src = currentSettings.shop_qr_image;
+                qrImg.classList.remove('hidden');
             }
             const driveEl = document.getElementById('comp-drive-webhook-url');
             if (driveEl) driveEl.value = currentSettings.google_drive_webhook_url || '';
@@ -2897,25 +2909,60 @@
         }
 
         function toggleQRModeUI() {
-            const mode = document.getElementById('comp-qr-mode').value;
+            const qrModeEl = document.getElementById('comp-qr-mode');
+            const panelVietqr = document.getElementById('panel-vietqr');
+            const panelStatic = document.getElementById('panel-static-qr');
+            if (!qrModeEl || !panelVietqr || !panelStatic) return;
+            const mode = qrModeEl.value;
             if (mode === 'vietqr') {
-                document.getElementById('panel-vietqr').classList.remove('hidden');
-                document.getElementById('panel-static-qr').classList.add('hidden');
+                panelVietqr.classList.remove('hidden');
+                panelStatic.classList.add('hidden');
             } else {
-                document.getElementById('panel-vietqr').classList.add('hidden');
-                document.getElementById('panel-static-qr').classList.remove('hidden');
+                panelVietqr.classList.add('hidden');
+                panelStatic.classList.remove('hidden');
             }
         }
 
         function previewUploadImage(input, previewId) {
             if (input.files && input.files[0]) {
+                const file = input.files[0];
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const img = document.getElementById(previewId);
-                    img.src = e.target.result;
-                    img.classList.remove('hidden');
+                    const rawDataUrl = e.target.result;
+                    const tempImg = new Image();
+                    tempImg.onload = function() {
+                        const maxDim = 320;
+                        let w = tempImg.width || maxDim;
+                        let h = tempImg.height || maxDim;
+                        if (w > maxDim || h > maxDim) {
+                            if (w >= h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+                            else { w = Math.round((w * maxDim) / h); h = maxDim; }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(tempImg, 0, 0, w, h);
+                        let compressed = canvas.toDataURL('image/webp', 0.88);
+                        if (!compressed || compressed.length > rawDataUrl.length) {
+                            compressed = canvas.toDataURL('image/png');
+                        }
+                        const img = document.getElementById(previewId);
+                        if (img) {
+                            img.src = compressed;
+                            img.classList.remove('hidden');
+                        }
+                    };
+                    tempImg.onerror = function() {
+                        const img = document.getElementById(previewId);
+                        if (img) {
+                            img.src = rawDataUrl;
+                            img.classList.remove('hidden');
+                        }
+                    };
+                    tempImg.src = rawDataUrl;
                 };
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(file);
             }
         }
 
@@ -2929,7 +2976,12 @@
                 shop_address: document.getElementById('comp-address').value,
                 shop_phone: document.getElementById('comp-phone').value,
                 shop_footer: document.getElementById('comp-footer').value,
-                shop_logo: !logoImg.classList.contains('hidden') ? logoImg.src : '',
+                shop_bank_code: currentSettings.shop_bank_code || 'MB',
+                shop_bank_account: currentSettings.shop_bank_account || '',
+                shop_bank_owner: currentSettings.shop_bank_owner || '',
+                shop_qr_mode: currentSettings.shop_qr_mode || 'vietqr',
+                shop_qr_image: currentSettings.shop_qr_image || '',
+                shop_logo: (logoImg && !logoImg.classList.contains('hidden')) ? logoImg.src : '',
                 google_drive_webhook_url: webhookUrl
             };
             const res = await fetch('/api/settings/company', {
@@ -2954,7 +3006,12 @@
                 }
                 Object.assign(currentSettings, payload);
             } else {
-                alert('Lỗi lưu thông tin!');
+                let errMsg = 'Lỗi lưu thông tin!';
+                try {
+                    const errData = await res.json();
+                    if (errData && errData.detail) errMsg = errData.detail;
+                } catch (_) {}
+                alert(errMsg);
             }
         }
 

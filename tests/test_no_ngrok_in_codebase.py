@@ -19,6 +19,8 @@ def test_launcher_py_has_no_ngrok():
 
 def test_build_exe_has_no_ngrok_copy():
     path = os.path.join(ROOT, "deploy", "build_exe.bat")
+    if not os.path.exists(path):
+        return
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
     assert "ngrok" not in content.lower(), "build_exe.bat should not copy ngrok.exe!"

@@ -1000,42 +1000,73 @@ async def import_orders_excel(
     synced_items = 0
     touched_ids = set()
 
+    # Tải trước bảng mã SKU sản phẩm vào RAM 1 lần (tránh N câu SELECT trong vòng lặp 2.000 đơn)
+    cur.execute("SELECT id, UPPER(TRIM(code)) AS ucode FROM products WHERE is_active = 1 AND code IS NOT NULL AND TRIM(code) != ''")
+    products_by_code = {r["ucode"]: r["id"] for r in cur.fetchall()}
+
+    plat_lower = platform.lower()
+    order_rows_to_upsert = []
     for sn, o in orders_dict.items():
         item_total = sum(it["subtotal"] for it in o["items"])
         total_fee = o["fee_fixed"] + o["fee_service"] + o["fee_payment"]
         net_payout = max(0.0, item_total - o["shop_voucher"] - total_fee)
         gross_total = item_total if item_total > 0 else o["total_amount"]
-
-        cur.execute("""
-            INSERT INTO marketplace_orders (
-                platform, account_id, order_sn, order_status, order_date,
-                total_amount, shipping_fee, fee_fixed, fee_service, fee_payment,
-                shop_voucher, net_payout, buyer_username, tracking_number
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(platform, order_sn) DO UPDATE SET
-                order_status = excluded.order_status,
-                total_amount = excluded.total_amount,
-                shipping_fee = excluded.shipping_fee,
-                fee_fixed = excluded.fee_fixed,
-                fee_service = excluded.fee_service,
-                fee_payment = excluded.fee_payment,
-                shop_voucher = excluded.shop_voucher,
-                net_payout = excluded.net_payout,
-                tracking_number = COALESCE(excluded.tracking_number, marketplace_orders.tracking_number),
-                updated_at = CURRENT_TIMESTAMP
-        """, (
-            platform.lower(), account_id, sn, o["status"], o["order_date"],
+        order_rows_to_upsert.append((
+            plat_lower, account_id, sn, o["status"], o["order_date"],
             gross_total, o["shipping_fee"], o["fee_fixed"], o["fee_service"], o["fee_payment"],
             o["shop_voucher"], net_payout, o["buyer"], o["tracking_number"]
         ))
 
-        cur.execute("SELECT id FROM marketplace_orders WHERE platform = ? AND order_sn = ?", (platform.lower(), sn))
-        order_db_id = cur.fetchone()[0]
+    upsert_order_sql = """
+        INSERT INTO marketplace_orders (
+            platform, account_id, order_sn, order_status, order_date,
+            total_amount, shipping_fee, fee_fixed, fee_service, fee_payment,
+            shop_voucher, net_payout, buyer_username, tracking_number
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(platform, order_sn) DO UPDATE SET
+            order_status = excluded.order_status,
+            total_amount = excluded.total_amount,
+            shipping_fee = excluded.shipping_fee,
+            fee_fixed = excluded.fee_fixed,
+            fee_service = excluded.fee_service,
+            fee_payment = excluded.fee_payment,
+            shop_voucher = excluded.shop_voucher,
+            net_payout = excluded.net_payout,
+            tracking_number = COALESCE(excluded.tracking_number, marketplace_orders.tracking_number),
+            updated_at = CURRENT_TIMESTAMP
+    """
+    chunk_size = 200
+    for i in range(0, len(order_rows_to_upsert), chunk_size):
+        cur.executemany(upsert_order_sql, order_rows_to_upsert[i:i + chunk_size])
+
+    # Lấy map order_sn -> id theo từng lô 200 đơn
+    all_sns = list(orders_dict.keys())
+    sn_to_id = {}
+    for i in range(0, len(all_sns), chunk_size):
+        sn_chunk = all_sns[i:i + chunk_size]
+        ph = ",".join("?" for _ in sn_chunk)
+        cur.execute(
+            f"SELECT order_sn, id FROM marketplace_orders WHERE platform = ? AND order_sn IN ({ph})",
+            (plat_lower, *sn_chunk),
+        )
+        for r in cur.fetchall():
+            sn_to_id[r["order_sn"]] = r["id"]
+
+    all_order_ids = list(sn_to_id.values())
+    for i in range(0, len(all_order_ids), chunk_size):
+        id_chunk = all_order_ids[i:i + chunk_size]
+        ph = ",".join("?" for _ in id_chunk)
+        cur.execute(f"DELETE FROM marketplace_order_items WHERE order_id IN ({ph})", tuple(id_chunk))
+
+    item_rows_to_insert = []
+    for sn, o in orders_dict.items():
+        order_db_id = sn_to_id.get(sn)
+        if not order_db_id:
+            continue
         touched_ids.add(order_db_id)
         synced_orders += 1
 
-        cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (order_db_id,))
         for it in o["items"]:
             p_name = it["product_name"]
             p_var = it["variation"]
@@ -1044,14 +1075,10 @@ async def import_orders_excel(
             u_price = it["unit_price"]
             sub_amt = it["subtotal"]
 
-            # Ánh xạ sản phẩm
+            # Ánh xạ sản phẩm từ bộ nhớ đệm
             mapped_pid = None
             if p_sku:
-                sku_clean = p_sku.strip().upper()
-                cur.execute("SELECT id FROM products WHERE UPPER(TRIM(code)) = ? AND is_active = 1 LIMIT 1", (sku_clean,))
-                p_row = cur.fetchone()
-                if p_row:
-                    mapped_pid = p_row[0]
+                mapped_pid = products_by_code.get(p_sku.strip().upper())
 
             if not mapped_pid:
                 for m in mappings:
@@ -1063,13 +1090,17 @@ async def import_orders_excel(
                             mapped_pid = m["product_id"]
                             break
 
-            cur.execute("""
-                INSERT INTO marketplace_order_items (
-                    order_id, platform_product_name, platform_variation,
-                    platform_sku, quantity, unit_price, subtotal, mapped_product_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (order_db_id, p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
+            item_rows_to_insert.append((order_db_id, p_name, p_var, p_sku, qty, u_price, sub_amt, mapped_pid))
             synced_items += 1
+
+    insert_item_sql = """
+        INSERT INTO marketplace_order_items (
+            order_id, platform_product_name, platform_variation,
+            platform_sku, quantity, unit_price, subtotal, mapped_product_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    for i in range(0, len(item_rows_to_insert), chunk_size):
+        cur.executemany(insert_item_sql, item_rows_to_insert[i:i + chunk_size])
 
     sync_orders_stock(cur, touched_ids)
     conn.commit()

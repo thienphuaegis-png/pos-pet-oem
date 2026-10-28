@@ -210,6 +210,203 @@ class PGConnectionWrapper:
         except Exception:
             pass
 
+
+class D1CursorWrapper:
+    """Cursor tương thích sqlite3 gọi tới Cloudflare D1 (qua Worker Bridge hoặc Cloudflare REST API)."""
+    def __init__(self, conn_wrapper):
+        self._conn = conn_wrapper
+        self.lastrowid = None
+        self.rowcount = -1
+        self._cols = None
+        self._rows = []
+        self._idx = 0
+
+    @property
+    def connection(self):
+        return self._conn
+
+    @property
+    def description(self):
+        if not self._cols:
+            return None
+        return [(c, None, None, None, None, None, None) for c in self._cols]
+
+    def _normalize_param(self, v):
+        if isinstance(v, bool):
+            return 1 if v else 0
+        return v
+
+    def execute(self, sql, params=None):
+        s = sql.strip()
+        u = s.upper()
+        # Bỏ qua PRAGMA cấu hình file cục bộ trên D1 (chỉ giữ PRAGMA table_info)
+        if u.startswith("PRAGMA") and "TABLE_INFO" not in u:
+            self._cols = None
+            self._rows = []
+            self._idx = 0
+            self.rowcount = 0
+            return self
+
+        norm_params = [self._normalize_param(p) for p in params] if params else []
+        stmt_res = self._conn._send_query(s, norm_params)
+
+        results = stmt_res.get("results") or []
+        meta = stmt_res.get("meta") or {}
+        if "last_row_id" in meta and meta["last_row_id"] is not None:
+            self.lastrowid = meta["last_row_id"]
+        self.rowcount = meta.get("changes", len(results))
+
+        if results and isinstance(results[0], dict):
+            self._cols = list(results[0].keys())
+            self._rows = [RowWrapper(self._cols, [r.get(c) for c in self._cols]) for r in results]
+        else:
+            self._cols = None
+            self._rows = []
+        self._idx = 0
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        s = sql.strip()
+        if s.upper().startswith("PRAGMA"):
+            return self
+        batch = [(s, [self._normalize_param(p) for p in params]) for params in seq_of_params]
+        if batch:
+            self._conn._send_batch(batch)
+        self.rowcount = len(batch)
+        return self
+
+    def fetchone(self):
+        if self._idx >= len(self._rows):
+            return None
+        r = self._rows[self._idx]
+        self._idx += 1
+        return r
+
+    def fetchall(self):
+        if self._idx >= len(self._rows):
+            return []
+        rem = self._rows[self._idx:]
+        self._idx = len(self._rows)
+        return rem
+
+    def fetchmany(self, size=1):
+        if self._idx >= len(self._rows):
+            return []
+        rem = self._rows[self._idx:self._idx + size]
+        self._idx += len(rem)
+        return rem
+
+    def __iter__(self):
+        while self._idx < len(self._rows):
+            yield self.fetchone()
+
+    def close(self):
+        self._rows = []
+
+
+class D1ConnectionWrapper:
+    """Connection tương thích sqlite3 cho Cloudflare D1."""
+    def __init__(self, worker_url=None, worker_secret=None, account_id=None, database_id=None, api_token=None, http_client=None):
+        self.worker_url = (worker_url or "").rstrip("/")
+        self.worker_secret = worker_secret or ""
+        self.account_id = account_id or ""
+        self.database_id = database_id or ""
+        self.api_token = api_token or ""
+        self.row_factory = None
+        if http_client is not None:
+            self._client = http_client
+            self._owns_client = False
+        else:
+            import httpx
+            self._client = httpx.Client(timeout=20.0)
+            self._owns_client = True
+
+    def _endpoint_and_headers(self, is_batch=False):
+        if self.worker_url:
+            path = "/d1/batch" if is_batch else "/d1/query"
+            headers = {"Content-Type": "application/json"}
+            if self.worker_secret:
+                headers["Authorization"] = f"Bearer {self.worker_secret}"
+            return f"{self.worker_url}{path}", headers
+        url = f"https://api.cloudflare.com/client/v4/accounts/{self.account_id}/d1/database/{self.database_id}/query"
+        headers = {
+            "Authorization": f"Bearer {self.api_token}",
+            "Content-Type": "application/json",
+        }
+        return url, headers
+
+    def _send_query(self, sql, params):
+        url, headers = self._endpoint_and_headers(is_batch=False)
+        resp = self._client.post(url, json={"sql": sql, "params": params}, headers=headers)
+        data = resp.json()
+        if resp.status_code >= 400 or not data.get("success", True):
+            errs = data.get("errors") or data.get("error") or resp.text
+            raise sqlite3.OperationalError(f"Cloudflare D1 error: {errs}")
+        res_list = data.get("result")
+        if isinstance(res_list, list) and res_list:
+            return res_list[0]
+        if isinstance(res_list, dict):
+            return res_list
+        return {"results": [], "meta": {}}
+
+    def _inline_sql_params(self, sql: str, params) -> str:
+        if not params:
+            return sql.strip().rstrip(";")
+        parts = sql.split("?")
+        if len(parts) - 1 != len(params):
+            return sql.strip().rstrip(";")
+        out = [parts[0]]
+        for val, tail in zip(params, parts[1:]):
+            if val is None:
+                lit = "NULL"
+            elif isinstance(val, bool):
+                lit = "1" if val else "0"
+            elif isinstance(val, (int, float)):
+                lit = repr(val)
+            elif isinstance(val, (bytes, bytearray, memoryview)):
+                lit = "X'" + bytes(val).hex() + "'"
+            else:
+                lit = "'" + str(val).replace("'", "''") + "'"
+            out.append(lit)
+            out.append(tail)
+        return "".join(out).strip().rstrip(";")
+
+    def _send_batch(self, statements):
+        if not statements:
+            return []
+        if self.worker_url:
+            url, headers = self._endpoint_and_headers(is_batch=True)
+            payload = {"statements": [{"sql": s, "params": p} for s, p in statements]}
+            resp = self._client.post(url, json=payload, headers=headers)
+            data = resp.json()
+            if resp.status_code >= 400 or not data.get("success", True):
+                raise sqlite3.OperationalError(f"Cloudflare D1 batch error: {data}")
+            return data.get("result") or []
+        # Khi gọi trực tiếp Cloudflare D1 REST API: gộp nhiều câu SQL cách nhau bởi dấu ';' trong 1 HTTP request duy nhất
+        combined_sql = ";\n".join(self._inline_sql_params(s, p) for s, p in statements) + ";"
+        return [self._send_query(combined_sql, [])]
+
+    def cursor(self):
+        return D1CursorWrapper(self)
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        pass
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        if self._owns_client and self._client:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+
 def get_db_path():
     env_path = os.environ.get("POS_DB_PATH")
     if env_path:
@@ -225,6 +422,17 @@ def get_db_path():
     return os.path.join(data_dir, "pos.db")
 
 def get_db():
+    d1_worker_url = os.environ.get("CF_D1_WORKER_URL")
+    d1_db_id = os.environ.get("CF_D1_DATABASE_ID")
+    if d1_worker_url or (d1_db_id and os.environ.get("CF_ACCOUNT_ID") and os.environ.get("CF_API_TOKEN")):
+        return D1ConnectionWrapper(
+            worker_url=d1_worker_url,
+            worker_secret=os.environ.get("CF_D1_WORKER_SECRET"),
+            account_id=os.environ.get("CF_ACCOUNT_ID"),
+            database_id=d1_db_id,
+            api_token=os.environ.get("CF_API_TOKEN"),
+        )
+
     pg_url = os.environ.get("DATABASE_URL")
     if pg_url:
         import psycopg2
@@ -307,6 +515,8 @@ def _migrate_staff_payroll_reconcile(cur):
     cols = {c[1] for c in cur.fetchall()}
     if "is_payroll_staff" not in cols:
         cur.execute("ALTER TABLE staff ADD COLUMN is_payroll_staff INTEGER DEFAULT 1")
+    if "employee_code" not in cols:
+        cur.execute("ALTER TABLE staff ADD COLUMN employee_code TEXT")
 
     # Đặt is_payroll_staff = 0 cho admin, thanhtuan, nvkho hoặc role owner không có mã NV
     cur.execute("""UPDATE staff SET is_payroll_staff = 0
@@ -371,8 +581,8 @@ def _migrate_staff_payroll_reconcile(cur):
 
 
 def init_db():
-    if os.environ.get("DATABASE_URL"):
-        # Running against Supabase PostgreSQL: schema is already managed and migrated
+    if os.environ.get("DATABASE_URL") or os.environ.get("CF_D1_WORKER_URL") or os.environ.get("CF_D1_DATABASE_ID"):
+        # Running against Cloud DB (Supabase PostgreSQL or Cloudflare D1): schema is managed via migration script
         return
 
     conn = get_db()

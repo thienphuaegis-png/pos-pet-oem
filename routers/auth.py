@@ -45,9 +45,12 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     user = cur.fetchone()
     ok = bool(user and user["username"] and user["password_hash"] and pwd_ctx.verify(form.password, user["password_hash"]) and user["is_active"])
 
-    cur.execute("INSERT INTO login_attempts (username, ip, success) VALUES (?, ?, ?)",
-                (form.username, client_ip, 1 if ok else 0))
-    db.commit()
+    try:
+        cur.execute("INSERT INTO login_attempts (username, ip, success) VALUES (?, ?, ?)",
+                    (form.username, client_ip, 1 if ok else 0))
+        db.commit()
+    except Exception:
+        pass
 
     if not user or not user["username"] or not user["password_hash"] or not pwd_ctx.verify(form.password, user["password_hash"]):
         db.close()

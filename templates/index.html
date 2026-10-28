@@ -9815,50 +9815,6 @@
                     <i class="ph ph-lightbulb"></i> Bạn có thể kéo thả hoặc dán ảnh hóa đơn / bill chuyển khoản vào ô bên trên bất cứ lúc nào để AI nhận diện tự động.
                 </div>
 
-                <!-- ==================== LOOPY PET (DÀNH RIÊNG CHO PHI PHỤNG - SAU NÀY XÓA) ==================== -->
-                <style>
-                    /* Dải sprite 192px/frame: idle 16 frame (3072px), wave 2 frame (384px). Đổi số frame thì sửa keyframe + steps(). */
-                    @keyframes loopy-sprite-anim {
-                        from { background-position: 0 0; }
-                        to { background-position: -3072px 0; }
-                    }
-                    @keyframes loopy-wave-anim {
-                        from { background-position: 0 0; }
-                        to { background-position: -384px 0; }
-                    }
-                    @keyframes loopy-subtle-float {
-                        0%, 100% { transform: translateY(0px); }
-                        50% { transform: translateY(-7px); }
-                    }
-                    .loopy-sprite-box {
-                        width: 192px;
-                        height: 208px;
-                        background-repeat: no-repeat;
-                        animation: loopy-sprite-anim 2.4s steps(16) infinite;
-                        will-change: background-position;
-                    }
-                    .loopy-sprite-box.is-wave {
-                        animation: loopy-wave-anim 0.5s steps(2) infinite;
-                    }
-                    .loopy-floating-mesh {
-                        animation: loopy-subtle-float 2.8s ease-in-out infinite;
-                        will-change: transform;
-                    }
-                </style>
-                <div id="loopy-pet-container" class="hidden fixed bottom-6 right-6 z-40 select-none pointer-events-auto">
-                    <!-- Bong bóng chat đặt absolute ở trên đầu Loopy, pointer-events-none chống giật chuột -->
-                    <div id="loopy-speech-bubble" class="hidden absolute bottom-full mb-3 right-0 bg-white/95 backdrop-blur-xs border border-sky-200 text-sky-900 text-xs px-3.5 py-2 rounded-2xl shadow-2xl w-max max-w-[220px] text-center font-medium animate-bounce pointer-events-none transition-all z-50">
-                        <span id="loopy-speech-text">Chào chị Phụng nha! <i class="ph ph-dot-outline"></i><i class="ph ph-sparkle"></i></span>
-                        <div class="w-2.5 h-2.5 bg-white border-b border-r border-sky-200 rotate-45 absolute -bottom-1.5 right-12"></div>
-                    </div>
-                    <!-- Khung hitbox cố định, KHÔNG chuyển động CSS để tránh giật chuột mouseenter/mouseleave -->
-                    <div id="loopy-interactive-card" class="cursor-pointer flex flex-col items-center select-none" onclick="interactWithLoopyPet()" onmouseenter="hoverLoopyPet(true)" onmouseleave="hoverLoopyPet(false)">
-                        <div class="loopy-floating-mesh flex flex-col items-center">
-                            <div id="loopy-sprite" class="loopy-sprite-box drop-shadow-2xl transition-transform duration-200 active:scale-95" style="background-image: url('/static/images/loopy_idle_strip.webp?v=2');"></div>
-                            <span class="text-xs font-bold text-sky-700 bg-sky-100/95 px-2.5 py-0.5 rounded-full border border-sky-300 -mt-2 shadow-xs">Loopy <i class="ph ph-heart"></i></span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- TAB: CÀI ĐẶT HỆ THỐNG (CONSOLIDATED) -->
@@ -13588,7 +13544,6 @@
     <script src="/static/js/modules/hotel.js?v=20261027_07"></script>
     <script src="/static/js/modules/ai_assistant.js?v=20261027_07"></script>
     <script src="/static/js/modules/ai_agent.js?v=20261027_07"></script>
-    <script src="/static/js/modules/loopy_pet.js?v=20261027_07"></script>
     <script src="/static/js/modules/expense_requests.js?v=20261027_07"></script>
     <script src="/static/js/modules/purchase_requests.js?v=20261027_07"></script>
     <script src="/static/js/chart.umd.min.js"></script>

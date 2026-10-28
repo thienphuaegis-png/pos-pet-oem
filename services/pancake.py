@@ -112,15 +112,26 @@ async def fetch_orders(shop_id: str, api_key: str, start_unix: int, end_unix: in
             await asyncio.sleep(1.2)  # POSCAKE chặn khi gọi dồn dập
 
 
-def _find_product(cur, mappings: list, line: dict):
+def _find_product(cur, mappings: list, line: dict, products_by_code: dict = None, products_by_name: dict = None):
     for m in mappings:
         if m["platform_sku"] and m["platform_sku"].lower() == line["sku"].lower():
             return m["product_id"]
         if m["platform_item_name"].lower() == line["name"].lower() and \
                 (m["platform_variation"] or "").lower() == line["variation"].lower():
             return m["product_id"]
+    base = line["sku"].split("/")[0].strip().upper()
+    var_code = (line["variation"] or base).strip().upper()
+    if products_by_code is not None and products_by_name is not None:
+        if base in products_by_code:
+            return products_by_code[base]
+        if var_code in products_by_code:
+            return products_by_code[var_code]
+        if not line["variation"]:
+            nm = line["name"].strip().lower()
+            if nm in products_by_name:
+                return products_by_name[nm]
+        return None
     # Tự khớp chắc chắn: mã POS trùng mã POSCAKE (mã SP hoặc mã biến thể) hoặc tên trùng hệt; còn lại người dùng tự ánh xạ
-    base = line["sku"].split("/")[0]
     cur.execute("""SELECT id FROM products WHERE is_active = 1 AND type != 'service'
                    AND (UPPER(TRIM(code)) IN (UPPER(?), UPPER(?)) OR (? = '' AND LOWER(TRIM(name)) = LOWER(?))) LIMIT 1""",
                 (base, line["variation"] or base, line["variation"], line["name"].strip()))
@@ -129,9 +140,20 @@ def _find_product(cur, mappings: list, line: dict):
 
 
 def save_orders(cur, account_id: int, raw_orders: list) -> dict:
+    if not raw_orders:
+        return {"orders": 0, "items": 0}
     cur.execute("SELECT platform_sku, platform_item_name, platform_variation, product_id FROM marketplace_sku_mappings WHERE platform = 'pancake'")
     mappings = [dict(r) for r in cur.fetchall()]
-    ids, n_items = [], 0
+    cur.execute("SELECT id, code, name FROM products WHERE is_active = 1 AND type != 'service'")
+    products_by_code, products_by_name = {}, {}
+    for pr in cur.fetchall():
+        if pr["code"] and pr["code"].strip():
+            products_by_code.setdefault(pr["code"].strip().upper(), pr["id"])
+        if pr["name"] and pr["name"].strip():
+            products_by_name.setdefault(pr["name"].strip().lower(), pr["id"])
+
+    parsed_orders = []
+    sellers = set()
     for o in raw_orders:
         link = o.get("order_link") or ""
         sn = link.split("order_id=")[1].split("&")[0] if "order_id=" in link else f"{o.get('shop_id')}-{o.get('id')}"
@@ -140,31 +162,65 @@ def save_orders(cur, account_id: int, raw_orders: list) -> dict:
         cust = o.get("bill_full_name") or (o.get("customer") or {}).get("name") or ""
         tracking = (o.get("partner") or {}).get("extend_code") or ""
         due = float(o.get("money_to_collect") or 0)
-        cur.execute("""
-            INSERT INTO marketplace_orders (platform, account_id, order_sn, order_status, order_date, total_amount,
-                shipping_fee, net_payout, buyer_username, tracking_number, seller_name)
-            VALUES ('pancake', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(platform, order_sn) DO UPDATE SET
-                order_status = excluded.order_status, total_amount = excluded.total_amount,
-                shipping_fee = excluded.shipping_fee, net_payout = excluded.net_payout,
-                buyer_username = excluded.buyer_username, tracking_number = excluded.tracking_number,
-                seller_name = excluded.seller_name, updated_at = CURRENT_TIMESTAMP
-        """, (account_id, sn, status, _vn_time(o.get("inserted_at") or ""), due, float(o.get("shipping_fee") or 0),
-              _collected(o), cust, tracking, seller))
-        cur.execute("SELECT id FROM marketplace_orders WHERE platform = 'pancake' AND order_sn = ?", (sn,))
-        oid = cur.fetchone()[0]
-        ids.append(oid)
-        cur.execute("DELETE FROM marketplace_order_items WHERE order_id = ?", (oid,))
-        for ln in order_lines(o):
-            cur.execute("""INSERT INTO marketplace_order_items (order_id, platform_item_id, platform_product_name,
-                               platform_variation, platform_sku, quantity, unit_price, subtotal, mapped_product_id, returned_qty)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (oid, ln["item_id"], ln["name"], ln["variation"], ln["sku"], ln["qty"], ln["price"],
-                         ln["qty"] * ln["price"], _find_product(cur, mappings, ln), ln["returned"]))
-            n_items += 1
-        cur.execute("INSERT OR IGNORE INTO pancake_sellers (seller_name) VALUES (?)", (seller,))
+        sellers.add((seller,))
+        parsed_orders.append((
+            sn,
+            (account_id, sn, status, _vn_time(o.get("inserted_at") or ""), due, float(o.get("shipping_fee") or 0),
+             _collected(o), cust, tracking, seller),
+            order_lines(o),
+        ))
+
+    upsert_sql = """
+        INSERT INTO marketplace_orders (platform, account_id, order_sn, order_status, order_date, total_amount,
+            shipping_fee, net_payout, buyer_username, tracking_number, seller_name)
+        VALUES ('pancake', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(platform, order_sn) DO UPDATE SET
+            order_status = excluded.order_status, total_amount = excluded.total_amount,
+            shipping_fee = excluded.shipping_fee, net_payout = excluded.net_payout,
+            buyer_username = excluded.buyer_username, tracking_number = excluded.tracking_number,
+            seller_name = excluded.seller_name, updated_at = CURRENT_TIMESTAMP
+    """
+    chunk_size = 200
+    order_tuples = [p[1] for p in parsed_orders]
+    for i in range(0, len(order_tuples), chunk_size):
+        cur.executemany(upsert_sql, order_tuples[i:i + chunk_size])
+
+    all_sns = [p[0] for p in parsed_orders]
+    sn_to_id = {}
+    for i in range(0, len(all_sns), chunk_size):
+        sn_chunk = all_sns[i:i + chunk_size]
+        ph = ",".join("?" for _ in sn_chunk)
+        cur.execute(f"SELECT order_sn, id FROM marketplace_orders WHERE platform = 'pancake' AND order_sn IN ({ph})", tuple(sn_chunk))
+        for r in cur.fetchall():
+            sn_to_id[r["order_sn"]] = r["id"]
+
+    ids = [sn_to_id[sn] for sn in all_sns if sn in sn_to_id]
+    for i in range(0, len(ids), chunk_size):
+        id_chunk = ids[i:i + chunk_size]
+        ph = ",".join("?" for _ in id_chunk)
+        cur.execute(f"DELETE FROM marketplace_order_items WHERE order_id IN ({ph})", tuple(id_chunk))
+
+    item_tuples = []
+    for sn, _, lines in parsed_orders:
+        oid = sn_to_id.get(sn)
+        if not oid:
+            continue
+        for ln in lines:
+            mpid = _find_product(cur, mappings, ln, products_by_code, products_by_name)
+            item_tuples.append((oid, ln["item_id"], ln["name"], ln["variation"], ln["sku"], ln["qty"], ln["price"],
+                                ln["qty"] * ln["price"], mpid, ln["returned"]))
+
+    item_sql = """INSERT INTO marketplace_order_items (order_id, platform_item_id, platform_product_name,
+                      platform_variation, platform_sku, quantity, unit_price, subtotal, mapped_product_id, returned_qty)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    for i in range(0, len(item_tuples), chunk_size):
+        cur.executemany(item_sql, item_tuples[i:i + chunk_size])
+
+    if sellers:
+        cur.executemany("INSERT OR IGNORE INTO pancake_sellers (seller_name) VALUES (?)", list(sellers))
+
     sync_orders_stock(cur, ids)
-    return {"orders": len(ids), "items": n_items}
+    return {"orders": len(ids), "items": len(item_tuples)}
 
 
 def seller_summary(cur, date_from: str, date_to: str) -> list:

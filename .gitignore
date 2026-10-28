@@ -1,4 +1,6 @@
 .env
+.cf_auth.json
+.vercel/
 .venv/
 __pycache__/
 *.pyc
@@ -7,6 +9,7 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/*.sql
+deploy/d1_export/
 data/*.bak*
 data/demo_seed_manifest.json
 logs/
@@ -22,7 +25,6 @@ dist/
 cloudflared.exe
 ngrok.exe
 *.exe
-!POS_Mastercare.exe
 *.zip
 
 # SSH Deploy Keys
@@ -44,3 +46,10 @@ deploy/legacy_scripts/CAI_DAT_POS_ONLINE_TIEM_*.bat
 *.pem
 id_ed25519*
 id_rsa*
+
+# AI workspace cache + tool caches (xem skill project-scaffold-and-hygiene)
+.ai/cache/
+.archify/
+.ua/
+.superpowers/
+.hermes/

@@ -1,7 +1,7 @@
 import os
 
 def test_project_state_is_compact_and_under_100_lines():
-    state_path = "D:/Projects_Hermes/pos-offline-petcare2/PROJECT_STATE.md"
+    state_path = "D:/Projects_Hermes/pos-offline-petcare2/.ai/STATE.md"
     assert os.path.exists(state_path), "PROJECT_STATE.md must exist as the single source of truth"
     with open(state_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -13,15 +13,15 @@ def test_project_state_is_compact_and_under_100_lines():
 
 def test_legacy_tracking_removed_and_archived():
     root_tracking = "D:/Projects_Hermes/pos-offline-petcare2/PROJECT_TRACKING.md"
-    archive_tracking = "D:/Projects_Hermes/pos-offline-petcare2/docs/archive/LEGACY_TRACKING.md"
-    archive_state = "D:/Projects_Hermes/pos-offline-petcare2/docs/archive/STATE_2026_09.md"
+    archive_tracking = "D:/Projects_Hermes/pos-offline-petcare2/.ai/checkpoints/archive/LEGACY_TRACKING.md"
+    archive_state = "D:/Projects_Hermes/pos-offline-petcare2/.ai/checkpoints/archive/STATE_2026_09.md"
     
     assert not os.path.exists(root_tracking), "PROJECT_TRACKING.md must be removed from project root"
-    assert os.path.exists(archive_tracking), "LEGACY_TRACKING.md must be present in docs/archive"
-    assert os.path.exists(archive_state), "STATE_2026_09.md must be present in docs/archive"
+    assert os.path.exists(archive_tracking), "LEGACY_TRACKING.md must be present in .ai/checkpoints/archive"
+    assert os.path.exists(archive_state), "STATE_2026_09.md must be present in .ai/checkpoints/archive"
 
 def test_project_map_has_tree_and_nav():
-    map_path = "D:/Projects_Hermes/pos-offline-petcare2/PROJECT_MAP.html"
+    map_path = "D:/Projects_Hermes/pos-offline-petcare2/.ai/MAP.html"
     assert os.path.exists(map_path), "PROJECT_MAP.html must exist"
     with open(map_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -39,5 +39,5 @@ def test_coding_standards_skill_has_checkpoint_protocol():
     with open(skill_path, "r", encoding="utf-8") as f:
         content = f.read()
     assert "CHECKPOINT PROTOCOL" in content, "coding-standards must define CHECKPOINT PROTOCOL"
-    assert "PROJECT_STATE.md" in content
-    assert "PROJECT_MAP.html" in content
+    assert ".ai/STATE.md" in content
+    assert ".ai/MAP.html" in content

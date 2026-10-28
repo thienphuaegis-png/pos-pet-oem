@@ -35,30 +35,38 @@ def get_draft(current: Optional[dict] = Depends(get_optional_user)):
 @router.post("/api/pos/draft")
 def save_draft(body: dict, current: Optional[dict] = Depends(get_optional_user)):
     """Lưu snapshot hóa đơn đang gõ dở — client gọi định kỳ (debounce ~3-5s)."""
-    if not current:
+    if not current or os.environ.get("CF_D1_DATABASE_ID") or os.environ.get("CF_D1_WORKER_URL"):
         return {"message": "skipped"}
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO draft_orders (staff_id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) "
-        "ON CONFLICT(staff_id) DO UPDATE SET data=excluded.data, updated_at=CURRENT_TIMESTAMP",
-        (current["id"], body.get("data", ""))
-    )
-    conn.commit()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO draft_orders (staff_id, data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(staff_id) DO UPDATE SET data=excluded.data, updated_at=CURRENT_TIMESTAMP",
+            (current["id"], body.get("data", ""))
+        )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
     return {"message": "saved"}
 
 
 @router.delete("/api/pos/draft")
 def clear_draft(current: Optional[dict] = Depends(get_optional_user)):
     """Xóa draft sau khi thanh toán xong hoặc dọn tay — tránh khôi phục hóa đơn đã bán."""
-    if not current:
+    if not current or os.environ.get("CF_D1_DATABASE_ID") or os.environ.get("CF_D1_WORKER_URL"):
         return {"message": "skipped"}
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM draft_orders WHERE staff_id=?", (current["id"],))
-    conn.commit()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM draft_orders WHERE staff_id=?", (current["id"],))
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
     return {"message": "cleared"}
 
 

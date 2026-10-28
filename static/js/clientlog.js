@@ -3,6 +3,10 @@
 (function () {
   if (window.__clientLogInit) return;
   window.__clientLogInit = true;
+  // Trên môi trường Cloud (Vercel / Cloudflare Pages / Workers), tắt gửi log định kỳ 2s để bảo toàn hạn mức request miễn phí
+  const h = location.hostname || '';
+  const isLocalOrLan = h === 'localhost' || h === '127.0.0.1' || h === 'pos-server' || h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('100.');
+  if (!isLocalOrLan) return;
   const q = [];
   const ts = () => new Date().toISOString().slice(11, 23);
   function push(kind, msg) { q.push(`${ts()} ${kind} ${String(msg).slice(0, 400)}`); if (q.length > 200) q.shift(); }

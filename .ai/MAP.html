@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Đồ Tiến Độ POS Petcare — Tailwind UI</title>
+  <!-- CDN Tailwind CSS dự phòng nếu mở trực tiếp bằng file:// -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/js/tailwind.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-16">
+
+  <!-- TOP HEADER (Tailwind UI App Header) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs backdrop-blur bg-white/90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-200">
+            <span class="text-xl">🐾</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base font-bold text-slate-900 leading-none">Bản Đồ Tiến Độ POS Petcare</h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                v3.0 Master
+              </span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                ● 100% Offline
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Hệ thống quản lý chuỗi Bán hàng, Spa & Khách sạn Thú cưng</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs Switcher -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button id="nav-btn-tasks" onclick="switchMainView('tasks')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs">
+            📋 Bảng Tiến Độ
+          </button>
+          <button id="nav-btn-tree" onclick="switchMainView('tree')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+            📂 Cây Thư Mục
+          </button>
+        </div>
+
+        <!-- Top Actions -->
+        <div class="flex items-center gap-2.5">
+          <button onclick="openAddTaskModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-xs transition-colors">
+            <span>➕</span> Thêm Task
+          </button>
+          <button onclick="exportToMarkdown()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm shadow-purple-200 transition-colors">
+            <span>📥</span> Xuất Markdown (.md)
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+    <!-- VIEW 1: TASKS PROGRESS -->
+    <div id="view-tasks" class="space-y-6">
+
+    <!-- METRICS CARDS (Tailwind UI Stats Grid) -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      
+      <!-- Card 1: Tổng số Tasks -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Nhiệm Vụ</p>
+            <p id="stat-total" class="text-2xl font-extrabold text-slate-900 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-xl text-purple-600">
+            📋
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-purple-600 font-semibold mr-1.5">38 mục</span> trong toàn dự án
+        </div>
+      </div>
+
+      <!-- Card 2: Đã hoàn thành -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đã Hoàn Thành</p>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="stat-done" class="text-2xl font-extrabold text-emerald-600 font-mono">0</span>
+              <span id="stat-percent" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">0%</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl text-emerald-600">
+            ✅
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div class="mt-4">
+          <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div id="stat-progress-bar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Đang chờ thực hiện -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chờ Triển Khai</p>
+            <p id="stat-pending" class="text-2xl font-extrabold text-amber-600 mt-1 font-mono">0</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-600">
+            ⏳
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="text-amber-600 font-semibold mr-1.5">Topup, Hotel, AI</span> đang backlog
+        </div>
+      </div>
+
+      <!-- Card 4: Tình trạng Kiểm Thử & Kiến Trúc -->
+      <div class="bg-white overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hệ Thống & Test</p>
+            <p class="text-base font-bold text-slate-900 mt-1">13/13 Node PASS</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-600">
+            ⚡
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-xs text-slate-500">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+          <span>FastAPI 17 Routers ● SQLite 35 Bảng</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FILTER & SEARCH TOOLBAR (Tailwind UI Section Header) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        
+        <!-- Category Segmented Buttons -->
+        <div class="flex flex-wrap items-center gap-1.5" id="category-filters">
+          <button onclick="setCategoryFilter('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs">
+            Tất Cả
+          </button>
+          <button onclick="setCategoryFilter('POS')" data-cat="POS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏪 Quầy POS
+          </button>
+          <button onclick="setCategoryFilter('INV')" data-cat="INV" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📦 Kho Hàng
+          </button>
+          <button onclick="setCategoryFilter('PROD')" data-cat="PROD" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏭 Sản Xuất
+          </button>
+          <button onclick="setCategoryFilter('PO')" data-cat="PO" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            📥 Nhập Hàng
+          </button>
+          <button onclick="setCategoryFilter('SPA')" data-cat="SPA" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🐾 Dịch Vụ Spa
+          </button>
+          <button onclick="setCategoryFilter('BILL')" data-cat="BILL" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🧾 Hóa Đơn & Bảng Giá
+          </button>
+          <button onclick="setCategoryFilter('SYS')" data-cat="SYS" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🏨 Khách Sạn & Hệ Thống
+          </button>
+          <button onclick="setCategoryFilter('CASH')" data-cat="CASH" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            💰 Sổ Quỹ
+          </button>
+          <button onclick="setCategoryFilter('UI')" data-cat="UI" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🎨 Giao Diện
+          </button>
+          <button onclick="setCategoryFilter('ECOMM')" data-cat="ECOMM" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            🛍️ Sàn TMĐT
+          </button>
+        </div>
+
+        <!-- Search & Status dropdown -->
+        <div class="flex items-center gap-3">
+          <select id="status-filter" onchange="renderTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="done">✅ Đã hoàn thành</option>
+            <option value="pending">⏳ Đang chờ làm</option>
+          </select>
+
+          <div class="relative w-full sm:w-64">
+            <input type="text" id="search-input" oninput="renderTable()" placeholder="🔍 Tìm kiếm tính năng..." class="w-full pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-500">
+            <button onclick="document.getElementById('search-input').value=''; renderTable();" class="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN PROGRESS TABLE (Tailwind UI Data Table) -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-left">
+          
+          <!-- Table Header -->
+          <thead class="bg-slate-50/80">
+            <tr>
+              <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-16">
+                STT
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-20">
+                Xong
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Nhiệm Vụ / Tính Năng
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-36">
+                Phân Hệ
+              </th>
+              <th scope="col" class="px-3 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider w-32">
+                Trạng Thái
+              </th>
+              <th scope="col" class="px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Chi Tiết Kỹ Thuật / Trạng Thái
+              </th>
+            </tr>
+          </thead>
+
+          <!-- Table Body -->
+          <tbody id="progress-table-body" class="divide-y divide-slate-100 bg-white">
+            <!-- Dynamically populated via JS -->
+          </tbody>
+
+        </table>
+      </div>
+
+      <!-- Table Footer Summary -->
+      <div class="bg-slate-50/80 px-4 py-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+        <div id="table-showing-text">Hiển thị 0 nhiệm vụ</div>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Đã hoàn thiện</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Chờ triển khai</span>
+        </div>
+      </div>
+    </div>
+
+    </div>
+    <!-- END VIEW 1: TASKS PROGRESS -->
+
+    <!-- VIEW 2: PROJECT TREE (Cấu trúc thư mục & mã nguồn) -->
+    <div id="view-tree" class="hidden space-y-6">
+      
+      <!-- Tree Header Toolbar -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📂</span> Sơ Đồ Cấu Trúc Mã Nguồn Dự Án (Project Tree)
+            </h2>
+            <p class="text-xs text-slate-500 mt-1">Cấu trúc phân tầng chuẩn: Presentation (UI) → Routers (API) → Business Logic → Database (SQLite 35 bảng)</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="expandAllTree(true)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+              Mở Tất Cả
+            </button>
+            <button onclick="expandAllTree(false)" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+              Thu Gọn
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tree Main Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="tree-container">
+        
+        <!-- Block 1: Routers Backend (Đầy đủ 19 modules) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-routers')">
+            <div class="flex items-center gap-2">
+              <span class="text-purple-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">routers/</span>
+              <span class="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">19 API Routers</span>
+            </div>
+            <span id="tree-routers-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-routers" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">purchases.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Quản lý PO nhập hàng NCC, kiểm đếm nhận hàng, in phiếu A4/K80, liên kết động master data</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">PO Nhập Hàng</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">oem.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sản xuất OEM, trừ tồn kho tem/chai BOM, quản lý & thanh toán cấn trừ nợ NCC 2 quỹ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">OEM & Nợ</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">partners.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khách hàng, Nhà Cung Cấp, tính toán nợ 2 quỹ (Cty/Cá nhân), Import/Export Excel chuẩn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Đối Tác & Nợ</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">inventory.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kho hợp nhất, nguyên liệu/vật tư, thẻ kho, import Excel thuật toán ưu tiên exact match</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Kho & NVL</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">products.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sản phẩm, hàng hóa, mã vạch, phân loại, giá bán/vốn, import Excel sản phẩm</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Sản Phẩm</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">bom.py & production.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Định lượng BOM sản phẩm, lệnh sản xuất nội bộ, import BOM chống va chạm cột</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">BOM & SX</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">pos.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bán hàng quầy lẻ, giỏ hàng, chiết khấu, in bill nhiệt K80/K58, hoàn ví khi hủy đơn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Core POS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">hotel.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khách sạn thú cưng, buồng phòng, tiếp nhận theo lô K80, checkout tách tiền cọc</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Pet Hotel</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">cashbook.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ thu chi, dòng tiền 2 quỹ (Cty & Cá nhân), Drawer đối soát nguồn gốc read-only</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Sổ Quỹ</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">price_lists.py & promotions.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bảng giá đa cấp khách buôn/lẻ, chương trình khuyến mãi tự động Best Offer</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Bảng Giá</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">categories.py & combos.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Phân loại nhóm hàng đa cấp, quản lý Combo hàng hóa đóng gói</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Danh Mục</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">auth.py & shifts.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Đăng nhập, phân quyền RBAC 4 vai trò, đóng/mở ca làm việc, Z-Report kiểm quỹ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Auth & Ca</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">topup.py & settings.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Gói nạp ví Spa trả trước, cấu hình cửa hàng, máy in, mẫu in visual canvas</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Cài Đặt</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 2: Frontend JS & HTML Templates (Đầy đủ 100%) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-frontend')">
+            <div class="flex items-center gap-2">
+              <span class="text-indigo-600 font-bold">📁</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">templates/ & static/js/</span>
+              <span class="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Giao Diện & UI Modules</span>
+            </div>
+            <span id="tree-frontend-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-frontend" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">templates/index.html</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">SPA Quản trị trung tâm: 13 phân hệ, popup sửa nợ NCC 2 quỹ, modal nhận hàng</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Main Dashboard</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">templates/pos.html</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Màn hình Bán Hàng độc lập: Phím tắt F1-F9, giỏ hàng nổi tối ưu tốc độ thu ngân</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">POS Quầy</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/purchases.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Nhập hàng NCC: tìm kiếm fuzzy, popup customConfirm nhận hàng, chi tiết PO</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Purchases JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/contacts.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Danh bạ đối tác: Form chia 2 khối Quỹ Cty (xanh) & Cá Nhân (tím), KPI nợ đồng bộ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Contacts JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/cashflow.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sổ quỹ & Nợ NCC: Bảng phân tích nợ 2 quỹ, modal ✏️ Sửa nợ nhanh đầu kỳ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Cashflow JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/spa.js & hotel.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Điều phối vé dịch vụ Spa Grooming, khách sạn Hotel, cấn trừ sạch ví thông minh</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Spa & Hotel JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/modules/productions.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Định lượng BOM, theo dõi gia công OEM xưởng, quản lý thẻ kho & giá vốn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Production JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/pos.js, shifts.js, staff.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Xử lý giỏ hàng quầy, mở/đóng ca 10 mệnh giá két tiền, quản lý danh sách nhân sự</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Core JS</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">static/js/app.js & auth.js</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ điều hướng tab, customConfirm modal, showToast, quản lý token đăng nhập</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">App Framework</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 3: Deployment, Batch Scripts & Tools (Kịch bản tự động) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-deploy')">
+            <div class="flex items-center gap-2">
+              <span class="text-amber-600 font-bold">⚡</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">Deploy, Portable & Scripts</span>
+              <span class="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Triển Khai & Vận Hành</span>
+            </div>
+            <span id="tree-deploy-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-deploy" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-emerald-700">CAP_NHAT_1_CHAM.bat</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kịch bản tự động kill sạch POS/Python ngầm, nạp SSH Deploy Key và reset hard về main</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">1-Click Update</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">POS_Mastercare.exe (7.8 MB)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bản thực thi di động Windows Portable hoàn chỉnh không cần cài đặt Python</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Portable EXE</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">deploy/ (id_pos_shop, id_pos_shop.pub)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Cặp khóa SSH Deploy Key tự động kết nối GitHub an toàn không cần mật khẩu</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">SSH Keys</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">build_exe.bat & POS_Mastercare.spec</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kịch bản đóng gói PyInstaller nén exe gọn nhẹ, tự chép assets vào thư mục dist</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Build Script</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">backup_service.py & data/backups/</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Dịch vụ sao lưu tự động định kỳ mỗi 60 phút, xoay vòng lưu trữ an toàn</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">Auto Backup</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">scripts/ (sync_all_supabase, copy_data...)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ công cụ đồng bộ dữ liệu đám mây Supabase PostgreSQL, khử trùng đối tác</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Cloud Sync</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Block 4: Database, Checkpoints & Test Suite -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between cursor-pointer" onclick="toggleTreeSection('tree-core')">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-600 font-bold">🗄️</span>
+              <span class="text-xs font-bold text-slate-900 font-mono">data/, Tests & Checkpoints</span>
+              <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Database & Kiểm Thử</span>
+            </div>
+            <span id="tree-core-arrow" class="text-xs text-slate-400">▼</span>
+          </div>
+          <div id="tree-core" class="divide-y divide-slate-100 text-xs p-2 space-y-1">
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">data/pos.db (WAL Mode)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">SQLite database cục bộ chứa 35 bảng, WAL mode chống lock, bảo mật dữ liệu</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">SQLite 35 Tables</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">database.py & schemas.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Khởi tạo schema 35 bảng, tự động chạy migration cột mới và Pydantic models</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">ORM & Schema</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <a href="checkpoints/diagrams/pos_checkout_flow.html" target="_blank" class="font-mono font-bold text-indigo-700 hover:underline">.ai/checkpoints/diagrams/pos_checkout_flow.html ↗</a>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sơ đồ Sequence tương tác động (Archify Showcase): Luồng bán hàng POS, Multi-VAT, Ví Spa & Sổ quỹ</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Archify Diagram</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-purple-700">.ai/checkpoints/PROJECT_STATE.json</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Snapshot siêu nén ~1.5k tokens tích hợp Layers, Guided Tour và CodeGraph AST cho AI</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">AI Checkpoint</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-purple-700">CHECKPOINT_2026_10_23.md</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Hồ sơ checkpoint bàn giao chi tiết các bản vá nợ NCC 2 quỹ, import Excel và PO</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Active Checkpoint</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">tests/ (36 test files)</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Bộ test tự động: test_supplier_debt_split, test_rbac_and_supplier_dedup (PASS 7/7)</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Pytest Suite</span>
+            </div>
+            <div class="p-2 rounded-lg hover:bg-slate-50 flex items-start justify-between gap-3">
+              <div>
+                <span class="font-mono font-bold text-slate-800">server.py & main.py</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">FastAPI server khởi chạy hệ thống, nạp middleware, cấu hình logging và static</p>
+              </div>
+              <span class="shrink-0 text-[10px] font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">FastAPI Server</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ADD TASK MODAL -->
+  <div id="add-task-modal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span>➕</span> Thêm Nhiệm Vụ Mới
+        </h3>
+        <button onclick="closeAddTaskModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Tên Nhiệm Vụ</label>
+          <input type="text" id="new-task-title" placeholder="VD: Tích hợp máy quét mã vạch không dây..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Phân Hệ</label>
+            <select id="new-task-cat" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="SPA">🐾 Dịch Vụ Spa</option>
+              <option value="BILL">🧾 Hóa Đơn & Bảng Giá</option>
+              <option value="SYS">🏨 Khách Sạn & Hệ Thống</option>
+              <option value="UI">🎨 Giao Diện</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Trạng Thái</label>
+            <select id="new-task-done" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500">
+              <option value="false">⏳ Đang Chờ</option>
+              <option value="true">✅ Đã Xong</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi Chú Kỹ Thuật</label>
+          <textarea id="new-task-note" rows="2" placeholder="Ghi chú file, API hoặc nghiệp vụ liên quan..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2.5 mt-5 pt-3 border-t border-slate-100">
+        <button onclick="closeAddTaskModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Hủy</button>
+        <button onclick="saveNewTask()" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 shadow-sm">Lưu Task</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+    // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
+    const ROADMAP_VERSION = 'v7.2-2026-10-25-koc-kol-management-and-commission';
+    const DEFAULT_TASKS = [
+      // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-25)
+      { id: 'koc-kol-management-and-commission', cat: 'ECOMM', title: 'Quản Lý KOC / KOL, Link Video TikTok & Tính Hoa Hồng Động Từ Google Sheet (Không Khóa Cứng)', done: true, note: 'Subtab 🎬 KOC / KOL & Affiliate trong Bán Hàng Sàn TMĐT; dán bất kỳ link Google Sheet nào tự động liệt kê các Tab (tab DS KOC/Booking như THANH 10/2026 và tab Link & View như Tiktok/gid=1807044221); quét view TikTok trực tiếp qua TikWM API; cấu hình linh hoạt mức view sàn (200), định mức KPI trừ đi (0/200) và đơn giá/video (10.000đ); tự động cộng hoa hồng vào Bảng Lương HRM của nhân viên phụ trách.' },
+      { id: 'resigned-staff-and-silent-update', cat: 'HRM', title: 'Quản Lý Nhân Viên Nghỉ Việc (HRM/Cài Đặt) & Triệt Tiêu Kẹt Cửa Sổ Khi Cập Nhật Từ Xa', done: true, note: 'Bổ sung segmented pills 3 trạng thái (Đang làm việc / Đã nghỉ việc / Tất cả) cho cả HRM và Cài Đặt; nút thao tác 🛑 Nghỉ việc (gán is_active=0, leave_date, thu hồi token phiên đăng nhập) và ↩️ Đi làm lại; thay findstr bằng Python one-liner đọc token trong RAM kèm cờ CREATE_NO_WINDOW & SW_HIDE triệt tiêu 100% cửa sổ đen bị kẹt.' },
+      { id: 'spa-customer-call-and-pancake-sync', cat: 'SPA', title: 'Tối Ưu Bảng Dịch Vụ Spa 11 Cột, Tô Nền Xanh Đơn Đã Thanh Toán & Đồng Bộ Pancake (POSCAKE)', done: true, note: 'Dời dropdown gọi điện xuống dưới SĐT ở cột Khách Hàng (rút từ 12 còn 11 cột); tô nền xanh ngọc bg-emerald-50/70 cho dòng đã thanh toán; đồng bộ 2 shop Pancake, trừ tồn kho tự động mọi sàn TMĐT và cấu hình hoa hồng bán hàng theo nhân viên.' },
+      // 0. CẬP NHẬT (2026-10-24)
+      { id: 'loopy-mascot', cat: 'UI', title: 'Mascot Loopy cho chị Phụng (tab AI Agent): hết chớp + câu nói idle', done: true, note: 'Dựng lại sprite strip không frame trống (idle 16f, wave 2f tay trái); 15-30s nói câu ngoan/dụ rê chuột, rê vào thì khịa. Tạm thời, gỡ bằng xóa loopy_pet.js + block LOOPY PET.' },
+      { id: 'ai-role-adaptive-briefing-and-min-stock', cat: 'AI', title: 'Tác Nhân AI Thích Ứng Vai Trò (Thủ Kho / Kế Toán / Thu Ngân) & Cột Tồn Tối Thiểu (min_stock)', done: true, note: 'Cột min_stock trong products; API /api/ai/staff-briefing cá nhân hóa cho Thủ kho (hàng sắp hết, hàng đang về, 1-chạm nhận hàng), Kế toán (công nợ 2 chiều, duyệt chi), Thu ngân (doanh số ca, tiền két).' },
+      { id: 'oem-draft-mode-and-one-click-auto-draft', cat: 'PROD', title: 'Đơn OEM Chức Năng Lưu Nháp (DRAFT) & AI Đề Xuất 1-Chạm Tạo Đơn Nháp (Hàng Nhập & OEM)', done: false, note: 'Nút Lưu Bản Nháp DRAFT cho đơn OEM không xuất cọc; API /api/ai/quick-create-draft tự nhận diện hàng nhập vs OEM để tạo ngay đơn nháp trong 1 giây, mở ra cho người dùng sửa hoặc xóa.' },
+      { id: 'store-purchase-requisition-anonymized-supplier', cat: 'PO', title: 'Phiếu Yêu Cầu Nhập Hàng Cửa Hàng & Bảo Mật Ẩn Danh Nhà Cung Cấp', done: false, note: 'Cửa hàng/spa tạo yêu cầu nhập hàng theo nhóm nguồn cung [NGUON-01] nhưng bảo mật tuyệt đối không thấy tên/SĐT NCC; tự động bắn reminder sang Thủ kho để 1-chạm chuyển thành đơn PO.' },
+      { id: 'ai-staff-byok-and-custom-key', cat: 'SYS', title: 'Tác Nhân AI Cá Nhân Hóa (BYOK): Nhân Viên Tự Thêm API Key Riêng & Điều Phối Quota 2 Lớp', done: true, note: 'Bổ sung ai_api_key, ai_model vào bảng staff; 2 API /api/auth/my-ai-config; get_gemini_config(user) ưu tiên key cá nhân của nhân viên, tự fallback về key của shop nếu để trống; modal quản lý và test key trực tiếp tại tab Tác Nhân AI.' },
+      { id: 'pay-single-order-debt-account-and-date', cat: 'PO', title: 'Chọn Tài Khoản Xuất Chi & Ngày Chi Khi Trả Nợ Đơn Hàng Cụ Thể (PO & OEM)', done: true, note: 'Modal cfd-pay-order bổ sung dropdown tài khoản xuất chi và ngày chi thực tế; tự nạp tài khoản tương ứng với Quỹ Cty / Quỹ Cá Nhân; backend oem.py:1284 ghi nhận chuẩn xác tài khoản, ngày chi và created_by vào Sổ Quỹ.' },
+      // 0. CẬP NHẬT (2026-10-17)
+      { id: 'purchases-and-oem-6col-click-to-detail', cat: 'PO', title: 'Chuẩn Hóa Bảng Đơn Nhập Hàng & OEM 6 Cột: 1-Click Mở Ngay Chi Tiết Phiếu & Bỏ Nút Chi Trả', done: true, note: 'Rút gọn bảng Nhập Hàng từ 12 cột còn 6 cột chuẩn OEM, bỏ hoàn toàn nút Chi Trả trên từng dòng; click trực tiếp vào dòng mở modal xem chi tiết phiếu thay vì trượt dòng mở rộng cồng kềnh; dropdown lọc NCC thông minh, thanh tiến trình % thanh toán và menu thao tác ⋮ gọn gàng.' },
+      { id: 'oem-expandable-table-and-factory-filter', cat: 'PROD', title: 'Tối Ưu Bảng Đơn Hàng OEM: Thiết Kế Dòng Mở Rộng 6 Cột (Expandable Row) & Dropdown Lọc Nhà Máy Thông Minh', done: true, note: 'Rút gọn từ 12 cột còn 6 cột chuẩn đẹp không cuộn ngang; thêm thanh tiến trình % cọc, menu thao tác 3 chấm ⋮ (Chi tiết, In phiếu kiểm, Sửa, Xóa); bấm vào dòng trượt mở rộng hiển thị người lập, hạn giao, mặt hàng và bảng đối soát vỏ chai/tem nhãn tại xưởng; dropdown lọc xưởng chống rối màn hình khi có 10+ nhà máy.' },
+      // 0.1 CẬP NHẬT (2026-10-16)
+      { id: 'oem-batch-product-assign-unified-modal', cat: 'PROD', title: 'Tối Ưu Gán Sản Phẩm Nhà Máy OEM: Thay Thẻ Select HTML Thuần Bằng Modal Gán Hàng Loạt Chuẩn POS', done: true, note: 'Xóa bỏ thẻ select native đơn điệu, thay bằng modal gán hàng loạt có ô tìm kiếm fuzzy, lọc theo nhóm Hàng Hóa / Có BOM / Nguyên Liệu / Đã gán, checkbox chọn nhiều món 1 chạm; tích hợp nút gán trực tiếp từ bảng quản lý nhà máy gia công và tự động refresh đơn OEM.' },
+      // 0.1 CẬP NHẬT (2026-10-15)
+      { id: 'marketplace-pagination-and-accurate-kpi', cat: 'ECOMM', title: 'Tối Ưu Hiệu Năng Sàn TMĐT: Phân Trang Server-Side (Pagination) & Fix Thống Kê Số Lượng Đơn Hàng', done: true, note: 'Khi import hàng nghìn đơn Shopee/TikTok làm DOM quá tải và load chậm; chuyển sang phân trang server-side (page, limit 20/50/100, N+1 query batching); tách riêng API thống kê KPI tổng (SELECT COUNT(*), SUM(...) toàn bộ database thay vì chỉ đếm mảng 100 đơn trả về bị sai); tìm kiếm 0ms theo mã đơn/người mua/mã vận đơn.' },
+      { id: 'pos-unify-confirm-modal-and-ui-cleanup', cat: 'UI', title: 'Đồng Bộ Toàn Diện Hộp Thoại Thông Báo / Xác Nhận Chuẩn POS & Tối Ưu Giao Diện Hệ Thống', done: true, note: 'Thay thế triệt để các popup confirm() mặc định của trình duyệt còn sót lại (chuyển đổi Hàng Hóa ↔ Nguyên Liệu, cân bằng kho, xóa đơn sàn, ca bán hàng, spa, sản xuất) bằng showConfirmModal chuẩn POS; chống click đúp, đóng modal bằng phím ESC và hiển thị toast êm ái.' },
+      { id: 'convert-ingredient-to-product-full', cat: 'INV', title: 'Chuyển Đổi Hai Chiều: Nguyên Vật Liệu ↔ Hàng Hóa Bán Tại POS', done: true, note: 'Tích hợp nút chuyển đổi nhanh trên cả bảng tồn kho hợp nhất và bên trong modal Chỉnh sửa nguyên liệu (BOM/Sản xuất); tự động chuyển số dư tồn kho, giá vốn nhập gần nhất và nhà cung cấp sang Hàng hóa để bán tại POS.' },
+      { id: 'ironclad-anti-duplicate-code-system', cat: 'SYS', title: 'Kiến Trúc Chống Trùng Hóa Đơn & Mã Chứng Từ Tuyệt Đối (Kể Cả Khi Đã Xóa / Hủy)', done: true, note: 'Bảng archived_codes lưu vết vĩnh viễn mọi mã hóa đơn/phiếu đã từng sinh; chuyển thuật toán sinh mã OEM, Cashbook, Return, Purchase sang tịnh tiến MAX() + check archived_codes để khi xóa/hủy đơn cũ thì đơn mới không bao giờ bị thụt lùi hay trùng mã cũ; cờ isSubmittingPOSOrder chống đúp chuột F9 tại quầy.' },
+      { id: 'convert-ingredient-to-product-action', cat: 'INV', title: 'Chuyển Đổi Nguyên Vật Liệu Sang Hàng Hóa Bán Tại POS', done: true, note: 'Bổ sung nút 🔄 Thành Hàng Hóa trên bảng tồn kho hợp nhất; API chuyển tồn kho từ inventory sang product_inventory, cập nhật giá vốn gần nhất và chuyển liên kết NCC sang product.' },
+      { id: 'mkt-smart-combobox-and-human-in-the-loop-ai', cat: 'POS', title: 'Droplist Combobox Tìm Kiếm Ánh Xạ & Duyệt Gợi Ý AI (Human-in-the-loop)', done: true, note: 'Thay thế thẻ select cũ bằng Combobox gõ tìm kiếm 0ms; AI chuyển sang cơ chế Gợi ý (Suggestion) hiển thị lên bảng cho con người kiểm tra trước khi bấm Lưu từng dòng hoặc Duyệt tất cả; đồng bộ đầy đủ KPI và bảng đơn TikTok giống Shopee.' },
+      { id: 'oem-processing-fee-and-stats-fix', cat: 'PROD', title: 'Khắc Phục Đơn Đặt Gia Công OEM: Lấy Chuẩn Phí Chiết Rót / Công Xưởng Thay Vì Giá Bán Lẻ & Cập Nhật Thẻ Thống Kê', done: true, note: 'Sửa tiêu đề cột thành Phí Chiết Rót / Công Xưởng (đ); tự động tra cứu đơn giá gia công gần nhất của xưởng từ các đơn trước (vd 18.288 đ thay vì giá bán lẻ 89.000 đ); xóa bỏ fallback nhầm vào sell_price; cập nhật chính xác thẻ thống kê Tổng Đơn Gia Công và Tiền Đợt 2 Còn Lại.' },
+      { id: 'marketplace-shopee-excel-real-revenue-and-sku-mapping', cat: 'POS', title: 'Import Excel Đơn Hàng Shopee: Ánh Xạ Chuẩn SKU Phân Loại, Khớp products.code Tự Động & Hạch Toán Doanh Thu Thực Nhận', done: true, note: 'Khắc phục bẫy rỗng cột SKU sản phẩm bằng cách ưu tiên cột SKU phân loại hàng; tự động map vào products.code kho POS; bóc tách phí cố định, phí dịch vụ, phí xử lý giao dịch và voucher shop để tính doanh thu thực nhận vào ví chuẩn xác.' },
+      // CẬP NHẬT (2026-10-13)
+      { id: 'pos-print-designer-simplified-inline', cat: 'BILL', title: 'Tinh Giản Thiết Kế Mẫu In: Bỏ Token & Dàn Nút Biến, Giữ Bật/Tắt Khối Sidebar + Sửa Chữ Trực Tiếp Inline (ContentEditable)', done: true, note: 'Bỏ hoàn toàn dàn nút biến và modal token KiotViet thừa thãi; giữ vững sidebar trái kiểm soát cấu trúc in; hỗ trợ click-to-edit trực tiếp trên mặt giấy bản in, đồng bộ tức thì elem.text vào preset SQLite.' },
+      // CẬP NHẬT (2026-10-12)
+      { id: 'marketplace-shopee-tiktok-sync', cat: 'POS', title: 'Bán Hàng Sàn TMĐT: Đồng Bộ Đơn Shopee/TikTok, Map SKU, Bookmarklet & Import Excel', done: true, note: 'Sync đơn qua bookmarklet trong trình duyệt (né HttpOnly), quét mọi tab trạng thái, map SKU sàn ↔ kho POS, thống kê ngày, kéo-thả Excel Shopee/TikTok/Pancake' },
+      { id: 'remote-access-tailscale-funnel', cat: 'SYS', title: 'Truy Cập Từ Xa Miễn Phí: Tailscale (pos-server:8998) + Funnel Link HTTPS Cố Định', done: true, note: 'CAI_TAILSCALE.bat cài winget, firewall chỉ 100.64.0.0/10, hostname pos-server, Funnel --bg 8998; CHAY_ONLINE_CLOUDFLARE.bat dự phòng. Chưa chạy thử trên máy chủ' },
+      { id: 'module-toggle-marketplace', cat: 'SYS', title: 'Bật/Tắt Module Bán Hàng Sàn TMĐT & Header Cột Nhân Viên Ma Trận Quyền', done: true, note: 'module_marketplace trong MODULE_KEYS/DEFAULT_MODULES, data-module trên tab sidebar; thêm header cột role staff bị thiếu' },
+      { id: 'exe-cache-bust-git-root-fix', cat: 'SYS', title: 'Sửa Cache-Bust JS Khi Chạy Exe (git đọc sai thư mục _MEIPASS)', done: true, note: 'version_helper ROOT = thư mục exe khi frozen để commit hash đổi theo git pull, ?v= đổi, trình duyệt tự tải JS mới' },
+      { id: 'verify-server-tailscale-and-toggle', cat: 'SYS', title: 'Verify Trên Máy Chủ: CAP_NHAT + Toggle Sàn TMĐT + Link Funnel Từ 4G', done: false, note: 'Chạy CAP_NHAT.bat, Ctrl+F5, chạy CAI_TAILSCALE.bat, test link *.ts.net, đặt mật khẩu mạnh' },
+      // CẬP NHẬT 2026-10-19
+      { id: 'pos-search-auto-suggestions-10-items', cat: 'POS', title: 'Gợi Ý Tự Động 10 Hàng Hóa & 10 Khách Hàng Khi Nhấn Vào Ô Tìm Kiếm POS', done: true, note: 'Bắt sự kiện focus/click trên ô tìm kiếm hàng hóa (F3) và khách hàng (F4); tự động hiển thị dropdown 10 mục đầu tiên khi ô input đang rỗng; giữ nguyên tìm kiếm fuzzy khi gõ từ khóa.' },
+      // CẬP NHẬT 2026-10-17
+      { id: 'remote-update-auto-rollback', cat: 'SYS', title: 'Cập Nhật Máy Chủ Từ Xa & Tự Động Rollback Toàn Vẹn Code + DB Khi Lỗi', done: true, note: 'Nút web gọi POST /api/system/apply-update spawn tách rời deploy/CAP_NHAT.bat /auto có lock chống spam; script tắt server trước khi backup WAL-safe bằng sqlite3.backup; ghi nhớ commit hash cũ và tự động reset --hard + restore DB nếu init_db hoặc ping 45s fail; poll GET /api/system/update-status báo kết quả lên UI.' },
+
+      // CẬP NHẬT 2026-10-11
+      { id: 'pos-bank-picker-and-designer-alignment-sync', cat: 'POS', title: 'Dropdown Ngân Hàng VietQR, Sửa Lỗi Ghi Cứng Tiền Mặt & Đồng Bộ Căn Lề Designer Với Bản In Thật', done: true, note: 'Tạo banks.js danh mục 26 ngân hàng VietQR; đổi ô gõ tay thành dropdown; sửa backend lưu đúng payment_method (transfer/card/wallet) thay vì ép cash; rebuild exe sạch; hiển thị tên ngân hàng đầy đủ trên hóa đơn; đồng bộ toạ độ căn lề Trái/Giữa/Phải trên Designer với bản in thật; cố định draft_code trên tab giỏ hàng; bump v3.6.1' },
+      { id: 'pos-auto-version-bump-and-ahead-counting', cat: 'SYS', title: 'Tự Động Đếm Phiên Bản & Script Bump SemVer Chuẩn Chống Sót Đếm Version Ứng Dụng', done: true, note: 'Tự động tính commit ahead từ Git để cộng dồn vào patch version khi code tính năng mới; script scripts/bump_version.py tự động phân tích commit history (--auto/--patch/--minor/--major) và cập nhật version.json + changelog, bump mốc v3.6.0' },
+      { id: 'pos-order-return-and-exchange', cat: 'Logic', title: 'Đổi Hàng & Trả Hàng (Return & Exchange) Theo Đơn Gốc, Chứng Từ RET-... & Hạch Toán Dòng Tiền', done: true, note: 'Tạo phiếu RET-..., tự tính SL khả dụng & đơn giá net đã trừ KM, nhập kho món trả (tùy chọn), trừ kho món đổi, tính bù trừ thu thêm / chi hoàn trong 1 transaction an toàn, tích hợp modal 2 cột' },
+      { id: 'pos-split-cart-item-to-gift', cat: 'UI', title: 'Tách Dòng Sản Phẩm Làm Quà Tặng (0 đ) Trực Tiếp Trên Giỏ Hàng & Hoàn Tác Gộp Lại', done: true, note: 'Nút 🎁 Tách tặng khi SL >= 2, sinh dòng quà tặng giá 0 đ, badge Quà Tặng, nút 🔄 Gộp lại, chống quét trùng barcode và bảo vệ không bị xóa bởi KM Mua X Tặng Y' },
+      { id: 'pos-print-template-and-bank-sync', cat: 'BILL', title: 'Ưu Tiên Mẫu In Đã Chọn Header POS & Chuẩn Hóa Thông Tin Chuyển Khoản / VietQR Theo Phương Thức Thanh Toán', done: true, note: 'Giữ nguyên 100% mẫu in đã chọn từ dropdown góc trên bên phải; đơn tiền mặt ẩn VietQR hiển thị badge Đã Thu Tiền Mặt; đơn chuyển khoản hiển thị đúng số tài khoản/ngân hàng thật' },
+      { id: 'pos-promotions-buy-x-get-y', cat: 'Logic', title: 'Khuyến Mãi Mua X Tặng Y (Buy X Get Y) & Tự Động Thêm Quà Tặng Vào Giỏ Hàng', done: true, note: 'Tùy chọn quà tặng cùng loại hoặc khác loại, nhân lũy tiến theo số lượng mua, tự động tính toán và chèn dòng quà tặng giá 0 đ vào giỏ POS' },
+
+      // CẬP NHẬT (2026-10-23) - TỔNG HỢP PHÂN HỆ OEM, ĐƠN NHÁP & PURCHASE REQUISITION
+      { id: 'oem-draft-and-1click-confirm', cat: 'PROD', title: 'Đơn Đặt Gia Công OEM: Nút Lưu Đơn Nháp (DRAFT), Nhận Diện Xưởng Thông Minh & 1-Chạm Chốt Đơn', done: true, note: 'Tự động phân biệt xưởng gia công qua kho xưởng liên kết để sinh mã OEM; hỗ trợ lưu nháp chưa xuất cọc; bổ sung nút 🚀 Chốt Đơn 1-chạm chuyển trạng thái Đang SX' },
+      { id: 'purchase-requisition-tab-and-masking', cat: 'PO', title: 'Tab Yêu Cầu Đặt Hàng (Purchase Requisition) Dành Cho Nhân Viên CH & Spa & Bảo Mật Nguồn Hàng NCC', done: true, note: 'Bố cục 2 cột chuyên nghiệp lập phiếu YCNH; API catalog-masked ẩn danh NCC và bảo mật giá vốn 100%; đẩy thẳng phiếu chờ duyệt ra màn hình Tác Nhân AI Hub' },
+      { id: 'po-draft-1click-confirm', cat: 'PO', title: 'Đơn Nhập Hàng NCC (PO): Bổ Sung Nút 1-Chạm Chốt Đơn Đặt Hàng Từ Bản Nháp (draft -> pending)', done: true, note: 'Thay đổi nút Nhận hàng thành 🚀 Chốt Đơn trên bảng và trong modal chi tiết; endpoint POST /api/purchases/{code}/confirm an toàn' },
+      { id: 'cartesian-join-duplicate-po-fix', cat: 'PO', title: 'Khắc Phục Triệt Để Bẫy Nhân Bản Dòng Đơn PO (Cartesian Join Trap) Khi Chuyển Từ Phiếu Yêu Cầu', done: true, note: 'Chuyển subquery LIMIT 1 lấy đơn giá và NCC từ supplier_items, chặn lỗi 1 sản phẩm nhân 3-6 dòng và đội tiền sai lệch' },
+      { id: 'realtime-currency-formatting-cashflow', cat: 'UI', title: 'Định Dạng Tiền Tệ Real-time Có Dấu Chấm Phân Cách Hàng Nghìn Cho Modal Thanh Toán Nợ NCC & Hẹn Trả', done: true, note: 'Áp dụng class currency-auto-format trên các ô cfd-pay-amount, plan-amount, cfd-pay-order-amount; tự động nhảy dấu chấm khi gõ phím và parse an toàn gửi server' },
+      { id: 'ai-vision-widget-compact-slim', cat: 'UI', title: 'Thu Gọn Widget Bóc Tách Chứng Từ AI (Compact Slim Card) & Đồng Bộ Modal Xác Nhận POS Chuẩn', done: true, note: 'Thu gọn dropzone từ 190px xuống 95px nhường diện tích cho Trung tâm điều hành; thay thế toàn bộ confirm() thô của trình duyệt bằng showConfirmModal POS' },
+
+      // CẬP NHẬT (2026-10-09)
+      { id: 'pos-ux-wheel-guard-and-hotkeys', cat: 'UI', title: 'Wheel Guard Chặn Lăn Chuột Nhảy Số, Tự Động Định Dạng Tiền Tệ, Đóng Modal Bằng ESC & Bảng Phím Tắt F1-F10', done: true, note: 'Chặn hoàn toàn cuộn chuột làm thay đổi số lượng; định dạng real-time phân tách hàng nghìn 1.500.000; để trống các ô giá vốn/phụ thu; phím ESC đóng mọi popup; tích hợp bộ phím tắt quầy thu ngân F1-F10 kèm modal hướng dẫn' },
+      { id: 'spa-auto-pricing-instant-0ms', cat: 'PROD', title: 'Tính Giá Spa Tự Động 0ms, So Khớp Không Phân Biệt Hoa Thường & Dải Cân Vượt Trần Thông Minh', done: true, note: 'Tính giá tức thì 0ms ở client từ allPetPricingData, backend dùng COLLATE NOCASE; tự động áp mức giá trần cao nhất khi cân nặng thú cưng vượt mức max_weight' },
+      { id: 'unified-ui-confirm-modal', cat: 'UI', title: 'Chuẩn Hóa Hộp Thoại Xác Nhận: Thay Thế Toàn Bộ Confirm Trình Duyệt Bằng Modal POS Đẳng Cấp', done: true, note: 'Loại bỏ hoàn toàn window.confirm() dính domain ngrok; áp dụng showConfirmModal dạng async Promise với backdrop blur, icon phân loại màu, nút Xác Nhận & Hoàn Tác' },
+      { id: 'dynamic-version-and-changelog-modal', cat: 'SYS', title: 'Hệ Thống Phiên Bản Động, Auto Cache-Busting, Modal Changelog & Cập Nhật Máy Chủ 1-Chạm', done: true, note: 'Tự động lấy commit hash và ngày build từ Git; tự động làm mới cache bằng querystring .js?v=hash_date; hiển thị modal changelog chi tiết ở chân sidebar và nút cập nhật máy chủ 1-chạm' },
+      { id: 'oem-order-edit-delete-and-rollback', cat: 'PROD', title: 'Mở Khóa Sửa & Xóa Đơn Đặt Gia Công OEM Đã Nhận Hàng (Hoàn Tác Kho Thành Phẩm & Vật Tư Xưởng)', done: true, note: 'Cho phép chỉnh sửa và xóa đơn OEM trạng thái RECEIVED; tự động trừ kho thành phẩm, hoàn lại nguyên liệu kho xưởng và xóa phiếu chi sổ quỹ đồng bộ 100%' },
+      { id: 'bom-status-badges-and-filters', cat: 'PROD', title: 'Huy Hiệu Trạng Thái BOM ⚡ và Bộ 3 Tab Lọc Nhanh Trong Quản Lý Định Lượng Công Thức', done: true, note: 'API trả về bom_count cho từng sản phẩm; giao diện gắn badge nổi bật Đã có BOM (X tp); 3 tab lọc nhanh: Tất cả, Đã có BOM, Chưa có BOM' },
+      { id: 'purchases-empty-inputs-blank', cat: 'PO', title: 'Đơn Nhập Hàng NCC: Để Trống Ô Số Lượng & Thực Trả NCC Thay Vì Điền Sẵn 1 Và 0', done: true, note: 'Để trống value="" và dùng placeholder="0"; validate chặn lưu phiếu rác khi số lượng <= 0' },
+      { id: 'flexible-inventory-stock-audit', cat: 'INV', title: 'Kiểm Kê Kho Từng Phần Linh Hoạt: Chọn Lọc Từng Dòng Bằng Checkbox & Cân Bằng Kho Riêng Biệt', done: true, note: 'Hỗ trợ kiểm kê theo nhóm hàng hoặc sản phẩm tùy chọn; checkbox chọn dòng, nút Chỉ xem dòng lệch và cân bằng kho an toàn chỉ áp dụng cho hàng đã chọn' },
+      { id: 'topup-transactions-management-full', cat: 'CASH', title: 'Quản Lý, Xem, Sửa, Xóa Phiếu Nạp Ví Spa Hoàn Tác 100% (Ví, Điểm Thưởng & Sổ Quỹ)', done: true, note: 'Sub-tab Hóa Đơn Nạp Ví Spa và modal Lịch sử ví; hỗ trợ chọn tài khoản ngân hàng hoặc két tiền mặt; hoàn tác đồng bộ số dư ví, điểm loyalty và sổ quỹ' },
+      // 0. CẬP NHẬT TRƯỚC ĐÓ (2026-10-02 & 2026-10-07)
+      { id: 'import-full-sheets-invoices-and-customers', cat: 'PROD', title: 'Import Trọn Bộ 772 Khách Hàng, 77 Sản Phẩm & 129 Hóa Đơn Lịch Sử Google Sheets', done: true, note: 'Khớp 100% 77 mã sản phẩm, 772 khách hàng kèm mã KH/chành xe/công nợ cũ; nạp 129 hóa đơn bán lẻ và 683 dòng chi tiết món từ tháng 05/2026 đến 09/2026' },
+      { id: 'contacts-import-code-and-notes', cat: 'PROD', title: 'Nâng Cấp Import Khách Hàng: Giữ Nguyên Mã Cũ (ID KH...), Ghi Chú Giao Hàng & Auto-Map Nhóm Đại Lý', done: true, note: 'Bổ sung cột code và note vào bảng contacts; nâng cấp bộ đọc Import Excel tự động nhận diện cột ID, Notes, map nhóm Đại lý/Khách lẻ và chuẩn hóa sạch SĐT thiếu số 0' },
+      // --- 0.0 CẬP NHẬT MỚI NHẤT (2026-10-02) ---
+      { id: 'transfer-item-quick-search-oem-style', cat: 'INV', title: 'Điều Chuyển Kho: Chuẩn Hóa Ô Tìm Kiếm Thả Thẳng Vào Bảng Chuẩn OEM / POS & Modal Xác Nhận Hiện Đại', done: true, note: 'Chuẩn hóa dropdown tìm kiếm hàng chuyển phân tách rõ 2 nhóm: Chưa chọn vào phiếu và Đã có trong phiếu (mờ + nút Tăng SL). Click chọn tự động bay vào bảng và bôi đen ô số lượng để gõ ngay; thay thế confirm() trình duyệt bằng Modal In-App chuyên nghiệp và Toast notification' },
+      { id: 'oem-edit-order-complete-fix', cat: 'PROD', title: 'Khắc Phục Toàn Diện Nút Sửa Đơn Đặt Gia Công OEM & Đồng Bộ Nguồn Tiền (Quỹ Cty/Cá Nhân)', done: true, note: 'Tái cấu trúc hàm renderOEMItemRow và openModalEditOEM; gán lại chính xác nhà máy, kho NVL xưởng, kho nhận, hạn giao, nguồn tiền, chiết khấu và danh sách hàng; tự động đối chiếu tồn kho BOM và cập nhật fund_source trong database' },
+      { id: 'transfer-warehouse-backend-fix', cat: 'INV', title: 'Khắc Phục Lỗi Chuyển Kho: Đồng Bộ Payload item_id / product_id / ingredient_id & Endpoint Chi Tiết', done: true, note: 'Backend xử lý linh hoạt item_id cho cả Hàng Hóa và Nguyên Liệu; bổ sung API GET /api/inventory/transfers/{id} xem chi tiết phiếu; chuẩn hóa transfer_code và items_count trên giao diện và bộ test tự động' },
+
+      { id: 'oem-quick-search-and-dual-discount', cat: 'PROD', title: 'Hiện Đại Hóa Lập Đơn OEM: Quick-Search Thả Thẳng Vào Bảng & Chiết Khấu Kép (% / VNĐ)', done: true, note: 'Bỏ nút bấm thêm dòng rườm rà; gõ tìm kiếm sản phẩm thả thẳng vào bảng đơn OEM chuẩn POS; hỗ trợ chuyển đổi chiết khấu linh hoạt giữa % và số tiền VNĐ trực tiếp' },
+      { id: 'pos-product-lifecycle-bulk-actions', cat: 'PROD', title: 'Quản Lý Vòng Đời Hàng Hóa Chuẩn POS: Checkbox Hàng Loạt, Ngừng Kinh Doanh & Dọn Sạch Catalog An Toàn', done: true, note: 'Bổ sung checkbox chọn nhiều mặt hàng + Floating Action Bar (Ngừng kinh doanh, Xóa đã chọn an toàn); tự động bảo vệ hàng còn tồn kho và lịch sử hóa đơn; đưa nút Dọn sạch catalog vào Cài Đặt bảo vệ bằng mật mã XOA HANG HOA' },
+      { id: 'unit-conversion-and-cost-perm', cat: 'PROD', title: 'Quy Đổi Đơn Vị Tính Theo Mặt Hàng (Thùng/Chai) & Bảo Mật Ẩn Giá Vốn (RBAC)', done: true, note: 'Bảng item_units quy đổi tỷ lệ riêng cho từng SP; tự động nhân ratio trừ tồn kho và ghi nhận lịch sử; phân quyền inventory.view_cost ẩn giá vốn/lợi nhuận khỏi API và UI cho cashier' },
+      { id: 'repo-cleanup-and-shop-deploy-scripts', cat: 'SYS', title: 'Chuẩn Hóa Cấu Trúc Repo & Kịch Bản Cập Nhật / Dọn Dẹp Máy Tiệm 1-Chạm', done: true, note: 'Gom gọn 16 file bat/test tản mát vào deploy/ và tests/manual/. Thư mục gốc chỉ giữ 2 file CHAY_POS.bat và CAP_NHAT.bat; tạo scripts/DON_DEP_MAY_TIEM.bat tự động backup DB ra Desktop và gỡ kẹt Git' },
+      { id: 'oem-services-catalog-and-bom-cost', cat: 'PROD', title: 'Danh mục 22 Dịch Vụ Gia Công OEM & File Nguyên Liệu Tính Giá Cost BOM', done: true, note: 'Bóc tách 22 mã dịch vụ OEM (sữa tắm chung dung tích 50ml, 250ml, 500ml, 2L; thịt tươi bóc tách theo từng loại; lau sàn, xịt khử mùi, rửa tay, rửa tai, serum, canxi, men & creatin). Xuất file Excel chuẩn hóa Danh_Sach_Nguyen_Lieu_Dich_Vu_OEM.xlsx' },
+      { id: 'quiet-toast-notifications', cat: 'UI', title: 'Tối ưu UX Thông báo: Thay thế modal alert chặn màn hình bằng Toast êm ái khi cập nhật nguyên liệu/NCC', done: true, note: 'Chuyển toàn bộ alert thành showToast tự ẩn sau 2s, không bắt người dùng bấm Đã hiểu nhiều lần gây phiền toái' },
+      { id: 'ai-bom-suggest-and-inline-search', cat: 'PROD', title: 'Nâng Cấp BOM Hiện Đại: Quick-Search Nguyên Liệu Thả Thẳng Vào Bảng & ✨ AI Gợi Ý BOM', done: true, note: 'Bỏ hoàn toàn modal che rườm rà. Thêm thanh quick-search thả nguyên liệu thẳng vào bảng BOM, sửa định lượng inline. Tích hợp AI Gemini 2.5 Flash gợi ý trọn bộ công thức BOM 1-chạm & Nút 📋 Sao chép BOM từ sản phẩm khác' },
+      { id: 'ecomm-sync-shopee-tiktok', cat: 'ECOMM', title: 'Đồng bộ Đơn Hàng Sàn TMĐT (Shopee & TikTok Shop): Tự động trừ tồn kho & Ghi nhận Sổ Quỹ', done: false, note: 'Kế hoạch triển khai: 1) Import Excel đơn hàng hàng ngày/ca từ Shopee & TikTok Seller Center tự động map SKU cấn trừ tồn kho; 2) Tự động hóa kéo đơn ngầm qua Chrome CDP hoặc đồng bộ qua cổng trung gian Pancake/POSCAKE' },
+      { id: 'ai-cashflow-assistant', cat: 'CASH', title: 'Trợ Lý Thu Chi AI: Tự động bóc tách Bill Chuyển Khoản (Ctrl+V) & Câu lệnh tự nhiên (Gemini 2.5 Flash)', done: true, note: 'Tích hợp Google Gemini 2.5 Flash Vision OCR đọc bill ngân hàng (MB, VCB, MoMo...) và Rule-based Regex offline. Nhận diện số tiền, mã GD (FT code), tài khoản quỹ, kiểm tra chống trùng bill và ghi sổ quỹ 1-chạm' },
+      { id: 'ai-config-and-test-key', cat: 'SYS', title: 'Nút Kiểm Tra Key AI & Tự Động Thích Ứng Mô Hình Gemini 2.5 Flash Mới Nhất', done: true, note: 'Bổ sung nút 🔍 Kiểm Tra Key trong modal cài đặt AI; tự động gửi ping test nhẹ xác thực key, nâng cấp hỗ trợ Gemini 2.5 Flash siêu tốc và đóng gói lại POS_Mastercare.exe độc lập' },
+      { id: 'transfer-item-quick-search', cat: 'INV', title: 'Điều Chuyển Kho: Chuẩn hóa cơ chế tìm kiếm gợi ý thêm hàng 1 chạm theo mẫu Phiếu Nhập Hàng', done: true, note: 'Thay thế hoàn toàn nút thêm dòng và modal/droplist chọn rườm rà bằng thanh tìm kiếm thông minh phía trên bảng (hỗ trợ gõ không dấu, hiển thị tồn kho xuất, badge phân loại). Click kết quả tự động bay vào bảng hoặc tăng số lượng, click ngoài tự ẩn mượt mà' },
+      { id: 'app-version-and-po-tabs', cat: 'UI', title: 'Hiển thị phiên bản v3.4.1 ở chân Sidebar & Bổ sung thanh Sub-Tabs điều hướng cho Nhập Hàng', done: true, note: 'Footer sidebar hiển thị v3.4.1 • 2026.10.01 kèm chấm trạng thái Local; module Nhập Hàng trang bị thanh Sub-Tabs 3 mục chuyển đổi mượt mà giữa Đơn Hàng, So Sánh Giá và Biến Động Giá' },
+      { id: 'ui-popup-pickers', cat: 'UI', title: 'Chuẩn hóa ô Drop List: Chuyển sang Popup Droplist có Tìm Kiếm & Nút 1 Chạm (Segmented Pills)', done: true, note: 'Popup chọn Tài khoản/Két tiền (Sổ Quỹ), Popup chọn NCC & Đơn nợ lẻ (Hẹn trả nợ/Chi trả), Dải nút 1 chạm Quỹ Cty vs Cá nhân & Lọc Thu/Chi' },
+      { id: 'pos-staff-clean', cat: 'UI', title: 'Dọn dẹp header POS: Ẩn selector nhân viên thừa góc phải', done: true, note: 'Ẩn an toàn #pos-staff-select tránh trùng với sidebar góc dưới bên trái, giữ nguyên tương thích API ca trực và phân quyền' },
+      { id: 'supp-assign-items', cat: 'PO', title: 'Form Nhập Hàng: Nút & Modal gán nhanh sản phẩm/nguyên liệu cho NCC', done: true, note: 'Nút ⚡ Gán hàng kèm popup tìm kiếm, lọc phân loại và tích chọn hàng loạt; tự động đồng bộ vào supplier_items' },
+      { id: 'debt-plan-forecast', cat: 'CASH', title: 'Quản lý Dòng Tiền & Công Nợ: Kế hoạch hẹn ngày trả nợ NCC (Theo đơn & 1 phần theo nợ)', done: true, note: 'Bảng supplier_debt_plans, hỗ trợ hẹn trả linh hoạt (50%/100%/tùy chọn), tự động đồng bộ dự báo chi theo quỹ Cty / Cá nhân' },
+      { id: 'audit-sheet-modern', cat: 'INV', title: 'Bảng Kiểm Kê Kho: Chuyển hoàn toàn sang Active Audit Sheet & Modal Lịch Sử', done: true, note: 'Bỏ hoàn toàn toggle View Mode; giao diện phẳng, category droplist lọc 1 chạm, phím Enter chuyển dòng mượt mà 0ms' },
+      { id: 'deploy-patch-auto', cat: 'SYS', title: 'Kịch bản cập nhật CAP_NHAT_1_CHAM.bat tự đồng bộ templates/static sang _internal', done: true, note: 'Tự động sao chép UI vào bản PyInstaller standalone và bổ sung fallback fetch HTTPS an toàn khi thiếu Deploy Key SSH' },
+
+      // 0.1 CẬP NHẬT TRƯỚC ĐÓ (2026-09-30)
+      { id: 'po-debt-1', cat: 'PO', title: 'Phân tách công nợ NCC theo 2 quỹ (Quỹ Công Ty & Quỹ Cá Nhân)', done: true, note: 'Bổ sung initial_debt_company & initial_debt_personal, tự động cấn trừ khi thanh toán, đồng bộ nợ 2 quỹ trên Đối Tác, Dòng Tiền & Xuất Excel' },
+      { id: 'deploy-ssh-1', cat: 'SYS', title: 'Kịch bản cập nhật 1-chạm (CAP_NHAT_1_CHAM.bat) qua Deploy Key SSH', done: true, note: 'Tự động quét & diệt tận gốc tiến trình POS/Python chạy ngầm khóa file, giải phóng port 8998/8999 và hard reset main an toàn' },
+      { id: 'excel-import-1', cat: 'Logic', title: 'Khắc phục xung đột va chạm cột khi Import Excel (Nguyên liệu, Hàng hóa, BOM)', done: true, note: 'Thuật toán 2 lớp ưu tiên exact match, chống tình trạng cột Mã nguyên liệu bị nhận nhầm thành cột Tên nguyên liệu' },
+      { id: 'po-detail-1', cat: 'PO', title: 'Đồng bộ động Tên mặt hàng & Thành tiền trong chi tiết phiếu nhập cũ', done: true, note: 'LEFT JOIN bảng ingredients/products tự động hiển thị tên mới nhất thay vì mã thô; sửa lỗi hiển thị thành tiền 0 đ' },
+      { id: 'po-confirm-1', cat: 'UI', title: 'Thay thế popup confirm() thô của trình duyệt khi nhận/hủy phiếu nhập bằng customConfirm UI', done: true, note: 'Modal bo góc hiện đại, icon hàng hóa 📦, nút xác nhận rõ ràng đồng bộ giao diện' },
+
+      // 1. PHÂN HỆ DỊCH VỤ SPA
+      { id: 'spa-1', cat: 'SPA', title: 'Tạo phiếu dịch vụ tách tiền (tách bill thanh toán riêng tiền dịch vụ, cọc, tip)', done: true, note: 'Đã hoàn thiện K80 3 phần, slip tip thợ, slip biên nhận cọc, hiển thị cột 1 & 10' },
+      { id: 'spa-2', cat: 'SPA', title: 'Phiếu dịch vụ in dư dòng cắt nghệ thuật & dọn khoảng cách cắt giấy thẩm mỹ', done: true, note: 'Khắc phục trùng dòng regex và thêm khoảng đệm 18mm chống dao cắt phạm' },
+      { id: 'spa-3', cat: 'SPA', title: 'Thao tác hàng loạt (Bulk Actions toolbar & checkboxes) thay bảng tính inline', done: true, note: 'Thanh floating toolbar, đổi trạng thái/gọi đón/gán thợ hàng loạt, in gộp K80' },
+      { id: 'spa-4', cat: 'SPA', title: 'Droplist Popup cho 3 cột: Dịch Vụ, Lưu Ý & Yêu Cầu, Thợ Phụ Trách', done: true, note: 'Modal nhẹ onclick mở nhanh, chọn gói giá, chips cạo lông, thợ cắt/tắm' },
+      { id: 'spa-5', cat: 'SPA', title: 'Tab Spa chỉ hiện spa trong ngày hôm nay (mặc định today)', done: true, note: 'Lọc mặc định hôm nay, nút Hôm Nay / Tất Cả, giảm tải render quầy' },
+      { id: 'spa-6', cat: 'SPA', title: 'Gom nút lọc trạng thái dịch vụ về 1 dropdown phân loại', done: true, note: 'Thay thế 5 nút bấm dàn trải bằng <select id="select-svc-filter-status">' },
+      { id: 'spa-7', cat: 'SPA', title: 'Thêm hiển thị KPI: Chưa gọi đón & Chưa về trên header Spa', done: true, note: 'Dàn 5 thẻ KPI chuẩn (Hôm nay, Đang làm, Chưa gọi, Đưa đón, Đã về)' },
+      { id: 'spa-8', cat: 'SPA', title: 'Sửa lỗi giật tải lại trang khi sửa 1 ô (Optimistic Local Update)', done: true, note: 'Cập nhật mảng local & DOM tức thì 0ms, gọi PUT ngầm, tự rollback nếu lỗi' },
+      { id: 'spa-9', cat: 'SPA', title: 'Tiếp nhận Spa hàng loạt dạng Sheet phẳng với 5 cột checkbox phụ thu riêng & Bulk Action Bar', done: true, note: 'Chuẩn 1 dòng phẳng ~40px, checkbox Răng/Cắt NT/Gỡ rối/Nhuộm/Ship, gán mẫu 1 chạm' },
+      { id: 'spa-10', cat: 'SPA', title: 'Dải lịch ngang 7 ngày + Date Picker tự do + Bộ lọc nhanh ca trong ngày (Tất Cả, Chưa Về, Đã Về)', done: true, note: 'Hiển thị ca trong ngày (kể cả đã về với viền xanh emerald), nút hoàn tác ↩️ mở lại' },
+      { id: 'spa-11', cat: 'SPA', title: 'Đồng bộ cuộc gọi thông minh cho khách có nhiều bé (1 chạm)', done: true, note: 'Đổi trạng thái gọi 1 dòng tự động hỏi áp dụng cho toàn bộ các bé của cùng chủ' },
+      { id: 'spa-12', cat: 'SPA', title: 'Tự động nhận diện Ví Spa & Cơ chế cấn trừ sạch ví (Lựa chọn A) liên thông Sổ Quỹ', done: true, note: 'Đủ tiền tự chọn Trừ ví; thiếu tiền cấn trừ hết ví + thu ngoài phần thiếu; ghi đúng phần thu ngoài vào Sổ Quỹ' },
+
+      // 2. HÓA ĐƠN, BẢNG GIÁ & VÍ
+      { id: 'bill-1', cat: 'BILL', title: 'Phân tách dòng tiền Topup vs Hàng hóa & An toàn số dư ví', done: true, note: 'Gỡ trừ ví khỏi POS bán lẻ, hoàn tiền ví khi hủy đơn, in phiếu thu K80 ngầm không xem trước, bổ sung Tên/SĐT vào Sổ Quỹ' },
+      { id: 'bill-2', cat: 'BILL', title: 'Tab Hóa Đơn: Sub-tab Lịch Sử Spa tra cứu hóa đơn dịch vụ chuyên biệt', done: true, note: 'Đã kích hoạt sub-view Spa 12 cột, lọc theo ngày/trạng thái/thanh toán, thống kê doanh thu, in lại K80, mở lại vé' },
+      { id: 'bill-3', cat: 'BILL', title: 'Bảo mật số điện thoại (ẩn dạng **** *** ###, rê chuột mới hiện)', done: true, note: 'Đã hoàn thiện tại modal sửa hàng loạt và bảng điều phối' },
+      { id: 'bill-4', cat: 'BILL', title: 'Di chuyển bảng gói Topup vào Bảng Giá (price-lists)', done: true, note: 'Đã di chuyển thành sub-tab thứ 4 (pl-subtab-topup) trong Tab Bảng Giá, gỡ bỏ menu thừa ở Cài Đặt' },
+      { id: 'bill-5', cat: 'BILL', title: 'Sửa lỗi hiển thị mẫu hóa đơn preview & in ấn', done: true, note: 'Chuẩn hóa preview scale, CSS @page auto nhiệt K80/K58, bổ sung mẫu in Phiếu Thu/Chi (K80 & A4/A5 kế toán) và Phiếu Kiểm Kê Kho (A4)' },
+      { id: 'bill-6', cat: 'BILL', title: 'Thiết Kế Mẫu In Visual Canvas & 12 Mẫu Nghiệp Vụ Thực Tế', done: true, note: 'Bổ sung 100% checkbox trường động (Spa, Sổ Quỹ, Kiểm Kê), fix ReferenceError renderCanvas & exports, auto-render không trắng trang, scale chống tràn giấy K80/A4' },
+      { id: 'print-7', cat: 'BILL', title: 'Bảng Điều Khiển In Đậm Cố Định & Phân Nhóm 12 Mẫu In', done: true, note: 'Cấu hình font-bold độc lập cho từng trường, hỗ trợ in nét chuẩn trên mọi đầu in nhiệt K80/A4' },
+
+      // 3. KHÁCH SẠN, HỆ THỐNG & DEPLOY
+      { id: 'sys-1', cat: 'SYS', title: 'Phân Hệ Quản Lý Hotel (Khách Sạn Thú Cưng) toàn diện', done: true, note: '16 phòng lưu trú, tiếp nhận theo lô K80, 3 chế độ xem (lưới, bảng, gantt), checkout và đối soát cọc' },
+      { id: 'auth-1', cat: 'SYS', title: 'Quản lý nhân viên (Cài Đặt > Nhân Viên) và phân quyền ca làm việc RBAC', done: true, note: 'Phân quyền chi tiết 4 vai trò, kiểm soát mở ca/miễn mở ca, log đăng nhập bảo mật' },
+      { id: 'deploy-1', cat: 'SYS', title: 'Triển khai mạng LAN & Tự động dò Server qua PowerShell và QR Code', done: true, note: 'Bộ kịch bản .bat, find_server.ps1 tự động quét subnet dò IP server, make_qr.py sinh QR truy cập' },
+      { id: 'cloud-1', cat: 'SYS', title: 'Supabase PostgreSQL Adapter & Bộ Script Đồng Bộ Đám Mây', done: true, note: 'migrate_to_supabase.py, copy_data_to_supabase.py, kiến trúc sẵn sàng Hybrid Cloud' },
+      { id: 'sys-2', cat: 'SYS', title: 'Thay đổi popup mặc định trình duyệt (alert/confirm) thành Toast & Modal UI', done: true, note: 'customConfirm danger (icon đỏ, phím Enter/Esc), customAlert, showToast đồng bộ 100%' },
+      { id: 'sys-3', cat: 'SYS', title: 'Thêm phím tắt cho popup (ESC đóng, Enter xác nhận, hotkeys quầy)', done: true, note: 'Hỗ trợ phím Enter/Esc trên customConfirm modal và hotkeys F1-F9' },
+      { id: 'sys-4', cat: 'SYS', title: 'Tích hợp AI Trợ lý: Gemini 2.5 Flash Vision & Text Engine Hybrid', done: true, note: 'Bóc tách bill chuyển khoản ngân hàng qua ảnh, parse lệnh thu chi tiếng Việt 0ms, tự động điền form Sổ Quỹ' },
+      { id: 'sys-5', cat: 'SYS', title: 'Đóng gói Portable EXE không console (System Tray pystray & Registry autostart)', done: true, note: 'PyInstaller --noconsole, redirect stdio pos_debug.log, pystray icon khay he thong' },
+      { id: 'sys-6', cat: 'SYS', title: 'Tu dong sao luu database Google Drive qua Apps Script Webhook', done: true, note: 'backup_service.py chay ngam moi 3600s, upload multipart webhook, tu xoa backup cu qua 7 ngay' },
+      { id: 'sys-7', cat: 'SYS', title: 'Bao mat quyen ca lam viec & xoa credentials khoi tai lieu', done: true, note: 'Admin/quan ly can_skip_shift=1 ban hang khong can mo ca, loai bo toan bo admin123 khoi .txt/.md' },
+      { id: 'sys-8', cat: 'SYS', title: 'Bo script cap nhat doc lap 100% ASCII (CAP_NHAT_NHANH.bat & zip)', done: true, note: 'Script khong dau tranh loi byte cmd.exe, sao luu DB truoc khi chep de, dong goi GOI_CAP_NHAT_NHANH.zip' },
+      { id: 'contacts-1', cat: 'Logic', title: 'Sua loi tai file mau & import Excel Khach Hang / Nha Cung Cap', done: true, note: 'Doi thu tu route tranh 422 Unprocessable Entity, nut download dynamic doc dung combobox & no-cache' },
+
+      // 4. GIAO DIỆN & TRẢI NGHIỆM POS ĐÃ HOÀN THIỆN
+      { id: 'ui-1', cat: 'UI', title: 'Thẻ tab bo cong lõm ngược 20px (Inverted Curved Scoop) liền mạch canvas', done: true, note: 'Góc lượn scoop liền mạch tab đang chọn với vùng nội dung' },
+      { id: 'ui-2', cat: 'UI', title: 'Đồng bộ bo cong lõm ngược cho Menu Thu Nhỏ (Collapsed Sidebar 5.5rem)', done: true, note: 'Hiệu ứng scoop bo mượt khi thu hẹp thanh bên sidebar' },
+      { id: 'ui-3', cat: 'UI', title: 'Đưa thanh cuộn dọc sang mép trái (Left-side Scrollbar)', done: true, note: 'Triệt tiêu thanh cuộn ngang, thuận tay thao tác thu ngân' },
+      { id: 'ui-4', cat: 'UI', title: 'Top Slim Progress Bar (Linear/Next.js style) gradient chạy chuyển tab', done: true, note: 'Thanh loading siêu mỏng phát sáng khi chuyển đổi module' },
+      { id: 'ui-5', cat: 'UI', title: 'Thẻ hàng nổi độc lập (Floating Card-Row Flow) tăng tốc GPU translate3d', done: true, note: 'Mỗi hàng vé dịch vụ là một card bo góc đổ bóng nổi bật' },
+      { id: 'ui-6', cat: 'UI', title: 'Giỏ hàng POS thành thẻ nổi bo góc, cụm thanh toán gom 3 khối thẻ trắng', done: true, note: 'Layout quầy POS chuẩn thanh toán bán sỉ & lẻ' },
+      { id: 'ui-7', cat: 'UI', title: 'Quy chuẩn phân trang 20 dòng/trang cho bảng Spa, Kho hàng, Hóa đơn', done: true, note: 'Tối ưu hiệu năng DOM và quản trị lượng dữ liệu lớn' },
+      { id: 'ui-8', cat: 'UI', title: 'Đổi màu chữ trạng thái Chưa mở ca sang đỏ mận text-rose-600', done: true, note: 'Cảnh báo rõ ràng cho nhân viên khi chưa bắt đầu ca làm việc' },
+      { id: 'ui-9', cat: 'UI', title: 'Server-side Injection Logo & Tên Ứng Dụng Màn Hình Đăng Nhập', done: true, note: 'Route GET / inject trực tiếp app_name và shop_logo vào HTML response, hiển thị 0ms tức thì không chớp giật FOUC' },
+      { id: 'ui-10', cat: 'UI', title: 'Chuẩn Hóa 13 Tabs Sang Tailwind CSS & Vector Lucide SVG', done: true, note: 'Gỡ bỏ 100% Unicode emoji thô, đồng bộ phong cách thiết kế hiện đại, bảng biểu, thẻ KPI và form chuẩn Tailwind UI' },
+      { id: 'guide-1', cat: 'UI', title: 'Tab Hướng Dẫn Nghiệp Vụ (Docs & Wiki) với 7 phân hệ & sơ đồ SVG', done: true, note: 'Bổ sung tab Hướng Dẫn trên Cài Đặt, 7 phân hệ nghiệp vụ, sơ đồ Flowchart vector SVG 100% offline, SOP 4 bước và mẹo quầy' },
+      { id: 'wallet-1', cat: 'Logic', title: 'Tách bạch Ví Spa khỏi tiền phòng Khách Sạn (POS & Hotel Checkout)', done: true, note: 'Ví Spa chỉ trừ cho dịch vụ Spa/Grooming, TUYỆT ĐỐI không cấn trừ tiền phòng lưu trú; backend + modal checkout + JS handlers đầy đủ' },
+      { id: 'rep-analytics-1', cat: 'SYS', title: 'Hệ Thống Báo Cáo Kinh Doanh Đa Chiều & Dashboard Biểu Đồ Trực Quan', done: true, note: 'Tích hợp 5 sub-tabs (Tổng quan biểu đồ, Dòng tiền thanh toán, Hàng hóa vs Spa, Nhân viên, Top bán chạy), bộ lọc mốc thời gian và xuất Excel .xlsx' },
+      { id: 'order-filter-server', cat: 'UI', title: 'Thanh Bộ Lọc Hóa Đơn Nâng Cao Phía Server/CSDL', done: true, note: 'Lọc đa tiêu chí: thời gian, hình thức thanh toán, thu ngân, khách hàng, chứa sản phẩm, trạng thái nợ, không giới hạn 200 đơn' },
+      { id: 'telegram-cancel-refund', cat: 'Logic', title: 'Hoàn Thiện Telegram ChatOps & Hủy Đơn Hoàn Kho/Ví/Điểm', done: true, note: 'Sửa lỗi reply_markup editMessageText, tự động hoàn kho BOM, hoàn ví Spa, thu hồi điểm tích lũy và hạ hạng khi hủy đơn' },
+      { id: 'ui-custom-modal-sync', cat: 'UI', title: 'Đồng Bộ Hộp Thoại Xác Nhận Hủy Đơn Chuẩn Design System Mastercare', done: true, note: 'Gỡ bỏ hoàn toàn popup confirm/alert trình duyệt, thay thế bằng Custom Confirm Modal đỏ nổi bật kèm toast' },
+      { id: 'pos-cart-grid-align', cat: 'UI', title: 'Căn Chỉnh Lại Bảng Giỏ Hàng POS & Tách Ô Đơn Giá 2 Tầng', done: true, note: 'Khắc phục triệt để lỗi lệch cột giữa Header và Row, tách ô Đơn giá 2 tầng tránh chồng chéo lên nút [+] của cột SL' },
+      { id: 'hrm-payroll-mobile', cat: 'Logic', title: 'Hoàn Thiện Phân Hệ Chấm Công & Bảng Lương (HRM) Đa Nền Tảng', done: true, note: 'Tự động tính lương 4 tầng, phạt trễ/vắng/quên quẹt, thưởng chuyên cần, tăng ca OT, tạm ứng liên kết Sổ Quỹ, tùy biến quy định linh hoạt, xem phiếu lương Mobile và xuất Google Sheet liên kết VLOOKUP' },
+      { id: 'hrm-staff-subtab-quick-acc', cat: 'Logic', title: 'Tách Biệt Subtab Nhân Sự HRM, Mở Khóa Khối Làm Việc & Cấp Nhanh Tài Khoản (F3/F4)', done: true, note: 'Định dạng tiền tệ realtime cho quy định phạt/thưởng, hỗ trợ CRUD khối làm việc ca chuẩn (có kiểm tra ràng buộc nhân viên), tạo subtab Nhân Sự chuyên quản lý hồ sơ lương, map phím tắt F3 thêm nhân sự và F4/nút bấm cấp nhanh tài khoản đăng nhập POS/Mobile' },
+      { id: 'prod-image-upload-pos', cat: 'UI', title: 'Ảnh hàng hóa nén WebP <=300px (Chọn file / Ctrl+V / URL) trên Kho & POS', done: true, note: 'Lưu products.image_url, tự nén canvas WebP ~15KB, hiển thị ở bảng Kho tổng hợp, gợi ý tìm kiếm POS, giỏ hàng POS và phóng to ảnh' },
+      { id: 'kiotviet-excel-sync', cat: 'Logic', title: 'Đồng Bộ File Excel KiotViet 2-Pass (935 SP gốc + 110 ĐVT quy đổi + 817 ảnh CDN)', done: true, note: 'Tách Pass 1 (SP gốc, ghi đè tồn kho chuẩn, nạp ảnh CDN đầu tiên, tự tạo nhóm hàng) và Pass 2 (gộp Mã ĐVT Cơ bản + Quy đổi vào item_units)' },
+      { id: 'kiotviet-pricelist-multi-sync', cat: 'Logic', title: 'Đồng Bộ File Bảng Giá Tổng Hợp KiotViet Đa Cột (BangGia_KV)', done: true, note: 'Tự nhận diện 5 cột bảng giá trong 1 file, tự tạo 5 Bảng giá + 5 Hạng khách hàng (Nội bộ, Diamond, Gold, Titan, Đại lý), chỉ lưu các mức giá khác Bảng giá chung' }
+    ];
+
+    let tasks = [];
+    try {
+      const storedVer = localStorage.getItem('pos_petcare_roadmap_version');
+      const stored = localStorage.getItem('pos_petcare_roadmap_tasks');
+      if (stored && storedVer === ROADMAP_VERSION) {
+        tasks = JSON.parse(stored);
+      } else {
+        tasks = [...DEFAULT_TASKS];
+        localStorage.setItem('pos_petcare_roadmap_version', ROADMAP_VERSION);
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
+      }
+    } catch (e) {
+      tasks = [...DEFAULT_TASKS];
+    }
+
+    let activeCategory = 'all';
+
+    function switchMainView(view) {
+      const viewTasks = document.getElementById('view-tasks');
+      const viewTree = document.getElementById('view-tree');
+      const btnTasks = document.getElementById('nav-btn-tasks');
+      const btnTree = document.getElementById('nav-btn-tree');
+
+      if (view === 'tree') {
+        viewTasks.classList.add('hidden');
+        viewTree.classList.remove('hidden');
+        btnTree.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs';
+        btnTasks.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
+      } else {
+        viewTree.classList.add('hidden');
+        viewTasks.classList.remove('hidden');
+        btnTasks.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-purple-700 shadow-xs';
+        btnTree.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900';
+      }
+    }
+
+    function toggleTreeSection(id) {
+      const el = document.getElementById(id);
+      const arrow = document.getElementById(id + '-arrow');
+      if (el) {
+        el.classList.toggle('hidden');
+        if (arrow) {
+          arrow.textContent = el.classList.contains('hidden') ? '▶' : '▼';
+        }
+      }
+    }
+
+    function expandAllTree(expand) {
+      ['tree-routers', 'tree-frontend', 'tree-deploy', 'tree-core'].forEach(id => {
+        const el = document.getElementById(id);
+        const arrow = document.getElementById(id + '-arrow');
+        if (el) {
+          if (expand) {
+            el.classList.remove('hidden');
+            if (arrow) arrow.textContent = '▼';
+          } else {
+            el.classList.add('hidden');
+            if (arrow) arrow.textContent = '▶';
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('progress-table-body');
+      const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+      const statusFilter = document.getElementById('status-filter')?.value || 'all';
+
+      let filtered = tasks.filter(t => {
+        if (activeCategory !== 'all' && t.cat !== activeCategory) return false;
+        if (statusFilter === 'done' && !t.done) return false;
+        if (statusFilter === 'pending' && t.done) return false;
+        if (search) {
+          const matchTitle = (t.title || '').toLowerCase().includes(search);
+          const matchNote = (t.note || '').toLowerCase().includes(search);
+          const matchCat = (t.cat || '').toLowerCase().includes(search);
+          if (!matchTitle && !matchNote && !matchCat) return false;
+        }
+        return true;
+      });
+
+      let html = '';
+      if (filtered.length === 0) {
+        html = `
+          <tr>
+            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-400">
+              <span class="text-3xl block mb-2">🔍</span>
+              Không tìm thấy nhiệm vụ nào phù hợp với bộ lọc hiện tại.
+            </td>
+          </tr>
+        `;
+      } else {
+        filtered.forEach((t, idx) => {
+          const catBadges = {
+            ECOMM: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800 border border-orange-200">🛍️ Sàn TMĐT</span>',
+            POS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🏪 Quầy POS</span>',
+            SPA: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">🐾 Spa</span>',
+            BILL: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">🧾 Hóa Đơn</span>',
+            SYS: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">🏨 Hệ Thống</span>',
+            UI: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">🎨 Giao Diện</span>',
+            INV: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-200">📦 Kho Hàng</span>',
+            PROD: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">🏭 Sản Xuất</span>',
+            PO: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">📥 Nhập Hàng</span>',
+            CASH: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">💰 Sổ Quỹ</span>',
+            Logic: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">⚙️ Nghiệp Vụ</span>',
+          };
+          const catBadge = catBadges[t.cat] || `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">${t.cat}</span>`;
+
+          const statusBadge = t.done
+            ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã Xong</span>'
+            : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Đang Chờ</span>';
+
+          html += `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+              <td class="py-3.5 pl-4 pr-3 text-center text-xs font-mono font-bold text-slate-400">
+                ${idx + 1}
+              </td>
+              <td class="px-3 py-3.5 text-center">
+                <input type="checkbox" onchange="toggleTaskDone('${t.id}')" ${t.done ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer">
+              </td>
+              <td class="px-4 py-3.5 text-xs">
+                <div class="font-bold ${t.done ? 'text-slate-500 line-through' : 'text-slate-900'}">
+                  ${escapeHtml(t.title)}
+                </div>
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${catBadge}
+              </td>
+              <td class="px-3 py-3.5 text-center whitespace-nowrap">
+                ${statusBadge}
+              </td>
+              <td class="px-4 py-3.5 text-xs text-slate-600 font-mono">
+                ${escapeHtml(t.note || '-')}
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      tbody.innerHTML = html;
+      document.getElementById('table-showing-text').textContent = `Hiển thị ${filtered.length} / ${tasks.length} nhiệm vụ`;
+      updateStats();
+    }
+
+    function updateStats() {
+      const total = tasks.length;
+      const done = tasks.filter(t => t.done).length;
+      const pending = total - done;
+      const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-done').textContent = done;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-percent').textContent = `${percent}%`;
+      document.getElementById('stat-progress-bar').style.width = `${percent}%`;
+    }
+
+    function toggleTaskDone(id) {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        task.done = !task.done;
+        saveTasks();
+        renderTable();
+      }
+    }
+
+    function setCategoryFilter(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        if (btn.dataset.cat === cat) {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-xs';
+        } else {
+          btn.className = 'cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200';
+        }
+      });
+      renderTable();
+    }
+
+    function saveTasks() {
+      try {
+        localStorage.setItem('pos_petcare_roadmap_tasks', JSON.stringify(tasks));
+      } catch (e) {
+        console.error('Không lưu được vào LocalStorage', e);
+      }
+    }
+
+    function exportToMarkdown() {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const doneTasks = tasks.filter(t => t.done);
+      const pendingTasks = tasks.filter(t => !t.done);
+      const percent = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+
+      let md = `# BẢN ĐỒ TIẾN ĐỘ DỰ ÁN POS PETCARE\n`;
+      md += `> Ngày xuất: ${dateStr} | Tiến độ tổng: **${doneTasks.length}/${tasks.length} (${percent}%)**\n\n`;
+
+      md += `## 1. TỔNG QUAN TIẾN ĐỘ\n`;
+      md += `- **Tổng số nhiệm vụ:** ${tasks.length}\n`;
+      md += `- **Đã hoàn thành:** ${doneTasks.length} nhiệm vụ\n`;
+      md += `- **Đang chờ thực hiện:** ${pendingTasks.length} nhiệm vụ\n`;
+      md += `- **Tỷ lệ hoàn thành:** ${percent}%\n\n`;
+
+      md += `## 2. CHI TIẾT CÁC NHIỆM VỤ THEO PHÂN HỆ\n\n`;
+
+      const cats = [
+        { code: 'SPA', name: '🐾 Phân Hệ Dịch Vụ Spa' },
+        { code: 'BILL', name: '🧾 Phân Hệ Hóa Đơn & Bảng Giá' },
+        { code: 'SYS', name: '🏨 Phân Hệ Khách Sạn & Hệ Thống' },
+        { code: 'UI', name: '🎨 Giao Diện & Trải Nghiệm POS' },
+      ];
+
+      cats.forEach(c => {
+        const catTasks = tasks.filter(t => t.cat === c.code);
+        if (catTasks.length > 0) {
+          md += `### ${c.name}\n`;
+          catTasks.forEach(t => {
+            const check = t.done ? '[x]' : '[ ]';
+            md += `- ${check} **${t.title}**\n`;
+            if (t.note) md += `  - *Ghi chú:* ${t.note}\n`;
+          });
+          md += `\n`;
+        }
+      });
+
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PROJECT_PROGRESS_${dateStr}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function openAddTaskModal() {
+      document.getElementById('add-task-modal').classList.remove('hidden');
+    }
+    function closeAddTaskModal() {
+      document.getElementById('add-task-modal').classList.add('hidden');
+      document.getElementById('new-task-title').value = '';
+      document.getElementById('new-task-note').value = '';
+    }
+    function saveNewTask() {
+      const title = document.getElementById('new-task-title').value.trim();
+      const cat = document.getElementById('new-task-cat').value;
+      const done = document.getElementById('new-task-done').value === 'true';
+      const note = document.getElementById('new-task-note').value.trim();
+
+      if (!title) {
+        alert('Vui lòng nhập tên nhiệm vụ!');
+        return;
+      }
+
+      const newTask = {
+        id: 'task-' + Date.now(),
+        cat,
+        title,
+        done,
+        note: note || '-'
+      };
+
+      tasks.unshift(newTask);
+      saveTasks();
+      closeAddTaskModal();
+      renderTable();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>

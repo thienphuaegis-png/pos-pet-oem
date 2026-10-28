@@ -155,6 +155,25 @@ def get_settings():
     conn.close()
     return settings
 
+def _compress_base64_image(data_url: str, max_chars: int = 45000) -> str:
+    if not data_url or len(data_url) <= max_chars or not data_url.startswith("data:image/"):
+        return data_url or ""
+    try:
+        import base64
+        import io
+        from PIL import Image
+        header, b64_part = data_url.split(",", 1)
+        raw_bytes = base64.b64decode(b64_part)
+        img = Image.open(io.BytesIO(raw_bytes))
+        img.thumbnail((280, 280))
+        buf = io.BytesIO()
+        img.save(buf, format="WEBP", quality=85)
+        out_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/webp;base64,{out_b64}"
+    except Exception:
+        return data_url
+
+
 @router.post("/company")
 def update_company_settings(req: CompanySettingsUpdate, user=Depends(require_role("owner"))):
     conn = get_db()
@@ -169,13 +188,25 @@ def update_company_settings(req: CompanySettingsUpdate, user=Depends(require_rol
         ('shop_bank_account', req.shop_bank_account),
         ('shop_bank_owner', req.shop_bank_owner),
         ('shop_qr_mode', req.shop_qr_mode),
-        ('shop_qr_image', req.shop_qr_image or ""),
-        ('shop_logo', req.shop_logo or ""),
+        ('shop_qr_image', _compress_base64_image(req.shop_qr_image or "")),
+        ('shop_logo', _compress_base64_image(req.shop_logo or "")),
         ('google_drive_webhook_url', req.google_drive_webhook_url or "")
     ]
-    for key, val in updates:
-        cur.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?", (key, val, val))
-    conn.commit()
+    try:
+        cur.executemany(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            updates,
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        err_str = str(e)
+        if "free tier daily row write limit" in err_str:
+            raise HTTPException(
+                status_code=429,
+                detail="Tài khoản Cloudflare Free đã chạm trần 100.000 dòng ghi trong hôm nay (do lúc nãy vừa nạp 118.022 dòng dữ liệu). Hạn mức sẽ tự động mở lại lúc 07:00 sáng mai, hoặc mở ngay lập tức nếu nâng cấp gói Cloudflare $5/tháng.",
+            )
+        raise HTTPException(status_code=500, detail=f"Lỗi lưu cấu hình: {err_str}")
     conn.close()
     try:
         from server import invalidate_branding_cache
@@ -244,21 +275,24 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
     from backup_service import safe_sqlite_copy
     db_path = get_db_path()
 
-    # 1. Tu dong tao backup an toan truoc khi xoa
-    try:
-        backup_dir = os.path.join(os.path.dirname(db_path), "backups")
-        os.makedirs(backup_dir, exist_ok=True)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"pos_backup_pre_reset_{req.mode}_{timestamp}.db"
-        backup_filepath = os.path.join(backup_dir, backup_filename)
-        if os.path.exists(db_path):
-            safe_sqlite_copy(db_path, backup_filepath)
-            logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filepath}")
-        else:
-            logger.warning(f"DB file không tồn tại tại {db_path}, bỏ qua sao lưu file")
-    except Exception as e:
-        logger.error(f"Lỗi khi sao lưu trước khi xóa: {e}")
-        raise HTTPException(status_code=500, detail=f"Không thể tạo bản sao lưu an toàn trước khi xóa: {e}")
+    # 1. Tu dong tao backup an toan truoc khi xoa (chi ap dung khi chay file SQLite cuc bo)
+    is_cloud_db = bool(os.environ.get("DATABASE_URL") or os.environ.get("CF_D1_WORKER_URL") or os.environ.get("CF_D1_DATABASE_ID") or os.environ.get("VERCEL"))
+    backup_filename = "cloud_d1_time_travel" if is_cloud_db else ""
+    if not is_cloud_db:
+        try:
+            backup_dir = os.path.join(os.path.dirname(db_path), "backups")
+            os.makedirs(backup_dir, exist_ok=True)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"pos_backup_pre_reset_{req.mode}_{timestamp}.db"
+            backup_filepath = os.path.join(backup_dir, backup_filename)
+            if os.path.exists(db_path):
+                safe_sqlite_copy(db_path, backup_filepath)
+                logger.info(f"Đã tạo bản sao lưu an toàn tại: {backup_filepath}")
+            else:
+                logger.warning(f"DB file không tồn tại tại {db_path}, bỏ qua sao lưu file")
+        except Exception as e:
+            logger.error(f"Lỗi khi sao lưu trước khi xóa: {e}")
+            raise HTTPException(status_code=500, detail=f"Không thể tạo bản sao lưu an toàn trước khi xóa: {e}")
 
     conn = get_db()
     cur = conn.cursor()

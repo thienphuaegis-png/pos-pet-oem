@@ -2,7 +2,7 @@
 Script tự động đồng bộ & cập nhật Project Checkpoint 3-trong-1:
 - Cập nhật Git commit & timestamp mới nhất.
 - Đếm tổng số file và thông số CodeGraph AST.
-- Ghi đè docs/checkpoint/PROJECT_STATE.json chuẩn xác.
+- Ghi đè .ai/checkpoints/PROJECT_STATE.json chuẩn xác.
 """
 import os
 import sys
@@ -40,7 +40,7 @@ def main():
     commit, branch = get_git_info()
     files_cnt, nodes_cnt, edges_cnt = get_codegraph_status()
     
-    checkpoint_path = os.path.join(ROOT_DIR, "docs", "checkpoint", "PROJECT_STATE.json")
+    checkpoint_path = os.path.join(ROOT_DIR, ".ai", "checkpoints", "PROJECT_STATE.json")
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
     
     state_data = {
@@ -138,8 +138,8 @@ def main():
             }
         },
         "visual_artifacts": {
-            "project_map": "PROJECT_MAP.html",
-            "pos_checkout_sequence": "docs/checkpoint/diagrams/pos_checkout_flow.html"
+            "project_map": ".ai/MAP.html",
+            "pos_checkout_sequence": ".ai/checkpoints/diagrams/pos_checkout_flow.html"
         }
     }
     

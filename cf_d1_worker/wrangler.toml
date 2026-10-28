@@ -1,0 +1,14 @@
+name = "pos-petcare-d1"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Sau khi chạy: npx wrangler d1 create pos-petcare-db
+# Thay database_id bên dưới bằng ID mà Cloudflare trả về
+[[d1_databases]]
+binding = "DB"
+database_name = "pos-petcare-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+# Điền link Vercel sau khi deploy (ví dụ: https://pos-offline-petcare2.vercel.app)
+BACKEND_ORIGIN = ""

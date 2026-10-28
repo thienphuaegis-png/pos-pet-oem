@@ -75,6 +75,70 @@ def sync_order_stock(cur, order_id: int, force_zero: bool = False, start_date: s
 
 
 def sync_orders_stock(cur, order_ids, force_zero: bool = False):
+    ids_list = list(dict.fromkeys(order_ids))
+    if not ids_list:
+        return
     start = _start_date(cur)
-    for oid in order_ids:
-        sync_order_stock(cur, oid, force_zero=force_zero, start_date=start)
+    if len(ids_list) <= 5:
+        for oid in ids_list:
+            sync_order_stock(cur, oid, force_zero=force_zero, start_date=start)
+        return
+
+    # Tối ưu Batch cho Cloud D1 / số lượng lớn (1.000 - 2.000 đơn/lần):
+    # Gom truy vấn theo lô 200 đơn thay vì gọi 3 câu SELECT lẻ cho từng đơn.
+    chunk_size = 200
+    for i in range(0, len(ids_list), chunk_size):
+        chunk = ids_list[i:i + chunk_size]
+        ph = ",".join("?" for _ in chunk)
+        cur.execute(
+            f"SELECT id, platform, order_sn, order_status, order_date FROM marketplace_orders WHERE id IN ({ph})",
+            tuple(chunk),
+        )
+        orders_map = {r["id"]: r for r in cur.fetchall()}
+        if not orders_map:
+            continue
+
+        want_by_oid = {}
+        if not force_zero:
+            cur.execute(
+                f"""SELECT order_id, mapped_product_id AS pid, SUM(quantity - COALESCE(returned_qty, 0)) AS q
+                    FROM marketplace_order_items
+                    WHERE order_id IN ({ph}) AND mapped_product_id IS NOT NULL
+                    GROUP BY order_id, mapped_product_id""",
+                tuple(chunk),
+            )
+            for r in cur.fetchall():
+                want_by_oid.setdefault(r["order_id"], {})[r["pid"]] = float(r["q"] or 0)
+
+        code_to_oid = {}
+        for oid, o in orders_map.items():
+            code_to_oid[stock_code(o["platform"], o["order_sn"])] = oid
+
+        codes = list(code_to_oid.keys())
+        ph_c = ",".join("?" for _ in codes)
+        cur.execute(
+            f"""SELECT order_code, product_id AS pid, -SUM(quantity) AS q
+                FROM inventory_logs
+                WHERE order_code IN ({ph_c}) AND product_id IS NOT NULL
+                GROUP BY order_code, product_id""",
+            tuple(codes),
+        )
+        have_by_oid = {}
+        for r in cur.fetchall():
+            oid = code_to_oid.get(r["order_code"])
+            if oid is not None:
+                have_by_oid.setdefault(oid, {})[r["pid"]] = float(r["q"] or 0)
+
+        # Chỉ những đơn thực sự có chênh lệch tồn kho mới cần chạy lệnh trừ/cộng kho
+        for oid, o in orders_map.items():
+            if not force_zero and str(o["order_date"])[:10] >= start and status_deducts(o["platform"], o["order_status"]):
+                want = want_by_oid.get(oid, {})
+            else:
+                want = {}
+            have = have_by_oid.get(oid, {})
+            has_delta = any(
+                round(want.get(pid, 0.0) - have.get(pid, 0.0), 4) != 0
+                for pid in (set(want) | set(have))
+            )
+            if has_delta:
+                sync_order_stock(cur, oid, force_zero=force_zero, start_date=start)

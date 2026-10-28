@@ -86,7 +86,13 @@ def _describe(method: str, path: str) -> str:
     return key
 
 
+# Các đường dẫn tần suất cao không ghi vào bảng activity_log để tránh đốt hạn mức DB (đặc biệt trên Cloud D1)
+_IGNORED_ACTIVITY_PATHS = {"/api/client-log", "/api/pos/draft"}
+
+
 def log_activity_from_request(request, response):
+    if request.url.path in _IGNORED_ACTIVITY_PATHS:
+        return
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
         return  # request khong dang nhap (vd login that bai) - khong log duoc ai lam

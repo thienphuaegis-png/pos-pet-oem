@@ -455,11 +455,11 @@ def pos_mobile_page():
 @app.get("/project-map", response_class=HTMLResponse, include_in_schema=False)
 @app.get("/roadmap", response_class=HTMLResponse, include_in_schema=False)
 def project_map_page():
-    map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PROJECT_MAP.html")
+    map_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".ai", "MAP.html")
     if os.path.exists(map_path):
         with open(map_path, "r", encoding="utf-8") as f:
             return f.read()
-    return "<h1>PROJECT_MAP.html not found</h1>"
+    return "<h1>.ai/MAP.html not found</h1>"
 
 # Đăng ký toàn bộ các sub-routers
 # auth_router tự quản lý quyền từng endpoint (/login phải mở) -> không gắn dependency chung.
