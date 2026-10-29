@@ -1,0 +1,150 @@
+<style>
+  .wrap { font-size: 12px; color: var(--foreground); max-width: 960px; line-height: 1.45; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 8px; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--card); }
+  .card h4 { margin: 0 0 6px; font-size: 13px; display: flex; items-center; justify-content: space-between; }
+  .tag-bad { color: #dc2626; font-size: 11px; font-weight: 700; background: #fee2e2; padding: 2px 6px; border-radius: 4px; }
+  .tag-good { color: #16a34a; font-size: 11px; font-weight: 700; background: #dcfce7; padding: 2px 6px; border-radius: 4px; }
+  .pills { display: inline-flex; gap: 4px; border: 1px solid var(--border); padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--foreground) 4%, transparent); margin: 6px 0; font-size: 11px; }
+  .pill { padding: 2px 8px; border-radius: 6px; border: none; background: transparent; cursor: pointer; color: inherit; font-weight: 600; }
+  .pill.active { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,0.1); font-weight: 700; }
+  .pill.good { color: #15803d; }
+  .pill.warn { color: #b45309; }
+  .pill.mute { color: #64748b; }
+  .item-box { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .item-box.err { border-left: 3px solid #f59e0b; background: color-mix(in srgb, #f59e0b 6%, transparent); }
+  .item-box.nl { border-left: 3px solid #dc2626; background: color-mix(in srgb, #dc2626 6%, transparent); }
+  .item-box.ok { border-left: 3px solid #10b981; }
+  .item-box.skip { border-left: 3px solid #94a3b8; opacity: 0.75; }
+  .b-code { font-family: monospace; font-size: 10.5px; color: var(--muted-foreground); }
+  .b-name { font-weight: 600; font-size: 11.5px; }
+  .badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; display: inline-block; }
+  .bg-has { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .bg-none { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  .bg-skip { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+  .bg-nl { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .act-btn { font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: inherit; }
+  .act-btn:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .note { font-size: 11px; color: var(--muted-foreground); margin-top: 8px; }
+</style>
+
+<div class="wrap">
+  <div class="grid2">
+    <!-- CỘT HIỆN TẠI -->
+    <div class="card">
+      <h4>
+        <span>1. HIỆN TẠI (Ảnh chụp của anh)</span>
+        <span class="tag-bad">Bất cập</span>
+      </h4>
+      <div style="font-size:11px; color:var(--muted-foreground); margin-bottom:4px;">
+        Hệ thống gom tất cả 128 mặt hàng; chỉ có 2 trạng thái: Có BOM hoặc Chưa có BOM.
+      </div>
+      <div class="pills">
+        <span class="pill">Tất cả (128)</span>
+        <span class="pill good">⚡ Đã có BOM (5)</span>
+        <span class="pill warn active">⚪ Chưa có BOM (123)</span>
+      </div>
+
+      <!-- Danh sách SP hiện tại -->
+      <div style="margin-top:6px;">
+        <div class="item-box ok">
+          <div>
+            <div class="b-name">Xịt khử mùi chó mèo Cà Phê 100ml</div>
+            <div class="b-code">XKMCP100 • 59.000 đ</div>
+          </div>
+          <span class="badge bg-has">⚡ Đã có BOM</span>
+        </div>
+
+        <div class="item-box err">
+          <div>
+            <div class="b-name">Xẻng xúc cát vệ sinh chó mèo lỗ tròn</div>
+            <div class="b-code">6XENGVELT • 17.500 đ • Hàng bán lẻ</div>
+          </div>
+          <div>
+            <span class="badge bg-none">⚪ Chưa có BOM</span>
+            <div style="font-size:9.5px; color:#dc2626; text-align:right; margin-top:2px;">⚠️ Hàng bán lẻ sao lại cần BOM?</div>
+          </div>
+        </div>
+
+        <div class="item-box nl">
+          <div>
+            <div class="b-name">GSCM - Thức ăn gà sấy cỏ mèo (Nguyên liệu thô)</div>
+            <div class="b-code">GSCM • Tồn 20 Kg • ĐVT: Kg</div>
+          </div>
+          <div>
+            <span class="badge bg-nl">🚫 Nguyên liệu</span>
+            <div style="font-size:9.5px; color:#dc2626; text-align:right; margin-top:2px;">⚠️ Nguyên liệu bị lẫn vào danh sách SP</div>
+          </div>
+        </div>
+
+        <div class="item-box err">
+          <div>
+            <div class="b-name">Bát ăn đôi khúc xương / Chuồng sắt / Cát vệ sinh...</div>
+            <div class="b-code">120+ mặt hàng bán lẻ khác</div>
+          </div>
+          <span class="badge bg-none">⚪ Chưa có BOM (123)</span>
+        </div>
+      </div>
+      <div class="note">
+        ❌ <b>Hậu quả:</b> Báo động giả 123 sản phẩm thiếu BOM; danh mục Nguyên liệu lẫn vào Sản phẩm; khó tìm đúng sản phẩm OEM để thiết lập.
+      </div>
+    </div>
+
+    <!-- CỘT ĐỀ XUẤT -->
+    <div class="card" style="border-color:#10b981;">
+      <h4>
+        <span>2. ĐỀ XUẤT TỐI ƯU (Chuẩn ERP / POS)</span>
+        <span class="tag-good">Đề xuất</span>
+      </h4>
+      <div style="font-size:11px; color:var(--muted-foreground); margin-bottom:4px;">
+        Tách bạch: Hàng Sản Xuất/OEM vs Hàng Thương Mại; Lọc sạch Nguyên Liệu ra ngoài.
+      </div>
+      <div class="pills">
+        <span class="pill active good">🏭 Hàng Sản Xuất / OEM (15)</span>
+        <span class="pill good">⚡ Đã có BOM (5)</span>
+        <span class="pill warn">⚪ Chờ lập BOM (10)</span>
+        <span class="pill mute">📦 Hàng Bán Lẻ (113)</span>
+      </div>
+
+      <!-- Danh sách SP đề xuất -->
+      <div style="margin-top:6px;">
+        <div class="item-box ok">
+          <div>
+            <div class="b-name">Xịt khử mùi chó mèo Cà Phê 100ml</div>
+            <div class="b-code">XKMCP100 • 59.000 đ • <span style="color:#0284c7;">Hàng Sản Xuất</span></div>
+          </div>
+          <span class="badge bg-has">⚡ Đã có BOM (3 tp)</span>
+        </div>
+
+        <div class="item-box err" style="border-left-color:#38bdf8;">
+          <div>
+            <div class="b-name">Xịt khử mùi chó mèo Bạc Hà 250ml</div>
+            <div class="b-code">XKMBH250 • 95.000 đ • <span style="color:#0284c7;">Hàng Sản Xuất</span></div>
+          </div>
+          <span class="badge bg-none">⚪ Chờ lập BOM</span>
+        </div>
+
+        <div class="item-box skip">
+          <div>
+            <div class="b-name">Xẻng xúc cát vệ sinh chó mèo lỗ tròn</div>
+            <div class="b-code">6XENGVELT • 17.500 đ • <span style="color:#64748b;">Hàng Thương Mại</span></div>
+          </div>
+          <div>
+            <span class="badge bg-skip">Khỏi áp dụng BOM</span>
+            <div style="font-size:9.5px; color:#15803d; text-align:right; margin-top:2px;">✅ Vốn tính theo Giá Nhập</div>
+          </div>
+        </div>
+
+        <div style="background:color-mix(in srgb, #10b981 8%, transparent); border:1px dashed #10b981; border-radius:6px; padding:6px 8px; margin-top:4px;">
+          <div style="font-weight:700; color:#047857; font-size:11px;">✅ Lọc sạch Nguyên liệu:</div>
+          <div style="font-size:10.5px; color:var(--muted-foreground);">
+            Mọi mã có trong bảng <code>ingredients</code> (Chai lọ, nắp, GSCM, GAVS...) được <b>ẩn hoàn toàn khỏi danh sách Sản Phẩm</b> bên phải, chỉ nằm bên bảng Nguyên Liệu bên trái.
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        ✨ <b>Lợi ích:</b> Chỉ tập trung vào 15 món thực sự sản xuất; không còn số 123 gây nhiễu; phân loại rõ ràng Hàng OEM vs Hàng Bán Lẻ vs Nguyên Liệu.
+      </div>
+    </div>
+  </div>
+</div>

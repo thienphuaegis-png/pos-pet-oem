@@ -201,7 +201,7 @@ async function handleLogin() {
     Auth.setSession(data);
     hideLoginOverlay();
     if (data.must_change_password) {
-      document.getElementById('force-pwd-overlay').style.display = 'flex';
+      openChangePasswordOverlay('force');
       return;
     }
     applyRoleUI();
@@ -212,13 +212,82 @@ async function handleLogin() {
   }
 }
 
+let _pwdOverlayMode = 'force'; // 'force' | 'login' | 'sidebar'
+
+function openChangePasswordOverlay(mode = 'force') {
+  _pwdOverlayMode = mode;
+  const overlay = document.getElementById('force-pwd-overlay');
+  const titleEl = document.getElementById('force-pwd-title');
+  const subEl = document.getElementById('force-pwd-subtitle');
+  const userGroup = document.getElementById('force-pwd-user-group');
+  const userInp = document.getElementById('force-pwd-username');
+  const oldInp = document.getElementById('force-pwd-old');
+  const newInp = document.getElementById('force-pwd-new');
+  const cancelBtn = document.getElementById('force-pwd-cancel-btn');
+  const errEl = document.getElementById('force-pwd-error');
+
+  if (errEl) errEl.textContent = '';
+  if (oldInp) oldInp.value = '';
+  if (newInp) newInp.value = '';
+
+  if (mode === 'login') {
+    if (titleEl) titleEl.textContent = 'Đổi Mật Khẩu Tài Khoản';
+    if (subEl) subEl.textContent = 'Nhập tên đăng nhập, mật khẩu hiện tại và mật khẩu mới';
+    if (userGroup) userGroup.style.display = 'block';
+    if (cancelBtn) cancelBtn.style.display = 'block';
+    const loginUser = document.getElementById('login-username')?.value?.trim() || '';
+    const loginPwd = document.getElementById('login-password')?.value || '';
+    if (userInp) userInp.value = loginUser;
+    if (oldInp && loginPwd) oldInp.value = loginPwd;
+  } else if (mode === 'sidebar') {
+    if (titleEl) titleEl.textContent = 'Đổi Mật Khẩu Cá Nhân';
+    if (subEl) subEl.textContent = 'Cập nhật mật khẩu mới cho tài khoản đang đăng nhập';
+    if (userGroup) userGroup.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'block';
+  } else {
+    if (titleEl) titleEl.textContent = 'Đổi Mật Khẩu Lần Đầu';
+    if (subEl) subEl.textContent = 'Vui lòng đặt mật khẩu mới trước khi tiếp tục';
+    if (userGroup) userGroup.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+  }
+
+  if (overlay) overlay.style.display = 'flex';
+  setTimeout(() => {
+    if (mode === 'login' && userInp && !userInp.value) userInp.focus();
+    else if (oldInp && !oldInp.value) oldInp.focus();
+    else if (newInp) newInp.focus();
+  }, 60);
+}
+window.openChangePasswordOverlay = openChangePasswordOverlay;
+
+function closeChangePasswordOverlay() {
+  const overlay = document.getElementById('force-pwd-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+window.closeChangePasswordOverlay = closeChangePasswordOverlay;
+
 async function handleForceChangePassword() {
   const old_password = document.getElementById('force-pwd-old').value;
   const new_password = document.getElementById('force-pwd-new').value;
   const errEl = document.getElementById('force-pwd-error');
   errEl.textContent = '';
+  if (!old_password) { errEl.textContent = 'Vui lòng nhập mật khẩu hiện tại'; return; }
   if (!new_password || new_password.length < 6) { errEl.textContent = 'Mật khẩu mới tối thiểu 6 ký tự'; return; }
   try {
+    // Nếu bấm Đổi mật khẩu từ màn hình Login (chưa có token), tự xác thực lấy token trước
+    if (_pwdOverlayMode === 'login' && !Auth.getToken()) {
+      const username = (document.getElementById('force-pwd-username')?.value || '').trim();
+      if (!username) { errEl.textContent = 'Vui lòng nhập tên đăng nhập'; return; }
+      const loginRes = await _origFetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(old_password)}`
+      });
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) { errEl.textContent = loginData.detail || 'Tên đăng nhập hoặc mật khẩu hiện tại không đúng'; return; }
+      Auth.setSession(loginData);
+    }
+
     const res = await fetch('/api/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -226,7 +295,26 @@ async function handleForceChangePassword() {
     });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.detail || 'Đổi mật khẩu thất bại'; return; }
+
+    // Khi đổi mật khẩu xong backend tăng token_version+1, cần lấy lại token mới để phiên không bị 401
+    const currentUsername = (_pwdOverlayMode === 'login'
+      ? document.getElementById('force-pwd-username')?.value
+      : document.getElementById('login-username')?.value)?.trim();
+    if (currentUsername) {
+      const relogin = await _origFetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `username=${encodeURIComponent(currentUsername)}&password=${encodeURIComponent(new_password)}`
+      });
+      if (relogin.ok) {
+        const reloginData = await relogin.json();
+        Auth.setSession(reloginData);
+      }
+    }
+
     document.getElementById('force-pwd-overlay').style.display = 'none';
+    hideLoginOverlay();
+    if (window.showToast) window.showToast('Đổi mật khẩu thành công!', 'success');
     applyRoleUI();
     if (typeof loadCurrentShift === 'function') loadCurrentShift();
     triggerLandingTabSafe();

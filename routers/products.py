@@ -37,13 +37,14 @@ def clean_num(val):
         return 0.0
 
 @router.get("")
-def list_products(category: Optional[str] = None, user=Depends(get_optional_user)):
+def list_products(category: Optional[str] = None, for_bom: Optional[bool] = False, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
     query = '''
     SELECT p.*,
            GROUP_CONCAT(DISTINCT c.name) as supplier_names,
-           (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count
+           (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count,
+           COALESCE(p.requires_bom, CASE WHEN (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) > 0 OR (SELECT COUNT(*) FROM oem_order_items oi WHERE oi.product_id = p.id) > 0 THEN 1 ELSE 0 END) as computed_requires_bom
     FROM products p
     LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
     LEFT JOIN contacts c ON si.supplier_id = c.id
@@ -53,12 +54,30 @@ def list_products(category: Optional[str] = None, user=Depends(get_optional_user
     if category:
         query += ' AND COALESCE(p.category, "Khác") = ?'
         params.append(category)
+    if for_bom:
+        # Lọc sạch nguyên liệu (Yêu cầu 2a):
+        # 1. Mã không bắt đầu bằng NL- hoặc NL_
+        # 2. Không thuộc danh mục "Nguyên liệu"
+        # 3. Không trùng mã hoặc tên với nguyên liệu trong bảng ingredients
+        query += """
+            AND (p.code IS NULL OR (p.code NOT LIKE 'NL-%' AND p.code NOT LIKE 'NL_%'))
+            AND LOWER(COALESCE(p.category, '')) NOT LIKE '%nguyên liệu%'
+            AND NOT EXISTS (
+                SELECT 1 FROM ingredients i 
+                WHERE (i.code IS NOT NULL AND i.code != '' AND i.code = p.code)
+                   OR (i.name IS NOT NULL AND i.name != '' AND i.name = p.name)
+            )
+        """
     query += '''
     GROUP BY p.id
     ORDER BY p.id DESC
     '''
     cur.execute(query, tuple(params))
     rows = [dict(r) for r in cur.fetchall()]
+    for r in rows:
+        computed = r.pop("computed_requires_bom", None)
+        if r.get("requires_bom") is None:
+            r["requires_bom"] = computed if computed is not None else (1 if (r.get("bom_count") or 0) > 0 else 0)
 
     # Gắn đơn vị quy đổi để POS cho chọn Thùng/Chai
     cur.execute("SELECT item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units WHERE item_type = 'product' ORDER BY ratio")
@@ -554,9 +573,10 @@ def create_product(p: ProductCreate, user=Depends(get_optional_user)):
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
         min_stock = float(p.min_stock) if p.min_stock is not None else 5.0
         img_url = (p.image_url or "").strip()
+        req_bom = p.requires_bom if p.requires_bom is not None else 0
         cur.execute(
-            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (code, p.name, p.type, cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url)
+            "INSERT INTO products (code, name, type, cost_price, sell_price, stock, unit, category, created_by, min_stock, image_url, requires_bom) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (code, p.name, p.type, cost_price, p.sell_price, p.stock, p.unit, cat, user_name, min_stock, img_url, req_bom)
         )
         pid = cur.lastrowid
         if p.type != 'service' and p.stock > 0:
@@ -608,12 +628,13 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         min_stock = float(p.min_stock) if p.min_stock is not None else (float(existing["min_stock"]) if "min_stock" in existing.keys() and existing["min_stock"] is not None else 5.0)
         image_url = p.image_url if p.image_url is not None else (existing["image_url"] if "image_url" in existing.keys() else "")
+        requires_bom = p.requires_bom if p.requires_bom is not None else (existing["requires_bom"] if "requires_bom" in existing.keys() else None)
         cur.execute('''
             UPDATE products 
             SET code = ?, name = ?, type = ?, cost_price = ?, sell_price = ?, unit = ?, category = ?,
-                updated_by = ?, updated_at = ?, min_stock = ?, image_url = ?
+                updated_by = ?, updated_at = ?, min_stock = ?, image_url = ?, requires_bom = ?
             WHERE id = ?
-        ''', (code, name, prod_type, cost_price, sell_price, unit, category, user_name, now_vn, min_stock, image_url, product_id))
+        ''', (code, name, prod_type, cost_price, sell_price, unit, category, user_name, now_vn, min_stock, image_url, requires_bom, product_id))
 
         if p.supplier_ids is not None:
             cur.execute("DELETE FROM supplier_items WHERE item_type = 'product' AND product_id = ?", (product_id,))
@@ -628,6 +649,21 @@ def update_product(product_id: int, p: ProductUpdate, user=Depends(get_optional_
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok"}
+
+@router.post("/{product_id}/toggle-bom-requirement")
+def toggle_bom_requirement(product_id: int, requires_bom: int = 1, user=Depends(get_optional_user)):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM products WHERE id = ?", (product_id,))
+        if not cur.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+        cur.execute("UPDATE products SET requires_bom = ? WHERE id = ?", (requires_bom, product_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "ok", "product_id": product_id, "requires_bom": requires_bom}
 
 @router.post("/bulk-status")
 def bulk_update_product_status(req: ProductBulkStatusIn):

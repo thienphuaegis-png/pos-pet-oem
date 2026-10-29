@@ -3256,21 +3256,26 @@
             input?.focus();
         }
 
-        let currentBOMStatusFilter = 'ALL'; // 'ALL' | 'HAS_BOM' | 'NO_BOM'
+        let currentBOMStatusFilter = 'OEM_ALL'; // 'OEM_ALL' | 'HAS_BOM' | 'PENDING_BOM' | 'RETAIL' | 'ALL'
 
         function setBOMStatusFilter(status) {
             currentBOMStatusFilter = status;
 
-            const btnAll = document.getElementById('btn-bom-filter-all');
+            const btnOem = document.getElementById('btn-bom-filter-oem');
             const btnHas = document.getElementById('btn-bom-filter-has');
             const btnNone = document.getElementById('btn-bom-filter-none');
+            const btnRetail = document.getElementById('btn-bom-filter-retail');
+            const btnAll = document.getElementById('btn-bom-filter-all');
 
             const activeClass = 'px-2 py-0.5 rounded-md bg-white shadow-2xs font-bold transition';
             const inactiveClass = 'px-2 py-0.5 rounded-md hover:bg-slate-200/60 font-semibold transition';
 
-            if (btnAll) btnAll.className = (status === 'ALL' ? `${activeClass} text-slate-800` : `${inactiveClass} text-slate-600`);
+            const isPending = (status === 'PENDING_BOM' || status === 'NO_BOM');
+            if (btnOem) btnOem.className = (status === 'OEM_ALL' ? `${activeClass} text-slate-800` : `${inactiveClass} text-slate-600`);
             if (btnHas) btnHas.className = (status === 'HAS_BOM' ? `${activeClass} text-emerald-700` : `${inactiveClass} text-emerald-700`);
-            if (btnNone) btnNone.className = (status === 'NO_BOM' ? `${activeClass} text-amber-700` : `${inactiveClass} text-amber-700`);
+            if (btnNone) btnNone.className = (isPending ? `${activeClass} text-amber-700` : `${inactiveClass} text-amber-700`);
+            if (btnRetail) btnRetail.className = (status === 'RETAIL' ? `${activeClass} text-slate-700` : `${inactiveClass} text-slate-500`);
+            if (btnAll) btnAll.className = (status === 'ALL' ? `${activeClass} text-slate-800` : `${inactiveClass} text-slate-600`);
 
             filterBOMProductDropdown();
         }
@@ -3279,20 +3284,27 @@
         function updateBOMFilterCounts() {
             if (!Array.isArray(allBOMProductsList)) return;
             const total = allBOMProductsList.length;
+            const oemList = allBOMProductsList.filter(p => p.requires_bom === 1);
+            const oemCount = oemList.length;
             const hasCount = allBOMProductsList.filter(p => (p.bom_count || 0) > 0).length;
-            const noneCount = total - hasCount;
+            const pendingCount = allBOMProductsList.filter(p => p.requires_bom === 1 && (p.bom_count || 0) === 0).length;
+            const retailCount = allBOMProductsList.filter(p => !p.requires_bom).length;
 
-            const elAll = document.getElementById('bom-filter-count-all');
-            if (elAll) elAll.textContent = total;
+            const elOem = document.getElementById('bom-filter-count-oem');
+            if (elOem) elOem.textContent = oemCount;
             const elHas = document.getElementById('bom-filter-count-has');
             if (elHas) elHas.textContent = hasCount;
             const elNone = document.getElementById('bom-filter-count-none');
-            if (elNone) elNone.textContent = noneCount;
+            if (elNone) elNone.textContent = pendingCount;
+            const elRetail = document.getElementById('bom-filter-count-retail');
+            if (elRetail) elRetail.textContent = retailCount;
+            const elAll = document.getElementById('bom-filter-count-all');
+            if (elAll) elAll.textContent = total;
         }
         window.updateBOMFilterCounts = updateBOMFilterCounts;
 
         async function loadCostProductOptions() {
-            const res = await fetch('/api/products');
+            const res = await fetch('/api/products?for_bom=true');
             allBOMProductsList = await res.json();
             updateBOMFilterCounts();
             renderBOMSelectedChips();
@@ -3325,12 +3337,14 @@
             updateBOMFilterCounts();
 
             const filtered = allBOMProductsList.filter(p => {
-                // Lọc theo trạng thái BOM
                 const hasBOM = (p.bom_count || 0) > 0;
-                if (currentBOMStatusFilter === 'HAS_BOM' && !hasBOM) return false;
-                if (currentBOMStatusFilter === 'NO_BOM' && hasBOM) return false;
+                const isOem = p.requires_bom === 1;
 
-                // Lọc theo từ khóa tìm kiếm
+                if (currentBOMStatusFilter === 'OEM_ALL' && !isOem) return false;
+                if (currentBOMStatusFilter === 'HAS_BOM' && !hasBOM) return false;
+                if ((currentBOMStatusFilter === 'PENDING_BOM' || currentBOMStatusFilter === 'NO_BOM') && (!isOem || hasBOM)) return false;
+                if (currentBOMStatusFilter === 'RETAIL' && isOem) return false;
+
                 if (!search) return true;
                 const text = `${p.code || ''} ${p.name || ''}`.toLowerCase();
                 return text.includes(search);
@@ -3344,12 +3358,23 @@
             dd.innerHTML = filtered.map(p => {
                 const isChecked = selectedBOMProductIds.includes(p.id);
                 const hasBOM = (p.bom_count || 0) > 0;
-                const badgeBOM = hasBOM
-                    ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded text-xs font-bold shrink-0">⚡ Đã có BOM (${p.bom_count} tp)</span>`
-                    : `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-xs font-medium shrink-0">⚪ Chưa có BOM</span>`;
+                const isOem = p.requires_bom === 1;
+
+                let badgeBOM = '';
+                if (hasBOM) {
+                    badgeBOM = `<span class="bg-emerald-50 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded text-[11px] font-bold shrink-0">⚡ Đã có BOM (${p.bom_count} tp)</span>`;
+                } else if (isOem) {
+                    badgeBOM = `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0">⚪ Chờ lập BOM</span>`; // ⚪ Chưa có BOM cho hàng sản xuất
+                } else {
+                    badgeBOM = `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0">📦 Hàng bán lẻ</span>`;
+                }
+
+                const toggleBtn = isOem
+                    ? `<button type="button" onclick="event.stopPropagation(); toggleProductBOMRequirement(${p.id}, 0)" class="text-[10px] px-1.5 py-0.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded font-medium transition shrink-0" title="Đánh dấu là hàng thương mại bán lẻ (bỏ qua BOM)">✕ Bỏ qua BOM</button>`
+                    : `<button type="button" onclick="event.stopPropagation(); toggleProductBOMRequirement(${p.id}, 1)" class="text-[10px] px-1.5 py-0.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded font-bold transition shrink-0" title="Đánh dấu là Hàng Sản Xuất / OEM cần lập BOM">+ Áp dụng BOM</button>`;
 
                 return `
-                    <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer transition select-none ${hasBOM ? 'bg-emerald-50/20' : ''}" onclick="toggleSelectBOMProduct(${p.id})">
+                    <div class="p-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer transition select-none ${hasBOM ? 'bg-emerald-50/20' : (isOem ? '' : 'bg-slate-50/50')}" onclick="toggleSelectBOMProduct(${p.id})">
                         <div class="flex items-center gap-2 min-w-0 pr-2">
                             <input type="checkbox" ${isChecked ? 'checked' : ''} class="rounded pointer-events-none text-sky-600 shrink-0">
                             <div class="min-w-0">
@@ -3358,6 +3383,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
+                            ${toggleBtn}
                             ${badgeBOM}
                             <span class="font-bold text-sky-700 font-mono text-xs">${formatMoney(p.sell_price)}</span>
                         </div>
@@ -3365,6 +3391,29 @@
                 `;
             }).join('');
         }
+
+        window.toggleProductBOMRequirement = async function(productId, requiresBom) {
+            try {
+                const res = await fetch(`/api/products/${productId}/toggle-bom-requirement?requires_bom=${requiresBom}`, {
+                    method: 'POST'
+                });
+                if (!res.ok) throw new Error('Không thể cập nhật trạng thái BOM');
+
+                const p = (allBOMProductsList || []).find(x => x.id === productId);
+                if (p) p.requires_bom = requiresBom;
+
+                updateBOMFilterCounts();
+                filterBOMProductDropdown();
+
+                const name = p ? p.name : 'Sản phẩm';
+                const msg = requiresBom === 1
+                    ? `Đã đánh dấu "${name}" là Hàng Sản Xuất / Cần BOM`
+                    : `Đã chuyển "${name}" sang Hàng Thương Mại (Bỏ qua BOM)`;
+                if (typeof showToast === 'function') showToast(msg, 'success');
+            } catch (e) {
+                alert('Lỗi: ' + e.message);
+            }
+        };
 
         function toggleSelectBOMProduct(productId) {
             const idx = selectedBOMProductIds.indexOf(productId);
@@ -4133,7 +4182,10 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ quantity: defaultQty })
                 });
+                const prod = (allBOMProductsList || []).find(x => x.id === prodId);
+                if (prod) prod.requires_bom = 1;
             }
+            updateBOMFilterCounts();
 
             const input = document.getElementById('bom-quick-search-input');
             if (input) input.value = '';

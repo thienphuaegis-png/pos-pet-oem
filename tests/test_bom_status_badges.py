@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from server import app
 from database import get_db
+from tests.auth_helpers import owner_auth_headers
 
 client = TestClient(app)
 
@@ -29,7 +30,7 @@ def test_api_products_returns_bom_count():
     db.close()
 
     # 2. Gọi API GET /api/products
-    res = client.get("/api/products")
+    res = client.get("/api/products", headers=owner_auth_headers())
     assert res.status_code == 200
     products = res.json()
 

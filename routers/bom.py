@@ -239,13 +239,17 @@ def set_product_bom(product_id: int, req: BOMSetRequest):
         # Xóa BOM cũ
         cur.execute("DELETE FROM product_bom WHERE product_id = ?", (product_id,))
         # Thêm mới các thành phần định lượng
+        has_items = False
         for item in req.items:
             if item.quantity <= 0:
                 continue
+            has_items = True
             cur.execute(
                 "INSERT INTO product_bom (product_id, ingredient_id, quantity) VALUES (?, ?, ?)",
                 (product_id, item.ingredient_id, item.quantity)
             )
+        if has_items:
+            cur.execute("UPDATE products SET requires_bom = 1 WHERE id = ?", (product_id,))
         conn.commit()
         # Tính toán lại giá cost sau khi cập nhật BOM
         result = calculate_product_cost_internal(product_id, conn)
@@ -268,6 +272,7 @@ def update_single_bom_item(product_id: int, ingredient_id: int, req: BOMSingleIt
                 VALUES (?, ?, ?)
                 ON CONFLICT(product_id, ingredient_id) DO UPDATE SET quantity = ?
             """, (product_id, ingredient_id, req.quantity, req.quantity))
+            cur.execute("UPDATE products SET requires_bom = 1 WHERE id = ?", (product_id,))
         conn.commit()
         result = calculate_product_cost_internal(product_id, conn)
     except Exception as e:
@@ -298,6 +303,7 @@ def clone_product_bom(product_id: int, source_product_id: int):
                 "INSERT INTO product_bom (product_id, ingredient_id, quantity) VALUES (?, ?, ?)",
                 (product_id, item["ingredient_id"], item["quantity"])
             )
+        cur.execute("UPDATE products SET requires_bom = 1 WHERE id = ?", (product_id,))
         conn.commit()
         result = calculate_product_cost_internal(product_id, conn)
     except HTTPException:

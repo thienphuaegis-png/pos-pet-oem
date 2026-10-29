@@ -80,6 +80,7 @@ class ProductCreate(BaseModel):
     supplier_ids: Optional[List[int]] = None
     min_stock: Optional[float] = 5.0
     image_url: Optional[str] = ""
+    requires_bom: Optional[int] = None
 
 class ProductUpdate(BaseModel):
     code: Optional[str] = None
@@ -92,6 +93,7 @@ class ProductUpdate(BaseModel):
     supplier_ids: Optional[List[int]] = None
     min_stock: Optional[float] = None
     image_url: Optional[str] = None
+    requires_bom: Optional[int] = None
 
 class ProductBulkStatusIn(BaseModel):
     product_ids: List[int]

@@ -695,6 +695,8 @@ def init_db():
         cur.execute("ALTER TABLE products ADD COLUMN min_stock REAL DEFAULT 5.0")
     if 'image_url' not in prod_cols:
         cur.execute("ALTER TABLE products ADD COLUMN image_url TEXT DEFAULT ''")
+    if 'requires_bom' not in prod_cols:
+        cur.execute("ALTER TABLE products ADD COLUMN requires_bom INTEGER DEFAULT NULL")
 
     # Seed product_categories if empty & migrate existing categories
     cur.execute("SELECT COUNT(*) FROM product_categories")
@@ -2170,11 +2172,24 @@ def init_db():
         "ALTER TABLE oem_order_items ADD COLUMN vat_rate REAL DEFAULT 8.0",
         "ALTER TABLE oem_order_items ADD COLUMN vat_amount REAL DEFAULT 0.0",
         "ALTER TABLE oem_orders ADD COLUMN vat_amount REAL DEFAULT 0.0",
+        "ALTER TABLE products ADD COLUMN requires_bom INTEGER DEFAULT NULL",
     ]:
         try:
             cur.execute(_col)
         except Exception:
             pass
+
+    try:
+        cur.execute("""
+            UPDATE products 
+            SET requires_bom = 1 
+            WHERE requires_bom IS NULL AND (
+                id IN (SELECT DISTINCT product_id FROM product_bom)
+                OR id IN (SELECT DISTINCT product_id FROM oem_order_items WHERE product_id IS NOT NULL)
+            )
+        """)
+    except Exception:
+        pass
 
     # Nới lỏng ràng buộc NOT NULL của product_id trong oem_order_items nếu cần
     cur.execute("PRAGMA table_info(oem_order_items)")

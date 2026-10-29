@@ -3568,6 +3568,8 @@
             document.getElementById('modal-prod-stock').value = '';
             const minStockEl = document.getElementById('modal-prod-min-stock');
             if (minStockEl) minStockEl.value = '5';
+            const reqBomEl = document.getElementById('modal-prod-requires-bom');
+            if (reqBomEl) reqBomEl.checked = false;
             document.getElementById('modal-prod-stock-group')?.classList.remove('hidden');
             document.getElementById('btn-convert-to-ingredient')?.classList.add('hidden');
             await loadProdUnits(null);
@@ -3604,6 +3606,8 @@
                 document.getElementById('modal-prod-stock-group').classList.add('hidden');
                 const minStockEl = document.getElementById('modal-prod-min-stock');
                 if (minStockEl) minStockEl.value = (p.min_stock != null) ? p.min_stock : 5;
+                const reqBomEl = document.getElementById('modal-prod-requires-bom');
+                if (reqBomEl) reqBomEl.checked = !!p.requires_bom;
                 
                 // Nạp thành phần combo nếu là combo
                 if (isCombo) {
@@ -3980,17 +3984,19 @@
                     }
                 } else if (id) {
                     // Update
+                    const requires_bom = document.getElementById('modal-prod-requires-bom')?.checked ? 1 : 0;
                     res = await fetch(`/api/products/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock, image_url })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, category, supplier_ids, min_stock, image_url, requires_bom })
                     });
                 } else {
                     // Create
+                    const requires_bom = document.getElementById('modal-prod-requires-bom')?.checked ? 1 : 0;
                     res = await fetch('/api/products', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock, image_url })
+                        body: JSON.stringify({ code, name, type, unit, cost_price, sell_price, stock, category, supplier_ids, min_stock, image_url, requires_bom })
                     });
                 }
 

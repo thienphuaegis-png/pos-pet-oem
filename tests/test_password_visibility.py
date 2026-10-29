@@ -6,10 +6,13 @@ def test_password_visibility_dom():
     assert html_path.exists(), "templates/index.html must exist"
     content = html_path.read_text(encoding="utf-8")
 
-    # 1. Login password toggle & caps warning
+    # 1. Login password toggle & caps warning & change password button
     assert "togglePasswordVisibility('login-password', this)" in content
     assert 'id="login-caps-warn"' in content
     assert "checkPasswordCapsLock(event, 'login-caps-warn')" in content
+    assert 'id="login-change-pwd-btn"' in content
+    assert "openChangePasswordOverlay('login')" in content
+    assert 'class="login-split-card"' in content
 
     # 2. Force password change overlay
     assert "togglePasswordVisibility('force-pwd-old', this)" in content
