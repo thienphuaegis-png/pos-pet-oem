@@ -115,7 +115,8 @@ function renderStaffTable() {
           ${r.has_account && !isResigned ? `<button onclick="goToStaffPermission(${r.id})" class="text-emerald-700 hover:text-emerald-900 hover:underline text-xs font-bold mr-2 cursor-pointer" title="Chỉnh quyền riêng">🛡️ Quyền riêng</button>` : ''}
           <button onclick="openEditStaffModal(${r.id})" class="text-sky-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Sửa</button>
           ${r.has_account && !isResigned ? `<button onclick="resetStaffPassword(${r.id})" class="text-amber-600 hover:underline text-xs font-bold mr-2 cursor-pointer">Reset MK</button>` : (!r.has_account && !isResigned ? `<button onclick="openGrantAccountModal(${r.id})" class="text-emerald-600 hover:underline text-xs font-bold mr-2 cursor-pointer">➕ Cấp TK</button>` : '')}
-          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="${r.is_active ? 'text-rose-600' : 'text-sky-600'} hover:underline text-xs font-bold cursor-pointer">${r.is_active ? '🛑 Nghỉ việc' : '↩️ Mở lại'}</button>
+          <button onclick="toggleStaffActive(${r.id}, ${r.is_active})" class="${r.is_active ? 'text-rose-600' : 'text-sky-600'} hover:underline text-xs font-bold mr-2 cursor-pointer">${r.is_active ? '🛑 Nghỉ việc' : '↩️ Mở lại'}</button>
+          ${r.id !== 1 && (r.username || '').toLowerCase() !== 'admin' ? `<button onclick="deleteStaff(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="text-rose-700 hover:text-rose-900 hover:underline text-xs font-bold cursor-pointer" title="Xóa vĩnh viễn nhân viên">🗑️ Xóa</button>` : ''}
         </td>
       </tr>
     `;
@@ -412,6 +413,37 @@ async function toggleStaffActive(id, isActive) {
     alert('❌ Không kết nối được server');
   }
 }
+
+async function deleteStaff(id, staffName) {
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal({
+        title: 'Xóa Vĩnh Viễn Nhân Viên',
+        message: `Bạn có chắc chắn muốn xóa nhân viên "${staffName}" khỏi hệ thống? Thao tác này không thể hoàn tác.`,
+        type: 'danger',
+        confirmText: '🗑️ Xóa vĩnh viễn',
+        cancelText: 'Hủy bỏ',
+        icon: '🗑️'
+      })
+    : confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn nhân viên "${staffName}"?`);
+
+  if (!confirmed) return;
+  try {
+    const res = await fetch(`/api/auth/staff/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      if (typeof showToast === 'function') {
+        showToast(data.message || `Đã xóa nhân viên ${staffName}`, 'success');
+      }
+      loadStaffList();
+      if (typeof loadHrmStaff === 'function') loadHrmStaff();
+    } else {
+      alert('❌ ' + (data.detail || 'Lỗi xóa nhân viên'));
+    }
+  } catch (e) {
+    alert('❌ Không kết nối được server');
+  }
+}
+window.deleteStaff = deleteStaff;
 
 async function resetStaffPassword(id) {
   const pwd = prompt('Nhập mật khẩu mới cho nhân viên này (NV sẽ bị bắt đổi lại khi login):');

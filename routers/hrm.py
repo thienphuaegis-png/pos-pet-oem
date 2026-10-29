@@ -365,6 +365,28 @@ def rehire_employee(staff_id: int, user=Depends(require_permission(PERM))):
     return {"status": "ok", "message": f"Đã khôi phục nhân viên {st['name']} đi làm lại"}
 
 
+@router.delete("/employees/{staff_id}")
+def delete_hrm_employee(staff_id: int, user=Depends(require_permission(PERM))):
+    """Xóa vĩnh viễn nhân sự khỏi hệ thống."""
+    if staff_id == 1 or (user and staff_id == user.get("id")):
+        raise HTTPException(400, "Không thể xóa tài khoản quản trị gốc hoặc tài khoản đang đăng nhập")
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, name, username FROM staff WHERE id=?", (staff_id,))
+    st = cur.fetchone()
+    if not st:
+        conn.close()
+        raise HTTPException(404, "Không tìm thấy nhân viên")
+    if (st["username"] or "").lower() == "admin":
+        conn.close()
+        raise HTTPException(400, "Không thể xóa tài khoản admin hệ thống")
+
+    from routers.auth import purge_staff_safely
+    purge_staff_safely(cur, staff_id)
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "message": f"Đã xóa nhân viên {st['name']}"}
+
+
 class QuickAccountIn(BaseModel):
     username: str
     password: str

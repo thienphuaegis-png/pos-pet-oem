@@ -2000,7 +2000,8 @@
                             ? `<button onclick="confirmHrmStaffRestore(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded text-xs font-bold cursor-pointer mr-1" title="Khôi phục nhân sự đi làm lại">↩️ Đi làm lại</button>`
                             : `<button onclick="confirmHrmStaffResign(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-2 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer mr-1" title="Đánh dấu nghỉ việc (khóa tài khoản)">🛑 Nghỉ việc</button>`
                         }
-                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
+                        ${!hasAcc && !isResigned ? `<button onclick="openHrmQuickAccountModal(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}', '${r.employee_code||''}')" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Cấp tài khoản POS">⚡ Cấp TK</button>` : ''}
+                        ${r.id !== 1 && (r.username || '').toLowerCase() !== 'admin' ? `<button onclick="confirmHrmStaffDelete(${r.id}, '${(r.name||'').replace(/'/g, "\\'")}')" class="px-1.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded text-xs font-bold cursor-pointer" title="Xóa vĩnh viễn nhân sự">🗑️ Xóa</button>` : ''}
                     </td>
                 </tr>
             `;
@@ -2067,6 +2068,38 @@
                 if (typeof loadStaffList === 'function') loadStaffList();
             } else {
                 alert(data.detail || 'Lỗi khi thao tác');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Không thể kết nối máy chủ');
+        }
+    };
+
+    window.confirmHrmStaffDelete = async function(staffId, staffName) {
+        const confirmed = typeof window.showConfirmModal === 'function'
+            ? await window.showConfirmModal({
+                title: 'Xóa Vĩnh Viễn Nhân Sự',
+                message: `Bạn có chắc chắn muốn xóa nhân sự "${staffName}" khỏi hệ thống? Thao tác này không thể hoàn tác.`,
+                type: 'danger',
+                confirmText: '🗑️ Xóa vĩnh viễn',
+                cancelText: 'Hủy bỏ',
+                icon: '🗑️'
+            })
+            : confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn nhân sự "${staffName}"?`);
+
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (typeof showToast === 'function') showToast(data.message || `Đã xóa nhân sự ${staffName}`, 'success');
+                loadHrmStaff();
+                if (typeof loadStaffList === 'function') loadStaffList();
+            } else {
+                alert(data.detail || 'Lỗi khi xóa nhân sự');
             }
         } catch (e) {
             console.error(e);

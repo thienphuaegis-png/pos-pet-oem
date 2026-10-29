@@ -468,3 +468,66 @@ def reset_staff_password(staff_id: int, body: ChangePasswordIn, current: dict = 
     cur.execute("UPDATE staff SET password_hash=?, must_change_password=1, token_version=token_version+1 WHERE id=?", (pwd_ctx.hash(body.new_password), staff_id))
     db.commit(); db.close()
     return {"message": "Reset mật khẩu thành công"}
+
+
+def purge_staff_safely(cur, staff_id: int):
+    """Xóa nhân viên và tự động gỡ/dọn liên kết khóa ngoại an toàn."""
+    # Gỡ liên kết ở các bảng chứng từ để không mất lịch sử hóa đơn/ca
+    for tbl, col in (
+        ("orders", "staff_id"),
+        ("draft_orders", "staff_id"),
+        ("order_returns", "staff_id"),
+        ("purchase_requests", "staff_id"),
+        ("activity_log", "staff_id"),
+        ("shifts", "cashier_id"),
+        ("staff_reminders", "created_by"),
+        ("hrm_salary_adjustments", "created_by"),
+        ("staff_advances", "created_by"),
+        ("koc_sources", "staff_id"),
+    ):
+        try:
+            cur.execute(f"UPDATE {tbl} SET {col}=NULL WHERE {col}=?", (staff_id,))
+        except Exception:
+            pass
+
+    # Xóa các bảng con phụ thuộc trực tiếp vào nhân sự
+    for tbl in (
+        "staff_permissions",
+        "staff_reminders",
+        "hrm_salary_adjustments",
+        "staff_attendance",
+        "staff_overtime",
+        "staff_advances",
+        "payroll_lines",
+        "staff_leaves",
+        "pancake_sellers",
+    ):
+        try:
+            cur.execute(f"DELETE FROM {tbl} WHERE staff_id=?", (staff_id,))
+        except Exception:
+            pass
+
+    cur.execute("DELETE FROM staff WHERE id=?", (staff_id,))
+
+
+@router.delete("/staff/{staff_id}")
+def delete_staff(staff_id: int, current: dict = Depends(require_role("owner", "admin"))):
+    """Xóa vĩnh viễn nhân viên (chặn xóa admin gốc id=1 hoặc tự xóa chính mình)."""
+    if staff_id == 1 or (current and staff_id == current.get("id")):
+        raise HTTPException(status_code=400, detail="Không thể xóa tài khoản quản trị gốc hoặc tài khoản đang đăng nhập")
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, name, username FROM staff WHERE id=?", (staff_id,))
+    staff = cur.fetchone()
+    if not staff:
+        db.close()
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhân viên")
+    if (staff["username"] or "").lower() == "admin":
+        db.close()
+        raise HTTPException(status_code=400, detail="Không thể xóa tài khoản admin hệ thống")
+
+    purge_staff_safely(cur, staff_id)
+    db.commit()
+    db.close()
+    return {"status": "ok", "message": f"Đã xóa nhân viên {staff['name']}"}
+
