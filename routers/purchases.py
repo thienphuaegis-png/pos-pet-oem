@@ -1409,6 +1409,40 @@ def list_purchase_requests(status: Optional[str] = None, user: dict = Depends(re
         conn.close()
 
 
+@router.get("/api/purchase-requests/pending-items")
+def list_pending_request_items(user: dict = Depends(require_any_permission("purchases.request", "purchases.manage"))):
+    """Hàng đang chờ đặt: gộp theo mặt hàng trên các phiếu yêu cầu Chờ duyệt (ẩn NCC & giá vốn)."""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT p.id as product_id, p.code as product_code, p.name as product_name, p.unit, p.stock,
+                   SUM(pri.quantity) as total_qty, COUNT(DISTINCT pr.id) as request_count,
+                   GROUP_CONCAT(DISTINCT pr.code) as request_codes
+            FROM purchase_request_items pri
+            JOIN purchase_requests pr ON pr.id = pri.request_id
+            JOIN products p ON p.id = pri.product_id
+            WHERE pr.status = 'pending'
+            GROUP BY p.id
+            ORDER BY p.name
+        """)
+        return [
+            {
+                "product_id": r["product_id"],
+                "product_code": r["product_code"],
+                "product_name": r["product_name"],
+                "unit": r["unit"] or "cái",
+                "stock": float(r["stock"] or 0),
+                "total_qty": float(r["total_qty"] or 0),
+                "request_count": r["request_count"],
+                "request_codes": (r["request_codes"] or "").split(",") if r["request_codes"] else [],
+            }
+            for r in cur.fetchall()
+        ]
+    finally:
+        conn.close()
+
+
 @router.get("/api/purchase-requests/{request_id}/items")
 def get_purchase_request_items(request_id: int, user: dict = Depends(require_any_permission("purchases.request", "purchases.manage"))):
     """Lấy danh sách các sản phẩm trong phiếu yêu cầu (ẩn danh thông tin NCC)."""

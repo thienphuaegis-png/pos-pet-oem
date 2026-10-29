@@ -71,10 +71,19 @@ ACTION_PATTERNS = [
     (r"^POST /api/hotel/bookings/\d+/checkout", "Check-out phòng Hotel"),
     (r"^POST /api/hotel/book-spa-for-guest/\d+", "Đặt Spa cho khách Hotel"),
     (r"^POST /api/hotel/.*", "Thao tác Khách sạn Hotel"),
-    (r"^POST /api/pet-services/tickets", "Tạo phiếu Spa dịch vụ"),
-    (r"^PUT /api/pet-services/tickets/\d+/status", "Cập nhật tiến độ Spa"),
+    (r"^POST /api/pet-services(/batch)?$", "Tạo phiếu Spa dịch vụ"),
+    (r"^PUT /api/pet-services/tickets/bulk-update$", "Cập nhật hàng loạt phiếu Spa"),
+    (r"^PUT /api/pet-services/\d+/(status|progress)$", "Cập nhật tiến độ Spa"),
+    (r"^PUT /api/pet-services/\d+/call-status$", "Cập nhật gọi khách Spa"),
+    (r"^POST /api/pet-services/\d+/pay$", "Thanh toán phiếu Spa"),
+    (r"^DELETE /api/pet-services/\d+$", "Xóa phiếu Spa"),
+    (r"^(POST|PUT|DELETE) /api/pet-services/", "Cài đặt dịch vụ Spa"),
+    (r"^(POST|PUT|DELETE) /api/hrm/config/", "Sửa cấu hình chấm công/lương"),
+    (r"^(POST|PUT|DELETE) /api/hrm/commissions/", "Sửa chính sách hoa hồng"),
+    (r"^(POST|PUT|DELETE) /api/hrm/payroll/", "Tính/chốt/trả lương"),
+    (r"^(POST|PUT|DELETE) /api/hrm/", "Thao tác Nhân sự (HRM)"),
     (r"^POST /api/oem/.*", "Thao tác Gia công OEM"),
-    (r"^POST /api/price-lists/.*", "Thao tác Bảng giá"),
+    (r"^(POST|PUT|DELETE) /api/price-lists", "Thao tác Bảng giá"),
 ]
 
 
@@ -87,7 +96,11 @@ def _describe(method: str, path: str) -> str:
 
 
 # Các đường dẫn tần suất cao không ghi vào bảng activity_log để tránh đốt hạn mức DB (đặc biệt trên Cloud D1)
-_IGNORED_ACTIVITY_PATHS = {"/api/client-log", "/api/pos/draft"}
+# + các POST chỉ tính toán/xem trước, không đổi dữ liệu
+_IGNORED_ACTIVITY_PATHS = {
+    "/api/client-log", "/api/pos/draft",
+    "/api/pricing/calculate", "/api/pricing/calculate-spa", "/api/oem/calculate-bom-stock",
+}
 
 
 def log_activity_from_request(request, response):

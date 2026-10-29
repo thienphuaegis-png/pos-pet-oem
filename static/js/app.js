@@ -466,7 +466,16 @@
             });
         }
 
+        // Ô tìm kiếm: chờ ngừng gõ 300ms mới gọi API (debounce), tránh mỗi phím 1 request
+        let unifiedSearchTimer = null;
+        function debounceUnifiedSearch() {
+            clearTimeout(unifiedSearchTimer);
+            unifiedSearchTimer = setTimeout(loadUnifiedInventory, 300);
+        }
+
+        let unifiedLoadSeq = 0;
         async function loadUnifiedInventory() {
+            const seq = ++unifiedLoadSeq;
             try {
                 const whId = document.getElementById('unified-wh-filter')?.value || '';
                 const itemType = document.getElementById('unified-type-filter')?.value || 'all';
@@ -480,13 +489,16 @@
                 if (whId) url += `&warehouse_id=${whId}`;
                 if (search) url += `&search=${encodeURIComponent(search)}`;
 
+                // Danh sách kho chỉ tải lần đầu; thêm/sửa kho đã tự cập nhật allWarehouses
+                const needWh = !Array.isArray(allWarehouses) || allWarehouses.length === 0;
                 const [resInv, resWh] = await Promise.all([
                     fetch(url),
-                    fetch('/api/warehouses')
+                    needWh ? fetch('/api/warehouses') : null
                 ]);
-                
+
                 const data = await resInv.json();
-                allWarehouses = await resWh.json();
+                if (seq !== unifiedLoadSeq) return; // đã có lần tải mới hơn -> bỏ kết quả cũ
+                if (resWh) allWarehouses = await resWh.json();
                 unifiedInventoryData = data.items || [];
 
                 const whSelect = document.getElementById('unified-wh-filter');
@@ -1025,6 +1037,7 @@
                     alert("Không thể xóa: " + (err.detail || "Có lỗi xảy ra"));
                     return;
                 }
+                allWarehouses = []; // để loadUnifiedInventory tải lại danh sách kho
                 loadWarehousesList();
                 if (typeof showToast === 'function') showToast(`Đã xóa kho "${name}" thành công!`, 'success');
                 else alert("Đã xóa kho hàng thành công!");

@@ -4893,6 +4893,9 @@ window.closeEditTopupTxModal = closeEditTopupTxModal;
 window.submitEditTopupTx = submitEditTopupTx;
 window.confirmDeleteTopupTx = confirmDeleteTopupTx;
 window.loadTopupOrdersList = loadTopupOrdersList;
+// Ô tìm phiếu nạp ví: chờ ngừng gõ 300ms mới gọi API
+let topupSearchTimer = null;
+window.debounceTopupSearch = () => { clearTimeout(topupSearchTimer); topupSearchTimer = setTimeout(loadTopupOrdersList, 300); };
 window.renderTopupOrdersTable = renderTopupOrdersTable;
 
 // ====================================================

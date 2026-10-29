@@ -1,0 +1,52 @@
+<style>
+  .wrap{font-size:12px;color:var(--foreground);max-width:880px}
+  .note{color:var(--muted-foreground);margin:2px 0 10px}
+  .opt{border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px;background:var(--card)}
+  .opt h4{margin:0 0 4px;font-size:13px}
+  .bar{display:flex;gap:6px;align-items:center;margin:6px 0}
+  .bar input{flex:1;border:1px solid var(--border);border-radius:6px;padding:4px 6px;background:transparent;color:inherit;font-size:12px}
+  .btn{border:1px solid #16a34a;color:#16a34a;border-radius:6px;padding:3px 8px;font-weight:700;font-size:11px}
+  table{border-collapse:collapse;width:100%;font-size:11.5px}
+  th,td{border:1px solid var(--border);padding:3px 6px;white-space:nowrap}
+  th{background:color-mix(in srgb,var(--accent) 12%,transparent);text-align:left;position:sticky;top:0}
+  td.n{text-align:right;font-family:monospace}
+  td.c{font-family:monospace}
+  tr:nth-child(even) td{background:color-mix(in srgb,var(--foreground) 3%,transparent)}
+  .pend{color:#b45309;font-weight:700}.done{color:#15803d;font-weight:700}
+  tfoot td{font-weight:700}
+  .tag{font-size:10px;color:var(--muted-foreground)}
+</style>
+<div class="wrap">
+  <div class="note">Vị trí: card mới nằm <b>dưới</b> 2 card hiện tại (chỗ đang trống ~40% trang), rộng hết trang. Tên hàng dưới đây là <b>ví dụ minh họa</b> lấy từ danh mục sản phẩm thật. Mã phiếu lấy từ ảnh anh gửi.</div>
+
+  <div class="opt">
+    <h4>Cách A: Chi tiết từng dòng (mỗi dòng = 1 mặt hàng trong 1 phiếu)</h4>
+    <div class="tag">Giống sheet Excel: lọc theo trạng thái của ô "Tất cả trạng thái" phía trên, có ô tìm nhanh, có tổng ở cuối.</div>
+    <div class="bar"><input placeholder="Lọc nhanh: mã phiếu, mã hàng, tên hàng, người gửi..."><span class="btn">⬇ Xuất Excel</span></div>
+    <table>
+      <thead><tr><th>#</th><th>Mã Phiếu</th><th>Ngày</th><th>Người Gửi</th><th>Mã Hàng</th><th>Tên Hàng</th><th>ĐVT</th><th>SL Đặt</th><th>Trạng Thái</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="c">YCNH261027093903</td><td>27/10 02:39</td><td>Trưởng Kho</td><td class="c">BNGCT</td><td>Bình nước gắn chuồng thường</td><td>Cái</td><td class="n">1</td><td class="pend">Chờ duyệt</td></tr>
+        <tr><td>2</td><td class="c">YCNH261027093903</td><td>27/10 02:39</td><td>Trưởng Kho</td><td class="c">BNDKX</td><td>Tô nhựa đôi khúc xương</td><td>Cái</td><td class="n">1</td><td class="pend">Chờ duyệt</td></tr>
+        <tr><td>3</td><td class="c">YCNH261026145051</td><td>26/10 07:50</td><td>Trưởng Kho</td><td class="c">BNGCT</td><td>Bình nước gắn chuồng thường</td><td>Cái</td><td class="n">1</td><td class="pend">Chờ duyệt</td></tr>
+        <tr><td>4</td><td class="c">YCNH261024110356</td><td>24/10 04:03</td><td>Trưởng Kho</td><td class="c">SP005072</td><td>Bình sữa cho chó con 60ml</td><td>Cái</td><td class="n">1</td><td class="done">PO PN261024110914</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="7">Tổng: 4 dòng</td><td class="n">4</td><td></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="opt">
+    <h4>Cách B: Gộp theo mặt hàng (chỉ phiếu Chờ duyệt = hàng đang cần đặt)</h4>
+    <div class="tag">Thủ kho nhìn 1 lần biết cần đặt bao nhiêu món, tổng bao nhiêu, đang nằm trong những phiếu nào.</div>
+    <div class="bar"><input placeholder="Lọc nhanh: mã hàng, tên hàng..."><span class="btn">⬇ Xuất Excel</span></div>
+    <table>
+      <thead><tr><th>#</th><th>Mã Hàng</th><th>Tên Hàng</th><th>ĐVT</th><th>Tồn</th><th>Tổng SL Đặt</th><th>Số Phiếu</th><th>Thuộc Phiếu</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="c">BNGCT</td><td>Bình nước gắn chuồng thường</td><td>Cái</td><td class="n">3</td><td class="n">2</td><td class="n">2</td><td class="c">YCNH261027093903, YCNH261026145051</td></tr>
+        <tr><td>2</td><td class="c">BNDKX</td><td>Tô nhựa đôi khúc xương</td><td>Cái</td><td class="n">0</td><td class="n">1</td><td class="n">1</td><td class="c">YCNH261027093903</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="5">Tổng: 2 mặt hàng</td><td class="n">3</td><td colspan="2"></td></tr></tfoot>
+    </table>
+  </div>
+  <div class="tag">Cả 2 cách: không hiện NCC và giá vốn (giữ đúng quy tắc "ẩn danh NCC, bảo mật giá vốn" của trang này).</div>
+</div>

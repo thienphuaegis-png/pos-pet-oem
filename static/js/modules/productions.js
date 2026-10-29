@@ -1446,7 +1446,139 @@
             return (str.charAt(0).toUpperCase() + str.slice(1) + ' đồng chẵn.').replace(/\s+/g, ' ');
         };
 
-        window.printCurrentCashbookVoucher = function(voucherIdOrObj) {
+        // ── In phiếu Thu/Chi theo MẪU MẶC ĐỊNH trong Cài đặt: cashbook_{thu|chi}_{k80|a4} ──
+        // Khối chữ ký dùng chung cho xem trước (renderCanvas) và in thật
+        const CASHBOOK_SIG_HTML = {
+            signatures_cashbook: `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp / Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Lập Phiếu</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                        </div>`,
+            signatures_accounting_4col: `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; text-align: center; font-size: 11px; pointer-events: none;">
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Giám Đốc</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, đóng dấu)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Kế Toán Trưởng</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp/Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                            <div><div style="font-weight: bold; text-transform: uppercase;">Thủ Quỹ</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
+                        </div>`
+        };
+
+        // Dựng HTML các khối của mẫu với dữ liệu phiếu thật (hàm thuần, test được bằng Node)
+        window.buildCashbookPrintHtml = function(c, preset, settings) {
+            const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+            const data = {
+                ten_cua_hang: settings.shop_name || '',
+                dia_chi: settings.shop_address || '',
+                so_dien_thoai: settings.shop_phone || '',
+                loi_cam_on: settings.shop_footer || '',
+                ma_phieu: c.code || '',
+                ma_hoa_don: c.code || '',
+                ngay_gio: formatDateTime(c.created_at) || '',
+                thu_ngan: c.created_by || '',
+                ten_khach: c.contact_name || 'Khách lẻ / Nội bộ',
+                sdt_khach: c.contact_phone || '',
+                dia_chi_khach: c.contact_address || '',
+                hang_muc: c.category || '',
+                tai_khoan_quy: c.account_name || '',
+                so_tien: formatMoney(c.amount || 0),
+                dien_giai: c.note || '',
+                bang_chu: window.numberToVietnameseWords(c.amount || 0)
+            };
+            let elements = preset.elements || [];
+            // Đối tác không có địa chỉ -> bỏ dòng "Địa chỉ: ..." thay vì in nhãn trống
+            if (!data.dia_chi_khach) elements = elements.filter(e => !(e.text || '').includes('{{dia_chi_khach}}'));
+            return elements.map(e => {
+                let content = CASHBOOK_SIG_HTML[e.type];
+                if (content === undefined) {
+                    if (e.type === 'logo') {
+                        content = settings.shop_logo ? `<img src="${esc(settings.shop_logo)}" style="max-height: ${e.h || 65}px; max-width: ${e.w || 140}px; display: block; margin: 0 auto;">` : '';
+                    } else {
+                        // ponytail: chỉ khối chữ + logo + chữ ký; khối bảng/QR của hóa đơn bán hàng không áp dụng cho phiếu thu chi
+                        const txt = (e.text || '')
+                            .replace(/{{(\w+)}}/g, (m, k) => esc(data[k] == null ? '' : data[k]))
+                            .replace(/\s*\(\s*\)/g, ''); // SĐT trống -> bỏ "()"
+                        content = `<div style="font-size: ${e.fsz || 12}px; font-weight: ${e.bold ? 'bold' : 'normal'}; font-style: ${e.italic ? 'italic' : 'normal'}; text-align: ${e.align || 'left'}; white-space: pre-wrap;">${txt}</div>`;
+                    }
+                }
+                return `<div class="cb-el" style="position: absolute; left: ${e.x || 0}px; top: ${e.y || 0}px; width: ${e.w ? e.w + 'px' : 'auto'};">${content}</div>`;
+            }).join('');
+        };
+
+        // kind: 'k80' | 'a4'. Trả false nếu không có mẫu -> dùng bản in dự phòng.
+        async function printCashbookWithPreset(c, kind) {
+            const isThu = c.type === 'in' || c.type === 'THU';
+            const key = `cashbook_${isThu ? 'thu' : 'chi'}_${kind}`;
+            let settings = {};
+            try {
+                const r = await fetch('/api/settings'); // luôn đọc mẫu mới nhất vừa lưu trong Cài đặt
+                if (r.ok) settings = await r.json();
+            } catch (e) {}
+            let preset = null;
+            try { preset = (JSON.parse(settings.print_blocks_config || '{}').presets || {})[key] || null; } catch (e) {}
+            if (!preset && typeof getDefaultPresets === 'function') preset = getDefaultPresets()[key] || null;
+            if (!preset || !Array.isArray(preset.elements)) return false;
+
+            const isThermal = /K80|K58/.test(preset.paper_size || '');
+            const dim = paperDimensions[preset.paper_size] || paperDimensions[isThermal ? 'K80' : 'A5-landscape'];
+            let isBold = !!preset.is_bold_all;
+            if (isThermal) {
+                try {
+                    const bc = window.printBoldConfigs || (settings.print_bold_configs ? (typeof settings.print_bold_configs === 'string' ? JSON.parse(settings.print_bold_configs) : settings.print_bold_configs) : null);
+                    const bk = isThu ? 'cashbook_thu' : 'cashbook_chi';
+                    if (bc && bc[bk] !== undefined) isBold = !!bc[bk];
+                } catch (e) {}
+            }
+            const boldStyles = isBold ? `
+                body, table, td, th, div, span, p, b, strong, h1, h2, h3, h4 {
+                    font-weight: 900 !important; color: #000 !important;
+                    -webkit-text-stroke: 0.35px #000 !important; text-shadow: 0 0 0.2px #000 !important;
+                }` : '';
+
+            let iframe = document.getElementById('iframe-cashbook-print');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'iframe-cashbook-print';
+                document.body.appendChild(iframe);
+            }
+            // Iframe phải có kích thước thật để đo layout (không dùng width/height 0)
+            Object.assign(iframe.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1200px', height: '850px', border: 'none' });
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>${isThu ? 'Phiếu thu' : 'Phiếu chi'} - ${c.code || ''}</title>
+                <style>
+                    @page { size: ${isThermal ? 'auto' : dim.printSize}; margin: 0; }
+                    body { margin: 0; padding: 0; background: #fff; color: #000; font-family: 'Segoe UI', Arial, sans-serif; }
+                    ${boldStyles}
+                </style></head><body>
+                <div id="cb-paper" style="position: relative; width: ${dim.width}; margin: 0 auto;">${window.buildCashbookPrintHtml(c, preset, settings)}</div>
+                </body></html>`);
+            doc.close();
+
+            // Chữ dài xuống dòng -> đẩy khối bên dưới (cùng cột) xuống, tránh chồng chữ; rồi đặt chiều cao giấy theo nội dung
+            const els = [...doc.querySelectorAll('.cb-el')].sort((a, b) => a.offsetTop - b.offsetTop);
+            let maxBottom = 0;
+            els.forEach((el, i) => {
+                const l = el.offsetLeft, r = l + el.offsetWidth;
+                let top = el.offsetTop;
+                for (let j = 0; j < i; j++) {
+                    const p = els[j];
+                    if (p.offsetLeft < r && p.offsetLeft + p.offsetWidth > l) top = Math.max(top, p.offsetTop + p.offsetHeight + 2);
+                }
+                el.style.top = top + 'px';
+                maxBottom = Math.max(maxBottom, top + el.offsetHeight);
+            });
+            doc.getElementById('cb-paper').style.height = (maxBottom + (isThermal ? 70 : 10)) + 'px'; // K80: chừa ~18mm cho dao cắt
+
+            setTimeout(() => {
+                try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+                catch (e) { console.error('Lỗi in phiếu thu chi:', e); }
+            }, 300);
+            return true;
+        }
+
+        window.printCurrentCashbookVoucher = async function(voucherIdOrObj) {
             let c = null;
             if (typeof voucherIdOrObj === 'object' && voucherIdOrObj !== null) {
                 c = voucherIdOrObj;
@@ -1459,6 +1591,7 @@
                 if (window.showToast) window.showToast('Không tìm thấy thông tin phiếu thu chi!', 'error');
                 return;
             }
+            if (await printCashbookWithPreset(c, 'k80')) return;
             const isThu = c.type === 'in' || c.type === 'THU';
             const title = isThu ? 'PHIẾU THU TIỀN' : 'PHIẾU CHI TIỀN';
             const dateStr = c.created_at || new Date().toLocaleString('vi-VN');
@@ -1466,7 +1599,7 @@
             const printHtml = `
                 <div style="width: 72mm; max-width: 72mm; margin: 0 auto; font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; line-height: 1.35; color: #000; padding: 2mm 1mm;">
                     <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
-                        <h2 style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase;">🐾 PET CARE & SPA</h2>
+                        <h2 style="margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase;">${(window.companySettings && window.companySettings.shop_name) || ''}</h2>
                         <div style="font-size: 14px; font-weight: 900; margin-top: 4px;">${title}</div>
                         <div style="display: inline-block; border: 1.5px solid #000; font-size: 13px; font-weight: 900; padding: 2px 8px; border-radius: 4px; margin-top: 4px;">
                             MÃ: ${c.code || '-'}
@@ -1575,7 +1708,7 @@
             }, 300);
         };
 
-        window.printCashbookVoucherA4 = function(voucherIdOrObj) {
+        window.printCashbookVoucherA4 = async function(voucherIdOrObj) {
             let c = null;
             if (typeof voucherIdOrObj === 'object' && voucherIdOrObj !== null) {
                 c = voucherIdOrObj;
@@ -1588,6 +1721,7 @@
                 if (window.showToast) window.showToast('Không tìm thấy thông tin phiếu thu chi!', 'error');
                 return;
             }
+            if (await printCashbookWithPreset(c, 'a4')) return;
 
             const isThu = c.type === 'in' || c.type === 'THU';
             const title = isThu ? 'PHIẾU THU' : 'PHIẾU CHI';
@@ -1598,8 +1732,8 @@
             const year = isNaN(dateObj.getFullYear()) ? new Date().getFullYear() : dateObj.getFullYear();
 
             const company = window.companySettings || {};
-            const storeName = company.shop_name || company.app_name || 'PET CARE SYSTEM';
-            const storeAddr = company.shop_address || 'Nha Trang, Khánh Hòa';
+            const storeName = company.shop_name || company.app_name || '';
+            const storeAddr = company.shop_address || '';
             const storePhone = company.shop_phone || '';
 
             const words = window.numberToVietnameseWords(c.amount || 0);
@@ -5956,7 +6090,7 @@
                 { id: "e2", catalog_key: "order_code", zone: "header", type: "text", text: "Mẫu số 01 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
                 { id: "e3", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU THU", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
                 { id: "e4", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Ngày Tháng", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
-                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nộp tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do nộp: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}}\n- Nhập quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Thu Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nộp tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do nộp: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}} (Bằng chữ: {{bang_chu}})\n- Nhập quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Thu Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
                 { id: "e6", catalog_key: "signatures_accounting_4col", zone: "footer", type: "signatures_accounting_4col", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, h: 90 }
             ];
         }
@@ -5981,7 +6115,7 @@
                 { id: "e2", catalog_key: "order_code", zone: "header", type: "text", text: "Mẫu số 02 - TT\n(Ban hành theo TT số 133/2016/TT-BTC)\nQuyển số: ........\nSố: {{ma_phieu}}\nNợ: ..... Có: .....", label: "Mẫu Số & Quyển", x: 440, y: 20, w: 240, fsz: 10, align: "right" },
                 { id: "e3", catalog_key: "title", zone: "header", type: "text", text: "PHIẾU CHI", label: "Tiêu Đề", x: 150, y: 95, w: 380, fsz: 20, bold: true, align: "center" },
                 { id: "e4", catalog_key: "datetime", zone: "header", type: "text", text: "Ngày lập: {{ngay_gio}}", label: "Thời Gian", x: 150, y: 125, w: 380, fsz: 11, italic: true, align: "center" },
-                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nhận tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do chi: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}}\n- Xuất quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Chi Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
+                { id: "e5", catalog_key: "cashbook_reason", zone: "body", type: "text", text: "- Họ và tên người nhận tiền: {{ten_khach}} ({{sdt_khach}})\n- Lý do chi: {{dien_giai}}\n- Hạng mục: {{hang_muc}}\n- Số tiền: {{so_tien}} (Bằng chữ: {{bang_chu}})\n- Xuất quỹ / Két: {{tai_khoan_quy}}", label: "Nội Dung Chi Tiền", x: 30, y: 155, w: 650, fsz: 12, align: "left" },
                 { id: "e6", catalog_key: "signatures_accounting_4col", zone: "footer", type: "signatures_accounting_4col", label: "4 Chữ Ký Kế Toán", x: 30, y: 290, w: 650, h: 90 }
             ];
         }
@@ -7169,6 +7303,7 @@
                 tai_khoan_quy: "Két Tiền Mặt [Cty]",
                 so_tien: "500.000 đ",
                 dien_giai: "Thu tiền thanh toán dịch vụ & đơn hàng",
+                bang_chu: "Năm trăm nghìn đồng chẵn.",
                 // Stock audit mock
                 kho_kiem_ke: "Kho Tổng Nha Trang",
                 tong_mon_kiem: "3",
@@ -7325,14 +7460,7 @@
                         </div>
                     `;
                 } else if (e.type === 'signatures_accounting_4col') {
-                    content = `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; text-align: center; font-size: 11px; pointer-events: none;">
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Giám Đốc</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, đóng dấu)</div><div style="height: 50px;"></div></div>
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Kế Toán Trưởng</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp/Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Thủ Quỹ</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
-                        </div>
-                    `;
+                    content = CASHBOOK_SIG_HTML.signatures_accounting_4col;
                 } else if (e.type === 'signatures_audit') {
                     content = `
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
@@ -7342,12 +7470,7 @@
                         </div>
                     `;
                 } else if (e.type === 'signatures_cashbook') {
-                    content = `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: center; font-size: 11px; pointer-events: none;">
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Nộp / Nhận</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
-                            <div><div style="font-weight: bold; text-transform: uppercase;">Người Lập Phiếu</div><div style="font-size: 9px; font-style: italic; color: #555;">(Ký, họ tên)</div><div style="height: 50px;"></div></div>
-                        </div>
-                    `;
+                    content = CASHBOOK_SIG_HTML.signatures_cashbook;
                 } else if (e.type === 'table') {
                     if (isThermal) {
                         content = `
@@ -7432,6 +7555,7 @@
                     txt = txt.replace(/{{tai_khoan_quy}}/g, mockData.tai_khoan_quy);
                     txt = txt.replace(/{{so_tien}}/g, mockData.so_tien);
                     txt = txt.replace(/{{dien_giai}}/g, mockData.dien_giai);
+                    txt = txt.replace(/{{bang_chu}}/g, mockData.bang_chu);
                     txt = txt.replace(/{{kho_kiem_ke}}/g, mockData.kho_kiem_ke);
                     txt = txt.replace(/{{tong_mon_kiem}}/g, mockData.tong_mon_kiem);
                     txt = txt.replace(/{{lech_thua}}/g, mockData.lech_thua);

@@ -228,6 +228,7 @@
     };
 
     window.loadPurchaseRequestsList = async function() {
+        loadPendingRequestItems(); // bảng hàng đang chờ đặt cập nhật cùng lúc (sau gửi phiếu / lên PO / làm mới)
         const tbody = document.getElementById('pr-history-tbody');
         if (!tbody) return;
 
@@ -376,6 +377,62 @@
         } catch (e) {
             alert("Lỗi xem chi tiết: " + e.message);
         }
+    };
+
+    // ── Hàng đang chờ đặt (gộp theo mặt hàng, chỉ phiếu Chờ duyệt) ──
+    let _pendingItems = [];
+    const _esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const _num = n => Number(n || 0).toLocaleString('vi-VN');
+
+    async function loadPendingRequestItems() {
+        const tbody = document.getElementById('pr-pending-tbody');
+        if (!tbody) return;
+        try {
+            const res = await fetch('/api/purchase-requests/pending-items');
+            if (!res.ok) throw new Error('Không tải được hàng đang chờ đặt');
+            _pendingItems = await res.json();
+        } catch (e) {
+            _pendingItems = [];
+            tbody.innerHTML = `<tr><td colspan="8" class="border border-slate-300 p-4 text-center text-rose-500">Lỗi: ${_esc(e.message)}</td></tr>`;
+            return;
+        }
+        renderPendingRequestItems();
+    }
+
+    window.renderPendingRequestItems = function() {
+        const tbody = document.getElementById('pr-pending-tbody');
+        const tfoot = document.getElementById('pr-pending-tfoot');
+        const summary = document.getElementById('pr-pending-summary');
+        if (!tbody) return;
+        const q = (document.getElementById('pr-pending-filter')?.value || '').trim().toLowerCase();
+        const rows = q ? _pendingItems.filter(it =>
+            [it.product_code, it.product_name, ...(it.request_codes || [])].some(v => String(v || '').toLowerCase().includes(q))
+        ) : _pendingItems;
+        const td = 'border border-slate-300 px-2 py-1';
+
+        if (summary) summary.textContent = `${_pendingItems.length} mặt hàng`;
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="${td} p-4 text-center text-slate-400">${_pendingItems.length ? 'Không có mặt hàng khớp bộ lọc.' : 'Không có hàng nào đang chờ đặt.'}</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
+            return;
+        }
+        tbody.innerHTML = rows.map((it, i) => `
+            <tr class="${i % 2 ? 'bg-slate-50/70' : ''} hover:bg-amber-50/60">
+                <td class="${td} text-center text-slate-400">${i + 1}</td>
+                <td class="${td} font-mono">${_esc(it.product_code)}</td>
+                <td class="${td} font-semibold text-slate-800">${_esc(it.product_name)}</td>
+                <td class="${td} text-center">${_esc(it.unit)}</td>
+                <td class="${td} text-right font-mono ${it.stock <= 0 ? 'text-rose-600 font-bold' : ''}">${_num(it.stock)}</td>
+                <td class="${td} text-right font-mono font-bold text-amber-700">${_num(it.total_qty)}</td>
+                <td class="${td} text-right font-mono">${it.request_count}</td>
+                <td class="${td} font-mono text-slate-500">${(it.request_codes || []).map(_esc).join(', ')}</td>
+            </tr>`).join('');
+        const totalQty = rows.reduce((s, it) => s + (it.total_qty || 0), 0);
+        if (tfoot) tfoot.innerHTML = `<tr>
+                <td class="${td}" colspan="5">Tổng: ${rows.length} mặt hàng</td>
+                <td class="${td} text-right font-mono text-amber-700">${_num(totalQty)}</td>
+                <td class="${td}" colspan="2"></td>
+            </tr>`;
     };
 
     window.quickConvertRequestToPO = async function(requestId, code) {

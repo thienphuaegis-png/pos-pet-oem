@@ -127,7 +127,18 @@ def test_activity_logger_ignores_high_frequency_paths():
     before = _LOG_QUEUE.qsize()
     log_activity_from_request(DummyReq("/api/client-log"), None)
     log_activity_from_request(DummyReq("/api/pos/draft"), None)
+    log_activity_from_request(DummyReq("/api/pricing/calculate"), None)
     assert _LOG_QUEUE.qsize() == before
+
+
+def test_activity_logger_describes_spa_hrm_pricelist():
+    from activity_logger import _describe
+    assert _describe("DELETE", "/api/hrm/config/spa-rules/3") == "Sửa cấu hình chấm công/lương"
+    assert _describe("PUT", "/api/pet-services/24438/status") == "Cập nhật tiến độ Spa"
+    assert _describe("PUT", "/api/pet-services/tickets/bulk-update") == "Cập nhật hàng loạt phiếu Spa"
+    assert _describe("DELETE", "/api/pet-services/24448") == "Xóa phiếu Spa"
+    assert _describe("DELETE", "/api/price-lists/2") == "Thao tác Bảng giá"
+    assert _describe("POST", "/api/hrm/payroll/2026-10/lock") == "Tính/chốt/trả lương"
 
 
 def test_export_and_push_sqlite_to_d1():
