@@ -40,26 +40,17 @@ def clean_num(val):
 def list_products(category: Optional[str] = None, for_bom: Optional[bool] = False, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
-    query = '''
-    SELECT p.*,
-           GROUP_CONCAT(DISTINCT c.name) as supplier_names,
-           (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) as bom_count,
-           COALESCE(p.requires_bom, CASE WHEN (SELECT COUNT(*) FROM product_bom pb WHERE pb.product_id = p.id) > 0 OR (SELECT COUNT(*) FROM oem_order_items oi WHERE oi.product_id = p.id) > 0 THEN 1 ELSE 0 END) as computed_requires_bom
-    FROM products p
-    LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
-    LEFT JOIN contacts c ON si.supplier_id = c.id
-    WHERE COALESCE(p.is_active, 1) = 1 AND p.type != 'material'
-    '''
+    where_clause = "WHERE COALESCE(p.is_active, 1) = 1 AND p.type != 'material'"
     params = []
     if category:
-        query += ' AND COALESCE(p.category, "Khác") = ?'
+        where_clause += ' AND COALESCE(p.category, "Khác") = ?'
         params.append(category)
     if for_bom:
         # Lọc sạch nguyên liệu (Yêu cầu 2a):
         # 1. Mã không bắt đầu bằng NL- hoặc NL_
         # 2. Không thuộc danh mục "Nguyên liệu"
         # 3. Không trùng mã hoặc tên với nguyên liệu trong bảng ingredients
-        query += """
+        where_clause += """
             AND (p.code IS NULL OR (p.code NOT LIKE 'NL-%' AND p.code NOT LIKE 'NL_%'))
             AND LOWER(COALESCE(p.category, '')) NOT LIKE '%nguyên liệu%'
             AND NOT EXISTS (
@@ -68,11 +59,38 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
                    OR (i.name IS NOT NULL AND i.name != '' AND i.name = p.name)
             )
         """
-    query += '''
+    query = f'''
+    SELECT p.*,
+           GROUP_CONCAT(DISTINCT c.name) as supplier_names,
+           COALESCE(pb_cnt.cnt, 0) as bom_count,
+           COALESCE(p.requires_bom, CASE WHEN COALESCE(pb_cnt.cnt, 0) > 0 OR oi_has.product_id IS NOT NULL THEN 1 ELSE 0 END) as computed_requires_bom
+    FROM products p
+    LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
+    LEFT JOIN contacts c ON si.supplier_id = c.id
+    LEFT JOIN (SELECT product_id, COUNT(*) as cnt FROM product_bom GROUP BY product_id) pb_cnt ON pb_cnt.product_id = p.id
+    LEFT JOIN (SELECT DISTINCT product_id FROM oem_order_items WHERE product_id IS NOT NULL) oi_has ON oi_has.product_id = p.id
+    {where_clause}
     GROUP BY p.id
     ORDER BY p.id DESC
     '''
-    cur.execute(query, tuple(params))
+    try:
+        cur.execute(query, tuple(params))
+    except Exception:
+        fallback_query = f'''
+        SELECT p.*,
+               GROUP_CONCAT(DISTINCT c.name) as supplier_names,
+               COALESCE(pb_cnt.cnt, 0) as bom_count,
+               CASE WHEN COALESCE(pb_cnt.cnt, 0) > 0 OR oi_has.product_id IS NOT NULL THEN 1 ELSE 0 END as computed_requires_bom
+        FROM products p
+        LEFT JOIN supplier_items si ON si.item_type = 'product' AND si.product_id = p.id
+        LEFT JOIN contacts c ON si.supplier_id = c.id
+        LEFT JOIN (SELECT product_id, COUNT(*) as cnt FROM product_bom GROUP BY product_id) pb_cnt ON pb_cnt.product_id = p.id
+        LEFT JOIN (SELECT DISTINCT product_id FROM oem_order_items WHERE product_id IS NOT NULL) oi_has ON oi_has.product_id = p.id
+        {where_clause}
+        GROUP BY p.id
+        ORDER BY p.id DESC
+        '''
+        cur.execute(fallback_query, tuple(params))
     rows = [dict(r) for r in cur.fetchall()]
     for r in rows:
         computed = r.pop("computed_requires_bom", None)

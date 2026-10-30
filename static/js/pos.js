@@ -288,20 +288,21 @@ async function initPOS(force = false) {
 
     posIsLoading = true;
     try {
-        const [prodRes, custRes, staffRes, setRes] = await Promise.all([
+        // 1. Nạp danh sách Hàng Hóa, Nhân Viên, Cài Đặt trước (~300 KB) để ô tìm kiếm POS dùng được ngay (<0.5s)
+        const [prodRes, staffRes, setRes] = await Promise.all([
             fetch('/api/products?_t=' + Date.now()),
-            fetch('/api/contacts?type=customer&_t=' + Date.now()),
             fetch('/api/staff?_t=' + Date.now()),
             fetch('/api/settings?_t=' + Date.now())
         ]);
 
         if (prodRes.ok) {
             const data = await prodRes.json();
-            if (Array.isArray(data)) posProducts = data;
-        }
-        if (custRes.ok) {
-            const data = await custRes.json();
-            if (Array.isArray(data)) posContacts = data;
+            if (Array.isArray(data)) {
+                posProducts = data;
+                if (typeof allProducts !== 'undefined' && (!Array.isArray(allProducts) || allProducts.length === 0)) {
+                    allProducts = data;
+                }
+            }
         }
         if (staffRes.ok) {
             const data = await staffRes.json();
@@ -311,6 +312,14 @@ async function initPOS(force = false) {
             const data = await setRes.json();
             if (data && typeof data === 'object') posSettings = data;
         }
+
+        // 2. Nạp danh sách 13.000+ khách hàng bất đồng bộ phía sau để không chặn tìm kiếm hàng hóa POS
+        fetch('/api/contacts?type=customer&_t=' + Date.now())
+            .then(r => r.ok ? r.json() : [])
+            .then(data => {
+                if (Array.isArray(data)) posContacts = data;
+            })
+            .catch(err => console.error("Lỗi tải danh sách khách hàng POS:", err));
 
         // Tải danh sách tài khoản thanh toán cho POS
         fetch('/api/payment-accounts?_t=' + Date.now()).then(r => r.ok ? r.json() : []).then(accs => {
@@ -843,6 +852,18 @@ function filterProductSearch(val) {
     const dropdown = document.getElementById('pos-search-dropdown');
     if (!dropdown) return;
     const q = (val || '').trim();
+
+    if ((!posProducts || posProducts.length === 0) && typeof allProducts !== 'undefined' && Array.isArray(allProducts) && allProducts.length > 0) {
+        posProducts = allProducts;
+    }
+    if ((!posProducts || posProducts.length === 0) && !posIsLoading) {
+        initPOS(true).then(() => {
+            if (posProducts && posProducts.length > 0) {
+                const curVal = document.getElementById('pos-search-input')?.value ?? val;
+                filterProductSearch(curVal);
+            }
+        });
+    }
 
     posProductActiveIdx = -1;
     document.getElementById('pos-customer-dropdown')?.classList.add('hidden');

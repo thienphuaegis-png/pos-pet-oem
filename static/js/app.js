@@ -500,6 +500,15 @@
                 if (seq !== unifiedLoadSeq) return; // đã có lần tải mới hơn -> bỏ kết quả cũ
                 if (resWh) allWarehouses = await resWh.json();
                 unifiedInventoryData = data.items || [];
+                if (typeof posProducts !== 'undefined' && (!Array.isArray(posProducts) || posProducts.length === 0) && unifiedInventoryData.length > 0) {
+                    posProducts = unifiedInventoryData
+                        .filter(it => it.item_type === 'product')
+                        .map(it => ({
+                            ...it,
+                            type: it.sub_type || 'product',
+                            stock: it.quantity ?? 0
+                        }));
+                }
 
                 const whSelect = document.getElementById('unified-wh-filter');
                 if (whSelect && (!whSelect.options || whSelect.options.length <= 1)) {
@@ -516,8 +525,8 @@
                 canViewCost = data.can_view_cost !== false;
                 applyCostVisibility();
 
-                await populateUnifiedCategoryFilter();
                 renderUnifiedInventoryTable();
+                populateUnifiedCategoryFilter();
             } catch (e) {
                 console.error("loadUnifiedInventory error:", e);
             }
@@ -5077,30 +5086,34 @@
         }
         window.initSidebarState = initSidebarState;
 
+        let _appInitStarted = false;
+
         async function init() {
+            if (_appInitStarted) return;
+            _appInitStarted = true;
             initAppZoom();
             initSidebarState();
-            // Tải cấu hình cài đặt chung trước để hiển thị tiêu đề và logo
+            // Tải cấu hình cài đặt chung và nhân viên song song, các tab lớn (Contacts 13k dòng, Purchases, Production) chỉ tải khi mở tab
             try {
+                if (typeof loadStaff === 'function') loadStaff();
                 const res = await fetch('/api/settings');
                 if (res.ok) {
                     const st = await res.json();
+                    window.companySettings = st;
                     if (typeof updateAppTitleUI === 'function') {
                         updateAppTitleUI(st.app_name || st.shop_name, st.shop_logo);
                     }
+                    if (typeof applyModuleVisibility === 'function') {
+                        applyModuleVisibility(st);
+                    }
                 }
-            } catch (_) {}
-
-            try {
-                if (typeof loadContacts === 'function') loadContacts();
-                if (typeof loadStaff === 'function') loadStaff();
-                if (typeof initPurchases === 'function') initPurchases();
-                if (typeof initProduction === 'function') initProduction();
                 if (typeof loadAndSyncPetCatalog === 'function') loadAndSyncPetCatalog();
-            } catch(e) {
+            } catch (e) {
                 console.warn('init background modules err:', e);
             }
-            switchTab('ai-agent');
+            if (!window.__currentActiveTabId) {
+                switchTab('ai-agent');
+            }
         }
 
         async function loadProducts() {

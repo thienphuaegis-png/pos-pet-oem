@@ -11276,14 +11276,16 @@
         window.swapTransferAccounts = swapTransferAccounts;
         window.numberToVietnameseWords = numberToVietnameseWords;
 
-        // Tu dong nap va ve ban in khi module san sang
+        // Chỉ nạp cài đặt mẫu in khi tab Cài Đặt đang mở (tránh gọi trùng /api/settings lúc mới vào trang)
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-                if (typeof loadSettings === 'function') loadSettings();
+                const setTab = document.getElementById('tab-settings');
+                if (setTab && !setTab.classList.contains('hidden') && typeof loadSettings === 'function') loadSettings();
             });
         } else {
             setTimeout(() => {
-                if (typeof loadSettings === 'function') loadSettings();
+                const setTab = document.getElementById('tab-settings');
+                if (setTab && !setTab.classList.contains('hidden') && typeof loadSettings === 'function') loadSettings();
             }, 60);
         }
 

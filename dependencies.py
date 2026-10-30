@@ -1,6 +1,6 @@
 import os
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from database import get_db
 
@@ -23,7 +23,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(request: Request = None, token: str = Depends(oauth2_scheme)):
+    if request is not None and hasattr(request.state, "_authenticated_user") and request.state._authenticated_user:
+        return dict(request.state._authenticated_user)
+
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGO])
     except jwt.ExpiredSignatureError:
@@ -44,10 +47,15 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Tài khoản không tồn tại hoặc bị khóa")
     if (user["token_version"] or 0) != payload.get("tv", 0):
         raise HTTPException(status_code=401, detail="Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại")
-    return dict(user)
+    user_dict = dict(user)
+    if request is not None:
+        request.state._authenticated_user = user_dict
+    return user_dict
 
 
-def get_optional_user(token: str = Depends(oauth2_scheme_optional)):
+def get_optional_user(request: Request = None, token: str = Depends(oauth2_scheme_optional)):
+    if request is not None and hasattr(request.state, "_authenticated_user") and request.state._authenticated_user:
+        return dict(request.state._authenticated_user)
     if not token:
         return None
     try:
@@ -61,7 +69,10 @@ def get_optional_user(token: str = Depends(oauth2_scheme_optional)):
         user = cur.fetchone()
         db.close()
         if user and user["is_active"] and (user["token_version"] or 0) == payload.get("tv", 0):
-            return dict(user)
+            user_dict = dict(user)
+            if request is not None:
+                request.state._authenticated_user = user_dict
+            return user_dict
     except Exception:
         pass
     return None

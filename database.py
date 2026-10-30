@@ -304,6 +304,76 @@ class D1CursorWrapper:
         self._rows = []
 
 
+_SHARED_D1_HTTP_CLIENT = None
+_D1_QUOTA_EXCEEDED_UNTIL = 0.0
+_D1_FALLBACK_CONNS = {}
+
+
+def _get_shared_d1_http_client():
+    global _SHARED_D1_HTTP_CLIENT
+    if _SHARED_D1_HTTP_CLIENT is None:
+        import httpx
+        _SHARED_D1_HTTP_CLIENT = httpx.Client(timeout=20.0)
+    return _SHARED_D1_HTTP_CLIENT
+
+
+def _get_d1_fallback_sqlite_conn(database_id: str):
+    short_id = (database_id or "default")[:8]
+    conn = _D1_FALLBACK_CONNS.get(short_id)
+    if conn is not None:
+        return conn
+
+    import shutil
+    import tempfile
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    src_db = os.path.join(base_dir, "data", "pos.db")
+    tmp_db = os.path.join(tempfile.gettempdir(), f"pos_d1_fallback_{short_id}.db")
+    if not os.path.exists(tmp_db) and os.path.exists(src_db):
+        try:
+            shutil.copy2(src_db, tmp_db)
+        except OSError:
+            tmp_db = src_db
+    elif not os.path.exists(tmp_db):
+        tmp_db = get_db_path()
+
+    conn = sqlite3.connect(tmp_db, timeout=30.0, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.cursor()
+        if "e2d15172" in (database_id or ""):
+            preset = {
+                "app_name": "🐾 PetNT POS",
+                "module_pet_services": "1",
+                "module_hotel": "1",
+                "module_oem": "0",
+                "module_marketplace": "0",
+                "module_price_lists": "0",
+            }
+        elif "a18a2510" in (database_id or ""):
+            preset = {
+                "app_name": "⚡ MCare POS",
+                "module_oem": "1",
+                "module_marketplace": "1",
+                "module_price_lists": "1",
+                "module_pet_services": "0",
+                "module_hotel": "0",
+            }
+        else:
+            preset = {}
+        for k, v in preset.items():
+            cur.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (k, v),
+            )
+        conn.commit()
+    except Exception:
+        pass
+
+    _D1_FALLBACK_CONNS[short_id] = conn
+    return conn
+
+
 class D1ConnectionWrapper:
     """Connection tương thích sqlite3 cho Cloudflare D1."""
     def __init__(self, worker_url=None, worker_secret=None, account_id=None, database_id=None, api_token=None, http_client=None):
@@ -317,8 +387,7 @@ class D1ConnectionWrapper:
             self._client = http_client
             self._owns_client = False
         else:
-            import httpx
-            self._client = httpx.Client(timeout=20.0)
+            self._client = _get_shared_d1_http_client()
             self._owns_client = True
 
     def _endpoint_and_headers(self, is_batch=False):
@@ -335,12 +404,38 @@ class D1ConnectionWrapper:
         }
         return url, headers
 
+    def _exec_fallback_sqlite(self, sql, params):
+        conn = _get_d1_fallback_sqlite_conn(self.database_id)
+        cur = conn.cursor()
+        if not params and ";\n" in sql:
+            cur.executescript(sql)
+            conn.commit()
+            return {"results": [], "meta": {"changes": 1}}
+        cur.execute(sql, params or [])
+        rows = [dict(r) for r in cur.fetchall()] if cur.description else []
+        meta = {
+            "last_row_id": cur.lastrowid,
+            "changes": cur.rowcount if cur.rowcount != -1 else 0,
+        }
+        if not sql.lstrip().upper().startswith("SELECT") and not sql.lstrip().upper().startswith("PRAGMA"):
+            conn.commit()
+        return {"results": rows, "meta": meta}
+
     def _send_query(self, sql, params):
+        global _D1_QUOTA_EXCEEDED_UNTIL
+        import time
+        if self._owns_client and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
+            return self._exec_fallback_sqlite(sql, params)
+
         url, headers = self._endpoint_and_headers(is_batch=False)
         resp = self._client.post(url, json={"sql": sql, "params": params}, headers=headers)
         data = resp.json()
         if resp.status_code >= 400 or not data.get("success", True):
             errs = data.get("errors") or data.get("error") or resp.text
+            err_str = str(errs)
+            if self._owns_client and ("daily row read limit" in err_str or "exceeded D1" in err_str):
+                _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
+                return self._exec_fallback_sqlite(sql, params)
             raise sqlite3.OperationalError(f"Cloudflare D1 error: {errs}")
         res_list = data.get("result")
         if isinstance(res_list, list) and res_list:
@@ -401,11 +496,8 @@ class D1ConnectionWrapper:
         pass
 
     def close(self):
-        if self._owns_client and self._client:
-            try:
-                self._client.close()
-            except Exception:
-                pass
+        # Giữ nguyên _SHARED_D1_HTTP_CLIENT để tái sử dụng kết nối TCP/TLS Keep-Alive
+        pass
 
 def get_db_path():
     env_path = os.environ.get("POS_DB_PATH")
@@ -878,6 +970,7 @@ def init_db():
         UNIQUE(warehouse_id, product_id)
     )''')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_prod_inv ON product_inventory(warehouse_id, product_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_prod_inv_product_id ON product_inventory(product_id)')
 
     # Dong bo ton kho san pham vao kho 1 neu chua co
     cur.execute("SELECT COUNT(*) FROM product_inventory")
@@ -964,6 +1057,7 @@ def init_db():
     )''')
 
     cur.execute('CREATE INDEX IF NOT EXISTS idx_inventory_lookup ON inventory(warehouse_id, ingredient_id)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_inventory_ingredient_id ON inventory(ingredient_id)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_price_history_latest ON price_history(ingredient_id, effective_date DESC)')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_bom_product ON product_bom(product_id)')
 
