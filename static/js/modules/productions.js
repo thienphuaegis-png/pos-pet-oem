@@ -5232,6 +5232,216 @@
             }
         }
 
+        async function printOrderDeliveryNoteA4(orderCode) {
+            const code = orderCode || currentViewedOrderCode;
+            if (!code) {
+                if (window.showToast) window.showToast("Không tìm thấy mã hóa đơn để in phiếu giao hàng!", "error");
+                return;
+            }
+
+            try {
+                let ord = (window.currentViewedOrderObj && window.currentViewedOrderObj.code === code && Array.isArray(window.currentViewedOrderObj.items))
+                    ? window.currentViewedOrderObj
+                    : null;
+                if (!ord) {
+                    const res = await fetch(`/api/orders/${encodeURIComponent(code)}`);
+                    if (!res.ok) throw new Error("Không thể tải chi tiết đơn hàng");
+                    ord = await res.json();
+                }
+
+                let company = window.companySettings;
+                if (!company || !company.shop_name) {
+                    try {
+                        const setRes = await fetch('/api/settings');
+                        if (setRes.ok) {
+                            company = await setRes.json();
+                            window.companySettings = company;
+                        }
+                    } catch (e) {}
+                }
+                company = company || window.posSettings || currentSettings || {};
+                const storeName = company.shop_name || company.app_name || '';
+                const storeAddr = company.shop_address || '';
+                const storePhone = company.shop_phone || '';
+
+                const items = ord.items || [];
+                let totalQty = 0;
+
+                const rowsHtml = items.map((it, idx) => {
+                    const qtyVal = Number(it.quantity || 0);
+                    totalQty += qtyVal;
+                    const sku = escapeHtml(it.product_code || it.code || '-');
+                    const name = escapeHtml(it.product_name || it.name || 'Mặt hàng');
+                    const unit = escapeHtml(it.unit || 'Cái');
+                    const qty = qtyVal.toLocaleString('vi-VN');
+                    const isGift = !!(it.is_gift || (Number(it.price) === 0 && qtyVal > 0));
+                    const itemNote = escapeHtml(it.note || (isGift ? 'Hàng tặng' : ''));
+                    return `
+                        <tr>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 5px;">${idx + 1}</td>
+                            <td style="font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #000; padding: 5px;">${sku}</td>
+                            <td style="font-weight: bold; font-size: 12px; border: 1px solid #000; padding: 5px;">${name}</td>
+                            <td style="text-align: center; font-size: 11px; border: 1px solid #000; padding: 5px;">${unit}</td>
+                            <td style="text-align: right; font-family: monospace; font-size: 12px; font-weight: bold; border: 1px solid #000; padding: 5px;">${qty}</td>
+                            <td style="font-size: 11px; border: 1px solid #000; padding: 5px;">${itemNote}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const orderDate = (typeof formatDate === 'function' && ord.created_at)
+                    ? formatDate(ord.created_at)
+                    : (ord.created_at ? String(ord.created_at).split(' ')[0].split('-').reverse().join('/') : '');
+
+                const custName = escapeHtml(ord.customer_name || 'Khách lẻ');
+                const custPhone = escapeHtml(ord.customer_phone || '');
+                const custAddr = escapeHtml(ord.customer_address || '');
+                const orderNote = escapeHtml(ord.note || '');
+                const creatorName = escapeHtml(ord.created_by || ord.staff_name || '');
+                const receiverSignName = (ord.customer_name && ord.customer_name !== 'Khách lẻ') ? custName : '';
+
+                const printHtml = `
+                    <div style="width: 190mm; max-width: 190mm; margin: 0 auto; font-family: 'Times New Roman', Times, serif; font-size: 12px; line-height: 1.35; color: #000; padding: 4mm;">
+                        <!-- HEADER -->
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid #999; padding-bottom: 8px;">
+                            <div style="max-width: 65%;">
+                                ${storeName ? `<div style="font-weight: bold; text-transform: uppercase; font-size: 13px;">${escapeHtml(storeName)}</div>` : ''}
+                                ${storeAddr ? `<div style="font-size: 11px; margin-top: 2px;">Địa chỉ: ${escapeHtml(storeAddr)}</div>` : ''}
+                                ${storePhone ? `<div style="font-size: 11px;">Hotline: ${escapeHtml(storePhone)}</div>` : ''}
+                            </div>
+                            <div style="text-align: right; font-size: 11px;">
+                                <div>Số phiếu: <strong style="font-family: monospace; font-size: 13px;">${escapeHtml(ord.code)}</strong></div>
+                                <div>Ngày: ${orderDate || '-'}</div>
+                            </div>
+                        </div>
+
+                        <!-- TITLE -->
+                        <div style="text-align: center; margin-bottom: 14px;">
+                            <h1 style="margin: 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">PHIẾU GIAO HÀNG</h1>
+                        </div>
+
+                        <!-- INFO BOX -->
+                        <div style="border: 1px solid #000; padding: 8px 10px; margin-bottom: 12px; font-size: 12px; line-height: 1.5; background: #fafafa;">
+                            <div style="display: flex; margin-bottom: 3px;">
+                                <div style="width: 140px; font-weight: bold;">👤 Khách hàng nhận:</div>
+                                <div style="flex: 1; font-weight: bold;">${custName}${custPhone ? ` — SĐT: ${custPhone}` : ''}</div>
+                            </div>
+                            ${custAddr ? `
+                            <div style="display: flex; margin-bottom: 3px;">
+                                <div style="width: 140px; font-weight: bold;">📍 Địa chỉ giao hàng:</div>
+                                <div style="flex: 1;">${custAddr}</div>
+                            </div>` : ''}
+                            <div style="display: flex;">
+                                <div style="width: 140px; font-weight: bold;">📝 Ghi chú giao hàng:</div>
+                                <div style="flex: 1;">${orderNote}</div>
+                            </div>
+                        </div>
+
+                        <!-- TABLE -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;">
+                            <thead>
+                                <tr style="background: #f0f0f0;">
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 35px; text-align: center;">STT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 85px; text-align: left;">Mã SKU</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; text-align: left;">Tên Mặt Hàng</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 55px; text-align: center;">ĐVT</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 80px; text-align: right;">Số Lượng</th>
+                                    <th style="border: 1px solid #000; padding: 6px 4px; width: 110px; text-align: left;">Ghi Chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                                <tr style="font-weight: bold; background: #fafafa;">
+                                    <td colspan="4" style="border: 1px solid #000; padding: 6px; text-align: right;">TỔNG CỘNG (${items.length} mặt hàng):</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: right; font-family: monospace;">${totalQty.toLocaleString('vi-VN')}</td>
+                                    <td style="border: 1px solid #000; padding: 6px;"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 3 SIGNATURES -->
+                        <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11.5px; margin-top: 25px; page-break-inside: avoid;">
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Người Lập Phiếu</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 45px;"></div>
+                                <div style="font-weight: 600; font-size: 11px;">${creatorName}</div>
+                            </div>
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Người Giao Hàng</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 45px;"></div>
+                            </div>
+                            <div style="width: 32%;">
+                                <div style="font-weight: bold;">Người Nhận Hàng</div>
+                                <div style="font-style: italic; font-size: 10px;">(Ký, họ tên)</div>
+                                <div style="height: 45px;"></div>
+                                <div style="font-weight: 600; font-size: 11px;">${receiverSignName}</div>
+                            </div>
+                        </div>
+                        ${ord.updated_by ? `<div style="font-size: 10px; color: #666; font-style: italic; margin-top: 15px; text-align: left;">* Phiếu được chỉnh sửa lần cuối bởi: <strong>${escapeHtml(ord.updated_by)}</strong> (${ord.updated_at && typeof formatDate === 'function' ? formatDate(ord.updated_at) : ''})</div>` : ''}
+                    </div>
+                `;
+
+                let iframe = document.getElementById('iframe-delivery-note-print');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'iframe-delivery-note-print';
+                    iframe.style.position = 'fixed';
+                    iframe.style.left = '-9999px';
+                    iframe.style.top = '-9999px';
+                    iframe.style.width = '1200px';
+                    iframe.style.height = '850px';
+                    iframe.style.border = 'none';
+                    iframe.style.zIndex = '-9999';
+                    document.body.appendChild(iframe);
+                }
+
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Phiếu Giao Hàng - ${escapeHtml(ord.code)}</title>
+                        <style>
+                            @page { size: A4 portrait; margin: 8mm 10mm; }
+                            table { width: 100%; border-collapse: collapse; }
+                            th, td { border: 1px solid #000; padding: 5px; }
+                            @media print {
+                                html, body { margin: 0; padding: 0; background: #fff; }
+                            }
+                        </style>
+                    </head>
+                    <body style="display: block; margin: 0 auto;">
+                        ${printHtml}
+                    </body>
+                    </html>
+                `);
+                doc.close();
+
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch (e) {
+                        console.error('Lỗi in phiếu giao hàng:', e);
+                    }
+                }, 300);
+            } catch (err) {
+                console.error("printOrderDeliveryNoteA4 error:", err);
+                if (window.showToast) window.showToast("Không thể tải và in phiếu giao hàng!", "error");
+            }
+        }
+        window.printOrderDeliveryNoteA4 = printOrderDeliveryNoteA4;
+
+        function printCurrentOrderDeliveryNote() {
+            if (currentViewedOrderCode) {
+                printOrderDeliveryNoteA4(currentViewedOrderCode);
+            }
+        }
+        window.printCurrentOrderDeliveryNote = printCurrentOrderDeliveryNote;
+
         async function payDebtFromCurrentOrderView() {
             const ord = window.currentViewedOrderObj;
             if (!ord || !ord.customer_id) return;
