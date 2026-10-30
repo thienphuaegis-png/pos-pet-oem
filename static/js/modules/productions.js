@@ -2937,9 +2937,26 @@
         // Cai dat & Mau in
         let currentSettings = {};
 
+        function _applyLocalBrandingOverride(st) {
+            if (!st) return st;
+            try {
+                const raw = localStorage.getItem('pos_custom_branding_v1');
+                if (raw) {
+                    const ov = JSON.parse(raw);
+                    if (ov && typeof ov === 'object') {
+                        if (ov.shop_logo !== undefined) st.shop_logo = ov.shop_logo;
+                        if (ov.app_name) st.app_name = ov.app_name;
+                        if (ov.shop_name) st.shop_name = ov.shop_name;
+                    }
+                }
+            } catch (_) {}
+            return st;
+        }
+        window._applyLocalBrandingOverride = _applyLocalBrandingOverride;
+
         async function loadCompanySettings() {
             const res = await fetch('/api/settings');
-            currentSettings = await res.json();
+            currentSettings = _applyLocalBrandingOverride(await res.json());
             
             const appName = currentSettings.app_name || '⚡ POS Offline';
             const appNameInput = document.getElementById('comp-app-name');
@@ -3124,6 +3141,14 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
+                try {
+                    localStorage.setItem('pos_custom_branding_v1', JSON.stringify({
+                        app_name: appName,
+                        shop_name: payload.shop_name,
+                        shop_logo: payload.shop_logo,
+                        updated_at: Date.now()
+                    }));
+                } catch (_) {}
                 alert('✅ Đã lưu thông tin doanh nghiệp & Link Google Drive Webhook thành công!');
                 updateAppTitleUI(appName, payload.shop_logo);
                 const loginNameEl = document.getElementById('login-store-name');
@@ -9173,7 +9198,11 @@
         }
 
         function closeAllOEMActionMenus() {
-            document.querySelectorAll('.oem-action-dropdown').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.oem-action-dropdown').forEach(m => {
+                m.classList.add('hidden');
+                m.style.top = '';
+                m.style.left = '';
+            });
         }
         window.closeAllOEMActionMenus = closeAllOEMActionMenus;
 
@@ -9183,9 +9212,34 @@
             document.querySelectorAll('.oem-action-dropdown').forEach(m => {
                 if (m !== targetMenu) m.classList.add('hidden');
             });
-            if (targetMenu) targetMenu.classList.toggle('hidden');
+            if (!targetMenu) return;
+            const willOpen = targetMenu.classList.contains('hidden');
+            if (!willOpen) {
+                targetMenu.classList.add('hidden');
+                return;
+            }
+            targetMenu.classList.remove('hidden');
+            const btn = event?.currentTarget || event?.target?.closest('button');
+            if (btn && typeof btn.getBoundingClientRect === 'function') {
+                const rect = btn.getBoundingClientRect();
+                const menuW = targetMenu.offsetWidth || 156;
+                const menuH = targetMenu.offsetHeight || 175;
+                let left = rect.right - menuW;
+                if (left < 8) left = 8;
+                if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                let top = spaceBelow >= menuH + 12 ? rect.bottom + 4 : rect.top - menuH - 4;
+                if (top < 8) top = rect.bottom + 4;
+                targetMenu.style.position = 'fixed';
+                targetMenu.style.left = `${Math.round(left)}px`;
+                targetMenu.style.top = `${Math.round(top)}px`;
+                targetMenu.style.bottom = 'auto';
+                targetMenu.style.right = 'auto';
+            }
         }
         window.toggleOEMActionMenu = toggleOEMActionMenu;
+
+        window.addEventListener('scroll', closeAllOEMActionMenus, true);
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.oem-action-dropdown') && !e.target.closest('[onclick^="toggleOEMActionMenu"]')) {
@@ -9277,10 +9331,10 @@
                             <div class="flex items-center justify-center gap-1.5 relative">
                                 ${primaryActionBtn}
                                 <div class="relative">
-                                    <button type="button" onclick="toggleOEMActionMenu(${o.id}, event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
+                                    <button type="button" onclick="toggleOEMActionMenu(${o.id}, event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition cursor-pointer" title="Thao tác khác">
                                         ⋮
                                     </button>
-                                    <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
+                                    <div id="oem-menu-${o.id}" class="hidden oem-action-dropdown fixed bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] w-40 py-1 text-left text-xs divide-y divide-slate-100">
                                         <div class="py-0.5">
                                             ${o.status === 'DRAFT' ? `
                                                 <button type="button" onclick="closeAllOEMActionMenus(); confirmOEMDraftToOrder(${o.id}, '${escapeHtml(o.code)}')" class="w-full px-3 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-bold">

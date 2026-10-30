@@ -317,6 +317,24 @@ def _get_shared_d1_http_client():
     return _SHARED_D1_HTTP_CLIENT
 
 
+def _load_petnt_default_logo() -> str:
+    try:
+        import base64
+        import io
+        from PIL import Image
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        ico_path = os.path.join(base_dir, "static", "img", "logo Pet Nha Trang.ico")
+        if os.path.exists(ico_path):
+            img = Image.open(ico_path)
+            img.thumbnail((240, 240))
+            buf = io.BytesIO()
+            img.save(buf, format="WEBP", quality=85)
+            return "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        pass
+    return ""
+
+
 def _get_d1_fallback_sqlite_conn(database_id: str):
     short_id = (database_id or "default")[:8]
     conn = _D1_FALLBACK_CONNS.get(short_id)
@@ -342,6 +360,7 @@ def _get_d1_fallback_sqlite_conn(database_id: str):
     try:
         cur = conn.cursor()
         if "e2d15172" in (database_id or ""):
+            petnt_logo = _load_petnt_default_logo()
             preset = {
                 "app_name": "🐾 PetNT POS",
                 "module_pet_services": "1",
@@ -350,6 +369,8 @@ def _get_d1_fallback_sqlite_conn(database_id: str):
                 "module_marketplace": "0",
                 "module_price_lists": "0",
             }
+            if petnt_logo:
+                preset["shop_logo"] = petnt_logo
         elif "a18a2510" in (database_id or ""):
             preset = {
                 "app_name": "⚡ MCare POS",
@@ -421,10 +442,16 @@ class D1ConnectionWrapper:
             conn.commit()
         return {"results": rows, "meta": meta}
 
+    @staticmethod
+    def _is_read_only_sql(sql: str) -> bool:
+        up = (sql or "").lstrip().upper()
+        return up.startswith("SELECT") or up.startswith("PRAGMA") or up.startswith("WITH")
+
     def _send_query(self, sql, params):
         global _D1_QUOTA_EXCEEDED_UNTIL
         import time
-        if self._owns_client and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
+        is_read = self._is_read_only_sql(sql)
+        if self._owns_client and is_read and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
             return self._exec_fallback_sqlite(sql, params)
 
         url, headers = self._endpoint_and_headers(is_batch=False)
@@ -437,6 +464,11 @@ class D1ConnectionWrapper:
                 _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
                 return self._exec_fallback_sqlite(sql, params)
             raise sqlite3.OperationalError(f"Cloudflare D1 error: {errs}")
+        if not is_read:
+            try:
+                self._exec_fallback_sqlite(sql, params)
+            except Exception:
+                pass
         res_list = data.get("result")
         if isinstance(res_list, list) and res_list:
             return res_list[0]
@@ -471,7 +503,8 @@ class D1ConnectionWrapper:
         import time
         if not statements:
             return []
-        if self._owns_client and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
+        all_reads = all(self._is_read_only_sql(s) for s, _ in statements)
+        if self._owns_client and all_reads and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
             return [self._exec_fallback_sqlite(s, p) for s, p in statements]
 
         if self.worker_url:
@@ -485,6 +518,13 @@ class D1ConnectionWrapper:
                     _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
                     return [self._exec_fallback_sqlite(s, p) for s, p in statements]
                 raise sqlite3.OperationalError(f"Cloudflare D1 batch error: {data}")
+            if not all_reads:
+                for s, p in statements:
+                    if not self._is_read_only_sql(s):
+                        try:
+                            self._exec_fallback_sqlite(s, p)
+                        except Exception:
+                            pass
             return data.get("result") or []
 
         # Khi gọi trực tiếp Cloudflare D1 REST API: gộp nhiều câu SQL cách nhau bởi dấu ';' trong 1 HTTP request duy nhất
@@ -499,6 +539,13 @@ class D1ConnectionWrapper:
                 _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
                 return [self._exec_fallback_sqlite(s, p) for s, p in statements]
             raise sqlite3.OperationalError(f"Cloudflare D1 error: {errs}")
+        if not all_reads:
+            for s, p in statements:
+                if not self._is_read_only_sql(s):
+                    try:
+                        self._exec_fallback_sqlite(s, p)
+                    except Exception:
+                        pass
         res_list = data.get("result")
         if isinstance(res_list, list):
             return res_list

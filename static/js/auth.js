@@ -334,6 +334,17 @@ async function loadLoginStoreBranding() {
     const res = await _origFetch('/api/settings');
     if (!res.ok) return;
     const settings = await res.json();
+    try {
+      const raw = localStorage.getItem('pos_custom_branding_v1');
+      if (raw) {
+        const ov = JSON.parse(raw);
+        if (ov && typeof ov === 'object') {
+          if (ov.shop_logo !== undefined) settings.shop_logo = ov.shop_logo;
+          if (ov.app_name) settings.app_name = ov.app_name;
+          if (ov.shop_name) settings.shop_name = ov.shop_name;
+        }
+      }
+    } catch (_) {}
     const nameEl = document.getElementById('login-store-name');
     const logoEl = document.getElementById('login-store-logo');
     const iconEl = document.getElementById('login-store-icon');

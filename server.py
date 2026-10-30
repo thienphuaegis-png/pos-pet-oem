@@ -195,9 +195,15 @@ if os.path.exists(static_dir):
 
 _branding_cache = None
 
-def invalidate_branding_cache():
+def invalidate_branding_cache(app_name=None, shop_logo=None):
     global _branding_cache
-    _branding_cache = None
+    if app_name is not None or shop_logo is not None:
+        _branding_cache = {
+            "app_name": app_name or "⚡ POS Offline",
+            "shop_logo": shop_logo or "",
+        }
+    else:
+        _branding_cache = None
 
 def get_branding_settings():
     global _branding_cache

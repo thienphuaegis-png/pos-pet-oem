@@ -84,7 +84,7 @@ function getProductPriceForTab(tab, product) {
 }
 
 async function recalculateBestOfferForCart(tab) {
-    if (!tab || !tab.cart || tab.cart.length === 0) return;
+    if (!tab || !tab.cart || tab.cart.length === 0) return false;
     try {
         const payload = {
             customer_id: tab.customer ? tab.customer.id : null,
@@ -104,9 +104,13 @@ async function recalculateBestOfferForCart(tab) {
             for (const it of (data.items || [])) {
                 calcMap[it.product_id] = it;
             }
+            let anyChanged = false;
             for (const item of tab.cart) {
                 const info = calcMap[item.product_id];
                 if (info) {
+                    const prevPrice = item.price;
+                    const prevRule = item.applied_rule;
+                    const prevName = item.price_list_name;
                     if (item.discount_val > 0 && info.applied_rule === 'base') {
                         item.applied_rule = 'base';
                         item.price_list_name = null;
@@ -121,15 +125,19 @@ async function recalculateBestOfferForCart(tab) {
                             item.price_list_name = null;
                         }
                     }
+                    if (item.price !== prevPrice || item.applied_rule !== prevRule || item.price_list_name !== prevName) {
+                        anyChanged = true;
+                    }
                 }
             }
-            return;
+            return anyChanged;
         }
     } catch (e) {
         console.warn("Fallback to local price list logic:", e);
     }
     // Fallback nếu API pricing/calculate bị lỗi
     applyPriceListToCart(tab);
+    return false;
 }
 
 function applyPriceListToCart(tab) {
@@ -1006,14 +1014,19 @@ async function addProductToActiveCart(productId) {
     if (searchInput) searchInput.value = '';
     document.getElementById('pos-search-dropdown')?.classList.add('hidden');
 
-    try {
-        await recalculateBestOfferForCart(tab);
-    } catch (e) {
-        console.warn("recalculateBestOfferForCart error:", e);
-    }
-
+    // Render tức thì không chờ mạng để tránh khựng giao diện
+    applyPriceListToCart(tab);
     renderInvoiceTabs();
     renderActiveTabCart();
+
+    // Tính lại khuyến mãi / bảng giá tốt nhất ở hậu cảnh, chỉ cập nhật lại nếu đơn giá thực sự đổi
+    recalculateBestOfferForCart(tab).then(changed => {
+        if (changed) {
+            renderActiveTabCart();
+        }
+    }).catch(e => {
+        console.warn("recalculateBestOfferForCart error:", e);
+    });
 }
 
 function syncBuyXGetYPromotionsInCart(tab = null) {
@@ -1138,7 +1151,7 @@ function renderActiveTabCart() {
                 : '';
 
             return `
-                <div class="cart-row-responsive px-3 md:px-4 py-2 md:py-2.5 grid gap-1.5 md:gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group card-row-anim select-none" style="--row-idx: ${idx};">
+                <div class="cart-row-responsive px-3 md:px-4 py-2 md:py-2.5 grid gap-1.5 md:gap-2 items-center text-xs bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition group select-none" data-cart-idx="${idx}">
                     <!-- Nút xóa -->
                     <div class="text-center">
                         <button onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition inline-flex items-center justify-center cursor-pointer" title="Xóa khỏi đơn">
@@ -1533,26 +1546,46 @@ async function selectCustomerForActiveTab(customerId) {
     if (searchInput) searchInput.value = '';
     document.getElementById('pos-customer-dropdown')?.classList.add('hidden');
 
-    if (tab.customer.price_list_id) {
-        await getPriceListMap(tab.customer.price_list_id, true);
-    }
-    await recalculateBestOfferForCart(tab);
-
+    // Cập nhật giao diện tức thì trước khi chờ mạng
+    applyPriceListToCart(tab);
     updateCustomerUI(tab.customer);
     renderInvoiceTabs();
     renderActiveTabCart();
     updateFinancialSummary();
+
+    (async () => {
+        try {
+            if (tab.customer && tab.customer.price_list_id) {
+                await getPriceListMap(tab.customer.price_list_id, true);
+                applyPriceListToCart(tab);
+            }
+            const changed = await recalculateBestOfferForCart(tab);
+            if (changed || (tab.customer && tab.customer.price_list_id)) {
+                renderActiveTabCart();
+                updateFinancialSummary();
+            }
+        } catch (e) {
+            console.warn("selectCustomerForActiveTab background sync error:", e);
+        }
+    })();
 }
 
 async function clearSelectedCustomer() {
     const tab = getActiveTab();
     tab.customer = null;
     tab.use_points = false;
-    await recalculateBestOfferForCart(tab);
+    applyPriceListToCart(tab);
     updateCustomerUI(null);
     renderInvoiceTabs();
     renderActiveTabCart();
     updateFinancialSummary();
+
+    recalculateBestOfferForCart(tab).then(changed => {
+        if (changed) {
+            renderActiveTabCart();
+            updateFinancialSummary();
+        }
+    }).catch(() => {});
 }
 
 function updateCustomerUI(cust) {
@@ -2232,20 +2265,24 @@ async function submitQuickCustomer() {
             debt: 0
         };
 
-        try {
-            const detailRes = await fetch(`/api/contacts/${resData.id}`);
-            if (detailRes.ok) {
-                newCust = await detailRes.json();
-            }
-        } catch (_) {}
-
         posContacts.push(newCust);
         if (typeof allContacts !== 'undefined' && Array.isArray(allContacts)) {
             allContacts.push(newCust);
         }
-        selectCustomerForActiveTab(newCust.id);
         closeNewCustomerModal();
-        alert("Đã thêm khách hàng thành công!");
+        selectCustomerForActiveTab(newCust.id);
+        fetch(`/api/contacts/${resData.id}`).then(r => r.ok ? r.json() : null).then(detail => {
+            if (detail) {
+                Object.assign(newCust, detail);
+                const tab = getActiveTab();
+                if (tab && tab.customer && tab.customer.id === newCust.id) {
+                    selectCustomerForActiveTab(newCust.id);
+                }
+            }
+        }).catch(() => {});
+        if (typeof window.showToast === 'function') {
+            window.showToast('✅ Đã thêm và chọn khách hàng: ' + name, 'success');
+        }
     } catch (e) {
         console.error("submitQuickCustomer error:", e);
         alert("Lỗi kết nối khi thêm khách hàng");

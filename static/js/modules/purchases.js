@@ -952,7 +952,11 @@
         }
 
         function closeAllPurchaseActionMenus() {
-            document.querySelectorAll('.po-action-dropdown').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.po-action-dropdown').forEach(m => {
+                m.classList.add('hidden');
+                m.style.top = '';
+                m.style.left = '';
+            });
         }
         window.closeAllPurchaseActionMenus = closeAllPurchaseActionMenus;
 
@@ -962,9 +966,34 @@
             document.querySelectorAll('.po-action-dropdown').forEach(m => {
                 if (m !== targetMenu) m.classList.add('hidden');
             });
-            if (targetMenu) targetMenu.classList.toggle('hidden');
+            if (!targetMenu) return;
+            const willOpen = targetMenu.classList.contains('hidden');
+            if (!willOpen) {
+                targetMenu.classList.add('hidden');
+                return;
+            }
+            targetMenu.classList.remove('hidden');
+            const btn = event?.currentTarget || event?.target?.closest('button');
+            if (btn && typeof btn.getBoundingClientRect === 'function') {
+                const rect = btn.getBoundingClientRect();
+                const menuW = targetMenu.offsetWidth || 156;
+                const menuH = targetMenu.offsetHeight || 175;
+                let left = rect.right - menuW;
+                if (left < 8) left = 8;
+                if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                let top = spaceBelow >= menuH + 12 ? rect.bottom + 4 : rect.top - menuH - 4;
+                if (top < 8) top = rect.bottom + 4;
+                targetMenu.style.position = 'fixed';
+                targetMenu.style.left = `${Math.round(left)}px`;
+                targetMenu.style.top = `${Math.round(top)}px`;
+                targetMenu.style.bottom = 'auto';
+                targetMenu.style.right = 'auto';
+            }
         }
         window.togglePurchaseActionMenu = togglePurchaseActionMenu;
+
+        window.addEventListener('scroll', closeAllPurchaseActionMenus, true);
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.po-action-dropdown') && !e.target.closest('[onclick^="togglePurchaseActionMenu"]')) {
@@ -1140,10 +1169,10 @@
                                 <div class="flex items-center justify-center gap-1.5 relative">
                                     ${primaryActionBtn}
                                     <div class="relative">
-                                        <button type="button" onclick="togglePurchaseActionMenu('${escapeHtml(p.code)}', event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition" title="Thao tác khác">
+                                        <button type="button" onclick="togglePurchaseActionMenu('${escapeHtml(p.code)}', event)" class="w-7 h-7 rounded-lg hover:bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm transition cursor-pointer" title="Thao tác khác">
                                             ⋮
                                         </button>
-                                        <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown absolute right-0 bottom-full mb-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 w-36 py-1 text-left text-xs divide-y divide-slate-100">
+                                        <div id="po-menu-${escapeHtml(p.code)}" class="hidden po-action-dropdown fixed bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] w-40 py-1 text-left text-xs divide-y divide-slate-100">
                                             <div class="py-0.5">
                                                 ${p.status === 'draft' ? `
                                                 <button type="button" onclick="closeAllPurchaseActionMenus(); confirmPurchaseDraftToOrder('${escapeHtml(p.code)}')" class="w-full px-3 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-bold">

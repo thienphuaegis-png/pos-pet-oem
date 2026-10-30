@@ -210,7 +210,11 @@ def update_company_settings(req: CompanySettingsUpdate, user=Depends(require_rol
     conn.close()
     try:
         from server import invalidate_branding_cache
-        invalidate_branding_cache()
+        compressed_logo = dict(updates).get("shop_logo", "")
+        invalidate_branding_cache(
+            app_name=req.app_name or "⚡ POS Offline",
+            shop_logo=compressed_logo,
+        )
     except Exception:
         pass
     return {"status": "ok"}
