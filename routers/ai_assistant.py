@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from database import get_db
+from database import get_db, execute_batch
 from dependencies import require_role, get_optional_user, get_current_user, check_permission
 from schemas import QuickDraftRequest, BatchQuickDraftRequest
 from logger_config import get_module_logger
@@ -853,107 +853,14 @@ Trả về DUY NHẤT một JSON hợp lệ (không kèm markdown):
 
 @router.get("/staff-briefing")
 def get_staff_briefing(user: dict = Depends(get_current_user)):
-    """Tổng hợp tóm tắt đầu ca cho nhân viên: KPI, doanh số, hoa hồng, lời nhắc & cảnh báo nghiệp vụ."""
+    """Tổng hợp tóm tắt đầu ca cho nhân viên: KPI, doanh số, hoa hồng, lời nhắc & cảnh báo nghiệp vụ (Tối ưu 1 chuyến batch HTTP cho Cloud D1)."""
     db = get_db()
-    cur = db.cursor()
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_start = f"{today_str} 00:00:00"
+    today_end = f"{today_str} 23:59:59"
+    user_role_hint = user.get("role", "cashier")
 
-    # 1. Thông tin chi tiết nhân viên
-    cur.execute("SELECT id, name, username, role, commission_rate, ai_model FROM staff WHERE id=?", (user["id"],))
-    staff_row = cur.fetchone()
-    commission_rate = float(staff_row["commission_rate"] or 0.0) if staff_row else 0.0
-    staff_name = staff_row["name"] if staff_row else user.get("name", "Bạn")
-    staff_role = staff_row["role"] if staff_row else user.get("role", "cashier")
-
-    # 2. Trạng thái ca làm việc hiện tại
-    cur.execute("SELECT id, open_at, opening_cash, status, cashier_id FROM shifts WHERE status='open' ORDER BY id DESC LIMIT 1")
-    shift_row = cur.fetchone()
-    if shift_row:
-        shift_info = {
-            "id": shift_row["id"],
-            "is_open": True,
-            "open_at": str(shift_row["open_at"]),
-            "opening_cash": float(shift_row["opening_cash"] or 0),
-            "status_label": "🟢 Đang mở"
-        }
-    else:
-        shift_info = {
-            "id": None,
-            "is_open": False,
-            "open_at": None,
-            "opening_cash": 0.0,
-            "status_label": "🔴 Chưa mở ca"
-        }
-
-    # 3. KPI doanh số & hoa hồng trong ngày của nhân viên (hoặc toàn tiệm nếu là owner)
-    cur.execute("""
-        SELECT COUNT(*), COALESCE(SUM(total_amount), 0)
-        FROM orders
-        WHERE DATE(created_at) = DATE('now', 'localtime') AND status != 'cancelled'
-        AND (? = 'owner' OR staff_id = ?)
-    """, (staff_role, user["id"]))
-    order_stat = cur.fetchone()
-    orders_count = order_stat[0] or 0
-    sales_today = float(order_stat[1] or 0.0)
-    commission_estimate = round(sales_today * (commission_rate / 100.0))
-
-    # Tiền mặt trong két (đầu ca + thu - chi tài khoản tiền mặt)
-    cur.execute("""
-        SELECT COALESCE(SUM(c.amount), 0)
-        FROM cashbook c
-        LEFT JOIN payment_accounts a ON c.account_id = a.id
-        WHERE c.type='in' AND (a.account_type = 'cash' OR c.account_id IS NULL)
-        AND DATE(c.created_at) = DATE('now', 'localtime')
-    """)
-    cash_in = float(cur.fetchone()[0] or 0.0)
-    cur.execute("""
-        SELECT COALESCE(SUM(c.amount), 0)
-        FROM cashbook c
-        LEFT JOIN payment_accounts a ON c.account_id = a.id
-        WHERE c.type='out' AND (a.account_type = 'cash' OR c.account_id IS NULL)
-        AND DATE(c.created_at) = DATE('now', 'localtime')
-    """)
-    cash_out = float(cur.fetchone()[0] or 0.0)
-    cash_in_drawer = shift_info["opening_cash"] + max(0.0, cash_in - cash_out)
-
-    # 4. Lịch sử giao dịch gần nhất
-    cur.execute("""
-        SELECT o.code, o.total_amount, o.created_at, COALESCE(c.name, 'Khách lẻ') as customer_name
-        FROM orders o
-        LEFT JOIN contacts c ON o.customer_id = c.id
-        WHERE o.status != 'cancelled'
-        ORDER BY o.id DESC LIMIT 4
-    """)
-    recent_activities = [
-        {
-            "code": r["code"],
-            "title": f"Đơn {r['code']}: {r['customer_name']}",
-            "amount": float(r["total_amount"] or 0.0),
-            "time": str(r["created_at"])[:16] if r["created_at"] else ""
-        }
-        for r in cur.fetchall()
-    ]
-
-    # 5. Danh sách nhắc việc của nhân viên
-    cur.execute("""
-        SELECT id, staff_id, title, description, remind_time, priority, is_done, created_at
-        FROM staff_reminders
-        WHERE staff_id = ? OR staff_id IS NULL
-        ORDER BY is_done ASC, CASE WHEN priority='urgent' THEN 0 ELSE 1 END, id DESC
-        LIMIT 10
-    """, (user["id"],))
-    reminders = [dict(r) for r in cur.fetchall()]
-
-    # 6. Nhiệm vụ tự động phát hiện từ hệ thống (Auto alerts)
-    cur.execute("SELECT COUNT(*) FROM pet_service_tickets WHERE status IN ('received', 'in_progress')")
-    pending_spa = cur.fetchone()[0] or 0
-
-    cur.execute("SELECT COUNT(*), COALESCE(SUM(debt_amount), 0) FROM orders WHERE debt_amount > 0 AND status != 'cancelled'")
-    unpaid_row = cur.fetchone()
-    unpaid_count = unpaid_row[0] or 0
-    unpaid_debt = float(unpaid_row[1] or 0.0)
-
-    # 7. Dữ liệu chuyên biệt cho THỦ KHO / OEM (Hàng cần đặt, Hàng đang về, Công nợ NCC/Xưởng)
-    cur.execute("""
+    low_stock_sql = """
         WITH OpenOrders AS (
             SELECT pi.product_id, SUM(pi.quantity) as on_order_qty, MAX(p.code) as on_order_code
             FROM purchase_items pi
@@ -973,47 +880,221 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             SELECT product_id, SUM(on_order_qty) as total_on_order, MAX(on_order_code) as latest_order_code
             FROM OpenOrders
             GROUP BY product_id
+        ),
+        LastOemSupplier AS (
+            SELECT oi2.product_id, o2.partner_id
+            FROM oem_order_items oi2
+            JOIN oem_orders o2 ON oi2.order_id = o2.id
+            WHERE oi2.product_id IS NOT NULL
+            GROUP BY oi2.product_id
+            HAVING o2.id = MAX(o2.id)
+        ),
+        LastPurchaseSupplier AS (
+            SELECT pi3.product_id, p3.supplier_id
+            FROM purchase_items pi3
+            JOIN purchases p3 ON pi3.purchase_id = p3.id
+            WHERE pi3.product_id IS NOT NULL
+            GROUP BY pi3.product_id
+            HAVING p3.id = MAX(p3.id)
+        ),
+        PrefixSupplier AS (
+            SELECT SUBSTR(p_sub.code, 1, 3) as code_prefix, MAX(si_sub.supplier_id) as supplier_id
+            FROM products p_sub
+            JOIN supplier_items si_sub ON p_sub.id = si_sub.product_id AND si_sub.item_type = 'product'
+            WHERE si_sub.supplier_id IS NOT NULL AND p_sub.code IS NOT NULL
+            GROUP BY SUBSTR(p_sub.code, 1, 3)
         )
         SELECT p.id, p.code, p.name, COALESCE(pi.quantity, p.stock, 0) as stock, 
                COALESCE(p.min_stock, 5.0) as min_stock, p.unit, p.cost_price,
                COALESCE(ao.total_on_order, 0) as on_order_qty,
                ao.latest_order_code,
-               COALESCE(
-                   si.supplier_id,
-                   (SELECT o2.partner_id FROM oem_order_items oi2 JOIN oem_orders o2 ON oi2.order_id = o2.id WHERE oi2.product_id = p.id ORDER BY o2.id DESC LIMIT 1),
-                   (SELECT p3.supplier_id FROM purchase_items pi3 JOIN purchases p3 ON pi3.purchase_id = p3.id WHERE pi3.product_id = p.id ORDER BY p3.id DESC LIMIT 1),
-                   (SELECT si_sub.supplier_id FROM products p_sub JOIN supplier_items si_sub ON p_sub.id = si_sub.product_id WHERE SUBSTR(p_sub.code, 1, 3) = SUBSTR(p.code, 1, 3) AND si_sub.supplier_id IS NOT NULL LIMIT 1),
-                   0
-               ) as partner_id
+               COALESCE(si.supplier_id, lo.partner_id, lp.supplier_id, ps.supplier_id, 0) as partner_id
         FROM products p
         LEFT JOIN product_inventory pi ON p.id = pi.product_id AND pi.warehouse_id = 1
         LEFT JOIN supplier_items si ON p.id = si.product_id AND si.item_type = 'product'
         LEFT JOIN AggregatedOrders ao ON p.id = ao.product_id
+        LEFT JOIN LastOemSupplier lo ON p.id = lo.product_id
+        LEFT JOIN LastPurchaseSupplier lp ON p.id = lp.product_id
+        LEFT JOIN PrefixSupplier ps ON SUBSTR(p.code, 1, 3) = ps.code_prefix
         WHERE p.type = 'product' AND p.is_active = 1 
           AND COALESCE(pi.quantity, p.stock, 0) <= COALESCE(p.min_stock, 5.0)
         GROUP BY p.id
         ORDER BY (COALESCE(pi.quantity, p.stock, 0) + COALESCE(ao.total_on_order, 0)) ASC, stock ASC
         LIMIT 200
-    """)
-    raw_low_stock = cur.fetchall()
+    """
+
+    (
+        staff_res,
+        shift_res,
+        order_stat_res,
+        cash_res,
+        recent_orders_res,
+        reminders_res,
+        spa_pending_res,
+        unpaid_orders_res,
+        raw_low_stock,
+        suppliers_res,
+        wh_oem_res,
+        ord_oem_res,
+        inc_purch_res,
+        inc_oem_res,
+        debt_purch_res,
+        debt_oem_res,
+        pending_pr_res,
+        pending_exp_res,
+        pay_accs_res,
+    ) = execute_batch(
+        db,
+        [
+            ("SELECT id, name, username, role, commission_rate, ai_model FROM staff WHERE id=?", (user["id"],)),
+            ("SELECT id, open_at, opening_cash, status, cashier_id FROM shifts WHERE status='open' ORDER BY id DESC LIMIT 1", ()),
+            (
+                """
+                SELECT COUNT(*) as cnt, COALESCE(SUM(total_amount), 0) as total_amt
+                FROM orders
+                WHERE created_at >= ? AND created_at <= ? AND status != 'cancelled'
+                AND (? = 'owner' OR staff_id = ?)
+                """,
+                (today_start, today_end, user_role_hint, user["id"]),
+            ),
+            (
+                """
+                SELECT
+                    COALESCE(SUM(CASE WHEN c.type='in' THEN c.amount ELSE 0 END), 0) as cash_in,
+                    COALESCE(SUM(CASE WHEN c.type='out' THEN c.amount ELSE 0 END), 0) as cash_out
+                FROM cashbook c
+                LEFT JOIN payment_accounts a ON c.account_id = a.id
+                WHERE (a.account_type = 'cash' OR c.account_id IS NULL)
+                AND c.created_at >= ? AND c.created_at <= ?
+                """,
+                (today_start, today_end),
+            ),
+            (
+                """
+                SELECT o.code, o.total_amount, o.created_at, COALESCE(c.name, 'Khách lẻ') as customer_name
+                FROM orders o
+                LEFT JOIN contacts c ON o.customer_id = c.id
+                WHERE o.status != 'cancelled'
+                ORDER BY o.id DESC LIMIT 4
+                """,
+                (),
+            ),
+            (
+                """
+                SELECT id, staff_id, title, description, remind_time, priority, is_done, created_at
+                FROM staff_reminders
+                WHERE staff_id = ? OR staff_id IS NULL
+                ORDER BY is_done ASC, CASE WHEN priority='urgent' THEN 0 ELSE 1 END, id DESC
+                LIMIT 10
+                """,
+                (user["id"],),
+            ),
+            ("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE status IN ('received', 'in_progress')", ()),
+            ("SELECT COUNT(*) as cnt, COALESCE(SUM(debt_amount), 0) as total_debt FROM orders WHERE debt_amount > 0 AND status != 'cancelled'", ()),
+            (low_stock_sql, ()),
+            ("SELECT id, name FROM contacts WHERE type = 'supplier'", ()),
+            ("SELECT supplier_id FROM warehouses WHERE supplier_id IS NOT NULL AND is_active = 1", ()),
+            ("SELECT DISTINCT partner_id FROM oem_orders WHERE partner_id IS NOT NULL", ()),
+            (
+                """
+                SELECT p.id, p.code, 'purchase' as shipment_type, COALESCE(c.name, 'Nhà cung cấp') as partner_name,
+                       p.total_amount, p.expected_date, p.status, p.debt_amount
+                FROM purchases p
+                LEFT JOIN contacts c ON p.supplier_id = c.id
+                WHERE p.status IN ('pending', 'draft')
+                ORDER BY p.id DESC
+                LIMIT 10
+                """,
+                (),
+            ),
+            (
+                """
+                SELECT o.id, o.code, 'oem' as shipment_type, COALESCE(c.name, 'Xưởng OEM') as partner_name,
+                       o.total_final_amount as total_amount, o.expected_delivery_date as expected_date, o.status, o.remaining_payment as debt_amount
+                FROM oem_orders o
+                LEFT JOIN contacts c ON o.partner_id = c.id
+                WHERE o.status IN ('DRAFT', 'DEPOSITED', 'SENT', 'PRODUCING')
+                ORDER BY o.id DESC
+                LIMIT 10
+                """,
+                (),
+            ),
+            ("SELECT COALESCE(SUM(debt_amount), 0) as debt_p FROM purchases WHERE debt_amount > 0 AND status != 'cancelled'", ()),
+            ("SELECT COALESCE(SUM(remaining_payment), 0) as debt_o FROM oem_orders WHERE remaining_payment > 0 AND status != 'CANCELLED'", ()),
+            (
+                """
+                SELECT pr.id, pr.code, pr.department, pr.priority, pr.created_by, pr.created_at, pr.note,
+                       COUNT(pri.id) as item_count, COALESCE(SUM(pri.quantity), 0) as total_qty
+                FROM purchase_requests pr
+                LEFT JOIN purchase_request_items pri ON pr.id = pri.request_id
+                WHERE pr.status = 'pending'
+                GROUP BY pr.id
+                ORDER BY pr.id DESC
+                LIMIT 10
+                """,
+                (),
+            ),
+            ("SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as total_amt FROM expense_requests WHERE status = 'pending'", ()),
+            ("SELECT id, name, account_type FROM payment_accounts WHERE is_active = 1 ORDER BY account_type ASC", ()),
+        ],
+    )
+
+    staff_row = staff_res[0] if staff_res else None
+    commission_rate = float(staff_row["commission_rate"] or 0.0) if staff_row else 0.0
+    staff_name = staff_row["name"] if staff_row else user.get("name", "Bạn")
+    staff_role = staff_row["role"] if staff_row else user_role_hint
+
+    shift_row = shift_res[0] if shift_res else None
+    if shift_row:
+        shift_info = {
+            "id": shift_row["id"],
+            "is_open": True,
+            "open_at": str(shift_row["open_at"]),
+            "opening_cash": float(shift_row["opening_cash"] or 0),
+            "status_label": "🟢 Đang mở"
+        }
+    else:
+        shift_info = {
+            "id": None,
+            "is_open": False,
+            "open_at": None,
+            "opening_cash": 0.0,
+            "status_label": "🔴 Chưa mở ca"
+        }
+
+    order_stat = order_stat_res[0] if order_stat_res else None
+    orders_count = (order_stat[0] if order_stat else 0) or 0
+    sales_today = float((order_stat[1] if order_stat else 0.0) or 0.0)
+    commission_estimate = round(sales_today * (commission_rate / 100.0))
+
+    cash_row = cash_res[0] if cash_res else None
+    cash_in = float((cash_row[0] if cash_row else 0.0) or 0.0)
+    cash_out = float((cash_row[1] if cash_row else 0.0) or 0.0)
+    cash_in_drawer = shift_info["opening_cash"] + max(0.0, cash_in - cash_out)
+
+    recent_activities = [
+        {
+            "code": r["code"],
+            "title": f"Đơn {r['code']}: {r['customer_name']}",
+            "amount": float(r["total_amount"] or 0.0),
+            "time": str(r["created_at"])[:16] if r["created_at"] else ""
+        }
+        for r in recent_orders_res
+    ]
+
+    reminders = [dict(r) for r in reminders_res]
+    pending_spa = (spa_pending_res[0][0] if spa_pending_res else 0) or 0
+
+    unpaid_row = unpaid_orders_res[0] if unpaid_orders_res else None
+    unpaid_count = (unpaid_row[0] if unpaid_row else 0) or 0
+    unpaid_debt = float((unpaid_row[1] if unpaid_row else 0.0) or 0.0)
 
     low_stock_products = []
     uncovered_count = 0
     total_low_stock_count = len(raw_low_stock)
 
-    # Cache tên partner
-    partner_names = {}
-    cur.execute("SELECT id, name FROM contacts WHERE type = 'supplier'")
-    for c in cur.fetchall():
-        partner_names[c[0]] = c[1]
-
-    # Danh sách xưởng OEM có kho
-    cur.execute("SELECT supplier_id FROM warehouses WHERE supplier_id IS NOT NULL AND is_active = 1")
-    oem_supplier_ids = {r[0] for r in cur.fetchall() if r[0]}
-    cur.execute("SELECT DISTINCT partner_id FROM oem_orders WHERE partner_id IS NOT NULL")
-    for r in cur.fetchall():
-        if r[0]:
-            oem_supplier_ids.add(r[0])
+    partner_names = {c[0]: c[1] for c in suppliers_res}
+    oem_supplier_ids = {r[0] for r in wh_oem_res if r[0]} | {r[0] for r in ord_oem_res if r[0]}
 
     for r in raw_low_stock:
         st = float(r["stock"] or 0)
@@ -1045,18 +1126,8 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
 
     low_stock_count = uncovered_count if uncovered_count > 0 else total_low_stock_count
 
-    # Đơn hàng đang trên đường về (Phiếu Nhập PN và Đơn gia công OEM)
     incoming_shipments = []
-    cur.execute("""
-        SELECT p.id, p.code, 'purchase' as shipment_type, COALESCE(c.name, 'Nhà cung cấp') as partner_name,
-               p.total_amount, p.expected_date, p.status, p.debt_amount
-        FROM purchases p
-        LEFT JOIN contacts c ON p.supplier_id = c.id
-        WHERE p.status IN ('pending', 'draft')
-        ORDER BY p.id DESC
-        LIMIT 10
-    """)
-    for r in cur.fetchall():
+    for r in inc_purch_res:
         incoming_shipments.append({
             "id": r["id"],
             "code": r["code"],
@@ -1068,16 +1139,7 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             "debt_amount": float(r["debt_amount"] or 0)
         })
 
-    cur.execute("""
-        SELECT o.id, o.code, 'oem' as shipment_type, COALESCE(c.name, 'Xưởng OEM') as partner_name,
-               o.total_final_amount as total_amount, o.expected_delivery_date as expected_date, o.status, o.remaining_payment as debt_amount
-        FROM oem_orders o
-        LEFT JOIN contacts c ON o.partner_id = c.id
-        WHERE o.status IN ('DRAFT', 'DEPOSITED', 'SENT', 'PRODUCING')
-        ORDER BY o.id DESC
-        LIMIT 10
-    """)
-    for r in cur.fetchall():
+    for r in inc_oem_res:
         incoming_shipments.append({
             "id": r["id"],
             "code": r["code"],
@@ -1089,7 +1151,6 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             "debt_amount": float(r["debt_amount"] or 0)
         })
 
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
     incoming_today_count = 0
     for s in incoming_shipments:
         exp = str(s.get("expected_date") or "").strip()
@@ -1098,24 +1159,11 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
         if is_today:
             incoming_today_count += 1
 
-    cur.execute("SELECT COALESCE(SUM(debt_amount), 0) FROM purchases WHERE debt_amount > 0 AND status != 'cancelled'")
-    debt_purchases = float(cur.fetchone()[0] or 0.0)
-    cur.execute("SELECT COALESCE(SUM(remaining_payment), 0) FROM oem_orders WHERE remaining_payment > 0 AND status != 'CANCELLED'")
-    debt_oem = float(cur.fetchone()[0] or 0.0)
+    debt_purchases = float((debt_purch_res[0][0] if debt_purch_res else 0.0) or 0.0)
+    debt_oem = float((debt_oem_res[0][0] if debt_oem_res else 0.0) or 0.0)
     total_payable = debt_purchases + debt_oem
 
-    # 7b. Phiếu yêu cầu nhập hàng chờ duyệt (Purchase Requisitions Pending)
     pending_purchase_requests = []
-    cur.execute("""
-        SELECT pr.id, pr.code, pr.department, pr.priority, pr.created_by, pr.created_at, pr.note,
-               COUNT(pri.id) as item_count, COALESCE(SUM(pri.quantity), 0) as total_qty
-        FROM purchase_requests pr
-        LEFT JOIN purchase_request_items pri ON pr.id = pri.request_id
-        WHERE pr.status = 'pending'
-        GROUP BY pr.id
-        ORDER BY pr.id DESC
-        LIMIT 10
-    """)
     dept_map = {
         "spa": "💆 Spa",
         "cashier": "🏷 Thu ngân",
@@ -1125,7 +1173,7 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
         "store": "🏪 Cửa hàng",
         "owner": "👑 Chủ shop"
     }
-    for r in cur.fetchall():
+    for r in pending_pr_res:
         pending_purchase_requests.append({
             "id": r["id"],
             "code": r["code"],
@@ -1139,15 +1187,11 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             "total_qty": float(r["total_qty"] or 0)
         })
 
-    # 8. Dữ liệu cho KẾ TOÁN
-    cur.execute("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM expense_requests WHERE status = 'pending'")
-    exp_row = cur.fetchone()
-    pending_exp_count = exp_row[0] or 0
-    pending_exp_amount = float(exp_row[1] or 0.0)
+    exp_row = pending_exp_res[0] if pending_exp_res else None
+    pending_exp_count = (exp_row[0] if exp_row else 0) or 0
+    pending_exp_amount = float((exp_row[1] if exp_row else 0.0) or 0.0)
 
-    cur.execute("SELECT id, name, account_type FROM payment_accounts WHERE is_active = 1 ORDER BY account_type ASC")
-    payment_accounts = [dict(a) for a in cur.fetchall()]
-
+    payment_accounts = [dict(a) for a in pay_accs_res]
     db.close()
 
     def format_vn(num):

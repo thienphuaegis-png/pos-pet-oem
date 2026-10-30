@@ -6,7 +6,7 @@ import time
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from database import get_db, archive_code, is_code_archived
+from database import get_db, archive_code, is_code_archived, execute_batch
 from schemas import (
     WarehouseCreate, WarehouseUpdate, IngredientCreate, IngredientUpdate,
     InventoryAdjust, TransferCreate, AuditCreate, WriteOffCreate
@@ -1012,10 +1012,17 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
         WHERE {' AND '.join(where_i)}
         '''
     
-    cur.execute(prod_sql, tuple(params_p))
-    prod_rows = [dict(r) for r in cur.fetchall()]
-    cur.execute(ing_sql, tuple(params_i))
-    ing_rows = [dict(r) for r in cur.fetchall()]
+    units_sql = "SELECT item_type, item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units ORDER BY ratio"
+    prod_res, ing_res, units_res = execute_batch(
+        conn,
+        [
+            (prod_sql, tuple(params_p)),
+            (ing_sql, tuple(params_i)),
+            (units_sql, ()),
+        ],
+    )
+    prod_rows = [dict(r) for r in prod_res]
+    ing_rows = [dict(r) for r in ing_res]
     
     all_rows = prod_rows + ing_rows
     
@@ -1042,9 +1049,8 @@ def get_unified_inventory(warehouse_id: Optional[int] = None, item_type: Optiona
     total_val = sum(r["total_value"] for r in filtered)
 
     # Gắn danh sách đơn vị quy đổi (ngoài đơn vị cơ bản) cho từng mặt hàng
-    cur.execute("SELECT item_type, item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units ORDER BY ratio")
     units_map = {}
-    for u in cur.fetchall():
+    for u in units_res:
         units_map.setdefault((u["item_type"], u["item_id"]), []).append({
             "unit_name": u["unit_name"], "ratio": u["ratio"],
             "sell_price": u["sell_price"], "is_default_sale": u["is_default_sale"],

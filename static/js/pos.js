@@ -313,8 +313,8 @@ async function initPOS(force = false) {
             if (data && typeof data === 'object') posSettings = data;
         }
 
-        // 2. Nạp danh sách 13.000+ khách hàng bất đồng bộ phía sau để không chặn tìm kiếm hàng hóa POS
-        fetch('/api/contacts?type=customer&_t=' + Date.now())
+        // 2. Nạp danh sách 13.000+ khách hàng ở chế độ compact=1 bất đồng bộ phía sau để không chặn tìm kiếm hàng hóa POS
+        fetch('/api/contacts?type=customer&compact=1&_t=' + Date.now())
             .then(r => r.ok ? r.json() : [])
             .then(data => {
                 if (Array.isArray(data)) posContacts = data;
@@ -386,7 +386,7 @@ async function reloadPOSData() {
     try {
         const [p, ct] = await Promise.all([
             fetch('/api/products').then(r => r.json()),
-            fetch('/api/contacts?type=customer').then(r => r.json())
+            fetch('/api/contacts?type=customer&compact=1').then(r => r.json())
         ]);
         posProducts = p;
         posContacts = ct;

@@ -467,19 +467,69 @@ class D1ConnectionWrapper:
         return "".join(out).strip().rstrip(";")
 
     def _send_batch(self, statements):
+        global _D1_QUOTA_EXCEEDED_UNTIL
+        import time
         if not statements:
             return []
+        if self._owns_client and _D1_QUOTA_EXCEEDED_UNTIL > time.time():
+            return [self._exec_fallback_sqlite(s, p) for s, p in statements]
+
         if self.worker_url:
             url, headers = self._endpoint_and_headers(is_batch=True)
             payload = {"statements": [{"sql": s, "params": p} for s, p in statements]}
             resp = self._client.post(url, json=payload, headers=headers)
             data = resp.json()
             if resp.status_code >= 400 or not data.get("success", True):
+                err_str = str(data)
+                if self._owns_client and ("daily row read limit" in err_str or "exceeded D1" in err_str):
+                    _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
+                    return [self._exec_fallback_sqlite(s, p) for s, p in statements]
                 raise sqlite3.OperationalError(f"Cloudflare D1 batch error: {data}")
             return data.get("result") or []
+
         # Khi gọi trực tiếp Cloudflare D1 REST API: gộp nhiều câu SQL cách nhau bởi dấu ';' trong 1 HTTP request duy nhất
         combined_sql = ";\n".join(self._inline_sql_params(s, p) for s, p in statements) + ";"
-        return [self._send_query(combined_sql, [])]
+        url, headers = self._endpoint_and_headers(is_batch=False)
+        resp = self._client.post(url, json={"sql": combined_sql, "params": []}, headers=headers)
+        data = resp.json()
+        if resp.status_code >= 400 or not data.get("success", True):
+            errs = data.get("errors") or data.get("error") or resp.text
+            err_str = str(errs)
+            if self._owns_client and ("daily row read limit" in err_str or "exceeded D1" in err_str):
+                _D1_QUOTA_EXCEEDED_UNTIL = time.time() + 600
+                return [self._exec_fallback_sqlite(s, p) for s, p in statements]
+            raise sqlite3.OperationalError(f"Cloudflare D1 error: {errs}")
+        res_list = data.get("result")
+        if isinstance(res_list, list):
+            return res_list
+        if isinstance(res_list, dict):
+            return [res_list]
+        return []
+
+    def execute_batch(self, statements):
+        """Thực thi nhiều câu SELECT độc lập trong 1 chuyến mạng HTTP duy nhất trên D1."""
+        norm_stmts = []
+        for item in statements:
+            if isinstance(item, (tuple, list)):
+                s = item[0].strip()
+                params = item[1] if len(item) > 1 and item[1] else []
+            else:
+                s = str(item).strip()
+                params = []
+            norm_p = [1 if p is True else (0 if p is False else p) for p in params]
+            norm_stmts.append((s, norm_p))
+        raw_results = self._send_batch(norm_stmts)
+        out = []
+        for stmt_res in raw_results:
+            rows = (stmt_res or {}).get("results") or []
+            if rows and isinstance(rows[0], dict):
+                cols = list(rows[0].keys())
+                out.append([RowWrapper(cols, [r.get(c) for c in cols]) for r in rows])
+            else:
+                out.append([])
+        while len(out) < len(norm_stmts):
+            out.append([])
+        return out
 
     def cursor(self):
         return D1CursorWrapper(self)
@@ -538,6 +588,24 @@ def get_db():
     conn.execute("PRAGMA busy_timeout = 30000")
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def execute_batch(conn, statements):
+    """Helper chạy nhiều câu SELECT trong 1 chuyến mạng trên D1 hoặc tuần tự trong RAM trên SQLite/PG."""
+    if hasattr(conn, "execute_batch"):
+        return conn.execute_batch(statements)
+    cur = conn.cursor()
+    out = []
+    for item in statements:
+        if isinstance(item, (tuple, list)):
+            s = item[0]
+            params = item[1] if len(item) > 1 and item[1] else ()
+        else:
+            s = str(item)
+            params = ()
+        cur.execute(s, tuple(params))
+        out.append(cur.fetchall())
+    return out
 
 def archive_code(cur, code: str, doc_type: str):
     """Ghi nhận mã chứng từ vào danh sách đã sử dụng vĩnh viễn (chống trùng lặp)."""
@@ -1273,6 +1341,9 @@ def init_db():
     si_cols = [c[1] for c in cur.fetchall()]
     if 'default_cost' not in si_cols:
         cur.execute("ALTER TABLE supplier_items ADD COLUMN default_cost REAL DEFAULT 0")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_supplier_items_prod ON supplier_items(item_type, product_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_supplier_items_ing ON supplier_items(item_type, ingredient_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_purchase_items_prod ON purchase_items(product_id)")
 
     # Bang ke hoach hen tra no NCC (ho tro tra mot phan khong theo don hoac tra theo don)
     cur.execute('''
@@ -1917,6 +1988,7 @@ def init_db():
         FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT,
         FOREIGN KEY(ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT
     )''')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_oem_order_items_prod ON oem_order_items(product_id)')
 
     # 13.1. Định lượng phôi cho nguyên liệu gia công (BOM nguyên liệu)
     cur.execute('''

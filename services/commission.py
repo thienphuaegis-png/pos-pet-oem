@@ -289,7 +289,7 @@ def spa_commission_by_name(cur, from_date: str, to_date: str) -> dict:
         FROM pet_service_tickets t
         LEFT JOIN pets p ON p.id = t.pet_id
         WHERE t.status IN ('completed', 'checked_out', 'done')
-          AND COALESCE(t.ticket_date, date(t.created_at)) BETWEEN ? AND ?
+          AND t.ticket_date BETWEEN ? AND ?
     """, (from_date, to_date))
     out = {}
 

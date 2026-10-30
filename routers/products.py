@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 from typing import Optional
-from database import get_db
+from database import get_db, execute_batch
 from schemas import ProductCreate, ProductUpdate, ProductBulkStatusIn, ProductBulkDeleteIn
 from logger_config import get_module_logger
 from dependencies import get_optional_user, can_view_cost, require_role, require_permission
@@ -73,8 +73,24 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
     GROUP BY p.id
     ORDER BY p.id DESC
     '''
+    units_sql = "SELECT item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units WHERE item_type = 'product' ORDER BY ratio"
+    combos_sql = '''
+        SELECT c.code, ci.quantity, p.name as product_name
+        FROM combo_items ci
+        JOIN combos c ON ci.combo_id = c.id
+        JOIN products p ON ci.product_id = p.id
+        WHERE COALESCE(c.is_active, 1) = 1
+        ORDER BY ci.id ASC
+    '''
     try:
-        cur.execute(query, tuple(params))
+        prod_res, units_res, combos_res = execute_batch(
+            conn,
+            [
+                (query, tuple(params)),
+                (units_sql, ()),
+                (combos_sql, ()),
+            ],
+        )
     except Exception:
         fallback_query = f'''
         SELECT p.*,
@@ -91,32 +107,32 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
         ORDER BY p.id DESC
         '''
         cur.execute(fallback_query, tuple(params))
-    rows = [dict(r) for r in cur.fetchall()]
+        prod_res = cur.fetchall()
+        cur.execute(units_sql)
+        units_res = cur.fetchall()
+        try:
+            cur.execute(combos_sql)
+            combos_res = cur.fetchall()
+        except Exception:
+            combos_res = []
+
+    rows = [dict(r) for r in prod_res]
     for r in rows:
         computed = r.pop("computed_requires_bom", None)
         if r.get("requires_bom") is None:
             r["requires_bom"] = computed if computed is not None else (1 if (r.get("bom_count") or 0) > 0 else 0)
 
     # Gắn đơn vị quy đổi để POS cho chọn Thùng/Chai
-    cur.execute("SELECT item_id, unit_name, ratio, sell_price, is_default_sale FROM item_units WHERE item_type = 'product' ORDER BY ratio")
     units_map = {}
-    for u in cur.fetchall():
+    for u in units_res:
         units_map.setdefault(u["item_id"], []).append(dict(u))
     for r in rows:
         r["units"] = units_map.get(r["id"], [])
 
     # Gắn danh sách tóm tắt các món con cho combo (type = 'combo')
     try:
-        cur.execute('''
-            SELECT c.code, ci.quantity, p.name as product_name
-            FROM combo_items ci
-            JOIN combos c ON ci.combo_id = c.id
-            JOIN products p ON ci.product_id = p.id
-            WHERE COALESCE(c.is_active, 1) = 1
-            ORDER BY ci.id ASC
-        ''')
         combo_map = {}
-        for ci in cur.fetchall():
+        for ci in combos_res:
             c_code = (ci["code"] or "").strip().upper()
             qty_fmt = int(ci["quantity"]) if ci["quantity"] == int(ci["quantity"]) else ci["quantity"]
             combo_map.setdefault(c_code, []).append(f"{qty_fmt}x {ci['product_name']}")

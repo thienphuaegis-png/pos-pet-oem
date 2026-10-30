@@ -8,7 +8,7 @@ import datetime
 import random
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from database import get_db
+from database import get_db, execute_batch
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
 from dependencies import require_role, require_permission, require_any_permission, resolve_payment_account
@@ -73,9 +73,35 @@ class PetUpdate(BaseModel):
     note: Optional[str] = None
 
 @router.get("")
-def list_contacts(type: Optional[str] = None, search: Optional[str] = None):
+def list_contacts(type: Optional[str] = None, search: Optional[str] = None, compact: Optional[int] = 0):
     conn = get_db()
     cur = conn.cursor()
+    if compact and type == "customer":
+        # Chế độ gọn nhẹ cho ô tìm kiếm POS: chỉ lấy các cột cần cho tìm kiếm & tính giá (không quét bảng pets 6.112 dòng hay tính nợ NCC)
+        query = """
+            SELECT c.id, c.code, c.name, c.phone, c.address, c.type,
+                   COALESCE(c.points, 0) as points,
+                   COALESCE(c.spa_wallet_balance, 0) as spa_wallet_balance,
+                   COALESCE(c.debt, 0) as debt,
+                   c.segment_id, c.is_flagged, c.warning_note,
+                   cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
+                   pl.name as price_list_name
+            FROM contacts c
+            LEFT JOIN customer_segments cs ON cs.id = c.segment_id
+            LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
+            WHERE c.type = 'customer'
+        """
+        params = []
+        if search:
+            query += " AND (c.name LIKE ? OR c.phone LIKE ?)"
+            s = f"%{search}%"
+            params.extend([s, s])
+        query += " ORDER BY c.id DESC"
+        cur.execute(query, tuple(params))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+
     query = """
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                pl.name as price_list_name,
@@ -1222,13 +1248,13 @@ def list_spa_staff(month: Optional[str] = None):
     except Exception:
         comm_map = {}
 
-    # Đếm trực tiếp số ca Nhận / Tắm / Cắt / Nhuộm trên toàn bộ phiếu trong tháng (kể cả phiếu đang làm)
+    # Đếm trực tiếp số ca Nhận / Tắm / Cắt / Nhuộm trên toàn bộ phiếu trong tháng (dùng BETWEEN để ăn theo index idx_pet_tickets_date_id)
     cur.execute("""
         SELECT staff_receiver, staff_worker_1, staff_worker_2, staff_cutter, staff_dyer
         FROM pet_service_tickets
         WHERE COALESCE(status, '') NOT IN ('cancelled', 'Đã hủy')
-          AND substr(COALESCE(ticket_date, created_at), 1, 7) = ?
-    """, (target_month,))
+          AND ticket_date BETWEEN ? AND ?
+    """, (from_date, to_date))
     role_counter = {}
     for tr in cur.fetchall():
         for r_col, r_key in (
@@ -1428,50 +1454,49 @@ def delete_grooming_gallery_item(item_id: int):
 @service_router.get("/kpi")
 def get_pet_services_kpi():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) as cnt FROM pets")
-    total_pets = cur.fetchone()["cnt"]
-
     today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE ticket_date = ? OR appointment_time LIKE ?", (today_str, f"{today_str}%"))
-    app_today = cur.fetchone()["cnt"]
-
-    cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE status = 'in_progress'")
-    in_progress = cur.fetchone()["cnt"]
-
-    cur.execute("SELECT COUNT(*) as cnt FROM pet_service_tickets WHERE has_transport = 1 AND status != 'completed'")
-    transport = cur.fetchone()["cnt"]
-
-    cur.execute("""
-        SELECT COUNT(*) as cnt FROM pet_service_tickets 
-        WHERE status = 'completed' AND (call_status = 'Chưa gọi' OR call_status IS NULL OR call_status = '')
-        AND (ticket_date = ? OR appointment_time LIKE ?)
-    """, (today_str, f"{today_str}%"))
-    uncalled = cur.fetchone()["cnt"]
-
-    cur.execute("""
-        SELECT COUNT(*) as cnt FROM pet_service_tickets 
-        WHERE status != 'checked_out'
-        AND (ticket_date = ? OR appointment_time LIKE ?)
-    """, (today_str, f"{today_str}%"))
-    not_checked_out = cur.fetchone()["cnt"]
-
-    cur.execute("""
-        SELECT COUNT(*) as cnt FROM pet_service_tickets 
-        WHERE status = 'checked_out'
-        AND (ticket_date = ? OR appointment_time LIKE ?)
-    """, (today_str, f"{today_str}%"))
-    checked_out = cur.fetchone()["cnt"]
-
+    # Gộp 7 câu SELECT COUNT(*) rời rạc (từng quét 24.447 phiếu x 5 lần = 122.235 dòng) thành 1 chuyến execute_batch ăn theo index
+    pets_res, today_res, active_res = execute_batch(
+        conn,
+        [
+            ("SELECT COUNT(*) as cnt FROM pets", ()),
+            (
+                """
+                SELECT
+                    COUNT(*) as app_today,
+                    COALESCE(SUM(CASE WHEN status = 'completed' AND (call_status = 'Chưa gọi' OR call_status IS NULL OR call_status = '') THEN 1 ELSE 0 END), 0) as uncalled,
+                    COALESCE(SUM(CASE WHEN status != 'checked_out' THEN 1 ELSE 0 END), 0) as not_checked_out,
+                    COALESCE(SUM(CASE WHEN status = 'checked_out' THEN 1 ELSE 0 END), 0) as checked_out
+                FROM pet_service_tickets
+                WHERE ticket_date = ?
+                """,
+                (today_str,),
+            ),
+            (
+                """
+                SELECT
+                    COALESCE(SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END), 0) as in_progress,
+                    COALESCE(SUM(CASE WHEN has_transport = 1 THEN 1 ELSE 0 END), 0) as transport
+                FROM pet_service_tickets
+                WHERE status IN ('pending', 'received', 'in_progress')
+                """,
+                (),
+            ),
+        ],
+    )
     conn.close()
+
+    total_pets = pets_res[0]["cnt"] if pets_res else 0
+    t_row = today_res[0] if today_res else {}
+    a_row = active_res[0] if active_res else {}
     return {
         "total_pets": total_pets,
-        "appointments_today": app_today,
-        "in_progress": in_progress,
-        "transport": transport,
-        "uncalled": uncalled,
-        "not_checked_out": not_checked_out,
-        "checked_out": checked_out
+        "appointments_today": t_row["app_today"] if "app_today" in t_row else 0,
+        "in_progress": a_row["in_progress"] if "in_progress" in a_row else 0,
+        "transport": a_row["transport"] if "transport" in a_row else 0,
+        "uncalled": t_row["uncalled"] if "uncalled" in t_row else 0,
+        "not_checked_out": t_row["not_checked_out"] if "not_checked_out" in t_row else 0,
+        "checked_out": t_row["checked_out"] if "checked_out" in t_row else 0,
     }
 
 @service_router.get("/pets/{pet_id}/history")
