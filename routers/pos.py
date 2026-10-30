@@ -656,7 +656,7 @@ def export_orders_excel(
             ph = ",".join("?" * len(chunk))
             cur.execute(
                 f"""
-                SELECT oi.order_id, oi.quantity, oi.price, oi.subtotal, oi.unit_name,
+                SELECT oi.order_id, oi.quantity, oi.price, oi.subtotal,
                        COALESCE(p.code, '') as product_code,
                        COALESCE(p.name, 'Sản phẩm') as product_name,
                        COALESCE(p.unit, 'Cái') as default_unit
