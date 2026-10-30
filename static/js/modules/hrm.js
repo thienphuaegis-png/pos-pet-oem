@@ -2520,16 +2520,41 @@
         }
     };
 
-    // ── Cấp Nhanh Tài Khoản (Quick Account) ──
+    // ── Cấp Nhanh Tài Khoản (Quick Account) & Import Google Sheet ──
+    function normalizePhoneUsername(phone, empCode, staffName) {
+        const digits = String(phone || '').replace(/\.0$/, '').replace(/\D/g, '');
+        if (digits.length === 9 && '35789'.includes(digits[0])) {
+            return '0' + digits;
+        }
+        if (digits.length >= 9) {
+            return digits;
+        }
+        if (empCode) {
+            return String(empCode).toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+        return String(staffName || '').toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+    }
+    window.normalizePhoneUsername = normalizePhoneUsername;
+
+    function syncAllStaffViewsAfterChange() {
+        loadHrmStaff();
+        if (typeof window.loadStaffList === 'function') window.loadStaffList();
+        if (typeof window.populateStaffPermSelect === 'function') window.populateStaffPermSelect();
+    }
+
     window.openHrmQuickAccountModal = function(staffId, staffName, empCode) {
+        let staffObj = (hrmStaffList || []).find(s => s.id === staffId);
         if (!staffId) {
-            const candidate = (hrmStaffList || []).find(s => !s.has_account);
+            const candidate = (hrmStaffList || []).find(s => !s.has_account && s.is_active !== 0);
             if (candidate) {
+                staffObj = candidate;
                 staffId = candidate.id;
                 staffName = candidate.name;
                 empCode = candidate.employee_code;
             } else {
-                alert("Tất cả nhân sự trong danh sách đều đã có tài khoản đăng nhập!");
+                alert("Tất cả nhân sự đang làm việc đều đã có tài khoản đăng nhập!");
                 return;
             }
         }
@@ -2537,14 +2562,7 @@
         document.getElementById('hrm-acc-staff-id').value = staffId;
         document.getElementById('hrm-acc-staff-name').textContent = `${staffName} (${empCode || 'NV' + staffId})`;
 
-        let suggestedUname = '';
-        if (empCode) {
-            suggestedUname = empCode.toLowerCase().replace(/[^a-z0-9]/g, '');
-        } else {
-            suggestedUname = (staffName || '').toLowerCase()
-                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                .replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
-        }
+        const suggestedUname = normalizePhoneUsername(staffObj ? staffObj.phone : '', empCode, staffName);
         document.getElementById('hrm-acc-username').value = suggestedUname;
         document.getElementById('hrm-acc-password').value = '123456';
         document.getElementById('hrm-acc-role').value = 'staff';
@@ -2582,9 +2600,225 @@
             }
             if (window.showToast) window.showToast(data.message || "Đã cấp tài khoản thành công", "success");
             closeHrmQuickAccountModal();
-            loadHrmStaff();
+            syncAllStaffViewsAfterChange();
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    // ── Import Hồ Sơ Nhân Sự & Điều Chỉnh Lương Từ Google Sheet ──
+    window.openHrmImportSheetModal = async function() {
+        const modal = document.getElementById('modal-hrm-import-sheet');
+        const urlInput = document.getElementById('hrm-import-sheet-url');
+        if (urlInput && !urlInput.value) {
+            try {
+                const res = await fetch('/api/hrm/employees/sheet-config');
+                if (res.ok) {
+                    const data = await res.json();
+                    urlInput.value = data.sheet_url || '';
+                }
+            } catch (e) { console.error(e); }
+        }
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmImportSheetModal = function() {
+        const modal = document.getElementById('modal-hrm-import-sheet');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitHrmImportSheet = async function() {
+        const urlInput = document.getElementById('hrm-import-sheet-url');
+        const autoOpenAcc = document.getElementById('hrm-import-auto-open-acc')?.checked;
+        const btn = document.getElementById('btn-submit-hrm-sheet-import');
+        const sheet_url = (urlInput?.value || '').trim();
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Đang đồng bộ từ Google Sheet...';
+        }
+        try {
+            const res = await fetch('/api/hrm/employees/import-sheet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sheet_url })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert('❌ ' + (data.detail || 'Lỗi đồng bộ Google Sheet'));
+                return;
+            }
+            if (window.showToast) {
+                window.showToast(data.message || 'Đã đồng bộ nhân sự từ Google Sheet', 'success');
+            }
+            closeHrmImportSheetModal();
+            syncAllStaffViewsAfterChange();
+            if (currentSubTab === 'adjustments') loadHrmSalaryAdjustments();
+
+            if (autoOpenAcc) {
+                const pending = data.pending_accounts || [];
+                if (pending.length > 0) {
+                    openHrmBatchAccountModal(pending);
+                } else if (window.showToast) {
+                    window.showToast('Tất cả nhân sự đang làm việc đều đã có tài khoản đăng nhập!', 'info');
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            alert('❌ Lỗi kết nối máy chủ khi đồng bộ Google Sheet');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-download-simple"></i> Bắt Đầu Đồng Bộ';
+            }
+        }
+    };
+
+    // ── Cấp Tài Khoản Hàng Loạt (Batch Account Creation) ──
+    let hrmBatchCandidateList = [];
+
+    window.openHrmBatchAccountModal = async function(prefetchedList) {
+        let candidates = Array.isArray(prefetchedList) ? prefetchedList : null;
+        if (!candidates) {
+            try {
+                const res = await fetch('/api/hrm/employees');
+                if (res.ok) {
+                    const all = await res.json();
+                    hrmStaffList = all;
+                    candidates = all.filter(s => !s.has_account && s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc');
+                }
+            } catch (e) { console.error(e); }
+        }
+        hrmBatchCandidateList = candidates || [];
+        renderHrmBatchAccountRows();
+
+        const modal = document.getElementById('modal-hrm-batch-accounts');
+        if (modal) modal.classList.remove('hidden');
+    };
+
+    window.closeHrmBatchAccountModal = function() {
+        const modal = document.getElementById('modal-hrm-batch-accounts');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    function renderHrmBatchAccountRows() {
+        const tbody = document.getElementById('table-hrm-batch-accounts');
+        const checkAll = document.getElementById('hrm-batch-check-all');
+        const defPwd = document.getElementById('hrm-batch-default-pwd')?.value || '123456';
+        if (!tbody) return;
+
+        if (!hrmBatchCandidateList.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Tất cả nhân sự đang làm việc đều đã được cấp tài khoản đăng nhập POS!</td></tr>`;
+            if (checkAll) checkAll.checked = false;
+            updateHrmBatchSelectedCount();
+            return;
+        }
+
+        if (checkAll) checkAll.checked = true;
+        tbody.innerHTML = hrmBatchCandidateList.map(s => {
+            const uname = normalizePhoneUsername(s.phone, s.employee_code, s.name);
+            const deptPos = [s.department, s.position].filter(Boolean).join(' • ') || '—';
+            const blockName = s.block_name || (hrmBlocksMap[s.work_block_id]?.name) || 'Văn Phòng';
+            return `
+                <tr class="hover:bg-slate-50 transition" data-staff-id="${s.id}">
+                    <td class="p-2.5 text-center">
+                        <input type="checkbox" class="hrm-batch-acc-chk rounded text-emerald-600 w-4 h-4 cursor-pointer" data-staff-id="${s.id}" checked onchange="updateHrmBatchSelectedCount()">
+                    </td>
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-800">${s.name}</div>
+                        <div class="text-xs font-mono text-slate-500">${s.employee_code ? `<span class="text-sky-700 font-bold">${s.employee_code}</span>` : `ID #${s.id}`}${s.phone ? ` • 📞 ${s.phone}` : ''}${s.device_code ? ` • Máy: ${s.device_code}` : ''}</div>
+                    </td>
+                    <td class="p-2.5 text-slate-600">${deptPos}</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold text-xs">${blockName}</span></td>
+                    <td class="p-2.5">
+                        <input type="text" class="hrm-batch-acc-uname border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono font-bold text-emerald-700 w-36 focus:ring-1 focus:ring-emerald-500" value="${uname}" placeholder="SĐT / Username">
+                    </td>
+                    <td class="p-2.5">
+                        <select class="hrm-batch-acc-role border border-slate-300 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 bg-white focus:ring-1 focus:ring-emerald-500">
+                            <option value="staff" selected>Nhân viên (Chỉ xem phiếu lương)</option>
+                            <option value="cashier">Thu ngân (Bán hàng POS)</option>
+                            <option value="warehouse">Thủ kho (Kho & Nhập hàng)</option>
+                            <option value="accountant">Kế toán (Sổ quỹ & Lương)</option>
+                            <option value="owner">Chủ shop (Toàn quyền)</option>
+                        </select>
+                    </td>
+                    <td class="p-2.5">
+                        <input type="text" class="hrm-batch-acc-pwd border border-slate-300 rounded-lg px-2 py-1 text-xs font-mono w-24 focus:ring-1 focus:ring-emerald-500" value="${defPwd}">
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        updateHrmBatchSelectedCount();
+    }
+
+    window.toggleAllHrmBatchAccounts = function(checked) {
+        document.querySelectorAll('.hrm-batch-acc-chk').forEach(cb => { cb.checked = checked; });
+        updateHrmBatchSelectedCount();
+    };
+
+    window.applyBatchDefaultPassword = function(pwd) {
+        document.querySelectorAll('.hrm-batch-acc-pwd').forEach(inp => { inp.value = pwd; });
+    };
+
+    window.updateHrmBatchSelectedCount = function() {
+        const checked = document.querySelectorAll('.hrm-batch-acc-chk:checked').length;
+        const el = document.getElementById('hrm-batch-selected-count');
+        if (el) el.textContent = `Đã chọn: ${checked} nhân viên`;
+    };
+
+    window.submitHrmBatchAccounts = async function() {
+        const rows = document.querySelectorAll('#table-hrm-batch-accounts tr[data-staff-id]');
+        const accounts = [];
+        rows.forEach(tr => {
+            const chk = tr.querySelector('.hrm-batch-acc-chk');
+            if (!chk || !chk.checked) return;
+            const staff_id = parseInt(tr.getAttribute('data-staff-id'), 10);
+            const username = (tr.querySelector('.hrm-batch-acc-uname')?.value || '').trim();
+            const role = tr.querySelector('.hrm-batch-acc-role')?.value || 'staff';
+            const password = (tr.querySelector('.hrm-batch-acc-pwd')?.value || '123456').trim();
+            if (staff_id && username) {
+                accounts.push({ staff_id, username, role, password });
+            }
+        });
+
+        if (!accounts.length) {
+            alert("Vui lòng tích chọn ít nhất 1 nhân viên và điền đầy đủ Username!");
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-hrm-batch-acc');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = "⏳ Đang tạo tài khoản...";
+        }
+        try {
+            const res = await fetch('/api/hrm/employees/batch-accounts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accounts })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert('❌ ' + (data.detail || 'Lỗi cấp tài khoản hàng loạt'));
+                return;
+            }
+            let msg = data.message || `Đã tạo ${data.created_count} tài khoản.`;
+            if (data.errors && data.errors.length) {
+                msg += `\nLưu ý: ${data.errors.join('; ')}`;
+                alert(msg);
+            } else if (window.showToast) {
+                window.showToast(msg, 'success');
+            }
+            closeHrmBatchAccountModal();
+            syncAllStaffViewsAfterChange();
+        } catch (e) {
+            console.error(e);
+            alert('❌ Lỗi kết nối máy chủ');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-lightning"></i> Tạo Tài Khoản Cho Các Nhân Viên Đã Chọn';
+            }
         }
     };
 

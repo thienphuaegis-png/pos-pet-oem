@@ -232,7 +232,8 @@ async function loadReportsAnalytics() {
 
         // Render các khối dữ liệu
         renderReportsCategoryFilterUI(data);
-        renderReportsSummaryKPI(data.summary, data.goods_vs_services);
+        renderReportsSummaryKPI(data.summary, data.goods_vs_services, data.range);
+        renderMonthlyBreakdownTable(data.monthly_breakdown, data.summary, data.range);
         renderVisualCharts(data);
         renderPaymentsTable(data.payments);
         renderGoodsVsServices(data.goods_vs_services);
@@ -358,34 +359,48 @@ function renderReportsCategoryFilterUI(data) {
     }
 }
 
-function renderReportsSummaryKPI(s, g) {
+function renderReportsSummaryKPI(s, g, r) {
     if (!s) return;
     const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
     const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    const monthsCount = (r && r.months_count) ? r.months_count : 1;
+    const isMultiMonth = monthsCount > 1;
 
-    // 6 Thẻ chuẩn KiotViet
+    // 6 Thẻ chuẩn KiotViet (khi chọn nhiều tháng: hiển thị thêm TB 1 tháng ngay dưới TB/ngày)
     setTxt('rep-kv-orders', (s.order_count || 0).toLocaleString('vi-VN'));
-    setTxt('rep-kv-orders-avg', String(s.avg_orders_per_day || 0));
+    setHtml('rep-kv-orders-avg', isMultiMonth
+        ? `${s.avg_orders_per_day || 0} <span class="block text-xs text-sky-600 font-semibold mt-0.5">TB/tháng: ${s.avg_orders_per_month || 0} đơn</span>`
+        : String(s.avg_orders_per_day || 0));
     setHtml('rep-kv-orders-growth', formatGrowthBadge(s.growth_orders));
 
     setTxt('rep-kv-gross', formatMoney(s.gross_revenue || 0));
-    setTxt('rep-kv-gross-avg', formatMoney(s.avg_gross_per_day || 0));
+    setHtml('rep-kv-gross-avg', isMultiMonth
+        ? `${formatMoney(s.avg_gross_per_day || 0)} <span class="block text-xs text-sky-600 font-semibold mt-0.5">TB/tháng: ${formatMoney(s.avg_gross_per_month || 0)}</span>`
+        : formatMoney(s.avg_gross_per_day || 0));
     setHtml('rep-kv-gross-growth', formatGrowthBadge(s.growth_gross));
 
     setTxt('rep-kv-return', formatMoney(s.return_amount || 0));
-    setTxt('rep-kv-return-avg', formatMoney(s.avg_return_per_day || 0));
+    setHtml('rep-kv-return-avg', isMultiMonth
+        ? `${formatMoney(s.avg_return_per_day || 0)} <span class="block text-xs text-rose-600 font-semibold mt-0.5">TB/tháng: ${formatMoney(s.avg_return_per_month || 0)}</span>`
+        : formatMoney(s.avg_return_per_day || 0));
     setHtml('rep-kv-return-growth', formatGrowthBadge(s.growth_return, true));
 
     setTxt('rep-kpi-revenue', formatMoney(s.net_revenue ?? s.total_revenue ?? 0));
-    setTxt('rep-kv-net-avg', formatMoney(s.avg_net_per_day || 0));
+    setHtml('rep-kv-net-avg', isMultiMonth
+        ? `${formatMoney(s.avg_net_per_day || 0)} <span class="block text-xs text-sky-700 font-bold mt-0.5">TB 1 tháng (${monthsCount} tháng): ${formatMoney(s.avg_net_per_month || 0)}</span>`
+        : formatMoney(s.avg_net_per_day || 0));
     setHtml('rep-kv-net-growth', formatGrowthBadge(s.growth_net));
 
     setTxt('rep-kv-cost', formatMoney(s.total_cost || 0));
-    setTxt('rep-kv-cost-avg', formatMoney(s.avg_cost_per_day || 0));
+    setHtml('rep-kv-cost-avg', isMultiMonth
+        ? `${formatMoney(s.avg_cost_per_day || 0)} <span class="block text-xs text-amber-700 font-semibold mt-0.5">TB/tháng: ${formatMoney(s.avg_cost_per_month || 0)}</span>`
+        : formatMoney(s.avg_cost_per_day || 0));
     setHtml('rep-kv-cost-growth', formatGrowthBadge(s.growth_cost, true));
 
     setTxt('rep-kv-profit', formatMoney(s.gross_profit || 0));
-    setTxt('rep-kv-profit-avg', formatMoney(s.avg_profit_per_day || 0));
+    setHtml('rep-kv-profit-avg', isMultiMonth
+        ? `${formatMoney(s.avg_profit_per_day || 0)} <span class="block text-xs text-emerald-700 font-bold mt-0.5">TB 1 tháng: ${formatMoney(s.avg_profit_per_month || 0)}</span>`
+        : formatMoney(s.avg_profit_per_day || 0));
     setHtml('rep-kv-profit-growth', formatGrowthBadge(s.growth_profit));
     setTxt('rep-kv-margin-badge', `Biên: ${s.margin_pct || 0}%`);
 
@@ -399,6 +414,43 @@ function renderReportsSummaryKPI(s, g) {
         setTxt('rep-strip-spa', formatMoney(g.services_revenue || 0));
         setTxt('rep-strip-hotel', formatMoney(g.hotel_revenue || 0));
     }
+}
+
+function renderMonthlyBreakdownTable(monthlyList, s, r) {
+    const wrap = document.getElementById('rep-monthly-breakdown-wrap');
+    const tbody = document.getElementById('rep-monthly-tbody');
+    const avgBadge = document.getElementById('rep-monthly-avg-badge');
+    if (!wrap || !tbody) return;
+
+    const list = Array.isArray(monthlyList) ? monthlyList : [];
+    const monthsCount = (r && r.months_count) ? r.months_count : list.length;
+
+    if (list.length <= 1) {
+        wrap.classList.add('hidden');
+        return;
+    }
+
+    wrap.classList.remove('hidden');
+    if (avgBadge && s) {
+        avgBadge.textContent = `TB ${monthsCount} tháng: ${formatMoney(s.avg_net_per_month || 0)}/tháng · Lãi TB: ${formatMoney(s.avg_profit_per_month || 0)}/tháng`;
+    }
+
+    tbody.innerHTML = list.map(m => {
+        const hasData = (m.net_revenue || 0) > 0 || (m.orders || 0) > 0;
+        const rowCls = hasData ? 'hover:bg-slate-50 transition' : 'bg-slate-50/40 text-slate-400';
+        return `
+            <tr class="${rowCls}">
+                <td class="p-2.5 font-bold ${hasData ? 'text-slate-800' : 'text-slate-400'}">${m.label}</td>
+                <td class="p-2.5 text-center font-mono font-semibold">${m.orders || 0}</td>
+                <td class="p-2.5 text-right font-mono">${formatMoney(m.revenue || 0)}</td>
+                <td class="p-2.5 text-right font-mono text-rose-600">${formatMoney(m.returns || 0)}</td>
+                <td class="p-2.5 text-right font-mono font-bold ${hasData ? 'text-sky-700' : ''}">${formatMoney(m.net_revenue || 0)}</td>
+                <td class="p-2.5 text-right font-mono text-amber-600">${formatMoney(m.cost || 0)}</td>
+                <td class="p-2.5 text-right font-mono font-bold ${hasData ? 'text-emerald-600' : ''}">${formatMoney(m.profit || 0)}</td>
+                <td class="p-2.5 text-right font-mono font-bold">${m.margin_pct || 0}%</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderVisualCharts(data) {
@@ -741,7 +793,8 @@ function renderTopProducts(products) {
 function exportReportsExcel() {
     const fromVal = document.getElementById('rep-filter-from')?.value || '';
     const toVal = document.getElementById('rep-filter-to')?.value || '';
-    downloadWithAuth(`/api/reports/export-excel?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}`, 'Bao_Cao_Tong_Hop.xlsx');
+    const catListParam = [...reportsSelectedCats].join('||');
+    downloadWithAuth(`/api/reports/export-excel?from_date=${encodeURIComponent(fromVal)}&to_date=${encodeURIComponent(toVal)}&cat_mode=${encodeURIComponent(reportsCatFilterMode)}&cat_list=${encodeURIComponent(catListParam)}`, 'Bao_Cao_Tong_Hop.xlsx');
 }
 
 // Xuất các hàm ra window

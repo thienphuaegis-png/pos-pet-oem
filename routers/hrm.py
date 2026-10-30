@@ -393,6 +393,133 @@ class QuickAccountIn(BaseModel):
     role: Optional[str] = "staff"
 
 
+class BatchAccountItemIn(BaseModel):
+    staff_id: int
+    username: str
+    password: Optional[str] = "123456"
+    role: Optional[str] = "staff"
+
+
+class BatchAccountsIn(BaseModel):
+    accounts: List[BatchAccountItemIn]
+
+
+class ImportStaffSheetIn(BaseModel):
+    sheet_url: Optional[str] = None
+
+
+@router.get("/employees/sheet-config")
+def get_staff_sheet_config(user=Depends(require_permission(PERM))):
+    from scripts.import_hrm_from_sheets import DEFAULT_SHEET_URL
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = 'hrm_staff_sheet_url'")
+    row = cur.fetchone()
+    conn.close()
+    url = (row["value"].strip() if row and row["value"] and row["value"].strip() else DEFAULT_SHEET_URL)
+    return {"sheet_url": url}
+
+
+@router.post("/employees/import-sheet")
+def import_employees_from_sheet(body: ImportStaffSheetIn = None, user=Depends(require_permission(PERM))):
+    """Import danh sách nhân sự, điều chỉnh lương & mã máy chấm công từ Google Sheet."""
+    from scripts.import_hrm_from_sheets import DEFAULT_SHEET_URL, fetch_and_import_from_google_sheet
+    conn = get_db(); cur = conn.cursor()
+    sheet_url = (body.sheet_url.strip() if body and body.sheet_url and body.sheet_url.strip() else None)
+    if not sheet_url:
+        cur.execute("SELECT value FROM settings WHERE key = 'hrm_staff_sheet_url'")
+        row = cur.fetchone()
+        sheet_url = (row["value"].strip() if row and row["value"] and row["value"].strip() else DEFAULT_SHEET_URL)
+    else:
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('hrm_staff_sheet_url', ?)", (sheet_url,))
+
+    try:
+        res = fetch_and_import_from_google_sheet(cur, sheet_url)
+    except Exception as e:
+        conn.close()
+        raise HTTPException(400, f"Lỗi đồng bộ Google Sheet: {e}")
+
+    # Lấy danh sách nhân sự đang làm việc nhưng chưa có tài khoản đăng nhập để gợi ý cấp TK nhanh
+    cur.execute("""
+        SELECT s.id, s.name, s.phone, s.employee_code, s.device_code, s.department, s.position,
+               s.work_block_id, b.name AS block_name, s.base_salary, s.allowance, s.is_active,
+               (CASE WHEN s.username IS NOT NULL AND TRIM(s.username) != '' AND s.password_hash IS NOT NULL THEN 1 ELSE 0 END) AS has_account
+        FROM staff s
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        WHERE COALESCE(s.is_payroll_staff, 1) = 1
+          AND COALESCE(s.is_active, 1) = 1
+          AND (s.username IS NULL OR TRIM(s.username) = '' OR s.password_hash IS NULL)
+        ORDER BY COALESCE(s.employee_code, 'zz'), s.id
+    """)
+    unlinked = [dict(r) for r in cur.fetchall()]
+    conn.commit()
+    conn.close()
+    return {
+        "status": "ok",
+        "imported_staff": res["imported_staff"],
+        "updated_staff": res["updated_staff"],
+        "imported_adjustments": res["imported_adjustments"],
+        "pending_accounts": unlinked,
+        "message": (
+            f"Đã đồng bộ Google Sheet: thêm mới {res['imported_staff']} NV, "
+            f"cập nhật {res['updated_staff']} NV, nạp {res['imported_adjustments']} quyết định điều chỉnh lương."
+        ),
+    }
+
+
+@router.post("/employees/batch-accounts")
+def batch_grant_accounts(body: BatchAccountsIn, user=Depends(require_permission(PERM))):
+    """Cấp tài khoản đăng nhập hàng loạt cho danh sách nhân viên được chọn."""
+    if not body.accounts:
+        raise HTTPException(400, "Danh sách nhân viên cấp tài khoản trống")
+
+    from routers.auth import pwd_ctx
+    conn = get_db(); cur = conn.cursor()
+    created_count = 0
+    errors = []
+
+    for item in body.accounts:
+        uname = (item.username or "").strip()
+        pwd = (item.password or "123456").strip()
+        role = (item.role or "staff").strip()
+        if role not in ("owner", "cashier", "accountant", "warehouse", "staff"):
+            role = "staff"
+        if not uname:
+            errors.append(f"NV ID #{item.staff_id}: thiếu tên đăng nhập")
+            continue
+        if len(pwd) < 6:
+            errors.append(f"'{uname}': mật khẩu phải từ 6 ký tự")
+            continue
+
+        cur.execute("SELECT id, name FROM staff WHERE id = ?", (item.staff_id,))
+        st = cur.fetchone()
+        if not st:
+            errors.append(f"NV ID #{item.staff_id}: không tồn tại")
+            continue
+
+        cur.execute("SELECT id, name FROM staff WHERE LOWER(username) = LOWER(?) AND id != ?", (uname, item.staff_id))
+        dup = cur.fetchone()
+        if dup:
+            errors.append(f"Username '{uname}' ({st['name']}) đã trùng với {dup['name']}")
+            continue
+
+        pwd_hash = pwd_ctx.hash(pwd)
+        cur.execute("""
+            UPDATE staff
+            SET username = ?, password_hash = ?, role = ?, must_change_password = 1, token_version = COALESCE(token_version, 0) + 1
+            WHERE id = ?
+        """, (uname, pwd_hash, role, item.staff_id))
+        created_count += 1
+
+    conn.commit()
+    conn.close()
+    return {
+        "status": "ok",
+        "created_count": created_count,
+        "errors": errors,
+        "message": f"Đã tạo thành công {created_count} tài khoản đăng nhập POS.",
+    }
+
+
 @router.post("/employees/{staff_id}/quick-account")
 def quick_grant_account(staff_id: int, body: QuickAccountIn, user=Depends(require_permission(PERM))):
     """Cấp nhanh tài khoản đăng nhập POS / Mobile cho nhân sự lương."""

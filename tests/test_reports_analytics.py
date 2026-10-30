@@ -34,19 +34,23 @@ def test_reports_analytics_api_basic():
 
 def test_reports_analytics_api_with_date_range():
     client = TestClient(app)
-    # 2. Gọi API với khoảng ngày tùy chọn
-    res = client.get("/api/reports/analytics?from_date=2026-09-01&to_date=2026-10-31")
+    # 2. Gọi API với khoảng ngày tùy chọn (nhiều tháng)
+    res = client.get("/api/reports/analytics?from_date=2026-01-01&to_date=2026-10-30")
     assert res.status_code == 200, res.text
     data = res.json()
     assert isinstance(data["timeline"], list)
     assert isinstance(data["payments"], list)
     assert isinstance(data["staff_performance"], list)
     assert isinstance(data["top_products"], list)
+    assert data["range"]["months_count"] == 10
+    assert "avg_net_per_month" in data["summary"]
+    assert "avg_profit_per_month" in data["summary"]
+    assert len(data["monthly_breakdown"]) == 10
 
 def test_reports_export_excel_api():
     client = TestClient(app)
-    # 3. Gọi API xuất file Excel báo cáo kinh doanh
-    res = client.get("/api/reports/export-excel?from_date=2026-10-01&to_date=2026-10-07")
+    # 3. Gọi API xuất file Excel báo cáo kinh doanh (kể cả khi truyền cat_mode/cat_list)
+    res = client.get("/api/reports/export-excel?from_date=2026-01-01&to_date=2026-10-30&cat_mode=exclude&cat_list=")
     assert res.status_code == 200
     assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in res.headers.get("content-type", "")
     assert len(res.content) > 1000

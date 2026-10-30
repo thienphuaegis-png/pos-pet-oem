@@ -90,6 +90,8 @@ function renderStaffTable() {
     const codesInfo = [
       r.employee_code ? `<span class="text-xs text-slate-500 font-mono">NV: ${r.employee_code}</span>` : '',
       r.device_code ? `<span class="text-xs text-sky-600 font-mono font-bold">Mã máy: ${r.device_code}</span>` : '',
+      (r.department || r.position) ? `<span class="text-xs text-slate-600">${[r.department, r.position].filter(Boolean).join(' • ')}</span>` : '',
+      r.block_name ? `<span class="text-xs text-emerald-700 font-semibold">${r.block_name}</span>` : '',
       isResigned && r.leave_date ? `<span class="text-xs text-rose-600 font-bold">Nghỉ: ${r.leave_date}</span>` : ''
     ].filter(Boolean).join(' | ');
 
@@ -209,7 +211,7 @@ function openEditStaffModal(id) {
   document.getElementById('staff-password').value = '';
   const pwdLbl = document.getElementById('staff-password-label');
   if (pwdLbl) pwdLbl.textContent = hasAccount ? 'Đổi Mật Khẩu (Bỏ trống nếu giữ nguyên)' : 'Mật Khẩu Ban Đầu (*)';
-  document.getElementById('staff-role').value = (r.role && r.role !== 'staff') ? r.role : 'cashier';
+  document.getElementById('staff-role').value = r.role || 'staff';
 
   const revokeWrap = document.getElementById('staff-revoke-account-wrap');
   if (revokeWrap) {
@@ -226,10 +228,21 @@ window.openEditStaffModal = openEditStaffModal;
 
 function openGrantAccountModal(id) {
   openEditStaffModal(id);
+  const r = (currentStaffList || []).find(s => s.id === id);
   const toggle = document.getElementById('staff-has-account-toggle');
   if (toggle) {
     toggle.checked = true;
     toggleStaffAccountFields(true);
+    const unameInput = document.getElementById('staff-username');
+    const pwdInput = document.getElementById('staff-password');
+    const roleSelect = document.getElementById('staff-role');
+    if (unameInput && !unameInput.value && r) {
+      unameInput.value = typeof window.normalizePhoneUsername === 'function'
+        ? window.normalizePhoneUsername(r.phone, r.employee_code, r.name)
+        : (r.phone || r.employee_code || '').replace(/\D/g, '');
+    }
+    if (pwdInput && !pwdInput.value) pwdInput.value = '123456';
+    if (roleSelect) roleSelect.value = 'staff';
     setTimeout(() => document.getElementById('staff-username')?.focus(), 100);
   }
 }
@@ -268,6 +281,8 @@ async function revokeStaffAccount() {
     if (typeof showToast === 'function') showToast('✅ Đã thu hồi tài khoản đăng nhập thành công', 'success');
     closeStaffModal();
     loadStaffList();
+    if (typeof loadHrmStaff === 'function') loadHrmStaff();
+    if (typeof populateStaffPermSelect === 'function') populateStaffPermSelect();
   } catch (e) {
     alert('❌ Không kết nối được server');
   }
@@ -364,6 +379,8 @@ async function submitStaffForm() {
     }
     closeStaffModal();
     loadStaffList();
+    if (typeof loadHrmStaff === 'function') loadHrmStaff();
+    if (typeof populateStaffPermSelect === 'function') populateStaffPermSelect();
   } catch (e) {
     alert('❌ Không kết nối được server');
   }

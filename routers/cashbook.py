@@ -1072,18 +1072,26 @@ def get_reports_analytics(
             return 100.0 if cur_val > 0 else 0.0
         return round(((cur_val - prev_val) / prev_val) * 100.0, 2)
 
-    # Xây dựng timeline đầy đủ từng ngày trong kỳ (4 đường KiotViet + 3 kênh)
+    # Xây dựng timeline đầy đủ từng ngày trong kỳ (4 đường KiotViet + 3 kênh) & tổng hợp theo từng tháng
     timeline_rows = []
+    monthly_map = {}
     for day_idx in range(days_count):
         d_obj = d_start + timedelta(days=day_idx)
         d_str = d_obj.strftime("%Y-%m-%d")
         d_lbl = d_obj.strftime("%d/%m")
+        m_key = d_obj.strftime("%Y-%m")
+        m_lbl = f"Tháng {d_obj.strftime('%m/%Y')}"
         dm = cur_m["daily_map"].get(d_str, {})
         d_rev = round(dm.get("revenue", 0.0), 0)
         d_ret = round(dm.get("returns", 0.0), 0)
         d_net = max(0.0, d_rev - d_ret)
         d_cost = round(max(0.0, dm.get("cost", 0.0)), 0)
         d_prof = d_net - d_cost
+        d_orders = dm.get("orders", 0)
+        d_goods = round(dm.get("goods_rev", 0.0), 0)
+        d_spa = round(dm.get("spa_rev", 0.0), 0)
+        d_hotel = round(dm.get("hotel_rev", 0.0), 0)
+
         timeline_rows.append({
             "label": d_lbl,
             "raw_date": d_str,
@@ -1092,11 +1100,46 @@ def get_reports_analytics(
             "net_revenue": d_net,
             "cost": d_cost,
             "profit": d_prof,
-            "orders": dm.get("orders", 0),
-            "goods_rev": round(dm.get("goods_rev", 0.0), 0),
-            "spa_rev": round(dm.get("spa_rev", 0.0), 0),
-            "hotel_rev": round(dm.get("hotel_rev", 0.0), 0),
+            "orders": d_orders,
+            "goods_rev": d_goods,
+            "spa_rev": d_spa,
+            "hotel_rev": d_hotel,
         })
+
+        if m_key not in monthly_map:
+            monthly_map[m_key] = {
+                "month": m_key,
+                "label": m_lbl,
+                "orders": 0,
+                "revenue": 0.0,
+                "returns": 0.0,
+                "net_revenue": 0.0,
+                "cost": 0.0,
+                "profit": 0.0,
+                "goods_rev": 0.0,
+                "spa_rev": 0.0,
+                "hotel_rev": 0.0,
+            }
+        mm = monthly_map[m_key]
+        mm["orders"] += d_orders
+        mm["revenue"] += d_rev
+        mm["returns"] += d_ret
+        mm["net_revenue"] += d_net
+        mm["cost"] += d_cost
+        mm["profit"] += d_prof
+        mm["goods_rev"] += d_goods
+        mm["spa_rev"] += d_spa
+        mm["hotel_rev"] += d_hotel
+
+    monthly_breakdown = []
+    for m_key in sorted(monthly_map.keys()):
+        mm = monthly_map[m_key]
+        m_net = mm["net_revenue"]
+        m_prof = mm["profit"]
+        mm["margin_pct"] = round((m_prof / m_net) * 100.0, 1) if m_net > 0 else 0.0
+        monthly_breakdown.append(mm)
+    months_count = max(1, len(monthly_breakdown))
+    active_months_count = max(1, sum(1 for m in monthly_breakdown if m["net_revenue"] > 0 or m["orders"] > 0))
 
     # Chuẩn hóa danh sách kênh thanh toán
     method_names = {
@@ -1155,35 +1198,44 @@ def get_reports_analytics(
             "from_date": from_date,
             "to_date": to_date,
             "days_count": days_count,
+            "months_count": months_count,
+            "active_months_count": active_months_count,
             "prev_from": prev_start.strftime("%Y-%m-%d"),
             "prev_to": prev_end.strftime("%Y-%m-%d"),
         },
         "all_categories": all_db_cats,
         "categories_breakdown": categories_breakdown,
+        "monthly_breakdown": monthly_breakdown,
         "summary": {
             "order_count": cur_m["order_count"],
             "avg_orders_per_day": round(cur_m["order_count"] / days_count, 2),
+            "avg_orders_per_month": round(cur_m["order_count"] / months_count, 1),
             "growth_orders": calc_growth(cur_m["order_count"], prev_m["order_count"]),
 
             "gross_revenue": cur_m["gross_revenue"],
             "avg_gross_per_day": round(cur_m["gross_revenue"] / days_count, 0),
+            "avg_gross_per_month": round(cur_m["gross_revenue"] / months_count, 0),
             "growth_gross": calc_growth(cur_m["gross_revenue"], prev_m["gross_revenue"]),
 
             "return_amount": cur_m["return_amount"],
             "avg_return_per_day": round(cur_m["return_amount"] / days_count, 0),
+            "avg_return_per_month": round(cur_m["return_amount"] / months_count, 0),
             "growth_return": calc_growth(cur_m["return_amount"], prev_m["return_amount"]),
 
             "total_revenue": cur_m["net_revenue"],
             "net_revenue": cur_m["net_revenue"],
             "avg_net_per_day": round(cur_m["net_revenue"] / days_count, 0),
+            "avg_net_per_month": round(cur_m["net_revenue"] / months_count, 0),
             "growth_net": calc_growth(cur_m["net_revenue"], prev_m["net_revenue"]),
 
             "total_cost": cur_m["total_cost"],
             "avg_cost_per_day": round(cur_m["total_cost"] / days_count, 0),
+            "avg_cost_per_month": round(cur_m["total_cost"] / months_count, 0),
             "growth_cost": calc_growth(cur_m["total_cost"], prev_m["total_cost"]),
 
             "gross_profit": cur_m["gross_profit"],
             "avg_profit_per_day": round(cur_m["gross_profit"] / days_count, 0),
+            "avg_profit_per_month": round(cur_m["gross_profit"] / months_count, 0),
             "growth_profit": calc_growth(cur_m["gross_profit"], prev_m["gross_profit"]),
             "margin_pct": round((cur_m["gross_profit"] / cur_m["net_revenue"]) * 100.0, 1) if cur_m["net_revenue"] > 0 else 0.0,
 
@@ -1210,6 +1262,8 @@ def get_reports_analytics(
 def export_reports_excel(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    cat_mode: str = "exclude",
+    cat_list: Optional[str] = None,
     user=Depends(get_current_user)
 ):
     """Xuất file Excel báo cáo kinh doanh tổng hợp nhiều bảng định dạng chuẩn."""
@@ -1217,7 +1271,13 @@ def export_reports_excel(
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from io import BytesIO
 
-    data = get_reports_analytics(from_date, to_date, user)
+    data = get_reports_analytics(
+        from_date=from_date,
+        to_date=to_date,
+        cat_mode=cat_mode,
+        cat_list=cat_list,
+        user=user,
+    )
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "BaoCaoKinhDoanh"
@@ -1256,10 +1316,14 @@ def export_reports_excel(
         cell.font = header_font
 
     kpis = [
-        ("Tổng Doanh Thu (Doanh số gộp)", f"{int(data['summary']['total_revenue']):,} đ"),
+        ("Tổng Doanh Thu Thuần (Doanh thu - Trả hàng)", f"{int(data['summary']['net_revenue']):,} đ"),
+        ("Trung Bình 1 Tháng (Doanh thu thuần)", f"{int(data['summary']['avg_net_per_month']):,} đ / tháng ({data['range']['months_count']} tháng)"),
+        ("Trung Bình 1 Ngày (Doanh thu thuần)", f"{int(data['summary']['avg_net_per_day']):,} đ / ngày ({data['range']['days_count']} ngày)"),
+        ("Lợi Nhuận Gộp", f"{int(data['summary']['gross_profit']):,} đ (TB: {int(data['summary']['avg_profit_per_month']):,} đ/tháng)"),
+        ("Tổng Giá Vốn (COGS)", f"{int(data['summary']['total_cost']):,} đ (TB: {int(data['summary']['avg_cost_per_month']):,} đ/tháng)"),
         ("Thực Thu Tại Quầy", f"{int(data['summary']['total_paid']):,} đ"),
         ("Công Nợ Phát Sinh", f"{int(data['summary']['total_debt']):,} đ"),
-        ("Tổng Số Đơn Hàng", f"{data['summary']['order_count']} đơn"),
+        ("Tổng Số Đơn Hàng", f"{data['summary']['order_count']} đơn (TB: {data['summary']['avg_orders_per_month']} đơn/tháng)"),
         ("Giá Trị Đơn Trung Bình (AOV)", f"{int(data['summary']['aov']):,} đ"),
         ("Tổng Hoa Hồng Nhân Viên", f"{int(data['summary']['total_commission']):,} đ")
     ]
@@ -1270,6 +1334,30 @@ def export_reports_excel(
         c1.font = normal_font; c1.border = thin_border
         c2.font = bold_font; c2.border = thin_border; c2.alignment = Alignment(horizontal='right')
         cur_row += 1
+
+    # 2B. Chi tiết theo từng tháng (khi chọn kỳ báo cáo)
+    if data.get("monthly_breakdown"):
+        cur_row += 1
+        ws.cell(row=cur_row, column=1, value="I.B. CHI TIẾT KẾT QUẢ KINH DOANH THEO TỪNG THÁNG").font = section_font
+        ws.cell(row=cur_row, column=1).fill = section_fill
+        cur_row += 1
+
+        month_headers = ["Tháng", "Số đơn", "Doanh thu bán", "Trả hàng", "Doanh thu thuần", "Tổng giá vốn", "Lợi nhuận gộp", "Biên lãi (%)"]
+        for c_idx, h in enumerate(month_headers, 1):
+            cell = ws.cell(row=cur_row, column=c_idx, value=h)
+            cell.fill = header_fill; cell.font = header_font
+        cur_row += 1
+
+        for m in data["monthly_breakdown"]:
+            ws.cell(row=cur_row, column=1, value=m["label"]).border = thin_border
+            c2 = ws.cell(row=cur_row, column=2, value=m["orders"]); c2.border = thin_border; c2.alignment = Alignment(horizontal='center')
+            c3 = ws.cell(row=cur_row, column=3, value=f"{int(m['revenue']):,} đ"); c3.border = thin_border; c3.alignment = Alignment(horizontal='right')
+            c4 = ws.cell(row=cur_row, column=4, value=f"{int(m['returns']):,} đ"); c4.border = thin_border; c4.alignment = Alignment(horizontal='right')
+            c5 = ws.cell(row=cur_row, column=5, value=f"{int(m['net_revenue']):,} đ"); c5.font = bold_font; c5.border = thin_border; c5.alignment = Alignment(horizontal='right')
+            c6 = ws.cell(row=cur_row, column=6, value=f"{int(m['cost']):,} đ"); c6.border = thin_border; c6.alignment = Alignment(horizontal='right')
+            c7 = ws.cell(row=cur_row, column=7, value=f"{int(m['profit']):,} đ"); c7.font = bold_font; c7.border = thin_border; c7.alignment = Alignment(horizontal='right')
+            c8 = ws.cell(row=cur_row, column=8, value=f"{m['margin_pct']}%"); c8.border = thin_border; c8.alignment = Alignment(horizontal='right')
+            cur_row += 1
 
     # 3. Kênh thanh toán
     cur_row += 1

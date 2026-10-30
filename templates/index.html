@@ -7039,6 +7039,36 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Bảng bóc tách doanh thu & lợi nhuận theo từng tháng (tự động hiện khi kỳ báo cáo có nhiều tháng) -->
+                            <div id="rep-monthly-breakdown-wrap" class="hidden elaya-tray rounded-2xl p-2">
+                                <div class="elaya-inner-card bg-white p-4 rounded-lg border border-slate-200 space-y-2.5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                                            <i class="ph ph-calendar-blank text-sky-600"></i>
+                                            <span>Bóc Tách Kết Quả Kinh Doanh Theo Từng Tháng Trong Kỳ</span>
+                                        </div>
+                                        <span id="rep-monthly-avg-badge" class="text-xs font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md font-mono">TB: 0 ₫/tháng</span>
+                                    </div>
+                                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                                        <table class="w-full text-left text-xs">
+                                            <thead class="bg-slate-50 text-slate-600 font-bold uppercase border-b">
+                                                <tr>
+                                                    <th class="p-2.5">Tháng</th>
+                                                    <th class="p-2.5 text-center">Số Đơn</th>
+                                                    <th class="p-2.5 text-right">Doanh Thu Bán</th>
+                                                    <th class="p-2.5 text-right">Trả Hàng</th>
+                                                    <th class="p-2.5 text-right">Doanh Thu Thuần</th>
+                                                    <th class="p-2.5 text-right">Tổng Giá Vốn</th>
+                                                    <th class="p-2.5 text-right">Lợi Nhuận Gộp</th>
+                                                    <th class="p-2.5 text-right">Biên Lãi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="rep-monthly-tbody" class="divide-y divide-slate-100"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- TAB 2: DOANH THU & THANH TOÁN -->
@@ -7631,7 +7661,13 @@
                                 <button type="button" onclick="setHrmStaffStatusFilter('all')" id="btn-hrm-filter-all" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">Tất cả</button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button onclick="openHrmImportSheetModal()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs" title="Import hồ sơ nhân sự & điều chỉnh lương từ Google Sheet">
+                                <span><i class="ph ph-download-simple"></i></span> Import Google Sheet
+                            </button>
+                            <button onclick="openHrmBatchAccountModal()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs" title="Cấp nhanh tài khoản đăng nhập hàng loạt (Username = SĐT)">
+                                <span><i class="ph ph-lightning"></i></span> Cấp TK Hàng Loạt
+                            </button>
                             <button onclick="openHrmStaffModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs" title="Phím tắt: F3">
                                 <span><i class="ph ph-plus"></i></span> Thêm Nhân Sự (F3)
                             </button>
@@ -10347,14 +10383,22 @@
                             <p class="text-xs text-slate-500">Danh sách nhân sự, phân vai trò, tài khoản đăng nhập và tỷ lệ hoa hồng</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <!-- Bộ lọc trạng thái nhân viên Cài Đặt -->
                         <div class="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
                             <button type="button" onclick="setStaffSettingsStatusFilter('active')" id="btn-staff-settings-active" class="px-2.5 py-1 rounded-md text-sky-700 bg-white shadow-xs font-bold transition"><i class="ph ph-circle"></i> Hoạt động</button>
                             <button type="button" onclick="setStaffSettingsStatusFilter('resigned')" id="btn-staff-settings-resigned" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition"><i class="ph ph-lock-key"></i> Đã nghỉ / Khóa</button>
                             <button type="button" onclick="setStaffSettingsStatusFilter('all')" id="btn-staff-settings-all" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition">Tất cả</button>
                         </div>
-                        <button onclick="openCreateStaffModal()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition">
+                        <button onclick="openHrmImportSheetModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer" title="Đồng bộ danh sách nhân sự từ Google Sheet">
+                            <span><i class="ph ph-download-simple"></i></span>
+                            <span>Import Google Sheet</span>
+                        </button>
+                        <button onclick="openHrmBatchAccountModal()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-3 py-2 rounded-lg shadow-2xs flex items-center gap-1.5 transition cursor-pointer" title="Tạo nhanh tài khoản cho toàn bộ nhân sự chưa có TK">
+                            <span><i class="ph ph-lightning"></i></span>
+                            <span>Cấp TK Hàng Loạt</span>
+                        </button>
+                        <button onclick="openCreateStaffModal()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer">
                             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
                             <span>Thêm Nhân Viên</span>
                         </button>
@@ -10963,6 +11007,7 @@
                         <div>
                             <label class="text-xs font-bold text-slate-700">Vai Trò Hệ Thống (*)</label>
                             <select id="staff-role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold">
+                                <option value="staff">Nhân Viên (Chỉ xem phiếu lương &amp; Cá nhân)</option>
                                 <option value="cashier">Thu Ngân (Bán Hàng POS)</option>
                                 <option value="accountant">Kế Toán (Sổ Quỹ, Báo Cáo)</option>
                                 <option value="warehouse">Thủ Kho (Kho Hàng, Nhập Hàng)</option>
@@ -11762,8 +11807,89 @@
                 <button type="button" onclick="closeHrmQuickAccountModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold">Hủy</button>
                 <button type="button" onclick="submitHrmQuickAccount()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs"><i class="ph ph-lightning"></i> Cấp Tài Khoản</button>
             </div>
-        </div>
-    </div>
+            </div>
+            </div>
+
+            <!-- MODAL: IMPORT NHÂN SỰ TỪ GOOGLE SHEET -->
+            <div id="modal-hrm-import-sheet" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 my-auto text-xs">
+            <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                <span><i class="ph ph-download-simple"></i></span> <span>Đồng Bộ Hồ Sơ Nhân Sự Từ Google Sheet</span>
+            </h3>
+            <button type="button" onclick="closeHrmImportSheetModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center cursor-pointer"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="space-y-3">
+            <div class="p-3 bg-sky-50 border border-sky-200/80 rounded-xl space-y-1 text-slate-700">
+                <div class="font-bold text-sky-900">Hệ thống sẽ tự động đọc và đồng bộ 3 bảng:</div>
+                <ul class="list-disc pl-4 space-y-0.5 text-xs">
+                    <li><b>DANH SÁCH NHÂN SỰ:</b> Mã NV, Họ tên, SĐT (tự bù số 0), CCCD, Ngân hàng, Lương gốc, Phụ cấp và Khối ca theo cột <i>Hình thức chấm công</i>.</li>
+                    <li><b>ĐIỀU CHỈNH LƯƠNG:</b> Toàn bộ lịch sử tăng/giảm lương & phụ cấp theo tháng.</li>
+                    <li><b>CHI TIẾT CHẤM CÔNG:</b> Tự động map <b>Mã máy chấm công vân tay</b> vào hồ sơ nhân viên.</li>
+                </ul>
+            </div>
+            <div>
+                <label class="font-bold text-slate-700 block mb-1">Link Google Sheet (hoặc Spreadsheet ID):</label>
+                <input id="hrm-import-sheet-url" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono focus:ring-1 focus:ring-sky-500" placeholder="https://docs.google.com/spreadsheets/d/...">
+                <span class="text-xs text-slate-400 mt-1 block">Lưu ý: File Google Sheet cần bật chia sẻ "Bất kỳ ai có đường liên kết đều có thể xem".</span>
+            </div>
+            <label class="flex items-center gap-2 pt-1 cursor-pointer">
+                <input type="checkbox" id="hrm-import-auto-open-acc" checked class="rounded text-emerald-600 w-4 h-4">
+                <span class="font-semibold text-slate-700">Sau khi Import xong, mở ngay bảng <b>Cấp Tài Khoản Nhanh Hàng Loạt</b> (Username = SĐT)</span>
+            </label>
+            </div>
+            <div class="flex gap-2 pt-3 border-t">
+            <button type="button" onclick="closeHrmImportSheetModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold cursor-pointer">Hủy</button>
+            <button type="button" id="btn-submit-hrm-sheet-import" onclick="submitHrmImportSheet()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-lg font-bold shadow-xs cursor-pointer"><i class="ph ph-download-simple"></i> Bắt Đầu Đồng Bộ</button>
+            </div>
+            </div>
+            </div>
+
+            <!-- MODAL: CẤP TÀI KHOẢN ĐĂNG NHẬP HÀNG LOẠT (HRM & SETTINGS) -->
+            <div id="modal-hrm-batch-accounts" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] flex flex-col text-xs">
+            <div class="flex items-center justify-between border-b pb-3 shrink-0">
+            <div>
+                <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                    <span><i class="ph ph-lightning"></i></span> <span>Cấp Tài Khoản Đăng Nhập Nhanh Hàng Loạt</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Tự động lấy <b>Số điện thoại</b> làm Username & mặc định vai trò <b>Nhân viên (Chỉ xem phiếu lương)</b> — tự đồng bộ sang Cài Đặt &gt; Nhân Viên</p>
+            </div>
+            <button type="button" onclick="closeHrmBatchAccountModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center cursor-pointer"><i class="ph ph-x"></i></button>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 shrink-0">
+            <div class="flex items-center gap-2">
+                <label class="font-bold text-slate-700">Mật khẩu khởi tạo chung:</label>
+                <input type="text" id="hrm-batch-default-pwd" value="123456" oninput="applyBatchDefaultPassword(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono font-bold w-28 bg-white">
+                <span class="text-slate-400">(Nhân viên sẽ tự đổi mật khẩu riêng ở lần đăng nhập đầu tiên)</span>
+            </div>
+            <div class="text-xs font-bold text-emerald-700" id="hrm-batch-selected-count">Đã chọn: 0 nhân viên</div>
+            </div>
+
+            <div class="overflow-y-auto flex-1 border border-slate-200 rounded-xl">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-600 font-bold uppercase border-b sticky top-0">
+                    <tr>
+                        <th class="p-2.5 w-8 text-center"><input type="checkbox" id="hrm-batch-check-all" checked onchange="toggleAllHrmBatchAccounts(this.checked)"></th>
+                        <th class="p-2.5">Mã & Họ Tên</th>
+                        <th class="p-2.5">Bộ Phận • Chức Vụ</th>
+                        <th class="p-2.5">Khối Ca</th>
+                        <th class="p-2.5">Username (= SĐT)</th>
+                        <th class="p-2.5">Vai Trò POS</th>
+                        <th class="p-2.5">Mật Khẩu</th>
+                    </tr>
+                </thead>
+                <tbody id="table-hrm-batch-accounts" class="divide-y divide-slate-100"></tbody>
+            </table>
+            </div>
+
+            <div class="flex gap-2 pt-3 border-t shrink-0">
+            <button type="button" onclick="closeHrmBatchAccountModal()" class="px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold cursor-pointer">Đóng</button>
+            <button type="button" id="btn-submit-hrm-batch-acc" onclick="submitHrmBatchAccounts()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold shadow-xs cursor-pointer"><i class="ph ph-lightning"></i> Tạo Tài Khoản Cho Các Nhân Viên Đã Chọn</button>
+            </div>
+            </div>
+            </div>
 
     <!-- MODAL: GÁN KEY AI CHO NHÂN VIÊN (OWNER QUẢN LÝ) -->
     <div id="modal-assign-staff-ai" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">

@@ -231,13 +231,17 @@ class StaffUpdate(BaseModel):
 def list_staff(current: dict = Depends(require_role("owner"))):
     db = get_db(); cur = db.cursor()
     cur.execute("""
-        SELECT id, name, username, role, phone, commission_rate, is_active, created_at,
-               (CASE WHEN ai_api_key IS NOT NULL AND TRIM(ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
-               ai_model,
-               (CASE WHEN username IS NOT NULL AND TRIM(username) != '' AND password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account,
-               device_code, employee_code, base_salary, allowance, work_block_id, hire_date, leave_date,
-               COALESCE(is_payroll_staff, 1) as is_payroll_staff
-        FROM staff ORDER BY id
+        SELECT s.id, s.name, s.username, s.role, s.phone, s.commission_rate, s.is_active, s.created_at,
+               (CASE WHEN s.ai_api_key IS NOT NULL AND TRIM(s.ai_api_key) != '' THEN 1 ELSE 0 END) as has_ai_key,
+               s.ai_model,
+               (CASE WHEN s.username IS NOT NULL AND TRIM(s.username) != '' AND s.password_hash IS NOT NULL THEN 1 ELSE 0 END) as has_account,
+               s.device_code, s.employee_code, s.base_salary, s.allowance, s.work_block_id,
+               b.name as block_name, s.department, s.position,
+               s.hire_date, s.leave_date,
+               COALESCE(s.is_payroll_staff, 1) as is_payroll_staff
+        FROM staff s
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        ORDER BY s.id
     """)
     rows = [dict(r) for r in cur.fetchall()]
     db.close()
