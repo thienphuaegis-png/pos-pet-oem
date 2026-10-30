@@ -1756,9 +1756,13 @@
                             <h2 class="text-base font-bold text-slate-900">Danh Sách Hóa Đơn Bán Hàng</h2>
                             <span id="orders-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800">0 hóa đơn</span>
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <input type="file" id="import-orders-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleOrdersExcelUpload(event)">
-                            <button onclick="document.getElementById('import-orders-file').click()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition">
+                            <button onclick="exportFilteredOrdersExcel()" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer" title="Xuất danh sách hóa đơn đang lọc (hoặc các đơn đang tick chọn) ra file Excel">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <span><i class="ph ph-file-xls"></i> Xuất Excel Theo Bộ Lọc</span>
+                            </button>
+                            <button onclick="document.getElementById('import-orders-file').click()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer">
                                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 <span><i class="ph ph-download-simple"></i> Nhập Excel Hóa Đơn</span>
                             </button>
@@ -17784,6 +17788,9 @@
     <button type="button" onclick="submitBulkUpdateOrderStaff()" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span> Cập Nhật Thu Ngân</span>
+    </button>
+    <button type="button" onclick="exportFilteredOrdersExcel(true)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer" title="Xuất Excel riêng các hóa đơn đã tick chọn">
+        <span><i class="ph ph-file-xls"></i> Xuất Excel Đã Chọn</span>
     </button>
     <button type="button" onclick="clearOrderSelection()" class="text-slate-400 hover:text-white px-2 py-1 rounded transition text-xs font-semibold cursor-pointer" title="Bỏ chọn"> Hủy</button>
 </div>

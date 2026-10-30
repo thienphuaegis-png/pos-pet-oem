@@ -520,6 +520,325 @@ async def import_orders_excel(file: UploadFile = File(...)):
     finally:
         conn.close()
 
+def _build_orders_filter_sql(
+    query: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    product_keyword: Optional[str] = None,
+    debt_status: Optional[str] = None,
+    order_codes: Optional[str] = None,
+):
+    where_clauses = ["1=1"]
+    params = []
+
+    if order_codes:
+        codes = [c.strip() for c in order_codes.split(",") if c.strip()]
+        if codes:
+            where_clauses.append(f"o.code IN ({','.join('?' * len(codes))})")
+            params.extend(codes)
+
+    if query:
+        q_term = f"%{query.strip()}%"
+        where_clauses.append("(o.code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)")
+        params.extend([q_term, q_term, q_term])
+
+    if from_date:
+        where_clauses.append("o.created_at >= ?")
+        params.append(f"{from_date.strip()} 00:00:00")
+    if to_date:
+        where_clauses.append("o.created_at <= ?")
+        params.append(f"{to_date.strip()} 23:59:59")
+
+    if staff_id:
+        where_clauses.append("o.staff_id = ?")
+        params.append(staff_id)
+
+    if customer_id:
+        where_clauses.append("o.customer_id = ?")
+        params.append(customer_id)
+
+    if debt_status == "has_debt":
+        where_clauses.append("o.debt_amount > 0")
+    elif debt_status == "paid":
+        where_clauses.append("(o.debt_amount IS NULL OR o.debt_amount <= 0)")
+
+    if product_keyword:
+        p_term = f"%{product_keyword.strip()}%"
+        where_clauses.append("""
+        o.id IN (
+            SELECT oi.order_id 
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.id
+            WHERE p.name LIKE ? OR p.code LIKE ?
+        )
+        """)
+        params.extend([p_term, p_term])
+
+    if payment_method:
+        m = payment_method.strip().lower()
+        if m == "wallet":
+            where_clauses.append("o.spa_wallet_deduction > 0")
+        else:
+            _types = METHOD_ACCOUNT_TYPES.get(m, (m,))
+            where_clauses.append("""
+            (
+                o.id IN (SELECT order_id FROM order_payments WHERE method = ?)
+                OR o.id IN (
+                    SELECT ref_id FROM cashbook 
+                    WHERE ref_type = 'order' AND account_id IN (
+                        SELECT id FROM payment_accounts WHERE account_type IN ({types_sql})
+                    )
+                )
+            )
+            """.replace("{types_sql}", ",".join("?" * len(_types))))
+            params.extend([m] + list(_types))
+
+    return " AND ".join(where_clauses), params
+
+
+@router.get("/api/orders/export-excel")
+def export_orders_excel(
+    query: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    staff_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    product_keyword: Optional[str] = None,
+    debt_status: Optional[str] = None,
+    order_codes: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Xuất danh sách hóa đơn (kèm sheet Chi tiết mặt hàng) theo đúng bộ lọc hiện tại hoặc các đơn được tick chọn."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+
+    conn = get_db()
+    cur = conn.cursor()
+    where_sql, params = _build_orders_filter_sql(
+        query=query,
+        from_date=from_date,
+        to_date=to_date,
+        payment_method=payment_method,
+        staff_id=staff_id,
+        customer_id=customer_id,
+        product_keyword=product_keyword,
+        debt_status=debt_status,
+        order_codes=order_codes,
+    )
+
+    cur.execute(
+        f"""
+        SELECT o.*, c.name as customer_name, c.phone as customer_phone, s.name as staff_name,
+               (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+        FROM orders o
+        LEFT JOIN contacts c ON o.customer_id = c.id
+        LEFT JOIN staff s ON o.staff_id = s.id
+        WHERE {where_sql}
+        ORDER BY o.id DESC
+        LIMIT 5000
+        """,
+        params,
+    )
+    orders_rows = [dict(r) for r in cur.fetchall()]
+    order_ids = [r["id"] for r in orders_rows]
+
+    items_by_order = {}
+    if order_ids:
+        # Chia chunk 400 ID để tương thích giới hạn bind parameter của SQLite / D1
+        for i in range(0, len(order_ids), 400):
+            chunk = order_ids[i : i + 400]
+            ph = ",".join("?" * len(chunk))
+            cur.execute(
+                f"""
+                SELECT oi.order_id, oi.quantity, oi.price, oi.subtotal, oi.unit_name,
+                       COALESCE(p.code, '') as product_code,
+                       COALESCE(p.name, 'Sản phẩm') as product_name,
+                       COALESCE(p.unit, 'Cái') as default_unit
+                FROM order_items oi
+                LEFT JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id IN ({ph})
+                ORDER BY oi.order_id DESC, oi.id ASC
+                """,
+                chunk,
+            )
+            for ir in cur.fetchall():
+                items_by_order.setdefault(ir["order_id"], []).append(dict(ir))
+
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "DanhSachHoaDon"
+
+    header_fill = PatternFill(start_color="0284C7", end_color="0284C7", fill_type="solid")
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    title_font = Font(name="Arial", size=14, bold=True, color="0F172A")
+    sub_font = Font(name="Arial", size=9, italic=True, color="64748B")
+    bold_font = Font(name="Arial", size=10, bold=True)
+    normal_font = Font(name="Arial", size=10)
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    ws["A1"] = "DANH SÁCH HÓA ĐƠN BÁN HÀNG (THEO BỘ LỌC)"
+    ws["A1"].font = title_font
+    filter_parts = []
+    if from_date or to_date:
+        filter_parts.append(f"Từ {from_date or '...'} đến {to_date or '...'}")
+    if query:
+        filter_parts.append(f"Từ khóa: '{query}'")
+    if product_keyword:
+        filter_parts.append(f"Mặt hàng: '{product_keyword}'")
+    if debt_status:
+        filter_parts.append("Còn nợ" if debt_status == "has_debt" else "Đã trả đủ")
+    if order_codes:
+        filter_parts.append(f"Chọn riêng {len(orders_rows)} đơn")
+    filter_desc = " | ".join(filter_parts) if filter_parts else "Tất cả hóa đơn"
+    ws["A2"] = f"Điều kiện lọc: {filter_desc} — Tổng số: {len(orders_rows)} hóa đơn (Xuất lúc: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M')})"
+    ws["A2"].font = sub_font
+
+    headers = [
+        "STT", "Mã Hóa Đơn", "Thời Gian", "Khách Hàng", "SĐT Khách",
+        "Thu Ngân", "Người Lập", "Số Món", "Tổng Tiền Hàng",
+        "Giảm Giá", "Phí Ship", "Khách Cần Trả", "Khách Đã Trả", "Còn Nợ", "Ghi Chú"
+    ]
+    for col_idx, h in enumerate(headers, 1):
+        c = ws.cell(row=4, column=col_idx, value=h)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center")
+
+    cur_row = 5
+    sum_total = sum_disc = sum_ship = sum_final = sum_paid = sum_debt = 0.0
+    order_map = {o["id"]: o for o in orders_rows}
+
+    for idx, o in enumerate(orders_rows, 1):
+        tot = float(o.get("total_amount") or 0)
+        disc = float(o.get("discount") or 0)
+        ship = float(o.get("shipping_fee") or 0)
+        fin = float(o.get("final_amount") or 0)
+        paid = float(o.get("paid_amount") or 0)
+        debt = float(o.get("debt_amount") or 0)
+
+        sum_total += tot
+        sum_disc += disc
+        sum_ship += ship
+        sum_final += fin
+        sum_paid += paid
+        sum_debt += debt
+
+        vals = [
+            idx,
+            o.get("code") or "",
+            o.get("created_at") or "",
+            o.get("customer_name") or "Khách lẻ",
+            o.get("customer_phone") or "",
+            o.get("staff_name") or "Thu ngân",
+            o.get("created_by") or o.get("staff_name") or "Thu ngân",
+            int(o.get("item_count") or 0),
+            tot,
+            disc,
+            ship,
+            fin,
+            paid,
+            debt,
+            o.get("note") or "",
+        ]
+        for c_idx, v in enumerate(vals, 1):
+            cell = ws.cell(row=cur_row, column=c_idx, value=v)
+            cell.font = normal_font
+            cell.border = thin_border
+            if c_idx in (9, 10, 11, 12, 13, 14):
+                cell.number_format = "#,##0"
+                cell.alignment = Alignment(horizontal="right")
+            elif c_idx in (1, 8):
+                cell.alignment = Alignment(horizontal="center")
+        cur_row += 1
+
+    # Dòng tổng cộng cuối bảng
+    ws.cell(row=cur_row, column=2, value="TỔNG CỘNG").font = bold_font
+    for c_idx, total_val in (
+        (9, sum_total),
+        (10, sum_disc),
+        (11, sum_ship),
+        (12, sum_final),
+        (13, sum_paid),
+        (14, sum_debt),
+    ):
+        c = ws.cell(row=cur_row, column=c_idx, value=total_val)
+        c.font = bold_font
+        c.number_format = "#,##0"
+        c.alignment = Alignment(horizontal="right")
+    for c_idx in range(1, len(headers) + 1):
+        ws.cell(row=cur_row, column=c_idx).fill = total_fill
+        ws.cell(row=cur_row, column=c_idx).border = thin_border
+
+    # Sheet 2: Chi tiết mặt hàng trong các hóa đơn đã lọc
+    ws_detail = wb.create_sheet(title="ChiTietHangHoa")
+    detail_headers = [
+        "Mã Hóa Đơn", "Thời Gian", "Khách Hàng", "Thu Ngân",
+        "Mã Hàng", "Tên Hàng Hóa / Dịch Vụ", "ĐVT", "Số Lượng", "Đơn Giá", "Thành Tiền"
+    ]
+    for col_idx, h in enumerate(detail_headers, 1):
+        c = ws_detail.cell(row=1, column=col_idx, value=h)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center")
+
+    d_row = 2
+    for o in orders_rows:
+        for it in items_by_order.get(o["id"], []):
+            d_vals = [
+                o.get("code") or "",
+                o.get("created_at") or "",
+                o.get("customer_name") or "Khách lẻ",
+                o.get("staff_name") or "Thu ngân",
+                it.get("product_code") or "",
+                it.get("product_name") or "",
+                it.get("unit_name") or it.get("default_unit") or "Cái",
+                float(it.get("quantity") or 0),
+                float(it.get("price") or 0),
+                float(it.get("subtotal") or 0),
+            ]
+            for c_idx, v in enumerate(d_vals, 1):
+                cell = ws_detail.cell(row=d_row, column=c_idx, value=v)
+                cell.font = normal_font
+                cell.border = thin_border
+                if c_idx in (9, 10):
+                    cell.number_format = "#,##0"
+                    cell.alignment = Alignment(horizontal="right")
+                elif c_idx == 8:
+                    cell.alignment = Alignment(horizontal="center")
+            d_row += 1
+
+    for sheet in (ws, ws_detail):
+        for col in sheet.columns:
+            max_len = max(len(str(cell.value or "")) for cell in col[:200])
+            col_letter = openpyxl.utils.get_column_letter(col[0].column)
+            sheet.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 42)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    date_tag = f"{from_date or 'All'}_{to_date or 'All'}"
+    filename = f"DanhSach_HoaDon_{date_tag}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/api/orders")
 def list_orders(
     limit: int = 100,
@@ -545,74 +864,16 @@ def list_orders(
     """
     conn = get_db()
     cur = conn.cursor()
-
-    where_clauses = ["1=1"]
-    params = []
-
-    # 1. Tìm kiếm text chung
-    if query:
-        q_term = f"%{query.strip()}%"
-        where_clauses.append("(o.code LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)")
-        params.extend([q_term, q_term, q_term])
-
-    # 2. Khoảng thời gian
-    if from_date:
-        where_clauses.append("o.created_at >= ?")
-        params.append(f"{from_date.strip()} 00:00:00")
-    if to_date:
-        where_clauses.append("o.created_at <= ?")
-        params.append(f"{to_date.strip()} 23:59:59")
-
-    # 3. Nhân viên tạo đơn
-    if staff_id:
-        where_clauses.append("o.staff_id = ?")
-        params.append(staff_id)
-
-    # 4. Khách hàng
-    if customer_id:
-        where_clauses.append("o.customer_id = ?")
-        params.append(customer_id)
-
-    # 5. Trạng thái công nợ
-    if debt_status == "has_debt":
-        where_clauses.append("o.debt_amount > 0")
-    elif debt_status == "paid":
-        where_clauses.append("(o.debt_amount IS NULL OR o.debt_amount <= 0)")
-
-    # 6. Có chứa sản phẩm / dịch vụ
-    if product_keyword:
-        p_term = f"%{product_keyword.strip()}%"
-        where_clauses.append("""
-        o.id IN (
-            SELECT oi.order_id 
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE p.name LIKE ? OR p.code LIKE ?
-        )
-        """)
-        params.extend([p_term, p_term])
-
-    # 7. Hình thức thanh toán
-    if payment_method:
-        m = payment_method.strip().lower()
-        if m == "wallet":
-            where_clauses.append("o.spa_wallet_deduction > 0")
-        else:
-            _types = METHOD_ACCOUNT_TYPES.get(m, (m,))
-            where_clauses.append("""
-            (
-                o.id IN (SELECT order_id FROM order_payments WHERE method = ?)
-                OR o.id IN (
-                    SELECT ref_id FROM cashbook 
-                    WHERE ref_type = 'order' AND account_id IN (
-                        SELECT id FROM payment_accounts WHERE account_type IN ({types_sql})
-                    )
-                )
-            )
-            """.replace("{types_sql}", ",".join("?" * len(_types))))
-            params.extend([m] + list(_types))
-
-    where_sql = " AND ".join(where_clauses)
+    where_sql, params = _build_orders_filter_sql(
+        query=query,
+        from_date=from_date,
+        to_date=to_date,
+        payment_method=payment_method,
+        staff_id=staff_id,
+        customer_id=customer_id,
+        product_keyword=product_keyword,
+        debt_status=debt_status,
+    )
     sql = f"""
     SELECT o.*, c.name as customer_name, s.name as staff_name,
            (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count

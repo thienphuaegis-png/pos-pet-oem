@@ -54,3 +54,15 @@ def test_reports_export_excel_api():
     assert res.status_code == 200
     assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in res.headers.get("content-type", "")
     assert len(res.content) > 1000
+
+
+def test_orders_export_excel_filtered_api():
+    import io
+    import openpyxl
+    client = TestClient(app)
+    res = client.get("/api/orders/export-excel?from_date=2026-10-01&to_date=2026-10-31&debt_status=paid")
+    assert res.status_code == 200
+    assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in res.headers.get("content-type", "")
+    wb = openpyxl.load_workbook(io.BytesIO(res.content), data_only=True)
+    assert "DanhSachHoaDon" in wb.sheetnames
+    assert "ChiTietHangHoa" in wb.sheetnames

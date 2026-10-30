@@ -4879,6 +4879,35 @@
             applyOrdersFilters();
         }
 
+        function exportFilteredOrdersExcel(onlySelected = false) {
+            const fromDate = document.getElementById('filter-order-from-date')?.value || '';
+            const toDate = document.getElementById('filter-order-to-date')?.value || '';
+            const payment = document.getElementById('filter-order-payment')?.value || '';
+            const staffId = document.getElementById('filter-order-staff')?.value || '';
+            const custId = document.getElementById('filter-order-customer')?.value || '';
+            const prodKw = document.getElementById('filter-order-product')?.value || '';
+            const debt = document.getElementById('filter-order-debt')?.value || '';
+            const term = (document.getElementById('search-orders')?.value || '').trim();
+
+            const params = new URLSearchParams();
+            if (onlySelected && selectedOrderCodes.size > 0) {
+                params.append('order_codes', [...selectedOrderCodes].join(','));
+            } else {
+                if (fromDate) params.append('from_date', fromDate);
+                if (toDate) params.append('to_date', toDate);
+                if (payment) params.append('payment_method', payment);
+                if (staffId) params.append('staff_id', staffId);
+                if (custId) params.append('customer_id', custId);
+                if (prodKw) params.append('product_keyword', prodKw);
+                if (debt) params.append('debt_status', debt);
+                if (term) params.append('query', term);
+            }
+
+            const tag = (fromDate || toDate) ? `${fromDate || 'TuDau'}_${toDate || 'DenNay'}` : 'TheoBoLoc';
+            downloadWithAuth(`/api/orders/export-excel?${params.toString()}`, `Danh_Sach_Hoa_Don_${tag}.xlsx`);
+        }
+        window.exportFilteredOrdersExcel = exportFilteredOrdersExcel;
+
         let ordersCurrentPage = 1;
         let allCachedOrders = [];
         let selectedOrderCodes = new Set();
