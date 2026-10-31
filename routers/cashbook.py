@@ -17,9 +17,43 @@ logger = get_module_logger("cashbook")
 router = APIRouter(tags=["Cashbook & Reports"])
 
 def generate_cashbook_code(cur, prefix: str = "SQ") -> str:
-    """Sinh mã phiếu Thu / Chi theo định dạng: {PREFIX}-{YYMMDD}-{STT:03d} (chống trùng mã vĩnh viễn)"""
+    """Sinh mã phiếu Thu / Chi theo cấu hình người dùng (date_seq / seq / datetime, chống trùng mã vĩnh viễn)"""
+    cfg = {}
+    try:
+        cur.execute("SELECT key, value FROM settings WHERE key IN ('code_prefix_receipt', 'code_prefix_payment', 'code_mode_cashbook', 'code_digits_cashbook')")
+        for r in cur.fetchall():
+            k = r[0] if not isinstance(r, dict) else r["key"]
+            v = r[1] if not isinstance(r, dict) else r["value"]
+            if k:
+                cfg[str(k)] = str(v or "").strip()
+    except Exception:
+        pass
+
+    eff_prefix = (prefix or "SQ").strip()
+    custom_pt = cfg.get("code_prefix_receipt")
+    custom_pc = cfg.get("code_prefix_payment")
+    if custom_pt and (eff_prefix == "PT" or eff_prefix.startswith("PT-")):
+        eff_prefix = custom_pt + eff_prefix[2:]
+    elif custom_pc and (eff_prefix == "PC" or eff_prefix.startswith("PC-")):
+        eff_prefix = custom_pc + eff_prefix[2:]
+
+    mode = (cfg.get("code_mode_cashbook") or "date_seq").lower()
+    try:
+        digits = max(2, min(int(cfg.get("code_digits_cashbook") or 3), 8))
+    except Exception:
+        digits = 3
+
+    if mode == "seq":
+        from database import generate_document_code
+        doc_t = "payment" if eff_prefix.upper().startswith("PC") else "receipt"
+        return generate_document_code(cur, doc_t, custom_prefix=eff_prefix.rstrip("-") + "-")
+    if mode == "datetime":
+        from database import generate_document_code
+        doc_t = "payment" if eff_prefix.upper().startswith("PC") else "receipt"
+        return generate_document_code(cur, doc_t, custom_prefix=eff_prefix.rstrip("-") + "-")
+
     date_str = datetime.now().strftime("%y%m%d")
-    pattern = f"{prefix}-{date_str}-%"
+    pattern = f"{eff_prefix}-{date_str}-%"
     
     cur.execute("""
         SELECT MAX(CAST(SUBSTR(code, LENGTH(?) + 2) AS INTEGER))
@@ -28,13 +62,13 @@ def generate_cashbook_code(cur, prefix: str = "SQ") -> str:
             UNION ALL
             SELECT code FROM archived_codes WHERE code LIKE ?
         )
-    """, (f"{prefix}-{date_str}", pattern, pattern))
+    """, (f"{eff_prefix}-{date_str}", pattern, pattern))
     row = cur.fetchone()
     max_stt = row[0] if row and row[0] is not None else 0
     stt = max_stt + 1
     
     while True:
-        candidate = f"{prefix}-{date_str}-{stt:03d}"
+        candidate = f"{eff_prefix}-{date_str}-{stt:0{digits}d}"
         cur.execute("SELECT 1 FROM cashbook WHERE code = ?", (candidate,))
         if not cur.fetchone() and not is_code_archived(cur, candidate):
             archive_code(cur, candidate, "cashbook")
@@ -165,15 +199,59 @@ def update_payment_account(account_id: int, req: PaymentAccountUpdate, user=Depe
         raise HTTPException(status_code=400, detail=f"Lỗi cập nhật tài khoản: {str(e)}")
 
 # --- Cashbook Records (Sổ Quỹ) ---
+def _build_cashbook_filter_sql(
+    type: Optional[str] = None,
+    account_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    search_query: Optional[str] = None,
+):
+    where_clauses = ["1=1"]
+    params = []
+    if type:
+        norm_type = "in" if type in ["in", "THU", "Thu"] else "out"
+        where_clauses.append("(cb.type = ? OR cb.type = ?)")
+        params.extend([norm_type, "THU" if norm_type == "in" else "CHI"])
+    if account_id:
+        where_clauses.append("cb.account_id = ?")
+        params.append(account_id)
+    if from_date and from_date.strip():
+        where_clauses.append("date(cb.created_at) >= date(?)")
+        params.append(from_date.strip())
+    if to_date and to_date.strip():
+        where_clauses.append("date(cb.created_at) <= date(?)")
+        params.append(to_date.strip())
+    if search_query and search_query.strip():
+        kw = f"%{search_query.strip()}%"
+        where_clauses.append(
+            "(cb.code LIKE ? OR cb.category LIKE ? OR cb.note LIKE ? "
+            "OR COALESCE(ct.name, o_ct.name, pst_ct.name, '') LIKE ? "
+            "OR COALESCE(ct.phone, o_ct.phone, pst_ct.phone, '') LIKE ? "
+            "OR COALESCE(pa.name, '') LIKE ?)"
+        )
+        params.extend([kw, kw, kw, kw, kw, kw])
+    return " AND ".join(where_clauses), params
+
+
 @router.get("/api/cashbook")
 def list_cashbook(
     type: Optional[str] = None,
     account_id: Optional[int] = None,
-    limit: int = 100
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    query: Optional[str] = None,
+    limit: int = 150
 ):
     conn = get_db()
     cur = conn.cursor()
-    query = """
+    where_sql, params = _build_cashbook_filter_sql(
+        type=type,
+        account_id=account_id,
+        from_date=from_date,
+        to_date=to_date,
+        search_query=query,
+    )
+    sql = f"""
         SELECT 
             cb.*,
             pa.code as account_code,
@@ -192,24 +270,198 @@ def list_cashbook(
         LEFT JOIN contacts o_ct ON o.customer_id = o_ct.id
         LEFT JOIN pet_service_tickets pst ON (cb.ref_type = 'pet_service' AND cb.ref_id = pst.id)
         LEFT JOIN contacts pst_ct ON pst.customer_id = pst_ct.id
-        WHERE 1=1
+        WHERE {where_sql}
+        ORDER BY cb.id DESC LIMIT ?
     """
-    params = []
-    if type:
-        norm_type = "in" if type in ["in", "THU", "Thu"] else "out"
-        query += " AND (cb.type = ? OR cb.type = ?)"
-        params.extend([norm_type, "THU" if norm_type == "in" else "CHI"])
-    if account_id:
-        query += " AND cb.account_id = ?"
-        params.append(account_id)
-    
-    query += " ORDER BY cb.id DESC LIMIT ?"
     params.append(limit)
-    
-    cur.execute(query, params)
+    cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+
+@router.get("/api/cashbook/export-excel")
+def export_cashbook_excel(
+    type: Optional[str] = None,
+    account_id: Optional[int] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    query: Optional[str] = None,
+    user=Depends(get_current_user),
+):
+    """Xuất danh sách phiếu Thu / Chi sổ quỹ theo khoảng thời gian & bộ lọc ra file Excel (.xlsx)."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+
+    conn = get_db()
+    cur = conn.cursor()
+    where_sql, params = _build_cashbook_filter_sql(
+        type=type,
+        account_id=account_id,
+        from_date=from_date,
+        to_date=to_date,
+        search_query=query,
+    )
+    cur.execute(
+        f"""
+        SELECT 
+            cb.*,
+            pa.code as account_code,
+            pa.name as account_name,
+            pa.owner_type as account_owner_type,
+            pa.account_type,
+            COALESCE(ct.name, o_ct.name, pst_ct.name) as contact_name,
+            COALESCE(ct.phone, o_ct.phone, pst_ct.phone) as contact_phone,
+            o.code as ref_order_code,
+            pst.code as ref_pet_service_code
+        FROM cashbook cb
+        LEFT JOIN payment_accounts pa ON cb.account_id = pa.id
+        LEFT JOIN contacts ct ON cb.contact_id = ct.id
+        LEFT JOIN orders o ON (cb.ref_type = 'order' AND cb.ref_id = o.id)
+        LEFT JOIN contacts o_ct ON o.customer_id = o_ct.id
+        LEFT JOIN pet_service_tickets pst ON (cb.ref_type = 'pet_service' AND cb.ref_id = pst.id)
+        LEFT JOIN contacts pst_ct ON pst.customer_id = pst_ct.id
+        WHERE {where_sql}
+        ORDER BY cb.created_at DESC, cb.id DESC
+        LIMIT 10000
+        """,
+        params,
+    )
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "SoQuyThuChi"
+
+    header_fill = PatternFill(start_color="0F766E", end_color="0F766E", fill_type="solid")
+    header_font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    title_font = Font(name="Arial", size=14, bold=True, color="0F172A")
+    sub_font = Font(name="Arial", size=9, italic=True, color="64748B")
+    bold_font = Font(name="Arial", size=10, bold=True)
+    in_font = Font(name="Arial", size=10, bold=True, color="047857")
+    out_font = Font(name="Arial", size=10, bold=True, color="BE123C")
+    normal_font = Font(name="Arial", size=10)
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    ws["A1"] = "BẢNG KÊ CHI TIẾT PHIẾU THU - PHIẾU CHI SỔ QUỸ"
+    ws["A1"].font = title_font
+
+    filter_parts = []
+    if from_date or to_date:
+        filter_parts.append(f"Từ ngày {from_date or '...'} đến {to_date or '...'}")
+    if type in ("in", "THU", "Thu"):
+        filter_parts.append("Loại: Chỉ Phiếu Thu")
+    elif type in ("out", "CHI", "Chi"):
+        filter_parts.append("Loại: Chỉ Phiếu Chi")
+    if query:
+        filter_parts.append(f"Từ khóa: '{query}'")
+    filter_desc = " | ".join(filter_parts) if filter_parts else "Tất cả thời gian"
+    ws["A2"] = f"Điều kiện lọc: {filter_desc} — Tổng số: {len(rows)} phiếu (Xuất lúc: {datetime.now().strftime('%d/%m/%Y %H:%M')})"
+    ws["A2"].font = sub_font
+
+    headers = [
+        "STT", "Mã Phiếu", "Thời Gian", "Loại Phiếu", "Hạng Mục",
+        "Tài Khoản / Két Tiền", "Nguồn Quỹ", "Đối Tác / Người Nộp-Nhận", "SĐT",
+        "Chứng Từ Gốc", "Thu Vào (+)", "Chi Ra (-)", "Ghi Chú", "Người Lập"
+    ]
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_idx, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    total_in = 0.0
+    total_out = 0.0
+    cur_row = 5
+    for idx, r in enumerate(rows, 1):
+        is_in = str(r.get("type") or "").lower() in ("in", "thu")
+        amt = float(r.get("amount") or 0.0)
+        if is_in:
+            total_in += amt
+        else:
+            total_out += amt
+
+        owner_lbl = "Quỹ Công Ty" if (r.get("account_owner_type") or r.get("fund_source") or "COMPANY") == "COMPANY" else "Quỹ Cá Nhân"
+        ref_code = r.get("ref_order_code") or r.get("ref_pet_service_code") or ""
+        vals = [
+            idx,
+            r.get("code") or "",
+            r.get("created_at") or "",
+            "Phiếu Thu" if is_in else "Phiếu Chi",
+            r.get("category") or "",
+            r.get("account_name") or r.get("account_code") or "Mặc định",
+            owner_lbl,
+            r.get("contact_name") or "",
+            r.get("contact_phone") or "",
+            ref_code,
+            amt if is_in else 0,
+            amt if not is_in else 0,
+            r.get("note") or "",
+            r.get("created_by") or "Hệ thống",
+        ]
+        for c_i, v in enumerate(vals, 1):
+            c = ws.cell(row=cur_row, column=c_i, value=v)
+            c.font = normal_font
+            c.border = thin_border
+            if c_i in (1, 4):
+                c.alignment = Alignment(horizontal="center")
+            elif c_i == 11:
+                c.number_format = "#,##0"
+                c.alignment = Alignment(horizontal="right")
+                if is_in:
+                    c.font = in_font
+            elif c_i == 12:
+                c.number_format = "#,##0"
+                c.alignment = Alignment(horizontal="right")
+                if not is_in:
+                    c.font = out_font
+        cur_row += 1
+
+    # Dòng tổng cộng
+    ws.cell(row=cur_row, column=1, value="").fill = total_fill
+    lbl_cell = ws.cell(row=cur_row, column=2, value=f"TỔNG CỘNG ({len(rows)} PHIẾU)")
+    lbl_cell.font = bold_font
+    for c_i in range(1, len(headers) + 1):
+        c = ws.cell(row=cur_row, column=c_i)
+        c.fill = total_fill
+        c.border = thin_border
+    c_in = ws.cell(row=cur_row, column=11, value=total_in)
+    c_in.font = in_font
+    c_in.number_format = "#,##0"
+    c_in.alignment = Alignment(horizontal="right")
+
+    c_out = ws.cell(row=cur_row, column=12, value=total_out)
+    c_out.font = out_font
+    c_out.number_format = "#,##0"
+    c_out.alignment = Alignment(horizontal="right")
+
+    c_net = ws.cell(row=cur_row, column=13, value=f"Chênh lệch (Thu - Chi): {int(total_in - total_out):,} đ")
+    c_net.font = bold_font
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 42)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    tag = f"{from_date or 'TuDau'}_{to_date or 'DenNay'}" if (from_date or to_date) else datetime.now().strftime("%Y%m%d")
+    filename = f"Danh_Sach_Phieu_Thu_Chi_{tag}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 @router.post("/api/cashbook")
 def create_cashbook(req: CashbookCreate, user=Depends(require_permission("cashbook.manage"))):

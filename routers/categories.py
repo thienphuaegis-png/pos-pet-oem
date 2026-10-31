@@ -13,11 +13,16 @@ class CategoryCreate(BaseModel):
     name: str = Field(..., min_length=1)
     description: Optional[str] = ""
     sort_order: Optional[int] = 0
+    allow_spa_wallet: Optional[int] = None
 
 class CategoryUpdate(BaseModel):
-    name: str = Field(..., min_length=1)
+    name: Optional[str] = None
     description: Optional[str] = ""
     sort_order: Optional[int] = 0
+    allow_spa_wallet: Optional[int] = None
+
+class SpaCategoryWalletToggle(BaseModel):
+    allow_spa_wallet: bool
 
 @router.get("")
 def list_categories():
@@ -129,7 +134,9 @@ def list_spa_categories():
     conn = get_db()
     cur = conn.cursor()
     cur.execute('''
-        SELECT c.id, c.name, c.description, c.sort_order, COUNT(p.id) as item_count
+        SELECT c.id, c.name, c.description, c.sort_order,
+               COALESCE(c.allow_spa_wallet, 0) as allow_spa_wallet,
+               COUNT(p.id) as item_count
         FROM pet_service_categories c
         LEFT JOIN pet_service_pricing p ON LOWER(TRIM(p.category)) = LOWER(TRIM(c.name))
         GROUP BY c.id, c.name
@@ -141,51 +148,59 @@ def list_spa_categories():
 
 @spa_cat_router.post("")
 def create_spa_category(payload: CategoryCreate):
-    name = payload.name.strip()
+    name = (payload.name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Tên phân loại dịch vụ không được để trống")
     
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id FROM pet_service_categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", (name,))
+    cur.execute("SELECT id, allow_spa_wallet FROM pet_service_categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))", (name,))
     existing = cur.fetchone()
     if existing:
         conn.close()
-        return {"id": existing["id"], "name": name, "message": "Phân loại đã tồn tại"}
+        return {"id": existing["id"], "name": name, "allow_spa_wallet": int(existing["allow_spa_wallet"] or 0), "message": "Phân loại đã tồn tại"}
     
+    allow_w = int(payload.allow_spa_wallet) if payload.allow_spa_wallet is not None else (
+        1 if name.lower() in ("gói combo chó", "spa mèo") or "combo" in name.lower() else 0
+    )
     cur.execute(
-        "INSERT INTO pet_service_categories (name, description, sort_order) VALUES (?, ?, ?)",
-        (name, payload.description or "", payload.sort_order or 0)
+        "INSERT INTO pet_service_categories (name, description, sort_order, allow_spa_wallet) VALUES (?, ?, ?, ?)",
+        (name, payload.description or "", payload.sort_order or 0, allow_w)
     )
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
-    return {"id": new_id, "name": name, "message": "Đã tạo phân loại thành công"}
+    return {"id": new_id, "name": name, "allow_spa_wallet": allow_w, "message": "Đã tạo phân loại thành công"}
 
 @spa_cat_router.put("/{cat_id}")
 def update_spa_category(cat_id: int, payload: CategoryUpdate):
-    name = payload.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Tên phân loại dịch vụ không được để trống")
-    
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, name FROM pet_service_categories WHERE id = ?", (cat_id,))
+    cur.execute("SELECT id, name, description, sort_order, COALESCE(allow_spa_wallet, 0) as allow_spa_wallet FROM pet_service_categories WHERE id = ?", (cat_id,))
     existing = cur.fetchone()
     if not existing:
         conn.close()
         raise HTTPException(status_code=404, detail="Phân loại không tồn tại")
     
     old_name = existing["name"]
+    name = (payload.name if payload.name is not None else old_name).strip()
+    if not name:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Tên phân loại dịch vụ không được để trống")
+
     if old_name.lower() != name.lower():
         cur.execute("SELECT id FROM pet_service_categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) AND id != ?", (name, cat_id))
         if cur.fetchone():
             conn.close()
             raise HTTPException(status_code=400, detail="Tên phân loại đã tồn tại")
-            
+
+    allow_w = int(payload.allow_spa_wallet) if payload.allow_spa_wallet is not None else int(existing["allow_spa_wallet"] or 0)
+    desc = payload.description if payload.description is not None else (existing["description"] or "")
+    s_order = payload.sort_order if payload.sort_order is not None else (existing["sort_order"] or 0)
+
     cur.execute(
-        "UPDATE pet_service_categories SET name = ?, description = ?, sort_order = ? WHERE id = ?",
-        (name, payload.description or "", payload.sort_order or 0, cat_id)
+        "UPDATE pet_service_categories SET name = ?, description = ?, sort_order = ?, allow_spa_wallet = ? WHERE id = ?",
+        (name, desc, s_order, allow_w, cat_id)
     )
     
     if old_name != name:
@@ -195,7 +210,22 @@ def update_spa_category(cat_id: int, payload: CategoryUpdate):
         
     conn.commit()
     conn.close()
-    return {"id": cat_id, "name": name, "message": "Đã cập nhật tên phân loại thành công"}
+    return {"id": cat_id, "name": name, "allow_spa_wallet": allow_w, "message": "Đã cập nhật phân loại thành công"}
+
+@spa_cat_router.put("/{cat_id}/wallet-toggle")
+def toggle_spa_category_wallet(cat_id: int, payload: SpaCategoryWalletToggle):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name FROM pet_service_categories WHERE id = ?", (cat_id,))
+    existing = cur.fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Phân loại không tồn tại")
+    allow_w = 1 if payload.allow_spa_wallet else 0
+    cur.execute("UPDATE pet_service_categories SET allow_spa_wallet = ? WHERE id = ?", (allow_w, cat_id))
+    conn.commit()
+    conn.close()
+    return {"id": cat_id, "name": existing["name"], "allow_spa_wallet": allow_w, "status": "ok"}
 
 @spa_cat_router.delete("/{cat_id}")
 def delete_spa_category(cat_id: int):

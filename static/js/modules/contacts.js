@@ -76,16 +76,21 @@
             if (elCustDebt) elCustDebt.textContent = formatMoney(custDebt);
             if (elSuppDebt) elSuppDebt.textContent = formatMoney(suppDebt);
 
-            // Filter
-            const filteredCust = allCust.filter(c => {
+            // Filter (hỗ trợ tìm cả SĐT thứ 2, không dấu, hoặc chuỗi số liền)
+            const qDigits = q.replace(/\D+/g, '');
+            const matchContactByQuery = (c) => {
                 if (!q) return true;
-                return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.address || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q);
-            });
-
-            const filteredSupp = allSupp.filter(c => {
-                if (!q) return true;
-                return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q) || (c.address || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q);
-            });
+                const phoneTokens = typeof window.buildContactPhoneSearchTokens === 'function'
+                    ? window.buildContactPhoneSearchTokens(c.phone)
+                    : String(c.phone || '');
+                const hay = `${c.name || ''} ${c.phone || ''} ${phoneTokens} ${c.address || ''} ${c.code || ''}`.toLowerCase();
+                if (hay.includes(q)) return true;
+                if (qDigits.length >= 3 && phoneTokens.includes(qDigits)) return true;
+                if (typeof removeVietnameseTones === 'function' && removeVietnameseTones(hay).includes(removeVietnameseTones(q))) return true;
+                return false;
+            };
+            const filteredCust = allCust.filter(matchContactByQuery);
+            const filteredSupp = allSupp.filter(matchContactByQuery);
 
             // 1. Render Customers Table (phân trang 20 dòng/trang chống treo trình duyệt khi có 29.000 KH)
             if (tbodyCust) {
@@ -189,6 +194,10 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 allContacts = Array.isArray(data) ? data : [];
+                window.allContacts = allContacts;
+                if (typeof posContacts !== 'undefined') {
+                    posContacts = allContacts.filter(c => c.type === 'customer');
+                }
                 
                 const custSelect = document.getElementById('pos-customer');
                 const suppSelect = document.getElementById('purchase-supplier');
@@ -224,7 +233,17 @@
         function setContactFormPhones(phoneStr) {
             const wrap = document.getElementById('contact-form-phones-wrap');
             wrap.innerHTML = '';
-            const phones = (phoneStr || '').split(',').map(p => p.trim()).filter(p => p);
+            const rawParts = (phoneStr || '').split(/[,;/|_]+/).map(p => p.trim()).filter(p => p);
+            const phones = [];
+            rawParts.forEach(rp => {
+                const digits = rp.replace(/\s+/g, '');
+                const m20 = digits.match(/^(0\d{9})(0\d{9,10})$/);
+                if (m20) {
+                    phones.push(m20[1], m20[2]);
+                } else {
+                    phones.push(rp);
+                }
+            });
             if (phones.length === 0) phones.push('');
             phones.forEach(p => addPhoneField(p));
         }

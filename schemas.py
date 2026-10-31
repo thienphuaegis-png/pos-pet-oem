@@ -342,6 +342,23 @@ class CompanySettingsUpdate(BaseModel):
     shop_qr_image: Optional[str] = ""
     shop_logo: Optional[str] = ""
     google_drive_webhook_url: Optional[str] = ""
+    block_negative_stock: Optional[str] = None
+    code_prefix_order: Optional[str] = None
+    code_mode_order: Optional[str] = None
+    code_digits_order: Optional[int] = None
+    code_prefix_spa: Optional[str] = None
+    code_mode_spa: Optional[str] = None
+    code_digits_spa: Optional[int] = None
+    code_prefix_return: Optional[str] = None
+    code_mode_return: Optional[str] = None
+    code_digits_return: Optional[int] = None
+    code_prefix_purchase: Optional[str] = None
+    code_mode_purchase: Optional[str] = None
+    code_digits_purchase: Optional[int] = None
+    code_prefix_receipt: Optional[str] = None
+    code_prefix_payment: Optional[str] = None
+    code_mode_cashbook: Optional[str] = None
+    code_digits_cashbook: Optional[int] = None
 
 class TemplateSettingsUpdate(BaseModel):
     print_blocks_config: str

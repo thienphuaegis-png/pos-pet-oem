@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 import datetime
+import os
 import time
-from database import get_db, archive_code, is_code_archived
+from database import get_db, archive_code, is_code_archived, generate_document_code
 from schemas import OrderCreate, OrderUpdate, ReturnItemSchema, ExchangeItemSchema, CreateReturnRequest
 from logger_config import get_module_logger
 from routers.cashbook import generate_cashbook_code
@@ -1124,7 +1125,7 @@ def get_order_returnable_items(code: str):
                ), 0.0) as quantity_returned
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
+        WHERE oi.order_id = ? AND p.type != 'material'
     """, (order["id"],))
     raw_items = cur.fetchall()
     conn.close()
@@ -1174,30 +1175,8 @@ def get_order_returnable_items(code: str):
 
 
 def generate_return_code(cur) -> str:
-    """Sinh mã phiếu trả/đổi hàng định dạng: RET-{YYYYMMDD}-{seq:04d} (chống trùng mã vĩnh viễn)"""
-    today_str = datetime.datetime.now().strftime("%Y%m%d")
-    pattern = f"RET-{today_str}-%"
-    
-    # Tìm sequence lớn nhất từ cả 2 bảng order_returns và archived_codes
-    cur.execute("""
-        SELECT MAX(CAST(SUBSTR(code, 14) AS INTEGER))
-        FROM (
-            SELECT code FROM order_returns WHERE code LIKE ?
-            UNION ALL
-            SELECT code FROM archived_codes WHERE code LIKE ?
-        )
-    """, (pattern, pattern))
-    row = cur.fetchone()
-    max_seq = row[0] if row and row[0] is not None else 0
-    seq = max_seq + 1
-
-    while True:
-        candidate = f"RET-{today_str}-{seq:04d}"
-        cur.execute("SELECT 1 FROM order_returns WHERE code = ?", (candidate,))
-        if not cur.fetchone() and not is_code_archived(cur, candidate):
-            archive_code(cur, candidate, "return")
-            return candidate
-        seq += 1
+    """Sinh mã phiếu trả/đổi hàng theo quy tắc người dùng cấu hình (mặc định: RET-{YYYYMMDD}-{seq:04d})"""
+    return generate_document_code(cur, "return")
 
 
 @router.post("/api/pos/returns")
@@ -1306,19 +1285,37 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
         # 4. Validate món đổi (nếu có)
         validated_exchange_items = []
         if req.exchange_items:
+            cur.execute("SELECT value FROM settings WHERE key = 'block_negative_stock'")
+            _bns_row = cur.fetchone()
+            _block_neg = bool(_bns_row and str(_bns_row["value"]) == "1")
             for e_item in req.exchange_items:
                 if e_item.quantity <= 0:
                     raise HTTPException(status_code=400, detail="Số lượng đổi phải lớn hơn 0")
-                cur.execute("SELECT id, name, unit, type, stock FROM products WHERE id = ?", (e_item.product_id,))
+                cur.execute("SELECT id, name, unit, type, stock, code, category FROM products WHERE id = ?", (e_item.product_id,))
                 ep_row = cur.fetchone()
                 if not ep_row:
                     raise HTTPException(status_code=404, detail=f"Sản phẩm đổi ID {e_item.product_id} không tồn tại")
+                ep_code = str(ep_row["code"] or "").upper()
+                ep_cat = str(ep_row["category"] or "").lower()
+                if ep_row["type"] == "material" or ep_code.startswith("NL-") or ep_code.startswith("NL_") or "nguyên liệu" in ep_cat:
+                    raise HTTPException(status_code=400, detail=f"Không được chọn nguyên liệu '{ep_row['name']}' làm mặt hàng đổi trả")
+                e_ratio = float(e_item.unit_ratio or 1)
+                if e_ratio <= 0:
+                    e_ratio = 1.0
+                if _block_neg and ep_row["type"] == "product":
+                    req_base = float(e_item.quantity) * e_ratio
+                    avail_stock = float(ep_row["stock"] or 0.0)
+                    if avail_stock < req_base:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Sản phẩm '{ep_row['name']}' không đủ tồn kho (Tồn: {avail_stock:g}, Cần: {req_base:g}). Hệ thống đang bật chặn bán âm!"
+                        )
                 validated_exchange_items.append({
                     "product_id": e_item.product_id,
                     "quantity": float(e_item.quantity),
                     "price": float(e_item.price),
                     "unit": e_item.unit or ep_row["unit"],
-                    "unit_ratio": float(e_item.unit_ratio or 1),
+                    "unit_ratio": e_ratio,
                     "type": ep_row["type"]
                 })
 
@@ -1345,15 +1342,7 @@ def create_order_return(req: CreateReturnRequest, user=Depends(require_permissio
         # 8. Tạo đơn hàng đổi mới nếu có exchange_items
         exchange_order_id = None
         if validated_exchange_items:
-            base_code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-            exc_order_code = base_code
-            seq = 1
-            while True:
-                cur.execute("SELECT 1 FROM orders WHERE code = ?", (exc_order_code,))
-                if not cur.fetchone():
-                    break
-                exc_order_code = f"{base_code}_{seq}"
-                seq += 1
+            exc_order_code = generate_document_code(cur, "order")
 
             cur.execute("""
                 INSERT INTO orders (code, customer_id, staff_id, total_amount, discount, shipping_fee, final_amount, paid_amount, debt_amount, note, shift_id, warehouse_id, status)
@@ -1739,16 +1728,7 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
         actual_paid = min(req.paid_amount, final_amount) if req.paid_amount > 0 else 0.0
         debt_amount = max(0.0, final_amount - actual_paid)
         
-        base_code = f"HD{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-        code = base_code
-        seq = 1
-        while True:
-            cur.execute("SELECT 1 FROM orders WHERE code = ?", (code,))
-            if not cur.fetchone() and not is_code_archived(cur, code):
-                archive_code(cur, code, "order")
-                break
-            code = f"{base_code}_{seq}"
-            seq += 1
+        code = generate_document_code(cur, "order")
 
         shift_id = req.shift_id
         if not shift_id and user and "id" in user:
@@ -1776,6 +1756,47 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
 
         warehouse_id = req.warehouse_id or 1
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+
+        # Kiểm tra tùy chọn Chặn bán âm tồn kho (block_negative_stock)
+        cur.execute("SELECT value FROM settings WHERE key = 'block_negative_stock'")
+        _bns_row = cur.fetchone()
+        if _bns_row and str(_bns_row["value"]) == "1":
+            _needed_by_pid = {}
+            _pname_by_pid = {}
+            for item in req.items:
+                ratio = float(item.unit_ratio or 1)
+                if ratio <= 0:
+                    ratio = 1.0
+                base_qty = round(item.quantity * ratio, 4)
+                cur.execute("SELECT id, name, type, stock, code FROM products WHERE id = ?", (item.product_id,))
+                _pr = cur.fetchone()
+                if not _pr:
+                    continue
+                if _pr["type"] == "product":
+                    _needed_by_pid[_pr["id"]] = _needed_by_pid.get(_pr["id"], 0.0) + base_qty
+                    _pname_by_pid[_pr["id"]] = _pr["name"]
+                elif _pr["type"] == "combo":
+                    cur.execute("""
+                        SELECT ci.product_id, ci.quantity as component_qty, p.name, p.type
+                        FROM combo_items ci
+                        JOIN combos c ON ci.combo_id = c.id
+                        JOIN products p ON p.id = ci.product_id
+                        WHERE c.code = ? AND COALESCE(c.is_active, 1) = 1
+                    """, (_pr["code"],))
+                    for _comp in cur.fetchall():
+                        if _comp["type"] == "product":
+                            _cid = _comp["product_id"]
+                            _needed_by_pid[_cid] = _needed_by_pid.get(_cid, 0.0) + (_comp["component_qty"] * base_qty)
+                            _pname_by_pid[_cid] = _comp["name"]
+            for _pid, _req_qty in _needed_by_pid.items():
+                cur.execute("SELECT stock FROM products WHERE id = ?", (_pid,))
+                _sr = cur.fetchone()
+                _avail = float(_sr["stock"] or 0.0) if _sr else 0.0
+                if _avail < _req_qty:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Sản phẩm '{_pname_by_pid.get(_pid, _pid)}' không đủ tồn kho (Tồn: {_avail:g}, Cần: {_req_qty:g}). Hệ thống đang bật chặn bán âm!"
+                    )
 
         # Multi-VAT cho từng item
         discount_ratio = (req.discount / total_amount) if (total_amount > 0 and req.discount > 0) else 0.0

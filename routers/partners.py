@@ -412,14 +412,24 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
         s = str(val).strip()
         if s.endswith(".0"):
             s = s[:-2]
-        s = re.sub(r"[\s\.\-\(\)]+", "", s)
-        if s.startswith("+84"):
-            s = "0" + s[3:]
-        elif s.startswith("84") and len(s) >= 11:
-            s = "0" + s[2:]
-        elif len(s) == 9 and s[0] in "35789":
-            s = "0" + s
-        return s
+        parts = [p.strip() for p in re.split(r"[,;/|_]+", s) if p.strip()]
+        cleaned_parts = []
+        for p in parts:
+            d = re.sub(r"[\s\.\-\(\)]+", "", p)
+            if d.startswith("+84"):
+                d = "0" + d[3:]
+            elif d.startswith("84") and len(d) >= 11:
+                d = "0" + d[2:]
+            elif len(d) == 9 and d[0] in "35789":
+                d = "0" + d
+            m20 = re.match(r"^(0\d{9})(0\d{9,10})$", d)
+            if m20:
+                for sub_d in (m20.group(1), m20.group(2)):
+                    if sub_d not in cleaned_parts:
+                        cleaned_parts.append(sub_d)
+            elif d and d not in cleaned_parts:
+                cleaned_parts.append(d)
+        return ", ".join(cleaned_parts)
 
     # Load danh sách contacts hiện có của type này để so khớp chính xác Unicode
     cur.execute("SELECT id, name, phone, email, address, debt, segment_id, points, initial_debt_company, initial_debt_personal, code, note FROM contacts WHERE type = ?", (type,))
@@ -1355,7 +1365,13 @@ def delete_spa_staff(staff_id: int):
 def list_pet_service_pricing():
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM pet_service_pricing ORDER BY category, service_name, min_weight")
+    cur.execute("""
+        SELECT p.*,
+               COALESCE(c.allow_spa_wallet, CASE WHEN LOWER(TRIM(COALESCE(p.category, ''))) IN ('gói combo chó', 'spa mèo') OR LOWER(COALESCE(p.category, '')) LIKE '%combo%' THEN 1 ELSE 0 END) as allow_spa_wallet
+        FROM pet_service_pricing p
+        LEFT JOIN pet_service_categories c ON LOWER(TRIM(c.name)) = LOWER(TRIM(p.category))
+        ORDER BY p.category, p.service_name, p.min_weight
+    """)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -1672,6 +1688,114 @@ def restore_retail_products_stock(cur, items: list, ticket_code: str, warehouse_
 
     cur.execute("DELETE FROM inventory_logs WHERE order_code = ?", (ticket_code,))
 
+
+def _get_spa_wallet_rules(cur) -> dict:
+    """Đọc cấu hình nhóm dịch vụ được phép dùng Ví Spa (allow_spa_wallet) từ bảng pet_service_categories & pet_service_pricing."""
+    allowed_cats = set()
+    disallowed_cats = set()
+    allowed_svcs = set()
+    disallowed_svcs = set()
+    try:
+        cur.execute("SELECT name, COALESCE(allow_spa_wallet, 0) as allow_spa_wallet FROM pet_service_categories")
+        for r in cur.fetchall():
+            cname = str((r[0] if not isinstance(r, dict) else r["name"]) or "").strip().lower()
+            allow_w = int((r[1] if not isinstance(r, dict) else r["allow_spa_wallet"]) or 0)
+            if not cname:
+                continue
+            if allow_w == 1:
+                allowed_cats.add(cname)
+            else:
+                disallowed_cats.add(cname)
+
+        cur.execute("""
+            SELECT DISTINCT p.service_name, p.category,
+                   COALESCE(c.allow_spa_wallet, CASE WHEN LOWER(TRIM(COALESCE(p.category, ''))) IN ('gói combo chó', 'spa mèo') OR LOWER(COALESCE(p.category, '')) LIKE '%combo%' THEN 1 ELSE 0 END) as allow_w
+            FROM pet_service_pricing p
+            LEFT JOIN pet_service_categories c ON LOWER(TRIM(c.name)) = LOWER(TRIM(p.category))
+        """)
+        for r in cur.fetchall():
+            sname = str((r[0] if not isinstance(r, dict) else r["service_name"]) or "").strip().lower()
+            allow_w = int((r[2] if not isinstance(r, dict) else r["allow_w"]) or 0)
+            if not sname:
+                continue
+            if allow_w == 1:
+                allowed_svcs.add(sname)
+            else:
+                disallowed_svcs.add(sname)
+    except Exception:
+        pass
+    return {
+        "allowed_cats": allowed_cats,
+        "disallowed_cats": disallowed_cats,
+        "allowed_svcs": allowed_svcs,
+        "disallowed_svcs": disallowed_svcs,
+    }
+
+
+def _is_spa_wallet_eligible_line(it: dict, wallet_rules: Optional[dict] = None) -> bool:
+    """
+    Kiểm tra dòng dịch vụ trên phiếu Spa có thuộc nhóm được phép trừ Ví Spa (allow_spa_wallet = 1) hay không.
+    - Hàng hóa bán lẻ (is_retail) & Tiền tip thợ (is_tip) luôn KHÔNG trừ Ví Spa.
+    - Nếu dịch vụ nằm trong pet_service_pricing, xét theo cờ allow_spa_wallet của nhóm phân loại (pet_service_categories).
+    - Nếu dịch vụ tự nhập ngoài bảng giá, fallback theo cờ nhóm hoặc từ khóa mặc định.
+    """
+    if not isinstance(it, dict):
+        return False
+    if it.get("is_retail") or it.get("is_tip"):
+        return False
+    nm = str(it.get("name") or "").strip().lower()
+    if not nm or nm == "tiền tip thợ":
+        return False
+
+    if wallet_rules:
+        allowed_svcs = wallet_rules.get("allowed_svcs") or set()
+        disallowed_svcs = wallet_rules.get("disallowed_svcs") or set()
+        allowed_cats = wallet_rules.get("allowed_cats") or set()
+        # Chuẩn hóa tên dịch vụ (bỏ hậu tố cân nặng kiểu " (2-6kg)" nếu có)
+        base_nm = re.sub(r"\s*\([^)]*kg[^)]*\)\s*$", "", nm).strip()
+        if nm in allowed_svcs or base_nm in allowed_svcs:
+            return True
+        if nm in disallowed_svcs or base_nm in disallowed_svcs:
+            return False
+        if it.get("is_surcharge"):
+            return any("phụ thu" in c or "trị liệu" in c for c in allowed_cats)
+        if it.get("is_dye"):
+            return any("nhuộm" in c for c in allowed_cats)
+
+    if it.get("is_surcharge") or it.get("is_dye"):
+        return False
+    non_wallet_kw = (
+        "nhuộm", "phụ thu", "đánh răng", "gỡ rối", "tẩy lông",
+        "cắt tỉa đầu", "tắm trị liệu", "nấm da", "cắt nghệ thuật",
+        "tắm + massage", "vệ sinh tai", "cắt móng +", "cạo lông toàn thân", "cắt lông tạo kiểu"
+    )
+    if any(kw in nm for kw in non_wallet_kw):
+        return False
+    return True
+
+
+def _calc_bare_ticket_wallet_eligible_total(price: float, tip_amount: float = 0.0, surcharge: float = 0.0,
+                                           teeth_cleaning: float = 0.0, art_cutting_fee: float = 0.0,
+                                           shipping_fee: float = 0.0, service_type: str = "",
+                                           wallet_rules: Optional[dict] = None) -> float:
+    st_low = str(service_type or "").strip().lower()
+    if wallet_rules:
+        allowed_svcs = wallet_rules.get("allowed_svcs") or set()
+        disallowed_svcs = wallet_rules.get("disallowed_svcs") or set()
+        if st_low in disallowed_svcs and st_low not in allowed_svcs:
+            return 0.0
+    non_wallet_kw = (
+        "nhuộm", "phụ thu", "đánh răng", "gỡ rối", "tẩy lông",
+        "cắt tỉa đầu", "tắm trị liệu", "nấm da", "cắt nghệ thuật",
+        "tắm + massage", "vệ sinh tai", "cắt móng +", "cạo lông toàn thân", "cắt lông tạo kiểu"
+    )
+    if any(kw in st_low for kw in non_wallet_kw) and "combo" not in st_low and "vip" not in st_low:
+        if not (wallet_rules and st_low in (wallet_rules.get("allowed_svcs") or set())):
+            return 0.0
+    extra = float(tip_amount or 0.0) + float(surcharge or 0.0) + float(teeth_cleaning or 0.0) + float(art_cutting_fee or 0.0) + float(shipping_fee or 0.0)
+    return max(0.0, float(price or 0.0) - extra)
+
+
 def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash", account_id: Optional[int] = None, note: Optional[str] = None, remainder_method: Optional[str] = None):
     """Thu tiền 1 phiếu Spa.
 
@@ -1703,15 +1827,14 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
         except Exception:
             services_list = []
 
+    wallet_rules = _get_spa_wallet_rules(cur)
     pure_spa_service_total = 0.0
     retail_product_total = 0.0
     for it in services_list:
         sub = (it.get("quantity") or 1) * (it.get("price") or 0.0)
         if it.get("is_retail"):
             retail_product_total += sub
-        elif it.get("is_tip") or it.get("name") == "Tiền tip thợ":
-            pass
-        else:
+        elif _is_spa_wallet_eligible_line(it, wallet_rules=wallet_rules):
             pure_spa_service_total += sub
 
     tip_amount = float(ticket["tip_amount"] or 0.0)
@@ -1721,7 +1844,16 @@ def process_spa_ticket_payment(cur, ticket_id: int, payment_method: str = "cash"
     code = ticket["code"]
 
     if not services_list:
-        pure_spa_service_total = max(0.0, price - tip_amount)
+        pure_spa_service_total = _calc_bare_ticket_wallet_eligible_total(
+            price=price,
+            tip_amount=tip_amount,
+            surcharge=float(ticket["surcharge"] or 0.0) if "surcharge" in ticket.keys() else 0.0,
+            teeth_cleaning=float(ticket["teeth_cleaning"] or 0.0) if "teeth_cleaning" in ticket.keys() else 0.0,
+            art_cutting_fee=float(ticket["art_cutting_fee"] or 0.0) if "art_cutting_fee" in ticket.keys() else 0.0,
+            shipping_fee=float(ticket["shipping_fee"] or 0.0) if "shipping_fee" in ticket.keys() else 0.0,
+            service_type=str(ticket["service_type"] or "") if "service_type" in ticket.keys() else "",
+            wallet_rules=wallet_rules,
+        )
 
     remaining_due = max(0.0, price - deposit_amount)
     wallet_deduction = 0.0
@@ -1799,14 +1931,10 @@ def create_pet_service(ticket: PetServiceCreate):
     conn = get_db()
     cur = conn.cursor()
     try:
+        from database import generate_document_code
         now = datetime.datetime.now()
         today_str = now.strftime("%Y-%m-%d")
-        code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(10, 99)}"
-        while True:
-            cur.execute("SELECT 1 FROM pet_service_tickets WHERE code = ?", (code,))
-            if not cur.fetchone():
-                break
-            code = f"DV{now.strftime('%y%m%d%H%M%S')}{random.randint(1000, 9999)}"
+        code = generate_document_code(cur, "spa")
 
         # 1. Tính toán ticket_number reset theo ngày (bắt đầu random từ 5 đến 10 nếu ngày mới chưa có phiếu, sau đó +1)
         cur.execute("SELECT MAX(ticket_number) as max_num FROM pet_service_tickets WHERE ticket_date = ?", (today_str,))
@@ -1975,14 +2103,10 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
         s_row = cur.fetchone()
         shift_id = s_row["id"] if s_row else None
 
+        from database import generate_document_code
         for idx, t in enumerate(batch_req.tickets):
             t_number = base_number + idx
-            t_code = f"DV{now.strftime('%y%m%d%H%M%S%f')[:16]}{random.randint(100, 999)}{idx}"
-            while True:
-                cur.execute("SELECT 1 FROM pet_service_tickets WHERE code = ?", (t_code,))
-                if not cur.fetchone():
-                    break
-                t_code = f"DV{now.strftime('%y%m%d%H%M%S%f')[:16]}{random.randint(1000, 9999)}{idx}"
+            t_code = generate_document_code(cur, "spa")
             
             actual_pet_id = t.pet_id
             if not actual_pet_id and t.pet_name and t.pet_name.strip():
@@ -2011,12 +2135,22 @@ def create_pet_services_batch(batch_req: PetServiceBatchCreate):
                 except Exception:
                     t_services = []
 
-            # Sửa H/I: Tính tiền dịch vụ thuần (không tính tip và hàng)
+            # Sửa H/I: Tính tiền gói dịch vụ thuộc nhóm được phép trừ ví Spa (allow_spa_wallet = 1)
+            wallet_rules_batch = _get_spa_wallet_rules(cur)
             pure_serv = sum(
                 (it.get("quantity") or 1) * (it.get("price") or 0.0)
                 for it in t_services
-                if not it.get("is_retail") and not it.get("is_tip") and it.get("name") != "Tiền tip thợ"
-            ) if t_services else max(0.0, (t.price or 0.0) - (t.tip_amount or 0.0))
+                if _is_spa_wallet_eligible_line(it, wallet_rules=wallet_rules_batch)
+            ) if t_services else _calc_bare_ticket_wallet_eligible_total(
+                price=t.price or 0.0,
+                tip_amount=t.tip_amount or 0.0,
+                surcharge=t.surcharge or 0.0,
+                teeth_cleaning=t.teeth_cleaning or 0.0,
+                art_cutting_fee=t.art_cutting_fee or 0.0,
+                shipping_fee=t.shipping_fee or 0.0,
+                service_type=t.service_type or "",
+                wallet_rules=wallet_rules_batch,
+            )
 
             t_dep = float(t.deposit_amount or 0.0)
             t_price = float(t.price or 0.0)

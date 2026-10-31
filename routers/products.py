@@ -40,25 +40,19 @@ def clean_num(val):
 def list_products(category: Optional[str] = None, for_bom: Optional[bool] = False, user=Depends(get_optional_user)):
     conn = get_db()
     cur = conn.cursor()
-    where_clause = "WHERE COALESCE(p.is_active, 1) = 1 AND p.type != 'material'"
+    where_clause = """WHERE COALESCE(p.is_active, 1) = 1
+        AND p.type != 'material'
+        AND (p.code IS NULL OR (p.code NOT LIKE 'NL-%' AND p.code NOT LIKE 'NL_%'))
+        AND LOWER(COALESCE(p.category, '')) NOT LIKE '%nguyên liệu%'
+        AND NOT EXISTS (
+            SELECT 1 FROM ingredients i 
+            WHERE (i.code IS NOT NULL AND i.code != '' AND i.code = p.code)
+               OR (i.name IS NOT NULL AND i.name != '' AND i.name = p.name)
+        )"""
     params = []
     if category:
         where_clause += ' AND COALESCE(p.category, "Khác") = ?'
         params.append(category)
-    if for_bom:
-        # Lọc sạch nguyên liệu (Yêu cầu 2a):
-        # 1. Mã không bắt đầu bằng NL- hoặc NL_
-        # 2. Không thuộc danh mục "Nguyên liệu"
-        # 3. Không trùng mã hoặc tên với nguyên liệu trong bảng ingredients
-        where_clause += """
-            AND (p.code IS NULL OR (p.code NOT LIKE 'NL-%' AND p.code NOT LIKE 'NL_%'))
-            AND LOWER(COALESCE(p.category, '')) NOT LIKE '%nguyên liệu%'
-            AND NOT EXISTS (
-                SELECT 1 FROM ingredients i 
-                WHERE (i.code IS NOT NULL AND i.code != '' AND i.code = p.code)
-                   OR (i.name IS NOT NULL AND i.name != '' AND i.name = p.name)
-            )
-        """
     query = f'''
     SELECT p.*,
            GROUP_CONCAT(DISTINCT c.name) as supplier_names,
@@ -82,13 +76,21 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
         WHERE COALESCE(c.is_active, 1) = 1
         ORDER BY ci.id ASC
     '''
+    wh_sql = '''
+        SELECT pi.product_id, pi.warehouse_id, w.name as warehouse_name, COALESCE(pi.quantity, 0) as quantity
+        FROM product_inventory pi
+        JOIN warehouses w ON w.id = pi.warehouse_id
+        WHERE COALESCE(w.is_active, 1) = 1 AND COALESCE(w.is_oem, 0) = 0
+        ORDER BY w.id ASC
+    '''
     try:
-        prod_res, units_res, combos_res = execute_batch(
+        prod_res, units_res, combos_res, wh_res = execute_batch(
             conn,
             [
                 (query, tuple(params)),
                 (units_sql, ()),
                 (combos_sql, ()),
+                (wh_sql, ()),
             ],
         )
     except Exception:
@@ -115,6 +117,11 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
             combos_res = cur.fetchall()
         except Exception:
             combos_res = []
+        try:
+            cur.execute(wh_sql)
+            wh_res = cur.fetchall()
+        except Exception:
+            wh_res = []
 
     rows = [dict(r) for r in prod_res]
     for r in rows:
@@ -126,8 +133,17 @@ def list_products(category: Optional[str] = None, for_bom: Optional[bool] = Fals
     units_map = {}
     for u in units_res:
         units_map.setdefault(u["item_id"], []).append(dict(u))
+    wh_map = {}
+    for wr in wh_res:
+        wdict = dict(wr)
+        wh_map.setdefault(wdict["product_id"], []).append({
+            "warehouse_id": wdict["warehouse_id"],
+            "warehouse_name": wdict["warehouse_name"],
+            "quantity": float(wdict["quantity"] or 0),
+        })
     for r in rows:
         r["units"] = units_map.get(r["id"], [])
+        r["warehouse_stocks"] = wh_map.get(r["id"], [])
 
     # Gắn danh sách tóm tắt các món con cho combo (type = 'combo')
     try:

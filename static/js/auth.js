@@ -227,8 +227,28 @@ function openChangePasswordOverlay(mode = 'force') {
   const errEl = document.getElementById('force-pwd-error');
 
   if (errEl) errEl.textContent = '';
-  if (oldInp) oldInp.value = '';
-  if (newInp) newInp.value = '';
+  if (oldInp) {
+    oldInp.value = '';
+    oldInp.type = 'password';
+    const oldBtn = oldInp.parentElement?.querySelector('button[onclick*="togglePasswordVisibility"]');
+    if (oldBtn) {
+      const lbl = oldBtn.querySelector('.pwd-label');
+      const ico = oldBtn.querySelector('.pwd-icon');
+      if (lbl) lbl.textContent = 'Xem';
+      if (ico) ico.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
+  if (newInp) {
+    newInp.value = '';
+    newInp.type = 'password';
+    const newBtn = newInp.parentElement?.querySelector('button[onclick*="togglePasswordVisibility"]');
+    if (newBtn) {
+      const lbl = newBtn.querySelector('.pwd-label');
+      const ico = newBtn.querySelector('.pwd-icon');
+      if (lbl) lbl.textContent = 'Xem';
+      if (ico) ico.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
 
   if (mode === 'login') {
     if (titleEl) titleEl.textContent = 'Đổi Mật Khẩu Tài Khoản';

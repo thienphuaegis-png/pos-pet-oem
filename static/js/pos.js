@@ -320,6 +320,8 @@ async function initPOS(force = false) {
             const data = await setRes.json();
             if (data && typeof data === 'object') posSettings = data;
         }
+        updatePOSNegativeStockToggleUI();
+        updatePOSZeroStockBadge();
 
         // 2. Nạp danh sách 13.000+ khách hàng ở chế độ compact=1 bất đồng bộ phía sau để không chặn tìm kiếm hàng hóa POS
         fetch('/api/contacts?type=customer&compact=1&_t=' + Date.now())
@@ -927,8 +929,10 @@ function filterProductSearch(val) {
         const thumbHtml = p.image_url
             ? `<img src="${p.image_url}" class="w-8 h-8 rounded-md object-cover border border-slate-200 shrink-0" alt="">`
             : `<div class="w-8 h-8 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 text-sm shrink-0"><i class="ph ph-package"></i></div>`;
+        const stockHtml = formatPOSProductStockHtml(p, isCombo);
+        const zeroWarnCls = (p.type === 'product' && Number(p.stock || 0) <= 0) ? 'bg-rose-50/40' : '';
         return `
-        <div onclick="${clickHandler}" onmouseenter="setProductActiveItem(${idx})" data-product-id="${p.id}" class="pos-product-item p-2.5 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-0 flex justify-between items-center transition text-xs">
+        <div onclick="${clickHandler}" onmouseenter="setProductActiveItem(${idx})" data-product-id="${p.id}" class="pos-product-item p-2.5 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-0 flex justify-between items-center transition text-xs ${zeroWarnCls}">
             <div class="flex items-center gap-2.5 min-w-0">
                 ${thumbHtml}
                 <div class="min-w-0">
@@ -941,7 +945,7 @@ function filterProductSearch(val) {
             </div>
             <div class="text-right shrink-0 ml-2">
                 <div class="font-mono font-bold text-sky-600">${formatMoney(p.sell_price)}</div>
-                <div class="text-xs text-slate-500 font-mono">Tồn: ${p.type === 'service' ? '∞' : (isCombo ? 'Gói' : (p.stock || 0))}</div>
+                ${stockHtml}
             </div>
         </div>
         `;
@@ -1172,15 +1176,16 @@ function renderActiveTabCart() {
                         })()}
                     </div>
 
-                    <!-- Mã hàng -->
-                    <div class="font-mono font-bold text-slate-600 text-xs truncate row-desktop-only" title="${item.code || '-'}">
+                    <!-- Mã hàng (Click để xem tồn kho các kho) -->
+                    <div onclick="openPOSProductStockDetailModal(${item.product_id})" class="font-mono font-bold text-slate-600 hover:text-sky-600 cursor-pointer text-xs truncate row-desktop-only transition" title="Bấm để xem tồn kho ở các kho (${item.code || '-'})">
                         ${item.code || '-'}
                     </div>
 
-                    <!-- Tên hàng hóa -->
-                    <div class="font-semibold text-slate-800 line-clamp-1 item-name-col" title="${item.name}">
-                        ${comboBadge}${manualGiftBadge}${item.name}
+                    <!-- Tên hàng hóa (Click để xem tồn kho các kho) -->
+                    <div onclick="openPOSProductStockDetailModal(${item.product_id})" class="font-semibold text-slate-800 hover:text-sky-700 cursor-pointer item-name-col min-w-0 transition" title="Bấm vào sản phẩm để xem chi tiết tồn kho ở các kho">
+                        <div class="line-clamp-1">${comboBadge}${manualGiftBadge}${item.name}</div>
                         ${comboSubLine}
+                        ${renderCartItemStockWarningAndWarehouses(item, itemQty, unitRatio)}
                     </div>
 
                     <!-- ĐVT (dropdown khi mặt hàng có đơn vị quy đổi, vd Thùng = 16 Chai) -->
@@ -1249,11 +1254,12 @@ function renderActiveTabCart() {
 function changeItemQty(idx, delta) {
     const tab = getActiveTab();
     if (!tab.cart[idx]) return;
-    const newQty = tab.cart[idx].quantity + delta;
+    const item = tab.cart[idx];
+    const newQty = item.quantity + delta;
     if (newQty <= 0) {
         removeCartItem(idx);
     } else {
-        tab.cart[idx].quantity = newQty;
+        item.quantity = newQty;
         renderInvoiceTabs();
         renderActiveTabCart();
     }
@@ -1262,11 +1268,12 @@ function changeItemQty(idx, delta) {
 function updateItemQtyDirect(idx, val) {
     const tab = getActiveTab();
     if (!tab.cart[idx]) return;
+    const item = tab.cart[idx];
     const qty = parseFloat(val) || 1;
     if (qty <= 0) {
         removeCartItem(idx);
     } else {
-        tab.cart[idx].quantity = qty;
+        item.quantity = qty;
         renderInvoiceTabs();
         renderActiveTabCart();
     }
@@ -1477,14 +1484,18 @@ function filterCustomerSearch(val) {
         }
     } else {
         const qWords = removeVietnameseTones(q).split(/\s+/).filter(Boolean);
+        const qDigits = q.replace(/\D+/g, '');
         for (const c of (posContacts || [])) {
             if (!c) continue;
-            const rawKey = `${c.name || ''} ${c.phone || ''}`;
+            const phoneTokens = buildContactPhoneSearchTokens(c.phone);
+            const rawKey = `${c.name || ''} ${c.phone || ''} ${phoneTokens}`;
             if (c._searchRaw !== rawKey) {
                 c._searchRaw = rawKey;
                 c._searchNorm = removeVietnameseTones(rawKey);
             }
-            if (qWords.every(w => c._searchNorm.includes(w))) {
+            const matchNorm = qWords.every(w => c._searchNorm.includes(w));
+            const matchDigits = qDigits.length >= 3 && phoneTokens.includes(qDigits);
+            if (matchNorm || matchDigits) {
                 matches.push(c);
                 if (matches.length >= 10) break;
             }
@@ -2309,6 +2320,30 @@ async function submitPOSOrder() {
         alert("Giỏ hàng đang trống! Vui lòng chọn sản phẩm trước.");
         return;
     }
+    if (isBlockNegativeStockEnabled()) {
+        const neededByPid = {};
+        for (const ci of tab.cart) {
+            const p = posProducts.find(x => x.id === ci.product_id);
+            if (p && p.type !== 'service' && p.type !== 'combo') {
+                const bq = (Number(ci.quantity) || 0) * (Number(ci.unit_ratio) || 1);
+                neededByPid[p.id] = (neededByPid[p.id] || 0) + bq;
+            }
+        }
+        const insufficientList = [];
+        for (const pidStr of Object.keys(neededByPid)) {
+            const p = posProducts.find(x => x.id === Number(pidStr));
+            const avail = Number(p?.stock || 0);
+            if (p && neededByPid[pidStr] > avail) {
+                insufficientList.push(`• ${p.name} (Cần: ${neededByPid[pidStr]} ${p.unit || ''}, Tồn kho: ${avail})`);
+            }
+        }
+        if (insufficientList.length > 0) {
+            const msg = `⚠️ Không thể thanh toán do sản phẩm không đủ tồn kho:\n${insufficientList.join('\n')}`;
+            if (window.showToast) window.showToast(msg.replace(/\n/g, ' | '), 'error', 4500);
+            else alert(msg);
+            return;
+        }
+    }
     if (typeof currentShift !== 'undefined' && !currentShift) {
         const canBypassShift = (typeof Auth !== 'undefined' && typeof Auth.can === 'function' && Auth.can('shifts.bypass'))
             || (typeof Auth !== 'undefined' && Auth.getUser() && (Auth.getUser().role === 'owner' || Auth.getUser().role === 'admin' || Auth.getUser().username === 'admin' || Auth.getUser().name === 'admin' || Auth.getUser().name === 'Quản Lý'));
@@ -2453,6 +2488,22 @@ async function submitPOSOrder() {
         const selTemplate = document.getElementById('pos-template-select');
         if (selTemplate && selTemplate.value) {
             posPrintConfig.active_preset = selTemplate.value;
+        }
+
+        // Cập nhật tức thì tồn kho trên RAM (posProducts & allProducts) + đồng bộ lại từ server
+        (tab.cart || []).forEach(ci => {
+            const prod = posProducts.find(x => x.id === ci.product_id);
+            if (prod && prod.type === 'product') {
+                const usedBase = (Number(ci.quantity) || 0) * (Number(ci.unit_ratio) || 1);
+                prod.stock = Math.round(((Number(prod.stock) || 0) - usedBase) * 10000) / 10000;
+                if (Array.isArray(prod.warehouse_stocks) && prod.warehouse_stocks.length > 0) {
+                    prod.warehouse_stocks[0].quantity = Math.round(((Number(prod.warehouse_stocks[0].quantity) || 0) - usedBase) * 10000) / 10000;
+                }
+            }
+        });
+        updatePOSZeroStockBadge();
+        if (typeof window.refreshPOSProducts === 'function') {
+            window.refreshPOSProducts();
         }
 
         // Đặt lại đơn hàng hiện tại
@@ -4998,7 +5049,7 @@ function renderMobileCatalog(query = '', category = '') {
                 <div>
                     <div class="h-12 bg-slate-50 rounded-lg flex items-center justify-center text-xl mb-1">${icon}</div>
                     <div class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug" title="${p.name}">${p.name}</div>
-                    <div class="text-xs text-slate-400 mt-0.5 truncate">${p.code || ''} ${p.stock !== undefined ? '• Tồn: ' + p.stock : ''}</div>
+                    <div class="text-xs text-slate-400 mt-0.5 truncate">${p.code || ''} ${p.type === 'product' && Number(p.stock || 0) <= 0 ? '• <span class="text-rose-600 font-bold">⚠️ Tồn: 0</span>' : (p.stock !== undefined ? '• Tồn: ' + p.stock : '')}</div>
                 </div>
                 <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-1.5">
                     <span class="font-mono-num font-bold text-xs text-sky-600">${formatMoney(price)}</span>
@@ -5033,6 +5084,257 @@ window.toggleMobilePaymentSheet = toggleMobilePaymentSheet;
 window.renderMobileCatalog = renderMobileCatalog;
 window.filterMobileCatalog = filterMobileCatalog;
 window.filterMobileCategory = filterMobileCategory;
+
+// ── Quản lý Tồn kho các kho, Chặn bán âm & Cảnh báo Tồn = 0 trên POS ──
+function buildContactPhoneSearchTokens(phoneStr) {
+    if (!phoneStr) return '';
+    const s = String(phoneStr).trim();
+    const parts = s.split(/[,;/|_\s-]+/).filter(Boolean);
+    const tokens = [];
+    for (const p of parts) {
+        const d = p.replace(/\D+/g, '');
+        if (!d) continue;
+        tokens.push(d);
+        const m20 = d.match(/^(0\d{9})(0\d{9,10})$/);
+        if (m20) {
+            tokens.push(m20[1], m20[2]);
+        }
+    }
+    const allDigits = s.replace(/\D+/g, '');
+    if (allDigits && !tokens.includes(allDigits)) {
+        tokens.push(allDigits);
+        const mAll = allDigits.match(/^(0\d{9})(0\d{9,10})$/);
+        if (mAll) tokens.push(mAll[1], mAll[2]);
+    }
+    return tokens.join(' ');
+}
+window.buildContactPhoneSearchTokens = buildContactPhoneSearchTokens;
+
+function isBlockNegativeStockEnabled() {
+    if (window.posBlockNegativeStock === true) return true;
+    if (window.posBlockNegativeStock === false) return false;
+    if (posSettings && (posSettings.block_negative_stock === '1' || posSettings.block_negative_stock === true || posSettings.block_negative_stock === 1)) {
+        return true;
+    }
+    if (window.currentSettings && (window.currentSettings.block_negative_stock === '1' || window.currentSettings.block_negative_stock === true || window.currentSettings.block_negative_stock === 1)) {
+        return true;
+    }
+    const chk = document.getElementById('comp-block-negative-stock');
+    if (chk && chk.checked) return true;
+    return false;
+}
+window.isBlockNegativeStockEnabled = isBlockNegativeStockEnabled;
+
+function getCartBaseQtyForProduct(tab, productId, excludeIdx = -1) {
+    if (!tab || !Array.isArray(tab.cart)) return 0;
+    let sum = 0;
+    tab.cart.forEach((it, i) => {
+        if (i !== excludeIdx && it.product_id === productId) {
+            sum += (Number(it.quantity) || 0) * (Number(it.unit_ratio) || 1);
+        }
+    });
+    return sum;
+}
+
+function formatPOSProductStockHtml(p, isCombo = false) {
+    if (!p || p.type === 'service') {
+        return `<div class="text-xs text-slate-500 font-mono">Tồn: ∞</div>`;
+    }
+    if (isCombo || p.type === 'combo') {
+        return `<div class="text-xs text-slate-500 font-mono">Tồn: Gói</div>`;
+    }
+    const stockVal = Number(p.stock || 0);
+    const whs = Array.isArray(p.warehouse_stocks) ? p.warehouse_stocks : [];
+    const whText = whs.length > 0
+        ? whs.map(w => `${w.warehouse_name}: ${w.quantity}`).join(' | ')
+        : '';
+    const whHtml = whText
+        ? `<div class="text-[11px] text-slate-400 font-mono truncate max-w-[210px] mt-0.5" title="${whText}">📦 ${whText}</div>`
+        : '';
+    if (stockVal <= 0) {
+        const badgeText = isBlockNegativeStockEnabled()
+            ? `🚫 Chặn bán âm (Tồn: ${stockVal})`
+            : `⚠️ Tồn kho = 0`;
+        const badgeCls = isBlockNegativeStockEnabled()
+            ? 'bg-rose-600 text-white border-rose-700'
+            : 'bg-rose-100 text-rose-700 border-rose-300';
+        return `<div class="mt-0.5"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border font-bold text-xs ${badgeCls}">${badgeText}</span></div>${whHtml}`;
+    }
+    return `<div class="text-xs text-slate-600 font-mono font-semibold">Tồn: ${stockVal}</div>${whHtml}`;
+}
+
+function renderCartItemStockWarningAndWarehouses(item, itemQty, unitRatio) {
+    const p = posProducts.find(x => x.id === item.product_id);
+    if (!p || p.type !== 'product') return '';
+    const stockVal = Number(p.stock || 0);
+    const reqBase = (Number(itemQty) || 0) * (Number(unitRatio) || 1);
+    if (stockVal === 0) {
+        return `<div class="mt-0.5"><span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 border border-rose-300 text-[11px] font-bold">⚠️ Tồn kho = 0</span></div>`;
+    }
+    if (stockVal < 0) {
+        return `<div class="mt-0.5"><span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 border border-rose-300 text-[11px] font-bold">⚠️ Tồn kho = 0 (Tồn: ${stockVal})</span></div>`;
+    }
+    if (reqBase > stockVal) {
+        return `<div class="mt-0.5"><span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-bold">⚠️ Vượt tồn (Tồn: ${stockVal})</span></div>`;
+    }
+    return '';
+}
+
+function openPOSProductStockDetailModal(productId) {
+    const p = (posProducts || []).find(x => x.id === Number(productId));
+    if (!p) return;
+    const modal = document.getElementById('modal-pos-warehouse-stock');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    const filterChk = document.getElementById('pos-wh-stock-only-zero');
+    if (filterChk) filterChk.checked = false;
+    const searchInp = document.getElementById('pos-wh-stock-search');
+    if (searchInp) searchInp.value = p.code || p.name || '';
+    renderPOSWarehouseStockTable(Number(productId));
+}
+window.openPOSProductStockDetailModal = openPOSProductStockDetailModal;
+
+async function refreshPOSProducts() {
+    try {
+        const res = await fetch('/api/products?_t=' + Date.now());
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            posProducts = data;
+            if (typeof allProducts !== 'undefined') {
+                allProducts = data;
+            }
+            window.returnProductsCache = null;
+            updatePOSZeroStockBadge();
+            renderActiveTabCart();
+            renderMobileCatalog();
+        }
+    } catch (e) {
+        console.warn("refreshPOSProducts error:", e);
+    }
+}
+window.refreshPOSProducts = refreshPOSProducts;
+
+function updatePOSNegativeStockToggleUI() {
+    const btn = document.getElementById('btn-pos-toggle-neg-stock');
+    if (!btn) return;
+    const blocked = isBlockNegativeStockEnabled();
+    if (blocked) {
+        btn.className = "flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer shrink-0";
+        btn.innerHTML = `<i class="ph ph-prohibit"></i><span>Chặn bán âm: BẬT</span>`;
+        btn.title = "Đang chặn bán âm sản phẩm. Bấm để cho phép bán âm.";
+    } else {
+        btn.className = "flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 font-semibold text-xs px-2.5 py-1.5 rounded-lg transition cursor-pointer shrink-0";
+        btn.innerHTML = `<i class="ph ph-shield-check"></i><span>Chặn bán âm: TẮT</span>`;
+        btn.title = "Đang cho phép bán âm sản phẩm. Bấm để bật chặn bán âm.";
+    }
+}
+window.updatePOSNegativeStockToggleUI = updatePOSNegativeStockToggleUI;
+
+async function togglePOSBlockNegativeStock() {
+    const nextState = !isBlockNegativeStockEnabled();
+    try {
+        const res = await fetch('/api/settings/modules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'block_negative_stock', enabled: nextState })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (window.showToast) window.showToast(err.detail || 'Chỉ Quản trị viên mới được đổi cài đặt này', 'warning');
+            else alert(err.detail || 'Không thể đổi cài đặt');
+            return;
+        }
+        posSettings = posSettings || {};
+        posSettings.block_negative_stock = nextState ? '1' : '0';
+        updatePOSNegativeStockToggleUI();
+        if (window.showToast) {
+            window.showToast(nextState ? '🛡️ Đã BẬT chế độ Không cho phép bán âm sản phẩm!' : 'Đã TẮT chế độ chặn bán âm sản phẩm.', 'success');
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+window.togglePOSBlockNegativeStock = togglePOSBlockNegativeStock;
+
+function updatePOSZeroStockBadge() {
+    const badge = document.getElementById('pos-zero-stock-badge');
+    if (!badge) return;
+    const zeroCount = (posProducts || []).filter(p => p && p.type === 'product' && Number(p.stock || 0) <= 0).length;
+    if (zeroCount > 0) {
+        badge.textContent = `${zeroCount} hết hàng`;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+window.updatePOSZeroStockBadge = updatePOSZeroStockBadge;
+
+function openPOSWarehouseStockModal(onlyZero = false) {
+    const modal = document.getElementById('modal-pos-warehouse-stock');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    const filterChk = document.getElementById('pos-wh-stock-only-zero');
+    if (filterChk) filterChk.checked = Boolean(onlyZero);
+    const searchInp = document.getElementById('pos-wh-stock-search');
+    if (searchInp) searchInp.value = '';
+    renderPOSWarehouseStockTable();
+    setTimeout(() => searchInp?.focus(), 60);
+}
+window.openPOSWarehouseStockModal = openPOSWarehouseStockModal;
+
+function closePOSWarehouseStockModal() {
+    const modal = document.getElementById('modal-pos-warehouse-stock');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    }
+}
+window.closePOSWarehouseStockModal = closePOSWarehouseStockModal;
+
+function renderPOSWarehouseStockTable(preferredProductId = null) {
+    const tbody = document.getElementById('pos-wh-stock-tbody');
+    if (!tbody) return;
+    const q = (document.getElementById('pos-wh-stock-search')?.value || '').trim();
+    const onlyZero = Boolean(document.getElementById('pos-wh-stock-only-zero')?.checked);
+    let items = (posProducts || []).filter(p => {
+        if (!p || p.type === 'material') return false;
+        if (preferredProductId && p.id === Number(preferredProductId)) return true;
+        if (p.type !== 'product' && p.type !== 'combo') return false;
+        if (onlyZero && Number(p.stock || 0) > 0) return false;
+        if (q && !fuzzyMatch(q, `${p.code || ''} ${p.name || ''} ${p.category || ''}`)) return false;
+        return true;
+    });
+    if (preferredProductId) {
+        items.sort((a, b) => (a.id === Number(preferredProductId) ? -1 : (b.id === Number(preferredProductId) ? 1 : 0)));
+    }
+    if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 text-xs">Không có sản phẩm nào phù hợp bộ lọc</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = items.slice(0, 150).map(p => {
+        const stockVal = Number(p.stock || 0);
+        const whs = Array.isArray(p.warehouse_stocks) ? p.warehouse_stocks : [];
+        const whBadges = whs.length > 0
+            ? whs.map(w => `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono text-xs"><b>${w.warehouse_name}:</b> ${w.quantity}</span>`).join(' ')
+            : `<span class="text-slate-400 text-xs">Kho mặc định: ${stockVal}</span>`;
+        const statusBadge = stockVal <= 0
+            ? `<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs">⚠️ Tồn = ${stockVal}</span>`
+            : `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs font-mono">${stockVal} ${p.unit || ''}</span>`;
+        return `
+            <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                <td class="p-2.5 font-mono font-bold text-slate-600">${p.code || '-'}</td>
+                <td class="p-2.5 font-bold text-slate-800">${p.name}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-sky-600">${formatMoney(p.sell_price || 0)}</td>
+                <td class="p-2.5">${whBadges}</td>
+                <td class="p-2.5 text-center">${statusBadge}</td>
+            </tr>
+        `;
+    }).join('');
+}
+window.renderPOSWarehouseStockTable = renderPOSWarehouseStockTable;
 
 // Xuất các hàm điều khiển in ấn & thanh toán ra window
 window.printDraftOrder = printDraftOrder;

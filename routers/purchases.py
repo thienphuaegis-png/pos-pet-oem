@@ -465,16 +465,8 @@ def create_purchase(req: PurchaseCreate, user=Depends(require_permission("purcha
         total_amount = round(max(0.0, subtotal_amount - req.discount + req.shipping_fee + req.other_fee + vat_amount), 2)
         debt_amount = round(max(0.0, total_amount - req.paid_amount), 2)
         
-        base_code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-        code = base_code
-        seq = 1
-        while True:
-            cur.execute("SELECT 1 FROM purchases WHERE code = ?", (code,))
-            if not cur.fetchone() and not is_code_archived(cur, code):
-                archive_code(cur, code, "purchase")
-                break
-            code = f"{base_code}_{seq}"
-            seq += 1
+        from database import generate_document_code
+        code = generate_document_code(cur, "purchase")
 
         status = 'draft' if req.status == 'draft' else 'pending'
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
@@ -1522,15 +1514,8 @@ def convert_request_to_po(request_id: int, user: dict = Depends(require_permissi
             raise HTTPException(status_code=400, detail="Chưa có Nhà cung cấp nào trong hệ thống")
 
         user_name = (user.get("name") if isinstance(user, dict) else None) or "Thủ kho"
-        base_code = f"PN{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-        code = base_code
-        seq = 1
-        while True:
-            cur.execute("SELECT 1 FROM purchases WHERE code = ?", (code,))
-            if not cur.fetchone():
-                break
-            code = f"{base_code}_{seq}"
-            seq += 1
+        from database import generate_document_code
+        code = generate_document_code(cur, "purchase")
 
         subtotal = sum(float(it["quantity"]) * float(it["cost_price"] or 0) for it in items)
         subtotal = round(subtotal, 2)

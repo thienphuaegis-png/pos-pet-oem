@@ -34,6 +34,12 @@ def import_pricing():
             continue
         raw_nhom = str(row[0]).strip().upper()
         svc_name = str(row[1]).strip()
+        if svc_name in ('CB Tắm (1+2+3)', 'CB Tắm'):
+            svc_name = 'Combo Vip 2'
+        elif svc_name in ('CB Cạo (1+2+3+4)', 'CB Cạo'):
+            svc_name = 'Combo Vip 3'
+        elif svc_name in ('CB Cắt Tỉa (1+2+3+5)', 'CB Cắt Tỉa'):
+            svc_name = 'Combo Super Vip'
         
         if 'COMBO' in raw_nhom:
             category = 'Gói Combo Chó'

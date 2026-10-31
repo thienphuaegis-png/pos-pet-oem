@@ -692,11 +692,35 @@ async function renderModuleToggles() {
 }
 
 async function toggleModule(key, enabled) {
+  const label = MODULE_LABEL[key] || key;
+  const confirmed = typeof window.showConfirmModal === 'function'
+    ? await window.showConfirmModal({
+        title: enabled ? `Bật Module: ${label}` : `Tắt Module: ${label}`,
+        message: `Bạn có chắc chắn muốn ${enabled ? 'BẬT' : 'TẮT'} module "${label}" không?`,
+        confirmText: 'Xác nhận',
+        cancelText: 'Hủy bỏ',
+        type: 'info',
+        icon: '🧩'
+      })
+    : confirm(`Bạn có chắc chắn muốn ${enabled ? 'BẬT' : 'TẮT'} "${label}"?`);
+  if (!confirmed) {
+    await renderModuleToggles();
+    return;
+  }
   const res = await fetch('/api/settings/modules', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, enabled })
   });
-  if (res.ok) { posModulesCache = null; if (typeof applyRoleUI === 'function') applyRoleUI(); }
+  if (res.ok) {
+    posModulesCache = null;
+    if (key === 'block_negative_stock') {
+      if (typeof posSettings === 'object' && posSettings) {
+        posSettings.block_negative_stock = enabled ? '1' : '0';
+      }
+      if (typeof updatePOSNegativeStockToggleUI === 'function') updatePOSNegativeStockToggleUI();
+    }
+    if (typeof applyRoleUI === 'function') applyRoleUI();
+  }
   else { const d = await res.json(); alert('❌ ' + (d.detail || 'Lỗi cập nhật module')); await renderModuleToggles(); }
 }
 

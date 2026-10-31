@@ -27,14 +27,14 @@ class TestPetPricingImport(unittest.TestCase):
         self.assertTrue(expected_cats.issubset(set(cats)), f"Missing categories. Found: {cats}")
 
     def test_dog_combo_prices(self):
-        # CB Tắm (1+2+3): 0-2kg: 100k, >2-6kg: 150k, >6-10kg: 200k, >40-50kg: 490k, >=50kg: 550k
-        p_0_2 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name='CB Tắm (1+2+3)' AND min_weight=0.0 AND max_weight=2.0").fetchone()[0]
+        # Combo Vip 2 (đổi tên từ CB Tắm (1+2+3)): 0-2kg: 100k, >2-6kg: 150k, >6-10kg: 200k, >40-50kg: 490k, >=50kg: 550k
+        p_0_2 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name IN ('Combo Vip 2', 'CB Tắm (1+2+3)') AND min_weight=0.0 AND max_weight=2.0").fetchone()[0]
         self.assertEqual(p_0_2, 100000.0)
 
-        p_2_6 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name='CB Tắm (1+2+3)' AND min_weight=2.0 AND max_weight=6.0").fetchone()[0]
+        p_2_6 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name IN ('Combo Vip 2', 'CB Tắm (1+2+3)') AND min_weight=2.0 AND max_weight=6.0").fetchone()[0]
         self.assertEqual(p_2_6, 150000.0)
 
-        p_50 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name='CB Tắm (1+2+3)' AND min_weight=50.0").fetchone()[0]
+        p_50 = self.cur.execute("SELECT price FROM pet_service_pricing WHERE service_name IN ('Combo Vip 2', 'CB Tắm (1+2+3)') AND min_weight=50.0").fetchone()[0]
         self.assertEqual(p_50, 550000.0)
 
     def test_cat_prices(self):

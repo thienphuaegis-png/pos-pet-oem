@@ -26,9 +26,15 @@ def test_build_exe_has_no_ngrok_copy():
     assert "ngrok" not in content.lower(), "build_exe.bat should not copy ngrok.exe!"
 
 def test_cloudflare_preserved_for_testing():
-    """Đảm bảo file Cloudflare vẫn được giữ lại để anh test."""
+    """Đảm bảo file Cloudflare vẫn được giữ lại để anh test (kể cả bản chạy song song)."""
     cf_bat = os.path.join(ROOT, "CHAY_ONLINE_CLOUDFLARE.bat")
+    sibling_bat = os.path.join(ROOT, "CHAY_BAN_SONG_SONG_CLOUDFLARE.bat")
     assert os.path.exists(cf_bat), "CHAY_ONLINE_CLOUDFLARE.bat must be preserved for user testing!"
+    assert os.path.exists(sibling_bat), "CHAY_BAN_SONG_SONG_CLOUDFLARE.bat must exist for sibling instance!"
+    from scripts import share_online
+    assert hasattr(share_online, "resolve_cloudflared")
+    assert hasattr(share_online, "find_sibling_port")
+    assert share_online.find_sibling_port(8997, (8998, 8999)) not in (8998, 8999)
 
 def test_legacy_ngrok_script_removed():
     legacy_ngrok = os.path.join(ROOT, "deploy", "legacy_scripts", "CHAY_ONLINE_CO_DINH.bat")

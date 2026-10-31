@@ -673,6 +673,130 @@ def is_code_archived(cur, code: str) -> bool:
     except Exception:
         return False
 
+
+DOC_CODE_DEFAULTS = {
+    "order": ("orders", "code_prefix_order", "HD", "code_mode_order", "seq", "code_digits_order", 6),
+    "spa": ("pet_service_tickets", "code_prefix_spa", "GS-", "code_mode_spa", "seq", "code_digits_spa", 5),
+    "return": ("order_returns", "code_prefix_return", "RET", "code_mode_return", "date_seq", "code_digits_return", 4),
+    "purchase": ("purchases", "code_prefix_purchase", "PN", "code_mode_purchase", "seq", "code_digits_purchase", 6),
+    "receipt": ("cashbook", "code_prefix_receipt", "PT", "code_mode_cashbook", "date_seq", "code_digits_cashbook", 3),
+    "payment": ("cashbook", "code_prefix_payment", "PC", "code_mode_cashbook", "date_seq", "code_digits_cashbook", 3),
+}
+
+
+def generate_document_code(cur, doc_type: str, custom_prefix: str = None) -> str:
+    """
+    Sinh mã hóa đơn / phiếu tự động theo quy tắc người dùng cấu hình trong bảng settings:
+    - mode = 'seq': Tăng dần liên tiếp ({Prefix}{STT:0{digits}d}, VD: HD208231, GS-24565, PN000001)
+    - mode = 'date_seq': Theo ngày + STT ({Prefix}-{YYMMDD}-{STT:0{digits}d}, VD: HD-261031-001, RET-20261031-0001)
+    - mode = 'datetime': Theo ngày giờ giây ({Prefix}{YYMMDDHHMMSS}, VD: HD261031143000)
+    """
+    import datetime as _dt
+
+    cfg = DOC_CODE_DEFAULTS.get(doc_type, DOC_CODE_DEFAULTS["order"])
+    table_name, pfx_key, def_pfx, mode_key, def_mode, dig_key, def_digits = cfg
+
+    settings_map = {}
+    try:
+        cur.execute(
+            "SELECT key, value FROM settings WHERE key IN (?, ?, ?)",
+            (pfx_key, mode_key, dig_key),
+        )
+        for r in cur.fetchall():
+            k = r[0] if not isinstance(r, dict) else r["key"]
+            v = r[1] if not isinstance(r, dict) else r["value"]
+            if k:
+                settings_map[str(k)] = str(v or "").strip()
+    except Exception:
+        pass
+
+    prefix = (custom_prefix if custom_prefix is not None else (settings_map.get(pfx_key) or def_pfx)).strip()
+    if not prefix:
+        prefix = def_pfx
+    mode = (settings_map.get(mode_key) or def_mode).strip().lower()
+    if mode not in ("seq", "date_seq", "datetime"):
+        mode = def_mode
+    try:
+        digits = int(settings_map.get(dig_key) or def_digits)
+        digits = max(2, min(digits, 10))
+    except Exception:
+        digits = def_digits
+
+    now = _dt.datetime.now()
+
+    if mode == "datetime":
+        base_code = f"{prefix}{now.strftime('%y%m%d%H%M%S')}"
+        candidate = base_code
+        seq = 1
+        while True:
+            cur.execute(f"SELECT 1 FROM {table_name} WHERE code = ?", (candidate,))
+            if not cur.fetchone() and not is_code_archived(cur, candidate):
+                archive_code(cur, candidate, doc_type)
+                return candidate
+            candidate = f"{base_code}_{seq}"
+            seq += 1
+
+    if mode == "date_seq":
+        clean_pfx = prefix.rstrip("-")
+        if doc_type == "return" and clean_pfx.upper() == "RET":
+            date_str = now.strftime("%Y%m%d")
+        else:
+            date_str = now.strftime("%y%m%d")
+        base_prefix = f"{clean_pfx}-{date_str}-"
+        pattern = f"{base_prefix}%"
+        cur.execute(
+            f"""
+            SELECT MAX(CAST(SUBSTR(code, LENGTH(?) + 1) AS INTEGER))
+            FROM (
+                SELECT code FROM {table_name} WHERE code LIKE ?
+                UNION ALL
+                SELECT code FROM archived_codes WHERE code LIKE ?
+            )
+            """,
+            (base_prefix, pattern, pattern),
+        )
+        row = cur.fetchone()
+        max_val = (row[0] if not isinstance(row, dict) else list(row.values())[0]) if row else 0
+        seq = (int(max_val) if max_val is not None else 0) + 1
+        while True:
+            candidate = f"{base_prefix}{seq:0{digits}d}"
+            cur.execute(f"SELECT 1 FROM {table_name} WHERE code = ?", (candidate,))
+            if not cur.fetchone() and not is_code_archived(cur, candidate):
+                archive_code(cur, candidate, doc_type)
+                return candidate
+            seq += 1
+
+    # Default mode == 'seq': Tăng dần liên tiếp (VD: HD208231, GS-24565, PN000001)
+    pattern = f"{prefix}%"
+    max_len = len(prefix) + 8
+    cur.execute(
+        f"""
+        SELECT MAX(CAST(SUBSTR(code, LENGTH(?) + 1) AS INTEGER))
+        FROM (
+            SELECT code FROM {table_name}
+            WHERE code LIKE ? AND LENGTH(code) <= ?
+              AND SUBSTR(code, LENGTH(?) + 1, 1) BETWEEN '0' AND '9'
+              AND CAST(SUBSTR(code, LENGTH(?) + 1) AS INTEGER) < 100000000
+            UNION ALL
+            SELECT code FROM archived_codes
+            WHERE code LIKE ? AND LENGTH(code) <= ?
+              AND SUBSTR(code, LENGTH(?) + 1, 1) BETWEEN '0' AND '9'
+              AND CAST(SUBSTR(code, LENGTH(?) + 1) AS INTEGER) < 100000000
+        )
+        """,
+        (prefix, pattern, max_len, prefix, prefix, pattern, max_len, prefix, prefix),
+    )
+    row = cur.fetchone()
+    max_val = (row[0] if not isinstance(row, dict) else list(row.values())[0]) if row else 0
+    seq = (int(max_val) if max_val is not None else 0) + 1
+    while True:
+        candidate = f"{prefix}{seq:0{digits}d}"
+        cur.execute(f"SELECT 1 FROM {table_name} WHERE code = ?", (candidate,))
+        if not cur.fetchone() and not is_code_archived(cur, candidate):
+            archive_code(cur, candidate, doc_type)
+            return candidate
+        seq += 1
+
 def _migrate_marketplace_pancake(cur):
     """Bỏ CHECK platform IN ('shopee','tiktok') để nhận 'pancake'; thêm cột NV bán, SL hoàn, bảng NV Pancake."""
     check = "CHECK(platform IN ('shopee', 'tiktok'))"
@@ -855,8 +979,14 @@ def init_db():
         name TEXT NOT NULL UNIQUE,
         description TEXT,
         sort_order INTEGER DEFAULT 0,
+        allow_spa_wallet INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+
+    cur.execute("PRAGMA table_info(pet_service_categories)")
+    _psc_cols = [c[1] for c in cur.fetchall()]
+    if 'allow_spa_wallet' not in _psc_cols:
+        cur.execute("ALTER TABLE pet_service_categories ADD COLUMN allow_spa_wallet INTEGER DEFAULT 0")
 
     cur.execute('''
     CREATE TABLE IF NOT EXISTS pet_service_pricing (
@@ -920,16 +1050,39 @@ def init_db():
     # Seed pet_service_categories if empty & migrate existing categories
     cur.execute("SELECT COUNT(*) FROM pet_service_categories")
     if cur.fetchone()[0] == 0:
-        default_spa_cats = ['Gói Combo Chó', 'Dịch Vụ Lẻ Chó', 'Spa Mèo', 'Nhuộm Lông', 'Trị Liệu & Phụ Thu']
-        for idx, cat_name in enumerate(default_spa_cats, start=1):
-            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name, sort_order) VALUES (?, ?)", (cat_name, idx))
+        default_spa_cats = [
+            ('Gói Combo Chó', 1, 1),
+            ('Dịch Vụ Lẻ Chó', 2, 0),
+            ('Spa Mèo', 3, 1),
+            ('Nhuộm Lông', 4, 0),
+            ('Trị Liệu & Phụ Thu', 5, 0),
+        ]
+        for cat_name, idx, allow_w in default_spa_cats:
+            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name, sort_order, allow_spa_wallet) VALUES (?, ?, ?)", (cat_name, idx, allow_w))
 
     # Đảm bảo nếu bảng pet_service_pricing đã có dữ liệu thì nạp vào pet_service_categories
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pet_service_pricing'")
     if cur.fetchone():
         cur.execute("SELECT DISTINCT category FROM pet_service_pricing WHERE category IS NOT NULL AND category != ''")
         for r in cur.fetchall():
-            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name) VALUES (?)", (r[0],))
+            _cname = r[0]
+            _def_w = 1 if str(_cname or "").strip().lower() in ("gói combo chó", "spa mèo") or "combo" in str(_cname or "").strip().lower() else 0
+            cur.execute("INSERT OR IGNORE INTO pet_service_categories (name, allow_spa_wallet) VALUES (?, ?)", (_cname, _def_w))
+
+    cur.execute("SELECT value FROM settings WHERE key = 'migration_spa_cat_allow_wallet_v1'")
+    if not cur.fetchone():
+        cur.execute("""
+            UPDATE pet_service_categories
+            SET allow_spa_wallet = 1
+            WHERE LOWER(TRIM(name)) IN ('gói combo chó', 'spa mèo')
+               OR LOWER(TRIM(name)) LIKE '%combo%'
+        """)
+        cur.execute("""
+            UPDATE pet_service_categories
+            SET allow_spa_wallet = 0
+            WHERE LOWER(TRIM(name)) IN ('dịch vụ lẻ chó', 'nhuộm lông', 'trị liệu & phụ thu')
+        """)
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_spa_cat_allow_wallet_v1', '1')")
 
     # 3.0. Danh mục hạng mục Thu / Chi Sổ Quỹ (cashbook_categories)
     cur.execute('''
@@ -2735,6 +2888,45 @@ def init_db():
             cur.execute(_idx_sql)
         except Exception:
             pass
+
+    # Migration: Đổi tên CB Tắm, CB Cạo, CB Cắt Tỉa thành Combo Vip 2, Combo Vip 3, Combo Super Vip
+    try:
+        cur.execute("UPDATE pet_service_pricing SET service_name = 'Combo Vip 2' WHERE service_name IN ('CB Tắm (1+2+3)', 'CB Tắm')")
+        cur.execute("UPDATE pet_service_pricing SET service_name = 'Combo Vip 3' WHERE service_name IN ('CB Cạo (1+2+3+4)', 'CB Cạo')")
+        cur.execute("UPDATE pet_service_pricing SET service_name = 'Combo Super Vip' WHERE service_name IN ('CB Cắt Tỉa (1+2+3+5)', 'CB Cắt Tỉa')")
+        cur.execute("UPDATE pet_service_tickets SET service_type = REPLACE(service_type, 'CB Tắm (1+2+3)', 'Combo Vip 2') WHERE service_type LIKE '%CB Tắm (1+2+3)%'")
+        cur.execute("UPDATE pet_service_tickets SET service_type = REPLACE(service_type, 'CB Cạo (1+2+3+4)', 'Combo Vip 3') WHERE service_type LIKE '%CB Cạo (1+2+3+4)%'")
+        cur.execute("UPDATE pet_service_tickets SET service_type = REPLACE(service_type, 'CB Cắt Tỉa (1+2+3+5)', 'Combo Super Vip') WHERE service_type LIKE '%CB Cắt Tỉa (1+2+3+5)%'")
+    except Exception:
+        pass
+
+    # Migration: Chuẩn hóa SĐT thứ 2 bị ghép liền 20 số hoặc ngăn cách bằng '_' / '/' trong bảng contacts
+    try:
+        import re as _re_ph
+        cur.execute("SELECT id, phone FROM contacts WHERE phone IS NOT NULL AND (LENGTH(phone) >= 18 OR phone LIKE '%_%' OR phone LIKE '%/%' OR phone LIKE '%;%')")
+        for _crow in cur.fetchall():
+            _cid = _crow[0] if not isinstance(_crow, dict) else _crow["id"]
+            _cph = str((_crow[1] if not isinstance(_crow, dict) else _crow["phone"]) or "").strip()
+            if not _cph:
+                continue
+            _raw_parts = [p.strip() for p in _re_ph.split(r'[,;/|_]+', _cph) if p.strip()]
+            _final_parts = []
+            for _rp in _raw_parts:
+                _digits = _re_ph.sub(r'\s+', '', _rp)
+                _m20 = _re_ph.match(r'^(0\d{9})(0\d{9,10})$', _digits)
+                if _m20:
+                    _final_parts.extend([_m20.group(1), _m20.group(2)])
+                else:
+                    _final_parts.append(_rp)
+            _dedup = []
+            for _fp in _final_parts:
+                if _fp and _fp not in _dedup:
+                    _dedup.append(_fp)
+            _new_ph = ", ".join(_dedup)
+            if _new_ph and _new_ph != _cph:
+                cur.execute("UPDATE contacts SET phone = ? WHERE id = ?", (_new_ph, _cid))
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()

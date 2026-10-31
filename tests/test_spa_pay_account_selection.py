@@ -160,7 +160,7 @@ def _cashbook_rows(ticket_id):
 
 
 def test_wallet_service_plus_transfer_for_retail():
-    """Ví trả 170.000 dịch vụ, khách chuyển khoản 199.000 tiền hàng hóa."""
+    """Ví chỉ trả 150.000 gói Combo Vip 2; phụ thu Đánh răng (20.000) + hàng hóa (199.000) = 219.000 thu ngoài chuyển khoản."""
     init_db()
     headers = _login()
     bank = _accounts(headers, "bank", "ewallet")
@@ -175,20 +175,20 @@ def test_wallet_service_plus_transfer_for_retail():
     }, headers=headers)
     assert res.status_code == 200, res.text
     body = res.json()
-    assert body["wallet_deduction"] == 170000.0
-    assert body["cash_collected"] == 199000.0
+    assert body["wallet_deduction"] == 150000.0
+    assert body["cash_collected"] == 219000.0
     assert body["remainder_method"] == "transfer"
-    assert _wallet_balance(cid) == 330000.0, "Ví chỉ bị trừ đúng phần dịch vụ"
+    assert _wallet_balance(cid) == 350000.0, "Ví chỉ bị trừ đúng phần gói Combo (không trừ phụ thu & hàng hóa)"
 
     with get_db() as db:
         cur = db.cursor()
         cur.execute("""SELECT payment_status, payment_method, spa_wallet_deduction, remainder_method, account_id
                        FROM pet_service_tickets WHERE id = ?""", (ticket_id,))
-        assert tuple(cur.fetchone()) == ("paid", "wallet", 170000.0, "transfer", bank_id)
+        assert tuple(cur.fetchone()) == ("paid", "wallet", 150000.0, "transfer", bank_id)
 
     rows = _cashbook_rows(ticket_id)
-    assert len(rows) == 1 and rows[0][0] == 199000.0
-    assert rows[0][1] == bank_id, "199.000 phải vào đúng tài khoản chuyển khoản, không phải két tiền mặt"
+    assert len(rows) == 1 and rows[0][0] == 219000.0
+    assert rows[0][1] == bank_id, "219.000 phải vào đúng tài khoản chuyển khoản, không phải két tiền mặt"
 
 
 def test_wallet_remainder_transfer_without_account_is_rejected():
@@ -218,7 +218,7 @@ def test_wallet_remainder_defaults_to_cash_box():
     cash = _accounts(headers, "cash")
     assert cash, "Cần ít nhất 1 tài khoản két tiền mặt"
     rows = _cashbook_rows(ticket_id)
-    assert len(rows) == 1 and rows[0][0] == 199000.0
+    assert len(rows) == 1 and rows[0][0] == 219000.0
     assert rows[0][1] == cash[0]["id"], "Thu ngoài mặc định phải vào két tiền mặt"
     with get_db() as db:
         cur = db.cursor()
@@ -227,7 +227,7 @@ def test_wallet_remainder_defaults_to_cash_box():
 
 
 def test_batch_wallet_plus_transfer_remainder():
-    """Nhập hàng loạt: ví trả dịch vụ, phần còn lại của đợt chuyển khoản vào đúng TK."""
+    """Nhập hàng loạt: ví trả gói Combo, phần còn lại (phụ thu + hàng hóa) của đợt chuyển khoản vào đúng TK."""
     import json as _json
     init_db()
     headers = _login()
@@ -255,8 +255,8 @@ def test_batch_wallet_plus_transfer_remainder():
     ticket = res.json()["tickets"][0]
     ticket_id = ticket["id"]
 
-    assert ticket["spa_wallet_deduction"] == 170000.0
-    assert _wallet_balance(cid) == 330000.0
+    assert ticket["spa_wallet_deduction"] == 150000.0
+    assert _wallet_balance(cid) == 350000.0
 
     with get_db() as db:
         cur = db.cursor()
@@ -265,5 +265,5 @@ def test_batch_wallet_plus_transfer_remainder():
         assert tuple(cur.fetchone()) == ("wallet", "transfer", bank_id)
 
     rows = _cashbook_rows(ticket_id)
-    assert len(rows) == 1 and rows[0][0] == 199000.0
+    assert len(rows) == 1 and rows[0][0] == 219000.0
     assert rows[0][1] == bank_id, "Thu ngoài của đợt phải vào đúng TK chuyển khoản"

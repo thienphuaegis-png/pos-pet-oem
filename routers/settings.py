@@ -15,7 +15,7 @@ PERM_KEYS = ["pos.sell", "pos.edit_delete_order", "cashbook.manage", "purchases.
              "reports.view", "shifts.approve", "shifts.bypass", "settings.access", "spa.pick_date",
              "payroll.manage"]
 MANAGEABLE_ROLES = ["cashier", "accountant", "warehouse", "staff"]
-MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel", "module_marketplace"]
+MODULE_KEYS = ["module_oem", "module_pet_services", "module_price_lists", "module_hotel", "module_marketplace", "block_negative_stock"]
 
 @router.get("/permissions")
 def get_permissions(user=Depends(require_role("owner"))):
@@ -128,7 +128,7 @@ def get_modules():
     modules = {r["key"]: r["value"] == "1" for r in cur.fetchall()}
     conn.close()
     for k in MODULE_KEYS:
-        modules.setdefault(k, True)
+        modules.setdefault(k, False if k == "block_negative_stock" else True)
     return modules
 
 @router.post("/modules")
@@ -192,6 +192,17 @@ def update_company_settings(req: CompanySettingsUpdate, user=Depends(require_rol
         ('shop_logo', _compress_base64_image(req.shop_logo or "")),
         ('google_drive_webhook_url', req.google_drive_webhook_url or "")
     ]
+    for _opt_key in (
+        'block_negative_stock',
+        'code_prefix_order', 'code_mode_order', 'code_digits_order',
+        'code_prefix_spa', 'code_mode_spa', 'code_digits_spa',
+        'code_prefix_return', 'code_mode_return', 'code_digits_return',
+        'code_prefix_purchase', 'code_mode_purchase', 'code_digits_purchase',
+        'code_prefix_receipt', 'code_prefix_payment', 'code_mode_cashbook', 'code_digits_cashbook',
+    ):
+        _val = getattr(req, _opt_key, None)
+        if _val is not None:
+            updates.append((_opt_key, str(_val).strip()))
     try:
         cur.executemany(
             "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",

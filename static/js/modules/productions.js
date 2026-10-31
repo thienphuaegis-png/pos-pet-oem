@@ -502,10 +502,15 @@
                 // 2. Fetch cashbook data with filters
                 const selectedAcc = filterAccInput ? filterAccInput.value : '';
                 const selectedType = document.getElementById('cashbook-filter-type')?.value || '';
+                const fromDate = document.getElementById('cashbook-filter-from')?.value || '';
+                const toDate = document.getElementById('cashbook-filter-to')?.value || '';
+                const limitVal = (fromDate || toDate) ? 2000 : 150;
                 
-                let query = `/api/cashbook?limit=150&_t=${Date.now()}`;
-                if (selectedAcc) query += `&account_id=${selectedAcc}`;
-                if (selectedType) query += `&type=${selectedType}`;
+                let query = `/api/cashbook?limit=${limitVal}&_t=${Date.now()}`;
+                if (selectedAcc) query += `&account_id=${encodeURIComponent(selectedAcc)}`;
+                if (selectedType) query += `&type=${encodeURIComponent(selectedType)}`;
+                if (fromDate) query += `&from_date=${encodeURIComponent(fromDate)}`;
+                if (toDate) query += `&to_date=${encodeURIComponent(toDate)}`;
 
                 const res = await fetch(query);
                 const data = await res.json();
@@ -628,6 +633,34 @@
                 selectCashbookAcc('', 'Tất cả tài khoản / quỹ', '', '', 0);
             }
         }
+
+        function clearCashbookDateFilter() {
+            const f = document.getElementById('cashbook-filter-from');
+            const t = document.getElementById('cashbook-filter-to');
+            if (f) f.value = '';
+            if (t) t.value = '';
+            loadCashbook();
+        }
+        window.clearCashbookDateFilter = clearCashbookDateFilter;
+
+        function exportCashbookExcel() {
+            const selectedAcc = document.getElementById('cashbook-filter-account')?.value || '';
+            const selectedType = document.getElementById('cashbook-filter-type')?.value || '';
+            const fromDate = document.getElementById('cashbook-filter-from')?.value || '';
+            const toDate = document.getElementById('cashbook-filter-to')?.value || '';
+            const searchKw = (document.getElementById('cashbook-filter-search')?.value || '').trim();
+
+            const params = new URLSearchParams();
+            if (selectedAcc) params.append('account_id', selectedAcc);
+            if (selectedType) params.append('type', selectedType);
+            if (fromDate) params.append('from_date', fromDate);
+            if (toDate) params.append('to_date', toDate);
+            if (searchKw) params.append('query', searchKw);
+
+            const tag = (fromDate || toDate) ? `${fromDate || 'TuDau'}_${toDate || 'DenNay'}` : 'TatCa';
+            downloadWithAuth(`/api/cashbook/export-excel?${params.toString()}`, `Danh_Sach_Phieu_Thu_Chi_${tag}.xlsx`);
+        }
+        window.exportCashbookExcel = exportCashbookExcel;
 
         let currentViewedCashbookItem = null;
         let currentViewedPetTicketId = null;
@@ -2996,8 +3029,167 @@
             }
             const driveEl = document.getElementById('comp-drive-webhook-url');
             if (driveEl) driveEl.value = currentSettings.google_drive_webhook_url || '';
+
+            const bnsChk = document.getElementById('comp-block-negative-stock');
+            if (bnsChk) bnsChk.checked = (currentSettings.block_negative_stock === '1' || currentSettings.block_negative_stock === true);
+
+            const setValIf = (id, val, defVal) => {
+                const el = document.getElementById(id);
+                if (el) el.value = (val !== undefined && val !== null && String(val).trim() !== '') ? val : defVal;
+            };
+            setValIf('comp-code-prefix-order', currentSettings.code_prefix_order, 'HD');
+            setValIf('comp-code-mode-order', currentSettings.code_mode_order, 'seq');
+            setValIf('comp-code-digits-order', currentSettings.code_digits_order, '6');
+
+            setValIf('comp-code-prefix-spa', currentSettings.code_prefix_spa, 'GS-');
+            setValIf('comp-code-mode-spa', currentSettings.code_mode_spa, 'seq');
+            setValIf('comp-code-digits-spa', currentSettings.code_digits_spa, '5');
+
+            setValIf('comp-code-prefix-return', currentSettings.code_prefix_return, 'RET');
+            setValIf('comp-code-mode-return', currentSettings.code_mode_return, 'date_seq');
+            setValIf('comp-code-digits-return', currentSettings.code_digits_return, '4');
+
+            setValIf('comp-code-prefix-purchase', currentSettings.code_prefix_purchase, 'PN');
+            setValIf('comp-code-mode-purchase', currentSettings.code_mode_purchase, 'seq');
+            setValIf('comp-code-digits-purchase', currentSettings.code_digits_purchase, '6');
+
+            setValIf('comp-code-prefix-receipt', currentSettings.code_prefix_receipt, 'PT');
+            setValIf('comp-code-prefix-payment', currentSettings.code_prefix_payment, 'PC');
+            setValIf('comp-code-mode-cashbook', currentSettings.code_mode_cashbook, 'date_seq');
+            setValIf('comp-code-digits-cashbook', currentSettings.code_digits_cashbook, '3');
+
+            window.currentSettings = currentSettings;
+            if (typeof posSettings === 'object' && posSettings) {
+                Object.assign(posSettings, currentSettings);
+            }
+            updateAllDocCodePreviews();
+
             toggleQRModeUI();
         }
+
+        function formatSingleDocCodePreview(prefix, mode, digits, sampleSeq = 1, isReturn = false) {
+            const pfx = (prefix || '').trim();
+            const d = Math.max(2, Math.min(parseInt(digits) || 4, 10));
+            const now = new Date();
+            const yy = String(now.getFullYear()).slice(-2);
+            const yyyy = String(now.getFullYear());
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mi = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+
+            if (mode === 'datetime') {
+                return `${pfx}${yy}${mm}${dd}${hh}${mi}${ss}`;
+            }
+            if (mode === 'date_seq') {
+                const cleanPfx = pfx.replace(/-+$/, '');
+                const datePart = (isReturn && cleanPfx.toUpperCase() === 'RET') ? `${yyyy}${mm}${dd}` : `${yy}${mm}${dd}`;
+                return `${cleanPfx}-${datePart}-${String(sampleSeq).padStart(d, '0')}`;
+            }
+            // mode === 'seq'
+            return `${pfx}${String(sampleSeq).padStart(d, '0')}`;
+        }
+
+        function updateAllDocCodePreviews() {
+            const rows = [
+                { key: 'order', defPfx: 'HD', sampleNext: 208231 },
+                { key: 'spa', defPfx: 'GS-', sampleNext: 24565 },
+                { key: 'return', defPfx: 'RET', sampleNext: 1, isReturn: true },
+                { key: 'purchase', defPfx: 'PN', sampleNext: 1 },
+            ];
+            rows.forEach(r => {
+                const pfx = document.getElementById(`comp-code-prefix-${r.key}`)?.value || r.defPfx;
+                const mode = document.getElementById(`comp-code-mode-${r.key}`)?.value || 'seq';
+                const digInput = document.getElementById(`comp-code-digits-${r.key}`);
+                const digits = digInput?.value || 6;
+                if (digInput) {
+                    digInput.disabled = (mode === 'datetime');
+                    digInput.classList.toggle('opacity-40', mode === 'datetime');
+                    digInput.classList.toggle('bg-slate-100', mode === 'datetime');
+                }
+                const prevEl = document.getElementById(`comp-code-preview-${r.key}`);
+                if (prevEl) {
+                    const ex1 = formatSingleDocCodePreview(pfx, mode, digits, 1, r.isReturn);
+                    const exNext = (mode === 'seq' && r.sampleNext > 1)
+                        ? ` <span class="text-slate-400">→</span> <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">${formatSingleDocCodePreview(pfx, mode, digits, r.sampleNext, r.isReturn)}</span>`
+                        : '';
+                    prevEl.innerHTML = `<span class="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-bold">${ex1}</span>${exNext}`;
+                }
+            });
+
+            // Cashbook (PT / PC)
+            const ptPfx = document.getElementById('comp-code-prefix-receipt')?.value || 'PT';
+            const pcPfx = document.getElementById('comp-code-prefix-payment')?.value || 'PC';
+            const cbMode = document.getElementById('comp-code-mode-cashbook')?.value || 'date_seq';
+            const cbDigInput = document.getElementById('comp-code-digits-cashbook');
+            const cbDigits = cbDigInput?.value || 3;
+            if (cbDigInput) {
+                cbDigInput.disabled = (cbMode === 'datetime');
+                cbDigInput.classList.toggle('opacity-40', cbMode === 'datetime');
+                cbDigInput.classList.toggle('bg-slate-100', cbMode === 'datetime');
+            }
+            const cbPrevEl = document.getElementById('comp-code-preview-cashbook');
+            if (cbPrevEl) {
+                const ptEx = formatSingleDocCodePreview(cbMode === 'date_seq' ? `${ptPfx}-BH` : `${ptPfx}-`, cbMode, cbDigits, 1);
+                const pcEx = formatSingleDocCodePreview(cbMode === 'date_seq' ? `${pcPfx}-NH` : `${pcPfx}-`, cbMode, cbDigits, 1);
+                cbPrevEl.innerHTML = `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">${ptEx}</span> <span class="text-slate-400">/</span> <span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold">${pcEx}</span>`;
+            }
+        }
+        window.updateAllDocCodePreviews = updateAllDocCodePreviews;
+
+        async function onToggleBlockNegativeStockSetting(checkboxEl) {
+            if (!checkboxEl) return;
+            const nextEnabled = Boolean(checkboxEl.checked);
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: nextEnabled ? 'Xác nhận BẬT Chặn Bán Âm Sản Phẩm' : 'Xác nhận TẮT Chặn Bán Âm Sản Phẩm',
+                    message: nextEnabled
+                        ? 'Bạn có chắc chắn muốn BẬT chế độ Không cho phép bán âm sản phẩm trên màn hình POS?'
+                        : 'Bạn có chắc chắn muốn TẮT chế độ chặn bán âm (cho phép bán vượt tồn kho)?',
+                    subMessage: nextEnabled
+                        ? 'Khi bật: Thu ngân vẫn thêm được sản phẩm vào giỏ hàng, nhưng khi bấm Thanh Toán hệ thống sẽ kiểm tra và chặn nếu sản phẩm không đủ tồn kho.'
+                        : 'Khi tắt: Thu ngân có thể thanh toán hóa đơn ngay cả khi tồn kho trên máy bằng 0.',
+                    confirmText: nextEnabled ? '🛡️ Xác nhận BẬT' : 'Xác nhận TẮT',
+                    cancelText: 'Hủy bỏ',
+                    type: nextEnabled ? 'warning' : 'info',
+                    icon: '🛡️'
+                })
+                : confirm(nextEnabled ? 'Xác nhận BẬT chặn bán âm sản phẩm trên POS?' : 'Xác nhận TẮT chặn bán âm sản phẩm trên POS?');
+
+            if (!confirmed) {
+                checkboxEl.checked = !nextEnabled;
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/modules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'block_negative_stock', enabled: nextEnabled })
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    checkboxEl.checked = !nextEnabled;
+                    alert(err.detail || 'Lỗi lưu cài đặt chặn bán âm');
+                    return;
+                }
+                const valStr = nextEnabled ? '1' : '0';
+                currentSettings.block_negative_stock = valStr;
+                window.currentSettings = currentSettings;
+                window.posBlockNegativeStock = nextEnabled;
+                if (typeof posSettings === 'object' && posSettings) {
+                    posSettings.block_negative_stock = valStr;
+                }
+                if (window.showToast) {
+                    window.showToast(nextEnabled ? '🛡️ Đã BẬT chế độ Không cho phép bán âm sản phẩm!' : 'Đã TẮT chế độ chặn bán âm sản phẩm.', 'success');
+                }
+            } catch (e) {
+                checkboxEl.checked = !nextEnabled;
+                alert('Lỗi kết nối máy chủ khi lưu cài đặt');
+            }
+        }
+        window.onToggleBlockNegativeStockSetting = onToggleBlockNegativeStockSetting;
 
         async function saveDriveWebhookSetting() {
             const webhookUrl = (document.getElementById('comp-drive-webhook-url')?.value || '').trim();
@@ -3118,6 +3310,18 @@
         }
 
         async function saveCompanySettings() {
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xác Nhận Lưu Cấu Hình Hệ Thống',
+                    message: 'Bạn có chắc chắn muốn lưu các thay đổi Thông tin doanh nghiệp, Chặn bán âm và Quy tắc đánh mã chứng từ không?',
+                    confirmText: '💾 Xác Nhận Lưu',
+                    cancelText: 'Xem lại',
+                    type: 'info',
+                    icon: '⚙️'
+                })
+                : confirm('Bạn có chắc chắn muốn lưu cấu hình này không?');
+            if (!confirmed) return;
+
             const logoImg = document.getElementById('comp-logo-preview');
             const appName = (document.getElementById('comp-app-name')?.value || '').trim() || '⚡ POS Offline';
             const webhookUrl = (document.getElementById('comp-drive-webhook-url')?.value || '').trim();
@@ -3133,7 +3337,24 @@
                 shop_qr_mode: currentSettings.shop_qr_mode || 'vietqr',
                 shop_qr_image: currentSettings.shop_qr_image || '',
                 shop_logo: (logoImg && !logoImg.classList.contains('hidden')) ? logoImg.src : '',
-                google_drive_webhook_url: webhookUrl
+                google_drive_webhook_url: webhookUrl,
+                block_negative_stock: document.getElementById('comp-block-negative-stock')?.checked ? '1' : '0',
+                code_prefix_order: (document.getElementById('comp-code-prefix-order')?.value || 'HD').trim(),
+                code_mode_order: document.getElementById('comp-code-mode-order')?.value || 'seq',
+                code_digits_order: parseInt(document.getElementById('comp-code-digits-order')?.value || '6') || 6,
+                code_prefix_spa: (document.getElementById('comp-code-prefix-spa')?.value || 'GS-').trim(),
+                code_mode_spa: document.getElementById('comp-code-mode-spa')?.value || 'seq',
+                code_digits_spa: parseInt(document.getElementById('comp-code-digits-spa')?.value || '5') || 5,
+                code_prefix_return: (document.getElementById('comp-code-prefix-return')?.value || 'RET').trim(),
+                code_mode_return: document.getElementById('comp-code-mode-return')?.value || 'date_seq',
+                code_digits_return: parseInt(document.getElementById('comp-code-digits-return')?.value || '4') || 4,
+                code_prefix_purchase: (document.getElementById('comp-code-prefix-purchase')?.value || 'PN').trim(),
+                code_mode_purchase: document.getElementById('comp-code-mode-purchase')?.value || 'seq',
+                code_digits_purchase: parseInt(document.getElementById('comp-code-digits-purchase')?.value || '6') || 6,
+                code_prefix_receipt: (document.getElementById('comp-code-prefix-receipt')?.value || 'PT').trim(),
+                code_prefix_payment: (document.getElementById('comp-code-prefix-payment')?.value || 'PC').trim(),
+                code_mode_cashbook: document.getElementById('comp-code-mode-cashbook')?.value || 'date_seq',
+                code_digits_cashbook: parseInt(document.getElementById('comp-code-digits-cashbook')?.value || '3') || 3
             };
             const res = await fetch('/api/settings/company', {
                 method: 'POST',
@@ -3141,6 +3362,12 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
+                currentSettings = { ...currentSettings, ...payload };
+                window.currentSettings = currentSettings;
+                window.posBlockNegativeStock = (payload.block_negative_stock === '1');
+                if (typeof posSettings === 'object' && posSettings) {
+                    Object.assign(posSettings, payload);
+                }
                 try {
                     localStorage.setItem('pos_custom_branding_v1', JSON.stringify({
                         app_name: appName,
@@ -5656,12 +5883,34 @@
             currentReturnItems[idx].reason = (reason || '').trim();
         }
 
+        function isExchangeableRetailProduct(p) {
+            if (!p) return false;
+            const pType = String(p.type || '').toLowerCase();
+            if (pType === 'material' || pType === 'service') return false;
+            if (pType !== 'product' && pType !== 'combo') return false;
+            const code = String(p.code || '').trim().toUpperCase();
+            if (code.startsWith('NL-') || code.startsWith('NL_')) return false;
+            const cat = String(p.category || '').trim().toLowerCase();
+            if (cat.includes('nguyên liệu') || cat.includes('dịch vụ') || cat.includes('khách sạn') || cat.includes('vận chuyển')) return false;
+            if (typeof allIngredients !== 'undefined' && Array.isArray(allIngredients) && allIngredients.length > 0) {
+                const isIng = allIngredients.some(ing =>
+                    (ing.code && p.code && String(ing.code).trim().toUpperCase() === code) ||
+                    (ing.name && p.name && String(ing.name).trim().toLowerCase() === String(p.name).trim().toLowerCase())
+                );
+                if (isIng) return false;
+            }
+            return true;
+        }
+
         async function loadReturnProductsCache() {
-            if (returnProductsCache && returnProductsCache.length > 0) return returnProductsCache;
+            if (returnProductsCache && returnProductsCache.length > 0) {
+                return returnProductsCache.filter(isExchangeableRetailProduct);
+            }
             try {
-                const res = await fetch('/api/products');
+                const res = await fetch('/api/products?_t=' + Date.now());
                 if (res.ok) {
-                    returnProductsCache = await res.json();
+                    const raw = await res.json();
+                    returnProductsCache = Array.isArray(raw) ? raw.filter(isExchangeableRetailProduct) : [];
                     return returnProductsCache;
                 }
             } catch (e) {
@@ -5673,16 +5922,42 @@
         async function handleReturnSearchInput(query) {
             const dd = document.getElementById('return-search-dropdown');
             const clearBtn = document.getElementById('return-search-clear');
-            if (!query || !query.trim()) {
-                if (dd) dd.classList.add('hidden');
+            const products = await loadReturnProductsCache();
+            const q = (query || '').trim().toLowerCase();
+            if (!q) {
                 if (clearBtn) clearBtn.classList.add('hidden');
+                if (!dd) return;
+                const suggestions = products.slice(0, 12);
+                if (suggestions.length === 0) {
+                    dd.classList.add('hidden');
+                    return;
+                }
+                dd.innerHTML = `<div class="px-3 py-1.5 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-600">Gợi ý hàng hóa đổi mới (Chỉ hàng hóa bán lẻ)</div>` + suggestions.map(p => {
+                    const priceFmt = (typeof formatMoney === 'function') ? formatMoney(p.sell_price) : (p.sell_price || 0).toLocaleString('vi-VN') + ' đ';
+                    const stockBadge = Number(p.stock || 0) <= 0
+                        ? `<span class="text-xs text-rose-600 font-bold block">⚠️ Tồn kho = 0 (${p.unit || ''})</span>`
+                        : `<span class="text-xs text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>`;
+                    return `
+                        <div class="px-3 py-2 hover:bg-sky-50 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0"
+                             onclick="addExchangeItem(${p.id})">
+                            <div>
+                                <span class="font-bold text-slate-800">${p.name}</span>
+                                <span class="text-xs text-gray-500 ml-1.5 font-mono">(${p.code || ''})</span>
+                                ${stockBadge}
+                            </div>
+                            <div class="font-mono font-bold text-sky-600 text-right">${priceFmt}</div>
+                        </div>
+                    `;
+                }).join('');
+                dd.classList.remove('hidden');
                 return;
             }
             if (clearBtn) clearBtn.classList.remove('hidden');
 
-            const products = await loadReturnProductsCache();
-            const q = query.trim().toLowerCase();
             const matches = products.filter(p => {
+                if (typeof fuzzyMatch === 'function') {
+                    return fuzzyMatch(q, `${p.name || ''} ${p.code || ''}`);
+                }
                 const name = (p.name || '').toLowerCase();
                 const code = (p.code || '').toLowerCase();
                 return name.includes(q) || code.includes(q);
@@ -5690,20 +5965,23 @@
 
             if (!dd) return;
             if (matches.length === 0) {
-                dd.innerHTML = '<div class="p-3 text-center text-gray-400 text-xs">Không tìm thấy sản phẩm phù hợp</div>';
+                dd.innerHTML = '<div class="p-3 text-center text-gray-400 text-xs">Không tìm thấy hàng hóa phù hợp</div>';
                 dd.classList.remove('hidden');
                 return;
             }
 
             dd.innerHTML = matches.map(p => {
                 const priceFmt = (typeof formatMoney === 'function') ? formatMoney(p.sell_price) : (p.sell_price || 0).toLocaleString('vi-VN') + ' đ';
+                const stockBadge = Number(p.stock || 0) <= 0
+                    ? `<span class="text-xs text-rose-600 font-bold block">⚠️ Tồn kho = 0 (${p.unit || ''})</span>`
+                    : `<span class="text-xs text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>`;
                 return `
                     <div class="px-3 py-2 hover:bg-sky-50 cursor-pointer flex justify-between items-center border-b border-slate-100 last:border-b-0"
                          onclick="addExchangeItem(${p.id})">
                         <div>
                             <span class="font-bold text-slate-800">${p.name}</span>
                             <span class="text-xs text-gray-500 ml-1.5 font-mono">(${p.code || ''})</span>
-                            <span class="text-xs text-emerald-600 block">Kho: ${p.stock ?? '-'} ${p.unit || ''}</span>
+                            ${stockBadge}
                         </div>
                         <div class="font-mono font-bold text-sky-600 text-right">${priceFmt}</div>
                     </div>
@@ -5866,8 +6144,220 @@
         window.syncReturnAccountRow = syncReturnAccountRow;
         document.addEventListener('change', e => { if (e.target && e.target.id === 'return-modal-payment-method') syncReturnAccountRow(); });
 
-        async function submitOrderReturn() {
-            if (!currentReturnOrder) return;
+        async function openPOSQuickReturnModal() {
+            currentReturnOrder = null;
+            currentReturnItems = [];
+            currentExchangeItems = [];
+            returnProductsCache = null;
+
+            const codeEl = document.getElementById('return-modal-order-code');
+            if (codeEl) codeEl.textContent = 'Chưa chọn HĐ';
+            const custEl = document.getElementById('return-modal-cust-name');
+            if (custEl) custEl.textContent = 'Vui lòng tìm & chọn hóa đơn gốc bên dưới';
+
+            const pickerWrap = document.getElementById('return-modal-order-picker-wrap');
+            if (pickerWrap) pickerWrap.classList.remove('hidden');
+            const pickerInput = document.getElementById('return-modal-order-picker-input');
+            let defaultQ = '';
+            if (typeof getActiveTab === 'function') {
+                const activeTab = getActiveTab();
+                if (activeTab && activeTab.customer && activeTab.customer.id !== 1) {
+                    defaultQ = activeTab.customer.phone || activeTab.customer.name || '';
+                }
+            }
+            if (pickerInput) pickerInput.value = defaultQ;
+
+            renderReturnItems();
+            renderExchangeItems();
+            updateReturnSummary();
+
+            document.getElementById('modal-order-return-exchange')?.classList.remove('hidden');
+            await searchOrdersForQuickReturn(defaultQ);
+            setTimeout(() => pickerInput?.focus(), 60);
+        }
+        window.openPOSQuickReturnModal = openPOSQuickReturnModal;
+
+        async function searchOrdersForQuickReturn(query = '') {
+            const listEl = document.getElementById('return-modal-order-picker-list');
+            if (!listEl) return;
+            listEl.innerHTML = `<div class="p-2 text-center text-xs text-slate-400">⏳ Đang tìm hóa đơn...</div>`;
+            try {
+                const q = (query || '').trim();
+                const url = `/api/orders?page=1&page_size=12` + (q ? `&query=${encodeURIComponent(q)}` : '');
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Không tải được danh sách hóa đơn');
+                const data = await res.json();
+                const items = Array.isArray(data) ? data : (data.items || []);
+                if (items.length === 0) {
+                    listEl.innerHTML = `<div class="p-3 text-center text-xs text-slate-400">Không tìm thấy hóa đơn nào khớp "${q}"</div>`;
+                    return;
+                }
+                listEl.classList.remove('hidden');
+                listEl.innerHTML = items.map(o => {
+                    const amtFmt = (typeof formatMoney === 'function') ? formatMoney(o.final_amount || 0) : Number(o.final_amount || 0).toLocaleString('vi-VN') + ' đ';
+                    const dtStr = o.created_at ? String(o.created_at).slice(0, 16) : '';
+                    return `
+                        <div onclick="selectOrderForQuickReturn('${o.code}')" class="px-3 py-2 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-b-0 flex items-center justify-between text-xs transition">
+                            <div>
+                                <span class="font-mono font-bold text-sky-700">${o.code}</span>
+                                <span class="font-semibold text-slate-800 ml-2">${o.customer_name || 'Khách lẻ'}</span>
+                                ${o.customer_phone ? `<span class="text-slate-500 font-mono ml-1">(${o.customer_phone})</span>` : ''}
+                                <span class="text-slate-400 ml-2">${dtStr}</span>
+                            </div>
+                            <div class="font-mono font-bold text-emerald-700">${amtFmt}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                listEl.innerHTML = `<div class="p-2 text-center text-xs text-rose-500">Lỗi tải danh sách hóa đơn</div>`;
+            }
+        }
+        window.searchOrdersForQuickReturn = searchOrdersForQuickReturn;
+
+        async function selectOrderForQuickReturn(orderCode) {
+            const listEl = document.getElementById('return-modal-order-picker-list');
+            if (listEl) listEl.classList.add('hidden');
+            await openModalOrderReturn(orderCode);
+        }
+        window.selectOrderForQuickReturn = selectOrderForQuickReturn;
+
+        async function printOrderReturnReceipt(returnCode) {
+            if (!returnCode) return;
+            try {
+                const res = await fetch(`/api/pos/returns/${encodeURIComponent(returnCode)}`);
+                if (!res.ok) {
+                    if (window.showToast) window.showToast('Không tải được thông tin phiếu đổi trả để in!', 'warning');
+                    return;
+                }
+                const ret = await res.json();
+                const shopName = (window.posSettings && (window.posSettings.shop_name || window.posSettings.company_name)) || 'PET NHA TRANG - POS';
+                const shopPhone = (window.posSettings && window.posSettings.shop_phone) || '';
+                const shopAddr = (window.posSettings && window.posSettings.shop_address) || '';
+                const fmt = (v) => Number(v || 0).toLocaleString('vi-VN') + ' đ';
+                const methodLabel = {
+                    cash: 'Tiền mặt',
+                    transfer: 'Chuyển khoản',
+                    debt: 'Trừ công nợ',
+                    wallet: 'Hoàn vào Ví Spa'
+                }[ret.refund_method] || ret.refund_method || 'Tiền mặt';
+
+                const retRows = (ret.return_items || []).map((it, idx) => `
+                    <tr>
+                        <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;">${idx + 1}. ${it.product_name || ''}</td>
+                        <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:center;">${it.quantity}</td>
+                        <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:right;">${fmt(it.return_price)}</td>
+                        <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:right;font-weight:700;">${fmt((it.quantity || 0) * (it.return_price || 0))}</td>
+                    </tr>
+                `).join('');
+
+                const excItems = ret.exchange_items || [];
+                const excSection = excItems.length > 0 ? `
+                    <div style="margin-top:10px;font-weight:700;font-size:12px;border-bottom:1px solid #000;padding-bottom:2px;">II. HÀNG ĐỔI MỚI (${ret.exchange_order_code || ''})</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #000;">
+                                <th style="text-align:left;padding:3px 2px;">Tên SP</th>
+                                <th style="text-align:center;padding:3px 2px;">SL</th>
+                                <th style="text-align:right;padding:3px 2px;">Đ.Giá</th>
+                                <th style="text-align:right;padding:3px 2px;">T.Tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${excItems.map((it, idx) => `
+                                <tr>
+                                    <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;">${idx + 1}. ${it.product_name || ''}</td>
+                                    <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:center;">${it.quantity}</td>
+                                    <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:right;">${fmt(it.price)}</td>
+                                    <td style="padding:4px 2px;border-bottom:1px dashed #cbd5e1;text-align:right;font-weight:700;">${fmt(it.subtotal || ((it.quantity || 0) * (it.price || 0)))}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                ` : '';
+
+                const diff = Number(ret.diff_amount || 0);
+                const diffTitle = diff > 0 ? 'Khách trả thêm:' : (diff < 0 ? 'Hoàn lại khách:' : 'Chênh lệch:');
+                const diffVal = diff > 0 ? `+${fmt(diff)}` : (diff < 0 ? `-${fmt(Math.abs(diff))}` : '0 đ');
+
+                const html = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>Phiếu Đổi Trả ${ret.code}</title>
+                        <style>
+                            @page { size: 80mm auto; margin: 3mm; }
+                            body { font-family: Arial, sans-serif; width: 74mm; margin: 0 auto; color: #000; font-size: 12px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:6px;margin-bottom:6px;">
+                            <div style="font-weight:800;font-size:14px;text-transform:uppercase;">${shopName}</div>
+                            ${shopAddr ? `<div style="font-size:11px;">${shopAddr}</div>` : ''}
+                            ${shopPhone ? `<div style="font-size:11px;">SĐT: ${shopPhone}</div>` : ''}
+                            <div style="font-weight:800;font-size:14px;margin-top:6px;">HÓA ĐƠN ĐỔI / TRẢ HÀNG</div>
+                            <div style="font-size:11px;">Mã phiếu: <b>${ret.code}</b> • HĐ gốc: <b>${ret.original_order_code || ''}</b></div>
+                            <div style="font-size:11px;">Ngày: ${ret.created_at || ''}</div>
+                        </div>
+                        <div style="font-size:11px;margin-bottom:6px;">
+                            <div>Khách hàng: <b>${ret.customer_name || 'Khách lẻ'}</b> ${ret.customer_phone ? `(${ret.customer_phone})` : ''}</div>
+                            <div>Nhân viên: ${ret.staff_name || 'Quản trị viên'}</div>
+                        </div>
+                        <div style="font-weight:700;font-size:12px;border-bottom:1px solid #000;padding-bottom:2px;">I. HÀNG TRẢ LẠI</div>
+                        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:4px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #000;">
+                                    <th style="text-align:left;padding:3px 2px;">Tên SP</th>
+                                    <th style="text-align:center;padding:3px 2px;">SL</th>
+                                    <th style="text-align:right;padding:3px 2px;">Giá hoàn</th>
+                                    <th style="text-align:right;padding:3px 2px;">T.Tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>${retRows}</tbody>
+                        </table>
+                        ${excSection}
+                        <div style="border-top:1px solid #000;margin-top:8px;padding-top:6px;font-size:12px;">
+                            <div style="display:flex;justify-content:space-between;"><span>Tổng tiền hàng trả:</span><b>${fmt(ret.return_total)}</b></div>
+                            <div style="display:flex;justify-content:space-between;margin-top:2px;"><span>Tổng tiền hàng đổi mới:</span><b>${fmt(ret.exchange_total)}</b></div>
+                            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:13px;font-weight:800;border-top:1px dashed #000;padding-top:4px;">
+                                <span>${diffTitle}</span><span>${diffVal}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:11px;">
+                                <span>Phương thức:</span><b>${methodLabel}</b>
+                            </div>
+                            ${ret.note ? `<div style="margin-top:4px;font-size:11px;">Ghi chú: ${ret.note}</div>` : ''}
+                        </div>
+                        <div style="text-align:center;margin-top:12px;font-size:11px;font-style:italic;">Cảm ơn quý khách và hẹn gặp lại!</div>
+                    </body>
+                    </html>
+                `;
+                let iframe = document.getElementById('pos-return-print-iframe');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'pos-return-print-iframe';
+                    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+                    document.body.appendChild(iframe);
+                }
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(html);
+                doc.close();
+                setTimeout(() => {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }, 180);
+            } catch (e) {
+                console.error('printOrderReturnReceipt error:', e);
+            }
+        }
+        window.printOrderReturnReceipt = printOrderReturnReceipt;
+
+        async function submitOrderReturn(shouldPrint = true) {
+            if (!currentReturnOrder) {
+                if (window.showToast) window.showToast('Vui lòng chọn hóa đơn gốc cần đổi/trả trước!', 'warning');
+                else alert('Vui lòng chọn hóa đơn gốc cần đổi/trả trước!');
+                return;
+            }
             const selectedReturns = currentReturnItems.filter(it => (it.return_qty || 0) > 0);
             if (selectedReturns.length === 0) {
                 if (window.showToast) window.showToast('Vui lòng nhập số lượng trả cho ít nhất 1 sản phẩm!', 'warning');
@@ -5926,6 +6416,14 @@
                 }
 
                 closeModalOrderReturn();
+
+                if (typeof window.refreshPOSProducts === 'function') {
+                    window.refreshPOSProducts();
+                }
+
+                if (shouldPrint && data && data.code) {
+                    printOrderReturnReceipt(data.code);
+                }
 
                 if (typeof loadOrdersList === 'function') {
                     await loadOrdersList();
@@ -5990,6 +6488,9 @@
                         alert(`Đã xóa hóa đơn [${code}] thành công!`);
                     }
                     await loadOrdersList();
+                    if (typeof window.refreshPOSProducts === 'function') {
+                        window.refreshPOSProducts();
+                    }
                 } else {
                     const err = await res.json();
                     if (window.showToast) {
