@@ -53,3 +53,5 @@ id_rsa*
 .ua/
 .superpowers/
 .hermes/
+.vercel
+.env*

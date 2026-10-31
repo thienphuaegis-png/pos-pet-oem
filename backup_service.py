@@ -52,11 +52,13 @@ def run_backup_once():
         return
 
     ts = datetime.now().strftime("%Y%m%d_%H%M")
+    db_stem = os.path.splitext(os.path.basename(src))[0]
+    prefix_tag = "" if db_stem == "pos" else f"{db_stem}_"
 
     # Lop 1: local rotating backup
     try:
         local_dir = _local_backup_dir()
-        local_file = os.path.join(local_dir, f"auto_{ts}.db")
+        local_file = os.path.join(local_dir, f"auto_{prefix_tag}{ts}.db")
         _safe_sqlite_copy(src, local_file)
         logger.info(f"Backup local thanh cong: {local_file}")
         _cleanup_old_local_backups(local_dir)
@@ -66,7 +68,7 @@ def run_backup_once():
     # Lop 2: cloud backup (Google Drive Desktop) - ten file luon moi, khong bao gio ghi de/xoa
     try:
         if os.path.isdir(CLOUD_BACKUP_DIR):
-            cloud_file = os.path.join(CLOUD_BACKUP_DIR, f"cloud_{ts}.db")
+            cloud_file = os.path.join(CLOUD_BACKUP_DIR, f"cloud_{prefix_tag}{ts}.db")
             _safe_sqlite_copy(src, cloud_file)
             logger.info(f"Backup cloud thanh cong: {cloud_file}")
         else:

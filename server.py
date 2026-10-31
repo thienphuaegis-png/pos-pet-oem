@@ -149,11 +149,12 @@ init_db()
 if not os.environ.get("VERCEL") and not os.environ.get("POS_DISABLE_BACKGROUND"):
     from backup_service import start_backup_scheduler
     start_backup_scheduler()
-    try:
-        from services.telegram_bot import start_telegram_bot_service
-        start_telegram_bot_service()
-    except Exception as e:
-        logger.error(f"Khởi động Telegram Bot Service thất bại: {e}")
+    if os.environ.get("POS_SIBLING_MODE") != "1":
+        try:
+            from services.telegram_bot import start_telegram_bot_service
+            start_telegram_bot_service()
+        except Exception as e:
+            logger.error(f"Khởi động Telegram Bot Service thất bại: {e}")
 
 # Mount static files
 def find_resource_path(relative_path: str) -> str:
@@ -287,7 +288,8 @@ def apply_system_update(user=Depends(require_role("owner", "admin"))):
     # 2. Ngược lại (Linux/Docker/Server Cloud), chạy trực tiếp git pull & migration
     try:
         # Bước A: Backup database
-        db_path = root_dir / "data" / "pos.db"
+        from database import get_db_path
+        db_path = Path(get_db_path())
         if db_path.exists():
             backup_dir = root_dir / "data" / "backups"
             backup_dir.mkdir(parents=True, exist_ok=True)
@@ -382,8 +384,44 @@ async def client_log(request: Request, user=Depends(get_current_user)):
 def favicon():
     return Response(status_code=204)
 
+_live_tunnel_cache = {"url": "", "checked_at": 0.0}
+
+def get_active_live_tunnel_url() -> str:
+    """Trên Vercel: kiểm tra xem máy chủ Local (8998 / 8997) có đang bật Cloudflare Tunnel không."""
+    if not os.environ.get("VERCEL"):
+        return ""
+    now = time.time()
+    if now - _live_tunnel_cache["checked_at"] < 15.0:
+        return _live_tunnel_cache["url"]
+    tunnel_url = ""
+    try:
+        from database import get_db
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM settings WHERE key = 'live_tunnel_url'")
+        row = cur.fetchone()
+        conn.close()
+        candidate = (row[0] if row else "") or ""
+        candidate = str(candidate).strip().rstrip("/")
+        if candidate.startswith("https://") and ".trycloudflare.com" in candidate:
+            import urllib.request
+            req = urllib.request.Request(f"{candidate}/api/ping", headers={"User-Agent": "POS-Tunnel-Check"})
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                if resp.status == 200:
+                    tunnel_url = candidate
+    except Exception:
+        tunnel_url = ""
+    _live_tunnel_cache["url"] = tunnel_url
+    _live_tunnel_cache["checked_at"] = now
+    return tunnel_url
+
 @app.get("/", response_class=HTMLResponse)
-def index():
+def index(request: Request = None):
+    if request is not None and request.query_params.get("cloud") != "1":
+        live_tunnel = get_active_live_tunnel_url()
+        if live_tunnel:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url=live_tunnel, status_code=307)
     path = get_template_path()
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:

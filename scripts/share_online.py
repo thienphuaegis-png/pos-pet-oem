@@ -53,40 +53,58 @@ def is_server_running(port=None):
         except Exception:
             return False
 
-def ensure_server_running(port=None, db_path=None):
+def ensure_server_running(port=None, db_path=None, sibling=False, headless=True):
     target_port = port if port is not None else PORT
     if is_server_running(target_port):
         print(f"✅ Máy chủ POS đang hoạt động tại http://127.0.0.1:{target_port}")
         return True
 
     print(f"⚠️ Phát hiện máy chủ POS (cổng {target_port}) chưa được bật.")
-    print(f"🚀 Đang tự động khởi động máy chủ POS trên cổng {target_port}...")
+    print(f"🚀 Đang tự động khởi động máy chủ POS ngầm trên cổng {target_port}...")
 
     env = os.environ.copy()
     env["POS_PORT"] = str(target_port)
     if db_path:
         env["POS_DB_PATH"] = os.path.abspath(db_path)
+    if sibling:
+        env["POS_SIBLING_MODE"] = "1"
 
     python_exe = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
     if not os.path.exists(python_exe):
         python_exe = sys.executable
     main_py = os.path.join(BASE_DIR, "main.py")
-    subprocess.Popen(
-        f'start "POS SERVER (PORT {target_port})" "{python_exe}" "{main_py}"',
-        shell=True,
-        env=env,
-        cwd=BASE_DIR,
-    )
+
+    if headless and os.name == "nt":
+        log_dir = os.path.join(BASE_DIR, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        out_log = open(os.path.join(log_dir, f"server_{target_port}.log"), "a", encoding="utf-8", errors="replace")
+        creationflags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(
+            [python_exe, main_py],
+            env=env,
+            cwd=BASE_DIR,
+            stdout=out_log,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    else:
+        subprocess.Popen(
+            f'start "POS SERVER (PORT {target_port})" "{python_exe}" "{main_py}"',
+            shell=True,
+            env=env,
+            cwd=BASE_DIR,
+        )
 
     # Đợi server lên trong tối đa 15 giây
     for i in range(15):
         time.sleep(1)
         if is_server_running(target_port):
-            print(f"✅ Máy chủ POS đã khởi động thành công sau {i+1} giây!")
+            print(f"✅ Máy chủ POS (cổng {target_port}) đã khởi động thành công sau {i+1} giây!")
             return True
-        print(f"   Đang chờ máy chủ sẵn sàng... ({i+1}s)")
+        print(f"   Đang chờ máy chủ cổng {target_port} sẵn sàng... ({i+1}s)")
 
-    print("⚠️ Máy chủ khởi động hơi lâu, vẫn tiếp tục kết nối Cloudflare...")
+    print("⚠️ Máy chủ khởi động hơi lâu, vẫn tiếp tục...")
     return False
 
 def copy_to_clipboard(text):
@@ -147,8 +165,146 @@ def clone_db_for_sibling(src_db, dst_db, force_refresh=False):
         shutil.copy2(src_db, dst_db)
         return True
 
+def _start_cf_tunnel_for_port(cf_exe, port):
+    """Khởi chạy 1 tiến trình cloudflared cho port chỉ định và trả về (proc, tunnel_url)."""
+    cmd = [cf_exe, "tunnel", "--protocol", "http2", "--url", f"http://127.0.0.1:{port}"]
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        encoding="utf-8",
+        errors="replace",
+    )
+    url_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
+    start_time = time.time()
+    tunnel_url = None
+    try:
+        for line in proc.stderr:
+            match = url_pattern.search(line)
+            if match:
+                tunnel_url = match.group(0)
+                break
+            if time.time() - start_time > 30:
+                break
+    except Exception:
+        pass
+    return proc, tunnel_url
+
+
+def _sync_live_tunnel_urls_to_d1(url_mcare: str, url_petnt: str):
+    """Tự động gắn link Cloudflare Tunnel của cổng 8998 vào mcarepet.vercel.app và cổng 8997 vào petnt.vercel.app."""
+    auth_file = os.path.join(BASE_DIR, ".cf_auth.json")
+    if not os.path.exists(auth_file):
+        return False
+    try:
+        import json
+        from scripts.migrate_to_cloudflare_d1 import ensure_d1_database
+        from database import D1ConnectionWrapper
+        with open(auth_file, "r", encoding="utf-8") as f:
+            auth = json.load(f)
+        acc_id = auth.get("account_id")
+        token = auth.get("api_token")
+        if not acc_id or not token:
+            return False
+
+        pairs = [
+            ("pos-oem-db", url_mcare or ""),
+            ("pos-spa-db", url_petnt or ""),
+        ]
+        for db_name, t_url in pairs:
+            db_id = ensure_d1_database(acc_id, token, db_name)
+            d1_conn = D1ConnectionWrapper(account_id=acc_id, database_id=db_id, api_token=token)
+            cur = d1_conn.cursor()
+            cur.execute(
+                "INSERT INTO settings (key, value) VALUES ('live_tunnel_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (t_url,),
+            )
+            d1_conn.close()
+        return True
+    except Exception as e:
+        print(f"⚠️ Không thể đồng bộ link sang Vercel/D1: {e}")
+        return False
+
+
+def run_dual_servers(with_cloudflare=True):
+    """Khởi chạy ngầm 2 máy chủ độc lập (Port 8998 -> pos.db & Port 8997 -> pos_instance2.db)."""
+    os.chdir(BASE_DIR)
+    db1 = os.path.join(BASE_DIR, "data", "pos.db")
+    db2 = os.path.join(BASE_DIR, "data", "pos_instance2.db")
+    clone_db_for_sibling(db1, db2, force_refresh=False)
+
+    print("=" * 74)
+    print("   KHỞI ĐỘNG NGẦM 2 MÁY CHỦ POS ĐỘC LẬP (CÙNG 1 THƯ MỤC CODE)")
+    print("=" * 74)
+    ok1 = ensure_server_running(port=8998, db_path=db1, sibling=False, headless=True)
+    ok2 = ensure_server_running(port=8997, db_path=db2, sibling=True, headless=True)
+
+    if not with_cloudflare:
+        print()
+        print("=" * 74)
+        print("   🎉 2 MÁY CHỦ ĐÃ CHẠY NGẦM THÀNH CÔNG (TÁCH BIỆT DỮ LIỆU 100%)")
+        print("=" * 74)
+        print(f"   🏪 Máy chủ 1 (MCare - Sài Gòn)   : http://localhost:8998  (DB: data/pos.db)")
+        print(f"   🏖️ Máy chủ 2 (PetNT - Nha Trang) : http://localhost:8997  (DB: data/pos_instance2.db)")
+        print("=" * 74)
+        return ok1 and ok2
+
+    cf_exe = resolve_cloudflared(auto_download=True)
+    if not cf_exe:
+        print("❌ Không tìm thấy cloudflared.exe để mở link online.")
+        return False
+
+    kill_zombie_cloudflared()
+    print("\n🌐 Đang mở 2 đường truyền Cloudflare Tunnel cho cổng 8998 và 8997...")
+    proc1, url1 = _start_cf_tunnel_for_port(cf_exe, 8998)
+    proc2, url2 = _start_cf_tunnel_for_port(cf_exe, 8997)
+
+    synced = _sync_live_tunnel_urls_to_d1(url1, url2)
+
+    os.system("cls" if os.name == "nt" else "clear")
+    print("=" * 78)
+    print("        🎉 2 MÁY CHỦ POS SONG SONG ĐÃ SẴN SÀNG HOẠT ĐỘNG! 🎉")
+    print("=" * 78)
+    print()
+    print("   🏪 MÁY CHỦ 1 (CHI NHÁNH SÀI GÒN - MCare POS | DB: data/pos.db):")
+    print(f"      • Trên máy này  : http://localhost:8998")
+    print(f"      • Domain cố định: \033[1;33mhttps://mcarepet.vercel.app\033[0m")
+    print(f"      • Link Tunnel   : \033[1;32m{url1 or 'Đang kết nối...'}\033[0m")
+    print()
+    print("   🏖️ MÁY CHỦ 2 (CHI NHÁNH NHA TRANG - PetNT POS | DB: data/pos_instance2.db):")
+    print(f"      • Trên máy này  : http://localhost:8997")
+    print(f"      • Domain cố định: \033[1;33mhttps://petnt.vercel.app\033[0m")
+    print(f"      • Link Tunnel   : \033[1;36m{url2 or 'Đang kết nối...'}\033[0m")
+    print()
+    if synced:
+        print("   ✅ ĐÃ TỰ ĐỘNG GẮN 2 LINK TUNNEL VÀO 2 DOMAIN VERCEL (mcarepet & petnt)!")
+    print("   -------------------------------------------------------------------------")
+    print("   💡 Cả 2 máy chủ chạy ngầm độc lập, chung 1 bộ code nhưng 2 file DB riêng.")
+    print("   ⚠️ Giữ cửa sổ này nếu cần dùng kết nối Online về máy tính này.")
+    print("=" * 78)
+
+    try:
+        while (proc1 and proc1.poll() is None) or (proc2 and proc2.poll() is None):
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n🛑 Đang đóng kết nối Cloudflare Tunnel...")
+    finally:
+        _sync_live_tunnel_urls_to_d1("", "")
+        kill_zombie_cloudflared()
+    return True
+
+
 def main():
     os.chdir(BASE_DIR)
+    if "--dual-local" in sys.argv:
+        run_dual_servers(with_cloudflare=False)
+        return
+    if "--dual" in sys.argv:
+        run_dual_servers(with_cloudflare=True)
+        return
+
     print("=" * 70)
     print("    POS - TỰ ĐỘNG KHỞI TẠO ĐƯỜNG DẪN CHIA SẺ ONLINE (CLOUDFLARE)")
     print("=" * 70)
