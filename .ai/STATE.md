@@ -1,59 +1,47 @@
-# PROJECT STATE — POS Offline (Petcare & Retail)
+# PROJECT STATE — POS Petcare & Retail (Cloud D1 + Vercel + Local dual-server)
 
-**Checkpoint:** 2026-10-25 — Quản lý KOC/KOL & Hoa hồng Video từ Google Sheet động, Nhân viên nghỉ việc (HRM), Tối ưu bảng Spa & Pancake (v3.6.67)
-**Lịch sử checkpoint:** `.ai/checkpoints/CHECKPOINT_2026_10_23.md`
-**Active Plan:** `.ai/plans/2026-10-25-koc-kol-management-and-commission.md`
-**Server:** `http://127.0.0.1:8998` — FastAPI + SQLite (`data/pos.db`), bind `0.0.0.0`
-**Working dir:** `D:/Projects_Hermes/pos-offline-petcare2`
+**Checkpoint:** 2026-10-31 — Dual-server 8998/8997 + 2 domain Vercel, chặn tồn âm, quy tắc mã chứng từ, ví Spa theo danh mục, xuất Excel sổ quỹ/đơn hàng, tối ưu D1 (v3.6.85)
+**Lịch sử checkpoint:** `.ai/checkpoints/CHECKPOINT_2026_10_25.md` (trước đó `CHECKPOINT_2026_10_23.md`)
+**Active Plan:** `.ai/plans/2026-10-30-fix-pos-search-and-cloud-load-speed.md`
+**Server:** Local `http://127.0.0.1:8998` (MCare, `data/pos.db`) + `:8997` (PetNT, `data/pos_instance2.db`) — `CHAY_2_MAY_CHU.bat` → `scripts/share_online.py --dual`
+**Cloud:** `https://mcarepet.vercel.app` & `https://petnt.vercel.app` (Cloudflare D1); deploy `scripts/deploy_2_vercel.py`
+**Working dir:** `D:/Projects_Hermes/pos-petcare2` (đổi tên từ `pos-offline-petcare2`)
 **Remote:** `https://github.com/thienphuaegis-png/pos-pet-oem.git` (Branch: `main`)
-**Version:** `v3.6.67` — Dynamic KOC/KOL Sheet Sync & Commission Engine, Resigned Staff Lifecycle & Spa Optimization
+**Version:** `v3.6.85` (động từ `version_helper.py` + git, HEAD `0ce289d`)
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-25)
-- **Quản Lý Danh Sách KOC / KOL, Link Video TikTok & Tính Hoa Hồng (Không Khóa Cứng Link):**
-  - Subtab mới `🎬 KOC / KOL & Affiliate` tại mục **Bán Hàng Sàn TMĐT** (`templates/index.html`, `static/js/modules/marketplace.js`).
-  - Cho phép dán bất kỳ link Google Sheet nào → nút `🔍 Tải DS Tab` tự động đọc danh sách các Sheet con bên trong để chọn Tab DS KOC/Booking (như `THANH 7/2026`..`THANH 10/2026`, `Đôn 6/2026`) và/hoặc Tab Tổng hợp Link & View (như `2`, `Tiktok`, `Tiktok_ChiTiet`).
-  - Tự động tách nhiều link TikTok trong cột `Link Air`, khử trùng theo `video_id`, quét view trực tiếp qua TikWM API (`👁️ Quét View TikTok`).
-  - Cấu hình công thức linh hoạt (`Mức view sàn đạt KPI`, `Định mức KPI trừ đi`, `Đơn giá/video`, `Thưởng viral`) và tự động cộng hoa hồng vào cột **Hoa hồng bán** trong **Bảng Lương HRM** của nhân viên POS phụ trách (`services/koc_service.py`, `services/payroll_service.py`).
-- **Xử lý Nhân Viên Nghỉ Việc & Phân Định HRM vs Hệ Thống:**
-  - Bộ lọc 3 trạng thái (Đang làm việc / Đã nghỉ việc / Tất cả) dạng segmented pills đếm số tại tab HRM và Cài Đặt. Mặc định chỉ hiện nhân sự đang làm việc.
-  - Nút thao tác "🛑 Nghỉ việc" (gán `is_active=0`, ghi nhận `leave_date`, tăng `token_version` thu hồi phiên đăng nhập) & "↩️ Đi làm lại".
-  - Cột `is_payroll_staff` phân biệt tài khoản admin/chủ shop không tính lương; API `POST /api/hrm/employees/{id}/resign` & `rehire`.
-- **Khắc phục Triệt Để Kẹt Cửa Sổ Cập Nhật Từ Xa:**
-  - Gốc lỗi: `type ... | findstr /v /c:"!TOKEN!"` trong process ngầm tạo console mới và kẹt stdin chờ phím; lộ token ở tiêu đề cửa sổ.
-  - Sửa: Loại bỏ `findstr`, thay bằng Python one-liner đọc token từ `khoa_tiem.txt` và lọc log trong RAM; `server.py` thêm cờ `CREATE_NO_WINDOW` & `SW_HIDE`.
-- **Tối Ưu Bảng Dịch Vụ Spa & Pancake (POSCAKE):**
-  - Bảng Spa: dời dropdown gọi điện xuống dưới SĐT ở cột Khách Hàng (rút từ 12 còn 11 cột), tô nền xanh ngọc (`bg-emerald-50/70`) cho đơn đã thanh toán.
-  - Pancake (POSCAKE): đồng bộ 2 shop, tự động trừ tồn kho mọi sàn TMĐT, hoa hồng doanh số theo nhân viên.
-- **Mascot Loopy & Month Selector Variant B (2026-10-24):**
-  - Sprite Loopy 16f idle + 2f wave hết chớp mắt, câu nói idle 15-30s cho Phi Phụng.
-  - Stepper 12 tháng Variant B với badge kỳ lương; Tab Xin Off (`staff_leaves`); quy tắc quẹt thẻ 6 cột.
+## 1. Phiên Hiện Tại ✅ (2026-10-28 → 2026-10-31)
+- **Dual-server + Vercel bridge (`0ce289d`):** 2 server local độc lập (8998 → `pos.db`, 8997 → `pos_instance2.db`, `POS_SIBLING_MODE=1` tắt Telegram bot bản 2). Mỗi cổng mở 1 Cloudflare Tunnel, URL ghi vào `settings.live_tunnel_url` trên D1; `GET /` trên Vercel ping tunnel (cache 15s) và 307 redirect về máy local nếu online, `?cloud=1` để ép dùng bản cloud. File: `server.py`, `scripts/share_online.py`, `scripts/deploy_2_vercel.py`, `backup_service.py` (dùng `get_db_path()`).
+- **POS/Spa/Sổ quỹ (`1ef3331`):** chặn bán/đổi hàng làm tồn âm; quy tắc mã chứng từ tùy chỉnh; bật/tắt dùng ví Spa theo danh mục (`pet_service_categories.allow_spa_wallet`, chỉ combo VIP, không phụ thu/nhuộm); xuất Excel sổ quỹ theo khoảng ngày.
+- **Cloud D1 (`90353f2`, `cf9bde5`, `7aa6e8c`):** gốc lỗi POS không tìm được hàng = D1 thiếu cột `requires_bom` → `/api/products` 500; thêm cột + fallback. Gộp multi-query thành batch D1, bỏ table scan Spa KPI/briefing, contacts compact, httpx keep-alive; logo PetNT giữ khi D1 hết quota (fallback SQLite); POS cart hết giật; menu thao tác phiếu nhập không bị cắt.
+- **Đơn hàng (`2f6356f`, `d6b17e9`, `4e88b70`):** xuất Excel đơn đã lọc/đã chọn kèm sheet chi tiết dòng; in phiếu giao hàng A4 không giá.
+- **HRM/Báo cáo/Auth (`fcd0031`, `649827a`):** import nhân sự từ Google Sheet tạo hàng loạt tài khoản đăng nhập bằng SĐT; sửa Excel báo cáo 500 + chia theo tháng; UI đăng nhập tách đôi, đổi mật khẩu, xóa nhân viên.
+- **BOM/Nhập hàng/Guide (`c7fd8dc`, `cdbccad`, `63e7a0a`):** tách hàng bán lẻ vs hàng tự sản xuất, loại nguyên liệu, toggle BOM 1 chạm; lưới hàng chờ đặt từ phiếu yêu cầu; mẫu in sổ quỹ; sửa tour spotlight.
+- **Migrate Cloud (`265349d`):** chuyển sang Cloudflare D1 + Vercel 2 instance, bỏ đóng gói EXE offline.
+- **Checkpoint fix (phiên này):** `tests/test_checkpoint_integrity.py` hardcode path cũ → đổi sang path tương đối `ROOT`; `scripts/generate_checkpoint.py` lấy tên project từ thư mục. `database.py` `init_db()` trên DB trắng query `settings` trước khi tạo bảng (migration `migration_spa_cat_allow_wallet_v1` từ `1ef3331`) → thêm `CREATE TABLE IF NOT EXISTS settings` ngay trước.
 
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
-- KOC/KOL Management & Commission: `tests/test_koc_management_and_commission.py` (1/1 passed, verify inspect 39 tabs, sync KOC + video, công thức trừ KPI & cộng vào lương HRM).
-- Deploy & Remote update: 23/23 passed (`tests/test_deploy_scripts.py`, `tests/test_remote_update.py`). Commit `99620ad`, `be54325`.
-- HRM Payroll & Staff: 16/16 passed (`tests/test_hrm_payroll_api.py`, `tests/test_hrm_staff_full_profile.py`). Commit `a56149d`.
-- Spa table & Auth: 9/9 passed (`tests/test_spa_table_call_and_paid_row.py`, `tests/test_auth.py`). Commit `37f7dda`.
-- `tests/test_checkpoint_integrity.py` & `tests/test_html_integrity.py`: 9/9 passed.
-- PyInstaller Build: `POS_Mastercare.exe` (32.1 MB) rebuild sạch và khởi động nền thành công.
-- Background Server: `http://127.0.0.1:8998/api/ping` -> ONLINE.
+- 2026-10-31 full suite `pytest tests/ --ignore=tests/manual`: **929 passed, 13 failed, 10 skipped** (235s).
+- 13 fail còn lại phụ thuộc DB thật/đang chạy, không do checkpoint: dữ liệu `Lucky Star`/SP37 (`test_ai_agent_smart_oem`, `test_oem_bom_cost_calculation` ×2), `database is locked` khi server 8998 bật (`test_cashbook_supplier_debt_no_duplicate`, `test_k80_discount`), `UNIQUE contacts.id` (`test_cashbook_edit_delete`), assert UI cũ (`test_k80_discount`, `test_po_and_oem_6col_table`, `test_ui_elaya_anti_slop_7fixes`), `test_points_and_tier_upgrade`, `test_rbac_and_supplier_dedup` ×2, `test_ai_batch_drafts_and_projected_stock`, `test_bugfixes_2026_10::test_reset_data_customers_lowercase`.
+- Fix `settings` trước migration: `test_cashbook_print_template`, `test_purchase_requests_pending_items` từ fail → pass.
+- Feature tests mới: `test_pos_spa_10_requirements_2026_10_31`, `test_query_performance_guard`, `test_hrm_sheets_import`, `test_reports_analytics`, `test_order_delivery_note_print`, `test_password_visibility`, `test_bom_retail_separation_and_ingredient_exclusion`, `test_d1_adapter`: pass.
+- `tests/test_checkpoint_integrity.py` & `tests/test_html_integrity.py`: xem commit `docs(checkpoint)` 2026-10-31.
 
 ---
 
 ## 3. Files Thay Đổi Chính
-- `services/koc_service.py`, `routers/marketplace.py`, `static/js/modules/marketplace.js`: Quản lý KOC/KOL, đồng bộ Google Sheet động, quét view TikTok, tính hoa hồng cộng vào lương HRM.
-- `deploy/CAP_NHAT.bat` & `server.py`: Triệt tiêu kẹt console, xóa pipe findstr, giấu token.
-- `routers/hrm.py` & `services/payroll_service.py`: Endpoint resign/rehire, phân loại `is_payroll_staff`.
-- `routers/auth.py` & `static/js/staff.js`: Lọc nhân viên cài đặt, xử lý `is_active` và `leave_date`.
-- `static/js/modules/hrm.js` & `templates/index.html`: Pills lọc HRM (active/resigned/all), nút "🛑 Nghỉ việc".
-- `static/js/modules/spa.js`: Dời selector gọi điện dưới SĐT, highlight dòng đã thanh toán màu xanh ngọc.
+- `server.py`, `scripts/share_online.py`, `scripts/deploy_2_vercel.py`, `CHAY_2_MAY_CHU.bat`, `TAT_POS.bat`: dual-server + Vercel bridge.
+- `database.py`: D1 adapter (batch, keep-alive, fallback SQLite khi hết quota), migration `requires_bom`, `allow_spa_wallet`.
+- `routers/pos.py`, `routers/cashbook.py`, `routers/partners.py`, `routers/products.py`, `routers/inventory.py`, `routers/hrm.py`, `routers/ai_assistant.py`.
+- `static/js/pos.js`, `static/js/modules/{productions,spa,hrm,purchases,contacts,reports_analytics}.js`, `templates/index.html`.
 
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
+- [ ] Sửa 13 test fail: cô lập DB test (`POS_DB_PATH` tmp) thay vì đọc `data/pos.db` thật; cập nhật assert UI cũ.
 - [ ] Khóa chỉnh sửa trực tiếp trên lưới lương (bỏ nút Sửa số để bảo toàn tính bất biến kế toán).
 - [ ] Bỏ droplist dư "Loại điều chỉnh" trong modal điều chỉnh lương (chỉ giữ 2 ô Lương CB & Phụ cấp).
 - [ ] Bảng riêng quản lý Nhân Viên Miễn Chấm Công (mặc định đủ công trừ off chế độ & xin off).
@@ -62,7 +50,6 @@
 
 ---
 
-## 5. Phiên Bản & Bản Build Hiện Tại
-- Bản build EXE: `POS_Mastercare.exe` v3.6.35 (PyInstaller standalone)
-- Nhánh Git: `main` | Test suite: 100% PASS
-
+## 5. Phiên Bản & Hạ Tầng
+- Chạy: Cloud D1 + Vercel (2 domain) và/hoặc local dual-server qua Cloudflare Tunnel. EXE PyInstaller đã bỏ từ `265349d`.
+- Nhánh Git: `main` (đã đồng bộ `origin/main` tại `0ce289d`).

@@ -22,19 +22,27 @@ def get_git_info():
     return commit, branch
 
 def get_codegraph_status():
-    files_count = 0
-    nodes_count = 0
-    edges_count = 0
-    codegraph_dir = os.path.join(ROOT_DIR, ".codegraph")
-    if os.path.exists(codegraph_dir):
-        # Đếm file trong dự án
-        for root, dirs, files in os.walk(ROOT_DIR):
-            if any(p in root for p in [".git", ".venv", "node_modules", ".codegraph", "__pycache__"]):
-                continue
-            files_count += len([f for f in files if f.endswith(('.py', '.js', '.html', '.css', '.json', '.bat', '.md'))])
-        nodes_count = 5980
-        edges_count = 20499
-    return files_count or 252, nodes_count, edges_count
+    """Đọc số liệu thật từ `codegraph status`; (0,0,0) nếu chưa index / thiếu CLI."""
+    import re
+    exe = "codegraph.cmd" if os.name == "nt" else "codegraph"
+    fallback = os.path.expandvars(r"%LOCALAPPDATA%\codegraph\current\bin\codegraph.cmd")
+    for cmd in (exe, fallback):
+        try:
+            out = subprocess.run([cmd, "status", "."], cwd=ROOT_DIR, capture_output=True, text=True, timeout=60).stdout
+        except Exception:
+            continue
+        nums = {k: int(re.sub(r"\D", "", v)) for k, v in re.findall(r"^\s*(Files|Nodes|Edges):\s*([\d.,]+)", out, re.M)}
+        if nums:
+            return nums.get("Files", 0), nums.get("Nodes", 0), nums.get("Edges", 0)
+    return 0, 0, 0
+
+def get_version():
+    try:
+        sys.path.insert(0, ROOT_DIR)
+        from version_helper import get_app_version_info
+        return get_app_version_info()["version"]
+    except Exception:
+        return "unknown"
 
 def main():
     commit, branch = get_git_info()
@@ -45,9 +53,9 @@ def main():
     
     state_data = {
         "project": {
-            "name": "pos-offline-petcare2",
-            "version": "v3.6.28",
-            "framework": "FastAPI + SQLite (data/pos.db)",
+            "name": os.path.basename(ROOT_DIR),
+            "version": get_version(),
+            "framework": "FastAPI + SQLite local (data/pos.db) / Cloudflare D1 on Vercel",
             "git_commit": commit,
             "git_branch": branch,
             "updated_at": datetime.now().isoformat(timespec="seconds"),

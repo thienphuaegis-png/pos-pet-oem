@@ -1069,6 +1069,7 @@ def init_db():
             _def_w = 1 if str(_cname or "").strip().lower() in ("gói combo chó", "spa mèo") or "combo" in str(_cname or "").strip().lower() else 0
             cur.execute("INSERT OR IGNORE INTO pet_service_categories (name, allow_spa_wallet) VALUES (?, ?)", (_cname, _def_w))
 
+    cur.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")  # DB mới: settings tạo ở dưới, cần trước migration này
     cur.execute("SELECT value FROM settings WHERE key = 'migration_spa_cat_allow_wallet_v1'")
     if not cur.fetchone():
         cur.execute("""

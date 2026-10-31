@@ -1,15 +1,15 @@
 {
   "project": {
-    "name": "pos-offline-petcare2",
-    "version": "v3.6.28",
-    "framework": "FastAPI + SQLite (data/pos.db)",
-    "git_commit": "5c240e2",
+    "name": "pos-petcare2",
+    "version": "v3.6.85",
+    "framework": "FastAPI + SQLite local (data/pos.db) / Cloudflare D1 on Vercel",
+    "git_commit": "0ce289d",
     "git_branch": "main",
-    "updated_at": "2026-10-26T01:10:22",
+    "updated_at": "2026-10-31T23:37:20",
     "codegraph_stats": {
-      "files_indexed": 649,
-      "nodes": 5980,
-      "edges": 20499
+      "files_indexed": 295,
+      "nodes": 7024,
+      "edges": 23327
     }
   },
   "architecture_layers": [
@@ -122,7 +122,7 @@
     }
   },
   "visual_artifacts": {
-    "project_map": "PROJECT_MAP.html",
-    "pos_checkout_sequence": "docs/checkpoint/diagrams/pos_checkout_flow.html"
+    "project_map": ".ai/MAP.html",
+    "pos_checkout_sequence": ".ai/checkpoints/diagrams/pos_checkout_flow.html"
   }
 }

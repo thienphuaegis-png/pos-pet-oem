@@ -673,9 +673,16 @@
 
 <script>
     // DỮ LIỆU TIẾN ĐỘ CHÍNH XÁC CỦA DỰ ÁN POS PETCARE (Cập nhật 2026-10-23)
-    const ROADMAP_VERSION = 'v7.2-2026-10-25-koc-kol-management-and-commission';
+    const ROADMAP_VERSION = 'v7.3-2026-10-31-dual-server-cloud-d1';
     const DEFAULT_TASKS = [
-      // 0. CẬP NHẬT MỚI NHẤT & KẾ HOẠCH ĐANG TRIỂN KHAI (2026-10-25)
+      // 0. CẬP NHẬT MỚI NHẤT (2026-10-31)
+      { id: 'dual-server-vercel-bridge', cat: 'SYS', title: 'Dual-Server 8998/8997 + Bridge 2 Domain Vercel (mcarepet & petnt) qua Cloudflare Tunnel', done: true, note: 'CHAY_2_MAY_CHU.bat chạy 2 server (pos.db / pos_instance2.db); tunnel URL ghi settings.live_tunnel_url trên D1; Vercel GET / ping tunnel (cache 15s) rồi 307 về local, ?cloud=1 ép bản cloud; deploy_2_vercel.py deploy cả 2 project.' },
+      { id: 'pos-negative-stock-doc-codes-spa-wallet', cat: 'POS', title: 'Chặn Tồn Âm, Quy Tắc Mã Chứng Từ, Ví Spa Theo Danh Mục & Xuất Excel Sổ Quỹ', done: true, note: 'Commit 1ef3331; allow_spa_wallet chỉ combo VIP; test_pos_spa_10_requirements_2026_10_31 pass.' },
+      { id: 'cloud-d1-perf-and-requires-bom', cat: 'SYS', title: 'Tối Ưu Cloud D1: Fix requires_bom 500, Batch Query, Keep-Alive, Fallback Hết Quota', done: true, note: 'Commits 90353f2, cf9bde5, 7aa6e8c; plan 2026-10-30-fix-pos-search-and-cloud-load-speed.md; test_query_performance_guard pass.' },
+      { id: 'orders-excel-export-delivery-note', cat: 'BILL', title: 'Xuất Excel Đơn Hàng (Lọc/Chọn + Chi Tiết Dòng) & In Phiếu Giao Hàng A4 Không Giá', done: true, note: 'Commits 2f6356f, d6b17e9, 4e88b70.' },
+      { id: 'hrm-sheet-import-login-split', cat: 'SYS', title: 'Import Nhân Sự Từ Google Sheet + Tài Khoản SĐT, Đổi Mật Khẩu, Xóa NV, Báo Cáo Theo Tháng', done: true, note: 'Commits fcd0031, 649827a.' },
+      { id: 'fix-13-db-dependent-tests', cat: 'SYS', title: 'Sửa 13 Test Fail Phụ Thuộc DB Thật / database is locked / Assert UI Cũ', done: false, note: 'Full suite 2026-10-31: 929 pass, 13 fail. Cô lập POS_DB_PATH tmp cho các test còn đọc data/pos.db.' },
+      // CẬP NHẬT (2026-10-25)
       { id: 'koc-kol-management-and-commission', cat: 'ECOMM', title: 'Quản Lý KOC / KOL, Link Video TikTok & Tính Hoa Hồng Động Từ Google Sheet (Không Khóa Cứng)', done: true, note: 'Subtab 🎬 KOC / KOL & Affiliate trong Bán Hàng Sàn TMĐT; dán bất kỳ link Google Sheet nào tự động liệt kê các Tab (tab DS KOC/Booking như THANH 10/2026 và tab Link & View như Tiktok/gid=1807044221); quét view TikTok trực tiếp qua TikWM API; cấu hình linh hoạt mức view sàn (200), định mức KPI trừ đi (0/200) và đơn giá/video (10.000đ); tự động cộng hoa hồng vào Bảng Lương HRM của nhân viên phụ trách.' },
       { id: 'resigned-staff-and-silent-update', cat: 'HRM', title: 'Quản Lý Nhân Viên Nghỉ Việc (HRM/Cài Đặt) & Triệt Tiêu Kẹt Cửa Sổ Khi Cập Nhật Từ Xa', done: true, note: 'Bổ sung segmented pills 3 trạng thái (Đang làm việc / Đã nghỉ việc / Tất cả) cho cả HRM và Cài Đặt; nút thao tác 🛑 Nghỉ việc (gán is_active=0, leave_date, thu hồi token phiên đăng nhập) và ↩️ Đi làm lại; thay findstr bằng Python one-liner đọc token trong RAM kèm cờ CREATE_NO_WINDOW & SW_HIDE triệt tiêu 100% cửa sổ đen bị kẹt.' },
       { id: 'spa-customer-call-and-pancake-sync', cat: 'SPA', title: 'Tối Ưu Bảng Dịch Vụ Spa 11 Cột, Tô Nền Xanh Đơn Đã Thanh Toán & Đồng Bộ Pancake (POSCAKE)', done: true, note: 'Dời dropdown gọi điện xuống dưới SĐT ở cột Khách Hàng (rút từ 12 còn 11 cột); tô nền xanh ngọc bg-emerald-50/70 cho dòng đã thanh toán; đồng bộ 2 shop Pancake, trừ tồn kho tự động mọi sàn TMĐT và cấu hình hoa hồng bán hàng theo nhân viên.' },
