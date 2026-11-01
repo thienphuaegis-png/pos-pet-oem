@@ -326,7 +326,7 @@ def run_dual_servers(with_cloudflare=True):
     os.chdir(BASE_DIR)
     db1 = os.path.join(BASE_DIR, "data", "pos.db")
     db2 = os.path.join(BASE_DIR, "data", "pos_instance2.db")
-    clone_db_for_sibling(db1, db2, force_refresh=False)
+    # KHÔNG tự động clone pos.db sang pos_instance2.db để tránh ghi đè dữ liệu riêng của PetNT
 
     print("=" * 74)
     print("   KHỞI ĐỘNG NGẦM 2 MÁY CHỦ POS ĐỘC LẬP (CÙNG 1 THƯ MỤC CODE)")
@@ -420,8 +420,8 @@ def main():
         if not target_db:
             target_db = os.path.join(BASE_DIR, "data", "pos_instance2.db")
         main_db = os.path.join(BASE_DIR, "data", "pos.db")
-        if os.path.abspath(target_db) != os.path.abspath(main_db):
-            clone_db_for_sibling(main_db, target_db, force_refresh=refresh_db)
+        if os.path.abspath(target_db) != os.path.abspath(main_db) and refresh_db:
+            clone_db_for_sibling(main_db, target_db, force_refresh=True)
         print(f"🔀 Chế độ chạy song song (Instance 2): Port {target_port} | DB: {target_db}")
 
     cf_exe = resolve_cloudflared(auto_download=True)
