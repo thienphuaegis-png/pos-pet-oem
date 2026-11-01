@@ -33,12 +33,21 @@ def resolve_cloudflared(auto_download=True):
         return None
     print("⬇️ Chưa có cloudflared.exe — đang tự động tải từ GitHub chính thức (~35MB)...")
     try:
-        urllib.request.urlretrieve(CLOUDFLARED_DL_URL, CLOUDFLARED_EXE)
+        req = urllib.request.Request(CLOUDFLARED_DL_URL, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp, open(CLOUDFLARED_EXE, "wb") as out:
+            shutil.copyfileobj(resp, out)
         if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
             print(f"✅ Đã tải xong: {CLOUDFLARED_EXE}")
             return CLOUDFLARED_EXE
     except Exception as e:
-        print(f"❌ Lỗi tải cloudflared.exe: {e}")
+        print(f"⚠️ Lỗi tải bằng urllib ({e}), thử dùng curl Windows...")
+        try:
+            subprocess.run(f'curl -L -s -o "{CLOUDFLARED_EXE}" "{CLOUDFLARED_DL_URL}"', shell=True, timeout=60)
+            if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
+                print(f"✅ Đã tải xong qua curl: {CLOUDFLARED_EXE}")
+                return CLOUDFLARED_EXE
+        except Exception:
+            pass
     return None
 
 def is_server_running(port=None):
@@ -193,8 +202,33 @@ def _start_cf_tunnel_for_port(cf_exe, port):
     return proc, tunnel_url
 
 
+def _sync_tunnel_to_vercel_endpoint(vercel_host: str, tunnel_url: str):
+    """Gửi link tunnel trực tiếp tới Vercel qua HTTP POST (không cần .cf_auth.json)."""
+    try:
+        import json
+        import urllib.request
+        data = json.dumps({"tunnel_url": tunnel_url or ""}).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://{vercel_host}/api/tunnel/register",
+            data=data,
+            headers={"Content-Type": "application/json", "User-Agent": "POS-Launcher"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=6.0) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 def _sync_live_tunnel_urls_to_d1(url_mcare: str, url_petnt: str):
     """Tự động gắn link Cloudflare Tunnel của cổng 8998 vào mcarepet.vercel.app và cổng 8997 vào petnt.vercel.app."""
+    # 1. Đồng bộ qua Vercel API endpoint (hoạt động trên MỌI máy tính, không cần file .cf_auth.json)
+    ok_v1 = _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", url_mcare)
+    ok_v2 = _sync_tunnel_to_vercel_endpoint("petnt.vercel.app", url_petnt)
+    if ok_v1 or ok_v2:
+        return True
+
+    # 2. Dự phòng: ghi trực tiếp Cloudflare D1 nếu có file .cf_auth.json
     auth_file = os.path.join(BASE_DIR, ".cf_auth.json")
     if not os.path.exists(auth_file):
         return False
@@ -298,6 +332,14 @@ def run_dual_servers(with_cloudflare=True):
 
 def main():
     os.chdir(BASE_DIR)
+    if "--set-url" in sys.argv:
+        idx = sys.argv.index("--set-url")
+        if idx + 1 < len(sys.argv):
+            raw_url = sys.argv[idx + 1].strip()
+            target_proj = "petnt.vercel.app" if "--petnt" in sys.argv else "mcarepet.vercel.app"
+            ok = _sync_tunnel_to_vercel_endpoint(target_proj, raw_url)
+            print(f"Gán link {raw_url} lên {target_proj}: {'Thành công' if ok else 'Thất bại'}")
+            return
     if "--dual-local" in sys.argv:
         run_dual_servers(with_cloudflare=False)
         return
@@ -380,6 +422,7 @@ def main():
 
     # Tự động copy vào clipboard
     copied = copy_to_clipboard(tunnel_url)
+    synced = _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", tunnel_url)
 
     # Tự động mở trình duyệt
     try:
@@ -393,8 +436,11 @@ def main():
     print("             🎉 ĐƯỜNG LINK ONLINE ĐÃ SẴN SÀNG HOẠT ĐỘNG! 🎉")
     print("=" * 76)
     print()
-    print(f"   👉 LINK TRUY CẬP:  \033[1;32m{tunnel_url}\033[0m")
+    print(f"   👉 LINK TRUY CẬP TRỰC TIẾP :  \033[1;32m{tunnel_url}\033[0m")
+    print(f"   🌐 DOMAIN CỐ ĐỊNH (VERCEL) :  \033[1;33mhttps://mcarepet.vercel.app\033[0m")
     print()
+    if synced:
+        print("   ✅ ĐÃ TỰ ĐỘNG GẮN LINK VÀO DOMAIN https://mcarepet.vercel.app!")
     if copied:
         print("   ✅ ĐÃ TỰ ĐỘNG COPY VÀO BỘ NHỚ TẠM (CLIPBOARD)!")
         print("      Chỉ cần nhấn Ctrl + V trong Zalo / Facebook / Tin nhắn để gửi link.")
@@ -402,7 +448,7 @@ def main():
     print()
     print("   ---------------------------------------------------------------------")
     print("   ⚠️  QUAN TRỌNG:")
-    print("   1. KHÔNG TẮT cửa sổ này nếu bạn muốn người khác tiếp tục truy cập test.")
+    print("   1. KHÔNG TẮT cửa sổ này nếu bạn muốn tiếp tục truy cập test.")
     print("   2. Để dừng chia sẻ: Chỉ cần bấm Ctrl + C hoặc ĐÓNG cửa sổ này.")
     print("=" * 76)
     print()
@@ -415,6 +461,7 @@ def main():
     except KeyboardInterrupt:
         print("\n🛑 Đang ngắt kết nối chia sẻ...")
     finally:
+        _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", "")
         kill_zombie_cloudflared()
         print("Đã đóng kết nối online an toàn.")
 

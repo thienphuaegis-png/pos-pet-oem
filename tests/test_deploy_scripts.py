@@ -222,6 +222,20 @@ def test_template_bait_file():
     assert "khoa_tiem.txt" in src, "File mồi phải lưu token vào khoa_tiem.txt"
 
 
+def test_tunnel_register_endpoint():
+    """Endpoint /api/tunnel/register cho phép máy chủ ngoài đăng ký live_tunnel_url mà không cần .cf_auth.json."""
+    from fastapi.testclient import TestClient
+    from server import app
+    client = TestClient(app)
+    r_bad = client.post("/api/tunnel/register", json={"tunnel_url": "http://insecure.com"})
+    assert r_bad.status_code == 400
+    r_ok = client.post("/api/tunnel/register", json={"tunnel_url": "https://test-dual.trycloudflare.com"})
+    assert r_ok.status_code == 200
+    assert r_ok.json().get("ok") is True
+    r_status = client.get("/api/tunnel/status")
+    assert r_status.status_code == 200
+
+
 if __name__ == "__main__":
     test_no_bare_winget();                  print("✓ không gọi winget trần")
     test_echo_lines_are_ascii();            print("✓ dòng echo không dấu")

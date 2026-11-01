@@ -384,7 +384,7 @@ async def client_log(request: Request, user=Depends(get_current_user)):
 def favicon():
     return Response(status_code=204)
 
-_live_tunnel_cache = {"url": "", "checked_at": 0.0}
+_live_tunnel_cache = {"url": "", "checked_at": 0.0, "last_registered_at": 0.0}
 
 def get_active_live_tunnel_url() -> str:
     """Trên Vercel: kiểm tra xem máy chủ Local (8998 / 8997) có đang bật Cloudflare Tunnel không."""
@@ -403,17 +403,57 @@ def get_active_live_tunnel_url() -> str:
         conn.close()
         candidate = (row[0] if row else "") or ""
         candidate = str(candidate).strip().rstrip("/")
-        if candidate.startswith("https://") and ".trycloudflare.com" in candidate:
-            import urllib.request
-            req = urllib.request.Request(f"{candidate}/api/ping", headers={"User-Agent": "POS-Tunnel-Check"})
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
-                if resp.status == 200:
-                    tunnel_url = candidate
+        if candidate.startswith("https://"):
+            # Nếu mới đăng ký trong vòng 5 phút, tin cậy ngay không cần block ping
+            if now - _live_tunnel_cache.get("last_registered_at", 0.0) < 300.0 and candidate == _live_tunnel_cache.get("url"):
+                tunnel_url = candidate
+            else:
+                import urllib.request
+                req = urllib.request.Request(f"{candidate}/api/ping", headers={"User-Agent": "POS-Tunnel-Check"})
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    if resp.status == 200:
+                        tunnel_url = candidate
     except Exception:
         tunnel_url = ""
     _live_tunnel_cache["url"] = tunnel_url
     _live_tunnel_cache["checked_at"] = now
     return tunnel_url
+
+@app.post("/api/tunnel/register", include_in_schema=False)
+async def register_tunnel(request: Request):
+    """Máy chủ Windows gọi endpoint này để đăng ký link Tunnel trực tiếp lên Vercel/D1 mà không cần file .cf_auth.json."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    tunnel_url = str(payload.get("tunnel_url", "")).strip().rstrip("/")
+    if tunnel_url and not tunnel_url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Tunnel URL phải bắt đầu bằng https://")
+    try:
+        from database import get_db
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO settings (key, value) VALUES ('live_tunnel_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (tunnel_url,),
+        )
+        if hasattr(conn, "commit"):
+            conn.commit()
+        conn.close()
+        now = time.time()
+        _live_tunnel_cache["url"] = tunnel_url
+        _live_tunnel_cache["checked_at"] = now if tunnel_url else 0.0
+        _live_tunnel_cache["last_registered_at"] = now if tunnel_url else 0.0
+        return {"ok": True, "registered_url": tunnel_url}
+    except Exception as e:
+        logger.error(f"Lỗi đăng ký tunnel URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tunnel/status", include_in_schema=False)
+def tunnel_status():
+    """Kiểm tra URL tunnel hiện tại đang hoạt động trên Vercel."""
+    active_url = get_active_live_tunnel_url()
+    return {"live_tunnel_url": active_url, "is_online": bool(active_url)}
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request = None):

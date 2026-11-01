@@ -9,10 +9,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IGNORE_DIRS = {
     ".git", ".venv", ".ai", ".archify", ".ua", ".superpowers", ".hermes",
     ".pytest_cache", ".ruff_cache", "__pycache__", "data", "logs",
-    "deploy", "tests", "docs", "sketches", "scripts", "tools", "cf_d1_worker", ".vercel"
+    "deploy", "tests", "docs", "sketches", "scripts", "tools", "cf_d1_worker", ".vercel",
+    "dist", "build", ".codegraph"
 }
 IGNORE_EXTS = {".pyc", ".exe", ".zip", ".spec", ".bat", ".vbs", ".log"}
-IGNORE_FILES = {".env", ".env.local", ".cf_auth.json", "PROJECT_MAP.html", "PROJECT_DATAFLOW.html", "PROJECT_STATE.md"}
+IGNORE_FILES = {".env", ".env.local", ".cf_auth.json", "PROJECT_MAP.html", "PROJECT_DATAFLOW.html", "PROJECT_STATE.md", "nul", "NUL"}
 
 
 def _ignore(dirpath, names):
