@@ -335,6 +335,11 @@ export default async function handler(req, res) {
       }
     }
 
+    // Luôn yêu cầu trình duyệt tải mới, không lưu cache cũ tránh dính bản tải dở
+    res.setHeader("cache-control", "no-cache, no-store, must-revalidate");
+    res.setHeader("pragma", "no-cache");
+    res.setHeader("expires", "0");
+
     if (proxyResp.body) {
       const arrayBuffer = await proxyResp.arrayBuffer();
       const respBuf = Buffer.from(arrayBuffer);
