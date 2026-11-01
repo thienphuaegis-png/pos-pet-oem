@@ -1,4 +1,4 @@
-const { Readable } = require("stream");
+import { Readable } from "stream";
 
 export const config = {
   api: {
@@ -73,12 +73,20 @@ async function registerTunnelUrl(newUrl) {
   }
 }
 
-function readStreamToBuffer(stream) {
+async function extractRequestBody(req) {
+  if (req.method === "GET" || req.method === "HEAD") {
+    return null;
+  }
+  if (req.body !== undefined && req.body !== null) {
+    if (Buffer.isBuffer(req.body)) return req.body;
+    if (typeof req.body === "string") return Buffer.from(req.body, "utf-8");
+    if (typeof req.body === "object") return Buffer.from(JSON.stringify(req.body), "utf-8");
+  }
   return new Promise((resolve) => {
     const chunks = [];
-    stream.on("data", (chunk) => chunks.push(chunk));
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
-    stream.on("error", () => resolve(Buffer.alloc(0)));
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", () => resolve(null));
   });
 }
 
@@ -231,11 +239,13 @@ export default async function handler(req, res) {
 
   // 3. Endpoint đăng ký tunnel URL từ máy Windows
   if ((urlPath === "/api/tunnel/register" || urlPath === "/__tunnel__/register") && req.method === "POST") {
-    const rawBody = await readStreamToBuffer(req);
+    const rawBody = await extractRequestBody(req);
     let payload = {};
-    try {
-      payload = JSON.parse(rawBody.toString("utf-8"));
-    } catch (e) {}
+    if (rawBody) {
+      try {
+        payload = JSON.parse(rawBody.toString("utf-8"));
+      } catch (e) {}
+    }
     const newTunnelUrl = String(payload.tunnel_url || "").trim().replace(/\/+$/, "");
     if (newTunnelUrl && !newTunnelUrl.startsWith("https://")) {
       res.status(400).json({ ok: false, detail: "Tunnel URL phải bắt đầu bằng https://" });
@@ -294,9 +304,11 @@ export default async function handler(req, res) {
     forwardHeaders["x-forwarded-proto"] = "https";
 
     const isBodyAllowed = req.method !== "GET" && req.method !== "HEAD";
-    const bodyBuffer = isBodyAllowed ? await readStreamToBuffer(req) : undefined;
+    const bodyBuffer = isBodyAllowed ? await extractRequestBody(req) : null;
     if (bodyBuffer && bodyBuffer.length > 0) {
       forwardHeaders["content-length"] = String(bodyBuffer.length);
+    } else {
+      delete forwardHeaders["content-length"];
     }
 
     const proxyResp = await fetch(targetUrl.href, {
@@ -304,21 +316,30 @@ export default async function handler(req, res) {
       headers: forwardHeaders,
       body: bodyBuffer && bodyBuffer.length > 0 ? bodyBuffer : undefined,
       redirect: "manual",
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(25000),
     });
 
     // Chuyển tiếp status & headers
     res.status(proxyResp.status);
     proxyResp.headers.forEach((val, key) => {
       const lk = key.toLowerCase();
-      if (lk !== "content-encoding" && lk !== "transfer-encoding" && lk !== "connection") {
+      if (lk !== "content-encoding" && lk !== "transfer-encoding" && lk !== "connection" && lk !== "content-length") {
         res.setHeader(key, val);
       }
     });
 
+    if (typeof proxyResp.headers.getSetCookie === "function") {
+      const cookies = proxyResp.headers.getSetCookie();
+      if (cookies && cookies.length > 0) {
+        res.setHeader("set-cookie", cookies);
+      }
+    }
+
     if (proxyResp.body) {
-      const stream = Readable.fromWeb(proxyResp.body);
-      stream.pipe(res);
+      const arrayBuffer = await proxyResp.arrayBuffer();
+      const respBuf = Buffer.from(arrayBuffer);
+      res.setHeader("content-length", String(respBuf.length));
+      res.end(respBuf);
     } else {
       res.end();
     }

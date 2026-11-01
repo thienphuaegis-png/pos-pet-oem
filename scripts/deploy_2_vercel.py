@@ -61,11 +61,19 @@ def main():
             cmd = f'npx vercel env add {k} --environment production,preview,development --value "{v}" --force --yes --project {proj}'
             subprocess.run(cmd, shell=True, cwd=BRIDGE_DIR, check=True)
 
-        # 3. Deploy Production
+        # 3. Deploy Production từ thư mục sạch không kèm .git
+        stage_dir = os.path.join(tempfile.gettempdir(), f"pos_bridge_{proj}")
+        if os.path.exists(stage_dir):
+            shutil.rmtree(stage_dir)
+        shutil.copytree(BRIDGE_DIR, stage_dir, ignore=shutil.ignore_patterns(".vercel", ".env*"))
+        subprocess.run(f"npx vercel link --project {proj} --yes", shell=True, cwd=stage_dir, check=True)
+        for k, v in env_vars.items():
+            cmd = f'npx vercel env add {k} --environment production,preview,development --value "{v}" --force --yes --project {proj}'
+            subprocess.run(cmd, shell=True, cwd=stage_dir, check=True)
         subprocess.run(
-            "npx vercel deploy --prod --yes --no-wait",
+            "npx vercel deploy --prod --yes",
             shell=True,
-            cwd=BRIDGE_DIR,
+            cwd=stage_dir,
             check=True,
         )
 
