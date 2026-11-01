@@ -13,6 +13,13 @@ init_db()
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
+def isolated_db(tmp_path, monkeypatch):
+    # DB trắng: catalog thật có nhiều nhóm min_points=0 (GOLD/LAZADA/SHOPEE...) làm sai kịch bản hạ hạng
+    monkeypatch.setenv("POS_DB_PATH", str(tmp_path / "pos.db"))
+    init_db()
+
+
+@pytest.fixture(autouse=True)
 def override_auth():
     app.dependency_overrides[get_current_user] = lambda: {"id": 1, "name": "Admin", "role": "owner", "is_active": 1}
     yield
@@ -73,7 +80,7 @@ def test_points_and_tier_upgrade():
     cust_si_id = cur.lastrowid
 
     # 3. Setup product & staff
-    cur.execute("INSERT OR REPLACE INTO products (code, name, type, sell_price, cost_price, stock, unit) VALUES ('TEST_PROD_PTS_1', 'Hạt Dinh Dưỡng Test', 'product', 100000, 50000, 100, 'gói')")
+    cur.execute("INSERT OR REPLACE INTO products (code, name, type, sell_price, cost_price, stock, unit) VALUES ('TEST_PROD_PTS_1', 'Hạt Dinh Dưỡng Test', 'product', 100000, 50000, 1000, 'gói')")
     prod_id = cur.lastrowid
     cur.execute("SELECT id FROM staff LIMIT 1")
     staff_row = cur.fetchone()

@@ -20,10 +20,10 @@ def test_purchases_6col_table_and_no_pay_debt_btn():
     # Kiểm tra click vào dòng tự mở modal chi tiết
     assert "onclick=\"openReceiveModal('${escapeHtml(p.code)}', true)\"" in purchases_js
     
-    # Kiểm tra có menu 3 chấm chuẩn Tailwind v3 (w-36)
+    # Menu 3 chấm fixed (w-40) chống bị cắt, 7aa6e8c
     assert 'togglePurchaseActionMenu' in purchases_js
     assert 'populatePurchaseSupplierFilter' in purchases_js
-    assert 'w-36 py-1 text-left' in purchases_js
+    assert 'w-40 py-1 text-left' in purchases_js
     
     # Nút Chi Trả Nợ nằm trong modal chi tiết khi có nợ
     assert 'id="btn-pay-purchase-debt"' in html

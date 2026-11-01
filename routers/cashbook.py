@@ -702,15 +702,8 @@ def delete_cashbook_voucher(
             cur.execute("SELECT points FROM contacts WHERE id = ?", (tx_contact_id,))
             c_row = cur.fetchone()
             if c_row:
-                new_points = c_row["points"] or 0
-                cur.execute("""
-                    SELECT id FROM customer_segments
-                    WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
-                    ORDER BY min_points DESC, priority DESC, id DESC LIMIT 1
-                """, (new_points,))
-                seg_row = cur.fetchone()
-                seg_id = seg_row["id"] if seg_row else None
-                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (seg_id, tx_contact_id))
+                from services.loyalty import apply_tier_by_points
+                apply_tier_by_points(cur, tx_contact_id, c_row["points"] or 0)
 
             cur.execute("DELETE FROM spa_wallet_transactions WHERE id = ?", (tx_id,))
 

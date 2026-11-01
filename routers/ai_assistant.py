@@ -794,25 +794,24 @@ Trả về DUY NHẤT một JSON hợp lệ (không kèm markdown):
     
     # Kiểm tra heuristic OEM (Mã GC, Phụ lục, nước lau sàn, cọc đợt 1)
     if any(k in hint for k in ["gc24", "gc244", "phụ lục", "gia công", "nước lau sàn", "lucky star", "cọc 50%"]):
-        # Tìm xưởng Lucky Star nếu có
-        lucky_partner = next((c for c in contacts if "lucky" in c["name"].lower() or c["id"] == 10), None)
+        # Tra thẳng CSDL (không dùng ID cứng: catalog thật có thể đặt ID 10 / SP 34-37 cho đối tác & hàng khác)
+        hconn = get_db()
+        hcur = hconn.cursor()
+        hcur.execute("SELECT id, name FROM contacts WHERE type = 'supplier' AND name LIKE '%lucky%' ORDER BY id LIMIT 1")
+        lucky_partner = hcur.fetchone()
+        hcur.execute("SELECT id, name FROM products WHERE is_active = 1 AND name LIKE '%lau%' ORDER BY id")
+        floor_prods = [dict(r) for r in hcur.fetchall() if "lau sàn" in str(r["name"]).lower()]
+        hconn.close()
         partner_name = lucky_partner["name"] if lucky_partner else "Lucky Star"
-        partner_id = lucky_partner["id"] if lucky_partner else 10
-        
-        # Bóc tách 4 sản phẩm nước lau sàn mẫu
+        partner_id = lucky_partner["id"] if lucky_partner else None
+
+        # Bóc tách 4 sản phẩm nước lau sàn mẫu; không khớp được thì để None cho người dùng tự chọn
         oem_items = []
-        if "chanh sả" in hint or "gc244" in hint:
-            p = next((p for p in prods if "chanh sả" in p["name"].lower()), None)
-            oem_items.append({"product_name": "Nước Lau Sàn Thú Cưng - Hương Chanh Sả", "matched_product_id": p["id"] if p else 36, "quantity": 1500, "price": 18288, "unit": "Chai"})
-        if "quế cam" in hint or "gc245" in hint:
-            p = next((p for p in prods if "quế cam" in p["name"].lower()), None)
-            oem_items.append({"product_name": "Nước Lau Sàn Thú Cưng - Hương Quế Cam", "matched_product_id": p["id"] if p else 37, "quantity": 1000, "price": 18288, "unit": "Chai"})
-        if "cà phê" in hint or "gc246" in hint:
-            p = next((p for p in prods if "cà phê" in p["name"].lower()), None)
-            oem_items.append({"product_name": "Nước Lau Sàn Thú Cưng - Hương Cà Phê", "matched_product_id": p["id"] if p else 35, "quantity": 1000, "price": 18288, "unit": "Chai"})
-        if "bạc hà" in hint or "gc247" in hint:
-            p = next((p for p in prods if "bạc hà" in p["name"].lower()), None)
-            oem_items.append({"product_name": "Nước Lau Sàn Thú Cưng - Hương Bạc Hà", "matched_product_id": p["id"] if p else 34, "quantity": 1500, "price": 18288, "unit": "Chai"})
+        for kw, gc, label, qty in [("chanh sả", "gc244", "Chanh Sả", 1500), ("quế cam", "gc245", "Quế Cam", 1000),
+                                   ("cà phê", "gc246", "Cà Phê", 1000), ("bạc hà", "gc247", "Bạc Hà", 1500)]:
+            if kw in hint or gc in hint:
+                p = next((p for p in floor_prods if kw in p["name"].lower()), None)
+                oem_items.append({"product_name": f"Nước Lau Sàn Thú Cưng - Hương {label}", "matched_product_id": p["id"] if p else None, "quantity": qty, "price": 18288, "unit": "Chai"})
 
         return {
             "detected_type": "oem_order",

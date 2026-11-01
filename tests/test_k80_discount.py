@@ -102,7 +102,7 @@ def test_frontend_pos_k80_discount_logic():
 
     # 8. Đánh số tab hóa đơn tự động reset theo số lượng tab đang mở
     assert 'reindexInvoiceTabs' in pos_js, "pos.js phải có hàm reindexInvoiceTabs"
-    assert 'tab.name = `Hóa đơn ${idx + 1}`' in pos_js, "pos.js phải reset số hóa đơn 1..N theo tab thực tế"
+    assert 'tab.name = `HD ${idx + 1}`' in pos_js, "pos.js phải reset số hóa đơn 1..N theo tab thực tế"
 
     # 9. Kiểm tra logic chiết khấu đại lý (PA1): không tính chênh lệch giá đại lý vào giam_gia hóa đơn
     assert 'isWholesale' in pos_js, "pos.js phải có biến kiểm tra khách đại lý / bán buôn isWholesale"

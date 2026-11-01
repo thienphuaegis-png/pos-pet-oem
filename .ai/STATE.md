@@ -11,7 +11,9 @@
 
 ---
 
-## 1. Phiên Hiện Tại ✅ (2026-10-28 → 2026-10-31)
+## 1. Phiên Hiện Tại ✅ (2026-10-28 → 2026-11-01)
+- **Fix 13 test fail → 4 bug thật (2026-11-01):** (1) Thăng hạng: các nhóm cùng `min_points=0` (LE/GOLD/TITAN/LAZADA...) bị nhảy ngang sang nhóm priority cao nhất (LAZADA) mỗi đơn tích điểm → `services/loyalty.py::apply_tier_by_points` chỉ lên khi ngưỡng mới cao hơn, chỉ hạ khi điểm < ngưỡng hiện tại; dùng chung ở `routers/pos.py` (bán/hủy), `routers/topup.py`, `routers/cashbook.py`, `services/telegram_bot.py`. Dữ liệu đã lệch chưa sửa: #1, #29313 (`pos_instance2.db`), #22256. (2) `reset-data` 500: xóa `pets` trước `hotel_bookings` (FK NO ACTION) → đổi thứ tự `routers/settings.py`. (3) AI OEM heuristic hardcode ID 10/SP 34-37 → tra CSDL theo tên (`routers/ai_assistant.py`). (4) `index.html` bỏ `text-[11px]` + 3 emoji → Phosphor.
+- Test: ID cố định đụng KH thật (7777/9500/9600) → dải 9.00x.xxx; 4 test seed DB trắng riêng (`tmp_path` + `POS_DB_PATH`). Import Excel giữ hành vi GHI ĐÈ công nợ/điểm (`f3c697c`, đồng bộ KiotViet) — test cập nhật theo.
 - **Dual-server + Vercel bridge (`0ce289d`):** 2 server local độc lập (8998 → `pos.db`, 8997 → `pos_instance2.db`, `POS_SIBLING_MODE=1` tắt Telegram bot bản 2). Mỗi cổng mở 1 Cloudflare Tunnel, URL ghi vào `settings.live_tunnel_url` trên D1; `GET /` trên Vercel ping tunnel (cache 15s) và 307 redirect về máy local nếu online, `?cloud=1` để ép dùng bản cloud. File: `server.py`, `scripts/share_online.py`, `scripts/deploy_2_vercel.py`, `backup_service.py` (dùng `get_db_path()`).
 - **POS/Spa/Sổ quỹ (`1ef3331`):** chặn bán/đổi hàng làm tồn âm; quy tắc mã chứng từ tùy chỉnh; bật/tắt dùng ví Spa theo danh mục (`pet_service_categories.allow_spa_wallet`, chỉ combo VIP, không phụ thu/nhuộm); xuất Excel sổ quỹ theo khoảng ngày.
 - **Cloud D1 (`90353f2`, `cf9bde5`, `7aa6e8c`):** gốc lỗi POS không tìm được hàng = D1 thiếu cột `requires_bom` → `/api/products` 500; thêm cột + fallback. Gộp multi-query thành batch D1, bỏ table scan Spa KPI/briefing, contacts compact, httpx keep-alive; logo PetNT giữ khi D1 hết quota (fallback SQLite); POS cart hết giật; menu thao tác phiếu nhập không bị cắt.
@@ -24,6 +26,7 @@
 ---
 
 ## 2. Bằng Chứng Kiểm Thử (Verification) 🧪
+- 2026-11-01 full suite `pytest tests/ --ignore=tests/manual`: **944 passed, 0 failed, 10 skipped** (203s). Mới: `tests/test_loyalty_tier.py`.
 - 2026-10-31 full suite `pytest tests/ --ignore=tests/manual`: **929 passed, 13 failed, 10 skipped** (235s).
 - 13 fail còn lại phụ thuộc DB thật/đang chạy, không do checkpoint: dữ liệu `Lucky Star`/SP37 (`test_ai_agent_smart_oem`, `test_oem_bom_cost_calculation` ×2), `database is locked` khi server 8998 bật (`test_cashbook_supplier_debt_no_duplicate`, `test_k80_discount`), `UNIQUE contacts.id` (`test_cashbook_edit_delete`), assert UI cũ (`test_k80_discount`, `test_po_and_oem_6col_table`, `test_ui_elaya_anti_slop_7fixes`), `test_points_and_tier_upgrade`, `test_rbac_and_supplier_dedup` ×2, `test_ai_batch_drafts_and_projected_stock`, `test_bugfixes_2026_10::test_reset_data_customers_lowercase`.
 - Fix `settings` trước migration: `test_cashbook_print_template`, `test_purchase_requests_pending_items` từ fail → pass.
@@ -41,7 +44,7 @@
 ---
 
 ## 4. Việc Kế Tiếp (Next Priority Tasks) 📌
-- [ ] Sửa 13 test fail: cô lập DB test (`POS_DB_PATH` tmp) thay vì đọc `data/pos.db` thật; cập nhật assert UI cũ.
+- [ ] Sửa phân hạng KH bị nhảy sang LAZADA do bug cũ (#1, #29313 trên `pos_instance2.db`; #22256) — chờ anh xác nhận nhóm đúng.
 - [ ] Khóa chỉnh sửa trực tiếp trên lưới lương (bỏ nút Sửa số để bảo toàn tính bất biến kế toán).
 - [ ] Bỏ droplist dư "Loại điều chỉnh" trong modal điều chỉnh lương (chỉ giữ 2 ô Lương CB & Phụ cấp).
 - [ ] Bảng riêng quản lý Nhân Viên Miễn Chấm Công (mặc định đủ công trừ off chế độ & xin off).

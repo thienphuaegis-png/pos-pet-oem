@@ -214,7 +214,7 @@ async def test_import_excel_deduplication():
         assert len(rows) == 1
         row = dict(rows[0])
         assert row["phone"] == "0933999888"  # Bỏ đuôi .0
-        assert row["debt"] == 700000.0       # 500k + 200k
+        assert row["debt"] == 200000.0       # ghi đè theo dòng cuối (đồng bộ KiotViet, f3c697c)
     finally:
         conn = get_db()
         cur = conn.cursor()
@@ -304,8 +304,8 @@ async def test_import_customer_excel_priority_and_phone():
         assert row["phone"] == "0901999888"
         assert row["email"] == "phu_new@test.com"
         assert row["address"] == "Bến Tre Mới"
-        assert row["debt"] == 70000.0  # 50k + 20k
-        assert row["points"] == 150    # 100 + 50
+        assert row["debt"] == 20000.0  # ghi đè theo dòng cuối
+        assert row["points"] == 50     # ghi đè theo dòng cuối
         conn.close()
     finally:
         try:

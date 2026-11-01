@@ -117,7 +117,7 @@ def test_delete_expense_voucher_restores_debt():
         conn = get_db()
         cur = conn.cursor()
         # Tạo NCC test có nợ
-        cur.execute("INSERT INTO contacts (id, type, name, debt, initial_debt_personal) VALUES (7777, 'supplier', 'NCC Test Debt Rollback', 10000000, 10000000)")
+        cur.execute("INSERT INTO contacts (id, type, name, debt, initial_debt_personal) VALUES (9007777, 'supplier', 'NCC Test Debt Rollback', 10000000, 10000000)")
         # Tạo tài khoản staff admin
         cur.execute("INSERT OR REPLACE INTO staff (id, name, role, is_active, token_version) VALUES (9999, 'Admin Test', 'owner', 1, 0)")
         conn.commit()
@@ -127,7 +127,7 @@ def test_delete_expense_voucher_restores_debt():
         headers = {"Authorization": f"Bearer {token}"}
 
         # 1. Trả nợ NCC 4.000.000đ với ngày chi trả chọn lùi (Chủ nhật)
-        res_pay = client.post("/api/contacts/7777/pay-debt", headers=headers, json={
+        res_pay = client.post("/api/contacts/9007777/pay-debt", headers=headers, json={
             "amount": 4000000,
             "fund_source": "PERSONAL",
             "payment_date": "2026-10-11",
@@ -139,13 +139,13 @@ def test_delete_expense_voucher_restores_debt():
         # Kiểm tra nợ NCC đã giảm còn 6.000.000đ
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 7777")
+        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 9007777")
         row_c = cur.fetchone()
         assert row_c["debt"] == 6000000
         assert row_c["initial_debt_personal"] == 6000000
 
         # Lấy phiếu chi vừa sinh
-        cur.execute("SELECT id, code, created_at FROM cashbook WHERE contact_id = 7777 ORDER BY id DESC LIMIT 1")
+        cur.execute("SELECT id, code, created_at FROM cashbook WHERE contact_id = 9007777 ORDER BY id DESC LIMIT 1")
         voucher = cur.fetchone()
         assert voucher is not None
         v_id = voucher["id"]
@@ -160,7 +160,7 @@ def test_delete_expense_voucher_restores_debt():
         # Kiểm tra nợ NCC ĐÃ ĐƯỢC TỰ ĐỘNG HỒI LẠI ĐỦ 10.000.000đ
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 7777")
+        cur.execute("SELECT debt, initial_debt_personal FROM contacts WHERE id = 9007777")
         row_restored = cur.fetchone()
         assert row_restored["debt"] == 10000000
         assert row_restored["initial_debt_personal"] == 10000000

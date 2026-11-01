@@ -2013,18 +2013,8 @@ def create_order(req: OrderCreate, user=Depends(require_permission("pos.sell")))
                     cur.execute("UPDATE orders SET points_earned = ? WHERE id = ?", (points_earned, order_id))
 
                     # Xét thăng hạng tự động
-                    cur.execute("""
-                        SELECT id, name, min_points, priority
-                        FROM customer_segments
-                        WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
-                        ORDER BY min_points DESC, priority DESC, id DESC
-                        LIMIT 1
-                    """, (current_points,))
-                    highest_seg = cur.fetchone()
-
-                    if highest_seg and highest_seg["id"] != cust_row["segment_id"]:
-                        cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (highest_seg["id"], req.customer_id))
-                        tier_upgraded = highest_seg["name"]
+                    from services.loyalty import apply_tier_by_points
+                    tier_upgraded = apply_tier_by_points(cur, req.customer_id, current_points)
                 else:
                     current_points = cust_points
 
@@ -2180,17 +2170,9 @@ def delete_order(code: str, user=Depends(require_role("owner"))):
                 new_pts = max(0, cur_pts - pts_earned)
                 cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (new_pts, customer_id))
 
-                # Tự động hạ/cập nhật lại phân hạng tương ứng với số điểm mới
-                cur.execute("""
-                    SELECT id, name, min_points, priority
-                    FROM customer_segments
-                    WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
-                    ORDER BY min_points DESC, priority DESC, id DESC
-                    LIMIT 1
-                """, (new_pts,))
-                target_seg = cur.fetchone()
-                target_seg_id = target_seg["id"] if target_seg else None
-                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (target_seg_id, customer_id))
+                # Tự động hạ hạng nếu điểm mới dưới ngưỡng hạng hiện tại
+                from services.loyalty import apply_tier_by_points
+                apply_tier_by_points(cur, customer_id, new_pts)
 
         cur.execute("DELETE FROM cashbook WHERE ref_type = 'order' AND ref_id = ?", (order_id,))
 

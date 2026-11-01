@@ -5,7 +5,7 @@ from server import app
 from tests.auth_helpers import owner_auth_headers
 client = TestClient(app, headers=owner_auth_headers())
 
-def test_ai_parse_oem_invoice_with_database_context(monkeypatch):
+def test_ai_parse_oem_invoice_with_database_context(monkeypatch, tmp_path):
     """
     Test kiểm tra tác nhân AI khi nhận diện văn bản hoặc từ khóa hợp đồng gia công:
     - Mã GC244..GC247
@@ -15,6 +15,19 @@ def test_ai_parse_oem_invoice_with_database_context(monkeypatch):
     -> Phải nhận diện partner là Lucky Star (ID 10)
     -> Phải bóc tách được vat_percent, discount_percent, deposit_amount
     """
+    # DB trắng + xưởng Lucky Star & 4 SP nước lau sàn (catalog thật không còn dữ liệu mẫu này)
+    monkeypatch.setenv("POS_DB_PATH", str(tmp_path / "pos.db"))
+    from database import init_db, get_db
+    init_db()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO contacts (id, name, type) VALUES (10, 'Xưởng Lucky Star', 'supplier')")
+    for code, name in [("GC244", "Nước Lau Sàn hương Chanh Sả"), ("GC245", "Nước Lau Sàn hương Quế Cam"),
+                       ("GC246", "Nước Lau Sàn hương Cà Phê"), ("GC247", "Nước Lau Sàn hương Bạc Hà")]:
+        cur.execute("INSERT INTO products (code, name, type, sell_price, unit) VALUES (?, ?, 'product', 89000, 'Chai')", (code, name))
+    conn.commit()
+    conn.close()
+
     # Đảm bảo test heuristic offline hoạt động độc lập, không phụ thuộc kết nối mạng/quota Gemini ngoài
     from routers import ai_assistant
     monkeypatch.setattr(ai_assistant, "get_gemini_config", lambda user=None: {"gemini_api_key": ""})
@@ -45,6 +58,7 @@ def test_ai_parse_oem_invoice_with_database_context(monkeypatch):
     assert data["matched_partner_id"] == 10
     assert "Lucky Star" in data["partner_name"]
     assert len(data["items"]) == 4
+    assert all(it["matched_product_id"] for it in data["items"])
     assert data.get("vat_percent") == 8.0
     assert data.get("discount_percent") == 5.0
     assert data.get("deposit_amount") == 49377600

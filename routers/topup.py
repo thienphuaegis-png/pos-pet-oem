@@ -172,18 +172,8 @@ def recharge_spa_wallet(req: TopupRechargeIn, user=Depends(get_current_user)):
             cur.execute("UPDATE contacts SET points = ? WHERE id = ?", (current_points, req.contact_id))
 
             # Xét thăng hạng tự động
-            cur.execute("""
-                SELECT id, name, min_points, priority
-                FROM customer_segments
-                WHERE is_active = 1 AND allow_points = 1 AND min_points <= ?
-                ORDER BY min_points DESC, priority DESC, id DESC
-                LIMIT 1
-            """, (current_points,))
-            highest_seg = cur.fetchone()
-
-            if highest_seg and highest_seg["id"] != contact["segment_id"]:
-                cur.execute("UPDATE contacts SET segment_id = ? WHERE id = ?", (highest_seg["id"], req.contact_id))
-                tier_upgraded = highest_seg["name"]
+            from services.loyalty import apply_tier_by_points
+            tier_upgraded = apply_tier_by_points(cur, req.contact_id, current_points)
 
         note = req.note or f"Nạp ví Spa gói {pkg['name']}"
         cur.execute("""

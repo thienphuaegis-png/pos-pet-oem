@@ -337,9 +337,8 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
             tables_to_clear = [
                 'order_payments', 'order_return_items', 'order_returns',
                 'order_items', 'orders',
-                'pet_service_tickets', 'pets',
+                'pet_service_tickets', 'hotel_bookings', 'pets',  # hotel_bookings.pet_id NO ACTION -> xoa truoc pets
                 'spa_wallet_transactions',
-                'hotel_bookings',
                 'cashbook',
                 'purchase_items', 'purchases',
                 'oem_order_items', 'oem_orders',
@@ -369,9 +368,8 @@ def reset_database_data(req: ResetDataRequest, user=Depends(require_role("owner"
             all_data_tables = [
                 'order_payments', 'order_return_items', 'order_returns',
                 'order_items', 'orders',
-                'pet_service_tickets', 'pets', 'pet_service_pricing',
+                'pet_service_tickets', 'hotel_bookings', 'pets', 'pet_service_pricing',
                 'spa_wallet_transactions',
-                'hotel_bookings',
                 'cashbook',
                 'purchase_items', 'purchases', 'supplier_items',
                 'oem_order_items', 'oem_orders',
