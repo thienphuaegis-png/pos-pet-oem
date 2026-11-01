@@ -20,34 +20,93 @@ import webbrowser
 PORT = int(os.environ.get("POS_PORT", "8998"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLOUDFLARED_EXE = os.path.join(BASE_DIR, "cloudflared.exe")
-CLOUDFLARED_DL_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+
+
+def is_valid_cloudflared(exe_path):
+    """Kiểm tra file cloudflared.exe có thực sự chạy được trên Windows không (tránh lỗi WinError 193 do file hỏng/tải dở)."""
+    if not exe_path or not os.path.exists(exe_path):
+        return False
+    try:
+        if os.path.getsize(exe_path) < 15_000_000:
+            return False
+        with open(exe_path, "rb") as f:
+            if f.read(2) != b"MZ":
+                return False
+        res = subprocess.run([exe_path, "--version"], capture_output=True, text=True, timeout=5)
+        return res.returncode == 0 and "cloudflared" in (res.stdout or "").lower()
+    except Exception:
+        return False
+
 
 def resolve_cloudflared(auto_download=True):
-    """Tìm cloudflared.exe tại thư mục gốc, PATH, hoặc tự tải về nếu chưa có."""
-    if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
-        return CLOUDFLARED_EXE
+    """Tìm cloudflared.exe hợp lệ tại thư mục gốc, PATH, hoặc tự tải lại nếu bị lỗi/chưa có."""
+    if os.path.exists(CLOUDFLARED_EXE):
+        if is_valid_cloudflared(CLOUDFLARED_EXE):
+            return CLOUDFLARED_EXE
+        print(f"⚠️ Phát hiện file {CLOUDFLARED_EXE} bị lỗi hoặc tải dở dang. Đang xóa để tải lại bản chuẩn...")
+        try:
+            os.remove(CLOUDFLARED_EXE)
+        except Exception as e:
+            print(f"Không thể xóa file hỏng: {e}")
+
     in_path = shutil.which("cloudflared") or shutil.which("cloudflared.exe")
-    if in_path:
+    if in_path and is_valid_cloudflared(in_path):
         return in_path
+
     if not auto_download:
         return None
-    print("⬇️ Chưa có cloudflared.exe — đang tự động tải từ GitHub chính thức (~35MB)...")
-    try:
-        req = urllib.request.Request(CLOUDFLARED_DL_URL, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=120) as resp, open(CLOUDFLARED_EXE, "wb") as out:
-            shutil.copyfileobj(resp, out)
-        if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
-            print(f"✅ Đã tải xong: {CLOUDFLARED_EXE}")
-            return CLOUDFLARED_EXE
-    except Exception as e:
-        print(f"⚠️ Lỗi tải bằng urllib ({e}), thử dùng curl Windows...")
+
+    import platform
+    is_64 = "64" in platform.machine() or "64" in platform.architecture()[0]
+    arch = "amd64" if is_64 else "386"
+    download_url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-{arch}.exe"
+
+    tmp_file = CLOUDFLARED_EXE + ".tmp"
+    if os.path.exists(tmp_file):
         try:
-            subprocess.run(f'curl -L -o "{CLOUDFLARED_EXE}" "{CLOUDFLARED_DL_URL}"', shell=True, timeout=120)
-            if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
-                print(f"✅ Đã tải xong qua curl: {CLOUDFLARED_EXE}")
-                return CLOUDFLARED_EXE
+            os.remove(tmp_file)
         except Exception:
             pass
+
+    print(f"⬇️ Đang tải cloudflared.exe ({arch} ~50MB) từ GitHub chính thức...")
+
+    downloaded = False
+    # Cách 1: dùng curl Windows (hỗ trợ hiện thanh % tải và tự xử lý redirect)
+    try:
+        cmd = f'curl -L -f -# -o "{tmp_file}" "{download_url}"'
+        res = subprocess.run(cmd, shell=True, timeout=300)
+        if res.returncode == 0 and is_valid_cloudflared(tmp_file):
+            downloaded = True
+    except Exception as e:
+        print(f"Tải bằng curl gặp lỗi: {e}")
+
+    # Cách 2: dùng urllib Python nếu curl thất bại
+    if not downloaded:
+        try:
+            req = urllib.request.Request(download_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=300) as resp, open(tmp_file, "wb") as out:
+                shutil.copyfileobj(resp, out)
+            if is_valid_cloudflared(tmp_file):
+                downloaded = True
+        except Exception as e:
+            print(f"Tải bằng urllib gặp lỗi: {e}")
+
+    if downloaded and os.path.exists(tmp_file):
+        if os.path.exists(CLOUDFLARED_EXE):
+            try:
+                os.remove(CLOUDFLARED_EXE)
+            except Exception:
+                pass
+        os.replace(tmp_file, CLOUDFLARED_EXE)
+        print(f"✅ Đã tải và kiểm tra thành công: {CLOUDFLARED_EXE}")
+        return CLOUDFLARED_EXE
+
+    if os.path.exists(tmp_file):
+        try:
+            os.remove(tmp_file)
+        except Exception:
+            pass
+    print("❌ Không thể tải cloudflared.exe hợp lệ. Vui lòng kiểm tra kết nối mạng.")
     return None
 
 def is_server_running(port=None):
