@@ -77,15 +77,29 @@ async function extractRequestBody(req) {
   if (req.method === "GET" || req.method === "HEAD") {
     return null;
   }
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+
   if (req.body !== undefined && req.body !== null) {
     if (Buffer.isBuffer(req.body)) return req.body;
     if (typeof req.body === "string") return Buffer.from(req.body, "utf-8");
-    if (typeof req.body === "object") return Buffer.from(JSON.stringify(req.body), "utf-8");
+    if (typeof req.body === "object") {
+      if (contentType.includes("application/x-www-form-urlencoded")) {
+        const params = new URLSearchParams();
+        for (const [k, v] of Object.entries(req.body)) {
+          params.append(k, String(v));
+        }
+        return Buffer.from(params.toString(), "utf-8");
+      }
+      return Buffer.from(JSON.stringify(req.body), "utf-8");
+    }
   }
+
   return new Promise((resolve) => {
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("end", () => {
+      resolve(chunks.length > 0 ? Buffer.concat(chunks) : null);
+    });
     req.on("error", () => resolve(null));
   });
 }

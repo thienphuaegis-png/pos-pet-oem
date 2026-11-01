@@ -197,7 +197,18 @@ async function handleLogin() {
       body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
     });
     const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.detail || 'Đăng nhập thất bại'; return; }
+    if (!res.ok) {
+      let errMsg = 'Đăng nhập thất bại';
+      if (typeof data.detail === 'string') {
+        errMsg = data.detail;
+      } else if (Array.isArray(data.detail)) {
+        errMsg = data.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+      } else if (data.detail && typeof data.detail === 'object') {
+        errMsg = data.detail.msg || JSON.stringify(data.detail);
+      }
+      errEl.textContent = errMsg;
+      return;
+    }
     Auth.setSession(data);
     hideLoginOverlay();
     if (data.must_change_password) {
