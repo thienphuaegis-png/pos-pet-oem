@@ -34,7 +34,7 @@ def resolve_cloudflared(auto_download=True):
     print("⬇️ Chưa có cloudflared.exe — đang tự động tải từ GitHub chính thức (~35MB)...")
     try:
         req = urllib.request.Request(CLOUDFLARED_DL_URL, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp, open(CLOUDFLARED_EXE, "wb") as out:
+        with urllib.request.urlopen(req, timeout=120) as resp, open(CLOUDFLARED_EXE, "wb") as out:
             shutil.copyfileobj(resp, out)
         if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
             print(f"✅ Đã tải xong: {CLOUDFLARED_EXE}")
@@ -42,7 +42,7 @@ def resolve_cloudflared(auto_download=True):
     except Exception as e:
         print(f"⚠️ Lỗi tải bằng urllib ({e}), thử dùng curl Windows...")
         try:
-            subprocess.run(f'curl -L -s -o "{CLOUDFLARED_EXE}" "{CLOUDFLARED_DL_URL}"', shell=True, timeout=60)
+            subprocess.run(f'curl -L -o "{CLOUDFLARED_EXE}" "{CLOUDFLARED_DL_URL}"', shell=True, timeout=120)
             if os.path.exists(CLOUDFLARED_EXE) and os.path.getsize(CLOUDFLARED_EXE) > 1_000_000:
                 print(f"✅ Đã tải xong qua curl: {CLOUDFLARED_EXE}")
                 return CLOUDFLARED_EXE
