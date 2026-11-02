@@ -604,11 +604,16 @@
                 window.showToast ? window.showToast(data.detail || 'Lỗi import file', 'error') : alert(data.detail);
                 return;
             }
-            let msg = `Đã import thành công ${data.imported} bản ghi.`;
-            if (data.unknown_codes && data.unknown_codes.length > 0) {
-                msg += ` Bỏ qua ${data.unknown_codes.length} mã máy chưa gán cho nhân viên.`;
+            let msg = `Đã import ${data.imported} ngày chấm công.`;
+            if (data.skipped_locked) msg += ` Bỏ qua ${data.skipped_locked} ngày thuộc tháng đã chốt.`;
+            if (data.skipped_manual) msg += ` Giữ nguyên ${data.skipped_manual} ngày đã sửa tay.`;
+            if (data.matched_by_name && data.matched_by_name.length > 0) {
+                msg += ` Khớp theo tên (chưa nhập mã máy): ${data.matched_by_name.map(u => `${u.device_code}-${u.name}`).join(', ')}.`;
             }
-            if (window.showToast) window.showToast(msg, 'success');
+            if (data.unknown_codes && data.unknown_codes.length > 0) {
+                msg += ` KHÔNG khớp NV nào: ${data.unknown_codes.map(u => `${u.device_code}-${u.name}`).join(', ')}.`;
+            }
+            if (window.showToast) window.showToast(msg, data.unknown_codes?.length ? 'warning' : 'success'); else alert(msg);
             loadHrmAttendance(getSelectedMonth());
         } catch (e) {
             console.error(e);
@@ -1605,7 +1610,7 @@
                 ${row('X/2 / TV/2', '0.5 công: làm đủ ngưỡng nửa công, hoặc nghỉ nửa buổi có phép')}
                 ${row('OFF', '0 công, không phạt (nghỉ phép / nghỉ có bù)')}
                 ${row('L', `Ngày lễ: cộng thêm ${r.holiday_extra_days ?? 1} ngày lương`)}
-                ${row('Miễn chấm công', 'Đủ công mọi ngày làm việc, chỉ trừ ngày nghỉ nhập tay, không phạt')}
+                ${row('Miễn chấm công', 'Đủ công mọi ngày làm việc, chỉ trừ ngày nghỉ nhập tay, không phạt, KHÔNG có thưởng chuyên cần')}
                 ${row('Làm bù', 'Ngày nghỉ ghi OFF; ngày làm bù (kể cả CN) có quẹt thẻ tự được tính công')}</div>`),
             box('2. Khối ca & ngưỡng tính công', 'ph-alarm', 'bg-slate-50 border-slate-200', `<div class="space-y-1.5">${blocks || '<i>Chưa có khối làm việc</i>'}</div>`),
             box('3. Mức phạt', 'ph-warning', 'bg-rose-50/50 border-rose-200 text-rose-900', `<div class="space-y-1.5">
@@ -1615,7 +1620,7 @@
                 ${row('Vắng không phép', `${m(r.absent)} / ngày`)}
                 ${row('Miễn phạt', 'Bật "Không phạt" trên ngày vi phạm có giải trình')}</div>`),
             box('4. Thưởng, tăng ca, tạm ứng', 'ph-gift', 'bg-sky-50/50 border-sky-200 text-sky-900', `<div class="space-y-1.5">
-                ${row('Chuyên cần', `${m(r.attendance_bonus)}: đủ công chuẩn, làm trọn tháng, không vi phạm (kể cả về sớm)`)}
+                ${row('Chuyên cần', `${m(r.attendance_bonus)}: có chấm công, đủ công chuẩn, làm trọn tháng, không vi phạm (kể cả về sớm)`)}
                 ${row('Sinh nhật', m(r.birthday_bonus))}
                 ${row('Tăng ca (gợi ý)', `Ra sau giờ ra của khối ≥ ${r.ot_min_minutes ?? 25} phút, làm tròn 0.5h, hệ số ${r.ot_multiplier ?? 1.5}`)}
                 ${row('Tạm ứng', 'Trừ vào tháng phát sinh phiếu ứng')}</div>`),

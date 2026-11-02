@@ -259,8 +259,10 @@ def calc_payslip(*, base_salary: int, allowance: int, std_days_month: int, std_h
                  deduction_other: int = 0, birthday_in_month: bool = False,
                  has_contract: bool = False, dependents_count: int = 0,
                  insurance_salary: float = 0, is_insurance_exempt: bool = False,
+                 attendance_exempt: bool = False,
                  rules: Rules = Rules()) -> dict:
-    """Tính 1 dòng bảng lương từ kết quả chấm công từng ngày (list DayResult)."""
+    """Tính 1 dòng bảng lương từ kết quả chấm công từng ngày (list DayResult).
+    attendance_exempt: NV miễn chấm công không được thưởng chuyên cần (quy định shop)."""
     base = Decimal(base_salary)
     prob_base = base * rules.probation_rate
     sd = Decimal(std_days_month) if std_days_month else Decimal(1)
@@ -281,7 +283,7 @@ def calc_payslip(*, base_salary: int, allowance: int, std_days_month: int, std_h
     violation_days = [x for x in days if x.violations and not x.waived]
     full_month = bool(days) and all(x.employed for x in days)
     worked_credit = days_off + days_prob + sum(1 for x in days if x.code == "L")
-    attendance_ok = full_month and not violation_days and worked_credit >= std_days_month
+    attendance_ok = full_month and not violation_days and worked_credit >= std_days_month and not attendance_exempt
     attendance_bonus = rules.attendance_bonus if attendance_ok else 0
     birthday = rules.birthday_bonus if birthday_in_month else 0
 

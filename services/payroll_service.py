@@ -241,6 +241,7 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
         dependents_count=int(s.get("dependents_count") or 0),
         insurance_salary=float(s.get("insurance_salary") or 0),
         is_insurance_exempt=bool(s.get("is_insurance_exempt")),
+        attendance_exempt=bool(s.get("is_attendance_exempt")),
         rules=rules)
     if p["net_rounded"] > 0 and not (s["bank_account"] or "").strip():
         anomalies.append("Thiếu số tài khoản ngân hàng")

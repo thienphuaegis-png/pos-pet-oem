@@ -15,7 +15,7 @@ def _norm(s) -> str:
 
 
 HEADER_ALIASES = {
-    "device_code": ["machamcong", "mamay", "userid", "enrollnumber", "acno"],
+    "device_code": ["machamcong", "mamay", "userid", "enrollnumber", "acno", "manvien"],
     "name": ["tennvien", "tennhanvien", "hoten", "name"],
     "work_date": ["ngay", "date", "ngaycham"],
     "punch": ["vao1", "ra1", "vao2", "ra2", "vao3", "ra3"],
@@ -37,11 +37,13 @@ def _parse_date(v):
 
 
 def _code(v) -> str:
+    """Mã máy chấm công chuẩn hoá: '00003' (xuất từ máy) == '3' (nhập tay) -> '3'."""
     if v is None:
         return ""
     if isinstance(v, float) and v.is_integer():
         v = int(v)
-    return str(v).strip()
+    s = str(v).strip()
+    return (s.lstrip("0") or "0") if s.isdigit() else s
 
 
 def parse_attendance_xlsx(content: bytes) -> dict:

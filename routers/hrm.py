@@ -636,13 +636,31 @@ async def import_attendance(file: UploadFile = File(...), user=Depends(require_p
         parsed = parse_attendance_xlsx(content)
     except Exception:
         raise HTTPException(400, "Không đọc được file Excel")
+    if not parsed["rows"]:
+        raise HTTPException(400, "; ".join(parsed["errors"][:3]) or "File không có dòng chấm công nào")
+    from services.attendance_import import _code, _norm
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, device_code FROM staff WHERE device_code IS NOT NULL AND device_code != ''")
-    by_code = {r["device_code"]: r["id"] for r in cur.fetchall()}
+    cur.execute("SELECT id, name, device_code FROM staff WHERE COALESCE(is_payroll_staff, 1) = 1")
+    staff_rows = cur.fetchall()
+    by_code = {_code(r["device_code"]): r["id"] for r in staff_rows if (r["device_code"] or "").strip()}
+    # Dự phòng: NV CHƯA có mã máy thì khớp theo họ tên (chỉ khi tên là duy nhất).
+    # NV đã có mã mà lệch -> báo không khớp, không âm thầm gán theo tên (mã là nguồn chuẩn).
+    name_ids = {}
+    for r in staff_rows:
+        name_ids.setdefault(_norm(r["name"]), []).append(r)
     imported, skipped_manual, locked = 0, 0, 0
-    unknown = {}
+    unknown, matched_by_name = {}, {}
     for row in parsed["rows"]:
         sid = by_code.get(row["device_code"])
+        if not sid:
+            cands = name_ids.get(_norm(row["name"])) or []
+            if len(cands) == 1 and not (cands[0]["device_code"] or "").strip():
+                sid = cands[0]["id"]
+                matched_by_name[row["device_code"]] = row["name"]
+                # Lưu luôn mã máy (lần sau khớp theo mã, hết cảnh báo "Chưa có mã máy")
+                cur.execute("UPDATE staff SET device_code = ? WHERE id = ? AND COALESCE(device_code, '') = ''",
+                            (row["device_code"], sid))
+                by_code[row["device_code"]] = sid
         if not sid:
             unknown[row["device_code"]] = row["name"]
             continue
@@ -661,7 +679,9 @@ async def import_attendance(file: UploadFile = File(...), user=Depends(require_p
         imported += 1
     conn.commit(); conn.close()
     return {"status": "ok", "imported": imported, "skipped_manual": skipped_manual, "skipped_locked": locked,
-            "unknown_codes": [{"device_code": k, "name": v} for k, v in unknown.items()], "errors": parsed["errors"]}
+            "unknown_codes": [{"device_code": k, "name": v} for k, v in unknown.items()],
+            "matched_by_name": [{"device_code": k, "name": v} for k, v in matched_by_name.items()],
+            "errors": parsed["errors"]}
 
 
 @router.get("/attendance")

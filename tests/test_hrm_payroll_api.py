@@ -87,6 +87,34 @@ def test_import_unknown_code_reported_and_manual_kept(kho_emp):
     assert json.loads(p) == ["08:00", "18:00"]
 
 
+def test_import_device_export_format_leading_zeros(kho_emp):
+    """File xuất thẳng từ máy: tiêu đề 'Mã N.Viên', 2 dòng tiêu đề phía trên, mã '09901' (staff lưu '9901')."""
+    wb = openpyxl.Workbook(); ws = wb.active
+    ws.append(["CHI TIẾT CHẤM CÔNG"]); ws.append(["Từ ngày 01/03/2025 đến ngày 31/03/2025"])
+    ws.append(["Mã N.Viên", "Tên N.Viên", "Phòng ban", "Chức vụ", "Ngày", "Thứ", "Vào1", "Ra1", "Vào2", "Ra2", "Vào3", "Ra3", "Công"])
+    ws.append(["09901", "NV Test Kho", "Kho", "", "05/03/2025", "T.4", "07:50", "18:02", "", "", "", "", 1])
+    buf = io.BytesIO(); wb.save(buf)
+    r = client.post("/api/hrm/attendance/import", files={"file": ("D2026.xlsx", buf.getvalue(), "application/vnd.ms-excel")})
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 1 and r.json()["unknown_codes"] == []
+
+
+def test_import_no_header_returns_400():
+    wb = openpyxl.Workbook(); wb.active.append(["abc", "xyz"])
+    buf = io.BytesIO(); wb.save(buf)
+    r = client.post("/api/hrm/attendance/import", files={"file": ("x.xlsx", buf.getvalue(), "application/vnd.ms-excel")})
+    assert r.status_code == 400 and "tiêu đề" in r.json()["detail"]
+
+
+def test_exempt_staff_full_pay_but_no_attendance_bonus(kho_emp):
+    client.put(f"/api/hrm/employees/{kho_emp}", json={"is_attendance_exempt": 1})
+    for d in ("2025-03-10", "2025-03-20"):
+        client.put("/api/hrm/attendance", json={"staff_id": kho_emp, "work_date": d, "leave_type": "off"})
+    line = _line(client.post(f"/api/hrm/payroll/{MONTH}/calculate").json(), kho_emp)
+    assert line["days_official"] + line["days_probation"] == 29 and line["penalties"] == 0
+    assert line["attendance_bonus"] == 0
+
+
 def test_full_month_split_probation_attendance_bonus(kho_emp):
     # Nghỉ có phép 2 ngày (Kho được nghỉ 2 ngày/tháng): 10 và 20. Thử việc 01-15, chính thức từ 16.
     client.post("/api/hrm/attendance/import", files={"file": _xlsx(_full_month_rows(skip=(10, 20)))})
