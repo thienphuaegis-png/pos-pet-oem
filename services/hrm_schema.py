@@ -12,6 +12,8 @@ HRM_DEFAULT_RULES = {
     "insurance_cap": 46800000,
     "tax_self_deduction": 11000000,
     "tax_dependent_deduction": 4400000,
+    "min_wage": 5310000,
+    "alert_change_pct": 30,
 }
 
 STAFF_HR_COLUMNS = [

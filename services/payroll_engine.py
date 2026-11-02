@@ -76,6 +76,8 @@ class Rules:
     insurance_cap: int = 46800000               # Trần lương đóng BHXH (20 lần mức cơ sở 2.34M)
     tax_self_deduction: int = 11000000          # Giảm trừ gia cảnh bản thân (11M/tháng)
     tax_dependent_deduction: int = 4400000      # Giảm trừ người phụ thuộc (4.4M/người/tháng)
+    min_wage: int = 5310000                     # Lương tối thiểu vùng (vùng I 2026) — cảnh báo khi lương CB thấp hơn
+    alert_change_pct: int = 30                  # Cảnh báo khi thực lãnh lệch ≥ X% so với tháng trước
 
 
 def calc_pit(assessable_income: Decimal) -> Decimal:

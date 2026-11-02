@@ -7297,10 +7297,17 @@
                             <button onclick="exportMobileSheets()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"><i class="ph ph-device-mobile"></i> Xuất Google Sheet Mobile</button>
                         </div>
                     </div>
+                    <div id="hrm-payroll-issues-bar" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div class="text-amber-900"><i class="ph ph-warning"></i> <b id="hrm-payroll-issues-count"></b> <span id="hrm-payroll-issues-summary" class="text-amber-800"></span></div>
+                        <label class="inline-flex items-center gap-1 cursor-pointer font-semibold text-amber-900">
+                            <input type="checkbox" id="hrm-payroll-only-issues" onchange="rerenderHrmPayroll()"> Chỉ dòng có cảnh báo
+                        </label>
+                    </div>
                     <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
                         <table class="w-full text-left border-collapse text-xs">
                             <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
                                 <tr>
+                                    <th class="p-2.5 text-center" title="Cảnh báo cần kiểm tra trước khi chốt">⚠</th>
                                     <th class="p-2.5">Mã NV</th>
                                     <th class="p-2.5">Họ và Tên</th>
                                     <th class="p-2.5">Khối</th>
@@ -7333,7 +7340,25 @@
                 </div>
 
                 <!-- SUBTAB: XEM & TÍNH HOA HỒNG NHÂN VIÊN (POS + SPA + SÀN TMĐT + TIP) -->
-                <div id="hrm-subtab-commissions" class="hidden space-y-4">
+                <div id="hrm-subtab-commissions" class="hidden space-y-3">
+                    <!-- Chuyển chế độ: Kết quả tháng (xem hằng tháng) / Cài đặt hoa hồng (sửa vài lần/năm) -->
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-bold">
+                            <button type="button" id="btn-comm-view-result" onclick="setCommView('result')" class="px-3 py-1.5 rounded-md cursor-pointer">Kết quả tháng</button>
+                            <button type="button" id="btn-comm-view-config" onclick="setCommView('config')" class="px-3 py-1.5 rounded-md cursor-pointer">Cài đặt hoa hồng</button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" id="btn-sync-unlinked-spa" onclick="syncUnlinkedSpaWorkers()" class="hidden bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs cursor-pointer transition">
+                                <i class="ph ph-paw-print"></i> Đồng bộ Thợ Spa vào Hồ sơ Nhân sự
+                            </button>
+                            <button type="button" onclick="recalcAndSyncCommissionToPayroll()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer transition">
+                                <i class="ph ph-lightning"></i> Tính Lại & Áp Vào Bảng Lương Tháng Này
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ═══ CHẾ ĐỘ 1: KẾT QUẢ THÁNG ═══ -->
+                    <div id="hrm-comm-view-result" class="space-y-3">
                     <!-- 1. 4 Thẻ KPI Tổng Hợp Hoa Hồng Trong Tháng -->
                     <div class="elaya-tray rounded-2xl p-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         <div class="bg-white p-3.5 rounded-xl shadow-xs border border-slate-200/80 ">
@@ -7358,58 +7383,70 @@
                         </div>
                     </div>
 
-                    <!-- 2A. Tầng 1: Quy Định Hoa Hồng Chuẩn Theo 4 Bộ Phận -->
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                            <div>
-                                <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
-                                    <span><i class="ph ph-buildings"></i></span> Tầng 1: Quy Định Hoa Hồng Chuẩn Theo Bộ Phận (Department Policies)
-                                </h3>
-                                <p class="text-xs text-slate-500">Khi gán nhân viên vào Bộ phận nào, hệ thống tự động áp khung hoa hồng của Bộ phận đó (hoặc bấm <b><i class="ph ph-lightning"></i> Áp cho cả bộ phận</b>)</p>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button type="button" id="btn-comm-filter-all" onclick="filterCommByDept('all')" class="px-3 py-1 rounded-full bg-sky-600 text-white text-xs font-bold cursor-pointer transition">
-                                    Tất cả bộ phận
-                                </button>
-                                <button type="button" id="btn-sync-unlinked-spa" onclick="syncUnlinkedSpaWorkers()" class="hidden bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs cursor-pointer transition">
-                                    <i class="ph ph-paw-print"></i> Đồng bộ Thợ Spa vào Hồ sơ Nhân sự
-                                </button>
-                                <button type="button" onclick="recalcAndSyncCommissionToPayroll()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer transition">
-                                    <span><i class="ph ph-lightning"></i></span> <span>Tính Lại & Áp Vào Bảng Lương Tháng Này</span>
-                                </button>
-                            </div>
-                        </div>
 
-                        <div id="hrm-dept-policy-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+                        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                            <div class="p-2.5 border-b border-slate-100 flex flex-wrap items-center gap-2 bg-slate-50/50 text-xs">
+                                <input type="text" id="hrm-comm-search" oninput="renderCommTable()" placeholder="Tìm tên / mã NV..." class="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white w-48">
+                                <select id="hrm-comm-filter-dept" onchange="renderCommTable()" class="border border-slate-300 rounded-lg px-2 py-1.5 bg-white font-semibold text-slate-700 cursor-pointer"></select>
+                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-600 font-semibold">
+                                    <input type="checkbox" id="hrm-comm-hide-zero" onchange="renderCommTable()" checked> Ẩn NV không có hoa hồng
+                                </label>
+                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-600 font-semibold">
+                                    <input type="checkbox" id="hrm-comm-only-custom" onchange="renderCommTable()"> Chỉ NV mức riêng
+                                </label>
+                                <span id="hrm-comm-count" class="ml-auto text-slate-500"></span>
+                            </div>
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 text-xs">
+                                    <tr>
+                                        <th class="p-2.5">Nhân viên</th>
+                                        <th class="p-2.5">Bộ phận</th>
+                                        <th class="p-2.5 text-right">Bán POS</th>
+                                        <th class="p-2.5 text-right">Spa + Tip</th>
+                                        <th class="p-2.5 text-right">Sàn / KOC</th>
+                                        <th class="p-2.5 text-right text-emerald-700">Tổng</th>
+                                        <th class="p-2.5 w-8"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-hrm-commissions" class="divide-y divide-slate-100">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400">Đang tính toán dữ liệu hoa hồng...</td></tr>
+                                </tbody>
+                                <tfoot id="table-hrm-commissions-foot" class="bg-slate-100 font-bold border-t border-slate-200"></tfoot>
+                            </table>
+                        </div>
                     </div>
 
-                    <!-- 2B. Ma Trận Cài Đặt Hoa Hồng Dịch Vụ Spa Đa Năng (Đa Cơ Sở · Bậc Kg · Chính Thức / Thử Việc · Phụ Thu) -->
-                    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 space-y-3" id="hrm-spa-commission-matrix-section">
-                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                            <div>
-                                <h3 class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
-                                    <span><i class="ph ph-scissors text-sky-600"></i></span>
-                                    <span>Bảng Cài Đặt Ma Trận Hoa Hồng Spa Đa Năng (Đa Cơ Sở · Chính Thức / Thử Việc · Bậc Kg & Phụ Thu)</span>
-                                </h3>
-                                <p class="text-xs text-slate-500">Hỗ trợ lưu nhiều <b>Mẫu Cơ Sở</b> độc lập, tùy chỉnh ngưỡng Số Kg, mức <b>NV Chính thức</b> / <b>NV Thử việc</b>, tỷ lệ chia khi 2 thợ cùng tắm và 7 cột Phụ thu</p>
+                    <!-- ═══ CHẾ ĐỘ 2: CÀI ĐẶT HOA HỒNG ═══ -->
+                    <div id="hrm-comm-view-config" class="hidden space-y-3">
+                        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
+                            <div class="p-2.5 border-b border-slate-100 bg-slate-50/50">
+                                <h3 class="text-xs font-bold uppercase text-slate-800"><i class="ph ph-buildings"></i> Mức chuẩn theo bộ phận</h3>
+                                <p class="text-xs text-slate-500">NV "Theo bộ phận" tự hưởng mức này. NV cần mức riêng: bấm vào dòng NV ở Kết quả tháng.</p>
                             </div>
-                            <div class="flex flex-wrap items-center gap-1.5">
-                                <select id="hrm-spa-profile-select" onchange="switchSpaMatrixProfile(this.value)" class="border border-sky-300 bg-sky-50/70 text-sky-900 rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer"></select>
-                                <button type="button" onclick="cloneNewSpaMatrixProfile()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer transition" title="Tạo mẫu mới cho cơ sở khác">
-                                    <i class="ph ph-copy"></i> + Nhân Bản Cơ Sở Mới
-                                </button>
-                                <button type="button" onclick="exportImportSpaMatrixModal()" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer transition" title="Xuất hoặc Nhập cấu hình JSON giữa các cơ sở">
-                                    <i class="ph ph-arrows-left-right"></i> Xuất / Nhập Mẫu
-                                </button>
-                                <button type="button" onclick="saveSpaCommissionMatrix()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-xs cursor-pointer transition flex items-center gap-1">
-                                    <i class="ph ph-floppy-disk"></i> Lưu Bảng Hoa Hồng Spa
-                                </button>
-                            </div>
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-2.5">Bộ phận</th>
+                                        <th class="p-2.5 text-center">Số NV</th>
+                                        <th class="p-2.5 text-center">% Bán POS</th>
+                                        <th class="p-2.5 text-center">Hoa hồng Spa + Tip</th>
+                                        <th class="p-2.5 text-center">Sàn / KOC</th>
+                                        <th class="p-2.5"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hrm-dept-policy-cards" class="divide-y divide-slate-100"></tbody>
+                            </table>
                         </div>
 
-                        <!-- Container render động Bảng Ma Trận Bậc Cân Nặng + Phụ Thu -->
-                        <div id="hrm-spa-matrix-editor-container" class="space-y-3"></div>
-
+                        <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 space-y-2.5" id="hrm-spa-commission-matrix-section">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="text-xs font-bold uppercase text-slate-800"><i class="ph ph-scissors text-sky-600"></i> Bảng hoa hồng Spa</h3>
+                                    <select id="hrm-spa-profile-select" onchange="switchSpaMatrixProfile(this.value)" class="border border-slate-300 bg-white text-slate-800 rounded-lg px-2 py-1 text-xs font-semibold cursor-pointer"></select>
+                                </div>
+                                <div id="hrm-spa-matrix-toolbar" class="flex flex-wrap items-center gap-1.5"></div>
+                            </div>
+                            <div id="hrm-spa-matrix-editor-container" class="space-y-2"></div>
                         <!-- Khối quy tắc % truyền thống (chỉ hiện khi cơ sở chọn chế độ Tính theo % Doanh thu) -->
                         <div id="hrm-legacy-percent-rules-wrap" class="hidden space-y-2 pt-2 border-t border-slate-100">
                             <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 text-xs">
@@ -7433,37 +7470,47 @@
                             </div>
                             <div id="hrm-comm-rules-pills" class="flex flex-wrap gap-2 pt-1"></div>
                         </div>
+                        </div>
                     </div>
 
-                    <!-- 3. Tầng 2: Bảng Gán Bộ Phận & Quy Định Hoa Hồng Theo Từng Nhân Viên -->
-                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto">
-                        <div class="p-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
-                            <div>
-                                <h3 class="text-xs font-bold uppercase text-slate-800"><i class="ph ph-user"></i> Tầng 2: Gán Bộ Phận, Chế Độ Quy Định & Bảng Tính Hoa Hồng Từng Nhân Viên</h3>
-                                <p class="text-xs text-slate-500">Chọn <b>Bộ phận</b> hoặc đổi sang <b><i class="ph ph-pencil-simple"></i> Mức riêng</b> ngay trên từng dòng nhân viên để áp dụng tức thì</p>
+                    <!-- POPUP: cài hoa hồng riêng cho 1 nhân viên -->
+                    <div id="modal-hrm-comm-staff" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeCommStaffModal()">
+                        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-3 text-xs">
+                            <div class="flex items-center justify-between border-b pb-2">
+                                <div>
+                                    <h3 class="font-bold text-sm text-slate-800">Cài hoa hồng nhân viên</h3>
+                                    <div id="hrm-comm-staff-title" class="text-slate-500"></div>
+                                </div>
+                                <button type="button" onclick="closeCommStaffModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold">&times;</button>
+                            </div>
+                            <input type="hidden" id="hrm-comm-staff-id">
+                            <label class="block font-bold text-slate-700">Bộ phận
+                                <select id="hrm-comm-staff-dept" onchange="refreshCommStaffModal()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 mt-1 bg-white"></select>
+                            </label>
+                            <div class="flex gap-4 font-semibold text-slate-700">
+                                <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" name="hrm-comm-staff-mode" value="dept" onchange="refreshCommStaffModal()"> Theo bộ phận</label>
+                                <label class="inline-flex items-center gap-1 cursor-pointer"><input type="radio" name="hrm-comm-staff-mode" value="custom" onchange="refreshCommStaffModal()"> Mức riêng</label>
+                            </div>
+                            <div id="hrm-comm-staff-custom" class="grid grid-cols-2 gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50">
+                                <label class="font-semibold text-slate-700">% Bán POS
+                                    <input type="number" step="0.5" min="0" max="100" id="hrm-comm-staff-rate" class="w-full border border-slate-300 rounded px-2 py-1 mt-1 text-right font-mono font-bold bg-white">
+                                </label>
+                                <div class="space-y-1.5 pt-4">
+                                    <label class="flex items-center gap-1 cursor-pointer font-semibold text-slate-700"><input type="checkbox" id="hrm-comm-staff-spa"> Hưởng Spa + Tip</label>
+                                    <label class="flex items-center gap-1 cursor-pointer font-semibold text-slate-700"><input type="checkbox" id="hrm-comm-staff-tmdt"> Hưởng Sàn / KOC</label>
+                                </div>
+                            </div>
+                            <label class="block font-bold text-slate-700">Mức hoa hồng Spa
+                                <select id="hrm-comm-staff-tier" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 mt-1 bg-white">
+                                    <option value="official">Chính thức</option>
+                                    <option value="probation">Thử việc</option>
+                                </select>
+                            </label>
+                            <div class="flex justify-end gap-2 pt-2 border-t">
+                                <button type="button" onclick="closeCommStaffModal()" class="px-4 py-1.5 rounded-lg border border-slate-300 font-bold text-slate-700">Hủy</button>
+                                <button type="button" onclick="saveCommStaffModal()" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold">Lưu</button>
                             </div>
                         </div>
-                        <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase text-xs">
-                                <tr>
-                                    <th class="p-2.5">Mã & Họ Tên NV</th>
-                                    <th class="p-2.5">Bộ Phận (Department)</th>
-                                    <th class="p-2.5">Quy Định Áp Dụng</th>
-                                    <th class="p-2.5 text-center">% Bán POS</th>
-                                    <th class="p-2.5 text-right">Doanh Số POS</th>
-                                    <th class="p-2.5 text-right text-sky-700">HH Bán POS</th>
-                                    <th class="p-2.5 text-center">Quyền & Ca Spa</th>
-                                    <th class="p-2.5 text-right text-sky-700">HH Làm Spa</th>
-                                    <th class="p-2.5 text-right text-amber-700">Tiền Tip</th>
-                                    <th class="p-2.5 text-right text-sky-700">Quyền & HH Sàn/KOC</th>
-                                    <th class="p-2.5 text-right font-bold text-emerald-700">Tổng Cộng HH</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-hrm-commissions" class="divide-y divide-slate-100">
-                                <tr><td colspan="11" class="p-6 text-center text-slate-400">Đang tính toán dữ liệu hoa hồng...</td></tr>
-                            </tbody>
-                            <tfoot id="table-hrm-commissions-foot" class="bg-slate-100 font-bold border-t border-slate-200"></tfoot>
-                        </table>
                     </div>
                 </div>
 
@@ -7797,6 +7844,16 @@
                                 <label class="font-bold text-slate-700">Phút tối thiểu tính OT (phút)</label>
                                 <input type="number" id="cfg-ot-min" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
                                 <span class="text-xs text-slate-400">Mặc định: 25 phút</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Lương tối thiểu vùng (đ)</label>
+                                <input type="text" id="cfg-min-wage" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white text-right focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-xs text-slate-400">Cảnh báo khi lương CB thấp hơn (trừ TTS). Vùng I 2026: 5.310.000</span>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200/70 space-y-1">
+                                <label class="font-bold text-slate-700">Cảnh báo lệch so tháng trước (%)</label>
+                                <input type="number" id="cfg-alert-change-pct" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold bg-white focus:ring-1 focus:ring-emerald-500">
+                                <span class="text-xs text-slate-400">Mặc định: 30%</span>
                             </div>
                         </div>
 

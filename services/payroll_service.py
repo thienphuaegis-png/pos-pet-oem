@@ -208,7 +208,7 @@ def payroll_staff(cur, first: date) -> list:
     return cur.fetchall()
 
 
-def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa, manual) -> dict:
+def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa, manual, prev_net=None) -> dict:
     s = dict(staff)
     anomalies = []
     block = blocks.get(s["work_block_id"])
@@ -253,6 +253,16 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
         anomalies.append("Chưa có mã máy chấm công")
     if s.get("is_attendance_exempt") and p["days_official"] + p["days_probation"] > p["std_days"]:
         anomalies.append(f"Miễn chấm công: {p['days_official'] + p['days_probation']:g} công > {p['std_days']} chuẩn, chưa nhập ngày nghỉ?")
+    credit = p["days_official"] + p["days_probation"]
+    if base > 0 and credit == 0 and any(d.employed for d in days):
+        anomalies.append("Có lương nhưng 0 công — thiếu dữ liệu chấm công?")
+    # TTS không ký HĐLĐ nên không áp lương tối thiểu vùng
+    if 0 < base < rules.min_wage and "thực tập" not in (s["position"] or "").lower():
+        anomalies.append(f"Lương CB {base:,} thấp hơn lương tối thiểu vùng {rules.min_wage:,}".replace(",", "."))
+    if prev_net and prev_net > 0:
+        pct = (p["net_rounded"] - prev_net) * 100 / prev_net
+        if abs(pct) >= rules.alert_change_pct:
+            anomalies.append(f"Thực lãnh {pct:+.0f}% so với tháng trước ({prev_net:,.0f} → {p['net_rounded']:,})".replace(",", "."))
     p.update({"staff_id": s["id"], "name": s["name"], "employee_code": s["employee_code"] or "",
               "position": s["position"] or "", "block": block.name, "anomalies": anomalies,
               "sales_net": int(sales.get(s["id"], {}).get("net", 0)),
@@ -298,11 +308,16 @@ def calculate_period(cur, month: str, today: date = None) -> dict:
     spa = spa_commission_by_name(cur, first.isoformat(), last.isoformat())
     cur.execute("SELECT * FROM payroll_lines WHERE period_id = ?", (period["id"],))
     existing = {r["staff_id"]: r for r in cur.fetchall()}
+    # Thực lãnh tháng trước (bất kỳ trạng thái) để cảnh báo biến động
+    prev_y, prev_m = (y - 1, 12) if m == 1 else (y, m - 1)
+    cur.execute("""SELECT pl.staff_id, pl.net_pay FROM payroll_lines pl JOIN payroll_periods pp ON pp.id = pl.period_id
+                   WHERE pp.month = ?""", (f"{prev_y:04d}-{prev_m:02d}",))
+    prev_net = {r["staff_id"]: float(r["net_pay"] or 0) for r in cur.fetchall()}
     seen = set()
     for s in payroll_staff(cur, first):
         ex = existing.get(s["id"])
         manual = {k: float(ex[k] or 0) for k in MANUAL_FIELDS} if ex else {}
-        line = compute_line(cur, s, y, m, first, last, today, rules, blocks, sales, spa, manual)
+        line = compute_line(cur, s, y, m, first, last, today, rules, blocks, sales, spa, manual, prev_net.get(s["id"]))
         seen.add(s["id"])
         cur.execute("""INSERT INTO payroll_lines (period_id, staff_id, data_json, net_pay) VALUES (?, ?, ?, ?)
                        ON CONFLICT(period_id, staff_id) DO UPDATE SET data_json = excluded.data_json, net_pay = excluded.net_pay""",
@@ -327,7 +342,7 @@ def get_period(cur, month: str) -> dict:
         data.update({"line_id": r["id"], "net_pay": float(r["net_pay"] or 0), "manual_note": r["manual_note"] or "",
                      "cashbook_id": r["cashbook_id"], "cashbook_code": r["cashbook_code"], "paid_at": r["paid_at"]})
         lines.append(data)
-    keys = ("pay_days", "allowance", "holiday_pay", "commission", "spa_commission", "tips", "ot_pay",
+    keys = ("base_salary", "pay_days", "allowance", "holiday_pay", "commission", "spa_commission", "tips", "ot_pay",
             "attendance_bonus", "birthday_bonus", "penalties", "advances", "insurance", "pit", "net_pay")
     totals = {k: sum(float(l.get(k) or 0) for l in lines) for k in keys}
     return {"month": month, "status": period["status"], "locked_at": period["locked_at"],

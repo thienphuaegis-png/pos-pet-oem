@@ -1,0 +1,98 @@
+<style>
+  .wrap{display:flex;flex-direction:column;gap:14px;font-size:12px;color:var(--foreground);max-width:980px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--card)}
+  h3{margin:0 0 6px;font-size:13px}
+  h4{margin:8px 0 4px;font-size:12px}
+  .muted{color:var(--muted-foreground)}
+  .bad{color:#e5484d;font-weight:600}
+  .good{color:#30a46c;font-weight:600}
+  table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+  th,td{border:1px solid var(--border);padding:3px 6px;text-align:left}
+  td.n{text-align:right;font-family:ui-monospace,monospace}
+  th{font-weight:600;color:var(--muted-foreground)}
+  .pills{display:flex;gap:4px;margin-bottom:8px}
+  .pill{padding:3px 10px;border-radius:999px;border:1px solid var(--border)}
+  .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .grp td{font-weight:700;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .btn{display:inline-block;padding:2px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px}
+  .stack div{border:1px dashed var(--border);border-radius:6px;padding:6px;margin-bottom:6px}
+  .tag{font-size:10px;padding:0 5px;border-radius:4px;border:1px solid var(--border)}
+</style>
+<div class="wrap">
+  <div class="row2">
+    <div class="card">
+      <h3>HIỆN TẠI <span class="muted">(1 trang dài, cuộn ~4 màn hình)</span></h3>
+      <div class="stack">
+        <div>4 thẻ KPI</div>
+        <div>Tầng 1: 4 thẻ bộ phận cao (mô tả dài + ô % + 2 checkbox + nút)</div>
+        <div><span class="bad">Ma trận Spa</span>: thanh 5 ô cấu hình + bảng 11 cột ngang (Tắm 5 bậc · Mèo · Nhuộm · Cắt 3 bậc), mỗi ô là 1 ô nhập → <span class="bad">33 ô nhập + 10 nút ×</span></div>
+        <div><span class="bad">Bảng phụ thu</span>: thêm 7 cột ngang × 2 dòng → <span class="bad">14 ô nhập + 7 droplist</span></div>
+        <div>Tầng 2: bảng NV <span class="bad">11 cột</span>, mỗi dòng 3–4 droplist/checkbox</div>
+      </div>
+      <p class="muted">Vấn đề: cài đặt (sửa vài lần/năm) và kết quả tháng (xem mỗi tháng) trộn chung 1 trang; mọi số đều là ô nhập nên mắt không biết đọc chỗ nào.</p>
+    </div>
+    <div class="card">
+      <h3>ĐỀ XUẤT <span class="muted">(2 nút chuyển trong tab)</span></h3>
+      <div class="pills"><span class="pill on">Kết quả tháng 10</span><span class="pill">Cài đặt hoa hồng</span></div>
+      <div class="stack">
+        <div><b>Kết quả tháng</b> (mặc định): 4 thẻ KPI + bảng NV gọn <span class="good">6 cột</span>, ẩn NV có hoa hồng = 0</div>
+        <div><b>Cài đặt hoa hồng</b>: bộ phận dạng <span class="good">bảng 4 dòng</span> + bảng Spa <span class="good">xoay dọc, chỉ xem</span>, bấm <span class="btn">Sửa</span> mới thành ô nhập</div>
+      </div>
+      <p class="muted">Đọc nhanh mỗi tháng, không cuộn qua phần cài đặt.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Cài đặt hoa hồng — bảng Spa xoay dọc (số thật từ ảnh anh gửi)</h3>
+    <p class="muted" style="margin:0 0 6px">Mỗi hạng mục 1 dòng, chỉ 3 cột số. Tắm + Mèo + Nhuộm + Cắt + Phụ thu gộp 1 bảng, gom nhóm. Chế độ xem: chữ thường, không ô nhập.</p>
+    <div class="row2">
+      <table>
+        <tr><th>Hạng mục</th><th>Cân nặng</th><th>Chính thức</th><th>Thử việc</th></tr>
+        <tr class="grp"><td colspan="4">Tắm chó · chia 2 thợ 50/50</td></tr>
+        <tr><td>Nhỏ</td><td>≤ 10kg</td><td class="n">30.000</td><td class="n">25.000</td></tr>
+        <tr><td>Trung</td><td>≤ 20kg</td><td class="n">60.000</td><td class="n">50.000</td></tr>
+        <tr><td>Lớn</td><td>≤ 30kg</td><td class="n">90.000</td><td class="n">75.000</td></tr>
+        <tr><td>Đại</td><td>≤ 40kg</td><td class="n">120.000</td><td class="n">100.000</td></tr>
+        <tr><td>Cực đại</td><td>&gt; 40kg</td><td class="n">150.000</td><td class="n">125.000</td></tr>
+        <tr class="grp"><td colspan="4">Khác</td></tr>
+        <tr><td>Mèo</td><td>Mọi kg</td><td class="n">60.000</td><td class="n">50.000</td></tr>
+        <tr><td>Nhuộm</td><td>Mọi kg</td><td class="n">50.000</td><td class="n">40.000</td></tr>
+      </table>
+      <table>
+        <tr><th>Hạng mục</th><th>Cân nặng / Thợ</th><th>Chính thức</th><th>Thử việc</th></tr>
+        <tr class="grp"><td colspan="4">Cắt tỉa</td></tr>
+        <tr><td>Cắt nhỏ</td><td>≤ 10kg</td><td class="n">50.000</td><td class="n">40.000</td></tr>
+        <tr><td>Cắt trung</td><td>10,1–30kg</td><td class="n">100.000</td><td class="n">90.000</td></tr>
+        <tr><td>Cắt lớn</td><td>&gt; 30kg</td><td class="n">120.000</td><td class="n">110.000</td></tr>
+        <tr class="grp"><td colspan="4">Phụ thu</td></tr>
+        <tr><td>PT Cắt đầu</td><td><span class="tag">Thợ cắt</span></td><td class="n">25.000</td><td class="n">25.000</td></tr>
+        <tr><td>PT Cắt nghệ thuật</td><td><span class="tag">Thợ cắt</span></td><td class="n">25.000</td><td class="n">25.000</td></tr>
+        <tr><td>PT Gỡ rối 50K…250K</td><td><span class="tag">Thợ tắm</span></td><td class="n">25k…125k</td><td class="n">25k…125k</td></tr>
+      </table>
+    </div>
+    <p class="muted" style="margin:6px 0 0">Phụ thu: số lấy từ DB máy code (ảnh anh chưa chụp tới phần này). Bấm <span class="btn">Sửa</span>: các số thành ô nhập, hiện nút + Thêm bậc / × Xóa / Lưu / Hủy.</p>
+  </div>
+
+  <div class="card">
+    <h3>Bộ phận — bảng 4 dòng thay 4 thẻ cao</h3>
+    <table>
+      <tr><th>Bộ phận</th><th>Số NV</th><th>% Bán POS</th><th>Hoa hồng Spa + Tip</th><th>Sàn / KOC</th><th></th></tr>
+      <tr><td>Bán Lẻ POS</td><td class="n">3</td><td class="n">3%</td><td>—</td><td>—</td><td><span class="btn">Áp cho 3 NV</span></td></tr>
+      <tr><td>Spa &amp; Grooming</td><td class="n">3</td><td class="n">1,5%</td><td class="good">Có</td><td>—</td><td><span class="btn">Áp cho 3 NV</span></td></tr>
+      <tr><td>Sales Online &amp; TMĐT</td><td class="n">0</td><td class="n">2%</td><td>—</td><td class="good">Có</td><td><span class="btn">Áp cho 0 NV</span></td></tr>
+      <tr><td>Kho &amp; Khách Sạn</td><td class="n">0</td><td class="n">1%</td><td>—</td><td>—</td><td><span class="btn">Áp cho 0 NV</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Kết quả tháng — bảng NV: 11 cột → 6 cột</h3>
+    <p class="muted" style="margin:0 0 6px">Số liệu minh họa lấy từ DB máy code (bản cũ), không phải số máy chủ.</p>
+    <table>
+      <tr><th>Nhân viên</th><th>Bộ phận</th><th>POS</th><th>Spa</th><th>Sàn/KOC</th><th>Tổng</th></tr>
+      <tr><td>SPA39 Thảo Vy</td><td>Spa &amp; Grooming <span class="tag">Theo BP</span></td><td class="n">—</td><td class="n">9 ca · 455.000<br><span class="muted">+ tip 83.333</span></td><td class="n">—</td><td class="n"><b>538.333</b></td></tr>
+      <tr><td>NV01 admin</td><td>Bán Lẻ POS <span class="tag">Theo BP</span></td><td class="n">401.613.291 × 3%<br><b>12.048.399</b></td><td class="n">—</td><td class="n">—</td><td class="n"><b>12.048.399</b></td></tr>
+    </table>
+    <p class="muted" style="margin:6px 0 0">Đổi bộ phận / mức riêng / % / bật tắt Spa-Sàn: bấm vào dòng → mở popup sửa, thay cho 3–4 droplist nằm sẵn trên mỗi dòng.</p>
+  </div>
+</div>

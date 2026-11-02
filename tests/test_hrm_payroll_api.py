@@ -163,6 +163,28 @@ def test_salary_adjustment_effective_date(kho_emp):
     assert line["base_salary"] == 7_000_000
 
 
+def test_anomalies_zero_credit_min_wage_and_month_change(kho_emp):
+    # Không có chấm công: lương 7tr nhưng 0 công -> cảnh báo; lương < tối thiểu vùng -> cảnh báo
+    client.put(f"/api/hrm/employees/{kho_emp}", json={"base_salary": 4_000_000})
+    line = _line(client.post(f"/api/hrm/payroll/{MONTH}/calculate").json(), kho_emp)
+    an = " | ".join(line["anomalies"])
+    assert "0 công" in an and "tối thiểu vùng" in an
+    # Tháng trước (02/2025) thực lãnh 10tr -> tháng này lệch mạnh -> cảnh báo biến động
+    conn = _db(); cur = conn.cursor()
+    cur.execute("DELETE FROM payroll_periods WHERE month = '2025-02'")
+    cur.execute("INSERT INTO payroll_periods (month, status) VALUES ('2025-02', 'locked')")
+    cur.execute("INSERT INTO payroll_lines (period_id, staff_id, data_json, net_pay) VALUES (?, ?, '{}', 10000000)", (cur.lastrowid, kho_emp))
+    conn.commit(); conn.close()
+    try:
+        line = _line(client.post(f"/api/hrm/payroll/{MONTH}/calculate").json(), kho_emp)
+        assert any("so với tháng trước" in a for a in line["anomalies"])
+    finally:
+        conn = _db()
+        conn.execute("DELETE FROM payroll_lines WHERE period_id IN (SELECT id FROM payroll_periods WHERE month = '2025-02')")
+        conn.execute("DELETE FROM payroll_periods WHERE month = '2025-02'")
+        conn.commit(); conn.close()
+
+
 def test_lock_blocks_edits_and_pay_creates_cashbook_and_delete_reverts(kho_emp):
     client.post("/api/hrm/attendance/import", files={"file": _xlsx(_full_month_rows(skip=(10, 20)))})
     client.post(f"/api/hrm/payroll/{MONTH}/calculate")

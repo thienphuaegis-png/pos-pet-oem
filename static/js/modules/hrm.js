@@ -210,13 +210,37 @@
         }
 
         const tbody = document.getElementById('table-hrm-payroll');
-        if (!data.lines || data.lines.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="21" class="p-6 text-center text-slate-400">Chưa có dữ liệu bảng lương tháng này. Hãy bấm "Tính Lương" để khởi tạo.</td></tr>`;
+        const issuesBar = document.getElementById('hrm-payroll-issues-bar');
+        const allLines = data.lines || [];
+        const issueLines = allLines.filter(l => (l.anomalies || []).length);
+        if (issuesBar) {
+            issuesBar.classList.toggle('hidden', !issueLines.length);
+            // Gom theo loại cảnh báo (bỏ phần số riêng của từng người sau dấu ":" / "(")
+            const byType = {};
+            issueLines.forEach(l => l.anomalies.forEach(a => {
+                // Bỏ phần số riêng từng người: "Lương CB 4.800.000 thấp hơn…" / "Thực lãnh -63% so với…" gom chung 1 loại
+                const k = a.split(/[:(]/)[0].replace(/[+-]?\d{1,3}(\.\d{3})+|[+-]\d+%/g, '…').replace(/\s+/g, ' ').trim();
+                byType[k] = (byType[k] || 0) + 1;
+            }));
+            document.getElementById('hrm-payroll-issues-count').textContent = `${issueLines.length}/${allLines.length} nhân viên có cảnh báo:`;
+            document.getElementById('hrm-payroll-issues-summary').textContent = Object.entries(byType).map(([k, n]) => `${k} (${n})`).join(' · ');
+        }
+        const onlyIssues = document.getElementById('hrm-payroll-only-issues')?.checked;
+        const lines = onlyIssues ? issueLines : allLines;
+        if (!lines.length) {
+            tbody.innerHTML = `<tr><td colspan="24" class="p-6 text-center text-slate-400">Chưa có dữ liệu bảng lương tháng này. Hãy bấm "Tính Lương" để khởi tạo.</td></tr>`;
             return;
         }
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
 
-        tbody.innerHTML = data.lines.map(l => `
-            <tr class="hover:bg-slate-50">
+        tbody.innerHTML = lines.map(l => {
+            const iss = l.anomalies || [];
+            const issCell = iss.length
+                ? `<span class="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-800 font-bold cursor-help" title="${esc(iss.join('\n'))}">${iss.length}</span>`
+                : '';
+            return `
+            <tr class="hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">
+                <td class="p-2.5 text-center">${issCell}</td>
                 <td class="p-2.5 font-mono font-bold text-slate-700">${l.employee_code || ''}</td>
                 <td class="p-2.5 font-bold text-slate-900">${l.name || ''}</td>
                 <td class="p-2.5 text-slate-600">${l.block || ''}</td>
@@ -244,13 +268,14 @@
                     <button onclick="editHrmLine(${l.staff_id}, ${l.bonus_other || 0}, ${l.fuel_other || 0}, ${l.deduction_other || 0}, '${(l.manual_note || '').replace(/'/g, "\\'")}')" class="text-sky-600 hover:underline font-bold mr-2 cursor-pointer">Sửa số</button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
 
         const foot = document.getElementById('table-hrm-payroll-foot');
         const tot = data.totals || {};
         foot.innerHTML = `
             <tr>
-                <td colspan="6" class="p-2.5 text-right uppercase">Tổng cộng:</td>
+                <td colspan="7" class="p-2.5 text-right uppercase">Tổng cộng:</td>
                 <td class="p-2.5 text-right font-mono">${(tot.base_salary || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono font-bold">${(tot.pay_days || 0).toLocaleString('vi-VN')}</td>
                 <td class="p-2.5 text-right font-mono">${(tot.allowance || 0).toLocaleString('vi-VN')}</td>
@@ -288,13 +313,29 @@
         }
     };
 
+    window.rerenderHrmPayroll = () => { if (payrollData) renderPayrollUI(payrollData); };
+
     window.lockHrmPayroll = async function() {
         const month = getSelectedMonth();
+        // Còn cảnh báo thì liệt kê ra để anh xem lại trước khi chốt (không chặn cứng)
+        const withIssues = (payrollData?.lines || []).filter(l => (l.anomalies || []).length);
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+        // Gom theo loại cảnh báo: "Thực lãnh âm (20): NV03, NV06…" thay vì lặp lý do từng người
+        const groups = {};
+        withIssues.forEach(l => l.anomalies.forEach(a => {
+            const k = a.split(/[:(]/)[0].replace(/[+-]?\d{1,3}(\.\d{3})+|[+-]\d+%/g, '…').replace(/\s+/g, ' ').trim();
+            (groups[k] = groups[k] || []).push(l.employee_code || l.name);
+        }));
+        const issuesHtml = withIssues.length
+            ? `<div class="text-left max-h-60 overflow-y-auto text-amber-900 space-y-1"><div class="font-bold">⚠ Còn ${withIssues.length} nhân viên có cảnh báo:</div>${Object.entries(groups).map(([k, codes]) => `<div><b>${esc(k)} (${codes.length})</b>: ${codes.map(esc).join(', ')}</div>`).join('')}</div>`
+            : '';
         const conf = await window.showConfirmModal({
-            title: "Chốt Bảng Lương",
+            title: withIssues.length ? `Chốt lương khi còn ${withIssues.length} cảnh báo?` : "Chốt Bảng Lương",
             message: `Bạn có chắc chắn muốn CHỐT bảng lương tháng ${month}? Sau khi chốt, dữ liệu chấm công và tăng ca của tháng này sẽ bị khóa hoàn toàn.`,
-            confirmText: "Chốt Lương",
-            type: "warning"
+            subMessage: issuesHtml,
+            confirmText: withIssues.length ? "Vẫn chốt" : "Chốt Lương",
+            type: withIssues.length ? "danger" : "warning",
+            icon: '🔒'
         });
         if (!conf) return;
         const res = await fetch(`/api/hrm/payroll/${month}/lock`, { method: 'POST' });
@@ -1062,6 +1103,8 @@
             setVal('cfg-probation-rate', (parseFloat(r.probation_rate || 0.85) * 100).toFixed(0));
             setVal('cfg-ot-multiplier', r.ot_multiplier || 1.5);
             setVal('cfg-ot-min', r.ot_min_minutes || 25);
+            setMoney('cfg-min-wage', r.min_wage ?? 5310000);
+            setVal('cfg-alert-change-pct', r.alert_change_pct ?? 30);
 
             // Enterprise Mode
             const isEnt = r.payroll_mode === 'enterprise';
@@ -1181,6 +1224,8 @@
             probation_rate: (probPct > 1 ? (probPct / 100).toFixed(2) : String(probPct || '0.85')),
             ot_multiplier: String(document.getElementById('cfg-ot-multiplier')?.value || '1.5'),
             ot_min_minutes: parseInt(document.getElementById('cfg-ot-min')?.value) || 25,
+            min_wage: parseVal('cfg-min-wage'),
+            alert_change_pct: parseInt(document.getElementById('cfg-alert-change-pct')?.value) || 30,
             payroll_mode: isEnt ? 'enterprise' : 'sme',
             insurance_rate: (insPct / 100).toFixed(3),
             insurance_cap: parseVal('cfg-insurance-cap'),
@@ -2910,21 +2955,34 @@
     }
     window.loadHrmCommissions = loadHrmCommissions;
 
-    window.filterCommByDept = function(dept) {
-        activeCommDeptFilter = dept || 'all';
-        const btnAll = document.getElementById('btn-comm-filter-all');
-        if (btnAll) {
-            btnAll.className = activeCommDeptFilter === 'all'
-                ? 'px-3 py-1 rounded-full bg-sky-600 text-white text-xs font-bold cursor-pointer transition'
-                : 'px-3 py-1 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold cursor-pointer transition';
-        }
-        if (currentCommData) renderHrmCommissionsUI(currentCommData);
+    let commView = 'result';
+    window.setCommView = function(view) {
+        commView = view === 'config' ? 'config' : 'result';
+        document.getElementById('hrm-comm-view-result')?.classList.toggle('hidden', commView !== 'result');
+        document.getElementById('hrm-comm-view-config')?.classList.toggle('hidden', commView !== 'config');
+        const on = 'px-3 py-1.5 rounded-md cursor-pointer bg-sky-600 text-white';
+        const off = 'px-3 py-1.5 rounded-md cursor-pointer text-slate-600 hover:bg-slate-100';
+        const r = document.getElementById('btn-comm-view-result'), c = document.getElementById('btn-comm-view-config');
+        if (r) r.className = commView === 'result' ? on : off;
+        if (c) c.className = commView === 'config' ? on : off;
     };
+    // giữ tương thích nút cũ (nếu còn chỗ nào gọi)
+    window.filterCommByDept = function(dept) {
+        const sel = document.getElementById('hrm-comm-filter-dept');
+        if (sel) sel.value = dept || 'all';
+        renderCommTable();
+    };
+
+    const fmtN = v => Math.round(v || 0).toLocaleString('vi-VN');
+    const escHtml = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+    function commDeptNames(data) {
+        const pols = (data && data.dept_policies) || [];
+        return pols.length ? pols.map(p => p.dept) : ['Bán Lẻ POS', 'Spa & Grooming', 'Sales Online & TMĐT', 'Kho & Khách Sạn'];
+    }
 
     function renderHrmCommissionsUI(data) {
         const s = data.summary || {};
-        const fmt = v => Math.round(v || 0).toLocaleString('vi-VN') + ' ₫';
-
+        const fmt = v => fmtN(v) + ' ₫';
         const setEl = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
         setEl('hrm-comm-kpi-pos', fmt(s.pos_commission_total));
         setEl('hrm-comm-kpi-pos-sub', `Doanh số POS thuần: ${fmt(s.pos_net_total)}`);
@@ -2933,236 +2991,187 @@
         setEl('hrm-comm-kpi-tips', fmt((s.spa_tips_total || 0) + (s.tmdt_commission_total || 0)));
         setEl('hrm-comm-kpi-tips-sub', `Tip: ${fmt(s.spa_tips_total)} · TMĐT/KOC: ${fmt(s.tmdt_commission_total)}`);
         setEl('hrm-comm-kpi-total', fmt(s.grand_total));
+        setCommView(commView);
 
-        // 1. Render 4 Thẻ Quy Định Hoa Hồng Theo Bộ Phận (Tầng 1)
-        const deptCardsEl = document.getElementById('hrm-dept-policy-cards');
-        const deptPolicies = data.dept_policies || [];
-        if (deptCardsEl) {
-            deptCardsEl.innerHTML = deptPolicies.map((p, idx) => {
-                const safeDept = (p.dept || '').replace(/'/g, "\\'");
-                const isSelected = activeCommDeptFilter === p.dept;
-                const borderCls = isSelected
-                    ? 'border-sky-500 bg-sky-50/70 ring-2 ring-sky-200'
-                    : 'border-slate-200 bg-slate-50/70 hover:border-sky-300';
-                const countInDept = (data.items || []).filter(x => x.department === p.dept).length;
+        // Bộ lọc bộ phận (giữ lựa chọn cũ)
+        const deptSel = document.getElementById('hrm-comm-filter-dept');
+        if (deptSel) {
+            const cur = deptSel.value || 'all';
+            deptSel.innerHTML = `<option value="all">Tất cả bộ phận</option>` +
+                commDeptNames(data).map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+            deptSel.value = [...deptSel.options].some(o => o.value === cur) ? cur : 'all';
+        }
+
+        // Mức chuẩn theo bộ phận: bảng 4 dòng
+        const deptBody = document.getElementById('hrm-dept-policy-cards');
+        if (deptBody) {
+            deptBody.innerHTML = (data.dept_policies || []).map((p, idx) => {
+                const n = (data.items || []).filter(x => x.department === p.dept && x.staff_id).length;
                 return `
-                    <div class="p-3 rounded-xl border transition flex flex-col justify-between gap-2 ${borderCls}">
-                        <div>
-                            <div class="flex items-center justify-between gap-1">
-                                <button type="button" onclick="filterCommByDept('${safeDept}')" class="font-bold text-xs text-slate-800 hover:text-sky-700 text-left flex items-center gap-1 cursor-pointer">
-                                    <span>${p.icon || '🏢'}</span>
-                                    <span>${p.dept}</span>
-                                </button>
-                                <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600">${countInDept} NV</span>
-                            </div>
-                            <p class="text-xs text-slate-500 mt-1 leading-snug">${p.desc || ''}</p>
-                        </div>
-
-                        <div class="bg-white p-2 rounded-lg border border-slate-200/80 space-y-1.5 text-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-slate-600 font-semibold">% Bán lẻ POS:</span>
-                                <div class="inline-flex items-center gap-1">
-                                    <input type="number" step="0.5" min="0" max="100" id="dept-pol-rate-${idx}" value="${p.pos_rate || 0}"
-                                           class="w-14 border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-sky-700">
-                                    <span class="font-bold text-slate-500">%</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-700 font-semibold">
-                                    <input type="checkbox" id="dept-pol-spa-${idx}" ${p.spa_on ? 'checked' : ''} class="rounded text-sky-600">
-                                    <span>✂️ Hưởng HH Spa/Tip</span>
-                                </label>
-                                <label class="inline-flex items-center gap-1 cursor-pointer text-slate-700 font-semibold">
-                                    <input type="checkbox" id="dept-pol-tmdt-${idx}" ${p.tmdt_on ? 'checked' : ''} class="rounded text-amber-600">
-                                    <span>🛍️ Sàn/KOC</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <button type="button" onclick="saveAndApplyDeptPolicy(${idx}, '${safeDept}')"
-                                class="w-full py-1.5 px-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-2xs cursor-pointer transition">
-                            ⚡ Lưu & Áp cho cả bộ phận (${countInDept})
-                        </button>
-                    </div>
-                `;
+                    <tr class="hover:bg-slate-50" title="${escHtml(p.desc || '')}">
+                        <td class="p-2.5 font-bold text-slate-800">${escHtml(p.dept)}</td>
+                        <td class="p-2.5 text-center text-slate-600">${n}</td>
+                        <td class="p-2.5 text-center">
+                            <input type="number" step="0.5" min="0" max="100" id="dept-pol-rate-${idx}" value="${p.pos_rate || 0}"
+                                   class="w-16 border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-sky-700"> %
+                        </td>
+                        <td class="p-2.5 text-center"><input type="checkbox" id="dept-pol-spa-${idx}" ${p.spa_on ? 'checked' : ''}></td>
+                        <td class="p-2.5 text-center"><input type="checkbox" id="dept-pol-tmdt-${idx}" ${p.tmdt_on ? 'checked' : ''}></td>
+                        <td class="p-2.5 text-right">
+                            <button type="button" onclick="saveAndApplyDeptPolicy(${idx})"
+                                    class="min-w-[9rem] px-2.5 py-1 rounded-lg border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold cursor-pointer">Lưu & áp cho ${n} NV</button>
+                        </td>
+                    </tr>`;
             }).join('');
         }
 
-        // 2. Render Ma Trận Hoa Hồng Spa Đa Cơ Sở (Bậc Kg · Chính Thức / Thử Việc · 7 Cột Phụ Thu)
         if (data.spa_matrix_config) {
             currentSpaMatrixConfig = JSON.parse(JSON.stringify(data.spa_matrix_config));
+            spaMatrixEditing = false;
             renderSpaMatrixEditor(currentSpaMatrixConfig);
         }
 
         const rulesPills = document.getElementById('hrm-comm-rules-pills');
-        const roleLabels = {
-            receiver: 'Nhận bé',
-            worker_1: 'Thợ Làm 1',
-            worker_2: 'Thợ Làm 2',
-            cutter: 'Thợ Cắt Tỉa',
-            dyer: 'Thợ Nhuộm'
-        };
+        const roleLabels = { receiver: 'Nhận bé', worker_1: 'Thợ Làm 1', worker_2: 'Thợ Làm 2', cutter: 'Thợ Cắt Tỉa', dyer: 'Thợ Nhuộm' };
         if (rulesPills) {
             const rules = data.spa_rules || [];
-            if (rules.length === 0) {
-                rulesPills.innerHTML = `<span class="text-xs text-slate-400">Chưa có quy tắc hoa hồng Spa nào.</span>`;
-            } else {
-                rulesPills.innerHTML = rules.map(r => {
-                    const valTxt = r.rate_type === 'percent' ? `${r.value}%` : `${Math.round(r.value || 0).toLocaleString('vi-VN')}đ/ca`;
-                    return `
-                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-xs">
+            rulesPills.innerHTML = rules.length === 0
+                ? `<span class="text-xs text-slate-400">Chưa có quy tắc hoa hồng Spa nào.</span>`
+                : rules.map(r => {
+                    const valTxt = r.rate_type === 'percent' ? `${r.value}%` : `${fmtN(r.value)}đ/ca`;
+                    return `<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-xs">
                             <span class="font-bold text-sky-900">${roleLabels[r.role_key] || r.role_key}:</span>
-                            <span class="text-slate-600">${r.service_name || 'Mọi dịch vụ'}</span>
+                            <span class="text-slate-600">${escHtml(r.service_name || 'Mọi dịch vụ')}</span>
                             <span class="font-bold text-sky-700 bg-white px-1.5 py-0.5 rounded border border-sky-200">${valTxt}</span>
                             <button type="button" onclick="deleteHrmSpaCommissionRule(${r.id})" class="text-rose-500 hover:text-rose-700 font-bold ml-1 cursor-pointer" title="Xóa quy tắc">✕</button>
-                        </div>
-                    `;
+                        </div>`;
                 }).join('');
-            }
         }
 
-        const allItems = data.items || [];
-        const items = activeCommDeptFilter === 'all'
-            ? allItems
-            : allItems.filter(x => x.department === activeCommDeptFilter);
-
-        const hasUnlinked = allItems.some(x => x.is_unlinked_spa);
         const btnSyncSpa = document.getElementById('btn-sync-unlinked-spa');
-        if (btnSyncSpa) btnSyncSpa.classList.toggle('hidden', !hasUnlinked);
+        if (btnSyncSpa) btnSyncSpa.classList.toggle('hidden', !(data.items || []).some(x => x.is_unlinked_spa));
+        renderCommTable();
+    }
 
+    // Bảng NV 6 cột: chỉ đọc, lọc/tìm phía client; sửa qua popup (bấm vào dòng)
+    window.renderCommTable = function() {
+        const data = currentCommData;
         const tbody = document.getElementById('table-hrm-commissions');
         const tfoot = document.getElementById('table-hrm-commissions-foot');
-        if (!tbody) return;
+        if (!data || !tbody) return;
+        const q = (document.getElementById('hrm-comm-search')?.value || '').trim().toLowerCase();
+        const dept = document.getElementById('hrm-comm-filter-dept')?.value || 'all';
+        const hideZero = document.getElementById('hrm-comm-hide-zero')?.checked;
+        const onlyCustom = document.getElementById('hrm-comm-only-custom')?.checked;
+        const all = data.items || [];
+        const items = all.filter(it =>
+            (dept === 'all' || it.department === dept) &&
+            (!hideZero || (it.total_commission || 0) > 0) &&
+            (!onlyCustom || it.policy_mode === 'custom') &&
+            (!q || `${it.name} ${it.employee_code}`.toLowerCase().includes(q)));
+        const cnt = document.getElementById('hrm-comm-count');
+        if (cnt) cnt.textContent = `${items.length}/${all.length} NV`;
 
-        if (items.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400">Chưa có nhân viên nào thuộc bộ phận này trong tháng.</td></tr>`;
+        if (!items.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không có nhân viên phù hợp bộ lọc.</td></tr>`;
             if (tfoot) tfoot.innerHTML = '';
             return;
         }
-
-        const deptNames = deptPolicies.length
-            ? deptPolicies.map(p => p.dept)
-            : ['Bán Lẻ POS', 'Spa & Grooming', 'Sales Online & TMĐT', 'Kho & Khách Sạn'];
-
+        const dash = '<span class="text-slate-300">—</span>';
         tbody.innerHTML = items.map(it => {
-            const rc = it.spa_role_counts || {};
-            const roleBadges = [
-                rc.receiver ? `Nhận:${rc.receiver}` : '',
-                rc.worker_1 ? `Làm1:${rc.worker_1}` : '',
-                rc.worker_2 ? `Làm2:${rc.worker_2}` : '',
-                rc.cutter ? `Cắt:${rc.cutter}` : '',
-                rc.dyer ? `Nhuộm:${rc.dyer}` : ''
-            ].filter(Boolean).join(' · ');
-
-            const deptCell = it.staff_id
-                ? `<select onchange="updateStaffCommPolicy(${it.staff_id}, {department: this.value})"
-                           class="border border-slate-300 rounded-lg px-2 py-1 bg-white font-bold text-slate-800 text-xs cursor-pointer">
-                       ${deptNames.map(d => `<option value="${d}" ${it.department === d ? 'selected' : ''}>${d}</option>`).join('')}
-                   </select>`
-                : `<span class="px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-bold text-xs">${it.department || 'Spa & Grooming'}</span>`;
-
-            const modeCell = it.staff_id
-                ? `<select onchange="updateStaffCommPolicy(${it.staff_id}, {policy_mode: this.value})"
-                           class="border rounded-lg px-2 py-1 font-bold text-xs cursor-pointer ${it.policy_mode === 'custom' ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-emerald-300 bg-emerald-50 text-emerald-800'}">
-                       <option value="dept" ${it.policy_mode !== 'custom' ? 'selected' : ''}>📌 Theo Bộ phận</option>
-                       <option value="custom" ${it.policy_mode === 'custom' ? 'selected' : ''}>✏️ Mức riêng</option>
-                   </select>`
-                : `<button type="button" onclick="syncUnlinkedSpaWorkers()" class="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-xs cursor-pointer">➕ Tạo hồ sơ NV</button>`;
-
-            const rateCell = it.staff_id
-                ? `<div class="inline-flex items-center gap-1">
-                       <input type="number" step="0.5" min="0" max="100" value="${it.commission_rate || 0}"
-                              onchange="saveStaffPosCommissionRate(${it.staff_id}, this.value)"
-                              class="w-14 border border-slate-300 rounded px-1.5 py-0.5 text-center font-mono font-bold text-sky-700 bg-white focus:ring-1 focus:ring-sky-500"
-                              title="Nhập % hoa hồng bán lẻ POS (sẽ tự chuyển sang Mức riêng)">
-                       <span class="text-slate-400 font-bold">%</span>
-                   </div>`
-                : `<span class="text-slate-400">${it.commission_rate || 0}%</span>`;
-
-            const spaTier = (it.spa_commission_tier || 'official') === 'probation' ? 'probation' : 'official';
-            const bd = it.spa_breakdown || {};
-            const bdText = [
-                bd.bath ? `Tắm:${Math.round(bd.bath/1000)}k` : '',
-                bd.cut ? `Cắt:${Math.round(bd.cut/1000)}k` : '',
-                bd.dye ? `Nhuộm:${Math.round(bd.dye/1000)}k` : '',
-                bd.surcharge ? `PT:${Math.round(bd.surcharge/1000)}k` : ''
-            ].filter(Boolean).join(' · ');
-
-            const spaToggleCell = it.staff_id
-                ? `<div class="flex flex-col items-center gap-1">
-                       <div class="flex items-center gap-1.5 flex-wrap justify-center">
-                           <label class="inline-flex items-center gap-1 cursor-pointer text-xs font-bold ${it.enable_spa_commission ? 'text-sky-700' : 'text-slate-400'}">
-                               <input type="checkbox" ${it.enable_spa_commission ? 'checked' : ''}
-                                      onchange="updateStaffCommPolicy(${it.staff_id}, {enable_spa_commission: this.checked ? 1 : 0, policy_mode: 'custom', manual_override: true})">
-                               <span>${it.spa_tickets || 0} ca</span>
-                           </label>
-                           <select onchange="updateStaffCommPolicy(${it.staff_id}, {spa_commission_tier: this.value})"
-                                   class="border rounded px-1.5 py-0.5 text-[11px] font-bold cursor-pointer ${spaTier === 'probation' ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-emerald-50 text-emerald-800 border-emerald-300'}"
-                                   title="Chọn khung hoa hồng Spa: Nhân viên Chính thức hoặc Nhân viên Thử việc">
-                               <option value="official" ${spaTier === 'official' ? 'selected' : ''}>★ Chính thức</option>
-                               <option value="probation" ${spaTier === 'probation' ? 'selected' : ''}>⏳ Thử việc</option>
-                           </select>
-                       </div>
-                       ${roleBadges ? `<div class="text-xs text-sky-600 font-semibold">${roleBadges}</div>` : ''}
-                   </div>`
-                : `<div class="font-bold text-slate-800">${it.spa_tickets || 0} ca</div>${roleBadges ? `<div class="text-xs text-sky-600 font-semibold">${roleBadges}</div>` : ''}`;
-
-            const tmdtComm = (it.pancake_commission || 0) + (it.koc_commission || 0);
-            const tmdtToggleCell = it.staff_id
-                ? `<div class="flex items-center justify-end gap-1.5">
-                       <input type="checkbox" ${it.enable_tmdt_commission ? 'checked' : ''} title="Bật/tắt hưởng Hoa hồng Sàn TMĐT & KOC"
-                              onchange="updateStaffCommPolicy(${it.staff_id}, {enable_tmdt_commission: this.checked ? 1 : 0, policy_mode: 'custom', manual_override: true})">
-                       <span class="font-mono font-bold ${it.enable_tmdt_commission ? 'text-sky-600' : 'text-slate-300 line-through'}">${tmdtComm.toLocaleString('vi-VN')}</span>
-                   </div>`
-                : `<span class="font-mono text-slate-400">0</span>`;
-
-            const unlinkedBadge = it.is_unlinked_spa
-                ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">Chưa tạo NV</span>`
-                : '';
-
+            const tmdt = (it.pancake_commission || 0) + (it.koc_commission || 0);
+            const spaTotal = (it.spa_commission || 0) + (it.spa_tips || 0);
+            const modeTag = it.policy_mode === 'custom'
+                ? '<span class="ml-1 px-1.5 rounded bg-amber-50 text-amber-800 border border-amber-200">Mức riêng</span>' : '';
+            const probTag = it.spa_commission_tier === 'probation' ? '<span class="ml-1 px-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200">TV</span>' : '';
+            const unlinked = it.is_unlinked_spa ? '<span class="ml-1 px-1.5 rounded bg-amber-100 text-amber-800 font-bold">Chưa tạo NV</span>' : '';
+            const click = it.staff_id ? `onclick="openCommStaffModal(${it.staff_id})" class="hover:bg-sky-50/60 cursor-pointer"` : 'class=""';
             return `
-                <tr class="hover:bg-slate-50 transition">
-                    <td class="p-2.5">
-                        <div class="font-bold text-slate-900">${it.name} ${unlinkedBadge}</div>
-                        <div class="text-xs font-mono text-slate-400">${it.employee_code} · ${it.position}</div>
-                    </td>
-                    <td class="p-2.5">${deptCell}</td>
-                    <td class="p-2.5">${modeCell}</td>
-                    <td class="p-2.5 text-center">${rateCell}</td>
-                    <td class="p-2.5 text-right font-mono">
-                        <div class="font-bold text-slate-700">${(it.pos_net || 0).toLocaleString('vi-VN')}</div>
-                        ${it.pos_orders ? `<div class="text-xs text-slate-400">${it.pos_orders} đơn</div>` : ''}
-                    </td>
-                    <td class="p-2.5 text-right font-mono font-bold text-sky-700">${(it.pos_commission || 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-center">${spaToggleCell}</td>
-                    <td class="p-2.5 text-right font-mono">
-                        <div class="font-bold ${it.enable_spa_commission ? 'text-sky-700' : 'text-slate-300 line-through'}">${(it.spa_commission || 0).toLocaleString('vi-VN')}</div>
-                        ${bdText && it.enable_spa_commission ? `<div class="text-[11px] text-slate-500 mt-0.5">${bdText}</div>` : ''}
-                    </td>
-                    <td class="p-2.5 text-right font-mono font-bold ${it.enable_spa_commission ? 'text-amber-600' : 'text-slate-300 line-through'}">${(it.spa_tips || 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-right">${tmdtToggleCell}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700">${(it.total_commission || 0).toLocaleString('vi-VN')} ₫</td>
-                </tr>
-            `;
+                <tr ${click}>
+                    <td class="p-2.5"><div class="font-bold text-slate-900">${escHtml(it.name)}${unlinked}</div><div class="text-slate-400 font-mono">${escHtml(it.employee_code || '')}</div></td>
+                    <td class="p-2.5 text-slate-700">${escHtml(it.department || '')}${modeTag}</td>
+                    <td class="p-2.5 text-right font-mono">${it.pos_commission ? `<div class="font-bold text-sky-700">${fmtN(it.pos_commission)}</div><div class="text-slate-400">${fmtN(it.pos_net)} × ${it.commission_rate || 0}%</div>` : dash}</td>
+                    <td class="p-2.5 text-right font-mono">${spaTotal ? `<div class="font-bold text-sky-700">${fmtN(spaTotal)}${probTag}</div><div class="text-slate-400">${it.spa_tickets || 0} ca${it.spa_tips ? ` · tip ${fmtN(it.spa_tips)}` : ''}</div>` : dash}</td>
+                    <td class="p-2.5 text-right font-mono ${tmdt ? 'font-bold text-sky-700' : ''}">${tmdt ? fmtN(tmdt) : dash}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-emerald-700">${fmtN(it.total_commission)}</td>
+                    <td class="p-2.5 text-slate-400">${it.staff_id ? '<i class="ph ph-pencil-simple"></i>' : ''}</td>
+                </tr>`;
         }).join('');
+        const sum = f => fmtN(items.reduce((a, b) => a + f(b), 0));
+        if (tfoot) tfoot.innerHTML = `
+            <tr>
+                <td colspan="2" class="p-2.5 text-right text-slate-600">Tổng (${items.length} NV)</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => b.pos_commission || 0)}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => (b.spa_commission || 0) + (b.spa_tips || 0))}</td>
+                <td class="p-2.5 text-right font-mono text-sky-700">${sum(b => (b.pancake_commission || 0) + (b.koc_commission || 0))}</td>
+                <td class="p-2.5 text-right font-mono text-emerald-800">${sum(b => b.total_commission || 0)}</td>
+                <td></td>
+            </tr>`;
+    };
 
-        if (tfoot) {
-            tfoot.innerHTML = `
-                <tr>
-                    <td colspan="4" class="p-2.5 text-right uppercase text-slate-600">Tổng cộng (${items.length} nhân sự):</td>
-                    <td class="p-2.5 text-right font-mono">${items.reduce((a, b) => a + (b.pos_net || 0), 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.pos_commission || 0), 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-center">${items.reduce((a, b) => a + (b.spa_tickets || 0), 0)} ca</td>
-                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.spa_commission || 0), 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-right font-mono text-amber-700">${items.reduce((a, b) => a + (b.spa_tips || 0), 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-right font-mono text-sky-700">${items.reduce((a, b) => a + (b.pancake_commission || 0) + (b.koc_commission || 0), 0).toLocaleString('vi-VN')}</td>
-                    <td class="p-2.5 text-right font-mono font-bold text-emerald-800 text-sm">${items.reduce((a, b) => a + (b.total_commission || 0), 0).toLocaleString('vi-VN')} ₫</td>
-                </tr>
-            `;
+    // ── Popup cài hoa hồng riêng 1 NV ──
+    window.openCommStaffModal = function(staffId) {
+        const it = (currentCommData?.items || []).find(x => x.staff_id === staffId);
+        if (!it) return;
+        document.getElementById('hrm-comm-staff-id').value = staffId;
+        document.getElementById('hrm-comm-staff-title').textContent = `${it.employee_code || ''} · ${it.name}`;
+        const deptSel = document.getElementById('hrm-comm-staff-dept');
+        const names = commDeptNames(currentCommData);
+        if (it.department && !names.includes(it.department)) names.push(it.department);
+        deptSel.innerHTML = names.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
+        deptSel.value = it.department || names[0];
+        document.querySelectorAll('input[name="hrm-comm-staff-mode"]').forEach(r => { r.checked = r.value === (it.policy_mode === 'custom' ? 'custom' : 'dept'); });
+        document.getElementById('hrm-comm-staff-rate').value = it.commission_rate || 0;
+        document.getElementById('hrm-comm-staff-spa').checked = !!it.enable_spa_commission;
+        document.getElementById('hrm-comm-staff-tmdt').checked = !!it.enable_tmdt_commission;
+        document.getElementById('hrm-comm-staff-tier').value = it.spa_commission_tier === 'probation' ? 'probation' : 'official';
+        refreshCommStaffModal();
+        document.getElementById('modal-hrm-comm-staff').classList.remove('hidden');
+    };
+
+    // "Theo bộ phận": hiện mức của bộ phận, khóa ô; "Mức riêng": mở khóa
+    window.refreshCommStaffModal = function() {
+        const mode = document.querySelector('input[name="hrm-comm-staff-mode"]:checked')?.value || 'dept';
+        const custom = mode === 'custom';
+        const box = document.getElementById('hrm-comm-staff-custom');
+        box.querySelectorAll('input').forEach(i => { i.disabled = !custom; });
+        box.classList.toggle('opacity-60', !custom);
+        if (!custom) {
+            const dept = document.getElementById('hrm-comm-staff-dept').value;
+            const pol = (currentCommData?.dept_policies || []).find(p => p.dept === dept);
+            if (pol) {
+                document.getElementById('hrm-comm-staff-rate').value = pol.pos_rate || 0;
+                document.getElementById('hrm-comm-staff-spa').checked = !!pol.spa_on;
+                document.getElementById('hrm-comm-staff-tmdt').checked = !!pol.tmdt_on;
+            }
         }
-    }
+    };
+
+    window.closeCommStaffModal = function() {
+        document.getElementById('modal-hrm-comm-staff')?.classList.add('hidden');
+    };
+
+    window.saveCommStaffModal = async function() {
+        const staffId = parseInt(document.getElementById('hrm-comm-staff-id').value);
+        const mode = document.querySelector('input[name="hrm-comm-staff-mode"]:checked')?.value || 'dept';
+        const rate = parseFloat(document.getElementById('hrm-comm-staff-rate').value) || 0;
+        if (rate < 0 || rate > 100) { alert('% hoa hồng phải từ 0 đến 100'); return; }
+        const payload = {
+            department: document.getElementById('hrm-comm-staff-dept').value,
+            policy_mode: mode,
+            spa_commission_tier: document.getElementById('hrm-comm-staff-tier').value,
+        };
+        if (mode === 'custom') Object.assign(payload, {
+            commission_rate: rate,
+            enable_spa_commission: document.getElementById('hrm-comm-staff-spa').checked ? 1 : 0,
+            enable_tmdt_commission: document.getElementById('hrm-comm-staff-tmdt').checked ? 1 : 0,
+        });
+        closeCommStaffModal();
+        await updateStaffCommPolicy(staffId, payload);
+    };
 
     window.saveAndApplyDeptPolicy = async function(idx, deptName) {
+        deptName = deptName || (currentCommData?.dept_policies || [])[idx]?.dept;
         const month = getSelectedMonth();
         const pos_rate = parseFloat(document.getElementById(`dept-pol-rate-${idx}`)?.value) || 0;
         const spa_on = document.getElementById(`dept-pol-spa-${idx}`)?.checked ? 1 : 0;
@@ -3339,286 +3348,150 @@
         return currentSpaMatrixConfig.profiles.find(p => p.id === actId) || currentSpaMatrixConfig.profiles[0];
     }
 
+    let spaMatrixEditing = false;
+    window.toggleSpaMatrixEdit = function(on) {
+        spaMatrixEditing = !!on;
+        renderSpaMatrixEditor(currentSpaMatrixConfig);
+    };
+    window.cancelSpaMatrixEdit = function() {
+        // bỏ thay đổi chưa lưu: lấy lại bản gốc từ dữ liệu đã tải
+        if (currentCommData?.spa_matrix_config) currentSpaMatrixConfig = JSON.parse(JSON.stringify(currentCommData.spa_matrix_config));
+        toggleSpaMatrixEdit(false);
+    };
+
+    // Bảng Spa xoay dọc: mỗi hạng mục 1 dòng, 2 cột tiền (Chính thức / Thử việc). Mặc định chỉ xem.
     function renderSpaMatrixEditor(cfg) {
         if (!cfg || !Array.isArray(cfg.profiles)) return;
+        const ed = spaMatrixEditing;
         const sel = document.getElementById('hrm-spa-profile-select');
         if (sel) {
-            sel.innerHTML = cfg.profiles.map(p =>
-                `<option value="${p.id}" ${p.id === cfg.active_profile_id ? 'selected' : ''}>🏢 ${p.name}</option>`
-            ).join('');
+            sel.innerHTML = cfg.profiles.map(p => `<option value="${p.id}" ${p.id === cfg.active_profile_id ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('');
+            sel.disabled = ed;
         }
-
         const prof = getActiveMatrixProfile();
         if (!prof) return;
 
         const legacyWrap = document.getElementById('hrm-legacy-percent-rules-wrap');
-        if (legacyWrap) {
-            legacyWrap.classList.toggle('hidden', prof.calc_mode !== 'role_rules');
-        }
+        if (legacyWrap) legacyWrap.classList.toggle('hidden', prof.calc_mode !== 'role_rules');
+
+        const btn = 'px-2.5 py-1 rounded-lg border font-bold text-xs cursor-pointer';
+        const toolbar = document.getElementById('hrm-spa-matrix-toolbar');
+        if (toolbar) toolbar.innerHTML = ed ? `
+            <button type="button" onclick="cancelSpaMatrixEdit()" class="${btn} border-slate-300 bg-white text-slate-700">Hủy</button>
+            <button type="button" onclick="saveSpaCommissionMatrix()" class="${btn} border-sky-600 bg-sky-600 hover:bg-sky-700 text-white"><i class="ph ph-floppy-disk"></i> Lưu</button>` : `
+            <button type="button" onclick="toggleSpaMatrixEdit(true)" class="${btn} border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800"><i class="ph ph-pencil-simple"></i> Sửa</button>
+            <details class="relative">
+                <summary class="${btn} border-slate-300 bg-white text-slate-700 list-none">⋯</summary>
+                <div class="absolute right-0 mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg p-1 w-48 text-xs">
+                    <button type="button" onclick="cloneNewSpaMatrixProfile()" class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">Nhân bản cơ sở mới</button>
+                    <button type="button" onclick="exportImportSpaMatrixModal()" class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer">Xuất / Nhập mẫu</button>
+                    ${cfg.profiles.length > 1 ? `<button type="button" onclick="deleteActiveSpaMatrixProfile()" class="w-full text-left px-2 py-1.5 rounded hover:bg-rose-50 text-rose-700 cursor-pointer">Xóa mẫu đang chọn</button>` : ''}
+                </div>
+            </details>`;
 
         const container = document.getElementById('hrm-spa-matrix-editor-container');
         if (!container) return;
 
-        const bathTiers = prof.bath_tiers || [];
-        const cutTiers = prof.cut_tiers || [];
-        const catRate = prof.cat_rate || { label: 'Mèo', range_label: 'Mọi kg', official: 60000, probation: 50000 };
-        const dyeRate = prof.dye_rate || { label: 'Nhuộm', range_label: 'Mọi kg', official: 50000, probation: 40000 };
-        const surchRules = prof.surcharge_rules || [];
+        const money = v => fmtN(v);
+        const inMoney = (group, i, key, v) => `<input type="text" value="${money(v)}" onchange="onSpaMatrixMoneyChange('${group}', ${i}, '${key}', this.value)"
+            class="w-24 text-right font-mono font-bold border ${key === 'probation' ? 'border-amber-300' : 'border-slate-300'} rounded px-1.5 py-0.5 bg-white">`;
+        const inText = (group, i, key, v, w = 'w-28') => `<input type="text" value="${escHtml(v || '')}" onchange="onSpaMatrixFieldChange('${group}', ${i}, '${key}', this.value)"
+            class="${w} border border-slate-300 rounded px-1.5 py-0.5 bg-white">`;
+        const cell = (group, i, key, v) => ed ? inMoney(group, i, key, v) : money(v);
+        const del = (fn) => ed ? `<button type="button" onclick="${fn}" class="text-rose-500 hover:text-rose-700 font-bold px-1 cursor-pointer" title="Xóa dòng">&times;</button>` : '';
+        const grp = (title, addFn, addLabel) => `
+            <tr class="bg-slate-50"><td colspan="5" class="px-2.5 py-1.5 font-bold text-slate-700">
+                <div class="flex items-center justify-between">${title}${ed && addFn ? `<button type="button" onclick="${addFn}" class="text-sky-700 hover:underline font-bold cursor-pointer">+ ${addLabel}</button>` : ''}</div>
+            </td></tr>`;
 
-        const bathThCols = bathTiers.map((t, i) => `
-            <th class="p-1.5 border border-slate-200 bg-sky-50/70 text-center min-w-[92px]">
-                <div class="flex items-center justify-between gap-1">
-                    <input type="text" value="${t.label || ''}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'label', this.value)"
-                           class="w-full text-center font-bold text-sky-900 bg-white border border-sky-200 rounded px-1 py-0.5 text-xs">
-                    ${bathTiers.length > 1 ? `<button type="button" onclick="removeSpaMatrixTier('bath', ${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa bậc này">&times;</button>` : ''}
-                </div>
-            </th>
-        `).join('');
+        const tierRow = (kind, t, i, count) => {
+            const group = kind === 'bath' ? 'bath_tier' : 'cut_tier';
+            const kg = ed
+                ? `<span class="whitespace-nowrap">${inText(group, i, 'range_label', t.range_label, 'w-24')} <span class="text-slate-400">trần</span>
+                   <input type="number" step="0.5" value="${t.max_kg ?? 999}" onchange="onSpaMatrixFieldChange('${group}', ${i}, 'max_kg', parseFloat(this.value)||999)"
+                          class="w-16 border border-slate-300 rounded px-1 py-0.5 text-right font-mono bg-white"> kg</span>`
+                : escHtml(t.range_label || '');
+            return `<tr>
+                <td class="px-2.5 py-1.5">${ed ? inText(group, i, 'label', t.label) : escHtml(t.label)}</td>
+                <td class="px-2.5 py-1.5 text-slate-500">${kg}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono">${cell(group, i, 'official', t.official)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono text-amber-800">${cell(group, i, 'probation', t.probation)}</td>
+                <td class="px-1 text-right">${count > 1 ? del(`removeSpaMatrixTier('${kind}', ${i})`) : ''}</td>
+            </tr>`;
+        };
+        const fixedRow = (group, r) => `<tr>
+                <td class="px-2.5 py-1.5">${escHtml(r.label)}</td>
+                <td class="px-2.5 py-1.5 text-slate-500">Mọi kg</td>
+                <td class="px-2.5 py-1.5 text-right font-mono">${cell(group, 0, 'official', r.official)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono text-amber-800">${cell(group, 0, 'probation', r.probation)}</td>
+                <td></td>
+            </tr>`;
+        const roleLabel = r => r === 'bath' ? 'Thợ tắm' : 'Thợ cắt';
+        const surchRow = (sr, i) => `<tr>
+                <td class="px-2.5 py-1.5">${ed ? inText('surcharge', i, 'label', sr.label) : escHtml(sr.label)}</td>
+                <td class="px-2.5 py-1.5 text-slate-500">${ed
+                    ? `<select onchange="onSpaMatrixFieldChange('surcharge', ${i}, 'target_role', this.value)" class="border border-slate-300 rounded px-1 py-0.5 bg-white">
+                         <option value="cutter" ${sr.target_role !== 'bath' ? 'selected' : ''}>Thợ cắt</option>
+                         <option value="bath" ${sr.target_role === 'bath' ? 'selected' : ''}>Thợ tắm</option></select>`
+                    : `<span class="px-1.5 rounded border border-slate-200">${roleLabel(sr.target_role)}</span>`}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono">${cell('surcharge', i, 'official', sr.official)}</td>
+                <td class="px-2.5 py-1.5 text-right font-mono text-amber-800">${cell('surcharge', i, 'probation', sr.probation)}</td>
+                <td class="px-1 text-right">${del(`removeSpaMatrixSurcharge(${i})`)}</td>
+            </tr>`;
 
-        const cutThCols = cutTiers.map((t, i) => `
-            <th class="p-1.5 border border-slate-200 bg-emerald-50/70 text-center min-w-[100px]">
-                <div class="flex items-center justify-between gap-1">
-                    <input type="text" value="${t.label || ''}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'label', this.value)"
-                           class="w-full text-center font-bold text-emerald-900 bg-white border border-emerald-200 rounded px-1 py-0.5 text-xs">
-                    ${cutTiers.length > 1 ? `<button type="button" onclick="removeSpaMatrixTier('cut', ${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa bậc này">&times;</button>` : ''}
-                </div>
-            </th>
-        `).join('');
+        const bath = prof.bath_tiers || [], cut = prof.cut_tiers || [], surch = prof.surcharge_rules || [];
+        const cat = prof.cat_rate || { label: 'Mèo', official: 0, probation: 0 };
+        const dye = prof.dye_rate || { label: 'Nhuộm', official: 0, probation: 0 };
+        const head = `<thead class="text-slate-500 border-b border-slate-200"><tr>
+                <th class="px-2.5 py-1.5 text-left font-semibold">Hạng mục</th>
+                <th class="px-2.5 py-1.5 text-left font-semibold">Cân nặng / Người hưởng</th>
+                <th class="px-2.5 py-1.5 text-right font-semibold">Chính thức</th>
+                <th class="px-2.5 py-1.5 text-right font-semibold text-amber-700">Thử việc</th>
+                <th class="w-6"></th></tr></thead>`;
+        const w1 = prof.worker1_share_pct ?? 50, w2 = prof.worker2_share_pct ?? 50;
+        const numIn = (field, v, w = 'w-14') => `<input type="number" min="0" value="${v}" onchange="onSpaMatrixProfileMetaChange('${field}', parseFloat(this.value)||0)" class="${w} border border-slate-300 rounded px-1 py-0.5 text-right font-mono bg-white">`;
 
-        const bathRangeCols = bathTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200 bg-sky-50/30 text-center">
-                <input type="text" value="${t.range_label || ''}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'range_label', this.value)"
-                       class="w-full text-center font-mono font-bold text-sky-700 bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px]" title="Nhãn hiển thị mốc Kg">
-                <div class="flex items-center justify-center gap-0.5 mt-1 text-[10px] text-slate-500">
-                    <span>Trần:</span>
-                    <input type="number" step="0.5" value="${t.max_kg ?? 10}" onchange="onSpaMatrixFieldChange('bath_tier', ${i}, 'max_kg', parseFloat(this.value)||999)"
-                           class="w-12 text-center font-mono bg-white border border-slate-200 rounded px-0.5">
-                    <span>kg</span>
-                </div>
-            </td>
-        `).join('');
-
-        const cutRangeCols = cutTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200 bg-emerald-50/30 text-center">
-                <input type="text" value="${t.range_label || ''}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'range_label', this.value)"
-                       class="w-full text-center font-mono font-bold text-emerald-700 bg-white border border-slate-200 rounded px-1 py-0.5 text-[11px]" title="Nhãn hiển thị mốc Kg">
-                <div class="flex items-center justify-center gap-0.5 mt-1 text-[10px] text-slate-500">
-                    <span>Trần:</span>
-                    <input type="number" step="0.5" value="${t.max_kg ?? 10}" onchange="onSpaMatrixFieldChange('cut_tier', ${i}, 'max_kg', parseFloat(this.value)||999)"
-                           class="w-12 text-center font-mono bg-white border border-slate-200 rounded px-0.5">
-                    <span>kg</span>
-                </div>
-            </td>
-        `).join('');
-
-        const bathOfficialCols = bathTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200">
-                <input type="text" value="${Math.round(t.official || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('bath_tier', ${i}, 'official', this.value)"
-                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs focus:border-sky-500 outline-none">
-            </td>
-        `).join('');
-
-        const cutOfficialCols = cutTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200">
-                <input type="text" value="${Math.round(t.official || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('cut_tier', ${i}, 'official', this.value)"
-                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs focus:border-emerald-500 outline-none">
-            </td>
-        `).join('');
-
-        const bathProbationCols = bathTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
-                <input type="text" value="${Math.round(t.probation || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('bath_tier', ${i}, 'probation', this.value)"
-                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs focus:border-amber-500 outline-none">
-            </td>
-        `).join('');
-
-        const cutProbationCols = cutTiers.map((t, i) => `
-            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
-                <input type="text" value="${Math.round(t.probation || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('cut_tier', ${i}, 'probation', this.value)"
-                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs focus:border-amber-500 outline-none">
-            </td>
-        `).join('');
-
-        const surchHeaderCols = surchRules.map((sr, i) => `
-            <th class="p-1.5 border border-slate-200 bg-slate-50 text-center min-w-[115px]">
-                <div class="flex items-center justify-between gap-1 mb-1">
-                    <input type="text" value="${sr.label || ''}" onchange="onSpaMatrixFieldChange('surcharge', ${i}, 'label', this.value)"
-                           class="w-full text-center font-bold text-sky-900 bg-white border border-slate-300 rounded px-1 py-0.5 text-xs">
-                    <button type="button" onclick="removeSpaMatrixSurcharge(${i})" class="text-rose-500 hover:text-rose-700 font-bold text-xs px-1 cursor-pointer" title="Xóa cột phụ thu này">&times;</button>
-                </div>
-                <select onchange="onSpaMatrixFieldChange('surcharge', ${i}, 'target_role', this.value)"
-                        class="w-full border border-slate-200 rounded px-1 py-0.5 text-[10.5px] font-semibold bg-white text-slate-600 cursor-pointer">
-                    <option value="cutter" ${sr.target_role === 'cutter' ? 'selected' : ''}>Hưởng: Thợ Cắt</option>
-                    <option value="bath" ${sr.target_role === 'bath' ? 'selected' : ''}>Hưởng: Thợ Tắm</option>
-                </select>
-            </th>
-        `).join('');
-
-        const surchOfficialCols = surchRules.map((sr, i) => `
-            <td class="p-1.5 border border-slate-200">
-                <input type="text" value="${Math.round(sr.official || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('surcharge', ${i}, 'official', this.value)"
-                       class="w-full text-right font-mono font-bold text-sky-800 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
-            </td>
-        `).join('');
-
-        const surchProbationCols = surchRules.map((sr, i) => `
-            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
-                <input type="text" value="${Math.round(sr.probation || 0).toLocaleString('vi-VN')}"
-                       onchange="onSpaMatrixMoneyChange('surcharge', ${i}, 'probation', this.value)"
-                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
-            </td>
-        `).join('');
+        const settings = ed ? `
+            <div class="flex flex-wrap items-center gap-3 text-xs bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <label class="flex items-center gap-1 font-semibold text-slate-700">Tên mẫu
+                    <input type="text" value="${escHtml(prof.name || '')}" onchange="onSpaMatrixProfileMetaChange('name', this.value)" class="w-96 max-w-full border border-slate-300 rounded px-1.5 py-0.5 bg-white"></label>
+                <label class="flex items-center gap-1 font-semibold text-slate-700">Cách tính
+                    <select onchange="onSpaMatrixProfileMetaChange('calc_mode', this.value)" class="border border-slate-300 rounded px-1 py-0.5 bg-white">
+                        <option value="weight_matrix" ${prof.calc_mode !== 'role_rules' ? 'selected' : ''}>Theo bậc cân nặng (VNĐ)</option>
+                        <option value="role_rules" ${prof.calc_mode === 'role_rules' ? 'selected' : ''}>Theo % doanh thu dịch vụ</option>
+                    </select></label>
+                <span class="flex items-center gap-1 font-semibold text-slate-700">2 thợ tắm chia ${numIn('worker1_share_pct', w1, 'w-12')}% / ${numIn('worker2_share_pct', w2, 'w-12')}%</span>
+                <span class="flex items-center gap-1 font-semibold text-slate-700">NV nhận bé ${numIn('receiver_official', prof.receiver_official ?? 0, 'w-20')}
+                    <select onchange="onSpaMatrixProfileMetaChange('receiver_rate_type', this.value)" class="border border-slate-300 rounded px-1 py-0.5 bg-white">
+                        <option value="fixed" ${prof.receiver_rate_type !== 'percent' ? 'selected' : ''}>đ/ca</option>
+                        <option value="percent" ${prof.receiver_rate_type === 'percent' ? 'selected' : ''}>% DT</option>
+                    </select></span>
+            </div>` : `
+            <div class="text-xs text-slate-500">2 thợ tắm chia <b>${w1}% / ${w2}%</b> · NV nhận bé <b>${prof.receiver_rate_type === 'percent' ? `${prof.receiver_official ?? 0}% DT` : `${fmtN(prof.receiver_official)} đ/ca`}</b>${prof.calc_mode === 'role_rules' ? ' · <b>Đang tính theo % doanh thu</b> (bảng dưới không áp dụng)' : ''}</div>`;
 
         container.innerHTML = `
-            <!-- Thanh thông số chung của Mẫu Cơ Sở -->
-            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs">
-                <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-slate-700">Tên mẫu cơ sở:</span>
-                        <input type="text" value="${prof.name || ''}" onchange="onSpaMatrixProfileMetaChange('name', this.value)"
-                               class="border border-slate-300 rounded-lg px-2.5 py-1 bg-white font-bold text-slate-800 w-64">
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-slate-700">Chế độ tính:</span>
-                        <select onchange="onSpaMatrixProfileMetaChange('calc_mode', this.value)"
-                                class="border border-slate-300 rounded-lg px-2 py-1 bg-white font-bold text-sky-800 cursor-pointer">
-                            <option value="weight_matrix" ${prof.calc_mode !== 'role_rules' ? 'selected' : ''}>Bảng Bậc Cân Nặng & Phụ Thu (VNĐ)</option>
-                            <option value="role_rules" ${prof.calc_mode === 'role_rules' ? 'selected' : ''}>Tính Theo % Doanh Thu Dịch Vụ</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200" title="Khi 1 bé có cả Thợ Tắm 1 và Thợ Tắm 2 cùng làm">
-                        <span class="font-bold text-slate-700">Chia ca 2 Thợ Tắm:</span>
-                        <span class="text-slate-500">Thợ 1</span>
-                        <input type="number" step="5" min="0" max="100" value="${prof.worker1_share_pct ?? 50}"
-                               onchange="onSpaMatrixProfileMetaChange('worker1_share_pct', parseFloat(this.value)||50)"
-                               class="w-12 border border-slate-300 rounded px-1 py-0.5 text-center font-mono font-bold text-sky-700">%
-                        <span class="text-slate-400">/</span>
-                        <span class="text-slate-500">Thợ 2</span>
-                        <input type="number" step="5" min="0" max="100" value="${prof.worker2_share_pct ?? 50}"
-                               onchange="onSpaMatrixProfileMetaChange('worker2_share_pct', parseFloat(this.value)||50)"
-                               class="w-12 border border-slate-300 rounded px-1 py-0.5 text-center font-mono font-bold text-sky-700">%
-                    </div>
-                    <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                        <span class="font-bold text-slate-700">NV Nhận bé:</span>
-                        <input type="number" step="1000" min="0" value="${prof.receiver_official ?? 0}"
-                               onchange="onSpaMatrixProfileMetaChange('receiver_official', parseFloat(this.value)||0)"
-                               class="w-20 border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-slate-700">
-                        <select onchange="onSpaMatrixProfileMetaChange('receiver_rate_type', this.value)"
-                                class="border border-slate-200 rounded px-1 py-0.5 text-xs font-semibold bg-slate-50">
-                            <option value="fixed" ${prof.receiver_rate_type !== 'percent' ? 'selected' : ''}>đ/ca</option>
-                            <option value="percent" ${prof.receiver_rate_type === 'percent' ? 'selected' : ''}>% DT</option>
-                        </select>
-                    </div>
-                </div>
-                ${cfg.profiles.length > 1 ? `
-                    <button type="button" onclick="deleteActiveSpaMatrixProfile()" class="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs cursor-pointer">
-                        <i class="ph ph-trash"></i> Xóa mẫu này
-                    </button>
-                ` : ''}
-            </div>
-
-            <!-- BẢNG 1: TẮM CHÓ (THEO BẬC KG) + MÈO + NHUỘM + CẮT TỈA (THEO BẬC KG) -->
-            <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                    <span class="text-xs font-bold text-slate-800 uppercase">1. Bảng Định Mức Hoa Hồng Chính (Tắm Chó · Mèo · Nhuộm · Cắt Tỉa) — Sửa trực tiếp số tiền & ngưỡng Kg</span>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="addSpaMatrixTier('bath')" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-xs cursor-pointer">+ Thêm Bậc Kg Tắm</button>
-                        <button type="button" onclick="addSpaMatrixTier('cut')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs cursor-pointer">+ Thêm Bậc Kg Cắt</button>
-                    </div>
-                </div>
-                <table class="w-full border-collapse text-xs">
-                    <thead>
-                        <tr>
-                            <th class="p-2 border border-slate-200 bg-slate-100 text-left font-bold text-slate-700 min-w-[130px]">Phân Nhóm</th>
-                            <th colspan="${bathTiers.length}" class="p-1.5 border border-slate-200 bg-sky-100/80 text-sky-900 font-bold text-center">TẮM CHÓ (${bathTiers.length} BẬC CÂN NẶNG)</th>
-                            <th class="p-1.5 border border-slate-200 bg-amber-100/70 text-amber-900 font-bold text-center min-w-[90px]">MÈO</th>
-                            <th class="p-1.5 border border-slate-200 bg-sky-50 text-sky-900 font-bold text-center min-w-[90px]">NHUỘM</th>
-                            <th colspan="${cutTiers.length}" class="p-1.5 border border-slate-200 bg-emerald-100/80 text-emerald-900 font-bold text-center">CẮT TỈA (${cutTiers.length} BẬC CÂN NẶNG)</th>
-                        </tr>
-                        <tr>
-                            <th class="p-2 border border-slate-200 bg-slate-50 text-left font-bold text-slate-700">Size / Hạng Mục</th>
-                            ${bathThCols}
-                            <th class="p-1.5 border border-slate-200 bg-amber-50/60 font-bold text-slate-800 text-center">Mèo</th>
-                            <th class="p-1.5 border border-slate-200 bg-sky-50/40 font-bold text-slate-800 text-center">Nhuộm</th>
-                            ${cutThCols}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="p-2 border border-slate-200 bg-slate-50 font-bold text-sky-800">Ngưỡng Số Kg</td>
-                            ${bathRangeCols}
-                            <td class="p-1.5 border border-slate-200 bg-slate-50/50 text-center font-mono text-slate-500 text-[11px]">Mọi kg</td>
-                            <td class="p-1.5 border border-slate-200 bg-slate-50/50 text-center font-mono text-slate-500 text-[11px]">Mọi kg</td>
-                            ${cutRangeCols}
-                        </tr>
-                        <tr>
-                            <td class="p-2 border border-slate-200 bg-emerald-50/60 font-bold text-emerald-900">★ NV Chính thức</td>
-                            ${bathOfficialCols}
-                            <td class="p-1.5 border border-slate-200">
-                                <input type="text" value="${Math.round(catRate.official || 0).toLocaleString('vi-VN')}"
-                                       onchange="onSpaMatrixMoneyChange('cat_rate', 0, 'official', this.value)"
-                                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
-                            </td>
-                            <td class="p-1.5 border border-slate-200">
-                                <input type="text" value="${Math.round(dyeRate.official || 0).toLocaleString('vi-VN')}"
-                                       onchange="onSpaMatrixMoneyChange('dye_rate', 0, 'official', this.value)"
-                                       class="w-full text-right font-mono font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-1 text-xs">
-                            </td>
-                            ${cutOfficialCols}
-                        </tr>
-                        <tr>
-                            <td class="p-2 border border-slate-200 bg-amber-50 font-bold text-amber-900">⏳ NV Thử việc</td>
-                            ${bathProbationCols}
-                            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
-                                <input type="text" value="${Math.round(catRate.probation || 0).toLocaleString('vi-VN')}"
-                                       onchange="onSpaMatrixMoneyChange('cat_rate', 0, 'probation', this.value)"
-                                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
-                            </td>
-                            <td class="p-1.5 border border-slate-200 bg-amber-50/30">
-                                <input type="text" value="${Math.round(dyeRate.probation || 0).toLocaleString('vi-VN')}"
-                                       onchange="onSpaMatrixMoneyChange('dye_rate', 0, 'probation', this.value)"
-                                       class="w-full text-right font-mono font-bold text-amber-900 bg-white border border-amber-300 rounded px-1.5 py-1 text-xs">
-                            </td>
-                            ${cutProbationCols}
-                        </tr>
+            ${settings}
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                <table class="w-full border-collapse text-xs border border-slate-200 rounded-lg">
+                    ${head}
+                    <tbody class="divide-y divide-slate-100">
+                        ${grp('Tắm chó', "addSpaMatrixTier('bath')", 'Thêm bậc')}
+                        ${bath.map((t, i) => tierRow('bath', t, i, bath.length)).join('')}
+                        ${grp('Mèo · Nhuộm')}
+                        ${fixedRow('cat_rate', cat)}
+                        ${fixedRow('dye_rate', dye)}
                     </tbody>
                 </table>
-            </div>
-
-            <!-- BẢNG 2: 7 CỘT PHỤ THU (PT CẮT ĐẦU · CẮT NGHỆ THUẬT · PT GỠ RỐI 50K -> 250K) -->
-            <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs font-bold text-slate-800 uppercase">2. Bảng Hoa Hồng Phụ Thu Chuyên Môn (Cắt Đầu · Nghệ Thuật · Gỡ Rối 50K – 250K)</span>
-                        <span class="text-xs text-slate-500">(PT Cắt đầu & Nghệ thuật cộng cho <b>Thợ Cắt</b> · PT Gỡ rối cộng cho <b>Thợ Tắm</b>)</span>
-                    </div>
-                    <button type="button" onclick="addSpaMatrixSurcharge()" class="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-xs cursor-pointer">+ Thêm Cột Phụ Thu</button>
-                </div>
-                <table class="w-full border-collapse text-xs">
-                    <thead>
-                        <tr>
-                            <th class="p-2 border border-slate-200 bg-slate-50 text-left font-bold text-slate-700 min-w-[130px]">Khoản Phụ Thu</th>
-                            ${surchHeaderCols}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="p-2 border border-slate-200 bg-emerald-50/60 font-bold text-emerald-900">★ NV Chính thức</td>
-                            ${surchOfficialCols}
-                        </tr>
-                        <tr>
-                            <td class="p-2 border border-slate-200 bg-amber-50 font-bold text-amber-900">⏳ NV Thử việc</td>
-                            ${surchProbationCols}
-                        </tr>
+                <table class="w-full border-collapse text-xs border border-slate-200 rounded-lg">
+                    ${head}
+                    <tbody class="divide-y divide-slate-100">
+                        ${grp('Cắt tỉa', "addSpaMatrixTier('cut')", 'Thêm bậc')}
+                        ${cut.map((t, i) => tierRow('cut', t, i, cut.length)).join('')}
+                        ${grp('Phụ thu', 'addSpaMatrixSurcharge()', 'Thêm phụ thu')}
+                        ${surch.map(surchRow).join('')}
                     </tbody>
                 </table>
-            </div>
-        `;
+            </div>`;
     }
 
     function parseRawMoney(val) {
