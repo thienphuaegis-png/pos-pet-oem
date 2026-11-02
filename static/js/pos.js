@@ -2243,7 +2243,7 @@ async function submitQuickCustomer() {
     }
 
     try {
-        const res = await fetch('/api/contacts', {
+        let res = await fetch('/api/contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2259,8 +2259,35 @@ async function submitQuickCustomer() {
 
         if (!res.ok) {
             const err = await res.json();
-            alert("Lỗi: " + (err.detail || "Không thể thêm khách hàng"));
-            return;
+            if (res.status === 409) {
+                const conf = confirm((err.detail || "Trùng tên khách hàng") + "\n\nBấm OK để vẫn tiếp tục tạo khách hàng này.");
+                if (conf) {
+                    res = await fetch('/api/contacts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name,
+                            phone: phone || "",
+                            email: email || "",
+                            address: address || "",
+                            type: 'customer',
+                            segment_id: segmentId,
+                            debt: 0,
+                            allow_duplicate_name: true
+                        })
+                    });
+                    if (!res.ok) {
+                        const err2 = await res.json();
+                        alert("Lỗi: " + (err2.detail || "Không thể thêm khách hàng"));
+                        return;
+                    }
+                } else {
+                    return;
+                }
+            } else {
+                alert("Lỗi: " + (err.detail || "Không thể thêm khách hàng"));
+                return;
+            }
         }
 
         const resData = await res.json();

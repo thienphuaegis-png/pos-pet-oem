@@ -95,7 +95,7 @@
             // 1. Render Customers Table (phân trang 20 dòng/trang chống treo trình duyệt khi có 29.000 KH)
             if (tbodyCust) {
                 if (filteredCust.length === 0) {
-                    tbodyCust.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
+                    tbodyCust.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-gray-400">Không tìm thấy khách hàng nào</td></tr>';
                     if (typeof renderPaginationBar === 'function') renderPaginationBar('pagination-contacts-customer', 1, 1, 0, 'changeCustomerPage');
                 } else {
                     const totalCust = filteredCust.length;
@@ -130,6 +130,10 @@
                             <td class="p-2.5 text-center">${groupBadge}</td>
                             <td class="p-2.5 text-right font-mono">${spaBalHtml}</td>
                             <td class="p-2.5 text-right font-mono ${debtStyle}">${formatMoney(c.debt || 0)}</td>
+                            <td class="p-2.5 text-center">
+                                <div class="font-semibold text-slate-700">${c.creator_name || '<span class="text-slate-400 font-normal">Hệ thống</span>'}</div>
+                                <div class="text-[10px] text-slate-400 font-mono" title="${c.created_at || ''}">${(c.created_at || '').slice(0, 10) || '---'}</div>
+                            </td>
                             <td class="p-2.5 text-center space-x-1 whitespace-nowrap">
                                 ${c.debt > 0 ? `<button onclick="openPayDebtModal(${c.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold shadow">💵 Thu nợ</button>` : ''}
                                 <button onclick="viewContactDetail(${c.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded border text-xs font-bold">👁️</button>
@@ -393,7 +397,7 @@
                         return;
                     }
                 } else {
-                    const res = await fetch('/api/contacts', {
+                    let res = await fetch('/api/contacts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
@@ -403,8 +407,30 @@
                     });
                     if (!res.ok) {
                         const err = await res.json();
-                        alert('Lỗi tạo mới: ' + (err.detail || 'Không thể tạo mới'));
-                        return;
+                        if (res.status === 409) {
+                            const conf = confirm((err.detail || 'Trùng tên đối tác') + '\n\nBấm OK để vẫn tạo khách hàng này, hoặc Cancel để kiểm tra lại.');
+                            if (conf) {
+                                res = await fetch('/api/contacts', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                        type, name, phone, email, address, segment_id, debt,
+                                        initial_debt_company, initial_debt_personal,
+                                        allow_duplicate_name: true
+                                    })
+                                });
+                                if (!res.ok) {
+                                    const err2 = await res.json();
+                                    alert('Lỗi tạo mới: ' + (err2.detail || 'Không thể tạo mới'));
+                                    return;
+                                }
+                            } else {
+                                return;
+                            }
+                        } else {
+                            alert('Lỗi tạo mới: ' + (err.detail || 'Không thể tạo mới'));
+                            return;
+                        }
                     }
                 }
                 closeContactModal();
@@ -584,6 +610,10 @@
                 document.getElementById('detail-contact-phone').textContent = data.phone || 'Chưa có';
                 document.getElementById('detail-contact-address').textContent = data.address || 'Chưa có';
                 document.getElementById('detail-contact-debt').textContent = formatMoney(data.debt);
+                const elCreator = document.getElementById('detail-contact-creator');
+                const elCreatedAt = document.getElementById('detail-contact-created-at');
+                if (elCreator) elCreator.textContent = data.creator_name || 'Hệ thống';
+                if (elCreatedAt) elCreatedAt.textContent = (data.created_at || '').slice(0, 16) || '---';
 
                 // Điểm & Ví Spa
                 const elPointsWrap = document.getElementById('detail-contact-points-wrap');

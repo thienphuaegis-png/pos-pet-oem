@@ -945,6 +945,7 @@ def init_db():
         spa_wallet_balance REAL DEFAULT 0,
         is_flagged INTEGER DEFAULT 0,
         warning_note TEXT DEFAULT '',
+        created_by INTEGER REFERENCES staff(id),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -962,6 +963,8 @@ def init_db():
         cur.execute("ALTER TABLE contacts ADD COLUMN initial_debt_company REAL DEFAULT 0")
     if 'initial_debt_personal' not in contact_cols:
         cur.execute("ALTER TABLE contacts ADD COLUMN initial_debt_personal REAL DEFAULT 0")
+    if 'created_by' not in contact_cols:
+        cur.execute("ALTER TABLE contacts ADD COLUMN created_by INTEGER REFERENCES staff(id)")
 
     # 3. Danh muc san pham / dich vu / nguyen lieu
     cur.execute('''

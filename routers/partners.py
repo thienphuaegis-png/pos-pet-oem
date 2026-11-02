@@ -27,6 +27,7 @@ class ContactCreate(BaseModel):
     debt: Optional[float] = 0.0
     initial_debt_company: Optional[float] = 0.0
     initial_debt_personal: Optional[float] = 0.0
+    allow_duplicate_name: Optional[bool] = False
 
 class ContactUpdate(BaseModel):
     name: str
@@ -37,6 +38,33 @@ class ContactUpdate(BaseModel):
     debt: Optional[float] = None
     initial_debt_company: Optional[float] = None
     initial_debt_personal: Optional[float] = None
+
+
+def extract_phone_tokens(val: Optional[str]) -> List[str]:
+    """Tách và chuẩn hóa từng số điện thoại để so khớp chống trùng."""
+    if not val:
+        return []
+    s = str(val).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    tokens = []
+    for p in re.split(r"[,;/|_]+", s):
+        d = re.sub(r"[\s\.\-\(\)]+", "", p)
+        if d.startswith("+84"):
+            d = "0" + d[3:]
+        elif d.startswith("84") and len(d) >= 11:
+            d = "0" + d[2:]
+        elif len(d) == 9 and d[0] in "35789":
+            d = "0" + d
+        if len(d) >= 7 and d not in tokens:
+            tokens.append(d)
+    return tokens
+
+
+def normalize_phone_number(val: Optional[str]) -> str:
+    """Chuẩn hóa chuỗi SĐT lưu trữ, nối các số chuẩn hóa bằng dấu phẩy."""
+    tokens = extract_phone_tokens(val)
+    return ", ".join(tokens) if tokens else (str(val or "").strip())
 
 class ContactDebtAdjust(BaseModel):
     debt: Optional[float] = None
@@ -84,9 +112,12 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
                    COALESCE(c.spa_wallet_balance, 0) as spa_wallet_balance,
                    COALESCE(c.debt, 0) as debt,
                    c.segment_id, c.is_flagged, c.warning_note,
+                   c.created_at, c.created_by,
+                   st.name as creator_name,
                    cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                    pl.name as price_list_name
             FROM contacts c
+            LEFT JOIN staff st ON st.id = c.created_by
             LEFT JOIN customer_segments cs ON cs.id = c.segment_id
             LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
             WHERE c.type = 'customer'
@@ -105,6 +136,7 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
     query = """
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
                pl.name as price_list_name,
+               st.name as creator_name,
                COALESCE(pc.pets_count, 0) as pets_count,
                -- Chỉ tính nợ công ty thực tế khi là supplier (tránh 4 correlated subqueries trên 13.000+ khách lẻ)
                CASE WHEN c.type = 'supplier' THEN (
@@ -135,6 +167,7 @@ def list_contacts(type: Optional[str] = None, search: Optional[str] = None, comp
                    ), 0)
                ) ELSE 0 END as calc_debt_personal
         FROM contacts c
+        LEFT JOIN staff st ON st.id = c.created_by
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
         LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
         LEFT JOIN (SELECT customer_id, COUNT(*) as pets_count FROM pets GROUP BY customer_id) pc ON pc.customer_id = c.id
@@ -551,10 +584,11 @@ async def import_contacts_excel(file: UploadFile = File(...), type: str = "custo
             contacts_by_name[norm_name] = existing
             updated += 1
         else:
+            creator_id = user.get("id") if (user and isinstance(user, dict)) else None
             cur.execute("""
-                INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, points, initial_debt_company, initial_debt_personal, code, note)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (type, name, phone, email, address, segment_id, debt, points, debt_comp, debt_pers, code or None, note or ""))
+                INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, points, initial_debt_company, initial_debt_personal, code, note, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (type, name, phone, email, address, segment_id, debt, points, debt_comp, debt_pers, code or None, note or "", creator_id))
             new_id = cur.lastrowid
             new_c = {
                 "id": new_id,
@@ -592,8 +626,10 @@ def get_contact(contact_id: int):
     cur = conn.cursor()
     cur.execute("""
         SELECT c.*, cs.name as segment_name, cs.discount_percent as segment_discount, cs.price_list_id,
-               pl.name as price_list_name
+               pl.name as price_list_name,
+               st.name as creator_name
         FROM contacts c
+        LEFT JOIN staff st ON st.id = c.created_by
         LEFT JOIN customer_segments cs ON cs.id = c.segment_id
         LEFT JOIN price_lists pl ON pl.id = cs.price_list_id
         WHERE c.id = ?
@@ -679,9 +715,59 @@ def get_contact(contact_id: int):
     return data
 
 @router.post("")
-def create_contact(req: ContactCreate, user=Depends(require_permission("partners.manage"))):
+def create_contact(req: ContactCreate, user=Depends(require_any_permission("partners.manage", "pos.sell"))):
     conn = get_db()
     cur = conn.cursor()
+
+    norm_name = re.sub(r"\s+", " ", (req.name or "").strip())
+    if not norm_name:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Vui lòng nhập họ tên hoặc tên đơn vị đối tác")
+
+    norm_phone = normalize_phone_number(req.phone)
+    phone_tokens = extract_phone_tokens(req.phone)
+
+    # 1. Chống trùng số điện thoại (chặn cứng)
+    if phone_tokens:
+        for t in phone_tokens:
+            cur.execute("""
+                SELECT c.id, c.code, c.name, c.phone, c.created_at, c.created_by, s.name as creator_name
+                FROM contacts c
+                LEFT JOIN staff s ON s.id = c.created_by
+                WHERE c.type = ? AND c.phone LIKE ?
+            """, (req.type, f"%{t}%"))
+            for dup in cur.fetchall():
+                if t in extract_phone_tokens(dup["phone"]):
+                    c_code = dup["code"] or f"KH{dup['id']:04d}"
+                    c_creator = dup["creator_name"] or "Hệ thống"
+                    c_date = (dup["created_at"] or "")[:10]
+                    conn.close()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Số điện thoại '{t}' đã được đăng ký cho {dup['name']} (Mã: {c_code}) do {c_creator} tạo ngày {c_date}."
+                    )
+
+    # 2. Cảnh báo trùng tên (chống tạo khách cũ bằng SĐT mới để trục lợi hoa hồng)
+    if not req.allow_duplicate_name and norm_name:
+        cur.execute("""
+            SELECT c.id, c.code, c.name, c.phone, c.created_at, c.created_by, s.name as creator_name
+            FROM contacts c
+            LEFT JOIN staff s ON s.id = c.created_by
+            WHERE c.type = ? AND LOWER(TRIM(c.name)) = LOWER(?)
+            LIMIT 1
+        """, (req.type, norm_name))
+        dup_name = cur.fetchone()
+        if dup_name:
+            c_code = dup_name["code"] or f"KH{dup_name['id']:04d}"
+            c_creator = dup_name["creator_name"] or "Hệ thống"
+            c_date = (dup_name["created_at"] or "")[:10]
+            c_phone = dup_name["phone"] or "chưa có SĐT"
+            conn.close()
+            raise HTTPException(
+                status_code=409,
+                detail=f"Trùng tên: Đã có khách hàng '{dup_name['name']}' (Mã: {c_code}, SĐT: {c_phone}) do {c_creator} tạo ngày {c_date}. Bạn có chắc chắn muốn tạo thêm khách hàng trùng tên này?"
+            )
+
     c_debt = float(req.initial_debt_company or 0.0)
     p_debt = float(req.initial_debt_personal or 0.0)
     init_debt = float(req.debt or 0.0)
@@ -690,24 +776,54 @@ def create_contact(req: ContactCreate, user=Depends(require_permission("partners
     elif init_debt != 0 and c_debt == 0 and p_debt == 0:
         p_debt = init_debt
 
+    created_by = user.get("id") if (user and isinstance(user, dict)) else None
     cur.execute("""
-        INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, initial_debt_company, initial_debt_personal) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (req.type, req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), req.segment_id, init_debt, c_debt, p_debt))
+        INSERT INTO contacts (type, name, phone, email, address, segment_id, debt, initial_debt_company, initial_debt_personal, created_by) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (req.type, norm_name, norm_phone, (req.email or "").strip(), (req.address or "").strip(), req.segment_id, init_debt, c_debt, p_debt, created_by))
     new_id = cur.lastrowid
     conn.commit()
     conn.close()
     return {"status": "ok", "id": new_id}
 
 @router.put("/{contact_id}")
-def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_permission("partners.manage"))):
+def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_any_permission("partners.manage", "pos.sell"))):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id, debt, initial_debt_company, initial_debt_personal FROM contacts WHERE id = ?", (contact_id,))
+    cur.execute("SELECT id, type, debt, initial_debt_company, initial_debt_personal FROM contacts WHERE id = ?", (contact_id,))
     c_exist = cur.fetchone()
     if not c_exist:
         conn.close()
         raise HTTPException(status_code=404, detail="Không tìm thấy đối tác")
+
+    c_type = c_exist["type"] if "type" in c_exist.keys() else "customer"
+    norm_name = re.sub(r"\s+", " ", (req.name or "").strip())
+    if not norm_name:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Vui lòng nhập họ tên hoặc tên đơn vị đối tác")
+
+    norm_phone = normalize_phone_number(req.phone)
+    phone_tokens = extract_phone_tokens(req.phone)
+
+    # Chống trùng số điện thoại khi cập nhật sang người khác
+    if phone_tokens:
+        for t in phone_tokens:
+            cur.execute("""
+                SELECT c.id, c.code, c.name, c.phone, c.created_at, c.created_by, s.name as creator_name
+                FROM contacts c
+                LEFT JOIN staff s ON s.id = c.created_by
+                WHERE c.type = ? AND c.phone LIKE ? AND c.id != ?
+            """, (c_type, f"%{t}%", contact_id))
+            for dup in cur.fetchall():
+                if t in extract_phone_tokens(dup["phone"]):
+                    c_code = dup["code"] or f"KH{dup['id']:04d}"
+                    c_creator = dup["creator_name"] or "Hệ thống"
+                    c_date = (dup["created_at"] or "")[:10]
+                    conn.close()
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Số điện thoại '{t}' đã thuộc về {dup['name']} (Mã: {c_code}) do {c_creator} tạo ngày {c_date}."
+                    )
 
     old_c_debt = float(c_exist["initial_debt_company"] or 0.0)
     old_p_debt = float(c_exist["initial_debt_personal"] or 0.0)
@@ -725,7 +841,7 @@ def update_contact(contact_id: int, req: ContactUpdate, user=Depends(require_per
         SET name = ?, phone = ?, email = ?, address = ?, segment_id = ?, 
             debt = ?, initial_debt_company = ?, initial_debt_personal = ? 
         WHERE id = ?
-    """, (req.name.strip(), (req.phone or "").strip(), (req.email or "").strip(), (req.address or "").strip(), 
+    """, (norm_name, norm_phone, (req.email or "").strip(), (req.address or "").strip(), 
           req.segment_id, new_debt, new_c_debt, new_p_debt, contact_id))
 
     conn.commit()
