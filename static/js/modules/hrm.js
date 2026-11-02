@@ -1564,10 +1564,63 @@
         if (modal) modal.classList.add('hidden');
     };
 
-    window.openHrmRulesGuideModal = function() {
+    window.openHrmRulesGuideModal = async function() {
         const modal = document.getElementById('modal-hrm-rules-guide');
         if (modal) modal.classList.remove('hidden');
+        const body = document.getElementById('hrm-rules-guide-body');
+        if (!body) return;
+        try {
+            const res = await fetch('/api/hrm/config');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            body.innerHTML = renderHrmRulesGuide(await res.json());
+        } catch (e) {
+            body.innerHTML = `<div class="text-rose-600">Không tải được cấu hình HRM: ${e.message}</div>`;
+        }
     };
+
+    // Render từ hrm_rules + hrm_work_blocks; công thức phải khớp services/payroll_engine.py (classify_day, day_thresholds)
+    function renderHrmRulesGuide(cfg) {
+        const r = cfg.rules || {};
+        const m = v => (Number(v) || 0).toLocaleString('vi-VN') + ' đ';
+        const h = min => (Math.round(min / 6) / 10) + 'h';
+        const toMin = t => { const [a, b] = String(t || '0:0').split(':').map(Number); return a * 60 + (b || 0); };
+        const fullMin = Number(r.full_day_min) || 420, halfMin = Number(r.half_day_min) || 210;
+        const probPct = Math.round(parseFloat(r.probation_rate || 0.85) * 100);
+        const box = (title, icon, cls, inner) => `
+            <div class="p-3 ${cls} rounded-xl border space-y-2">
+                <h4 class="font-bold flex items-center gap-1.5 text-xs"><i class="ph ${icon}"></i> ${title}</h4>${inner}</div>`;
+        const row = (label, val) => `<div class="flex justify-between items-center gap-2 p-2 bg-white rounded-lg border border-slate-200/80"><span>${label}</span><b class="font-mono text-right">${val}</b></div>`;
+
+        const blocks = (cfg.blocks || []).map(b => {
+            const shift = Math.max(0, toMin(b.end_time) - toMin(b.start_time) - (Number(b.lunch_minutes) || 0));
+            const full = shift ? Math.min(fullMin, shift) : fullMin;
+            const half = Math.min(halfMin, Math.floor(full / 2));
+            return row(`<b>${b.name}</b>: ${b.start_time}–${b.end_time}${b.lunch_minutes ? ` (nghỉ trưa ${b.lunch_minutes}p)` : ''} · ${b.off_sunday ? 'nghỉ Chủ Nhật' : `nghỉ ${b.monthly_off_days} ngày/tháng`}`,
+                       `1 công ≥ ${h(full)} · 0.5 công ≥ ${h(half)}`);
+        }).join('');
+
+        return [
+            box('1. Ký hiệu công', 'ph-tag', 'bg-slate-50 border-slate-200', `<div class="space-y-1.5">
+                ${row('X / TV', `1 công (TV = thử việc ${probPct}% lương)`)}
+                ${row('X/2 / TV/2', '0.5 công: làm đủ ngưỡng nửa công, hoặc nghỉ nửa buổi có phép')}
+                ${row('OFF', '0 công, không phạt (nghỉ phép / nghỉ có bù)')}
+                ${row('L', `Ngày lễ: cộng thêm ${r.holiday_extra_days ?? 1} ngày lương`)}
+                ${row('Miễn chấm công', 'Đủ công mọi ngày làm việc, chỉ trừ ngày nghỉ nhập tay, không phạt')}
+                ${row('Làm bù', 'Ngày nghỉ ghi OFF; ngày làm bù (kể cả CN) có quẹt thẻ tự được tính công')}</div>`),
+            box('2. Khối ca & ngưỡng tính công', 'ph-alarm', 'bg-slate-50 border-slate-200', `<div class="space-y-1.5">${blocks || '<i>Chưa có khối làm việc</i>'}</div>`),
+            box('3. Mức phạt', 'ph-warning', 'bg-rose-50/50 border-rose-200 text-rose-900', `<div class="space-y-1.5">
+                ${row(`Vào trễ dưới ${r.late_flat_threshold_min ?? 30} phút`, `${m(r.late_per_min)} / phút`)}
+                ${row(`Vào trễ từ ${r.late_flat_threshold_min ?? 30} phút`, `${m(r.late_flat)} / lần`)}
+                ${row('Quên quẹt vào hoặc ra', `${m(r.missing_punch)} / lần`)}
+                ${row('Vắng không phép', `${m(r.absent)} / ngày`)}
+                ${row('Miễn phạt', 'Bật "Không phạt" trên ngày vi phạm có giải trình')}</div>`),
+            box('4. Thưởng, tăng ca, tạm ứng', 'ph-gift', 'bg-sky-50/50 border-sky-200 text-sky-900', `<div class="space-y-1.5">
+                ${row('Chuyên cần', `${m(r.attendance_bonus)}: đủ công chuẩn, làm trọn tháng, không vi phạm (kể cả về sớm)`)}
+                ${row('Sinh nhật', m(r.birthday_bonus))}
+                ${row('Tăng ca (gợi ý)', `Ra sau giờ ra của khối ≥ ${r.ot_min_minutes ?? 25} phút, làm tròn 0.5h, hệ số ${r.ot_multiplier ?? 1.5}`)}
+                ${row('Tạm ứng', 'Trừ vào tháng phát sinh phiếu ứng')}</div>`),
+        ].join('');
+    }
 
     window.closeHrmRulesGuideModal = function() {
         const modal = document.getElementById('modal-hrm-rules-guide');
@@ -2135,6 +2188,8 @@
         document.getElementById('hrm-staff-position').value = '';
         document.getElementById('hrm-staff-base-salary').value = '';
         document.getElementById('hrm-staff-allowance').value = '';
+        document.getElementById('hrm-staff-allowance-effective').textContent = '';
+        document.getElementById('hrm-staff-is-attendance-exempt').checked = false;
         document.getElementById('hrm-staff-hire-date').value = '';
         document.getElementById('hrm-staff-probation-start').value = '';
         document.getElementById('hrm-staff-official-date').value = '';
@@ -2193,6 +2248,11 @@
                 document.getElementById('hrm-staff-position').value = s.position || '';
                 document.getElementById('hrm-staff-base-salary').value = s.base_salary ? Number(s.base_salary).toLocaleString('vi-VN') : '';
                 document.getElementById('hrm-staff-allowance').value = s.allowance ? Number(s.allowance).toLocaleString('vi-VN') : '';
+                // Phụ cấp thật = gốc + quyết định điều chỉnh (tab Điều chỉnh lương); ô trên chỉ là phần gốc
+                const allowEff = Number(s.allowance_effective ?? s.allowance ?? 0);
+                document.getElementById('hrm-staff-allowance-effective').textContent =
+                    allowEff !== Number(s.allowance || 0) ? `Đang hưởng: ${allowEff.toLocaleString('vi-VN')} đ (gồm điều chỉnh)` : '';
+                document.getElementById('hrm-staff-is-attendance-exempt').checked = Boolean(s.is_attendance_exempt);
                 document.getElementById('hrm-staff-hire-date').value = s.hire_date || '';
                 document.getElementById('hrm-staff-probation-start').value = s.probation_start || '';
                 document.getElementById('hrm-staff-official-date').value = s.official_date || '';
@@ -2271,6 +2331,7 @@
             leave_date: document.getElementById('hrm-staff-leave-date')?.value || null,
             commission_rate: parseFloat(document.getElementById('hrm-staff-commission-rate')?.value) || 0,
             is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0,
+            is_attendance_exempt: document.getElementById('hrm-staff-is-attendance-exempt')?.checked ? 1 : 0,
 
             // Contract & Insurance
             has_contract: document.getElementById('hrm-staff-has-contract')?.checked ? 1 : 0,

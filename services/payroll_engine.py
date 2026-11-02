@@ -117,6 +117,14 @@ class DayInput:
     waive: bool = False           # cờ "Không phạt"
     employed: bool = True         # trong khoảng ngày nhận việc .. ngày nghỉ việc
     probation: bool = False
+    exempt: bool = False          # NV miễn chấm công: mặc định đủ công, không phạt
+
+
+def day_thresholds(b: Block, r: Rules) -> tuple:
+    """(phút đủ công, phút nửa công) theo độ dài ca của khối: ca 4h (TTS 1 ca) làm đủ 4h = 1 công."""
+    shift = max(0, b.end - b.start - b.lunch)
+    full = min(r.full_day_min, shift) if shift else r.full_day_min
+    return full, min(r.half_day_min, full // 2)
 
 
 @dataclass
@@ -150,6 +158,17 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
     if d.leave == "off":
         res.code = "OFF"
         res.penalty = 0
+        return res
+    if d.exempt:
+        base = "TV" if d.probation else "X"
+        if d.is_holiday:
+            res.code = "L"
+        elif d.work_date.weekday() == 6 and b.off_sunday:
+            res.code = "CN"
+        elif d.leave in ("off_morning", "off_afternoon"):
+            res.code, res.credit = f"{base}/2", 0.5
+        else:
+            res.code, res.credit = base, 1.0
         return res
     if not d.punches:
         if d.is_holiday:
@@ -210,7 +229,8 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
         base = "TV" if d.probation else "X"
         res.code = f"{base}/2"
     else:
-        credit = 1.0 if worked >= r.full_day_min else (0.5 if worked >= r.half_day_min else 0.0)
+        full_min, half_min = day_thresholds(b, r)
+        credit = 1.0 if worked >= full_min else (0.5 if worked >= half_min else 0.0)
         base = "TV" if d.probation else "X"
         res.code = base if credit == 1.0 else (base + "/2" if credit == 0.5 else "")
     res.credit = credit

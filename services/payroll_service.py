@@ -173,6 +173,7 @@ def build_days(cur, staff, block: Block, rules: Rules, first: date, last: date, 
     cur.execute("SELECT * FROM staff_leaves WHERE staff_id = ? AND work_date BETWEEN ? AND ?",
                 (staff["id"], first.isoformat(), last.isoformat()))
     leaves = {r["work_date"]: dict(r) for r in cur.fetchall()}
+    exempt = bool(dict(staff).get("is_attendance_exempt"))  # staff có thể là sqlite3.Row (không có .get)
     out = []
     for n in range(1, last.day + 1):
         d = date(first.year, first.month, n)
@@ -186,7 +187,8 @@ def build_days(cur, staff, block: Block, rules: Rules, first: date, last: date, 
         out.append(classify_day(DayInput(
             work_date=d, punches=punches, leave=leave_val,
             is_holiday=d.isoformat() in holidays, waive=waive_val,
-            employed=is_employed(staff, d), probation=is_probation(staff, d)), block, rules))
+            employed=is_employed(staff, d), probation=is_probation(staff, d),
+            exempt=exempt), block, rules))
     return out
 
 
@@ -246,8 +248,10 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
         anomalies.append("Thực lãnh âm (phạt + tạm ứng lớn hơn lương)")
     if (s["probation_start"] or s["hire_date"]) and not s["official_date"] and any(d.probation for d in days):
         anomalies.append("Đang thử việc nhưng chưa có ngày chính thức")
-    if not (s["device_code"] or "").strip() and not s["is_spa_worker"]:
+    if not (s["device_code"] or "").strip() and not s["is_spa_worker"] and not s.get("is_attendance_exempt"):
         anomalies.append("Chưa có mã máy chấm công")
+    if s.get("is_attendance_exempt") and p["days_official"] + p["days_probation"] > p["std_days"]:
+        anomalies.append(f"Miễn chấm công: {p['days_official'] + p['days_probation']:g} công > {p['std_days']} chuẩn, chưa nhập ngày nghỉ?")
     p.update({"staff_id": s["id"], "name": s["name"], "employee_code": s["employee_code"] or "",
               "position": s["position"] or "", "block": block.name, "anomalies": anomalies,
               "sales_net": int(sales.get(s["id"], {}).get("net", 0)),

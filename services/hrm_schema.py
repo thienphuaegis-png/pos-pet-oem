@@ -32,6 +32,7 @@ STAFF_HR_COLUMNS = [
     ("commission_policy_mode", "TEXT DEFAULT 'dept'"),
     ("enable_spa_commission", "INTEGER DEFAULT 1"),
     ("enable_tmdt_commission", "INTEGER DEFAULT 1"),
+    ("is_attendance_exempt", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -68,6 +69,15 @@ def ensure_hrm_schema(cur):
                 ("Sales Chiều", "15:30", "23:30", 0, 8.0, 0, 4, "19:30"),
             ],
         )
+    # Khối TTS 1 ca (4h): làm đủ 1 ca = 1 công. Seed 1 lần (cờ settings) để anh xóa khối thì không tự mọc lại.
+    cur.execute("SELECT 1 FROM settings WHERE key = 'hrm_seed_tts_blocks'")
+    if not cur.fetchone():
+        cur.executemany(
+            "INSERT OR IGNORE INTO hrm_work_blocks (name, start_time, end_time, lunch_minutes, std_hours, off_sunday, monthly_off_days, split_time) VALUES (?,?,?,?,?,?,?,?)",
+            [("TTS Ca Sáng", "08:00", "12:00", 0, 4.0, 1, 0, "10:00"),
+             ("TTS Ca Chiều", "13:30", "17:30", 0, 4.0, 1, 0, "15:30")],
+        )
+        cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_seed_tts_blocks', '1')")
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS hrm_holidays (

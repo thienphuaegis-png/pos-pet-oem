@@ -11338,7 +11338,7 @@
                 <div>
                     <label class="font-bold text-slate-700">Hình thức nghỉ (*)</label>
                     <select id="hrm-leave-type" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white">
-                        <option value="off">Off cả ngày (Nghỉ nguyên ngày)</option>
+                        <option value="off">Off cả ngày (Nghỉ nguyên ngày / Nghỉ có bù)</option>
                         <option value="off_morning">Off Buổi Sáng (Làm ca chiều)</option>
                         <option value="off_afternoon">Off Buổi Chiều (Làm ca sáng)</option>
                     </select>
@@ -11592,104 +11592,13 @@
                     <span class="text-xl">ℹ️</span>
                     <div>
                         <h3 class="font-bold text-sm text-slate-800">Quy Tắc Tính Công, Đi Trễ & Phạt Vi Phạm</h3>
-                        <p class="text-xs text-slate-500">Minh bạch công thức tính từ máy chấm công vân tay và Google Sheets</p>
+                        <p class="text-xs text-slate-500">Lấy trực tiếp từ Cấu hình HRM (đổi cấu hình là quy tắc ở đây đổi theo)</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeHrmRulesGuideModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center"><i class="ph ph-dot-outline"></i></button>
             </div>
 
-            <div class="space-y-3.5 leading-relaxed text-slate-700">
-                <!-- 1. Ký hiệu công -->
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <h4 class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                        <span><i class="ph ph-tag"></i></span> 1. Ký Hiệu & Cách Tính Ngày Công
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-emerald-700 font-mono">X (1.0 công):</b> Đi làm đủ ca (&ge; 6.5 giờ). Hưởng 100% lương ngày chính thức.
-                        </div>
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-sky-700 font-mono">X/2 (0.5 công):</b> Làm việc từ 3.5h đến dưới 6.5h hoặc có đơn xin nghỉ nửa buổi.
-                        </div>
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-amber-800 font-mono">TV (1.0 công TV):</b> Nhân sự đang trong thời gian thử việc. Hưởng 85% lương ngày.
-                        </div>
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-amber-900 font-mono">TV/2 (0.5 công TV):</b> Thử việc làm nửa ca (từ 3.5h đến dưới 6.5h hoặc off nửa buổi).
-                        </div>
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-slate-600 font-mono">OFF (0 công):</b> Có đơn xin nghỉ phép được duyệt, không tính công và không bị phạt vắng.
-                        </div>
-                        <div class="p-2 bg-white rounded-lg border border-slate-200/80">
-                            <b class="text-sky-700 font-mono">L (Ngày Lễ):</b> Nghỉ lễ hưởng nguyên lương theo Điều 112 Bộ luật Lao động.
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Khối ca chuẩn -->
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <h4 class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                        <span><i class="ph ph-alarm"></i></span> 2. Khối Ca Làm Việc & Khung Giờ Chuẩn
-                    </h4>
-                    <div class="space-y-1.5 text-xs">
-                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/80">
-                            <div>
-                                <b class="text-slate-900">Văn Phòng (HCNS, Kế toán, TMĐT):</b>
-                                <div class="text-slate-500">Giờ làm: 08:00 - 17:30 (Nghỉ trưa: 12:00 - 13:30 = 90 phút). Nghỉ cố định Chủ Nhật.</div>
-                            </div>
-                            <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-bold font-mono">8.0 giờ/ngày</span>
-                        </div>
-                        <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200/80">
-                            <div>
-                                <b class="text-slate-900">Kho & Giao Hàng:</b>
-                                <div class="text-slate-500">Giờ làm: 08:00 - 18:00 (Nghỉ trưa: 12:00 - 13:30 = 90 phút). Xoay ca nghỉ 1 ngày/tuần.</div>
-                            </div>
-                            <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-bold font-mono">8.5 giờ/ngày</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. Quy định phạt vi phạm -->
-                <div class="p-3 bg-rose-50/50 rounded-xl border border-rose-200 space-y-2">
-                    <h4 class="font-bold text-rose-900 flex items-center gap-1.5 text-xs">
-                        <span><i class="ph ph-warning"></i></span> 3. Bảng Mức Phạt Vi Phạm Chấm Công
-                    </h4>
-                    <div class="space-y-1.5 text-xs">
-                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
-                            <span>Vào trễ dưới 30 phút:</span>
-                            <b class="text-rose-600 font-mono font-bold">5.000 đ / mỗi phút trễ</b>
-                        </div>
-                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
-                            <span>Vào trễ từ 30 phút trở lên:</span>
-                            <b class="text-rose-600 font-mono font-bold">Phạt cố định 200.000 đ / lần</b>
-                        </div>
-                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
-                            <span>Quên quẹt thẻ vào HOẶC quên quẹt ra (chỉ có 1 lần quẹt):</span>
-                            <b class="text-rose-600 font-mono font-bold">50.000 đ / lần</b>
-                        </div>
-                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
-                            <span>Vắng mặt không phép (ngày làm không quẹt thẻ và không có đơn xin off):</span>
-                            <b class="text-rose-600 font-mono font-bold">500.000 đ / ngày</b>
-                        </div>
-                        <div class="flex justify-between items-center p-2 bg-white rounded-lg border border-rose-200/70">
-                            <span>Miễn trừ phạt vi phạm:</span>
-                            <span class="text-emerald-700 font-semibold">Tích cờ "Miễn phạt" khi có giải trình hợp lệ</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Thưởng & Tạm ứng -->
-                <div class="p-3 bg-sky-50/50 rounded-xl border border-sky-200 space-y-2">
-                    <h4 class="font-bold text-sky-900 flex items-center gap-1.5 text-xs">
-                        <span><i class="ph ph-gift"></i></span> 4. Chuyên Cần, Tăng Ca & Tạm Ứng Lương
-                    </h4>
-                    <div class="space-y-1 text-xs text-slate-600">
-                        <p>• <b>Thưởng Chuyên Cần (500.000 đ):</b> Dành cho nhân sự đi làm đủ hoặc vượt ngày công chuẩn của tháng và <u>không có bất kỳ vi phạm</u> phạt trễ nào.</p>
-                        <p>• <b>Tăng Ca Ngoài Giờ:</b> Quẹt thẻ ra sau 18:00 (tối thiểu 25 phút), làm tròn theo block 30 phút, tính hệ số <b class="text-amber-700">150%</b> lương giờ.</p>
-                        <p>• <b>Tạm Ứng:</b> Tự động khấu trừ vào đúng tháng phát sinh phiếu ứng lương từ tab <i>Ứng Lương</i>.</p>
-                    </div>
-                </div>
-            </div>
+            <div id="hrm-rules-guide-body" class="space-y-3.5 leading-relaxed text-slate-700">Đang tải quy tắc...</div>
 
             <div class="flex justify-end pt-2 border-t">
                 <button type="button" onclick="closeHrmRulesGuideModal()" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold shadow-xs">Đã Hiểu</button>
@@ -11783,7 +11692,15 @@
                     <div>
                         <label class="font-bold text-slate-700">Phụ cấp ăn trưa/xăng gốc (đ/tháng)</label>
                         <input id="hrm-staff-allowance" oninput="formatCurrencyInputRealtime(this)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-mono font-bold text-right text-slate-800 focus:ring-1 focus:ring-emerald-500" placeholder="0">
+                        <span id="hrm-staff-allowance-effective" class="text-xs text-sky-700"></span>
                     </div>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-lg border border-amber-200/70 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-amber-900">Miễn chấm công</div>
+                        <div class="text-xs text-amber-700">Mặc định đủ công, chỉ trừ ngày nghỉ nhập tay. Không phạt trễ/vắng/quên quẹt.</div>
+                    </div>
+                    <input type="checkbox" id="hrm-staff-is-attendance-exempt" class="rounded text-amber-600 w-4 h-4 cursor-pointer">
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>

@@ -25,7 +25,7 @@ PROFILE_FIELDS = (
     "emergency_phone", "emergency_relation",
     "has_contract", "contract_number", "contract_type", "dependents_count",
     "insurance_salary", "is_insurance_exempt",
-    "is_spa_worker", "commission_rate", "is_payroll_staff"
+    "is_spa_worker", "commission_rate", "is_payroll_staff", "is_attendance_exempt"
 )
 
 
@@ -235,6 +235,7 @@ class ProfileIn(BaseModel):
     is_spa_worker: Optional[int] = None
     commission_rate: Optional[float] = None
     is_payroll_staff: Optional[int] = 1
+    is_attendance_exempt: Optional[int] = None
     is_active: Optional[int] = None
 
 
