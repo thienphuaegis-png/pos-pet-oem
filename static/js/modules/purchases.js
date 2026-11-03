@@ -1303,6 +1303,13 @@
                     }
                 }
 
+                const btnFixShip = document.getElementById('btn-fix-purchase-shipping');
+                if (btnFixShip) {
+                    const u = (typeof Auth !== 'undefined' && Auth.getUser()) || {};
+                    const isAdmin = u.role === 'owner' || u.role === 'admin';
+                    btnFixShip.classList.toggle('hidden', !(isAdmin && data.status === 'received'));
+                }
+
                 if (data.status === 'draft') {
                     if (btnConfirmDraft) btnConfirmDraft.classList.remove('hidden');
                     if (btnConfirm) btnConfirm.classList.add('hidden');
@@ -1333,6 +1340,27 @@
             currentViewingPurchase = null;
         }
         window.closeReceiveModal = closeReceiveModal;
+
+        // Chỉ owner/admin: bổ sung / sửa phí ship cho phiếu đã nhập kho (server tự cộng chênh lệch vào nợ NCC)
+        async function fixReceivedPurchaseShipping() {
+            const p = currentViewingPurchase;
+            if (!p) return;
+            const input = prompt(`Phí ship phiếu ${p.code} (hiện tại: ${formatMoney(p.shipping_fee || 0)}).\nNhập phí ship ĐÚNG (tổng, không phải số cộng thêm):`, Math.round(p.shipping_fee || 0));
+            if (input === null) return;
+            const fee = window.parseMoneyInput ? window.parseMoneyInput(input) : parseFloat(String(input).replace(/\D/g, ''));
+            if (!isFinite(fee) || fee < 0) return alert('Phí ship không hợp lệ');
+            const res = await fetch(`/api/purchases/${encodeURIComponent(p.code)}/shipping-fee`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shipping_fee: fee })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) return alert('Lỗi: ' + (data.detail || res.status));
+            alert(`Đã cập nhật. Tổng đơn: ${formatMoney(data.total_amount)} | Còn nợ: ${formatMoney(data.debt_amount)}`);
+            await openReceiveModal(p.code, true);
+            if (typeof loadPurchasesList === 'function') loadPurchasesList();
+        }
+        window.fixReceivedPurchaseShipping = fixReceivedPurchaseShipping;
 
         async function confirmPurchaseFromReceiveModal() {
             if (!currentViewingPurchase) return;

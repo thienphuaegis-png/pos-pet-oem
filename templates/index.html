@@ -8276,6 +8276,9 @@
                             <button onclick="printPurchaseChecklistCurrent()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
                                 <span><i class="ph ph-printer"></i> In Phiếu Kiểm Cầm Tay</span>
                             </button>
+                            <button id="btn-fix-purchase-shipping" type="button" onclick="fixReceivedPurchaseShipping()" class="hidden px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold shadow text-xs flex items-center gap-1" title="Chỉ Chủ shop / Quản trị">
+                                <span><i class="ph ph-truck"></i> Sửa Phí Ship</span>
+                            </button>
                             <button id="btn-pay-purchase-debt" onclick="openPayPurchaseModal(currentViewingPurchase.code, currentViewingPurchase.debt_amount, currentViewingPurchase.fund_source || 'PERSONAL')" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded font-bold shadow text-xs flex items-center gap-1">
                                 <span><i class="ph ph-credit-card"></i> Chi Trả Nợ</span>
                             </button>

@@ -28,6 +28,9 @@ class PurchasePayRequest(BaseModel):
     fund_source: Optional[str] = "PERSONAL"
     note: Optional[str] = None
 
+class PurchaseShippingFix(BaseModel):
+    shipping_fee: float
+
 @router.get("/api/purchases/kpi")
 def get_purchases_kpi():
     conn = get_db()
@@ -763,6 +766,54 @@ def receive_purchase(code: str, req: Optional[PurchaseReceiveRequest] = None, us
         raise HTTPException(status_code=400, detail=str(e))
     conn.close()
     return {"status": "ok", "message": f"Đã xác nhận nhập kho thực tế thành công phiếu {code}"}
+
+@router.put("/api/purchases/{code}/shipping-fee")
+def fix_received_shipping_fee(code: str, req: PurchaseShippingFix, user=Depends(require_role())):
+    """Chỉ owner/admin: sửa phí ship của phiếu ĐÃ nhập kho. Phần chênh lệch cộng/trừ vào tổng tiền,
+    nợ phiếu và nợ NCC. Không đụng tồn kho/giá vốn (lúc nhận hàng phí ship cũng không phân bổ vào giá vốn)."""
+    if req.shipping_fee < 0:
+        raise HTTPException(status_code=400, detail="Phí ship không được âm")
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM purchases WHERE code = ?", (code,))
+        p = cur.fetchone()
+        if not p:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiếu nhập")
+        if p["status"] != "received":
+            raise HTTPException(status_code=400, detail="Chỉ sửa phí ship cho phiếu đã nhập kho. Phiếu chờ nhận hãy dùng Sửa đơn.")
+
+        old_fee = float(p["shipping_fee"] or 0)
+        new_fee = round(req.shipping_fee, 2)
+        delta = round(new_fee - old_fee, 2)
+        paid = float(p["paid_amount"] or 0)
+        new_total = round(float(p["total_amount"] or 0) + delta, 2)
+        if new_total < paid - 100:  # dung sai 100đ như pay_purchase_debt
+            raise HTTPException(status_code=400, detail=f"Tổng mới ({new_total:,.0f} đ) nhỏ hơn số đã trả ({paid:,.0f} đ)")
+        new_debt = round(max(0.0, new_total - paid), 2)
+        debt_delta = round(new_debt - float(p["debt_amount"] or 0), 2)
+
+        user_name = (user.get("name") if isinstance(user, dict) else None) or "Quản trị viên"
+        now_vn = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        audit = f"[{now_vn}] {user_name} sửa phí ship {old_fee:,.0f} → {new_fee:,.0f} đ"
+        note = f"{p['note']}\n{audit}" if p["note"] else audit
+        cur.execute("""
+            UPDATE purchases SET shipping_fee = ?, total_amount = ?, debt_amount = ?, note = ?, updated_by = ?, updated_at = ?
+            WHERE id = ?
+        """, (new_fee, new_total, new_debt, note, user_name, now_vn, p["id"]))
+        if debt_delta and p["supplier_id"]:
+            cur.execute("UPDATE contacts SET debt = MAX(0.0, debt + ?) WHERE id = ?", (debt_delta, p["supplier_id"]))
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        conn.close()
+        raise
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(e))
+    conn.close()
+    return {"status": "ok", "shipping_fee": new_fee, "total_amount": new_total, "debt_amount": new_debt}
 
 @router.get("/api/purchases/{code}/print-checklist", response_class=HTMLResponse)
 def print_purchase_checklist(code: str):
