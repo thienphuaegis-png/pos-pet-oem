@@ -681,7 +681,8 @@
 
         /* Smooth Tab Pane Cross-Fade & Slide (GPU accelerated, loại bỏ hoàn toàn cảm giác giật) */
         .tab-pane-content {
-            animation: tabContentSmoothIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            /* KHÔNG dùng `forwards`: giữ transform sau animation làm tab thành containing block, menu position:fixed (⋮) bị lệch ra ngoài màn hình */
+            animation: tabContentSmoothIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
             will-change: opacity;
         }
         @keyframes tabContentSmoothIn {

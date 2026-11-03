@@ -260,7 +260,7 @@
                 tbody.innerHTML = orders.map(o => `
                     <tr class="border-b hover:bg-slate-50">
                         <td class="p-2 font-mono font-bold text-slate-800">
-                            <div>${o.code}</div>
+                            <button type="button" onclick="openCFDOrderDetail('${o.order_type}', ${o.id}, '${o.code}')" class="text-sky-700 hover:underline cursor-pointer" title="Xem chi tiết đơn">${o.code}</button>
                             ${o.order_type === 'OEM' && o.paid_amount > 0 ? `<div class="text-xs text-emerald-700 font-normal">Đã cọc: ${formatMoney(o.paid_amount)} • Quyết toán thực nhận</div>` : ''}
                         </td>
                         <td class="p-2">
@@ -290,6 +290,18 @@
                 tbody.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-rose-500">Lỗi: ${e.message}</td></tr>`;
             }
         }
+
+        // Bấm mã đơn trong popup nợ NCC -> mở chi tiết đơn có sẵn (PO / OEM), đè lên popup nợ
+        function openCFDOrderDetail(orderType, orderId, orderCode) {
+            if (orderType === 'OEM') {
+                viewOEMOrderDetail(orderId);
+                document.getElementById('modal-detail-oem').style.zIndex = '60';
+            } else {
+                openReceiveModal(orderCode, true);
+                document.getElementById('modal-receive-purchase').style.zIndex = '60';
+            }
+        }
+        window.openCFDOrderDetail = openCFDOrderDetail;
 
         function closeModalCFDSupplierOrders() {
             document.getElementById('modal-cfd-supplier-orders').classList.add('hidden');
