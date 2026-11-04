@@ -47,9 +47,11 @@
                 }
             }
 
-            const supps = (allSuppliersList && allSuppliersList.length > 0)
+            const rawSupps = (allSuppliersList && allSuppliersList.length > 0)
                 ? allSuppliersList
                 : (allContacts || []).filter(c => c.type === 'supplier');
+            const viSuppCollator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
+            const supps = rawSupps.slice().sort((a, b) => viSuppCollator.compare(a.name || '', b.name || ''));
 
             const q = (val || '').trim();
             // Nếu rỗng hoặc đang chứa tên đã chọn thì hiển thị toàn bộ danh sách để người dùng chọn lại
@@ -1001,24 +1003,118 @@
             }
         });
 
+        let poSupplierStatsList = [];
+        let poSupplierTotalOrders = 0;
+        const poViCollator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
+
+        function updatePoSupplierFilterButtonLabel() {
+            const sel = document.getElementById('filter-po-supplier');
+            const lbl = document.getElementById('po-supplier-filter-label');
+            if (!lbl) return;
+            const val = sel ? sel.value : '';
+            if (!val) {
+                lbl.textContent = `Tất cả NCC (${poSupplierStatsList.length} đối tác)`;
+                return;
+            }
+            const found = poSupplierStatsList.find(it => it.name === val);
+            lbl.textContent = found ? `${found.name} (${found.count} đơn)` : val;
+        }
+
+        function renderPoSupplierPopoverItems(query = '') {
+            const listEl = document.getElementById('po-supplier-popover-list');
+            const sel = document.getElementById('filter-po-supplier');
+            if (!listEl) return;
+
+            const curVal = sel ? sel.value : '';
+            const q = (query || '').trim();
+            const matches = q
+                ? poSupplierStatsList.filter(it => (typeof fuzzyMatch === 'function' ? fuzzyMatch(q, it.name) : it.name.toLowerCase().includes(q.toLowerCase())))
+                : poSupplierStatsList;
+
+            const allActive = !curVal ? 'style="background-color:#f0f9ff;box-shadow:inset 0 0 0 1px #0284c7;border-radius:6px;"' : '';
+            let html = !q ? `
+                <div onclick="selectPoSupplierFilter(-1)" ${allActive} class="p-2 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between gap-2 transition">
+                    <span class="font-bold ${!curVal ? 'text-sky-800' : 'text-slate-800'}">Tất cả NCC (${poSupplierStatsList.length} đối tác)</span>
+                    <span class="px-1.5 py-0.5 rounded-full font-mono font-bold text-[11px] bg-slate-100 text-slate-700 shrink-0">${poSupplierTotalOrders} đơn</span>
+                </div>
+            ` : '';
+
+            if (!matches.length) {
+                html += '<div class="p-3 text-center text-slate-400">Không tìm thấy nhà cung cấp phù hợp</div>';
+            } else {
+                html += matches.map(it => {
+                    const isSelected = it.name === curVal;
+                    const activeStyle = isSelected ? 'style="background-color:#f0f9ff;box-shadow:inset 0 0 0 1px #0284c7;border-radius:6px;"' : '';
+                    return `
+                        <div onclick="selectPoSupplierFilter(${it.idx})" ${activeStyle} class="p-2 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between gap-2 transition">
+                            <span class="${isSelected ? 'font-bold text-sky-800' : 'font-medium text-slate-800'} truncate">${escapeHtml(it.name)}</span>
+                            <span class="px-1.5 py-0.5 rounded-full font-mono font-bold text-[11px] bg-slate-100 text-slate-700 shrink-0">${it.count} đơn</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            listEl.innerHTML = html;
+        }
+        window.renderPoSupplierPopoverItems = renderPoSupplierPopoverItems;
+
+        function togglePoSupplierPopover(ev) {
+            if (ev) ev.stopPropagation();
+            const pop = document.getElementById('po-supplier-popover');
+            if (!pop) return;
+            const willOpen = pop.classList.contains('hidden');
+            pop.classList.toggle('hidden', !willOpen);
+            if (willOpen) {
+                const inp = document.getElementById('po-supplier-popover-search');
+                if (inp) {
+                    inp.value = '';
+                    setTimeout(() => inp.focus(), 40);
+                }
+                renderPoSupplierPopoverItems('');
+            }
+        }
+        window.togglePoSupplierPopover = togglePoSupplierPopover;
+
+        function selectPoSupplierFilter(idx) {
+            const sel = document.getElementById('filter-po-supplier');
+            const pop = document.getElementById('po-supplier-popover');
+            const chosenName = idx >= 0 && poSupplierStatsList[idx] ? poSupplierStatsList[idx].name : '';
+            if (sel) sel.value = chosenName;
+            updatePoSupplierFilterButtonLabel();
+            if (pop) pop.classList.add('hidden');
+            loadPurchasesList();
+        }
+        window.selectPoSupplierFilter = selectPoSupplierFilter;
+
+        document.addEventListener('pointerdown', (e) => {
+            const wrap = document.getElementById('po-supplier-filter-wrap');
+            const pop = document.getElementById('po-supplier-popover');
+            if (wrap && pop && !pop.classList.contains('hidden') && !wrap.contains(e.target)) {
+                pop.classList.add('hidden');
+            }
+        });
+
         function populatePurchaseSupplierFilter(purchases) {
             const sel = document.getElementById('filter-po-supplier');
             if (!sel) return;
             const currentVal = sel.value;
             const supplierCounts = {};
-            (purchases || []).forEach(p => {
+            const list = purchases || [];
+            list.forEach(p => {
                 const name = p.supplier_name || 'NCC Mặc định';
                 supplierCounts[name] = (supplierCounts[name] || 0) + 1;
             });
-            const names = Object.keys(supplierCounts).sort();
+            const names = Object.keys(supplierCounts).sort(poViCollator.compare);
+            poSupplierTotalOrders = list.length;
+            poSupplierStatsList = names.map((name, idx) => ({ idx, name, count: supplierCounts[name] }));
+
             let html = `<option value="">Tất cả NCC (${names.length} đối tác)</option>`;
             names.forEach(name => {
                 html += `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${supplierCounts[name]} đơn)</option>`;
             });
             sel.innerHTML = html;
-            if (currentVal && names.includes(currentVal)) {
-                sel.value = currentVal;
-            }
+            sel.value = (currentVal && names.includes(currentVal)) ? currentVal : '';
+            updatePoSupplierFilterButtonLabel();
+            renderPoSupplierPopoverItems(document.getElementById('po-supplier-popover-search')?.value || '');
         }
 
         async function loadPurchasesList() {

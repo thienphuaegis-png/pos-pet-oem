@@ -725,37 +725,209 @@
         }).join('');
     };
 
+    // ── Shared Searchable HRM Employee Picker (4 Modals: Leave, OT, Advance, Adjustment) ──
+    const hrmStaffPickerState = {};
+    const hrmViCollator = new Intl.Collator('vi', { numeric: true, sensitivity: 'base' });
+    const escHrmHtml = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    const normHrmSearch = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+
+    function matchHrmQuery(q, text) {
+        if (!q || !q.trim()) return true;
+        if (typeof fuzzyMatch === 'function') return fuzzyMatch(q, text);
+        const words = normHrmSearch(q).split(/\s+/).filter(Boolean);
+        const target = normHrmSearch(text);
+        return words.every(w => target.includes(w));
+    }
+
+    function formatHrmEmpLabel(s) {
+        if (!s) return '';
+        const code = (s.employee_code || '').trim();
+        return code ? `${code} - ${s.name}` : s.name;
+    }
+
+    async function initHrmStaffPicker(selectId, preselectId = '') {
+        const selectEl = document.getElementById(selectId);
+        const searchInp = document.getElementById(`${selectId}-search`);
+        const clearBtn = document.getElementById(`${selectId}-clear`);
+        const menuEl = document.getElementById(`${selectId}-menu`);
+
+        let raw = [];
+        try {
+            const res = await fetch('/api/hrm/employees');
+            if (res.ok) {
+                raw = await res.json();
+                hrmStaffList = raw;
+            }
+        } catch (e) {
+            console.error('Lỗi tải danh sách nhân sự HRM:', e);
+        }
+        if (!raw.length && Array.isArray(hrmStaffList) && hrmStaffList.length) {
+            raw = hrmStaffList;
+        }
+
+        const preStr = preselectId != null && preselectId !== '' ? String(preselectId) : '';
+        const activeRows = raw.filter(s => (s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc') || String(s.id) === preStr);
+        // ponytail: khớp 1-1 điều kiện payroll_service.payroll_staff để loại tài khoản kho/hệ thống rỗng; fallback activeRows nếu DB mới tinh chưa gán mã/lương
+        const strictRows = activeRows.filter(s =>
+            Number(s.base_salary || 0) > 0 ||
+            Number(s.is_spa_worker || 0) === 1 ||
+            Boolean((s.employee_code || '').trim()) ||
+            String(s.id) === preStr
+        );
+        const list = (strictRows.length ? strictRows : activeRows).slice().sort((a, b) => {
+            const ca = (a.employee_code || '').trim();
+            const cb = (b.employee_code || '').trim();
+            if (ca && !cb) return -1;
+            if (!ca && cb) return 1;
+            if (ca && cb && ca !== cb) return hrmViCollator.compare(ca, cb);
+            return hrmViCollator.compare(a.name || '', b.name || '');
+        });
+
+        hrmStaffPickerState[selectId] = list;
+
+        if (selectEl) {
+            selectEl.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
+                list.map(s => `<option value="${s.id}">${escHrmHtml(formatHrmEmpLabel(s))}</option>`).join('');
+            selectEl.value = preStr && list.some(s => String(s.id) === preStr) ? preStr : '';
+        }
+
+        const chosen = preStr ? list.find(s => String(s.id) === preStr) : null;
+        if (searchInp) searchInp.value = chosen ? formatHrmEmpLabel(chosen) : '';
+        if (clearBtn) clearBtn.classList.toggle('hidden', !chosen);
+        if (menuEl) menuEl.classList.add('hidden');
+    }
+
+    function renderHrmStaffPickerMenu(selectId, query = '') {
+        const selectEl = document.getElementById(selectId);
+        const menuEl = document.getElementById(`${selectId}-menu`);
+        if (!menuEl) return;
+
+        const list = hrmStaffPickerState[selectId] || [];
+        const curVal = selectEl ? String(selectEl.value || '') : '';
+        const q = (query || '').trim();
+        const matches = q
+            ? list.filter(s => matchHrmQuery(q, `${s.employee_code || ''} ${s.name || ''} ${s.block_name || ''} ${s.department || ''} ${s.position || ''} ${s.phone || ''}`))
+            : list;
+
+        if (!matches.length) {
+            menuEl.innerHTML = '<div class="p-3 text-center text-slate-400">Không tìm thấy nhân viên phù hợp</div>';
+            menuEl.classList.remove('hidden');
+            return;
+        }
+
+        menuEl.innerHTML = matches.map(s => {
+            const isSelected = String(s.id) === curVal;
+            const code = (s.employee_code || '').trim();
+            const codeBadge = code
+                ? `<span class="px-1.5 py-0.5 rounded font-mono font-bold text-[11px] bg-sky-50 text-sky-700 border border-sky-200 shrink-0">${escHrmHtml(code)}</span>`
+                : `<span class="px-1.5 py-0.5 rounded font-mono font-semibold text-[11px] bg-slate-100 text-slate-500 shrink-0">#${s.id}</span>`;
+            const meta = escHrmHtml(s.block_name || s.department || s.position || '');
+            const activeStyle = isSelected ? 'style="background-color:#f0f9ff;box-shadow:inset 0 0 0 1px #0284c7;"' : '';
+            return `
+                <div onmousedown="event.preventDefault(); selectHrmStaffOption('${selectId}', ${s.id})"
+                     ${activeStyle}
+                     class="p-2 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between gap-2 transition">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        ${codeBadge}
+                        <span class="font-bold ${isSelected ? 'text-sky-800' : 'text-slate-800'} truncate">${escHrmHtml(s.name)}</span>
+                    </div>
+                    ${meta ? `<span class="text-[11px] text-slate-500 shrink-0 truncate max-w-[110px]">${meta}</span>` : ''}
+                </div>
+            `;
+        }).join('');
+        menuEl.classList.remove('hidden');
+    }
+
+    window.openHrmStaffDropdown = function(selectId) {
+        document.querySelectorAll('[data-hrm-staff-picker]').forEach(wrap => {
+            const sid = wrap.getAttribute('data-hrm-staff-picker');
+            if (sid && sid !== selectId) document.getElementById(`${sid}-menu`)?.classList.add('hidden');
+        });
+        const selectEl = document.getElementById(selectId);
+        const searchInp = document.getElementById(`${selectId}-search`);
+        const list = hrmStaffPickerState[selectId] || [];
+        const chosen = selectEl?.value ? list.find(s => String(s.id) === String(selectEl.value)) : null;
+        const rawVal = searchInp ? searchInp.value : '';
+        const q = (chosen && rawVal === formatHrmEmpLabel(chosen)) ? '' : rawVal;
+        renderHrmStaffPickerMenu(selectId, q);
+    };
+
+    window.filterHrmStaffDropdown = function(selectId, val) {
+        const selectEl = document.getElementById(selectId);
+        const clearBtn = document.getElementById(`${selectId}-clear`);
+        const list = hrmStaffPickerState[selectId] || [];
+        if (selectEl && selectEl.value) {
+            const chosen = list.find(s => String(s.id) === String(selectEl.value));
+            if (!chosen || val !== formatHrmEmpLabel(chosen)) {
+                selectEl.value = '';
+            }
+        }
+        if (clearBtn) clearBtn.classList.toggle('hidden', !val);
+        renderHrmStaffPickerMenu(selectId, val);
+    };
+
+    window.selectHrmStaffOption = function(selectId, staffId) {
+        const selectEl = document.getElementById(selectId);
+        const searchInp = document.getElementById(`${selectId}-search`);
+        const clearBtn = document.getElementById(`${selectId}-clear`);
+        const menuEl = document.getElementById(`${selectId}-menu`);
+        const list = hrmStaffPickerState[selectId] || [];
+        const chosen = list.find(s => String(s.id) === String(staffId));
+        if (selectEl) selectEl.value = chosen ? String(chosen.id) : '';
+        if (searchInp) searchInp.value = chosen ? formatHrmEmpLabel(chosen) : '';
+        if (clearBtn) clearBtn.classList.toggle('hidden', !chosen);
+        if (menuEl) menuEl.classList.add('hidden');
+    };
+
+    window.clearHrmStaffSelection = function(selectId, ev) {
+        if (ev) ev.stopPropagation();
+        const selectEl = document.getElementById(selectId);
+        const searchInp = document.getElementById(`${selectId}-search`);
+        const clearBtn = document.getElementById(`${selectId}-clear`);
+        if (selectEl) selectEl.value = '';
+        if (searchInp) {
+            searchInp.value = '';
+            searchInp.focus();
+        }
+        if (clearBtn) clearBtn.classList.add('hidden');
+        renderHrmStaffPickerMenu(selectId, '');
+    };
+
+    document.addEventListener('pointerdown', (e) => {
+        document.querySelectorAll('[data-hrm-staff-picker]').forEach(wrap => {
+            if (wrap.contains(e.target)) return;
+            const sid = wrap.getAttribute('data-hrm-staff-picker');
+            const menuEl = document.getElementById(`${sid}-menu`);
+            if (!menuEl || menuEl.classList.contains('hidden')) return;
+            menuEl.classList.add('hidden');
+            const selectEl = document.getElementById(sid);
+            const searchInp = document.getElementById(`${sid}-search`);
+            const clearBtn = document.getElementById(`${sid}-clear`);
+            const list = hrmStaffPickerState[sid] || [];
+            const chosen = selectEl?.value ? list.find(s => String(s.id) === String(selectEl.value)) : null;
+            if (searchInp) searchInp.value = chosen ? formatHrmEmpLabel(chosen) : '';
+            if (clearBtn) clearBtn.classList.toggle('hidden', !chosen);
+        });
+    });
+
     window.openHrmLeaveModal = async function(id) {
-        const staffSelect = document.getElementById('hrm-leave-staff-id');
         const dateInput = document.getElementById('hrm-leave-date');
         const typeSelect = document.getElementById('hrm-leave-type');
         const reasonInput = document.getElementById('hrm-leave-reason');
         const approverInput = document.getElementById('hrm-leave-approved-by');
         const idInput = document.getElementById('hrm-leave-id');
         const titleEl = document.getElementById('modal-hrm-leave-title');
+        const existingItem = id ? leavesData.find(x => x.id === id) : null;
 
-        try {
-            const res = await fetch('/api/staff');
-            if (res.ok) {
-                const staffList = await res.json();
-                staffSelect.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
-                    staffList.filter(s => s.is_active).map(s => `<option value="${s.id}">${s.name} (${s.employee_code || 'NV' + s.id})</option>`).join('');
-            }
-        } catch (e) {
-            console.error(e);
-        }
+        await initHrmStaffPicker('hrm-leave-staff-id', existingItem ? existingItem.staff_id : '');
 
-        if (id) {
-            const item = leavesData.find(x => x.id === id);
-            if (item) {
-                if (idInput) idInput.value = item.id;
-                if (staffSelect) staffSelect.value = item.staff_id;
-                if (dateInput) dateInput.value = item.work_date;
-                if (typeSelect) typeSelect.value = item.leave_type;
-                if (reasonInput) reasonInput.value = item.reason || '';
-                if (approverInput) approverInput.value = item.approved_by || '';
-                if (titleEl) titleEl.textContent = 'Cập Nhật Đơn Xin Off';
-            }
+        if (existingItem) {
+            if (idInput) idInput.value = existingItem.id;
+            if (dateInput) dateInput.value = existingItem.work_date;
+            if (typeSelect) typeSelect.value = existingItem.leave_type;
+            if (reasonInput) reasonInput.value = existingItem.reason || '';
+            if (approverInput) approverInput.value = existingItem.approved_by || '';
+            if (titleEl) titleEl.textContent = 'Cập Nhật Đơn Xin Off';
         } else {
             if (idInput) idInput.value = '';
             if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
@@ -878,7 +1050,6 @@
     window.loadHrmOvertime = loadHrmOvertime;
 
     window.openHrmOvertimeModal = async function() {
-        const staffSelect = document.getElementById('hrm-ot-staff-id');
         const dateInput = document.getElementById('hrm-ot-date');
         const hoursInput = document.getElementById('hrm-ot-hours');
         const noteInput = document.getElementById('hrm-ot-note');
@@ -886,16 +1057,7 @@
         if (hoursInput) hoursInput.value = '';
         if (noteInput) noteInput.value = '';
 
-        try {
-            const res = await fetch('/api/staff');
-            if (res.ok) {
-                const staffList = await res.json();
-                staffSelect.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
-                    staffList.filter(s => s.is_active).map(s => `<option value="${s.id}">${s.name} (${s.employee_code || 'NV' + s.id})</option>`).join('');
-            }
-        } catch (e) {
-            console.error(e);
-        }
+        await initHrmStaffPicker('hrm-ot-staff-id', '');
 
         const modal = document.getElementById('modal-hrm-overtime');
         if (modal) modal.classList.remove('hidden');
@@ -988,7 +1150,6 @@
     window.loadHrmAdvances = loadHrmAdvances;
 
     window.openHrmAdvanceModal = async function() {
-        const staffSelect = document.getElementById('hrm-adv-staff-id');
         const dateInput = document.getElementById('hrm-adv-date');
         const amountInput = document.getElementById('hrm-adv-amount');
         const accSelect = document.getElementById('hrm-adv-account-id');
@@ -999,19 +1160,14 @@
         if (noteInput) noteInput.value = '';
 
         try {
-            const [resStaff, resAcc] = await Promise.all([
-                fetch('/api/staff'),
+            const [, resAcc] = await Promise.all([
+                initHrmStaffPicker('hrm-adv-staff-id', ''),
                 fetch('/api/payment-accounts')
             ]);
-            if (resStaff.ok) {
-                const staffList = await resStaff.json();
-                staffSelect.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
-                    staffList.filter(s => s.is_active).map(s => `<option value="${s.id}">${s.name} (${s.employee_code || 'NV' + s.id})</option>`).join('');
-            }
-            if (resAcc.ok) {
+            if (resAcc.ok && accSelect) {
                 const accList = await resAcc.json();
                 accSelect.innerHTML = '<option value="">-- Không sinh phiếu chi sổ quỹ --</option>' +
-                    accList.map(a => `<option value="${a.id}">${a.name} (${a.type === 'bank' ? 'Ngân hàng' : 'Tiền mặt'})</option>`).join('');
+                    accList.map(a => `<option value="${a.id}">${escHrmHtml(a.name)} (${a.type === 'bank' ? 'Ngân hàng' : 'Tiền mặt'})</option>`).join('');
             }
         } catch (e) {
             console.error(e);
@@ -2532,17 +2688,7 @@
     };
 
     window.openHrmAdjustmentModal = async function(staffId) {
-        const staffSel = document.getElementById('hrm-adj-staff-id');
-        if (staffSel) {
-            if (!hrmStaffList.length) {
-                try {
-                    const res = await fetch('/api/hrm/employees');
-                    if (res.ok) hrmStaffList = await res.json();
-                } catch (e) { console.error(e); }
-            }
-            staffSel.innerHTML = '<option value="">-- Chọn nhân viên --</option>' +
-                (hrmStaffList || []).map(s => `<option value="${s.id}" ${staffId == s.id ? 'selected' : ''}>${s.employee_code ? s.employee_code + ' - ' : ''}${s.name}</option>`).join('');
-        }
+        await initHrmStaffPicker('hrm-adj-staff-id', staffId || '');
 
         const today = new Date().toISOString().slice(0, 10);
         document.getElementById('hrm-adj-decision-date').value = today;

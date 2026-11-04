@@ -429,7 +429,7 @@
                                     <div class="text-xs text-slate-500">Xem toàn bộ dòng tiền vào ra</div>
                                 </div>
                             </div>
-                            <span class="text-xs font-bold ${!currentVal ? 'text-sky-600' : 'text-slate-400'}">● Mặc định</span>
+                            <span class="text-xs font-bold ${!currentVal ? 'text-sky-600' : 'text-slate-400'}">Mặc định</span>
                         </div>
                     `;
 
@@ -690,8 +690,10 @@
 
             const badgeType = document.getElementById('drawer-cash-badge-type');
             if (badgeType) {
-                badgeType.textContent = isThu ? '🟢 Thu Tiền' : '🔴 Chi Tiền';
-                badgeType.className = isThu ? 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800' : 'px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800';
+                badgeType.textContent = isThu ? 'Thu Tiền' : 'Chi Tiền';
+                badgeType.className = isThu
+                    ? 'inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800'
+                    : 'inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800';
             }
 
             // Nút sửa, xóa phiếu cho quyền admin/owner
@@ -2007,8 +2009,8 @@
                             ${accCode}
                         </td>
                         <td class="p-2.5 text-center">
-                            <span class="px-2 py-0.5 rounded text-xs font-bold ${isThu ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                                ${isThu ? '🟢 Thu' : '🔴 Chi'}
+                            <span class="inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold ${isThu ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${isThu ? 'Thu' : 'Chi'}
                             </span>
                         </td>
                         <td class="p-2.5 font-semibold text-slate-700">${c.category || '-'}</td>
@@ -2361,7 +2363,7 @@
                 if (dateContainer) dateContainer.className = 'col-span-2';
 
                 if (titleEl) titleEl.innerText = 'Chuyển Tiền / Quỹ Nội Bộ (Rút - Nộp)';
-                if (iconEl) iconEl.innerText = '🔄';
+                if (iconEl) iconEl.innerHTML = '<i class="ph ph-arrows-clockwise text-sky-600"></i>';
                 if (btnSubmit) {
                     btnSubmit.className = 'px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer';
                     btnSubmit.innerHTML = '<span>🔄</span> <span>Xác Nhận Chuyển Tiền</span>';
@@ -2380,7 +2382,7 @@
                 if (dateContainer) dateContainer.className = 'col-span-1';
 
                 if (titleEl) titleEl.innerText = 'Lập Phiếu Thu Tiền (Vào)';
-                if (iconEl) iconEl.innerText = '🟢';
+                if (iconEl) iconEl.innerHTML = '<i class="ph ph-coins text-emerald-600"></i>';
                 if (btnSubmit) {
                     btnSubmit.className = 'px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer';
                     btnSubmit.innerHTML = '<span>💾</span> <span>Xác Nhận Lưu Phiếu Thu</span>';
@@ -2399,7 +2401,7 @@
                 if (dateContainer) dateContainer.className = 'col-span-1';
 
                 if (titleEl) titleEl.innerText = 'Lập Phiếu Chi Tiền (Ra)';
-                if (iconEl) iconEl.innerText = '🔴';
+                if (iconEl) iconEl.innerHTML = '<i class="ph ph-coins text-rose-600"></i>';
                 if (btnSubmit) {
                     btnSubmit.className = 'px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer';
                     btnSubmit.innerHTML = '<span>💾</span> <span>Xác Nhận Lưu Phiếu Chi</span>';
@@ -2539,9 +2541,9 @@
                     const safeName = (c.name || '').replace(/'/g, "\\'");
                     let typeBadge = '';
                     if (c.type === 'in') {
-                        typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">🟢 Thu</span>';
+                        typeBadge = '<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Thu</span>';
                     } else if (c.type === 'out') {
-                        typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">🔴 Chi</span>';
+                        typeBadge = '<span class="inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800">Chi</span>';
                     } else {
                         typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800">🔄 Cả 2</span>';
                     }

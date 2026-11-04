@@ -4929,10 +4929,20 @@
                                 <option value="COMPANY">Quỹ Công Ty (Có VAT)</option>
                                 <option value="PERSONAL">Quỹ Cá Nhân (Không VAT)</option>
                             </select>
-                            <!-- Lọc Nhà Cung Cấp -->
-                            <select id="filter-po-supplier" onchange="loadPurchasesList()" class="border p-1.5 rounded text-xs font-semibold bg-white text-slate-700">
-                                <option value="">Tất cả NCC</option>
-                            </select>
+                            <!-- Lọc Nhà Cung Cấp (Popover Tìm Kiếm) -->
+                            <div id="po-supplier-filter-wrap" class="relative">
+                                <select id="filter-po-supplier" onchange="loadPurchasesList()" class="hidden">
+                                    <option value="">Tất cả NCC</option>
+                                </select>
+                                <button type="button" id="btn-po-supplier-filter" onclick="togglePoSupplierPopover(event)" class="flex items-center justify-between gap-2 border border-slate-300 px-3 py-1.5 rounded text-xs font-semibold bg-white hover:border-sky-400 text-slate-700 min-w-[185px] max-w-[260px] cursor-pointer">
+                                    <span id="po-supplier-filter-label" class="truncate">Tất cả NCC</span>
+                                    <span class="text-slate-400 shrink-0">▾</span>
+                                </button>
+                                <div id="po-supplier-popover" class="hidden absolute left-0 top-full mt-1 w-72 bg-white border border-slate-300 rounded-xl shadow-2xl z-50 p-2 text-xs">
+                                    <input type="text" id="po-supplier-popover-search" oninput="renderPoSupplierPopoverItems(this.value)" placeholder="Tìm nhanh tên NCC (không dấu)..." autocomplete="off" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-slate-50 focus:bg-white outline-none focus:border-sky-500 mb-1.5">
+                                    <div id="po-supplier-popover-list" class="max-h-60 overflow-y-auto divide-y divide-slate-100"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2 flex-1 max-w-sm">
                             <input type="text" id="search-po-input" oninput="debounceFilterPurchases()" placeholder="Tìm mã đơn, nhà cung cấp..." class="border p-1.5 rounded w-full text-xs bg-slate-50 focus:bg-white outline-none focus:border-sky-500">
@@ -6016,10 +6026,10 @@
                                 Tất cả
                             </button>
                             <button type="button" id="cb-pill-type-in" onclick="setCashbookFilterType('in')" class="px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition">
-                                <i class="ph ph-circle"></i> Thu (Vào)
+                                Thu (Vào)
                             </button>
                             <button type="button" id="cb-pill-type-out" onclick="setCashbookFilterType('out')" class="px-2.5 py-1 rounded-md font-semibold text-xs text-slate-600 hover:text-rose-700 hover:bg-rose-50 transition">
-                                <i class="ph ph-circle"></i> Chi (Ra)
+                                Chi (Ra)
                             </button>
                         </div>
 
@@ -11391,7 +11401,15 @@
             <div class="space-y-3">
                 <div>
                     <label class="font-bold text-slate-700">Nhân viên (*)</label>
-                    <select id="hrm-leave-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                    <div class="relative mt-1" data-hrm-staff-picker="hrm-leave-staff-id">
+                        <select id="hrm-leave-staff-id" class="hidden"><option value="">-- Chọn nhân viên --</option></select>
+                        <div class="relative flex items-center">
+                            <input type="text" id="hrm-leave-staff-id-search" autocomplete="off" placeholder="Gõ tên hoặc mã NV để chọn..." onclick="openHrmStaffDropdown('hrm-leave-staff-id')" onfocus="openHrmStaffDropdown('hrm-leave-staff-id')" oninput="filterHrmStaffDropdown('hrm-leave-staff-id', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 pr-12 text-xs font-semibold text-slate-800 bg-white outline-none focus:border-sky-500 cursor-pointer">
+                            <button type="button" id="hrm-leave-staff-id-clear" onclick="clearHrmStaffSelection('hrm-leave-staff-id', event)" title="Bỏ chọn" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                            <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                        </div>
+                        <div id="hrm-leave-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                    </div>
                 </div>
                 <div>
                     <label class="font-bold text-slate-700">Ngày nghỉ (*)</label>
@@ -11433,7 +11451,15 @@
             <div class="space-y-3">
                 <div>
                     <label class="font-bold text-slate-700">Nhân viên (*)</label>
-                    <select id="hrm-ot-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                    <div class="relative mt-1" data-hrm-staff-picker="hrm-ot-staff-id">
+                        <select id="hrm-ot-staff-id" class="hidden"><option value="">-- Chọn nhân viên --</option></select>
+                        <div class="relative flex items-center">
+                            <input type="text" id="hrm-ot-staff-id-search" autocomplete="off" placeholder="Gõ tên hoặc mã NV để chọn..." onclick="openHrmStaffDropdown('hrm-ot-staff-id')" onfocus="openHrmStaffDropdown('hrm-ot-staff-id')" oninput="filterHrmStaffDropdown('hrm-ot-staff-id', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 pr-12 text-xs font-semibold text-slate-800 bg-white outline-none focus:border-sky-500 cursor-pointer">
+                            <button type="button" id="hrm-ot-staff-id-clear" onclick="clearHrmStaffSelection('hrm-ot-staff-id', event)" title="Bỏ chọn" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                            <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                        </div>
+                        <div id="hrm-ot-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                    </div>
                 </div>
                 <div>
                     <label class="font-bold text-slate-700">Ngày tăng ca (*)</label>
@@ -11467,7 +11493,15 @@
             <div class="space-y-3">
                 <div>
                     <label class="font-bold text-slate-700">Nhân viên ứng (*)</label>
-                    <select id="hrm-adv-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs mt-1 bg-white"></select>
+                    <div class="relative mt-1" data-hrm-staff-picker="hrm-adv-staff-id">
+                        <select id="hrm-adv-staff-id" class="hidden"><option value="">-- Chọn nhân viên --</option></select>
+                        <div class="relative flex items-center">
+                            <input type="text" id="hrm-adv-staff-id-search" autocomplete="off" placeholder="Gõ tên hoặc mã NV để chọn..." onclick="openHrmStaffDropdown('hrm-adv-staff-id')" onfocus="openHrmStaffDropdown('hrm-adv-staff-id')" oninput="filterHrmStaffDropdown('hrm-adv-staff-id', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 pr-12 text-xs font-semibold text-slate-800 bg-white outline-none focus:border-sky-500 cursor-pointer">
+                            <button type="button" id="hrm-adv-staff-id-clear" onclick="clearHrmStaffSelection('hrm-adv-staff-id', event)" title="Bỏ chọn" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                            <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                        </div>
+                        <div id="hrm-adv-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                    </div>
                 </div>
                 <div>
                     <label class="font-bold text-slate-700">Ngày tạm ứng (*)</label>
@@ -11930,9 +11964,17 @@
             <div class="space-y-3">
                 <div>
                     <label class="font-bold text-slate-700">Chọn Nhân Viên (*)</label>
-                    <select id="hrm-adj-staff-id" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs mt-1 font-bold text-slate-800 focus:ring-1 focus:ring-emerald-500">
-                        <option value="">-- Chọn nhân viên --</option>
-                    </select>
+                    <div class="relative mt-1" data-hrm-staff-picker="hrm-adj-staff-id">
+                        <select id="hrm-adj-staff-id" class="hidden">
+                            <option value="">-- Chọn nhân viên --</option>
+                        </select>
+                        <div class="relative flex items-center">
+                            <input type="text" id="hrm-adj-staff-id-search" autocomplete="off" placeholder="Gõ tên hoặc mã NV để chọn..." onclick="openHrmStaffDropdown('hrm-adj-staff-id')" onfocus="openHrmStaffDropdown('hrm-adj-staff-id')" oninput="filterHrmStaffDropdown('hrm-adj-staff-id', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 pr-12 text-xs font-bold text-slate-800 bg-white outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer">
+                            <button type="button" id="hrm-adj-staff-id-clear" onclick="clearHrmStaffSelection('hrm-adj-staff-id', event)" title="Bỏ chọn" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                            <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                        </div>
+                        <div id="hrm-adj-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -15356,10 +15398,10 @@
                     <label class="font-bold text-slate-700 block mb-1">Loại Giao Dịch:</label>
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" id="btn-cash-type-in" onclick="setCashModalType('in')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-emerald-50 border-emerald-500 text-emerald-700 cursor-pointer">
-                            <span><i class="ph ph-circle"></i></span> <span>Thu Tiền (Vào)</span>
+                            <span>Thu Tiền (Vào)</span>
                         </button>
                         <button type="button" id="btn-cash-type-out" onclick="setCashModalType('out')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer">
-                            <span><i class="ph ph-circle"></i></span> <span>Chi Tiền (Ra)</span>
+                            <span>Chi Tiền (Ra)</span>
                         </button>
                         <button type="button" id="btn-cash-type-transfer" onclick="setCashModalType('transfer')" class="py-2 rounded-lg font-bold border text-center transition flex items-center justify-center gap-1.5 bg-slate-50 border-slate-200 text-slate-600 cursor-pointer">
                             <span><i class="ph ph-arrows-clockwise"></i></span> <span>Chuyển Quỹ</span>
@@ -15502,7 +15544,7 @@
             <!-- Header -->
             <div class="flex justify-between items-center border-b pb-3">
                 <div class="flex items-center gap-2">
-                    <span id="cashview-badge-type" class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800"><i class="ph ph-circle"></i> Thu Tiền</span>
+                    <span id="cashview-badge-type" class="inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Thu Tiền</span>
                     <h3 class="font-bold text-sm text-slate-800" id="cashview-title">Chi Tiết Phiếu Thu</h3>
                     <span id="cashview-code" class="font-mono font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded text-xs">PT-...</span>
                 </div>
@@ -15575,7 +15617,7 @@
         <!-- Header -->
         <div class="flex justify-between items-center px-4 py-3 border-b bg-slate-50/90">
             <div class="flex items-center gap-2">
-                <span id="drawer-cash-badge-type" class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800"><i class="ph ph-circle"></i> Thu Tiền</span>
+                <span id="drawer-cash-badge-type" class="inline-block whitespace-nowrap px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">Thu Tiền</span>
                 <div>
                     <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1.5" id="drawer-cash-title">
                         <span>Nguồn Gốc Phiếu Thu</span>

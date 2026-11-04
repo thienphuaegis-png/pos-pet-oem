@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>So sánh Giao diện: Hiện tại vs Đề xuất</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 12px;
+  }
+  .wrap { max-width: 900px; display: flex; flex-direction: column; gap: 12px; }
+  .section {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .sec-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .col-bad {
+    background: #fffafa;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .col-good {
+    background: #f8fafc;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .tag-bad, .tag-good {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .tag-bad { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .tag-good { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+
+  .mock-box {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 9px;
+  }
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .close-btn {
+    width: 24px; height: 24px; border-radius: 99px; background: #f1f5f9;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #334155; border: 1px solid #94a3b8;
+  }
+  .lbl { font-weight: 700; color: #334155; font-size: 11px; margin-bottom: 4px; display: block; }
+  .inp {
+    width: 100%; border: 1px solid #94a3b8; border-radius: 7px;
+    padding: 6px 8px; font-size: 11.5px; background: #ffffff; color: #0f172a;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .inp-focus { border-color: #0284c7; box-shadow: 0 0 0 2px #e0f2fe; }
+  .menu {
+    margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 8px;
+    background: #ffffff; overflow: hidden; box-shadow: 0 6px 16px rgba(15,23,42,0.08);
+  }
+  .menu-item {
+    padding: 6px 8px; border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; justify-content: space-between; font-size: 11.5px;
+  }
+  .menu-item:last-child { border-bottom: none; }
+  .menu-item.active { background: #f0f9ff; color: #0369a1; font-weight: 700; }
+  .menu-item.bad-row { background: #fef2f2; color: #991b1b; }
+  .code-pill {
+    font-family: Consolas, monospace; font-size: 10.5px; font-weight: 700;
+    padding: 1px 6px; border-radius: 5px; background: #e0f2fe; color: #0369a1;
+  }
+  .count-pill {
+    font-family: Consolas, monospace; font-size: 10.5px; font-weight: 700;
+    padding: 1px 6px; border-radius: 99px; background: #f1f5f9; color: #334155;
+  }
+  .note {
+    margin-top: 7px; font-size: 11px; padding: 5px 7px; border-radius: 6px;
+  }
+  .note-bad { background: #fee2e2; color: #991b1b; }
+  .note-good { background: #dcfce7; color: #166534; }
+
+  .pill-group {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px;
+  }
+  .pill {
+    padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #475569;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .pill.on { background: #0f172a; color: #ffffff; font-weight: 700; }
+  .hollow-dot {
+    width: 9px; height: 9px; border-radius: 99px; border: 1.5px solid #64748b; display: inline-block;
+  }
+  .solid-dot-g, .solid-dot-r {
+    width: 9px; height: 9px; border-radius: 99px; display: inline-block;
+  }
+  .solid-dot-g { background: #16a34a; }
+  .solid-dot-r { background: #dc2626; }
+
+  table.mini { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; background: #fff; }
+  table.mini th { background: #f8fafc; color: #475569; font-size: 10px; text-transform: uppercase; padding: 5px 6px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+  table.mini td { padding: 6px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .badge-wrap-bad {
+    display: inline-block; width: 38px; text-align: center;
+    padding: 2px 4px; border-radius: 5px; font-weight: 700; font-size: 10.5px; line-height: 1.2;
+  }
+  .badge-clean {
+    display: inline-block; white-space: nowrap;
+    padding: 2px 8px; border-radius: 5px; font-weight: 700; font-size: 11px;
+  }
+  .bg-thu { background: #d1fae5; color: #065f46; }
+  .bg-chi { background: #ffe4e6; color: #9f1239; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- MỤC 1: NHÂN VIÊN HRM -->
+  <div class="section">
+    <div class="sec-title">1. Modal HRM (Tạm Ứng / Xin Off / Tăng Ca / Điều Chỉnh Lương) - Chọn Nhân Viên</div>
+    <div class="grid2">
+      <div class="col-bad">
+        <span class="tag-bad">Hiện tại (Lỗi UI + Lỗi Nguồn Dữ Liệu)</span>
+        <div class="mock-box">
+          <div class="row-between" style="border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px;">
+            <strong>Tạm Ứng Lương Nhân Viên</strong>
+            <span class="close-btn">o</span>
+          </div>
+          <span class="lbl">Nhân viên ứng (*)</span>
+          <div class="inp">-- Chọn nhân viên -- <span>v</span></div>
+          <div class="menu">
+            <div class="menu-item bad-row"><span>admin (NV1)</span><span>TK hệ thống!</span></div>
+            <div class="menu-item"><span>Hoàng Phi Phụng (NV10)</span><span>Lộn xộn thứ tự</span></div>
+            <div class="menu-item bad-row"><span>Trần Nguyễn Quế Đôn (NV4)</span><span>Trùng NV02/04!</span></div>
+            <div class="menu-item bad-row"><span>Kho (NV7)</span><span>TK kho!</span></div>
+            <div class="menu-item"><span>Bùi Thiên Phú (NV01)</span><span>Không tìm được</span></div>
+          </div>
+        </div>
+        <div class="note note-bad">
+          Gọi nhầm /api/staff: lọt admin, Kho, mã NV1/NV4 rác, xổ tràn đáy modal, không gõ tìm được.
+        </div>
+      </div>
+
+      <div class="col-good">
+        <span class="tag-good">Đề xuất (Searchable Droplist + Chuẩn HRM)</span>
+        <div class="mock-box">
+          <div class="row-between" style="border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:8px;">
+            <strong>Tạm Ứng Lương Nhân Viên</strong>
+            <span class="close-btn">o</span>
+          </div>
+          <span class="lbl">Nhân viên ứng (*)</span>
+          <div class="inp inp-focus">
+            <span style="color:#0369a1;font-weight:600;">Gõ tên hoặc mã NV: "phu"...</span>
+            <span style="color:#334155;font-weight:700;">X</span>
+          </div>
+          <div class="menu">
+            <div class="menu-item active">
+              <span><span class="code-pill">NV01</span> Bùi Thiên Phú</span>
+              <span style="font-size:10.5px;color:#334155;font-weight:600;">Văn phòng</span>
+            </div>
+            <div class="menu-item">
+              <span><span class="code-pill">NV10</span> Hoàng Phi Phụng</span>
+              <span style="font-size:10.5px;color:#334155;font-weight:600;">Bán hàng</span>
+            </div>
+            <div class="menu-item">
+              <span><span class="code-pill">NV13</span> Hà Đặng Phương Thanh</span>
+              <span style="font-size:10.5px;color:#334155;font-weight:600;">Spa</span>
+            </div>
+          </div>
+        </div>
+        <div class="note note-good">
+          Lấy từ /api/hrm/employees (chỉ nhân sự bảng lương, sắp chuẩn NV01..NV39), gõ không dấu tìm tức thì.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MỤC 2: NHÀ CUNG CẤP TAB NHẬP HÀNG -->
+  <div class="section">
+    <div class="sec-title">2. Tab Nhập Hàng - Bộ Lọc Nhà Cung Cấp (19+ Đối Tác)</div>
+    <div class="grid2">
+      <div class="col-bad">
+        <span class="tag-bad">Hiện tại (&lt;select&gt; Native dài 20 dòng)</span>
+        <div class="mock-box">
+          <div class="inp">Tất cả NCC (19 đối tác) <span>v</span></div>
+          <div class="menu">
+            <div class="menu-item"><span>Anh Chánh Nemo (In ấn) (5 đơn)</span></div>
+            <div class="menu-item"><span>Bao bì - In ấn Hữu (Túi Zipper) (2 đơn)</span></div>
+            <div class="menu-item"><span>ZippoPet (sỉ phụ kiện) (2 đơn)</span></div>
+            <div class="menu-item bad-row"><span>Đăng Khải (Xốp khí) (1 đơn)</span><span>Chữ Đ bị đẩy cuối</span></div>
+          </div>
+        </div>
+        <div class="note note-bad">
+          Không có ô gõ tìm khi NCC lên 30-50 đối tác; sort ASCII đẩy chữ "Đ" xuống sau chữ "Z".
+        </div>
+      </div>
+
+      <div class="col-good">
+        <span class="tag-good">Đề xuất (Popover Tìm Kiếm Nhanh 1 Chạm)</span>
+        <div class="mock-box">
+          <div class="inp inp-focus" style="font-weight:700;">
+            <span>Tất cả NCC (19 đối tác)</span>
+            <span style="color:#334155;">v</span>
+          </div>
+          <div class="menu" style="padding:6px;">
+            <div class="inp" style="margin-bottom:5px;background:#f8fafc;color:#334155;">
+              <span>Tìm nhanh tên NCC (không dấu)...</span>
+            </div>
+            <div class="menu-item active" style="border-radius:6px;">
+              <span>Tất cả NCC</span><span class="count-pill">50 đơn</span>
+            </div>
+            <div class="menu-item">
+              <span>Chị Trân (Chai lọ)</span><span class="count-pill">9 đơn</span>
+            </div>
+            <div class="menu-item">
+              <span>Đăng Khải (Xốp khí)</span><span class="count-pill">1 đơn</span>
+            </div>
+            <div class="menu-item">
+              <span>Giấy in nhiệt Kk</span><span class="count-pill">7 đơn</span>
+            </div>
+          </div>
+        </div>
+        <div class="note note-good">
+          Gõ không dấu ("tran", "zipper", "in an") lọc ngay; badge số đơn rõ ràng; sắp chuẩn tiếng Việt.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MỤC 3: BỎ CHẤM TRÒN TAB THU CHI -->
+  <div class="section">
+    <div class="sec-title">3. Tab Thu Chi (Sổ Quỹ) - Bỏ Biểu Tượng Chấm Tròn</div>
+    <div class="grid2">
+      <div class="col-bad">
+        <span class="tag-bad">Hiện tại (2 Chỗ Dính Chấm Tròn + Rớt Dòng)</span>
+        <div class="mock-box">
+          <div class="pill-group">
+            <span class="pill on">Tất cả</span>
+            <span class="pill"><span class="hollow-dot"></span> Thu (Vào)</span>
+            <span class="pill"><span class="hollow-dot"></span> Chi (Ra)</span>
+          </div>
+          <table class="mini">
+            <thead><tr><th>Mã phiếu</th><th style="text-align:center;">Loại</th><th style="text-align:right;">Số tiền</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>PT-BH-261104-003</strong></td>
+                <td style="text-align:center;">
+                  <span class="badge-wrap-bad bg-thu"><span class="solid-dot-g"></span><br>Thu</span>
+                </td>
+                <td style="text-align:right;color:#059669;font-weight:700;font-family:Consolas,monospace;">+3.600.000 đ</td>
+              </tr>
+              <tr>
+                <td><strong>PC-NH-261103-002</strong></td>
+                <td style="text-align:center;">
+                  <span class="badge-wrap-bad bg-chi"><span class="solid-dot-r"></span><br>Chi</span>
+                </td>
+                <td style="text-align:right;color:#e11d48;font-weight:700;font-family:Consolas,monospace;">-9.487.500 đ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-bad">
+          Nút lọc thừa vòng tròn rỗng (ph-circle); cột LOẠI chứa chấm tròn làm rớt thành 2 dòng.
+        </div>
+      </div>
+
+      <div class="col-good">
+        <span class="tag-good">Đề xuất (Sạch Chấm Tròn, Badge Gọn 1 Dòng)</span>
+        <div class="mock-box">
+          <div class="pill-group">
+            <span class="pill on">Tất cả</span>
+            <span class="pill">Thu (Vào)</span>
+            <span class="pill">Chi (Ra)</span>
+          </div>
+          <table class="mini">
+            <thead><tr><th>Mã phiếu</th><th style="text-align:center;">Loại</th><th style="text-align:right;">Số tiền</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>PT-BH-261104-003</strong></td>
+                <td style="text-align:center;"><span class="badge-clean bg-thu">Thu</span></td>
+                <td style="text-align:right;color:#059669;font-weight:700;font-family:Consolas,monospace;">+3.600.000 đ</td>
+              </tr>
+              <tr>
+                <td><strong>PC-NH-261103-002</strong></td>
+                <td style="text-align:center;"><span class="badge-clean bg-chi">Chi</span></td>
+                <td style="text-align:right;color:#e11d48;font-weight:700;font-family:Consolas,monospace;">-9.487.500 đ</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note note-good">
+          Bỏ sạch ph-circle và chấm màu; thêm whitespace-nowrap giữ nhãn Thu / Chi gọn trên 1 dòng.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
