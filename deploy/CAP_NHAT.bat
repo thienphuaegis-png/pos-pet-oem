@@ -64,6 +64,15 @@ powershell -NoProfile -NonInteractive -Command ^
 REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
 REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
 powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 3"
+netstat -aon 2>nul | findstr ":8998 :8997" | findstr "LISTENING" >nul 2>&1
+if !errorlevel! equ 0 if /i not "%~1"=="/auto" (
+    net session >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo       Server cu dang chay quyen Admin, dang xin quyen Administrator...
+        powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+        exit /b
+    )
+)
 echo       OK
 
 REM --- 2/5 Sao luu du lieu ---

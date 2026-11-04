@@ -13,6 +13,14 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8998" ^| findstr "LI
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8999" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
+netstat -aon 2>nul | findstr ":8998 :8997" | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    net session >nul 2>&1
+    if %errorlevel% neq 0 (
+        powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+        exit /b
+    )
+)
 
 echo.
 echo ========================================================

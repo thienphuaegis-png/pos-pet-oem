@@ -583,13 +583,23 @@ def pos_mobile_page():
 @app.get("/server-status", response_class=HTMLResponse, include_in_schema=False)
 def local_server_status_page(request: Request):
     """Bảng điều khiển máy chủ cục bộ mở trên trình duyệt thay cho cửa sổ CMD đen.
-    Chỉ hiển thị trực tiếp khi truy cập từ chính máy chủ (127.0.0.1 / ::1); từ mạng ngoài chuyển về POS.
+    Cho phép máy nội bộ / LAN / Tailnet xem trực tiếp; chặn truy cập ẩn danh qua proxy công khai (X-Forwarded-For).
     """
+    import ipaddress
     from fastapi.responses import RedirectResponse
     from services.server_status_service import collect_server_overview, render_local_server_status_html
 
-    client_host = (request.client.host if request.client else "") or ""
-    if client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+    xff = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    effective_ip = xff or ((request.client.host if request.client else "") or "")
+    allowed = effective_ip in ("127.0.0.1", "::1", "localhost", "testclient", "")
+    if not allowed:
+        try:
+            ip_obj = ipaddress.ip_address(effective_ip)
+            # Cho phép mạng LAN nội bộ (192.168.x.x, 10.x.x.x) và mạng riêng Tailnet (100.64.0.0/10)
+            allowed = ip_obj.is_loopback or ip_obj.is_private or (ip_obj in ipaddress.ip_network("100.64.0.0/10"))
+        except ValueError:
+            allowed = False
+    if not allowed:
         return RedirectResponse(url="/", status_code=302)
     cur_port = request.url.port or int(os.environ.get("POS_PORT", "8998"))
     ov = collect_server_overview(current_port=cur_port, check_vercel=False)

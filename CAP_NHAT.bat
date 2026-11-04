@@ -29,6 +29,17 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8999" ^| findstr "LI
 )
 powershell -NoProfile -Command "Start-Sleep -Seconds 1"
 
+REM Neu cong 8998/8997 van bi giu boi tien trinh quyen Administrator cu -> tu dong xin quyen Admin de tat triet de
+netstat -aon 2>nul | findstr ":8998 :8997" | findstr "LISTENING" >nul 2>&1
+if !errorlevel! equ 0 (
+    net session >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo        -^> Tien trinh may chu cu dang chay quyen Admin, dang xin quyen de khoi dong lai...
+        powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+        exit /b
+    )
+)
+
 REM --- 2/5 Sao luu database truoc khi cap nhat (Chong mat du lieu) ---
 echo [2/5] Sao luu du lieu ban hang hien tai...
 if not exist "data\backups" mkdir "data\backups"
@@ -128,6 +139,8 @@ echo.
 echo [5/5] Hoan tat cap nhat! Dang khoi dong lai POS...
 if exist ".venv\Scripts\python.exe" if exist "deploy\start_server.vbs" (
     start /d "%~dp0" "" wscript.exe "%~dp0deploy\start_server.vbs"
+    powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"
+    start "" "http://127.0.0.1:8998/server-status"
 ) else if exist "CHAY_POS.bat" (
     call "CHAY_POS.bat"
 ) else if exist "POS_Mastercare.exe" (
