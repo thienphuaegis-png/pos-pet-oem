@@ -454,6 +454,7 @@
             if (subId === 'telegram') { if (typeof loadTelegramSettingsData === 'function') loadTelegramSettingsData(); }
             if (subId === 'topup-packages') { if (typeof loadTopupPackagesList === 'function') loadTopupPackagesList(); }
             if (subId === 'pet-catalog') { if (typeof loadPetCatalogSettingsUI === 'function') loadPetCatalogSettingsUI(); }
+            if (subId === 'server-control') { if (typeof loadServerControlPanel === 'function') loadServerControlPanel(false); }
         }
 
         // --- SUB 1: TỒN KHO TỔNG HỢP ---
@@ -5942,6 +5943,121 @@
         }
         window.openPOSShortcutsHelpModal = openPOSShortcutsHelpModal;
         window.closePOSShortcutsHelpModal = closePOSShortcutsHelpModal;
+
+        window.copyServerControlUrl = function(url, btnEl) {
+            if (!url) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url);
+            }
+            if (btnEl) {
+                const orig = btnEl.textContent;
+                btnEl.textContent = 'Đã chép!';
+                setTimeout(() => { btnEl.textContent = orig; }, 1400);
+            }
+        };
+
+        window.loadServerControlPanel = async function(checkVercel = false) {
+            const stepsEl = document.getElementById('srv-ctrl-steps');
+            const cardsEl = document.getElementById('srv-ctrl-cards');
+            const metaEl = document.getElementById('srv-ctrl-meta');
+            if (!cardsEl) return;
+            try {
+                const tok = localStorage.getItem('pos_token') || '';
+                const res = await fetch('/api/system/server-overview' + (checkVercel ? '?check_vercel=true' : ''), {
+                    headers: tok ? { 'Authorization': 'Bearer ' + tok } : {}
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const insts = data.instances || [];
+                const s1 = insts[0] || {};
+                const s2 = insts[1] || {};
+                const ts = data.tailscale || {};
+                const auto = data.autostart || {};
+                const sys = data.system || {};
+
+                const mkChip = (lbl, ok) => `
+                    <div class="px-3 py-2 rounded-lg border font-semibold text-center ${ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}">
+                        ${lbl}: <span class="font-bold">${ok ? 'OK' : 'Chờ bật'}</span>
+                    </div>`;
+                if (stepsEl) {
+                    stepsEl.innerHTML = [
+                        mkChip('[1] Máy chủ 8998', !!s1.local_ok),
+                        mkChip('[2] Máy chủ 8997', !!s2.local_ok),
+                        mkChip('[3] Tailscale Funnel', !!ts.funnel_configured),
+                        mkChip('[4] Tự khởi động', !!auto.enabled),
+                    ].join('');
+                }
+
+                cardsEl.innerHTML = insts.map(it => {
+                    const ok = !!it.local_ok;
+                    const pub = it.public_domain || '';
+                    const tun = it.tunnel_url || 'Chưa cấu hình Tailscale Funnel';
+                    const qr = it.qr_data_uri ? `<img src="${it.qr_data_uri}" alt="QR" class="w-24 h-24 rounded-lg border border-slate-200 shrink-0">` : '';
+                    return `
+                        <div class="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 shadow-2xs">
+                            <div class="space-y-1.5 min-w-0 flex-1 text-xs">
+                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                    <span class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full ${ok ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+                                        ${it.name || ''}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-full font-bold border ${ok ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">
+                                        ${ok ? 'Đang chạy ngầm' : 'Chưa bật'} · Port ${it.port}
+                                    </span>
+                                </div>
+                                <div class="text-slate-500">Database độc lập: <code class="px-1.5 py-0.5 bg-slate-100 rounded font-mono text-slate-700">${it.db || ''}</code></div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-slate-500 font-semibold">Domain cố định:</span>
+                                    <a href="${pub}" target="_blank" class="font-mono font-bold text-sky-700 hover:underline">${pub}</a>
+                                    <button type="button" onclick="copyServerControlUrl('${pub}', this)" class="px-2 py-0.5 rounded border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold cursor-pointer">Copy</button>
+                                </div>
+                                <div class="text-slate-500">Đích Tailscale: <span class="font-mono text-slate-700">${tun}</span></div>
+                                <div class="text-slate-500">Mạng LAN: <a href="${it.lan_url || '#'}" target="_blank" class="font-mono text-slate-700 hover:underline">${it.lan_url || ''}</a></div>
+                            </div>
+                            ${qr}
+                        </div>`;
+                }).join('');
+
+                if (metaEl) {
+                    metaEl.innerHTML = `
+                        <span>Hệ điều hành: <b>${sys.os || ''}</b> · Máy chủ: <b>${sys.hostname || ''}</b> · IP LAN: <code class="font-mono">${sys.lan_ip || ''}</code></span>
+                        <span>Tự chạy ngầm: <b>${auto.label || ''}</b> · Cập nhật lúc ${data.timestamp || ''}</span>`;
+                }
+            } catch (err) {
+                cardsEl.innerHTML = `<div class="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs">Không tải được thông tin máy chủ: ${err.message}</div>`;
+            }
+        };
+
+        window.syncServerTunnelFromSettings = function() {
+            const runSync = async () => {
+                const btn = document.getElementById('btn-sync-server-tunnel');
+                const oldHtml = btn ? btn.innerHTML : '';
+                if (btn) { btn.disabled = true; btn.textContent = 'Đang đồng bộ...'; }
+                try {
+                    const tok = localStorage.getItem('pos_token') || '';
+                    const res = await fetch('/api/system/sync-tunnel', {
+                        method: 'POST',
+                        headers: tok ? { 'Authorization': 'Bearer ' + tok } : {}
+                    });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    await loadServerControlPanel(true);
+                    if (typeof showToast === 'function') showToast('Đã bật cổng 8997 & đồng bộ lại link Tailscale lên Vercel!', 'success');
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Lỗi đồng bộ đường truyền: ' + e.message, 'error');
+                } finally {
+                    if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+                }
+            };
+            if (typeof window.showConfirmModal === 'function') {
+                window.showConfirmModal(
+                    'Đồng bộ lại Máy Chủ & Đường Truyền?',
+                    'Hệ thống sẽ kiểm tra bật ngầm máy chủ cổng 8997 (PetNT) nếu đang tắt và gắn lại 2 đường link Tailscale cố định lên mcarepet.vercel.app & petnt.vercel.app.',
+                    runSync
+                );
+            } else {
+                runSync();
+            }
+        };
 
         window.onload = init;
         if (document.readyState === 'complete' || document.readyState === 'interactive') {

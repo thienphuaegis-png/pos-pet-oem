@@ -18,4 +18,4 @@ echo.
 echo ========================================================
 echo   DA TAT SACH TAT CA TIEN TRINH POS MASTERCARE!
 echo ========================================================
-timeout /t 2 >nul
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"

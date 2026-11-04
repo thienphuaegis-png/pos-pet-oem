@@ -342,6 +342,50 @@ def system_update_status(user=Depends(require_role("owner", "admin"))):
     tail = "\n".join(logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-40:]) if logs else ""
     return {"in_progress": in_progress, "last": last, "log_tail": tail}
 
+
+@app.get("/api/system/server-overview")
+def system_server_overview(
+    request: Request,
+    check_vercel: bool = False,
+    user=Depends(require_role("owner", "admin")),
+):
+    """Tổng quan sức khỏe 2 máy chủ POS (8998 & 8997), Tailscale Funnel, Vercel Bridge và QR."""
+    from services.server_status_service import collect_server_overview
+    cur_port = request.url.port or int(os.environ.get("POS_PORT", "8998"))
+    return collect_server_overview(current_port=cur_port, check_vercel=check_vercel)
+
+
+@app.post("/api/system/sync-tunnel")
+def system_sync_tunnel(
+    request: Request,
+    user=Depends(require_role("owner", "admin")),
+):
+    """Khởi động lại cổng song song 8997 (nếu đang tắt) và đồng bộ lại 2 link Tailscale lên Vercel."""
+    from services.server_status_service import collect_server_overview
+    from scripts.share_online import ensure_server_running
+    from scripts.setup_tailscale_dual import sync_vercel_url
+
+    db2 = os.path.join(str(APP_ROOT), "data", "pos_instance2.db")
+    ok_8997 = ensure_server_running(port=8997, db_path=db2, sibling=True, headless=True)
+
+    cur_port = request.url.port or int(os.environ.get("POS_PORT", "8998"))
+    ov = collect_server_overview(current_port=cur_port, check_vercel=False)
+    ts = ov.get("tailscale") or {}
+    synced_mcare = False
+    synced_petnt = False
+    if ts.get("url_mcare"):
+        synced_mcare = sync_vercel_url("mcarepet.vercel.app", ts["url_mcare"], retries=2)
+    if ts.get("url_petnt"):
+        synced_petnt = sync_vercel_url("petnt.vercel.app", ts["url_petnt"], retries=2)
+
+    return {
+        "success": True,
+        "port_8997_ok": ok_8997,
+        "synced_mcare": synced_mcare,
+        "synced_petnt": synced_petnt,
+        "overview": collect_server_overview(current_port=cur_port, check_vercel=True),
+    }
+
 @app.get("/api/ping", include_in_schema=False)
 def ping():
     """Máy con quét LAN gọi endpoint này để nhận diện đúng máy chủ POS.
@@ -535,6 +579,22 @@ def pos_mobile_page():
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
     return "<h1>POS Mobile template not found</h1>"
+
+@app.get("/server-status", response_class=HTMLResponse, include_in_schema=False)
+def local_server_status_page(request: Request):
+    """Bảng điều khiển máy chủ cục bộ mở trên trình duyệt thay cho cửa sổ CMD đen.
+    Chỉ hiển thị trực tiếp khi truy cập từ chính máy chủ (127.0.0.1 / ::1); từ mạng ngoài chuyển về POS.
+    """
+    from fastapi.responses import RedirectResponse
+    from services.server_status_service import collect_server_overview, render_local_server_status_html
+
+    client_host = (request.client.host if request.client else "") or ""
+    if client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        return RedirectResponse(url="/", status_code=302)
+    cur_port = request.url.port or int(os.environ.get("POS_PORT", "8998"))
+    ov = collect_server_overview(current_port=cur_port, check_vercel=False)
+    return HTMLResponse(render_local_server_status_html(ov))
+
 
 @app.get("/project-map", response_class=HTMLResponse, include_in_schema=False)
 @app.get("/roadmap", response_class=HTMLResponse, include_in_schema=False)

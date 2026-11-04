@@ -6,6 +6,8 @@ cd /d "%~dp0"
 set "POS_PORT=8997"
 set "POS_DB_PATH=%~dp0data\pos_instance2.db"
 set "POS_SIBLING_MODE=1"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 
 echo ======================================================================
 echo   CHAY PHIEN BAN POS SONG SONG (KHONG DUNG CONG 8998/8999 VA DB CU)

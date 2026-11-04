@@ -1,7 +1,10 @@
 @echo off
+chcp 65001 >nul
 setlocal EnableDelayedExpansion
 title POS MASTERCARE - KHOI DONG HE THONG
 cd /d "%~dp0"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 
 echo ========================================================
 echo         HE THONG BAN HANG POS MASTERCARE
@@ -17,33 +20,28 @@ for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8999" ^| findstr "LI
     taskkill /F /PID %%a >nul 2>&1
 )
 
-echo [2/2] Dang khoi dong may chu POS...
+echo [2/2] Dang khoi dong ngam may chu POS va mo Trung Tam May Chu...
 set "STARTED=0"
 
-if exist "dist\POS_Mastercare.exe" (
-    copy "dist\POS_Mastercare.exe" "POS_Mastercare.exe" /y >nul 2>&1
-)
-
-if exist "POS_Mastercare.exe" (
-    echo        -^> Khoi dong bang ban dong goi: POS_Mastercare.exe
-    start "" "POS_Mastercare.exe"
+if exist ".venv\Scripts\python.exe" if exist "deploy\start_server.vbs" (
+    start /d "%~dp0" "" wscript.exe "%~dp0deploy\start_server.vbs"
+    powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"
+    start "" "http://127.0.0.1:8998/server-status"
     set "STARTED=1"
 ) else if exist ".venv\Scripts\python.exe" (
-    echo        -^> Khoi dong bang Python ao: .venv\Scripts\python.exe
-    start "" ".venv\Scripts\python.exe" main.py
+    start "" ".venv\Scripts\python.exe" launcher.py
     set "STARTED=1"
 ) else (
     where python >nul 2>&1
     if !errorlevel! equ 0 (
-        echo        -^> Khoi dong bang Python he thong
-        start "" python main.py
+        start "" python launcher.py
         set "STARTED=1"
     )
 )
 
 if "!STARTED!"=="0" (
     echo.
-    echo [LOI] Khong tim thay POS_Mastercare.exe hoac Python tren may!
+    echo [LOI] Khong tim thay Python tren may!
     echo Vui long kiem tra lai hoac chay CAP_NHAT.bat de dong bo lai.
     echo.
     pause
@@ -52,8 +50,8 @@ if "!STARTED!"=="0" (
 
 echo.
 echo ========================================================
-echo   HE THONG DA SAN SANG!
-echo   Dia chi truy cap: http://localhost:8998
+echo   HE THONG DA SAN SANG (CHAY NGAM - DONG CUA SO DUOC)!
+echo   Trung tam may chu: http://127.0.0.1:8998/server-status
 echo ========================================================
 echo.
-timeout /t 3 /nobreak >nul
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"

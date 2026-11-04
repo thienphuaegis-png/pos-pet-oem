@@ -10,6 +10,12 @@ import webbrowser
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(ROOT_DIR)
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from scripts.cli_ui import open_browser_quiet, setup_console_utf8, step_print
+
+setup_console_utf8()
 
 TAILSCALE_URL = "http://pos-server:8998"
 LOCAL_URL = "http://127.0.0.1:8998"
@@ -23,28 +29,30 @@ def is_server_running():
         return False
 
 def main():
-    print(f"-> Truy cap tu xa (Tailscale): {TAILSCALE_URL}")
+    step_print("..", f"Truy cập từ xa (Tailscale): {TAILSCALE_URL}", "cyan")
     if not is_server_running():
-        print("Dang khoi dong may chu POS noi bo (Port 8998)...")
-        py_exe = os.path.join(ROOT_DIR, ".venv", "Scripts", "python.exe")
+        step_print("..", "Đang khởi động ngầm máy chủ POS nội bộ (Port 8998)...", "cyan")
+        py_exe = (
+            os.path.join(ROOT_DIR, ".venv", "Scripts", "python.exe")
+            if os.name == "nt"
+            else os.path.join(ROOT_DIR, ".venv", "bin", "python")
+        )
         if not os.path.exists(py_exe):
             py_exe = sys.executable
-        subprocess.Popen(
-            [py_exe, "main.py"],
-            cwd=ROOT_DIR,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        )
+        kw = {"cwd": ROOT_DIR}
+        if sys.platform == "win32":
+            kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+        else:
+            kw["start_new_session"] = True
+        subprocess.Popen([py_exe, "main.py"], **kw)
         for _ in range(15):
             time.sleep(1)
             if is_server_running():
-                print("  -> May chu POS da san sang!")
+                step_print("OK", "Máy chủ POS đã sẵn sàng!", "green")
                 break
     else:
-        print("May chu POS noi bo dang chay san.")
-    try:
-        webbrowser.open(LOCAL_URL)
-    except Exception:
-        pass
+        step_print("OK", "Máy chủ POS nội bộ đang chạy sẵn.", "green")
+    open_browser_quiet(f"{LOCAL_URL}/server-status")
 
 if __name__ == "__main__":
     main()

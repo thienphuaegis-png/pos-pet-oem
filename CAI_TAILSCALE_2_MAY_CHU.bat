@@ -12,6 +12,8 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 set "TS=C:\Program Files\Tailscale\tailscale.exe"
 set "WINGET=%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe"
 
@@ -50,12 +52,16 @@ netsh advfirewall firewall add rule name="POS 8997 Tailscale" dir=in action=allo
 echo    -^> OK
 
 echo.
-echo [3/3] Khoi chay ngam 2 may chu POS + Bat 2 cong Funnel (443 va 8443) + Gan Vercel...
+echo [3/3] Khoi chay ngam 2 may chu POS + Bat 2 cong Funnel (443 va 8443) + Mo Trung Tam May Chu...
 if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" scripts\setup_tailscale_dual.py
+    ".venv\Scripts\python.exe" scripts\setup_tailscale_dual.py --open-panel
 ) else (
-    python scripts\setup_tailscale_dual.py
+    python scripts\setup_tailscale_dual.py --open-panel
 )
-
-echo.
-pause
+if !errorlevel! neq 0 (
+    echo.
+    echo [!!] Co buoc can xac nhan them tren man hinh. Vui long xem thong bao phia tren.
+    pause
+    exit /b 1
+)
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"

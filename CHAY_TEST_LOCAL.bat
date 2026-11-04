@@ -22,6 +22,6 @@ if exist "deploy\start_server.vbs" (
 echo.
 echo ========================================================
 echo   DA KHOI DONG LAI THANH CONG!
-echo   Vao trinh duyet: http://127.0.0.1:8998
+echo   Trung tam may chu: http://127.0.0.1:8998/server-status
 echo ========================================================
-timeout /t 3 >nul
+powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 2"

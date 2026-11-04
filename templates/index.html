@@ -10294,6 +10294,10 @@
                         <button onclick="switchSettingsSubTab('pet-catalog')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5 transition" data-sub="pet-catalog">
                             <span><i class="ph ph-paw-print"></i> Danh Mục Thú Cưng</span>
                         </button>
+                        <button onclick="switchSettingsSubTab('server-control')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 flex items-center gap-1.5 border border-emerald-200 transition" data-sub="server-control" data-role="owner">
+                            <i class="ph ph-hard-drives text-sm"></i>
+                            <span>Máy Chủ & Đường Truyền</span>
+                        </button>
                         <button onclick="switchSettingsSubTab('reset-data')" class="settings-subtab-btn px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 border border-rose-200 transition" data-sub="reset-data">
                             <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                             <span>Quản Lý & Xóa Dữ Liệu</span>
@@ -11024,6 +11028,58 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- SUB: TRUNG TÂM MÁY CHỦ & ĐƯỜNG TRUYỀN ONLINE (2 CHI NHÁNH) -->
+            <div id="settings-sub-server-control" class="hidden space-y-4">
+                <div class="bg-white p-5 rounded-xl shadow-xs border border-slate-200/80 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-9 h-9 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                                <i class="ph ph-hard-drives text-lg"></i>
+                            </span>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Trung Tâm Máy Chủ & Đường Truyền Online</h2>
+                                <p class="text-xs text-slate-500">Theo dõi 2 máy chủ chạy ngầm (8998 MCare & 8997 PetNT), Tailscale Funnel cố định và Vercel Bridge</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="loadServerControlPanel(true)" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer">
+                                <i class="ph ph-arrows-clockwise"></i>
+                                <span>Làm mới trạng thái</span>
+                            </button>
+                            <button type="button" id="btn-sync-server-tunnel" onclick="syncServerTunnelFromSettings()" class="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer">
+                                <i class="ph ph-plugs-connected"></i>
+                                <span>Bật Cổng 8997 & Đồng Bộ Lại Vercel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="srv-ctrl-steps" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs"></div>
+
+                    <div id="srv-ctrl-cards" class="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500">Đang tải trạng thái máy chủ...</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1">
+                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5 text-xs">
+                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                <i class="ph ph-windows-logo text-sky-600"></i>
+                                <span>Máy chủ Windows (Win 7 / 10 / 11)</span>
+                            </div>
+                            <div class="text-slate-600">Nhấp đúp <code class="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-slate-800">CAI_TAILSCALE_2_MAY_CHU.bat</code> 1 lần duy nhất. Cửa sổ đen tự đóng và mở trang trạng thái trên trình duyệt.</div>
+                        </div>
+                        <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-1.5 text-xs">
+                            <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                                <i class="ph ph-terminal-window text-emerald-600"></i>
+                                <span>Máy chủ Linux (Ubuntu / Mint / VPS SSH)</span>
+                            </div>
+                            <div class="text-slate-600">Chạy <code class="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-slate-800">chmod +x pos_server.sh && ./pos_server.sh install</code> để đăng ký dịch vụ ngầm <code class="font-mono">systemd</code> và <code class="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-slate-800">./pos_server.sh funnel</code> để bật 2 link cố định.</div>
+                        </div>
+                    </div>
+
+                    <div id="srv-ctrl-meta" class="text-xs text-slate-500 flex flex-wrap justify-between gap-2 pt-2 border-t border-slate-100"></div>
                 </div>
             </div>
 

@@ -15,23 +15,49 @@ import shutil
 import sqlite3
 import subprocess
 import urllib.request
-import webbrowser
 
 PORT = int(os.environ.get("POS_PORT", "8998"))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CLOUDFLARED_EXE = os.path.join(BASE_DIR, "cloudflared.exe")
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+from scripts.cli_ui import (
+    has_gui_display,
+    open_browser_quiet,
+    render_dual_status_box,
+    safe_text,
+    setup_console_utf8,
+    step_print,
+)
+
+setup_console_utf8()
+
+CLOUDFLARED_EXE = os.path.join(BASE_DIR, "cloudflared.exe" if os.name == "nt" else "cloudflared")
+
+
+def _resolve_venv_python() -> str:
+    candidates = (
+        [os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")]
+        if os.name == "nt"
+        else [os.path.join(BASE_DIR, ".venv", "bin", "python"), os.path.join(BASE_DIR, ".venv", "bin", "python3")]
+    )
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return sys.executable
 
 
 def is_valid_cloudflared(exe_path):
-    """Kiểm tra file cloudflared.exe có thực sự chạy được trên Windows không (tránh lỗi WinError 193 do file hỏng/tải dở)."""
+    """Kiểm tra binary cloudflared hợp lệ (tránh lỗi WinError 193 trên Windows do file hỏng/tải dở)."""
     if not exe_path or not os.path.exists(exe_path):
         return False
     try:
-        if os.path.getsize(exe_path) < 15_000_000:
-            return False
-        with open(exe_path, "rb") as f:
-            if f.read(2) != b"MZ":
+        if os.name == "nt":
+            if os.path.getsize(exe_path) < 15_000_000:
                 return False
+            with open(exe_path, "rb") as f:
+                if f.read(2) != b"MZ":
+                    return False
         res = subprocess.run([exe_path, "--version"], capture_output=True, text=True, timeout=5)
         return res.returncode == 0 and "cloudflared" in (res.stdout or "").lower()
     except Exception:
@@ -39,15 +65,15 @@ def is_valid_cloudflared(exe_path):
 
 
 def resolve_cloudflared(auto_download=True):
-    """Tìm cloudflared.exe hợp lệ tại thư mục gốc, PATH, hoặc tự tải lại nếu bị lỗi/chưa có."""
+    """Tìm cloudflared hợp lệ tại thư mục gốc, PATH, hoặc tự tải lại nếu bị lỗi/chưa có."""
     if os.path.exists(CLOUDFLARED_EXE):
         if is_valid_cloudflared(CLOUDFLARED_EXE):
             return CLOUDFLARED_EXE
-        print(f"⚠️ Phát hiện file {CLOUDFLARED_EXE} bị lỗi hoặc tải dở dang. Đang xóa để tải lại bản chuẩn...")
+        step_print("!!", f"Phát hiện file {CLOUDFLARED_EXE} hỏng, đang tải lại bản chuẩn...", "yellow")
         try:
             os.remove(CLOUDFLARED_EXE)
-        except Exception as e:
-            print(f"Không thể xóa file hỏng: {e}")
+        except Exception:
+            pass
 
     in_path = shutil.which("cloudflared") or shutil.which("cloudflared.exe")
     if in_path and is_valid_cloudflared(in_path):
@@ -57,9 +83,13 @@ def resolve_cloudflared(auto_download=True):
         return None
 
     import platform
-    is_64 = "64" in platform.machine() or "64" in platform.architecture()[0]
-    arch = "amd64" if is_64 else "386"
-    download_url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-{arch}.exe"
+    machine = platform.machine().lower()
+    if os.name == "nt":
+        arch = "amd64" if ("64" in machine or "64" in platform.architecture()[0]) else "386"
+        download_url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-{arch}.exe"
+    else:
+        arch = "arm64" if ("aarch64" in machine or "arm64" in machine) else "amd64"
+        download_url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-{arch}"
 
     tmp_file = CLOUDFLARED_EXE + ".tmp"
     if os.path.exists(tmp_file):
@@ -68,28 +98,30 @@ def resolve_cloudflared(auto_download=True):
         except Exception:
             pass
 
-    print(f"⬇️ Đang tải cloudflared.exe ({arch} ~50MB) từ GitHub chính thức...")
-
+    step_print("..", f"Đang tải cloudflared ({arch}) từ GitHub chính thức...", "cyan")
     downloaded = False
-    # Cách 1: dùng curl Windows (hỗ trợ hiện thanh % tải và tự xử lý redirect)
     try:
-        cmd = f'curl -L -f -# -o "{tmp_file}" "{download_url}"'
+        cmd = f'curl -L -f -sS -o "{tmp_file}" "{download_url}"'
         res = subprocess.run(cmd, shell=True, timeout=300)
-        if res.returncode == 0 and is_valid_cloudflared(tmp_file):
-            downloaded = True
-    except Exception as e:
-        print(f"Tải bằng curl gặp lỗi: {e}")
+        if res.returncode == 0:
+            if os.name != "nt":
+                os.chmod(tmp_file, 0o755)
+            if is_valid_cloudflared(tmp_file):
+                downloaded = True
+    except Exception:
+        pass
 
-    # Cách 2: dùng urllib Python nếu curl thất bại
     if not downloaded:
         try:
             req = urllib.request.Request(download_url, headers={"User-Agent": "Mozilla/5.0"})
             with urllib.request.urlopen(req, timeout=300) as resp, open(tmp_file, "wb") as out:
                 shutil.copyfileobj(resp, out)
+            if os.name != "nt":
+                os.chmod(tmp_file, 0o755)
             if is_valid_cloudflared(tmp_file):
                 downloaded = True
-        except Exception as e:
-            print(f"Tải bằng urllib gặp lỗi: {e}")
+        except Exception:
+            pass
 
     if downloaded and os.path.exists(tmp_file):
         if os.path.exists(CLOUDFLARED_EXE):
@@ -98,7 +130,7 @@ def resolve_cloudflared(auto_download=True):
             except Exception:
                 pass
         os.replace(tmp_file, CLOUDFLARED_EXE)
-        print(f"✅ Đã tải và kiểm tra thành công: {CLOUDFLARED_EXE}")
+        step_print("OK", f"Đã tải xong cloudflared: {CLOUDFLARED_EXE}", "green")
         return CLOUDFLARED_EXE
 
     if os.path.exists(tmp_file):
@@ -106,7 +138,7 @@ def resolve_cloudflared(auto_download=True):
             os.remove(tmp_file)
         except Exception:
             pass
-    print("❌ Không thể tải cloudflared.exe hợp lệ. Vui lòng kiểm tra kết nối mạng.")
+    step_print("ERR", "Không thể tải cloudflared hợp lệ. Kiểm tra kết nối mạng.", "red")
     return None
 
 def is_server_running(port=None):
@@ -124,14 +156,14 @@ def is_server_running(port=None):
 def ensure_server_running(port=None, db_path=None, sibling=False, headless=True):
     target_port = port if port is not None else PORT
     if is_server_running(target_port):
-        print(f"✅ Máy chủ POS đang hoạt động tại http://127.0.0.1:{target_port}")
+        step_print("OK", f"Máy chủ POS cổng {target_port} đang hoạt động.", "green")
         return True
 
-    print(f"⚠️ Phát hiện máy chủ POS (cổng {target_port}) chưa được bật.")
-    print(f"🚀 Đang tự động khởi động máy chủ POS ngầm trên cổng {target_port}...")
+    step_print("..", f"Khởi động ngầm máy chủ POS trên cổng {target_port}...", "cyan")
 
     env = os.environ.copy()
     env["POS_PORT"] = str(target_port)
+    env["PYTHONUTF8"] = "1"
     if headless:
         env["POS_PRODUCTION"] = "1"
     if db_path:
@@ -139,16 +171,32 @@ def ensure_server_running(port=None, db_path=None, sibling=False, headless=True)
     if sibling:
         env["POS_SIBLING_MODE"] = "1"
 
-    python_exe = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
-    if not os.path.exists(python_exe):
-        python_exe = sys.executable
+    python_exe = _resolve_venv_python()
     main_py = os.path.join(BASE_DIR, "main.py")
+    log_dir = os.path.join(BASE_DIR, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    out_log = open(os.path.join(log_dir, f"server_{target_port}.log"), "a", encoding="utf-8", errors="replace")
 
-    if headless and os.name == "nt":
-        log_dir = os.path.join(BASE_DIR, "logs")
-        os.makedirs(log_dir, exist_ok=True)
-        out_log = open(os.path.join(log_dir, f"server_{target_port}.log"), "a", encoding="utf-8", errors="replace")
-        creationflags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    if os.name == "nt":
+        if headless:
+            creationflags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            subprocess.Popen(
+                [python_exe, main_py],
+                env=env,
+                cwd=BASE_DIR,
+                stdout=out_log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                creationflags=creationflags,
+            )
+        else:
+            subprocess.Popen(
+                f'start "POS SERVER (PORT {target_port})" "{python_exe}" "{main_py}"',
+                shell=True,
+                env=env,
+                cwd=BASE_DIR,
+            )
+    else:
         subprocess.Popen(
             [python_exe, main_py],
             env=env,
@@ -156,28 +204,21 @@ def ensure_server_running(port=None, db_path=None, sibling=False, headless=True)
             stdout=out_log,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
-            creationflags=creationflags,
-        )
-    else:
-        subprocess.Popen(
-            f'start "POS SERVER (PORT {target_port})" "{python_exe}" "{main_py}"',
-            shell=True,
-            env=env,
-            cwd=BASE_DIR,
+            start_new_session=True,
         )
 
-    # Đợi server lên trong tối đa 15 giây
     for i in range(15):
         time.sleep(1)
         if is_server_running(target_port):
-            print(f"✅ Máy chủ POS (cổng {target_port}) đã khởi động thành công sau {i+1} giây!")
+            step_print("OK", f"Máy chủ POS cổng {target_port} sẵn sàng sau {i+1} giây.", "green")
             return True
-        print(f"   Đang chờ máy chủ cổng {target_port} sẵn sàng... ({i+1}s)")
 
-    print("⚠️ Máy chủ khởi động hơi lâu, vẫn tiếp tục...")
+    step_print("!!", f"Máy chủ cổng {target_port} khởi động hơi lâu, vẫn tiếp tục...", "yellow")
     return False
 
 def copy_to_clipboard(text):
+    if os.name != "nt":
+        return False
     try:
         p = subprocess.Popen(["clip.exe"], stdin=subprocess.PIPE, shell=True)
         p.communicate(input=text.strip().encode("utf-8"))
@@ -187,7 +228,10 @@ def copy_to_clipboard(text):
 
 def kill_zombie_cloudflared():
     try:
-        subprocess.run("taskkill /F /IM cloudflared.exe >nul 2>&1", shell=True)
+        if os.name == "nt":
+            subprocess.run("taskkill /F /IM cloudflared.exe >nul 2>&1", shell=True)
+        else:
+            subprocess.run(["pkill", "-f", "cloudflared"], capture_output=True)
     except Exception:
         pass
 
@@ -213,7 +257,7 @@ def clone_db_for_sibling(src_db, dst_db, force_refresh=False):
     )
     if not need_copy:
         return True
-    print(f"📦 Đang sao chép dữ liệu cũ từ {os.path.basename(src_db)} sang {os.path.basename(dst_db)} (an toàn WAL)...")
+    step_print("..", f"Đang sao chép dữ liệu từ {os.path.basename(src_db)} sang {os.path.basename(dst_db)}...", "cyan")
     for ext in ("", "-wal", "-shm"):
         p = dst_db + ext
         if os.path.exists(p):
@@ -228,10 +272,9 @@ def clone_db_for_sibling(src_db, dst_db, force_refresh=False):
             src_conn.backup(dst_conn)
         dst_conn.close()
         src_conn.close()
-        print(f"✅ Đã nạp xong toàn bộ data cũ ({os.path.getsize(dst_db) // (1024*1024)} MB) vào bản test!")
+        step_print("OK", "Đã sao chép xong cơ sở dữ liệu bản test.", "green")
         return True
-    except Exception as e:
-        print(f"⚠️ Backup API bận ({e}), chuyển sang copy trực tiếp...")
+    except Exception:
         shutil.copy2(src_db, dst_db)
         return True
 
@@ -327,7 +370,7 @@ def _sync_live_tunnel_urls_to_d1(url_mcare: str, url_petnt: str):
             d1_conn.close()
         return True
     except Exception as e:
-        print(f"⚠️ Không thể đồng bộ link sang Vercel/D1: {e}")
+        step_print("!!", f"Không thể đồng bộ link sang Vercel/D1: {e}", "yellow")
         return False
 
 
@@ -336,73 +379,64 @@ def run_dual_servers(with_cloudflare=True):
     os.chdir(BASE_DIR)
     db1 = os.path.join(BASE_DIR, "data", "pos.db")
     db2 = os.path.join(BASE_DIR, "data", "pos_instance2.db")
-    # KHÔNG tự động clone pos.db sang pos_instance2.db để tránh ghi đè dữ liệu riêng của PetNT
 
-    print("=" * 74)
-    print("   KHỞI ĐỘNG NGẦM 2 MÁY CHỦ POS ĐỘC LẬP (CÙNG 1 THƯ MỤC CODE)")
-    print("=" * 74)
+    step_print("..", "Khởi động ngầm 2 máy chủ POS độc lập (tách biệt 2 file DB)...", "cyan")
     ok1 = ensure_server_running(port=8998, db_path=db1, sibling=False, headless=True)
     ok2 = ensure_server_running(port=8997, db_path=db2, sibling=True, headless=True)
 
     if not with_cloudflare:
-        print()
-        print("=" * 74)
-        print("   🎉 2 MÁY CHỦ ĐÃ CHẠY NGẦM THÀNH CÔNG (TÁCH BIỆT DỮ LIỆU 100%)")
-        print("=" * 74)
-        print(f"   🏪 Máy chủ 1 (MCare - Sài Gòn)   : http://localhost:8998  (DB: data/pos.db)")
-        print(f"   🏖️ Máy chủ 2 (PetNT - Nha Trang) : http://localhost:8997  (DB: data/pos_instance2.db)")
-        print("=" * 74)
+        rows = [
+            {"name": "MCare SG", "port": 8998, "ok": ok1, "public_url": "http://127.0.0.1:8998"},
+            {"name": "PetNT NT", "port": 8997, "ok": ok2, "public_url": "http://127.0.0.1:8997"},
+        ]
+        print(
+            "\n"
+            + render_dual_status_box(
+                rows,
+                footer_lines=["[OK] 2 máy chủ đã chạy ngầm (data/pos.db & data/pos_instance2.db)."],
+            )
+            + "\n",
+            flush=True,
+        )
         return ok1 and ok2
 
-    # Ưu tiên tuyệt đối Tailscale Funnel cố định nếu máy đã cài Tailscale Funnel
     ts_marker = os.path.join(BASE_DIR, "data", "tailscale_funnel.json")
     try:
         from scripts.setup_tailscale_dual import find_tailscale_exe, setup_tailscale_dual
         if os.path.exists(ts_marker) and find_tailscale_exe():
-            print("\n🔒 Phát hiện máy chủ đã cấu hình 2 link cố định Tailscale Funnel!")
-            return setup_tailscale_dual(verify_only=True)
+            step_print("OK", "Phát hiện cấu hình Tailscale Funnel cố định — kích hoạt ngay!", "green")
+            return setup_tailscale_dual(verify_only=True, open_panel=True)
     except Exception:
         pass
 
     cf_exe = resolve_cloudflared(auto_download=True)
     if not cf_exe:
-        print("❌ Không tìm thấy cloudflared.exe để mở link online.")
         return False
 
     kill_zombie_cloudflared()
-    print("\n🌐 Đang mở 2 đường truyền Cloudflare Tunnel cho cổng 8998 và 8997...")
+    step_print("..", "Đang mở 2 đường truyền Cloudflare Tunnel cho cổng 8998 và 8997...", "cyan")
     proc1, url1 = _start_cf_tunnel_for_port(cf_exe, 8998)
     proc2, url2 = _start_cf_tunnel_for_port(cf_exe, 8997)
 
     synced = _sync_live_tunnel_urls_to_d1(url1, url2)
-
-    os.system("cls" if os.name == "nt" else "clear")
-    print("=" * 78)
-    print("        🎉 2 MÁY CHỦ POS SONG SONG ĐÃ SẴN SÀNG HOẠT ĐỘNG! 🎉")
-    print("=" * 78)
-    print()
-    print("   🏪 MÁY CHỦ 1 (CHI NHÁNH SÀI GÒN - MCare POS | DB: data/pos.db):")
-    print(f"      • Trên máy này  : http://localhost:8998")
-    print(f"      • Domain cố định: \033[1;33mhttps://mcarepet.vercel.app\033[0m")
-    print(f"      • Link Tunnel   : \033[1;32m{url1 or 'Đang kết nối...'}\033[0m")
-    print()
-    print("   🏖️ MÁY CHỦ 2 (CHI NHÁNH NHA TRANG - PetNT POS | DB: data/pos_instance2.db):")
-    print(f"      • Trên máy này  : http://localhost:8997")
-    print(f"      • Domain cố định: \033[1;33mhttps://petnt.vercel.app\033[0m")
-    print(f"      • Link Tunnel   : \033[1;36m{url2 or 'Đang kết nối...'}\033[0m")
-    print()
-    if synced:
-        print("   ✅ ĐÃ TỰ ĐỘNG GẮN 2 LINK TUNNEL VÀO 2 DOMAIN VERCEL (mcarepet & petnt)!")
-    print("   -------------------------------------------------------------------------")
-    print("   💡 Cả 2 máy chủ chạy ngầm độc lập, chung 1 bộ code nhưng 2 file DB riêng.")
-    print("   ⚠️ Giữ cửa sổ này nếu cần dùng kết nối Online về máy tính này.")
-    print("=" * 78)
+    rows = [
+        {"name": "MCare SG", "port": 8998, "ok": ok1, "public_url": "https://mcarepet.vercel.app"},
+        {"name": "PetNT NT", "port": 8997, "ok": ok2, "public_url": "https://petnt.vercel.app"},
+    ]
+    footers = [
+        f"[OK] Tunnel 8998 : {url1 or 'Đang kết nối...'}",
+        f"[OK] Tunnel 8997 : {url2 or 'Đang kết nối...'}",
+        f"[OK] Đồng bộ Vercel : {'Đã gắn thành công' if synced else 'Đang thử lại'}",
+        "[!!] Chế độ Cloudflare tạm: Giữ cửa sổ này (hoặc dùng CAI_TAILSCALE_2_MAY_CHU.bat để tắt hẳn CMD).",
+    ]
+    print("\n" + render_dual_status_box(rows, footer_lines=footers) + "\n", flush=True)
+    if ok1 and has_gui_display():
+        open_browser_quiet("http://127.0.0.1:8998/server-status")
 
     try:
         last_check = time.time()
         while True:
             time.sleep(2)
-            # Watchdog mỗi 45 giây: nếu tiến trình tunnel thoát hoặc server nội bộ rớt thì tự phục hồi
             if time.time() - last_check >= 45:
                 last_check = time.time()
                 ensure_server_running(port=8998, db_path=db1, sibling=False, headless=True)
@@ -421,7 +455,7 @@ def run_dual_servers(with_cloudflare=True):
                 if changed:
                     _sync_live_tunnel_urls_to_d1(url1, url2)
     except KeyboardInterrupt:
-        print("\n🛑 Đang đóng kết nối Cloudflare Tunnel...")
+        step_print("..", "Đang đóng kết nối Cloudflare Tunnel...", "yellow")
     finally:
         if not os.path.exists(os.path.join(BASE_DIR, "data", "tailscale_funnel.json")):
             _sync_live_tunnel_urls_to_d1("", "")
@@ -437,7 +471,7 @@ def main():
             raw_url = sys.argv[idx + 1].strip()
             target_proj = "petnt.vercel.app" if "--petnt" in sys.argv else "mcarepet.vercel.app"
             ok = _sync_tunnel_to_vercel_endpoint(target_proj, raw_url)
-            print(f"Gán link {raw_url} lên {target_proj}: {'Thành công' if ok else 'Thất bại'}")
+            step_print("OK" if ok else "ERR", f"Gán link {raw_url} lên {target_proj}: {'Thành công' if ok else 'Thất bại'}")
             return
     if "--dual-local" in sys.argv:
         run_dual_servers(with_cloudflare=False)
@@ -445,10 +479,6 @@ def main():
     if "--dual" in sys.argv:
         run_dual_servers(with_cloudflare=True)
         return
-
-    print("=" * 70)
-    print("    POS - TỰ ĐỘNG KHỞI TẠO ĐƯỜNG DẪN CHIA SẺ ONLINE (CLOUDFLARE)")
-    print("=" * 70)
 
     sibling_mode = "--sibling" in sys.argv or os.environ.get("POS_SIBLING_MODE") == "1"
     refresh_db = "--refresh-db" in sys.argv or os.environ.get("POS_REFRESH_TEST_DB") == "1"
@@ -462,76 +492,55 @@ def main():
         main_db = os.path.join(BASE_DIR, "data", "pos.db")
         if os.path.abspath(target_db) != os.path.abspath(main_db) and refresh_db:
             clone_db_for_sibling(main_db, target_db, force_refresh=True)
-        print(f"🔀 Chế độ chạy song song (Instance 2): Port {target_port} | DB: {target_db}")
+        step_print("..", f"Chế độ chạy song song (Instance 2): Port {target_port} | DB: {target_db}", "cyan")
 
     cf_exe = resolve_cloudflared(auto_download=True)
     if not cf_exe:
-        print(f"❌ Không tìm thấy và không tải được cloudflared.exe!")
-        input("\nBấm Enter để thoát...")
         return
 
-    # 1. Dọn dẹp tiến trình cloudflared cũ (nếu không ở chế độ song song)
     if not sibling_mode:
         kill_zombie_cloudflared()
 
-    # 2. Đảm bảo server đang chạy
-    ensure_server_running(port=target_port, db_path=target_db)
-
-    print(f"\n🌐 Đang kết nối Cloudflare tạo tên miền tạm (HTTPS) cho cổng {target_port}...")
+    ok_srv = ensure_server_running(port=target_port, db_path=target_db)
+    step_print("..", f"Đang mở tên miền HTTPS tạm Cloudflare cho cổng {target_port}...", "cyan")
     proc, tunnel_url = _start_cf_tunnel_for_port(cf_exe, target_port)
 
     if not tunnel_url:
-        print("❌ Không nhận được đường link từ Cloudflare sau 30 giây.")
-        print("Kiểm tra lại kết nối Internet của máy.")
+        step_print("ERR", "Không nhận được link từ Cloudflare sau 30 giây. Kiểm tra kết nối mạng.", "red")
         kill_zombie_cloudflared()
-        input("\nBấm Enter để thoát...")
         return
 
-    # Tự động copy vào clipboard
+    target_vercel = "petnt.vercel.app" if sibling_mode else "mcarepet.vercel.app"
     copied = copy_to_clipboard(tunnel_url)
-    synced = _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", tunnel_url)
+    synced = _sync_tunnel_to_vercel_endpoint(target_vercel, tunnel_url)
+    open_browser_quiet(tunnel_url)
 
-    # Tự động mở trình duyệt
-    try:
-        webbrowser.open(tunnel_url)
-    except Exception:
-        pass
-
-    # Xóa màn hình và in banner đẹp
-    os.system("cls" if os.name == "nt" else "clear")
-    print("=" * 76)
-    print("             🎉 ĐƯỜNG LINK ONLINE ĐÃ SẴN SÀNG HOẠT ĐỘNG! 🎉")
-    print("=" * 76)
-    print()
-    print(f"   👉 LINK TRUY CẬP TRỰC TIẾP :  \033[1;32m{tunnel_url}\033[0m")
-    print(f"   🌐 DOMAIN CỐ ĐỊNH (VERCEL) :  \033[1;33mhttps://mcarepet.vercel.app\033[0m")
-    print()
-    if synced:
-        print("   ✅ ĐÃ TỰ ĐỘNG GẮN LINK VÀO DOMAIN https://mcarepet.vercel.app!")
-    if copied:
-        print("   ✅ ĐÃ TỰ ĐỘNG COPY VÀO BỘ NHỚ TẠM (CLIPBOARD)!")
-        print("      Chỉ cần nhấn Ctrl + V trong Zalo / Facebook / Tin nhắn để gửi link.")
-    print("   ✅ ĐÃ TỰ ĐỘNG MỞ TRÌNH DUYỆT ĐỂ BẠN KIỂM TRA.")
-    print()
-    print("   ---------------------------------------------------------------------")
-    print("   ⚠️  QUAN TRỌNG:")
-    print("   1. KHÔNG TẮT cửa sổ này nếu bạn muốn tiếp tục truy cập test.")
-    print("   2. Để dừng chia sẻ: Chỉ cần bấm Ctrl + C hoặc ĐÓNG cửa sổ này.")
-    print("=" * 76)
-    print()
-    print("Đang duy trì kết nối bảo mật (Cloudflare Tunnel)...")
+    rows = [
+        {
+            "name": "PetNT NT" if sibling_mode else "MCare SG",
+            "port": target_port,
+            "ok": ok_srv,
+            "public_url": f"https://{target_vercel}",
+        }
+    ]
+    footers = [
+        f"[OK] Link trực tiếp : {tunnel_url}",
+        f"[OK] Đồng bộ Vercel : {'Đã gắn vào ' + target_vercel if synced else 'Chưa gắn'}",
+        f"[OK] Bộ nhớ tạm     : {'Đã copy link (nhấn Ctrl+V để dán)' if copied else tunnel_url}",
+        "[!!] Giữ cửa sổ này khi đang dùng Cloudflare tạm (nhấn Ctrl+C để dừng).",
+    ]
+    print("\n" + render_dual_status_box(rows, footer_lines=footers) + "\n", flush=True)
 
     try:
-        # Giữ tiến trình chạy cho đến khi người dùng tắt hoặc nhấn Ctrl+C
         while proc.poll() is None:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n🛑 Đang ngắt kết nối chia sẻ...")
+        step_print("..", "Đang ngắt kết nối chia sẻ...", "yellow")
     finally:
         if not os.path.exists(os.path.join(BASE_DIR, "data", "tailscale_funnel.json")):
-            _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", "")
+            _sync_tunnel_to_vercel_endpoint(target_vercel, "")
         kill_zombie_cloudflared()
-        print("Đã đóng kết nối online an toàn.")
+        print(safe_text("  [OK]   Đã đóng kết nối online an toàn."))
 
 if __name__ == "__main__":
     main()

@@ -55,8 +55,10 @@ if %errorlevel% neq 0 (
 echo.
 echo [4/5] Bat 2 cong Funnel (443 cho 8998 va 8443 cho 8997) + Gan Vercel...
 cd /d "%~dp0.."
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" scripts\setup_tailscale_dual.py
+    ".venv\Scripts\python.exe" scripts\setup_tailscale_dual.py --open-panel
 ) else (
     "%TS%" funnel --bg --https=443 http://127.0.0.1:8998
     "%TS%" funnel --bg --https=8443 http://127.0.0.1:8997

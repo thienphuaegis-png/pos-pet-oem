@@ -1,7 +1,10 @@
 @echo off
+chcp 65001 >nul
 setlocal EnableDelayedExpansion
 title CAP NHAT POS MASTERCARE - TU DONG DONG BO
 cd /d "%~dp0"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 
 echo ========================================================
 echo         CAP NHAT PHIEN BAN MOI - POS MASTERCARE
