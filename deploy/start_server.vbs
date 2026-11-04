@@ -8,8 +8,12 @@ Set env = sh.Environment("PROCESS")
 env("POS_PRODUCTION") = "1"
 sh.CurrentDirectory = root
 ' 0 = an cua so, False = khong doi ket thuc
-If fso.FileExists(root & "\POS_Mastercare.exe") Then
+If fso.FileExists(root & "\.venv\Scripts\python.exe") Then
+    If fso.FileExists(root & "\data\pos_instance2.db") Or fso.FileExists(root & "\data\tailscale_funnel.json") Then
+        sh.Run """" & root & "\.venv\Scripts\python.exe"" scripts\share_online.py --dual-local", 0, False
+    Else
+        sh.Run """" & root & "\.venv\Scripts\python.exe"" main.py", 0, False
+    End If
+ElseIf fso.FileExists(root & "\POS_Mastercare.exe") Then
     sh.Run """" & root & "\POS_Mastercare.exe""", 0, False
-Else
-    sh.Run """" & root & "\.venv\Scripts\python.exe"" main.py", 0, False
 End If

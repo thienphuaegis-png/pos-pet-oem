@@ -7585,7 +7585,7 @@
                     <!-- CHẾ ĐỘ 1: LƯỚI MA TRẬN 31 NGÀY -->
                     <div id="hrm-attendance-matrix-container" class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
                         <table class="w-full text-left border-collapse text-xs">
-                            <thead id="table-hrm-att-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200"></thead>
+                            <thead id="table-hrm-att-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-200"></thead>
                             <tbody id="table-hrm-att-body" class="divide-y divide-slate-100"></tbody>
                         </table>
                     </div>
@@ -7616,35 +7616,49 @@
                                     <input type="date" id="hrm-att-filter-date" onchange="renderAttendanceDetailTable()" class="border border-slate-300 rounded-lg px-2.5 py-0.5 text-xs font-bold bg-white text-slate-700">
                                     <button type="button" onclick="document.getElementById('hrm-att-filter-date').value=''; renderAttendanceDetailTable();" class="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer">Xóa ngày</button>
                                 </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-slate-500 font-bold">Sắp xếp:</span>
+                                    <select id="hrm-att-sort-by" onchange="onHrmAttSortSelectChange(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white text-slate-700">
+                                        <option value="date_asc">Ngày: Cũ → Mới (01 → 31)</option>
+                                        <option value="date_desc" selected>Ngày: Mới → Cũ (31 → 01)</option>
+                                        <option value="penalty_desc">Tiền phạt: Cao → Thấp</option>
+                                        <option value="penalty_asc">Tiền phạt: Thấp → Cao</option>
+                                        <option value="late_desc">Phút trễ: Nhiều → Ít</option>
+                                        <option value="worked_desc">Giờ làm: Nhiều → Ít</option>
+                                        <option value="staff_asc">Nhân viên: Mã NV (A → Z)</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span id="hrm-att-detail-count" class="text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">0 dòng</span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span id="hrm-att-rules-pill" class="hidden text-sky-800 font-semibold bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg"></span>
+                                <span id="hrm-att-detail-count" class="text-slate-600 font-bold bg-slate-100 px-2.5 py-1 rounded-lg">0 dòng</span>
                             </div>
                         </div>
 
                         <!-- Bảng chi tiết chấm công và duyệt phạt -->
-                        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
+                        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[560px]">
                             <table class="w-full text-left border-collapse text-xs">
-                                <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                                <thead id="table-hrm-att-detail-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-200">
                                     <tr>
-                                        <th class="p-2.5">Ngày & Thứ</th>
-                                        <th class="p-2.5">Mã NV</th>
-                                        <th class="p-2.5">Họ và Tên</th>
-                                        <th class="p-2.5">Khối Ca</th>
-                                        <th class="p-2.5 text-center">Giờ Vào</th>
-                                        <th class="p-2.5 text-center">Giờ Ra</th>
-                                        <th class="p-2.5 text-right">Làm Việc</th>
-                                        <th class="p-2.5 text-right">Trễ (phút)</th>
-                                        <th class="p-2.5 text-right">Về Sớm</th>
-                                        <th class="p-2.5">Vi Phạm & Phạt</th>
-                                        <th class="p-2.5 text-right text-rose-600">Tiền Phạt</th>
-                                        <th class="p-2.5 text-center">Tính Công</th>
-                                        <th class="p-2.5 text-center">Không Phạt?</th>
-                                        <th class="p-2.5">Lý Do / Giải Trình</th>
-                                        <th class="p-2.5 text-center">Thao Tác</th>
+                                        <th onclick="toggleHrmAttSort('date')" class="p-2.5 cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap" title="Bấm để đảo thứ tự Ngày">Ngày & Thứ <span data-att-sort-ind="date" class="text-sky-600">↓</span></th>
+                                        <th onclick="toggleHrmAttSort('staff')" class="p-2.5 cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap" title="Bấm để sắp theo Mã NV">Mã NV <span data-att-sort-ind="staff" class="text-slate-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('name')" class="p-2.5 cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap" title="Bấm để sắp theo Tên">Họ và Tên <span data-att-sort-ind="name" class="text-slate-400">⇅</span></th>
+                                        <th class="p-2.5 whitespace-nowrap">Khối Ca</th>
+                                        <th onclick="toggleHrmAttSort('check_in')" class="p-2.5 text-center cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Giờ Vào <span data-att-sort-ind="check_in" class="text-slate-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('check_out')" class="p-2.5 text-center cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Giờ Ra <span data-att-sort-ind="check_out" class="text-slate-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('worked')" class="p-2.5 text-right cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Làm Việc <span data-att-sort-ind="worked" class="text-slate-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('late')" class="p-2.5 text-right cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Trễ (phút) <span data-att-sort-ind="late" class="text-slate-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('early')" class="p-2.5 text-right cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Về Sớm <span data-att-sort-ind="early" class="text-slate-400">⇅</span></th>
+                                        <th class="p-2.5 whitespace-nowrap">Vi Phạm & Phạt</th>
+                                        <th onclick="toggleHrmAttSort('penalty')" class="p-2.5 text-right text-rose-600 cursor-pointer hover:bg-rose-50 select-none whitespace-nowrap" title="Bấm để sắp theo Tiền phạt">Tiền Phạt <span data-att-sort-ind="penalty" class="text-rose-400">⇅</span></th>
+                                        <th onclick="toggleHrmAttSort('credit')" class="p-2.5 text-center cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Tính Công <span data-att-sort-ind="credit" class="text-slate-400">⇅</span></th>
+                                        <th class="p-2.5 text-center whitespace-nowrap">Không Phạt?</th>
+                                        <th class="p-2.5 whitespace-nowrap">Lý Do / Giải Trình</th>
+                                        <th class="p-2.5 text-center whitespace-nowrap">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-hrm-att-detail-body" class="divide-y divide-slate-100"></tbody>
+                                <tfoot id="table-hrm-att-detail-foot" class="bg-slate-100 font-bold sticky bottom-0 z-10 border-t border-slate-300"></tfoot>
                             </table>
                         </div>
                     </div>
@@ -11692,22 +11706,23 @@
             <!-- Bảng danh sách 30 ngày -->
             <div class="border border-slate-200 rounded-xl overflow-x-auto max-h-[380px]">
                 <table class="w-full text-left border-collapse text-xs">
-                    <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                    <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-200">
                         <tr>
-                            <th class="p-2.5">Ngày</th>
-                            <th class="p-2.5 text-center">Thứ</th>
-                            <th class="p-2.5 text-center">Giờ Vào</th>
-                            <th class="p-2.5 text-center">Giờ Ra</th>
-                            <th class="p-2.5 text-right">Làm Việc</th>
-                            <th class="p-2.5 text-right">Trễ (phút)</th>
-                            <th class="p-2.5 text-right">Về Sớm</th>
-                            <th class="p-2.5">Vi Phạm & Phạt</th>
-                            <th class="p-2.5 text-right text-rose-600">Tiền Phạt</th>
-                            <th class="p-2.5 text-center">Tính Công</th>
-                            <th class="p-2.5 text-center">Thao Tác</th>
+                            <th onclick="toggleModalDaysSort('date')" class="p-2.5 cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Ngày <span data-modal-days-sort="date" class="text-sky-600">↑</span></th>
+                            <th class="p-2.5 text-center whitespace-nowrap">Thứ</th>
+                            <th class="p-2.5 text-center whitespace-nowrap">Giờ Vào</th>
+                            <th class="p-2.5 text-center whitespace-nowrap">Giờ Ra</th>
+                            <th class="p-2.5 text-right whitespace-nowrap">Làm Việc</th>
+                            <th onclick="toggleModalDaysSort('late')" class="p-2.5 text-right cursor-pointer hover:bg-slate-100 select-none whitespace-nowrap">Trễ (phút) <span data-modal-days-sort="late" class="text-slate-400">⇅</span></th>
+                            <th class="p-2.5 text-right whitespace-nowrap">Về Sớm</th>
+                            <th class="p-2.5 whitespace-nowrap">Vi Phạm & Phạt</th>
+                            <th onclick="toggleModalDaysSort('penalty')" class="p-2.5 text-right text-rose-600 cursor-pointer hover:bg-rose-50 select-none whitespace-nowrap">Tiền Phạt <span data-modal-days-sort="penalty" class="text-rose-400">⇅</span></th>
+                            <th class="p-2.5 text-center whitespace-nowrap">Tính Công</th>
+                            <th class="p-2.5 text-center whitespace-nowrap">Thao Tác</th>
                         </tr>
                     </thead>
                     <tbody id="table-hrm-staff-days-body" class="divide-y divide-slate-100"></tbody>
+                    <tfoot id="table-hrm-staff-days-foot" class="bg-slate-100 font-bold sticky bottom-0 z-10 border-t border-slate-300"></tfoot>
                 </table>
             </div>
 

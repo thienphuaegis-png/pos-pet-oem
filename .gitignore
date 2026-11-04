@@ -12,6 +12,7 @@ data/*.sql
 deploy/d1_export/
 data/*.bak*
 data/demo_seed_manifest.json
+data/tailscale_funnel.json
 logs/
 *.log
 cf_tunnel.log

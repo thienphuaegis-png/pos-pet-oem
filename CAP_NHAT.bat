@@ -15,6 +15,9 @@ taskkill /F /IM python.exe >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
 taskkill /F /IM cloudflared.exe >nul 2>&1
 
+for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8997" ^| findstr "LISTENING"') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
 for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr ":8998" ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
 )
@@ -99,6 +102,9 @@ if "!FETCH_OK!"=="1" (
     REM Tu dong chay nang cap co so du lieu (migration) neu co python
     if exist ".venv\Scripts\python.exe" (
         ".venv\Scripts\python.exe" database.py >nul 2>&1
+        if exist "data\pos_instance2.db" (
+            ".venv\Scripts\python.exe" -c "import os; os.environ['POS_DB_PATH']=r'data\pos_instance2.db'; import database; database.init_db()" >nul 2>&1
+        )
         ".venv\Scripts\python.exe" scripts\import_full_google_sheets_history.py >nul 2>&1
     ) else (
         where python >nul 2>&1
@@ -117,7 +123,9 @@ if exist "dist\POS_Mastercare\_internal\static" xcopy "static" "dist\POS_Masterc
 
 echo.
 echo [5/5] Hoan tat cap nhat! Dang khoi dong lai POS...
-if exist "CHAY_POS.bat" (
+if exist ".venv\Scripts\python.exe" if exist "deploy\start_server.vbs" (
+    start /d "%~dp0" "" wscript.exe "%~dp0deploy\start_server.vbs"
+) else if exist "CHAY_POS.bat" (
     call "CHAY_POS.bat"
 ) else if exist "POS_Mastercare.exe" (
     start "" "POS_Mastercare.exe"

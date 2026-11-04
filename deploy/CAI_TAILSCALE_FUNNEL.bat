@@ -35,9 +35,11 @@ if exist "%TS%" (
 )
 
 echo.
-echo [2/5] Mo firewall cong 8998 - CHI cho may trong mang Tailscale (100.64.0.0/10)...
+echo [2/5] Mo firewall cong 8998 va 8997 - CHI cho may trong mang Tailscale (100.64.0.0/10)...
 netsh advfirewall firewall delete rule name="POS 8998 Tailscale" >nul 2>&1
 netsh advfirewall firewall add rule name="POS 8998 Tailscale" dir=in action=allow protocol=TCP localport=8998 remoteip=100.64.0.0/10 >nul
+netsh advfirewall firewall delete rule name="POS 8997 Tailscale" >nul 2>&1
+netsh advfirewall firewall add rule name="POS 8997 Tailscale" dir=in action=allow protocol=TCP localport=8997 remoteip=100.64.0.0/10 >nul
 echo    -^> OK
 
 echo.
@@ -51,13 +53,13 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [4/5] Bat Funnel - link HTTPS cong khai, may khac KHONG can cai Tailscale...
-echo    Lan dau: neu hien link "enable Funnel", mo link do bam Enable, script tu chay tiep.
-"%TS%" funnel --bg 8998
-if %errorlevel% neq 0 (
-    echo    LOI: Bat Funnel that bai. Chay lai file nay sau khi Enable trong trang quan tri.
-    pause
-    exit /b 1
+echo [4/5] Bat 2 cong Funnel (443 cho 8998 va 8443 cho 8997) + Gan Vercel...
+cd /d "%~dp0.."
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" scripts\setup_tailscale_dual.py
+) else (
+    "%TS%" funnel --bg --https=443 http://127.0.0.1:8998
+    "%TS%" funnel --bg --https=8443 http://127.0.0.1:8997
 )
 
 echo.

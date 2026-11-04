@@ -240,7 +240,11 @@ def classify_day(d: DayInput, b: Block, r: Rules) -> DayResult:
     if cin is not None and cin > start:
         res.late_min = cin - start
         res.violations.append("late")
-        pen += r.late_flat if res.late_min >= r.late_flat_threshold_min else res.late_min * r.late_per_min
+        if res.late_min >= r.late_flat_threshold_min:
+            pen += r.late_flat
+        else:
+            per_min_pen = res.late_min * r.late_per_min
+            pen += min(per_min_pen, r.late_flat) if r.late_flat > 0 else per_min_pen
     if cout is not None and cout < end:
         res.early_min = end - cout
         res.violations.append("early")

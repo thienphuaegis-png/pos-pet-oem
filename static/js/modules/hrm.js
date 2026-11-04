@@ -573,6 +573,77 @@
 
     // ── Chấm Công Matrix & Bảng Chi Tiết Duyệt Phạt ──
     let hrmAttCurrentView = 'matrix';
+    const HRM_ATT_SORT_STORAGE_KEY = 'hrm_att_detail_sort_v1';
+    const HRM_DOW_NAMES = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+    function parseVnIsoDate(isoStr) {
+        const s = String(isoStr || '').slice(0, 10);
+        const parts = s.split('-');
+        if (parts.length !== 3) return { formatted: s, dayOfWeek: '', isSun: false };
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+        const dt = new Date(y, m - 1, d);
+        const dowIdx = dt.getDay();
+        const dd = String(d).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        return {
+            formatted: `${dd}/${mm}/${y}`,
+            dayOfWeek: HRM_DOW_NAMES[dowIdx] || '',
+            isSun: dowIdx === 0
+        };
+    }
+
+    let hrmAttSortState = (() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(HRM_ATT_SORT_STORAGE_KEY) || 'null');
+            if (saved && saved.key && saved.dir) return saved;
+        } catch (_) {}
+        return { key: 'date', dir: 'desc' };
+    })();
+
+    function saveHrmAttSortState() {
+        try { localStorage.setItem(HRM_ATT_SORT_STORAGE_KEY, JSON.stringify(hrmAttSortState)); } catch (_) {}
+    }
+
+    function syncHrmAttSortUI() {
+        const sel = document.getElementById('hrm-att-sort-by');
+        if (sel) {
+            const comboVal = `${hrmAttSortState.key}_${hrmAttSortState.dir}`;
+            const hasOpt = Array.from(sel.options).some(o => o.value === comboVal);
+            if (hasOpt) sel.value = comboVal;
+        }
+        document.querySelectorAll('[data-att-sort-ind]').forEach(el => {
+            const k = el.getAttribute('data-att-sort-ind');
+            if (k === hrmAttSortState.key) {
+                el.textContent = hrmAttSortState.dir === 'asc' ? '↑' : '↓';
+                el.className = k === 'penalty' ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold';
+            } else {
+                el.textContent = '⇅';
+                el.className = k === 'penalty' ? 'text-rose-300' : 'text-slate-400';
+            }
+        });
+    }
+
+    window.onHrmAttSortSelectChange = function(val) {
+        const idx = String(val || '').lastIndexOf('_');
+        if (idx > 0) {
+            hrmAttSortState = { key: val.slice(0, idx), dir: val.slice(idx + 1) === 'asc' ? 'asc' : 'desc' };
+            saveHrmAttSortState();
+            renderAttendanceDetailTable();
+        }
+    };
+
+    window.toggleHrmAttSort = function(colKey) {
+        if (hrmAttSortState.key === colKey) {
+            hrmAttSortState.dir = hrmAttSortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            const defaultDesc = ['penalty', 'late', 'early', 'worked', 'credit'].includes(colKey);
+            hrmAttSortState = { key: colKey, dir: defaultDesc ? 'desc' : 'asc' };
+        }
+        saveHrmAttSortState();
+        renderAttendanceDetailTable();
+    };
 
     async function loadHrmAttendance(month) {
         try {
@@ -622,16 +693,24 @@
     window.renderAttendanceDetailTable = function() {
         if (!attendanceData || !attendanceData.employees) return;
         const tbody = document.getElementById('table-hrm-att-detail-body');
+        const tfoot = document.getElementById('table-hrm-att-detail-foot');
         const countEl = document.getElementById('hrm-att-detail-count');
+        const rulesPill = document.getElementById('hrm-att-rules-pill');
         if (!tbody) return;
+
+        syncHrmAttSortUI();
+
+        const rCfg = attendanceData.rules || {};
+        if (rulesPill && rCfg.late_per_min) {
+            rulesPill.textContent = `Đơn giá trễ: ${Number(rCfg.late_per_min).toLocaleString('vi-VN')}đ/p • Trần ≥${rCfg.late_flat_threshold_min || 30}p: ${Number(rCfg.late_flat || 200000).toLocaleString('vi-VN')}đ`;
+            rulesPill.classList.remove('hidden');
+        }
 
         const filterStatus = document.getElementById('hrm-att-filter-status')?.value || 'late_viol';
         const filterStaff = document.getElementById('hrm-att-filter-staff')?.value || '';
         const filterDate = document.getElementById('hrm-att-filter-date')?.value || '';
 
-        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
         let rows = [];
-
         attendanceData.employees.forEach(emp => {
             if (filterStaff && String(emp.staff_id) !== filterStaff) return;
             (emp.days || []).forEach(d => {
@@ -651,19 +730,54 @@
             });
         });
 
-        rows.sort((a, b) => b.day.date.localeCompare(a.day.date) || a.emp.name.localeCompare(b.emp.name));
+        const mul = hrmAttSortState.dir === 'asc' ? 1 : -1;
+        const sk = hrmAttSortState.key;
+        rows.sort((a, b) => {
+            let cmp = 0;
+            if (sk === 'date') cmp = a.day.date.localeCompare(b.day.date);
+            else if (sk === 'staff') cmp = hrmViCollator.compare(a.emp.employee_code || String(a.emp.staff_id), b.emp.employee_code || String(b.emp.staff_id));
+            else if (sk === 'name') cmp = hrmViCollator.compare(a.emp.name || '', b.emp.name || '');
+            else if (sk === 'check_in') cmp = String(a.day.check_in || '99:99').localeCompare(String(b.day.check_in || '99:99'));
+            else if (sk === 'check_out') cmp = String(a.day.check_out || '99:99').localeCompare(String(b.day.check_out || '99:99'));
+            else if (sk === 'worked') cmp = (Number(a.day.worked_min) || 0) - (Number(b.day.worked_min) || 0);
+            else if (sk === 'late') cmp = (Number(a.day.late_min) || 0) - (Number(b.day.late_min) || 0);
+            else if (sk === 'early') cmp = (Number(a.day.early_min) || 0) - (Number(b.day.early_min) || 0);
+            else if (sk === 'penalty') cmp = (Number(a.day.penalty) || 0) - (Number(b.day.penalty) || 0);
+            else if (sk === 'credit') cmp = (Number(a.day.credit) || 0) - (Number(b.day.credit) || 0);
+            if (cmp !== 0) return cmp * mul;
+            return b.day.date.localeCompare(a.day.date) || hrmViCollator.compare(a.emp.employee_code || '', b.emp.employee_code || '');
+        });
 
         if (countEl) countEl.textContent = `${rows.length} dòng hiển thị`;
 
         if (rows.length === 0) {
             tbody.innerHTML = `<tr><td colspan="15" class="p-8 text-center text-slate-400">Không có dữ liệu chấm công thỏa điều kiện lọc.</td></tr>`;
+            if (tfoot) tfoot.innerHTML = '';
             return;
         }
 
+        const missK = Math.round((Number(rCfg.missing_punch) || 50000) / 1000) + 'k';
+        const absK = Math.round((Number(rCfg.absent) || 500000) / 1000) + 'k';
+
+        let sumWorkedMin = 0;
+        let sumLateMin = 0;
+        let lateCount = 0;
+        let sumEarlyMin = 0;
+        let violCount = 0;
+        let waivedCount = 0;
+        let sumPenalty = 0;
+        let sumCredit = 0;
+
         tbody.innerHTML = rows.map(({ emp, day }) => {
-            const dt = new Date(day.date);
-            const dayOfWeek = dayNames[dt.getDay()];
-            const isSun = dt.getDay() === 0;
+            const dInfo = parseVnIsoDate(day.date);
+            sumWorkedMin += Number(day.worked_min) || 0;
+            sumLateMin += Number(day.late_min) || 0;
+            if ((Number(day.late_min) || 0) > 0) lateCount += 1;
+            sumEarlyMin += Number(day.early_min) || 0;
+            if ((day.violations && day.violations.length > 0) || day.penalty > 0) violCount += 1;
+            if (day.waive) waivedCount += 1;
+            sumPenalty += Number(day.penalty) || 0;
+            sumCredit += Number(day.credit) || 0;
 
             let codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-500">-</span>`;
             if (day.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
@@ -678,9 +792,9 @@
             (day.violations || []).forEach(v => {
                 if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Trễ ${day.late_min}p</span>`);
                 else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Về sớm ${day.early_min}p</span>`);
-                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào (-50k)</span>`);
-                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra (-50k)</span>`);
-                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng (-500k)</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào (-${missK})</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra (-${missK})</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng (-${absK})</span>`);
             });
 
             const workedHours = day.worked_min > 0 ? (day.worked_min / 60).toFixed(1) + 'h' : '—';
@@ -698,12 +812,12 @@
                 </div>
             `;
 
-            const noteHtml = day.note ? `<span class=" text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-xs block max-w-[160px] truncate" title="${day.note}">${day.note}</span>` : '<span class="text-slate-300">—</span>';
+            const noteHtml = day.note ? `<span class="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-xs block max-w-[160px] truncate" title="${escHrmHtml(day.note)}">${escHrmHtml(day.note)}</span>` : '<span class="text-slate-300">—</span>';
 
             return `
-                <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
-                    <td class="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">${day.date} <span class="${isSun ? 'text-rose-600' : 'text-slate-500'}">(${dayOfWeek})</span></td>
-                    <td class="p-2.5 font-mono text-sky-700 font-bold">${emp.employee_code || 'NV' + emp.staff_id}</td>
+                <tr class="hover:bg-slate-50 ${dInfo.isSun ? 'bg-slate-50/50' : ''}">
+                    <td class="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">${dInfo.formatted} <span class="${dInfo.isSun ? 'text-rose-600' : 'text-slate-500'}">(${dInfo.dayOfWeek})</span></td>
+                    <td class="p-2.5 font-mono text-sky-700 font-bold whitespace-nowrap">${emp.employee_code || 'NV' + emp.staff_id}</td>
                     <td class="p-2.5 font-bold text-slate-800 whitespace-nowrap">${emp.name}</td>
                     <td class="p-2.5 text-slate-600 whitespace-nowrap">${emp.block}</td>
                     <td class="p-2.5 text-center font-mono font-bold ${day.check_in ? 'text-slate-800' : 'text-slate-300'}">${day.check_in || '—'}</td>
@@ -722,6 +836,25 @@
                 </tr>
             `;
         }).join('');
+
+        if (tfoot) {
+            const totalHoursStr = sumWorkedMin > 0 ? (sumWorkedMin / 60).toFixed(1) + 'h' : '0h';
+            const totalCreditClean = Number(sumCredit.toFixed(2));
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="6" class="p-2.5 text-right uppercase text-slate-700 whitespace-nowrap">
+                        Tổng cộng (${rows.length} dòng đang lọc):
+                    </td>
+                    <td class="p-2.5 text-right font-mono text-slate-900 whitespace-nowrap">${totalHoursStr}</td>
+                    <td class="p-2.5 text-right font-mono text-rose-700 whitespace-nowrap">${sumLateMin > 0 ? `${sumLateMin}p (${lateCount} lần)` : '0p'}</td>
+                    <td class="p-2.5 text-right font-mono text-amber-700 whitespace-nowrap">${sumEarlyMin > 0 ? `${sumEarlyMin}p` : '—'}</td>
+                    <td class="p-2.5 text-slate-600 whitespace-nowrap">${violCount} vi phạm${waivedCount ? ` • <span class="text-emerald-700">${waivedCount} miễn</span>` : ''}</td>
+                    <td class="p-2.5 text-right font-mono font-bold text-rose-700 whitespace-nowrap">${sumPenalty > 0 ? '-' + sumPenalty.toLocaleString('vi-VN') + 'đ' : '0đ'}</td>
+                    <td class="p-2.5 text-center font-mono font-bold text-emerald-800 whitespace-nowrap">${totalCreditClean} công</td>
+                    <td colspan="3" class="p-2.5"></td>
+                </tr>
+            `;
+        }
     };
 
     window.toggleHrmWaive = async function(staffId, workDate, currentWaive) {
@@ -1574,6 +1707,14 @@
             tax_dependent_deduction: parseVal('cfg-tax-dep')
         };
 
+        if (body.late_flat > 0 && body.late_per_min * body.late_flat_threshold_min > body.late_flat * 2) {
+            const okWarn = confirm(
+                `Cảnh báo: Đơn giá phạt trễ từng phút (${body.late_per_min.toLocaleString('vi-VN')} đ/phút) đang quá cao so với mức phạt trễ nặng (${body.late_flat.toLocaleString('vi-VN')} đ).\n` +
+                `Quy định thông thường là 5.000 đ/phút. Anh có chắc muốn lưu mức ${body.late_per_min.toLocaleString('vi-VN')} đ/phút không?`
+            );
+            if (!okWarn) return;
+        }
+
         try {
             const res = await fetch('/api/hrm/config/rules', {
                 method: 'PUT',
@@ -1863,6 +2004,18 @@
     };
 
     // ── Chi Tiết Chấm Công & Phạt Trễ (Modal Days Breakdown) ──
+    let activeModalDaysStaffId = null;
+    let modalDaysSortState = { key: 'date', dir: 'asc' };
+
+    window.toggleModalDaysSort = function(colKey) {
+        if (modalDaysSortState.key === colKey) {
+            modalDaysSortState.dir = modalDaysSortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            modalDaysSortState = { key: colKey, dir: colKey === 'date' ? 'asc' : 'desc' };
+        }
+        if (activeModalDaysStaffId) window.viewHrmStaffDaysDetail(activeModalDaysStaffId);
+    };
+
     window.viewHrmStaffDaysDetail = function(staffId) {
         if (!payrollData || !payrollData.lines) {
             alert("Chưa có dữ liệu bảng lương. Vui lòng bấm 'Tính Lương' trước.");
@@ -1873,12 +2026,24 @@
             alert("Không tìm thấy nhân viên trong bảng lương tháng này.");
             return;
         }
+        activeModalDaysStaffId = staffId;
+
+        document.querySelectorAll('[data-modal-days-sort]').forEach(el => {
+            const k = el.getAttribute('data-modal-days-sort');
+            if (k === modalDaysSortState.key) {
+                el.textContent = modalDaysSortState.dir === 'asc' ? '↑' : '↓';
+                el.className = k === 'penalty' ? 'text-rose-600 font-bold' : 'text-sky-600 font-bold';
+            } else {
+                el.textContent = '⇅';
+                el.className = k === 'penalty' ? 'text-rose-300' : 'text-slate-400';
+            }
+        });
 
         const month = getSelectedMonth();
         document.getElementById('hrm-days-detail-title').textContent = `Chi Tiết Chấm Công & Phạt Trễ: ${line.name} (${line.employee_code || 'NV' + line.staff_id})`;
-        document.getElementById('hrm-days-detail-subtitle').textContent = `Khối: ${line.block} | Tháng: ${month} | Lương cơ bản: ${(line.base_salary || 0).toLocaleString('vi-VN')}đ`;
+        document.getElementById('hrm-days-detail-subtitle').textContent = `Khối: ${line.block} | Tháng: ${month.slice(5)}/${month.slice(0, 4)} | Lương cơ bản: ${(line.base_salary || 0).toLocaleString('vi-VN')}đ`;
 
-        const totalDays = (line.days_official || 0) + (line.days_probation || 0);
+        const totalDays = Number(((line.days_official || 0) + (line.days_probation || 0)).toFixed(2));
         document.getElementById('hrm-days-detail-sum-credit').textContent = `${totalDays} công`;
         document.getElementById('hrm-days-detail-sub-credit').textContent = `${line.days_official || 0} Chính thức / ${line.days_probation || 0} Thử việc`;
 
@@ -1894,12 +2059,20 @@
         document.getElementById('hrm-days-detail-sub-net').textContent = `Tạm ứng: -${(line.advances || 0).toLocaleString('vi-VN')}đ`;
 
         const tbody = document.getElementById('table-hrm-staff-days-body');
-        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        const tfoot = document.getElementById('table-hrm-staff-days-foot');
+        const sortedDays = [...(line.days || [])].sort((a, b) => {
+            const m = modalDaysSortState.dir === 'asc' ? 1 : -1;
+            if (modalDaysSortState.key === 'late') return ((Number(a.late_min) || 0) - (Number(b.late_min) || 0)) * m || a.date.localeCompare(b.date);
+            if (modalDaysSortState.key === 'penalty') return ((Number(a.penalty) || 0) - (Number(b.penalty) || 0)) * m || a.date.localeCompare(b.date);
+            return a.date.localeCompare(b.date) * m;
+        });
 
-        tbody.innerHTML = (line.days || []).map(d => {
-            const dt = new Date(d.date);
-            const dayOfWeek = dayNames[dt.getDay()];
-            const isSun = dt.getDay() === 0;
+        let sumWMin = 0, sumEarly = 0, sumPen = 0;
+        tbody.innerHTML = sortedDays.map(d => {
+            const dInfo = parseVnIsoDate(d.date);
+            sumWMin += Number(d.worked_min) || 0;
+            sumEarly += Number(d.early_min) || 0;
+            sumPen += Number(d.penalty) || 0;
 
             let codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-500">-</span>`;
             if (d.code === 'X') codeBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">X (1.0)</span>`;
@@ -1914,9 +2087,9 @@
             (d.violations || []).forEach(v => {
                 if (v === 'late') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Trễ ${d.late_min}p</span>`);
                 else if (v === 'early') viols.push(`<span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">Về sớm ${d.early_min}p</span>`);
-                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào (-50k)</span>`);
-                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra (-50k)</span>`);
-                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng không phép (-500k)</span>`);
+                else if (v === 'missing_in') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên vào</span>`);
+                else if (v === 'missing_out') viols.push(`<span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-xs font-bold">Quên ra</span>`);
+                else if (v === 'absent') viols.push(`<span class="px-1.5 py-0.5 bg-red-200 text-red-900 rounded text-xs font-bold">Vắng không phép</span>`);
             });
             if (d.waived) {
                 viols.push(`<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold">Đã miễn phạt</span>`);
@@ -1928,9 +2101,9 @@
             const penText = d.penalty > 0 ? `<span class="text-rose-600 font-mono font-bold">-${d.penalty.toLocaleString('vi-VN')}đ</span>` : '<span class="text-slate-300">—</span>';
 
             return `
-                <tr class="hover:bg-slate-50 ${isSun ? 'bg-slate-50/50' : ''}">
-                    <td class="p-2.5 font-mono font-bold text-slate-800">${d.date}</td>
-                    <td class="p-2.5 text-center font-bold ${isSun ? 'text-rose-600' : 'text-slate-600'}">${dayOfWeek}</td>
+                <tr class="hover:bg-slate-50 ${dInfo.isSun ? 'bg-slate-50/50' : ''}">
+                    <td class="p-2.5 font-mono font-bold text-slate-800 whitespace-nowrap">${dInfo.formatted}</td>
+                    <td class="p-2.5 text-center font-bold ${dInfo.isSun ? 'text-rose-600' : 'text-slate-600'}">${dInfo.dayOfWeek}</td>
                     <td class="p-2.5 text-center font-mono font-bold ${d.check_in ? 'text-slate-800' : 'text-slate-300'}">${d.check_in || '—'}</td>
                     <td class="p-2.5 text-center font-mono font-bold ${d.check_out ? 'text-slate-800' : 'text-slate-300'}">${d.check_out || '—'}</td>
                     <td class="p-2.5 text-right font-mono">${workedHours}</td>
@@ -1945,6 +2118,21 @@
                 </tr>
             `;
         }).join('');
+
+        if (tfoot) {
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="4" class="p-2.5 text-right uppercase text-slate-700">Tổng cộng (${sortedDays.length} ngày):</td>
+                    <td class="p-2.5 text-right font-mono text-slate-900">${sumWMin > 0 ? (sumWMin / 60).toFixed(1) + 'h' : '0h'}</td>
+                    <td class="p-2.5 text-right font-mono text-rose-700">${totalLateMin > 0 ? totalLateMin + 'p' : '0p'}</td>
+                    <td class="p-2.5 text-right font-mono text-amber-700">${sumEarly > 0 ? sumEarly + 'p' : '—'}</td>
+                    <td class="p-2.5"></td>
+                    <td class="p-2.5 text-right font-mono font-bold text-rose-700">${sumPen > 0 ? '-' + sumPen.toLocaleString('vi-VN') + 'đ' : '0đ'}</td>
+                    <td class="p-2.5 text-center font-mono font-bold text-emerald-800">${totalDays} công</td>
+                    <td class="p-2.5"></td>
+                </tr>
+            `;
+        }
 
         const modal = document.getElementById('modal-hrm-staff-days-detail');
         if (modal) modal.classList.remove('hidden');
@@ -2200,11 +2388,10 @@
 
         const f = num => (num || 0).toLocaleString('vi-VN') + ' đ';
 
-        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
         const dayRows = (p.days || []).map(d => {
-            const dt = new Date(d.date);
-            const dow = dayNames[dt.getDay()];
-            const isSun = dt.getDay() === 0;
+            const dInfo = parseVnIsoDate(d.date);
+            const dow = dInfo.dayOfWeek;
+            const isSun = dInfo.isSun;
 
             let viols = [];
             (d.violations || []).forEach(v => {
@@ -2225,7 +2412,7 @@
 
             return `
                 <tr class="${isSun ? 'bg-slate-50 font-medium' : ''}">
-                    <td class="p-1.5 font-mono font-bold">${d.date}</td>
+                    <td class="p-1.5 font-mono font-bold whitespace-nowrap">${dInfo.formatted}</td>
                     <td class="p-1.5 text-center font-bold ${isSun ? 'text-rose-600' : 'text-slate-600'}">${dow}</td>
                     <td class="p-1.5 text-center font-mono">${d.check_in || '—'}</td>
                     <td class="p-1.5 text-center font-mono">${d.check_out || '—'}</td>

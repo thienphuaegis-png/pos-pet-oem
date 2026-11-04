@@ -132,6 +132,8 @@ def ensure_server_running(port=None, db_path=None, sibling=False, headless=True)
 
     env = os.environ.copy()
     env["POS_PORT"] = str(target_port)
+    if headless:
+        env["POS_PRODUCTION"] = "1"
     if db_path:
         env["POS_DB_PATH"] = os.path.abspath(db_path)
     if sibling:
@@ -234,11 +236,13 @@ def clone_db_for_sibling(src_db, dst_db, force_refresh=False):
         return True
 
 def _start_cf_tunnel_for_port(cf_exe, port):
-    """Khởi chạy 1 tiến trình cloudflared cho port chỉ định và trả về (proc, tunnel_url)."""
+    """Khởi chạy 1 tiến trình cloudflared cho port chỉ định và trả về (proc, tunnel_url).
+    Luôn có luồng nền rút cạn stderr suốt vòng đời tiến trình để chống treo cứng 64KB PIPE trên Windows."""
+    import threading
     cmd = [cf_exe, "tunnel", "--protocol", "http2", "--url", f"http://127.0.0.1:{port}"]
     proc = subprocess.Popen(
         cmd,
-        stdout=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
@@ -246,19 +250,25 @@ def _start_cf_tunnel_for_port(cf_exe, port):
         errors="replace",
     )
     url_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
-    start_time = time.time()
-    tunnel_url = None
-    try:
-        for line in proc.stderr:
-            match = url_pattern.search(line)
-            if match:
-                tunnel_url = match.group(0)
-                break
-            if time.time() - start_time > 30:
-                break
-    except Exception:
-        pass
-    return proc, tunnel_url
+    found_holder = {"url": None}
+    found_event = threading.Event()
+
+    def _drain_stderr():
+        try:
+            for line in proc.stderr:
+                if not found_event.is_set():
+                    match = url_pattern.search(line)
+                    if match:
+                        found_holder["url"] = match.group(0)
+                        found_event.set()
+        except Exception:
+            pass
+        finally:
+            found_event.set()
+
+    threading.Thread(target=_drain_stderr, daemon=True).start()
+    found_event.wait(timeout=30.0)
+    return proc, found_holder["url"]
 
 
 def _sync_tunnel_to_vercel_endpoint(vercel_host: str, tunnel_url: str):
@@ -344,6 +354,16 @@ def run_dual_servers(with_cloudflare=True):
         print("=" * 74)
         return ok1 and ok2
 
+    # Ưu tiên tuyệt đối Tailscale Funnel cố định nếu máy đã cài Tailscale Funnel
+    ts_marker = os.path.join(BASE_DIR, "data", "tailscale_funnel.json")
+    try:
+        from scripts.setup_tailscale_dual import find_tailscale_exe, setup_tailscale_dual
+        if os.path.exists(ts_marker) and find_tailscale_exe():
+            print("\n🔒 Phát hiện máy chủ đã cấu hình 2 link cố định Tailscale Funnel!")
+            return setup_tailscale_dual(verify_only=True)
+    except Exception:
+        pass
+
     cf_exe = resolve_cloudflared(auto_download=True)
     if not cf_exe:
         print("❌ Không tìm thấy cloudflared.exe để mở link online.")
@@ -379,12 +399,32 @@ def run_dual_servers(with_cloudflare=True):
     print("=" * 78)
 
     try:
-        while (proc1 and proc1.poll() is None) or (proc2 and proc2.poll() is None):
-            time.sleep(1)
+        last_check = time.time()
+        while True:
+            time.sleep(2)
+            # Watchdog mỗi 45 giây: nếu tiến trình tunnel thoát hoặc server nội bộ rớt thì tự phục hồi
+            if time.time() - last_check >= 45:
+                last_check = time.time()
+                ensure_server_running(port=8998, db_path=db1, sibling=False, headless=True)
+                ensure_server_running(port=8997, db_path=db2, sibling=True, headless=True)
+                changed = False
+                if not proc1 or proc1.poll() is not None:
+                    proc1, new_u1 = _start_cf_tunnel_for_port(cf_exe, 8998)
+                    if new_u1:
+                        url1 = new_u1
+                        changed = True
+                if not proc2 or proc2.poll() is not None:
+                    proc2, new_u2 = _start_cf_tunnel_for_port(cf_exe, 8997)
+                    if new_u2:
+                        url2 = new_u2
+                        changed = True
+                if changed:
+                    _sync_live_tunnel_urls_to_d1(url1, url2)
     except KeyboardInterrupt:
         print("\n🛑 Đang đóng kết nối Cloudflare Tunnel...")
     finally:
-        _sync_live_tunnel_urls_to_d1("", "")
+        if not os.path.exists(os.path.join(BASE_DIR, "data", "tailscale_funnel.json")):
+            _sync_live_tunnel_urls_to_d1("", "")
         kill_zombie_cloudflared()
     return True
 
@@ -438,39 +478,7 @@ def main():
     ensure_server_running(port=target_port, db_path=target_db)
 
     print(f"\n🌐 Đang kết nối Cloudflare tạo tên miền tạm (HTTPS) cho cổng {target_port}...")
-    cmd = [cf_exe, "tunnel", "--protocol", "http2", "--url", f"http://127.0.0.1:{target_port}"]
-
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            encoding="utf-8",
-            errors="replace"
-        )
-    except Exception as e:
-        print(f"❌ Lỗi khởi chạy cloudflared: {e}")
-        input("\nBấm Enter để thoát...")
-        return
-
-    tunnel_url = None
-    url_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
-
-    # Đọc stderr để bắt link trycloudflare
-    start_time = time.time()
-    try:
-        for line in proc.stderr:
-            # Tìm match
-            match = url_pattern.search(line)
-            if match:
-                tunnel_url = match.group(0)
-                break
-            if time.time() - start_time > 30:
-                break
-    except Exception as e:
-        print(f"Lỗi đọc kết nối: {e}")
+    proc, tunnel_url = _start_cf_tunnel_for_port(cf_exe, target_port)
 
     if not tunnel_url:
         print("❌ Không nhận được đường link từ Cloudflare sau 30 giây.")
@@ -520,7 +528,8 @@ def main():
     except KeyboardInterrupt:
         print("\n🛑 Đang ngắt kết nối chia sẻ...")
     finally:
-        _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", "")
+        if not os.path.exists(os.path.join(BASE_DIR, "data", "tailscale_funnel.json")):
+            _sync_tunnel_to_vercel_endpoint("mcarepet.vercel.app", "")
         kill_zombie_cloudflared()
         print("Đã đóng kết nối online an toàn.")
 

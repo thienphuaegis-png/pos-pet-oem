@@ -708,7 +708,19 @@ def attendance_grid(month: str = Query(...), user=Depends(require_permission(PER
                     "ot_suggest_hours": sum(d["ot_suggest_hours"] for d in days)})
     status = ps.month_status(cur, y, m)
     conn.close()
-    return {"month": month, "status": status, "days_in_month": last.day, "employees": out}
+    return {
+        "month": month,
+        "status": status,
+        "days_in_month": last.day,
+        "rules": {
+            "late_per_min": rules.late_per_min,
+            "late_flat": rules.late_flat,
+            "late_flat_threshold_min": rules.late_flat_threshold_min,
+            "missing_punch": rules.missing_punch,
+            "absent": rules.absent,
+        },
+        "employees": out,
+    }
 
 
 class AttendanceIn(BaseModel):

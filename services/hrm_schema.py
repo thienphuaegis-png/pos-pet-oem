@@ -204,6 +204,20 @@ def ensure_hrm_schema(cur):
     )""")
 
     cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_rules', ?)", (json.dumps(HRM_DEFAULT_RULES),))
+    # Sửa lỗi gõ dư số 0 ở máy tiệm (late_per_min = 50.000 thay vì 5.000 làm trễ 16p phạt 800k > trần 200k)
+    cur.execute("SELECT 1 FROM settings WHERE key = 'hrm_fix_late_per_min_50k_v1'")
+    if not cur.fetchone():
+        cur.execute("SELECT value FROM settings WHERE key = 'hrm_rules'")
+        r_row = cur.fetchone()
+        if r_row and r_row[0]:
+            try:
+                r_obj = json.loads(r_row[0])
+                if int(float(r_obj.get("late_per_min") or 0)) == 50000 and int(float(r_obj.get("late_flat") or 0)) == 200000:
+                    r_obj["late_per_min"] = 5000
+                    cur.execute("UPDATE settings SET value = ? WHERE key = 'hrm_rules'", (json.dumps(r_obj),))
+            except Exception:
+                pass
+        cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_fix_late_per_min_50k_v1', '1')")
     cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES ('Chi lương & hoa hồng nhân viên', 'out')")
     cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES ('Tạm ứng lương', 'out')")
 

@@ -60,7 +60,7 @@ taskkill /F /IM POS_Mastercare.exe >nul 2>&1
 taskkill /F /IM pythonw.exe >nul 2>&1
 powershell -NoProfile -NonInteractive -Command ^
   "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*main.py*' -or $_.Name -like '*POS_Mastercare*' } | Stop-Process -Force -ErrorAction SilentlyContinue;" ^
-  "foreach ($p in 8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
+  "foreach ($p in 8997,8998,8999) { $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; if ($c) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue } }"
 REM Khong dung "timeout": ban Unix cua Git Bash co cu phap khac, con
 REM timeout.exe cua Windows bao loi khi stdin bi chuyen huong.
 powershell -NoProfile -NonInteractive -Command "Start-Sleep -Seconds 3"
@@ -165,6 +165,9 @@ if !errorlevel! neq 0 (
 if !errorlevel! neq 0 (
     set "REASON=Nang cap co so du lieu that bai"
     goto rollback
+)
+if exist "data\pos_instance2.db" (
+    "%VPY%" -c "import os; os.environ['POS_DB_PATH']=r'data\pos_instance2.db'; import database; database.init_db()"
 )
 if exist "scripts\deduplicate_contacts.py" (
     "%VPY%" scripts\deduplicate_contacts.py
