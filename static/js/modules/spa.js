@@ -4036,7 +4036,9 @@
                 : confirm('Xác nhận xóa nhân viên này khỏi Spa?');
             if (!confirmed) return;
             try {
-                await fetch(`/api/pet-services/staff/${id}`, { method: 'DELETE' });
+                const res = await fetch(`/api/pet-services/staff/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                if (typeof window.invalidateHrmStaffCache === 'function') window.invalidateHrmStaffCache();
                 if (window.showToast) window.showToast('Đã xóa nhân viên thành công!', 'success');
                 await loadSpaStaffList();
             } catch(e) {

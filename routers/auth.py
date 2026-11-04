@@ -475,18 +475,37 @@ def reset_staff_password(staff_id: int, body: ChangePasswordIn, current: dict = 
 
 
 def purge_staff_safely(cur, staff_id: int):
-    """Xóa nhân viên và tự động gỡ/dọn liên kết khóa ngoại an toàn."""
-    # Gỡ liên kết ở các bảng chứng từ để không mất lịch sử hóa đơn/ca
+    """Xóa nhân viên và tự động gỡ/dọn liên kết khóa ngoại + spa_staff an toàn."""
+    cur.execute("SELECT id, name, legacy_spa_staff_id FROM staff WHERE id=?", (staff_id,))
+    st = cur.fetchone()
+
+    cur.execute(
+        "SELECT id FROM staff WHERE id != ? ORDER BY (CASE WHEN role IN ('owner','admin') THEN 0 ELSE 1 END), id ASC LIMIT 1",
+        (staff_id,),
+    )
+    fb_row = cur.fetchone()
+    fallback_id = fb_row["id"] if fb_row else None
+
+    # 1. Ca làm việc có cashier_id NOT NULL -> chuyển sang tài khoản chủ/fallback để giữ lịch sử ca
+    try:
+        if fallback_id is not None:
+            cur.execute("UPDATE shifts SET cashier_id=? WHERE cashier_id=?", (fallback_id, staff_id))
+        else:
+            cur.execute("UPDATE order_returns SET shift_id=NULL WHERE shift_id IN (SELECT id FROM shifts WHERE cashier_id=?)", (staff_id,))
+            cur.execute("DELETE FROM shifts WHERE cashier_id=?", (staff_id,))
+    except Exception:
+        pass
+
+    # 2. Gỡ liên kết ở các bảng chứng từ/khách hàng (cho phép NULL) để không mất lịch sử
     for tbl, col in (
         ("orders", "staff_id"),
         ("draft_orders", "staff_id"),
         ("order_returns", "staff_id"),
         ("purchase_requests", "staff_id"),
         ("activity_log", "staff_id"),
-        ("shifts", "cashier_id"),
+        ("contacts", "created_by"),
+        ("shifts", "approved_by"),
         ("staff_reminders", "created_by"),
-        ("hrm_salary_adjustments", "created_by"),
-        ("staff_advances", "created_by"),
         ("koc_sources", "staff_id"),
     ):
         try:
@@ -494,7 +513,7 @@ def purge_staff_safely(cur, staff_id: int):
         except Exception:
             pass
 
-    # Xóa các bảng con phụ thuộc trực tiếp vào nhân sự
+    # 3. Xóa các bảng con phụ thuộc trực tiếp vào nhân sự
     for tbl in (
         "staff_permissions",
         "staff_reminders",
@@ -510,6 +529,39 @@ def purge_staff_safely(cur, staff_id: int):
             cur.execute(f"DELETE FROM {tbl} WHERE staff_id=?", (staff_id,))
         except Exception:
             pass
+
+    # 4. Xóa luôn bản ghi tương ứng ở bảng spa_staff cũ (tránh tự mọc lại khi restart/đồng bộ)
+    try:
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
+        if cur.fetchone() and st:
+            if st["legacy_spa_staff_id"]:
+                cur.execute("DELETE FROM spa_staff WHERE id=?", (st["legacy_spa_staff_id"],))
+            if st["name"]:
+                cur.execute("DELETE FROM spa_staff WHERE LOWER(TRIM(name))=LOWER(TRIM(?))", (st["name"],))
+    except Exception:
+        pass
+
+    # 5. Quét tự động mọi FK còn sót trỏ tới staff(id) trên SQLite
+    try:
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != 'staff'")
+        all_tables = [r[0] for r in cur.fetchall()]
+        for tbl in all_tables:
+            cur.execute(f"PRAGMA foreign_key_list({tbl})")
+            fks = [fk for fk in cur.fetchall() if fk[2] == "staff"]
+            if not fks:
+                continue
+            cur.execute(f"PRAGMA table_info({tbl})")
+            notnull_map = {col[1]: bool(col[3]) for col in cur.fetchall()}
+            for fk in fks:
+                from_col = fk[3]
+                if not notnull_map.get(from_col, False):
+                    cur.execute(f"UPDATE {tbl} SET {from_col}=NULL WHERE {from_col}=?", (staff_id,))
+                elif fallback_id is not None:
+                    cur.execute(f"UPDATE {tbl} SET {from_col}=? WHERE {from_col}=?", (fallback_id, staff_id))
+                else:
+                    cur.execute(f"DELETE FROM {tbl} WHERE {from_col}=?", (staff_id,))
+    except Exception:
+        pass
 
     cur.execute("DELETE FROM staff WHERE id=?", (staff_id,))
 

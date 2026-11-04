@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from database import get_db
-from dependencies import require_permission, get_current_user
+from dependencies import require_permission, get_current_user, check_permission
 from services import payroll_service as ps
 from services.hrm_schema import HRM_DEFAULT_RULES
 from services.attendance_import import parse_attendance_xlsx, punches_to_json
@@ -1768,7 +1768,10 @@ def export_payroll(month: str, user=Depends(require_permission(PERM))):
 @router.get("/my-payslip")
 def get_my_payslip(month: Optional[str] = None, staff_id: Optional[int] = None, user=Depends(get_current_user)):
     target_staff_id = user["id"]
-    if staff_id and user.get("role") in ("owner", "accountant", "manager"):
+    if staff_id and (
+        user.get("role") in ("owner", "admin", "accountant", "manager")
+        or check_permission(user["id"], user.get("role", ""), PERM)
+    ):
         target_staff_id = staff_id
 
     if not month:

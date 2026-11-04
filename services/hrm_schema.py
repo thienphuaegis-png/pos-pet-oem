@@ -206,15 +206,18 @@ def ensure_hrm_schema(cur):
     cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES ('Chi lương & hoa hồng nhân viên', 'out')")
     cur.execute("INSERT OR IGNORE INTO cashbook_categories (name, type) VALUES ('Tạm ứng lương', 'out')")
 
-    # Gộp thợ spa (spa_staff) vào staff: 1 danh sách nhân viên duy nhất, không đăng nhập
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
-    if cur.fetchone():
-        cur.execute("SELECT * FROM spa_staff")
-        for s in cur.fetchall():
-            cur.execute("SELECT id FROM staff WHERE legacy_spa_staff_id = ?", (s["id"],))
-            if cur.fetchone():
-                continue
-            cur.execute(
-                "INSERT INTO staff (name, phone, role, commission_rate, is_active, position, is_spa_worker, legacy_spa_staff_id) VALUES (?, ?, 'staff', 0, ?, ?, 1, ?)",
-                (s["name"], s["phone"] or "", s["is_active"] if s["is_active"] is not None else 1, s["role"] or "Thợ Spa", s["id"]),
-            )
+    # Gộp thợ spa (spa_staff) vào staff 1 lần duy nhất (cờ settings) để xóa nhân sự không tự mọc lại
+    cur.execute("SELECT 1 FROM settings WHERE key = 'hrm_spa_staff_merged_v1'")
+    if not cur.fetchone():
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
+        if cur.fetchone():
+            cur.execute("SELECT * FROM spa_staff")
+            for s in cur.fetchall():
+                cur.execute("SELECT id FROM staff WHERE legacy_spa_staff_id = ?", (s["id"],))
+                if cur.fetchone():
+                    continue
+                cur.execute(
+                    "INSERT INTO staff (name, phone, role, commission_rate, is_active, position, is_spa_worker, legacy_spa_staff_id) VALUES (?, ?, 'staff', 0, ?, ?, 1, ?)",
+                    (s["name"], s["phone"] or "", s["is_active"] if s["is_active"] is not None else 1, s["role"] or "Thợ Spa", s["id"]),
+                )
+        cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_spa_staff_merged_v1', '1')")

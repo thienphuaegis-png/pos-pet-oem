@@ -1336,18 +1336,21 @@ def list_spa_staff(month: Optional[str] = None):
     cur = conn.cursor()
     ensure_staff_spa_tier_cols(cur)
 
-    # Đảm bảo đồng bộ 1 chiều nếu bảng spa_staff cũ còn dữ liệu chưa sang staff
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
-    if cur.fetchone():
-        cur.execute("SELECT * FROM spa_staff WHERE is_active = 1")
-        for s in cur.fetchall():
-            cur.execute("SELECT id FROM staff WHERE legacy_spa_staff_id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?))", (s["id"], s["name"]))
-            if not cur.fetchone():
-                cur.execute(
-                    """INSERT INTO staff (employee_code, name, phone, role, position, department, is_spa_worker, is_payroll_staff, enable_spa_commission, is_active, legacy_spa_staff_id)
-                       VALUES (?, ?, ?, 'staff', ?, 'Spa & Grooming', 1, 1, 1, 1, ?)""",
-                    (s["staff_code"] or f"SPA{s['id']}", s["name"], s["phone"] or "", s["role"] or "Chuyên viên Spa", s["id"])
-                )
+    # Đảm bảo đồng bộ 1 chiều 1 lần duy nhất nếu bảng spa_staff cũ chưa từng gộp sang staff
+    cur.execute("SELECT 1 FROM settings WHERE key = 'hrm_spa_staff_merged_v1'")
+    if not cur.fetchone():
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='spa_staff'")
+        if cur.fetchone():
+            cur.execute("SELECT * FROM spa_staff WHERE is_active = 1")
+            for s in cur.fetchall():
+                cur.execute("SELECT id FROM staff WHERE legacy_spa_staff_id = ? OR LOWER(TRIM(name)) = LOWER(TRIM(?))", (s["id"], s["name"]))
+                if not cur.fetchone():
+                    cur.execute(
+                        """INSERT INTO staff (employee_code, name, phone, role, position, department, is_spa_worker, is_payroll_staff, enable_spa_commission, is_active, legacy_spa_staff_id)
+                           VALUES (?, ?, ?, 'staff', ?, 'Spa & Grooming', 1, 1, 1, 1, ?)""",
+                        (s["staff_code"] or f"SPA{s['id']}", s["name"], s["phone"] or "", s["role"] or "Chuyên viên Spa", s["id"])
+                    )
+        cur.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('hrm_spa_staff_merged_v1', '1')")
         conn.commit()
 
     # Lấy danh sách thợ Spa đang làm việc từ bảng staff trung tâm (HRM)
@@ -1470,9 +1473,12 @@ def update_spa_staff(staff_id: int, s: SpaStaffCreate):
 
 @service_router.delete("/staff/{staff_id}")
 def delete_spa_staff(staff_id: int):
+    if staff_id == 1:
+        raise HTTPException(status_code=400, detail="Không thể xóa tài khoản quản trị gốc")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("UPDATE staff SET is_active = 0 WHERE id = ?", (staff_id,))
+    from routers.auth import purge_staff_safely
+    purge_staff_safely(cur, staff_id)
     conn.commit()
     conn.close()
     return {"status": "ok"}

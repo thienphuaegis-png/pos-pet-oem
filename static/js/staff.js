@@ -446,15 +446,16 @@ async function deleteStaff(id, staffName) {
   if (!confirmed) return;
   try {
     const res = await fetch(`/api/auth/staff/${id}`, { method: 'DELETE' });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
+      if (typeof window.invalidateHrmStaffCache === 'function') window.invalidateHrmStaffCache();
       if (typeof showToast === 'function') {
         showToast(data.message || `Đã xóa nhân viên ${staffName}`, 'success');
       }
       loadStaffList();
       if (typeof loadHrmStaff === 'function') loadHrmStaff();
     } else {
-      alert('❌ ' + (data.detail || 'Lỗi xóa nhân viên'));
+      alert('❌ ' + (data.detail || `Lỗi xóa nhân viên (HTTP ${res.status})`));
     }
   } catch (e) {
     alert('❌ Không kết nối được server');

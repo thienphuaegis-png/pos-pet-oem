@@ -887,8 +887,13 @@ def _migrate_staff_payroll_reconcile(cur):
             for tbl, col in [
                 ("orders", "staff_id"),
                 ("draft_orders", "staff_id"),
+                ("order_returns", "staff_id"),
                 ("activity_log", "staff_id"),
                 ("purchase_requests", "staff_id"),
+                ("contacts", "created_by"),
+                ("shifts", "cashier_id"),
+                ("shifts", "approved_by"),
+                ("hrm_salary_adjustments", "staff_id"),
                 ("pancake_sellers", "staff_id"),
                 ("staff_reminders", "staff_id"),
                 ("staff_reminders", "created_by"),

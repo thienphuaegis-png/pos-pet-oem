@@ -242,7 +242,7 @@
             <tr class="hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">
                 <td class="p-2.5 text-center">${issCell}</td>
                 <td class="p-2.5 font-mono font-bold text-slate-700">${l.employee_code || ''}</td>
-                <td class="p-2.5 font-bold text-slate-900">${l.name || ''}</td>
+                <td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 font-bold text-slate-900 hover:text-sky-700 hover:underline cursor-pointer" title="Bấm xem phiếu lương chi tiết">${l.name || ''}</td>
                 <td class="p-2.5 text-slate-600">${l.block || ''}</td>
                 <td class="p-2.5 text-center">${l.std_days || 0}</td>
                 <td class="p-2.5 text-center font-bold text-emerald-700">${l.days_official || 0}</td>
@@ -264,6 +264,7 @@
                 <td class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
                 <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
                 <td class="p-2.5 text-center whitespace-nowrap">
+                    <button onclick="openHrmPayslipModal(${l.staff_id})" class="text-indigo-700 hover:underline font-bold mr-2 cursor-pointer" title="Xem & in phiếu lương nhân viên">Phiếu lương</button>
                     <button onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="text-emerald-700 hover:underline font-bold mr-2 cursor-pointer">Chi tiết công</button>
                     <button onclick="editHrmLine(${l.staff_id}, ${l.bonus_other || 0}, ${l.fuel_other || 0}, ${l.deduction_other || 0}, '${(l.manual_note || '').replace(/'/g, "\\'")}')" class="text-sky-600 hover:underline font-bold mr-2 cursor-pointer">Sửa số</button>
                 </td>
@@ -766,7 +767,11 @@
         }
 
         const preStr = preselectId != null && preselectId !== '' ? String(preselectId) : '';
-        const activeRows = raw.filter(s => (s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc') || String(s.id) === preStr);
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const activeRows = raw.filter(s =>
+            (s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc' && !(s.leave_date && String(s.leave_date).slice(0, 10) <= todayIso)) ||
+            String(s.id) === preStr
+        );
         // ponytail: khớp 1-1 điều kiện payroll_service.payroll_staff để loại tài khoản kho/hệ thống rỗng; fallback activeRows nếu DB mới tinh chưa gán mã/lương
         const strictRows = activeRows.filter(s =>
             Number(s.base_salary || 0) > 0 ||
@@ -873,10 +878,13 @@
         const menuEl = document.getElementById(`${selectId}-menu`);
         const list = hrmStaffPickerState[selectId] || [];
         const chosen = list.find(s => String(s.id) === String(staffId));
-        if (selectEl) selectEl.value = chosen ? String(chosen.id) : '';
         if (searchInp) searchInp.value = chosen ? formatHrmEmpLabel(chosen) : '';
         if (clearBtn) clearBtn.classList.toggle('hidden', !chosen);
         if (menuEl) menuEl.classList.add('hidden');
+        if (selectEl) {
+            selectEl.value = chosen ? String(chosen.id) : '';
+            selectEl.dispatchEvent(new Event('change'));
+        }
     };
 
     window.clearHrmStaffSelection = function(selectId, ev) {
@@ -884,12 +892,15 @@
         const selectEl = document.getElementById(selectId);
         const searchInp = document.getElementById(`${selectId}-search`);
         const clearBtn = document.getElementById(`${selectId}-clear`);
-        if (selectEl) selectEl.value = '';
         if (searchInp) {
             searchInp.value = '';
             searchInp.focus();
         }
         if (clearBtn) clearBtn.classList.add('hidden');
+        if (selectEl) {
+            selectEl.value = '';
+            selectEl.dispatchEvent(new Event('change'));
+        }
         renderHrmStaffPickerMenu(selectId, '');
     };
 
@@ -1834,19 +1845,62 @@
     };
 
     // ── Phiếu Lương Cá Nhân (Modal & Tab) ──
+    function canManageAllPayslips() {
+        if (typeof Auth === 'undefined' || !Auth.getUser()) return false;
+        return Auth.hasRole('owner', 'admin', 'accountant', 'manager') || Auth.can('payroll.manage');
+    }
+
+    window.calcMonthAndReloadPayslip = async function(month, staffId, inModal) {
+        try {
+            const res = await fetch(`/api/hrm/payroll/${month}/calculate`, { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert(err.detail || 'Lỗi tính bảng lương');
+                return;
+            }
+            if (typeof loadHrmPayroll === 'function' && currentSubTab === 'payroll') loadHrmPayroll(month);
+            if (inModal) openHrmPayslipModal(staffId);
+            else loadMyPayslip();
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     window.openHrmPayslipModal = async function(staffId) {
         const month = getSelectedMonth();
         const bodyEl = document.getElementById('hrm-payslip-modal-body');
+        const staffSel = document.getElementById('hrm-payslip-modal-staff');
         if (bodyEl) bodyEl.innerHTML = `<div class="text-center py-8 text-slate-400">Đang tải phiếu lương...</div>`;
 
         const modal = document.getElementById('modal-hrm-payslip');
         if (modal) modal.classList.remove('hidden');
 
+        if (staffSel) {
+            if (canManageAllPayslips()) {
+                if (!hrmStaffList.length) {
+                    try {
+                        const r = await fetch('/api/hrm/employees');
+                        if (r.ok) hrmStaffList = await r.json();
+                    } catch (e) {}
+                }
+                const list = (hrmStaffList || [])
+                    .filter(s => (s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc') || String(s.id) === String(staffId))
+                    .sort((a, b) => hrmViCollator.compare(a.employee_code || 'zz', b.employee_code || 'zz') || hrmViCollator.compare(a.name || '', b.name || ''));
+                staffSel.innerHTML = list.map(s => `<option value="${s.id}" ${String(s.id) === String(staffId) ? 'selected' : ''}>${escHrmHtml(formatHrmEmpLabel(s))}</option>`).join('');
+                staffSel.classList.remove('hidden');
+            } else {
+                staffSel.classList.add('hidden');
+            }
+        }
+
         try {
             const res = await fetch(`/api/hrm/my-payslip?month=${month}&staff_id=${staffId}`);
             const data = await res.json();
             if (!res.ok || data.status !== 'ok') {
-                if (bodyEl) bodyEl.innerHTML = `<div class="p-4 text-center text-rose-500 font-medium">${data.message || 'Không tìm thấy phiếu lương'}</div>`;
+                const calcBtn = canManageAllPayslips()
+                    ? `<div class="mt-3"><button type="button" onclick="calcMonthAndReloadPayslip('${month}', ${Number(staffId)}, true)" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs cursor-pointer shadow-xs">⚡ Tính lương tháng ${month.slice(5)}/${month.slice(0, 4)} & Xem ngay</button></div>`
+                    : '';
+                if (bodyEl) bodyEl.innerHTML = `<div class="p-6 text-center text-rose-600 font-medium">${escHrmHtml(data.message || 'Không tìm thấy phiếu lương')}${calcBtn}</div>`;
                 return;
             }
             if (bodyEl) bodyEl.innerHTML = renderPayslipCardHTML(data, month);
@@ -1860,65 +1914,9 @@
         if (modal) modal.classList.add('hidden');
     };
 
-    window.printHrmPayslip = function() {
-        const bodyEl = document.getElementById('hrm-payslip-modal-body');
-        if (!bodyEl) return;
+    function openPayslipPrintWindow(htmlContent) {
         const win = window.open('', '_blank');
-        win.document.write(`
-            <html><head><title>Phiếu Lương</title>
-            <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; color: #1e293b; font-size: 13px; }
-                .card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-                .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #f1f5f9; }
-                .net { font-size: 18px; font-weight: bold; color: #047857; text-align: right; }
-                .title { font-size: 16px; font-weight: bold; margin-bottom: 12px; text-align: center; }
-            </style>
-            </head><body>${bodyEl.innerHTML}</body></html>
-        `);
-        win.document.close();
-        win.print();
-    };
-
-    // ── Tab Phiếu Lương Của Tôi (Nhân viên xem trên Mobile) ──
-    window.initMyPayslipTab = function() {
-        const picker = document.getElementById('my-payslip-month');
-        if (picker && !picker.value) {
-            const now = new Date();
-            picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        }
-        loadMyPayslip();
-    };
-
-    window.loadMyPayslip = async function() {
-        const picker = document.getElementById('my-payslip-month');
-        const month = picker?.value || getSelectedMonth();
-        const contentEl = document.getElementById('my-payslip-content');
-        if (!contentEl) return;
-        contentEl.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">Đang nạp phiếu lương...</div>`;
-
-        try {
-            const res = await fetch(`/api/hrm/my-payslip?month=${month}`);
-            const data = await res.json();
-            if (!res.ok || data.status !== 'ok') {
-                contentEl.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl shadow-xs border text-center space-y-2">
-                        <span class="text-3xl">📭</span>
-                        <div class="font-bold text-slate-700 text-sm">Chưa Có Phiếu Lương</div>
-                        <p class="text-slate-400 text-xs">${data.message || 'Chưa có bảng lương được tính cho tháng này.'}</p>
-                    </div>
-                `;
-                return;
-            }
-            contentEl.innerHTML = renderPayslipCardHTML(data, month);
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    window.printMyPayslip = function() {
-        const contentEl = document.getElementById('my-payslip-content');
-        if (!contentEl) return;
-        const win = window.open('', '_blank');
+        if (!win) return;
         win.document.write(`
             <html><head><title>Phiếu Lương</title>
             <style>
@@ -1933,15 +1931,88 @@
                 .text-center { text-align: center; }
                 .text-right { text-align: right; }
                 .font-bold { font-weight: bold; }
-                @media print {
-                    body { padding: 10px; }
-                    .page-break { page-break-inside: avoid; }
-                }
+                @media print { body { padding: 10px; } .page-break { page-break-inside: avoid; } }
             </style>
-            </head><body>${contentEl.innerHTML}</body></html>
+            </head><body>${htmlContent}</body></html>
         `);
         win.document.close();
         win.print();
+    }
+
+    window.printHrmPayslip = function() {
+        const bodyEl = document.getElementById('hrm-payslip-modal-body');
+        if (bodyEl) openPayslipPrintWindow(bodyEl.innerHTML);
+    };
+
+    // ── Tab Phiếu Lương (Nhân viên tự xem & Admin chọn xem toàn bộ nhân viên) ──
+    window.initMyPayslipTab = async function() {
+        const picker = document.getElementById('my-payslip-month');
+        if (picker && !picker.value) {
+            const now = new Date();
+            picker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+        const adminBox = document.getElementById('my-payslip-admin-staff-box');
+        const titleEl = document.getElementById('my-payslip-header-title');
+        const staffSel = document.getElementById('my-payslip-staff-id');
+
+        if (canManageAllPayslips()) {
+            if (adminBox) adminBox.classList.remove('hidden');
+            if (titleEl) titleEl.textContent = 'Tra Cứu Phiếu Lương Nhân Viên';
+            const curSelected = staffSel?.value || '';
+            const currentUserId = Auth.getUser()?.id || '';
+            await initHrmStaffPicker('my-payslip-staff-id', curSelected || currentUserId);
+            if (staffSel && !staffSel.value) {
+                const list = hrmStaffPickerState['my-payslip-staff-id'] || [];
+                if (list.length > 0) {
+                    window.selectHrmStaffOption('my-payslip-staff-id', list[0].id);
+                    return;
+                }
+            }
+        } else {
+            if (adminBox) adminBox.classList.add('hidden');
+            if (titleEl) titleEl.textContent = 'Phiếu Lương Của Tôi';
+        }
+        loadMyPayslip();
+    };
+
+    window.loadMyPayslip = async function() {
+        const picker = document.getElementById('my-payslip-month');
+        const month = picker?.value || getSelectedMonth();
+        const contentEl = document.getElementById('my-payslip-content');
+        if (!contentEl) return;
+        contentEl.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs">Đang nạp phiếu lương...</div>`;
+
+        const isManager = canManageAllPayslips();
+        const selectedStaffId = isManager ? (document.getElementById('my-payslip-staff-id')?.value || '') : '';
+        const url = `/api/hrm/my-payslip?month=${encodeURIComponent(month)}${selectedStaffId ? '&staff_id=' + encodeURIComponent(selectedStaffId) : ''}`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok || data.status !== 'ok') {
+                const targetIdForCalc = selectedStaffId || (Auth.getUser()?.id || 0);
+                const calcBtn = isManager
+                    ? `<div class="pt-2"><button type="button" onclick="calcMonthAndReloadPayslip('${month}', ${Number(targetIdForCalc)}, false)" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs cursor-pointer shadow-xs">⚡ Tính lương tháng ${month.slice(5)}/${month.slice(0, 4)} & Xem ngay</button></div>`
+                    : '';
+                contentEl.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border text-center space-y-2">
+                        <span class="text-3xl">📭</span>
+                        <div class="font-bold text-slate-700 text-sm">Chưa Có Phiếu Lương</div>
+                        <p class="text-slate-400 text-xs">${escHrmHtml(data.message || 'Chưa có bảng lương được tính cho tháng này.')}</p>
+                        ${calcBtn}
+                    </div>
+                `;
+                return;
+            }
+            contentEl.innerHTML = renderPayslipCardHTML(data, month);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    window.printMyPayslip = function() {
+        const contentEl = document.getElementById('my-payslip-content');
+        if (contentEl) openPayslipPrintWindow(contentEl.innerHTML);
     };
 
     function renderPayslipCardHTML(data, month) {
@@ -2253,6 +2324,7 @@
                     <td class="p-2.5 text-center">${contractBadge}</td>
                     <td class="p-2.5 text-center">${accountBadge}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
+                        <button onclick="openHrmPayslipModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold cursor-pointer mr-1" title="Xem phiếu lương">🧾 Lương</button>
                         <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
                         <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
                         ${isResigned 
@@ -2290,6 +2362,7 @@
             });
             const data = await res.json();
             if (res.ok) {
+                window.invalidateHrmStaffCache();
                 if (typeof showToast === 'function') showToast(data.message || 'Đã chuyển sang trạng thái nghỉ việc', 'success');
                 loadHrmStaff();
                 if (typeof loadStaffList === 'function') loadStaffList();
@@ -2322,6 +2395,7 @@
             });
             const data = await res.json();
             if (res.ok) {
+                window.invalidateHrmStaffCache();
                 if (typeof showToast === 'function') showToast(data.message || 'Đã khôi phục nhân sự', 'success');
                 loadHrmStaff();
                 if (typeof loadStaffList === 'function') loadStaffList();
@@ -2332,6 +2406,11 @@
             console.error(e);
             alert('Không thể kết nối máy chủ');
         }
+    };
+
+    window.invalidateHrmStaffCache = function() {
+        hrmStaffList = [];
+        Object.keys(hrmStaffPickerState).forEach(k => delete hrmStaffPickerState[k]);
     };
 
     window.confirmHrmStaffDelete = async function(staffId, staffName) {
@@ -2352,13 +2431,14 @@
             const res = await fetch(`/api/hrm/employees/${staffId}`, {
                 method: 'DELETE'
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (res.ok) {
+                window.invalidateHrmStaffCache();
                 if (typeof showToast === 'function') showToast(data.message || `Đã xóa nhân sự ${staffName}`, 'success');
                 loadHrmStaff();
                 if (typeof loadStaffList === 'function') loadStaffList();
             } else {
-                alert(data.detail || 'Lỗi khi xóa nhân sự');
+                alert(data.detail || `Lỗi khi xóa nhân sự (HTTP ${res.status})`);
             }
         } catch (e) {
             console.error(e);
@@ -2588,32 +2668,69 @@
 
     // ── Phân Hệ: Điều Chỉnh Lương & Phụ Cấp ──
     let hrmAdjustmentsList = [];
+    let activeAdjFilterStaffId = '';
+    let adjLoadSeq = 0;
+
+    window.onHrmAdjStaffFilterChange = function(val) {
+        activeAdjFilterStaffId = String(val || '');
+        filterHrmAdjustmentsTable();
+    };
 
     window.loadHrmSalaryAdjustments = async function() {
+        const seq = ++adjLoadSeq;
         const tbody = document.getElementById('table-hrm-adjustments');
+        const staffFilter = document.getElementById('hrm-adj-filter-staff');
+        if (staffFilter && staffFilter.options.length > 1 && activeAdjFilterStaffId === '' && staffFilter.value) {
+            activeAdjFilterStaffId = String(staffFilter.value);
+        }
+
         if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">Đang tải danh sách quyết định điều chỉnh lương...</td></tr>`;
 
         try {
             const [resAdj, resStaff] = await Promise.all([
                 fetch('/api/hrm/adjustments'),
-                hrmStaffList.length ? Promise.resolve({ ok: true, json: () => Promise.resolve(hrmStaffList) }) : fetch('/api/hrm/employees')
+                fetch('/api/hrm/employees')
             ]);
-            if (!resAdj.ok) return;
+            if (seq !== adjLoadSeq || !resAdj.ok) return;
             hrmAdjustmentsList = await resAdj.json();
 
-            if (!hrmStaffList.length && resStaff.ok) {
+            if (resStaff.ok) {
                 hrmStaffList = await resStaff.json();
             }
 
-            // Cập nhật bộ lọc nhân viên
-            const staffFilter = document.getElementById('hrm-adj-filter-staff');
+            // Cập nhật bộ lọc nhân viên (chỉ nhân sự đang làm việc + nhân sự có lịch sử điều chỉnh)
             if (staffFilter) {
-                const curVal = staffFilter.value;
+                const desiredVal = activeAdjFilterStaffId;
+                const adjStaffIds = new Set((hrmAdjustmentsList || []).map(a => String(a.staff_id)));
+                const optionMap = new Map();
+                (hrmStaffList || []).forEach(s => {
+                    const sid = String(s.id);
+                    const isActive = s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc';
+                    if (isActive || adjStaffIds.has(sid) || sid === desiredVal) {
+                        optionMap.set(sid, { id: sid, employee_code: s.employee_code || '', name: s.name || `NV #${sid}` });
+                    }
+                });
+                (hrmAdjustmentsList || []).forEach(a => {
+                    const sid = String(a.staff_id);
+                    if (!optionMap.has(sid)) {
+                        optionMap.set(sid, { id: sid, employee_code: a.employee_code || '', name: a.staff_name || `NV #${sid}` });
+                    }
+                });
+                const sortedOpts = Array.from(optionMap.values()).sort((a, b) => {
+                    const ca = (a.employee_code || '').trim();
+                    const cb = (b.employee_code || '').trim();
+                    if (ca && !cb) return -1;
+                    if (!ca && cb) return 1;
+                    if (ca && cb && ca !== cb) return hrmViCollator.compare(ca, cb);
+                    return hrmViCollator.compare(a.name || '', b.name || '');
+                });
                 staffFilter.innerHTML = '<option value="">-- Tất cả nhân viên --</option>' +
-                    (hrmStaffList || []).map(s => `<option value="${s.id}" ${curVal == s.id ? 'selected' : ''}>${s.employee_code ? s.employee_code + ' - ' : ''}${s.name}</option>`).join('');
+                    sortedOpts.map(s => `<option value="${s.id}">${escHrmHtml(formatHrmEmpLabel(s))}</option>`).join('');
+                activeAdjFilterStaffId = (desiredVal && optionMap.has(desiredVal)) ? desiredVal : '';
+                staffFilter.value = activeAdjFilterStaffId;
             }
 
-            renderHrmAdjustmentsTable(hrmAdjustmentsList);
+            filterHrmAdjustmentsTable();
         } catch (e) {
             console.error("Lỗi tải quyết định điều chỉnh lương:", e);
         }
@@ -2668,23 +2785,20 @@
     }
 
     window.filterHrmAdjustmentsTable = function() {
-        const q = (document.getElementById('hrm-adj-search')?.value || '').toLowerCase().trim();
-        const staffId = document.getElementById('hrm-adj-filter-staff')?.value;
-        const filtered = hrmAdjustmentsList.filter(a => {
-            const matchQ = !q || (a.staff_name || '').toLowerCase().includes(q) || (a.employee_code || '').toLowerCase().includes(q) || (a.reason || '').toLowerCase().includes(q);
-            const matchStaff = !staffId || a.staff_id == staffId;
+        const q = (document.getElementById('hrm-adj-search')?.value || '').trim();
+        const domVal = document.getElementById('hrm-adj-filter-staff')?.value || '';
+        const staffId = domVal || activeAdjFilterStaffId;
+        const filtered = (hrmAdjustmentsList || []).filter(a => {
+            const matchQ = !q || matchHrmQuery(q, `${a.employee_code || ''} ${a.staff_name || ''} ${a.reason || ''} ${a.department || ''} ${a.position || ''}`);
+            const matchStaff = !staffId || String(a.staff_id) === String(staffId);
             return matchQ && matchStaff;
         });
         renderHrmAdjustmentsTable(filtered);
     };
 
     window.filterHrmAdjByStaff = function(staffId) {
+        activeAdjFilterStaffId = staffId != null ? String(staffId) : '';
         switchHrmSubTab('adjustments');
-        const staffFilter = document.getElementById('hrm-adj-filter-staff');
-        if (staffFilter) {
-            staffFilter.value = staffId;
-            filterHrmAdjustmentsTable();
-        }
     };
 
     window.openHrmAdjustmentModal = async function(staffId) {

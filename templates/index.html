@@ -7708,7 +7708,7 @@
                     <div class="bg-white p-3 rounded-xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <input type="text" id="hrm-adj-search" oninput="filterHrmAdjustmentsTable()" placeholder="Tìm theo tên, mã NV, lý do..." class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs w-60 focus:ring-1 focus:ring-emerald-500">
-                            <select id="hrm-adj-filter-staff" onchange="filterHrmAdjustmentsTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700">
+                            <select id="hrm-adj-filter-staff" onchange="onHrmAdjStaffFilterChange(this.value)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700">
                                 <option value="">-- Tất cả nhân viên --</option>
                             </select>
                         </div>
@@ -7958,16 +7958,25 @@
 
             <!-- TAB: PHIẾU LƯƠNG CỦA TÔI (MOBILE & DESKTOP RESPONSIVE) -->
             <div id="tab-my-payslip" class="hidden space-y-4 max-w-2xl mx-auto pb-12">
-                <!-- Thanh điều hướng tháng -->
+                <!-- Thanh điều hướng tháng & chọn nhân viên (Admin/Owner) -->
                 <div class="bg-white p-3 rounded-2xl shadow-xs border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <span class="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm"><i class="ph ph-device-mobile"></i></span>
                         <div>
-                            <h2 class="text-xs font-bold text-slate-800">Phiếu Lương Của Tôi</h2>
+                            <h2 id="my-payslip-header-title" class="text-xs font-bold text-slate-800">Phiếu Lương Của Tôi</h2>
                             <p class="text-xs text-slate-500">Tra cứu chi tiết thu nhập, ngày công & thưởng phạt</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div id="my-payslip-admin-staff-box" class="hidden relative min-w-[255px]" data-hrm-staff-picker="my-payslip-staff-id">
+                            <select id="my-payslip-staff-id" onchange="loadMyPayslip()" class="hidden"><option value="">-- Chọn nhân viên --</option></select>
+                            <div class="relative flex items-center">
+                                <input type="text" id="my-payslip-staff-id-search" autocomplete="off" placeholder="Chọn / tìm nhân viên xem lương..." onclick="openHrmStaffDropdown('my-payslip-staff-id')" onfocus="openHrmStaffDropdown('my-payslip-staff-id')" oninput="filterHrmStaffDropdown('my-payslip-staff-id', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1 pr-12 text-xs font-bold text-slate-800 bg-white outline-none focus:border-sky-500 cursor-pointer">
+                                <button type="button" id="my-payslip-staff-id-clear" onclick="clearHrmStaffSelection('my-payslip-staff-id', event)" title="Bỏ chọn" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                                <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                            </div>
+                            <div id="my-payslip-staff-id-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                        </div>
                         <input type="month" id="my-payslip-month" onchange="loadMyPayslip()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-sky-500">
                         <button onclick="printMyPayslip()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"><i class="ph ph-printer"></i> In Phiếu</button>
                     </div>
@@ -11703,15 +11712,16 @@
     </div>
 
     <!-- MODAL: XEM PHIẾU LƯƠNG CHI TIẾT (HRM) -->
-    <div id="modal-hrm-payslip" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
-            <div class="flex items-center justify-between border-b pb-3">
+    <div id="modal-hrm-payslip" onclick="if(event.target === this) closeHrmPayslipModal()" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] overflow-y-auto text-xs">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                 <h3 class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
                     <span><i class="ph ph-file-text"></i></span> <span>Phiếu Lương Chi Tiết</span>
                 </h3>
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="printHrmPayslip()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1"><i class="ph ph-printer"></i> In</button>
-                    <button type="button" onclick="closeHrmPayslipModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center"><i class="ph ph-dot-outline"></i></button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="hrm-payslip-modal-staff" onchange="openHrmPayslipModal(this.value)" class="hidden border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 bg-white max-w-[230px]"></select>
+                    <button type="button" onclick="printHrmPayslip()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-3 py-1 rounded-lg text-xs flex items-center gap-1 cursor-pointer"><i class="ph ph-printer"></i> In</button>
+                    <button type="button" onclick="closeHrmPayslipModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center cursor-pointer"><i class="ph ph-dot-outline"></i></button>
                 </div>
             </div>
             <div id="hrm-payslip-modal-body" class="space-y-3"></div>
