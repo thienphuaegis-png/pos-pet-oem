@@ -1340,7 +1340,7 @@
                         </span>
                         <span class="sidebar-text truncate">Hướng Dẫn Nghiệp Vụ</span>
                     </button>
-                    <button onclick="switchTab('ai-agent')" class="tab-btn w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-semibold transition active-tab cursor-pointer" data-tab="ai-agent" data-role="owner,cashier,accountant,warehouse" data-tooltip="Tác Nhân AI">
+                    <button onclick="switchTab('ai-agent')" class="tab-btn w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-semibold transition active-tab cursor-pointer" data-tab="ai-agent" data-role="owner,cashier,accountant,warehouse,staff" data-tooltip="Tác Nhân AI">
                         <span class="sidebar-icon text-current">
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
                         </span>
@@ -7300,6 +7300,26 @@
                             <span id="hrm-payroll-lock-info" class="text-xs text-slate-500"></span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
+                            <!-- Popover Cài đặt lựa chọn cột hiển thị Bảng Lương -->
+                            <div class="relative" id="hrm-payroll-cols-picker-wrap">
+                                <button type="button" onclick="togglePayrollColumnsPopover(event)" class="border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs" title="Ẩn/hiện cột trên bảng lương (VD: BHXH, Thuế TNCN...)">
+                                    <i class="ph ph-columns"></i> <span>Cột hiển thị</span> <span id="hrm-payroll-cols-badge" class="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded text-xs font-mono"></span>
+                                </button>
+                                <div id="hrm-payroll-cols-popover" onclick="event.stopPropagation()" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-[440px] max-w-[92vw] bg-white border border-slate-200 rounded-xl shadow-xl z-40 p-3.5 space-y-2.5 text-xs">
+                                    <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
+                                        <span class="font-bold text-slate-800 whitespace-nowrap">Chọn cột hiển thị</span>
+                                        <div class="flex items-center gap-2 whitespace-nowrap">
+                                            <button type="button" onclick="applyPayrollColsPreset('hide_tax_ins')" class="text-xs font-bold text-sky-700 hover:underline cursor-pointer">Ẩn BHXH & Thuế</button>
+                                            <span class="text-slate-300">|</span>
+                                            <button type="button" onclick="applyPayrollColsPreset('all')" class="text-xs font-bold text-emerald-700 hover:underline cursor-pointer">Hiện tất cả</button>
+                                        </div>
+                                    </div>
+                                    <div id="hrm-payroll-cols-list" class="grid grid-cols-3 gap-x-2 gap-y-1.5"></div>
+                                    <div class="text-xs text-slate-400 border-t border-slate-100 pt-1.5">
+                                        Bấm vào các ô <b>Công / Phạt</b> để mở chi tiết chấm công; bấm <b>Họ tên</b> để mở phiếu lương.
+                                    </div>
+                                </div>
+                            </div>
                             <button type="button" onclick="openHrmRulesGuideModal()" class="border border-sky-300 hover:bg-sky-50 text-sky-800 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-2xs">ℹ️ Quy Tắc Tính Công & Phạt</button>
                             <button id="btn-hrm-calc" onclick="calculateHrmPayroll()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer"><i class="ph ph-lightning"></i> Tính Lương</button>
                             <button id="btn-hrm-lock" onclick="lockHrmPayroll()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1 cursor-pointer"><i class="ph ph-lock-key"></i> Chốt Lương</button>
@@ -7315,29 +7335,36 @@
                             <input type="checkbox" id="hrm-payroll-only-issues" onchange="rerenderHrmPayroll()"> Chỉ dòng có cảnh báo
                         </label>
                     </div>
-                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[550px]">
+                    <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-x-auto max-h-[580px]">
                         <table class="w-full text-left border-collapse text-xs">
-                            <thead class="bg-slate-50 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                            <thead id="table-hrm-payroll-head" class="bg-slate-50 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
                                 <tr>
-                                    <th class="p-2.5 text-center" title="Cảnh báo cần kiểm tra trước khi chốt">⚠</th>
+                                    <th class="p-2.5 text-center">⚠</th>
                                     <th class="p-2.5">Mã NV</th>
                                     <th class="p-2.5">Họ và Tên</th>
                                     <th class="p-2.5">Khối</th>
+                                    <th class="p-2.5">Chức vụ</th>
                                     <th class="p-2.5 text-center">Công chuẩn</th>
                                     <th class="p-2.5 text-center">Công CT</th>
                                     <th class="p-2.5 text-center">Công TV</th>
+                                    <th class="p-2.5 text-center">Tổng công</th>
                                     <th class="p-2.5 text-right">Lương CB</th>
+                                    <th class="p-2.5 text-right">Lương TV (85%)</th>
                                     <th class="p-2.5 text-right">Lương công</th>
                                     <th class="p-2.5 text-right">Phụ cấp</th>
+                                    <th class="p-2.5 text-right">PC Xăng/Khác</th>
                                     <th class="p-2.5 text-right">Lễ</th>
                                     <th class="p-2.5 text-right">Hoa hồng bán</th>
                                     <th class="p-2.5 text-right">Hoa hồng Spa</th>
                                     <th class="p-2.5 text-right">Tip</th>
                                     <th class="p-2.5 text-right">Chuyên cần</th>
                                     <th class="p-2.5 text-right">Thưởng SN</th>
+                                    <th class="p-2.5 text-right">Thưởng khác</th>
                                     <th class="p-2.5 text-right">Tăng ca</th>
+                                    <th class="p-2.5 text-right">Tổng thu nhập</th>
                                     <th class="p-2.5 text-right text-rose-600">Phạt</th>
                                     <th class="p-2.5 text-right text-rose-600">Tạm ứng</th>
+                                    <th class="p-2.5 text-right text-rose-600">Trừ khác</th>
                                     <th class="p-2.5 text-right text-sky-700">BHXH</th>
                                     <th class="p-2.5 text-right text-sky-700">Thuế TNCN</th>
                                     <th class="p-2.5 text-right font-bold text-emerald-700">Thực Lãnh</th>
@@ -9995,6 +10022,8 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Nút Chấm công Làm ở nhà (WFH) hiển thị cho nhân viên được bật quyền chấm công từ xa -->
+                            <div id="ai-wfh-checkin-wrap" class="hidden flex items-center gap-1.5"></div>
                             <button type="button" onclick="openCreateReminderModal()" class="elaya-btn-keycap px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
                                 <i class="ph ph-plus text-sm"></i> <span>Tạo Nhắc Nhở</span>
                             </button>
@@ -11807,6 +11836,13 @@
                         <div class="text-xs text-amber-700">Mặc định đủ công, chỉ trừ ngày nghỉ nhập tay. Không phạt trễ/vắng/quên quẹt. Không có thưởng chuyên cần.</div>
                     </div>
                     <input type="checkbox" id="hrm-staff-is-attendance-exempt" class="rounded text-amber-600 w-4 h-4 cursor-pointer">
+                </div>
+                <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200/70 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-emerald-900">🏠 Cho phép chấm công làm ở nhà (WFH)</div>
+                        <div class="text-xs text-emerald-700">Hiện nút tự bấm Vào Ca / Tan Ca ngay trên trang Tác Nhân AI (lấy giờ máy chủ, không cần quẹt vân tay tại tiệm).</div>
+                    </div>
+                    <input type="checkbox" id="hrm-staff-allow-remote-checkin" class="rounded text-emerald-600 w-4 h-4 cursor-pointer">
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>

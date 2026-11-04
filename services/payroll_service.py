@@ -249,7 +249,7 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
         anomalies.append("Thực lãnh âm (phạt + tạm ứng lớn hơn lương)")
     if (s["probation_start"] or s["hire_date"]) and not s["official_date"] and any(d.probation for d in days):
         anomalies.append("Đang thử việc nhưng chưa có ngày chính thức")
-    if not (s["device_code"] or "").strip() and not s["is_spa_worker"] and not s.get("is_attendance_exempt"):
+    if not (s["device_code"] or "").strip() and not s["is_spa_worker"] and not s.get("is_attendance_exempt") and not s.get("allow_remote_checkin"):
         anomalies.append("Chưa có mã máy chấm công")
     if s.get("is_attendance_exempt") and p["days_official"] + p["days_probation"] > p["std_days"]:
         anomalies.append(f"Miễn chấm công: {p['days_official'] + p['days_probation']:g} công > {p['std_days']} chuẩn, chưa nhập ngày nghỉ?")
@@ -263,8 +263,12 @@ def compute_line(cur, staff, y, m, first, last, today, rules, blocks, sales, spa
         pct = (p["net_rounded"] - prev_net) * 100 / prev_net
         if abs(pct) >= rules.alert_change_pct:
             anomalies.append(f"Thực lãnh {pct:+.0f}% so với tháng trước ({prev_net:,.0f} → {p['net_rounded']:,})".replace(",", "."))
+    in_prob = (p["days_probation"] > 0 and p["days_official"] == 0) or is_probation(s, last)
     p.update({"staff_id": s["id"], "name": s["name"], "employee_code": s["employee_code"] or "",
-              "position": s["position"] or "", "block": block.name, "anomalies": anomalies,
+              "position": s["position"] or "", "block": block.name,
+              "contractual_status": "Thử việc" if in_prob else "Chính thức",
+              "total_days": round(float(credit), 2),
+              "anomalies": anomalies,
               "sales_net": int(sales.get(s["id"], {}).get("net", 0)),
               "days": [day_to_dict(x) for x in days]})
     return p
@@ -339,11 +343,15 @@ def get_period(cur, month: str) -> dict:
     for r in cur.fetchall():
         data = json.loads(r["data_json"] or "{}")
         data.update({k: float(r[k] or 0) for k in MANUAL_FIELDS})
+        if "total_days" not in data:
+            data["total_days"] = round(float(data.get("days_official") or 0) + float(data.get("days_probation") or 0), 2)
         data.update({"line_id": r["id"], "net_pay": float(r["net_pay"] or 0), "manual_note": r["manual_note"] or "",
                      "cashbook_id": r["cashbook_id"], "cashbook_code": r["cashbook_code"], "paid_at": r["paid_at"]})
         lines.append(data)
-    keys = ("base_salary", "pay_days", "allowance", "holiday_pay", "commission", "spa_commission", "tips", "ot_pay",
-            "attendance_bonus", "birthday_bonus", "penalties", "advances", "insurance", "pit", "net_pay")
+    keys = ("days_official", "days_probation", "total_days", "base_salary", "probation_salary",
+            "pay_official", "pay_probation", "pay_days", "allowance", "fuel_other", "holiday_pay",
+            "commission", "spa_commission", "tips", "ot_pay", "attendance_bonus", "birthday_bonus",
+            "bonus_other", "gross", "penalties", "advances", "deduction_other", "insurance", "pit", "net_pay")
     totals = {k: sum(float(l.get(k) or 0) for l in lines) for k in keys}
     return {"month": month, "status": period["status"], "locked_at": period["locked_at"],
             "locked_by": period["locked_by"], "lines": lines, "totals": totals}

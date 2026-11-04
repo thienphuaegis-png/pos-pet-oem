@@ -35,6 +35,7 @@ STAFF_HR_COLUMNS = [
     ("enable_spa_commission", "INTEGER DEFAULT 1"),
     ("enable_tmdt_commission", "INTEGER DEFAULT 1"),
     ("is_attendance_exempt", "INTEGER DEFAULT 0"),
+    ("allow_remote_checkin", "INTEGER DEFAULT 0"),
 ]
 
 

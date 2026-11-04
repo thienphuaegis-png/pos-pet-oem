@@ -1191,6 +1191,11 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
     pending_exp_amount = float((exp_row[1] if exp_row else 0.0) or 0.0)
 
     payment_accounts = [dict(a) for a in pay_accs_res]
+    from routers.hrm import get_self_attendance_status
+    try:
+        self_attendance = get_self_attendance_status(db.cursor(), user["id"])
+    except Exception:
+        self_attendance = {"allow_remote_checkin": False, "punches": []}
     db.close()
 
     def format_vn(num):
@@ -1232,11 +1237,19 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             f"Hôm nay tiệm có {unpaid_count} đơn khách nợ, {pending_spa} vé dịch vụ spa cần phục vụ. "
             f"Chúc bạn một ca bán hàng đông khách và thuận lợi!"
         )
-    else:  # owner
+    elif staff_role in ('owner', 'admin'):
         briefing_desc = (
             f"Tổng quan hôm nay: Doanh số đạt {format_vn(sales_today)} đ ({orders_count} hóa đơn), "
             f"có {incoming_count} đơn hàng đang về, {low_stock_count} mã tồn thấp cần nhập, nợ NCC/xưởng {format_vn(total_payable)} đ."
         )
+    else:
+        ci = self_attendance.get("check_in")
+        co = self_attendance.get("check_out")
+        att_hint = (
+            f"Đã chấm công hôm nay: {ci} - {co}."
+            if ci and co else (f"Đã vào ca lúc {ci}, nhớ bấm Tan Ca cuối giờ nhé!" if ci else "Hôm nay bạn chưa chấm công vào ca.")
+        ) if self_attendance.get("allow_remote_checkin") else f"Tháng này đã ghi nhận {self_attendance.get('month_days_credit', 0):g} ngày công."
+        briefing_desc = f"{att_hint} Bạn có {len(reminders)} lời nhắc công việc cần lưu ý."
 
     return {
         "staff": {
@@ -1281,7 +1294,8 @@ def get_staff_briefing(user: dict = Depends(get_current_user)):
             "low_stock_count": low_stock_count
         },
         "greeting": greeting,
-        "briefing_desc": briefing_desc
+        "briefing_desc": briefing_desc,
+        "self_attendance": self_attendance
     }
 
 

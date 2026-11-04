@@ -512,6 +512,75 @@
     // BÁO CÁO NHÂN VIÊN, NHẮC VIỆC & BRIEFING ĐẦU CA
     // ========================================================
 
+    function renderAiWfhCheckinWidget(att) {
+        const wrap = document.getElementById('ai-wfh-checkin-wrap');
+        if (!wrap) return;
+        if (!att || !att.allow_remote_checkin) {
+            wrap.classList.add('hidden');
+            wrap.innerHTML = '';
+            return;
+        }
+        wrap.classList.remove('hidden');
+        const shiftHint = [att.block_name, att.shift_label].filter(Boolean).join(' • ');
+        const ci = att.check_in || '';
+        const co = att.check_out || '';
+        if (!ci) {
+            wrap.innerHTML = `
+                <button type="button" id="btn-ai-wfh-punch" onclick="punchRemoteAttendance()" title="${shiftHint ? 'Ca: ' + shiftHint : 'Bấm để ghi nhận giờ vào ca hôm nay'}"
+                    class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="ph ph-fingerprint text-sm"></i> <span>Chấm Công Vào Ca (Ở Nhà)</span>
+                </button>
+            `;
+        } else if (!co) {
+            wrap.innerHTML = `
+                <span class="px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold font-mono">
+                    🟢 Đã vào: ${ci}
+                </span>
+                <button type="button" id="btn-ai-wfh-punch" onclick="punchRemoteAttendance()" title="Bấm khi kết thúc ca làm việc ở nhà"
+                    class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="ph ph-sign-out text-sm"></i> <span>Chấm Công Tan Ca</span>
+                </button>
+            `;
+        } else {
+            const creditTxt = att.credit ? ` • ${att.credit} công` : '';
+            wrap.innerHTML = `
+                <span class="px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold font-mono">
+                    ✅ Đã chấm: ${ci} - ${co}${creditTxt}
+                </span>
+                <button type="button" id="btn-ai-wfh-punch" onclick="punchRemoteAttendance()" title="Cập nhật lại giờ kết thúc ca nếu làm thêm"
+                    class="px-2.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer">
+                    Cập nhật giờ ra
+                </button>
+            `;
+        }
+    }
+
+    window.punchRemoteAttendance = async function() {
+        const btn = document.getElementById('btn-ai-wfh-punch');
+        if (btn) btn.disabled = true;
+        try {
+            const res = await fetch('/api/hrm/self-attendance/punch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                const msg = data.detail || 'Không thể chấm công lúc này';
+                if (typeof showToast === 'function') showToast(msg, 'error');
+                else alert(msg);
+                return;
+            }
+            if (typeof showToast === 'function') showToast(data.message || 'Đã ghi nhận chấm công!', 'success');
+            if (data.attendance) renderAiWfhCheckinWidget(data.attendance);
+            await window.loadStaffBriefing();
+        } catch (e) {
+            if (typeof showToast === 'function') showToast('Lỗi kết nối máy chủ khi chấm công', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+
     window.loadStaffBriefing = async function() {
         try {
             const res = await fetch('/api/ai/staff-briefing');
@@ -526,14 +595,29 @@
 
             if (greetEl) greetEl.textContent = data.greeting || "Chào bạn!";
             if (roleEl) {
-                const roleMap = { owner: "Chủ Cửa Hàng", cashier: "Thu Ngân", warehouse: "Thủ Kho / OEM", accountant: "Kế Toán" };
+                const roleMap = { owner: "Chủ Cửa Hàng", admin: "Quản Trị Viên", cashier: "Thu Ngân", warehouse: "Thủ Kho / OEM", accountant: "Kế Toán", staff: "Nhân Viên" };
                 roleEl.textContent = roleMap[data.staff.role] || data.staff.role;
             }
+            renderAiWfhCheckinWidget(data.self_attendance);
             if (shiftBadge) {
-                shiftBadge.textContent = data.shift.status_label || "Đang kiểm tra ca";
-                shiftBadge.className = data.shift.is_open 
-                    ? "px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
-                    : "px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                if (data.staff.role === 'staff' && data.self_attendance) {
+                    const sa = data.self_attendance;
+                    if (sa.check_in && sa.check_out) {
+                        shiftBadge.textContent = `Đã chấm công: ${sa.check_in} - ${sa.check_out}`;
+                        shiftBadge.className = "px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200";
+                    } else if (sa.check_in) {
+                        shiftBadge.textContent = `Đang trong ca (Vào ${sa.check_in})`;
+                        shiftBadge.className = "px-2 py-0.5 rounded text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200";
+                    } else {
+                        shiftBadge.textContent = sa.allow_remote_checkin ? "Chưa chấm công hôm nay" : (sa.block_name || "Nhân sự");
+                        shiftBadge.className = "px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200";
+                    }
+                } else {
+                    shiftBadge.textContent = data.shift.status_label || "Đang kiểm tra ca";
+                    shiftBadge.className = data.shift.is_open 
+                        ? "px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200";
+                }
             }
             if (briefText) {
                 briefText.innerHTML = `<i class="ph ph-robot text-sky-600 text-sm"></i> <span class="font-medium text-slate-600">${data.briefing_desc || "Chúc bạn một ca làm việc thuận lợi!"}</span>`;
@@ -779,8 +863,8 @@
                     `;
                 }
 
-            } else if (role === 'owner') {
-                // ==================== VAI TRÒ: CHỦ SHOP (TỔNG QUAN) ====================
+            } else if (role === 'owner' || role === 'admin') {
+                // ==================== VAI TRÒ: CHỦ SHOP / ADMIN (TỔNG QUAN) ====================
                 if (col2Title) col2Title.textContent = "Tổng Quan Bán Hàng & Kho Vận";
                 if (col2RoleBadge) {
                     col2RoleBadge.textContent = "Chủ Tiệm";
@@ -847,6 +931,63 @@
                     `;
                 }
 
+            } else if (role === 'staff') {
+                // ==================== VAI TRÒ: NHÂN VIÊN VĂN PHÒNG / WFH / CHẤM CÔNG ====================
+                const sa = data.self_attendance || {};
+                const canPayroll = typeof Auth !== 'undefined' && Auth.can('payroll.manage');
+                if (col2Title) col2Title.textContent = "Chấm Công & Tiện Ích Nhân Sự";
+                if (col2RoleBadge) {
+                    col2RoleBadge.textContent = sa.block_name || "Nhân Viên";
+                    col2RoleBadge.className = "text-xs text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200";
+                }
+                if (col2KpiGrid) {
+                    col2KpiGrid.className = "grid grid-cols-2 gap-2 text-xs";
+                    const todayVal = sa.check_in ? `${sa.check_in}${sa.check_out ? ' - ' + sa.check_out : ' (Đang làm)'}` : 'Chưa chấm';
+                    col2KpiGrid.innerHTML = `
+                        <div class="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                            <div class="text-xs text-slate-500 font-medium">Chấm công hôm nay</div>
+                            <div class="text-sm font-bold ${sa.check_in ? 'text-emerald-700' : 'text-amber-600'} font-mono mt-0.5">${todayVal}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">${sa.shift_label ? 'Ca: ' + sa.shift_label : 'Theo dõi giờ làm'}</div>
+                        </div>
+                        <div onclick="if(typeof switchTab==='function') switchTab('my-payslip')" class="bg-white p-2.5 rounded-lg border border-sky-200 bg-sky-50/30 cursor-pointer hover:border-sky-400 transition shadow-2xs">
+                            <div class="text-xs text-sky-700 font-bold">Tổng công tháng này</div>
+                            <div class="text-sm font-bold text-sky-700 font-mono mt-0.5">${sa.month_days_credit || 0} ngày công</div>
+                            <div class="text-xs text-sky-600 mt-0.5">👉 Xem Phiếu Lương Của Tôi</div>
+                        </div>
+                    `;
+                }
+                if (col2ListTitle) col2ListTitle.textContent = "Lối Tắt Công Việc";
+                if (col2ListSub) col2ListSub.textContent = "";
+                if (col2ListContent) {
+                    let linksHtml = '';
+                    if (sa.allow_remote_checkin) {
+                        linksHtml += `
+                            <button type="button" onclick="punchRemoteAttendance()" class="w-full p-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer transition text-left text-emerald-900 font-bold flex items-center justify-between">
+                                <span>🏠 ${!sa.check_in ? 'Bấm Chấm Công Vào Ca (Làm ở nhà)' : (!sa.check_out ? 'Bấm Chấm Công Tan Ca' : 'Cập Nhật Giờ Tan Ca Hôm Nay')}</span>
+                                <span class="font-mono text-xs text-emerald-700">${sa.check_in ? 'Vào: ' + sa.check_in : 'Ngay bây giờ'}</span>
+                            </button>
+                        `;
+                    }
+                    if (canPayroll) {
+                        linksHtml += `
+                            <div onclick="if(typeof switchTab==='function') switchTab('hrm')" class="p-2.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 cursor-pointer transition text-sky-900 font-bold flex items-center justify-between">
+                                <span>💼 Mở Quản Lý Chấm Công & Bảng Lương</span>
+                                <span class="text-xs text-sky-700">→</span>
+                            </div>
+                        `;
+                    }
+                    linksHtml += `
+                        <div onclick="if(typeof switchTab==='function') switchTab('my-payslip')" class="p-2.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 cursor-pointer transition text-slate-800 font-semibold flex items-center justify-between">
+                            <span>🧾 Xem Phiếu Lương Cá Nhân</span>
+                            <span class="text-xs text-slate-500">→</span>
+                        </div>
+                    `;
+                    col2ListContent.innerHTML = linksHtml;
+                }
+                if (col2FooterBox) {
+                    col2FooterBox.classList.add('hidden');
+                    col2FooterBox.innerHTML = '';
+                }
             } else {
                 // ==================== VAI TRÒ MẶC ĐỊNH: THU NGÂN (CASHIER) ====================
                 if (col2Title) col2Title.textContent = "Hiệu Suất & Doanh Số Ca";

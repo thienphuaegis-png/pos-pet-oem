@@ -160,10 +160,135 @@
         switchHrmSubTab(currentSubTab);
     };
 
-    // ── Bảng Lương ──
-    async function loadHrmPayroll(month) {
+    // ── Bảng Lương & Cài Đặt Cột Hiển Thị ──
+    const PAYROLL_COL_STORAGE_KEY = 'hrm_payroll_visible_cols_v1';
+    const PAYROLL_COLUMNS = [
+        { key: 'alert', label: '⚠', fixed: true, group: 'lead', thCls: 'p-2.5 text-center', title: 'Cảnh báo cần kiểm tra trước khi chốt' },
+        { key: 'employee_code', label: 'Mã NV', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'name', label: 'Họ và Tên', fixed: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'block', label: 'Khối', defaultOn: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'position', label: 'Chức vụ', defaultOn: true, group: 'lead', thCls: 'p-2.5 whitespace-nowrap' },
+        { key: 'contractual_status', label: 'Tình trạng', defaultOn: false, group: 'lead', thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'std_days', label: 'Công chuẩn', defaultOn: true, group: 'lead', thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'days_official', label: 'Công CT', defaultOn: true, sumKey: 'days_official', isDaySum: true, thCls: 'p-2.5 text-center whitespace-nowrap text-emerald-700' },
+        { key: 'days_probation', label: 'Công TV', defaultOn: true, sumKey: 'days_probation', isDaySum: true, thCls: 'p-2.5 text-center whitespace-nowrap text-amber-700' },
+        { key: 'total_days', label: 'Tổng công', defaultOn: true, sumKey: 'total_days', isDaySum: true, thCls: 'p-2.5 text-center whitespace-nowrap font-bold' },
+        { key: 'base_salary', label: 'Lương CB', defaultOn: true, sumKey: 'base_salary', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'probation_salary', label: 'Lương TV (85%)', defaultOn: true, sumKey: 'probation_salary', thCls: 'p-2.5 text-right whitespace-nowrap text-slate-600' },
+        { key: 'pay_days', label: 'Lương công', defaultOn: true, sumKey: 'pay_days', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'allowance', label: 'Phụ cấp', defaultOn: true, sumKey: 'allowance', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'fuel_other', label: 'PC Xăng/Khác', defaultOn: true, sumKey: 'fuel_other', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'holiday_pay', label: 'Lễ', defaultOn: true, sumKey: 'holiday_pay', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'commission', label: 'Hoa hồng bán', defaultOn: true, sumKey: 'commission', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'spa_commission', label: 'Hoa hồng Spa', defaultOn: true, sumKey: 'spa_commission', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'tips', label: 'Tip', defaultOn: true, sumKey: 'tips', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'attendance_bonus', label: 'Chuyên cần', defaultOn: true, sumKey: 'attendance_bonus', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'birthday_bonus', label: 'Thưởng SN', defaultOn: true, sumKey: 'birthday_bonus', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'bonus_other', label: 'Thưởng khác', defaultOn: true, sumKey: 'bonus_other', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'ot_pay', label: 'Tăng ca', defaultOn: true, sumKey: 'ot_pay', thCls: 'p-2.5 text-right whitespace-nowrap' },
+        { key: 'gross', label: 'Tổng thu nhập', defaultOn: true, sumKey: 'gross', thCls: 'p-2.5 text-right whitespace-nowrap text-slate-800' },
+        { key: 'penalties', label: 'Phạt', defaultOn: true, sumKey: 'penalties', isNeg: true, thCls: 'p-2.5 text-right whitespace-nowrap text-rose-600' },
+        { key: 'advances', label: 'Tạm ứng', defaultOn: true, sumKey: 'advances', isNeg: true, thCls: 'p-2.5 text-right whitespace-nowrap text-rose-600' },
+        { key: 'deduction_other', label: 'Trừ khác', defaultOn: true, sumKey: 'deduction_other', isNeg: true, thCls: 'p-2.5 text-right whitespace-nowrap text-rose-600' },
+        { key: 'insurance', label: 'BHXH', defaultOn: true, sumKey: 'insurance', isDashZero: true, thCls: 'p-2.5 text-right whitespace-nowrap text-sky-700' },
+        { key: 'pit', label: 'Thuế TNCN', defaultOn: true, sumKey: 'pit', isDashZero: true, thCls: 'p-2.5 text-right whitespace-nowrap text-sky-700' },
+        { key: 'net_pay', label: 'Thực Lãnh', fixed: true, sumKey: 'net_pay', thCls: 'p-2.5 text-right whitespace-nowrap font-bold text-emerald-700' },
+        { key: 'paid_status', label: 'Trạng Thái Chi', defaultOn: true, group: 'tail', thCls: 'p-2.5 text-center whitespace-nowrap' },
+        { key: 'actions', label: 'Thao Tác', fixed: true, group: 'tail', thCls: 'p-2.5 text-center whitespace-nowrap' }
+    ];
+
+    let payrollColsVis = (() => {
+        const def = {};
+        PAYROLL_COLUMNS.forEach(c => { if (!c.fixed) def[c.key] = c.defaultOn !== false; });
         try {
-            const res = await fetch(`/api/hrm/payroll/${month}`);
+            const raw = localStorage.getItem(PAYROLL_COL_STORAGE_KEY);
+            if (raw) Object.assign(def, JSON.parse(raw));
+        } catch (_) {}
+        return def;
+    })();
+    let payrollColsLoadedFromServer = false;
+
+    function isPayrollColVisible(col) {
+        return col.fixed ? true : payrollColsVis[col.key] !== false;
+    }
+
+    function syncPayrollColsBadgeAndPopover() {
+        const toggleable = PAYROLL_COLUMNS.filter(c => !c.fixed);
+        const onCount = toggleable.filter(c => isPayrollColVisible(c)).length;
+        const badge = document.getElementById('hrm-payroll-cols-badge');
+        if (badge) badge.textContent = `${onCount}/${toggleable.length}`;
+        const listEl = document.getElementById('hrm-payroll-cols-list');
+        if (listEl) {
+            listEl.innerHTML = toggleable.map(c => `
+                <label class="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer select-none">
+                    <input type="checkbox" ${isPayrollColVisible(c) ? 'checked' : ''} onchange="togglePayrollColumn('${c.key}', this.checked)" class="rounded text-sky-600 cursor-pointer">
+                    <span class="truncate ${c.key === 'insurance' || c.key === 'pit' ? 'font-bold text-sky-800' : 'text-slate-700'}">${c.label}</span>
+                </label>
+            `).join('');
+        }
+    }
+
+    async function persistPayrollColumns() {
+        try { localStorage.setItem(PAYROLL_COL_STORAGE_KEY, JSON.stringify(payrollColsVis)); } catch (_) {}
+        try {
+            await fetch('/api/hrm/payroll-columns', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columns: payrollColsVis })
+            });
+        } catch (_) {}
+    }
+
+    window.togglePayrollColumnsPopover = function(e) {
+        if (e) e.stopPropagation();
+        const pop = document.getElementById('hrm-payroll-cols-popover');
+        if (!pop) return;
+        syncPayrollColsBadgeAndPopover();
+        pop.classList.toggle('hidden');
+    };
+
+    document.addEventListener('click', () => {
+        const pop = document.getElementById('hrm-payroll-cols-popover');
+        if (pop && !pop.classList.contains('hidden')) pop.classList.add('hidden');
+    });
+
+    window.togglePayrollColumn = function(colKey, checked) {
+        payrollColsVis[colKey] = Boolean(checked);
+        syncPayrollColsBadgeAndPopover();
+        persistPayrollColumns();
+        if (payrollData) renderPayrollUI(payrollData);
+    };
+
+    window.applyPayrollColsPreset = function(mode) {
+        PAYROLL_COLUMNS.forEach(c => {
+            if (c.fixed) return;
+            if (mode === 'hide_tax_ins') {
+                if (c.key === 'insurance' || c.key === 'pit') payrollColsVis[c.key] = false;
+            } else if (mode === 'all') {
+                payrollColsVis[c.key] = true;
+            }
+        });
+        syncPayrollColsBadgeAndPopover();
+        persistPayrollColumns();
+        if (payrollData) renderPayrollUI(payrollData);
+    };
+
+    async function loadHrmPayroll(month) {
+        const m = month || getSelectedMonth();
+        try {
+            if (!payrollColsLoadedFromServer) {
+                payrollColsLoadedFromServer = true;
+                fetch('/api/hrm/payroll-columns').then(r => r.ok ? r.json() : null).then(cfg => {
+                    if (cfg && cfg.columns && typeof cfg.columns === 'object') {
+                        Object.assign(payrollColsVis, cfg.columns);
+                        try { localStorage.setItem(PAYROLL_COL_STORAGE_KEY, JSON.stringify(payrollColsVis)); } catch (_) {}
+                        syncPayrollColsBadgeAndPopover();
+                        if (payrollData) renderPayrollUI(payrollData);
+                    }
+                }).catch(() => {});
+            }
+            syncPayrollColsBadgeAndPopover();
+            const res = await fetch(`/api/hrm/payroll/${m}`);
             if (!res.ok) return;
             payrollData = await res.json();
             renderPayrollUI(payrollData);
@@ -209,16 +334,22 @@
             btnPay.classList.add('hidden');
         }
 
+        const thead = document.getElementById('table-hrm-payroll-head');
         const tbody = document.getElementById('table-hrm-payroll');
+        const foot = document.getElementById('table-hrm-payroll-foot');
+        const visCols = PAYROLL_COLUMNS.filter(c => isPayrollColVisible(c));
+        syncPayrollColsBadgeAndPopover();
+        if (thead) {
+            thead.innerHTML = `<tr>${visCols.map(c => `<th data-pcol="${c.key}" class="${c.thCls}" ${c.title ? `title="${c.title}"` : ''}>${c.label}</th>`).join('')}</tr>`;
+        }
+
         const issuesBar = document.getElementById('hrm-payroll-issues-bar');
         const allLines = data.lines || [];
         const issueLines = allLines.filter(l => (l.anomalies || []).length);
         if (issuesBar) {
             issuesBar.classList.toggle('hidden', !issueLines.length);
-            // Gom theo loại cảnh báo (bỏ phần số riêng của từng người sau dấu ":" / "(")
             const byType = {};
             issueLines.forEach(l => l.anomalies.forEach(a => {
-                // Bỏ phần số riêng từng người: "Lương CB 4.800.000 thấp hơn…" / "Thực lãnh -63% so với…" gom chung 1 loại
                 const k = a.split(/[:(]/)[0].replace(/[+-]?\d{1,3}(\.\d{3})+|[+-]\d+%/g, '…').replace(/\s+/g, ' ').trim();
                 byType[k] = (byType[k] || 0) + 1;
             }));
@@ -228,73 +359,116 @@
         const onlyIssues = document.getElementById('hrm-payroll-only-issues')?.checked;
         const lines = onlyIssues ? issueLines : allLines;
         if (!lines.length) {
-            tbody.innerHTML = `<tr><td colspan="24" class="p-6 text-center text-slate-400">Chưa có dữ liệu bảng lương tháng này. Hãy bấm "Tính Lương" để khởi tạo.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${visCols.length}" class="p-6 text-center text-slate-400">Chưa có dữ liệu bảng lương tháng này. Hãy bấm "Tính Lương" để khởi tạo.</td></tr>`;
+            if (foot) foot.innerHTML = '';
             return;
         }
         const esc = v => String(v ?? '').replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+        const fmtN = v => Number(v || 0).toLocaleString('vi-VN');
+
+        const renderCell = (col, l, issCell) => {
+            const totalDays = Number((Number(l.days_official || 0) + Number(l.days_probation || 0)).toFixed(2));
+            switch (col.key) {
+                case 'alert':
+                    return `<td class="p-2.5 text-center">${issCell}</td>`;
+                case 'employee_code':
+                    return `<td class="p-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">${esc(l.employee_code || '')}</td>`;
+                case 'name':
+                    return `<td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 font-bold text-slate-900 hover:text-sky-700 hover:underline cursor-pointer whitespace-nowrap" title="Bấm xem phiếu lương chi tiết">${esc(l.name || '')}</td>`;
+                case 'block':
+                    return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${esc(l.block || '')}</td>`;
+                case 'position':
+                    return `<td class="p-2.5 text-slate-600 whitespace-nowrap">${esc(l.position || '')}</td>`;
+                case 'contractual_status':
+                    return `<td class="p-2.5 text-center whitespace-nowrap"><span class="px-1.5 py-0.5 rounded text-xs font-semibold ${l.contractual_status === 'Thử việc' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}">${esc(l.contractual_status || 'Chính thức')}</span></td>`;
+                case 'std_days':
+                    return `<td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-center cursor-pointer hover:bg-slate-100 hover:underline" title="Bấm xem chi tiết chấm công 30 ngày">${l.std_days || 0}</td>`;
+                case 'days_official':
+                    return `<td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-center font-bold text-emerald-700 cursor-pointer hover:bg-emerald-50 hover:underline" title="Bấm xem chi tiết chấm công 30 ngày">${l.days_official || 0}</td>`;
+                case 'days_probation':
+                    return `<td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-center font-bold text-amber-600 cursor-pointer hover:bg-amber-50 hover:underline" title="Bấm xem chi tiết chấm công 30 ngày">${l.days_probation || 0}</td>`;
+                case 'total_days':
+                    return `<td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-center font-bold text-slate-900 cursor-pointer hover:bg-sky-50 hover:underline" title="Bấm xem chi tiết chấm công 30 ngày">${l.total_days !== undefined ? l.total_days : totalDays}</td>`;
+                case 'base_salary':
+                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.base_salary)}</td>`;
+                case 'probation_salary':
+                    return `<td class="p-2.5 text-right font-mono text-slate-500">${fmtN(l.probation_salary)}</td>`;
+                case 'pay_days':
+                    return `<td class="p-2.5 text-right font-mono font-bold">${fmtN(l.pay_days)}</td>`;
+                case 'allowance':
+                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.allowance)}</td>`;
+                case 'fuel_other':
+                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.fuel_other)}</td>`;
+                case 'holiday_pay':
+                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.holiday_pay)}</td>`;
+                case 'commission':
+                    return `<td class="p-2.5 text-right font-mono text-sky-700">${fmtN(l.commission)}</td>`;
+                case 'spa_commission':
+                    return `<td class="p-2.5 text-right font-mono text-sky-700">${fmtN(l.spa_commission)}</td>`;
+                case 'tips':
+                    return `<td class="p-2.5 text-right font-mono text-sky-700">${fmtN(l.tips)}</td>`;
+                case 'attendance_bonus':
+                    return `<td class="p-2.5 text-right font-mono text-emerald-700">${fmtN(l.attendance_bonus)}</td>`;
+                case 'birthday_bonus':
+                    return `<td class="p-2.5 text-right font-mono">${fmtN(l.birthday_bonus)}</td>`;
+                case 'bonus_other':
+                    return `<td class="p-2.5 text-right font-mono text-emerald-700">${fmtN(l.bonus_other)}</td>`;
+                case 'ot_pay':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-amber-700">${fmtN(l.ot_pay)}</td>`;
+                case 'gross':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-slate-800">${fmtN(l.gross)}</td>`;
+                case 'penalties':
+                    return `<td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-right font-mono font-bold text-rose-600 cursor-pointer hover:bg-rose-50 hover:underline" title="Bấm xem chi tiết phút trễ & duyệt phạt">-${fmtN(l.penalties)}</td>`;
+                case 'advances':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-rose-600">-${fmtN(l.advances)}</td>`;
+                case 'deduction_other':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-rose-600">-${fmtN(l.deduction_other)}</td>`;
+                case 'insurance':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.insurance ? '-' + fmtN(l.insurance) : '—'}</td>`;
+                case 'pit':
+                    return `<td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.pit ? '-' + fmtN(l.pit) : '—'}</td>`;
+                case 'net_pay':
+                    return `<td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700 cursor-pointer hover:underline" title="Bấm xem phiếu lương chi tiết">${fmtN(l.net_rounded)}đ</td>`;
+                case 'paid_status':
+                    return `<td class="p-2.5 text-center whitespace-nowrap">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">${esc(l.cashbook_code)}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>`;
+                case 'actions':
+                    return `<td class="p-2.5 text-center whitespace-nowrap"><button onclick="openHrmPayslipModal(${l.staff_id})" class="text-indigo-700 hover:underline font-bold cursor-pointer" title="Xem & in phiếu lương nhân viên">Phiếu lương</button></td>`;
+                default:
+                    return `<td class="p-2.5"></td>`;
+            }
+        };
 
         tbody.innerHTML = lines.map(l => {
             const iss = l.anomalies || [];
             const issCell = iss.length
                 ? `<span class="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-amber-100 text-amber-800 font-bold cursor-help" title="${esc(iss.join('\n'))}">${iss.length}</span>`
                 : '';
-            return `
-            <tr class="hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">
-                <td class="p-2.5 text-center">${issCell}</td>
-                <td class="p-2.5 font-mono font-bold text-slate-700">${l.employee_code || ''}</td>
-                <td onclick="openHrmPayslipModal(${l.staff_id})" class="p-2.5 font-bold text-slate-900 hover:text-sky-700 hover:underline cursor-pointer" title="Bấm xem phiếu lương chi tiết">${l.name || ''}</td>
-                <td class="p-2.5 text-slate-600">${l.block || ''}</td>
-                <td class="p-2.5 text-center">${l.std_days || 0}</td>
-                <td class="p-2.5 text-center font-bold text-emerald-700">${l.days_official || 0}</td>
-                <td class="p-2.5 text-center font-bold text-amber-600">${l.days_probation || 0}</td>
-                <td class="p-2.5 text-right font-mono">${(l.base_salary || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold">${(l.pay_days || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(l.allowance || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(l.holiday_pay || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${(l.commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${(l.spa_commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${(l.tips || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-emerald-700">${(l.attendance_bonus || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(l.birthday_bonus || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-amber-700">${(l.ot_pay || 0).toLocaleString('vi-VN')}</td>
-                <td onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="p-2.5 text-right font-mono font-bold text-rose-600 cursor-pointer hover:bg-rose-50 hover:underline" title="Bấm xem chi tiết phút trễ & phạt vi phạm">-${(l.penalties || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-rose-600">-${(l.advances || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.insurance ? '-' + Number(l.insurance).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-sky-700">${l.pit ? '-' + Number(l.pit).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-sm text-emerald-700">${(l.net_rounded || 0).toLocaleString('vi-VN')}đ</td>
-                <td class="p-2.5 text-center">${l.cashbook_code ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">${l.cashbook_code}</span>` : `<span class="text-slate-400">Chưa chi</span>`}</td>
-                <td class="p-2.5 text-center whitespace-nowrap">
-                    <button onclick="openHrmPayslipModal(${l.staff_id})" class="text-indigo-700 hover:underline font-bold mr-2 cursor-pointer" title="Xem & in phiếu lương nhân viên">Phiếu lương</button>
-                    <button onclick="viewHrmStaffDaysDetail(${l.staff_id})" class="text-emerald-700 hover:underline font-bold mr-2 cursor-pointer">Chi tiết công</button>
-                    <button onclick="editHrmLine(${l.staff_id}, ${l.bonus_other || 0}, ${l.fuel_other || 0}, ${l.deduction_other || 0}, '${(l.manual_note || '').replace(/'/g, "\\'")}')" class="text-sky-600 hover:underline font-bold mr-2 cursor-pointer">Sửa số</button>
-                </td>
-            </tr>
-        `;
+            return `<tr class="hover:bg-slate-50 ${iss.length ? 'bg-amber-50/40' : ''}">${visCols.map(c => renderCell(c, l, issCell)).join('')}</tr>`;
         }).join('');
 
-        const foot = document.getElementById('table-hrm-payroll-foot');
         const tot = data.totals || {};
-        foot.innerHTML = `
-            <tr>
-                <td colspan="7" class="p-2.5 text-right uppercase">Tổng cộng:</td>
-                <td class="p-2.5 text-right font-mono">${(tot.base_salary || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono font-bold">${(tot.pay_days || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.allowance || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.holiday_pay || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.spa_commission || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.tips || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.attendance_bonus || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.birthday_bonus || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono">${(tot.ot_pay || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.penalties || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-rose-600">-${(tot.advances || 0).toLocaleString('vi-VN')}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${tot.insurance ? '-' + Number(tot.insurance).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono text-sky-700">${tot.pit ? '-' + Number(tot.pit).toLocaleString('vi-VN') : '—'}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-emerald-800 text-sm">${(tot.net_pay || 0).toLocaleString('vi-VN')}đ</td>
-                <td colspan="2"></td>
-            </tr>
-        `;
+        const firstSumIdx = visCols.findIndex(c => c.sumKey);
+        const leadSpan = firstSumIdx > 0 ? firstSumIdx : 1;
+        let footHtml = `<tr><td colspan="${leadSpan}" class="p-2.5 text-right uppercase">Tổng cộng:</td>`;
+        for (let i = leadSpan; i < visCols.length; i++) {
+            const c = visCols[i];
+            if (!c.sumKey) {
+                footHtml += `<td class="p-2.5"></td>`;
+            } else if (c.key === 'net_pay') {
+                footHtml += `<td class="p-2.5 text-right font-mono font-bold text-emerald-800 text-sm">${fmtN(tot.net_pay)}đ</td>`;
+            } else if (c.isDaySum) {
+                const v = Number((tot[c.sumKey] || 0).toFixed ? Number(tot[c.sumKey] || 0).toFixed(1) : 0);
+                footHtml += `<td class="p-2.5 text-center font-mono">${v}</td>`;
+            } else if (c.isDashZero) {
+                footHtml += `<td class="p-2.5 text-right font-mono text-sky-700">${tot[c.sumKey] ? '-' + fmtN(tot[c.sumKey]) : '—'}</td>`;
+            } else if (c.isNeg) {
+                footHtml += `<td class="p-2.5 text-right font-mono text-rose-600">-${fmtN(tot[c.sumKey])}</td>`;
+            } else {
+                footHtml += `<td class="p-2.5 text-right font-mono ${c.key === 'pay_days' || c.key === 'gross' ? 'font-bold' : ''}">${fmtN(tot[c.sumKey])}</td>`;
+            }
+        }
+        footHtml += `</tr>`;
+        if (foot) foot.innerHTML = footHtml;
     }
 
     window.calculateHrmPayroll = async function() {
@@ -2306,10 +2480,11 @@
                 <tr class="${rowClass}">
                     <td class="p-2.5">
                         <div class="font-bold text-slate-800 text-xs ${isResigned ? 'line-through text-slate-500' : ''}">${r.name}</div>
-                        <div class="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+                        <div class="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5 flex-wrap">
                             ${r.employee_code ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">${r.employee_code}</span>` : ''}
                             ${r.phone ? `<span>📞 ${r.phone}</span>` : ''}
                             ${r.is_spa_worker ? `<span class="bg-sky-50 text-sky-700 px-1 rounded font-bold">✂️ Thợ Spa</span>` : ''}
+                            ${r.allow_remote_checkin ? `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 rounded font-bold">🏠 Làm ở nhà (WFH)</span>` : ''}
                             ${isResigned && r.leave_date ? `<span class="bg-rose-50 text-rose-700 px-1 rounded font-bold">Nghỉ: ${r.leave_date}</span>` : ''}
                         </div>
                     </td>
@@ -2324,6 +2499,7 @@
                     <td class="p-2.5 text-center">${contractBadge}</td>
                     <td class="p-2.5 text-center">${accountBadge}</td>
                     <td class="p-2.5 text-center whitespace-nowrap">
+                        ${!isResigned ? `<button onclick="toggleHrmStaffWfh(${r.id}, ${r.allow_remote_checkin ? 0 : 1})" class="px-1.5 py-1 ${r.allow_remote_checkin ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'} rounded text-xs font-bold cursor-pointer mr-1" title="Bật/tắt cho phép tự chấm công làm ở nhà trên Tác Nhân AI">🏠 WFH</button>` : ''}
                         <button onclick="openHrmPayslipModal(${r.id})" class="px-1.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold cursor-pointer mr-1" title="Xem phiếu lương">🧾 Lương</button>
                         <button onclick="openHrmStaffModal(${r.id})" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-bold cursor-pointer mr-1" title="Sửa hồ sơ">✏️ Sửa</button>
                         <button onclick="openHrmAdjustmentModal(${r.id})" class="px-1.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded text-xs font-bold cursor-pointer mr-1" title="Tạo điều chỉnh lương">⚖️ Đ/C</button>
@@ -2413,6 +2589,27 @@
         Object.keys(hrmStaffPickerState).forEach(k => delete hrmStaffPickerState[k]);
     };
 
+    window.toggleHrmStaffWfh = async function(staffId, enableVal) {
+        try {
+            const res = await fetch(`/api/hrm/employees/${staffId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ allow_remote_checkin: enableVal ? 1 : 0 })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Không thể cập nhật quyền chấm công làm ở nhà');
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast(enableVal ? 'Đã bật Chấm công làm ở nhà (WFH) trên Tác Nhân AI' : 'Đã tắt Chấm công làm ở nhà (WFH)', 'success');
+            }
+            loadHrmStaff();
+        } catch (e) {
+            alert('Lỗi kết nối máy chủ');
+        }
+    };
+
     window.confirmHrmStaffDelete = async function(staffId, staffName) {
         const confirmed = typeof window.showConfirmModal === 'function'
             ? await window.showConfirmModal({
@@ -2476,6 +2673,8 @@
         document.getElementById('hrm-staff-allowance').value = '';
         document.getElementById('hrm-staff-allowance-effective').textContent = '';
         document.getElementById('hrm-staff-is-attendance-exempt').checked = false;
+        const wfhElReset = document.getElementById('hrm-staff-allow-remote-checkin');
+        if (wfhElReset) wfhElReset.checked = false;
         document.getElementById('hrm-staff-hire-date').value = '';
         document.getElementById('hrm-staff-probation-start').value = '';
         document.getElementById('hrm-staff-official-date').value = '';
@@ -2539,6 +2738,8 @@
                 document.getElementById('hrm-staff-allowance-effective').textContent =
                     allowEff !== Number(s.allowance || 0) ? `Đang hưởng: ${allowEff.toLocaleString('vi-VN')} đ (gồm điều chỉnh)` : '';
                 document.getElementById('hrm-staff-is-attendance-exempt').checked = Boolean(s.is_attendance_exempt);
+                const wfhEl = document.getElementById('hrm-staff-allow-remote-checkin');
+                if (wfhEl) wfhEl.checked = Boolean(s.allow_remote_checkin);
                 document.getElementById('hrm-staff-hire-date').value = s.hire_date || '';
                 document.getElementById('hrm-staff-probation-start').value = s.probation_start || '';
                 document.getElementById('hrm-staff-official-date').value = s.official_date || '';
@@ -2618,6 +2819,7 @@
             commission_rate: parseFloat(document.getElementById('hrm-staff-commission-rate')?.value) || 0,
             is_spa_worker: document.getElementById('hrm-staff-is-spa')?.checked ? 1 : 0,
             is_attendance_exempt: document.getElementById('hrm-staff-is-attendance-exempt')?.checked ? 1 : 0,
+            allow_remote_checkin: document.getElementById('hrm-staff-allow-remote-checkin')?.checked ? 1 : 0,
 
             // Contract & Insurance
             has_contract: document.getElementById('hrm-staff-has-contract')?.checked ? 1 : 0,

@@ -25,7 +25,8 @@ PROFILE_FIELDS = (
     "emergency_phone", "emergency_relation",
     "has_contract", "contract_number", "contract_type", "dependents_count",
     "insurance_salary", "is_insurance_exempt",
-    "is_spa_worker", "commission_rate", "is_payroll_staff", "is_attendance_exempt"
+    "is_spa_worker", "commission_rate", "is_payroll_staff", "is_attendance_exempt",
+    "allow_remote_checkin"
 )
 
 
@@ -236,6 +237,7 @@ class ProfileIn(BaseModel):
     commission_rate: Optional[float] = None
     is_payroll_staff: Optional[int] = 1
     is_attendance_exempt: Optional[int] = None
+    allow_remote_checkin: Optional[int] = None
     is_active: Optional[int] = None
 
 
@@ -790,6 +792,168 @@ def toggle_waive(w: WaiveIn, user=Depends(require_permission(PERM))):
     return {"status": "ok", "waive": w.waive, "note": note_val}
 
 
+# ── Chấm công làm ở nhà (WFH / Remote Self Check-in & Check-out) ──
+def get_self_attendance_status(cur, staff_id: int, ref_today: Optional[date] = None) -> dict:
+    today = ref_today or date.today()
+    cur.execute("""
+        SELECT s.*, b.name AS block_name, b.start_time, b.end_time
+        FROM staff s
+        LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
+        WHERE s.id = ?
+    """, (staff_id,))
+    row = cur.fetchone()
+    if not row:
+        return {"allow_remote_checkin": False, "work_date": today.isoformat(), "punches": []}
+    s = dict(row)
+    allow_remote = bool(s.get("allow_remote_checkin"))
+    cur.execute("SELECT punches, leave_type, note, source FROM staff_attendance WHERE staff_id = ? AND work_date = ?",
+                (staff_id, today.isoformat()))
+    att_row = cur.fetchone()
+    punches = json.loads(att_row["punches"] or "[]") if att_row and att_row["punches"] else []
+
+    rules = ps.load_rules(cur)
+    blocks = ps.load_blocks(cur)
+    block = blocks.get(s.get("work_block_id"))
+    first = date(today.year, today.month, 1)
+    import calendar
+    last = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+    today_res = {"check_in": punches[0] if punches else "", "check_out": punches[-1] if len(punches) >= 2 else "",
+                 "code": "", "credit": 0.0, "worked_min": 0, "late_min": 0}
+    month_credit = 0.0
+    if block:
+        days = ps.build_days(cur, s, block, rules, first, last, today)
+        month_credit = round(sum(float(d.credit) for d in days), 2)
+        for d in days:
+            if d.work_date == today:
+                today_res = ps.day_to_dict(d)
+                break
+
+    shift_label = f"{s.get('start_time')} - {s.get('end_time')}" if s.get("start_time") and s.get("end_time") else ""
+    actual_in = punches[0] if len(punches) >= 1 else ""
+    actual_out = punches[-1] if len(punches) >= 2 else ""
+    return {
+        "allow_remote_checkin": allow_remote,
+        "work_date": today.isoformat(),
+        "block_name": s.get("block_name") or "",
+        "shift_label": shift_label,
+        "punches": punches,
+        "check_in": actual_in,
+        "check_out": actual_out,
+        "code": today_res.get("code") if len(punches) >= 2 else "",
+        "credit": float(today_res.get("credit") or 0) if len(punches) >= 2 else 0.0,
+        "worked_min": int(today_res.get("worked_min") or 0) if len(punches) >= 2 else 0,
+        "late_min": int(today_res.get("late_min") or 0),
+        "month_days_credit": month_credit,
+        "source": att_row["source"] if att_row else "",
+    }
+
+
+class SelfPunchIn(BaseModel):
+    note: Optional[str] = ""
+
+
+@router.get("/self-attendance/today")
+def api_get_self_attendance_today(user=Depends(get_current_user)):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        return get_self_attendance_status(cur, user["id"])
+    finally:
+        conn.close()
+
+
+@router.post("/self-attendance/punch")
+def api_punch_self_attendance(body: SelfPunchIn = None, user=Depends(get_current_user)):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id, name, role, allow_remote_checkin FROM staff WHERE id = ?", (user["id"],))
+        st = cur.fetchone()
+        if not st:
+            raise HTTPException(404, "Không tìm thấy hồ sơ nhân viên")
+        if not st["allow_remote_checkin"] and user.get("role") not in ("owner", "admin"):
+            raise HTTPException(403, "Tài khoản chưa được bật chế độ Chấm công làm ở nhà (WFH). Vui lòng nhờ Quản lý bật trong Hồ sơ Nhân sự.")
+
+        now_dt = datetime.now()
+        today_iso = now_dt.date().isoformat()
+        now_hm = now_dt.strftime("%H:%M")
+        ps.assert_month_open(cur, today_iso)
+
+        cur.execute("SELECT punches, note FROM staff_attendance WHERE staff_id = ? AND work_date = ?", (user["id"], today_iso))
+        existing = cur.fetchone()
+        old_punches = json.loads(existing["punches"] or "[]") if existing and existing["punches"] else []
+        valid_mins = sorted({to_min(p) for p in old_punches if to_min(p) is not None})
+        now_min = to_min(now_hm)
+
+        if not valid_mins:
+            new_mins = [now_min]
+            action_done = "check_in"
+            msg = f"Đã chấm công VÀO CA lúc {now_hm} (Làm tại nhà)"
+        elif len(valid_mins) == 1:
+            if valid_mins[0] == now_min:
+                new_mins = valid_mins
+                action_done = "already_checked_in"
+                msg = f"Đã ghi nhận giờ vào ca {now_hm}. Cuối giờ bạn bấm lại để chấm Tan Ca nhé!"
+            else:
+                new_mins = sorted({valid_mins[0], now_min})
+                action_done = "check_out"
+                msg = f"Đã chấm công TAN CA lúc {now_hm} (Vào {new_mins[0]//60:02d}:{new_mins[0]%60:02d} - Ra {new_mins[-1]//60:02d}:{new_mins[-1]%60:02d})"
+        else:
+            first_m = valid_mins[0]
+            last_m = max(valid_mins[-1], now_min) if now_min >= first_m else now_min
+            new_mins = sorted({first_m, last_m})
+            action_done = "update_check_out"
+            msg = f"Đã cập nhật giờ TAN CA lúc {now_hm} (Vào {new_mins[0]//60:02d}:{new_mins[0]%60:02d} - Ra {new_mins[-1]//60:02d}:{new_mins[-1]%60:02d})"
+
+        note_in = (body.note or "").strip() if body else ""
+        old_note = (existing["note"] or "").strip() if existing else ""
+        final_note = note_in or old_note or "Chấm công Online (WFH)"
+        punches_json = json.dumps([f"{m // 60:02d}:{m % 60:02d}" for m in new_mins])
+
+        cur.execute("""
+            INSERT INTO staff_attendance (staff_id, work_date, punches, leave_type, waive, note, source, updated_by, updated_at)
+            VALUES (?, ?, ?, NULL, 0, ?, 'manual', ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(staff_id, work_date) DO UPDATE SET
+                punches = excluded.punches,
+                note = excluded.note,
+                source = 'manual',
+                updated_by = excluded.updated_by,
+                updated_at = CURRENT_TIMESTAMP
+        """, (user["id"], today_iso, punches_json, final_note, _uname(user)))
+        conn.commit()
+        return {
+            "status": "ok",
+            "action_done": action_done,
+            "message": msg,
+            "attendance": get_self_attendance_status(cur, user["id"], now_dt.date()),
+        }
+    finally:
+        conn.close()
+
+
+@router.get("/payroll-columns")
+def get_payroll_visible_columns(user=Depends(require_permission(PERM))):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = 'hrm_payroll_visible_cols'")
+    row = cur.fetchone()
+    conn.close()
+    cols = json.loads(row["value"]) if row and row["value"] else None
+    return {"columns": cols}
+
+
+@router.put("/payroll-columns")
+def save_payroll_visible_columns(body: dict, user=Depends(require_permission(PERM))):
+    cols = body.get("columns")
+    if not isinstance(cols, dict):
+        raise HTTPException(400, "columns phải là object {col_key: bool}")
+    clean = {str(k): bool(v) for k, v in cols.items()}
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO settings (key, value) VALUES ('hrm_payroll_visible_cols', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    """, (json.dumps(clean),))
+    conn.commit(); conn.close()
+    return {"status": "ok", "columns": clean}
+
+
 # ── Kỳ tính lương & Danh sách tháng ──
 @router.get("/periods")
 def list_periods(year: Optional[int] = None, user=Depends(require_permission(PERM))):
@@ -1266,7 +1430,8 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
         FROM staff s
         LEFT JOIN hrm_work_blocks b ON b.id = s.work_block_id
         WHERE COALESCE(s.is_active, 1) = 1
-        ORDER BY s.id ASC
+          AND COALESCE(s.is_payroll_staff, 1) = 1
+        ORDER BY COALESCE(s.employee_code, 'zz'), s.id ASC
     """)
     staff_rows = [dict(r) for r in cur.fetchall()]
 
@@ -1310,7 +1475,7 @@ def get_commissions_breakdown(month: str, user=Depends(require_permission(PERM))
 
         items.append({
             "staff_id": sid,
-            "employee_code": st.get("employee_code") or f"NV{sid:02d}",
+            "employee_code": st.get("employee_code") or "",
             "name": st["name"],
             "department": dept,
             "position": st.get("position") or st.get("role") or "Nhân viên",

@@ -129,6 +129,10 @@ async function refreshUserProfile() {
       const me = await res.json();
       const current = Auth.getUser() || {};
       Auth.setUser({ ...current, ...me });
+      await applyRoleUI();
+      if (!window.__currentActiveTabId && typeof triggerLandingTabSafe === 'function') {
+        triggerLandingTabSafe();
+      }
       if (typeof updateShiftUI === 'function') updateShiftUI();
     }
   } catch (e) {}
@@ -448,23 +452,29 @@ async function applyRoleUI() {
   if (!posModulesCache) await loadModulesForUI();
 
   // Ẩn/hiện elements theo data-role + data-module + data-perm
+  // Lưu ý: user.permissions từ backend đã hợp nhất role_permissions + staff_permissions (override riêng từng NV).
+  // Vì vậy nếu phần tử có data-perm, quyền thực tế (Auth.can) quyết định hiển thị bất kể role gốc là 'staff' hay 'cashier'.
+  const isSuper = (user.role === 'owner' || user.role === 'admin');
+  const hasPermList = Array.isArray(user.permissions);
   document.querySelectorAll('[data-role], [data-perm]').forEach(el => {
-    let roleOk = true;
-    if (el.dataset.role) {
-      const allowed = el.dataset.role.split(',').map(r => r.trim());
-      roleOk = (user.role === 'owner' || user.role === 'admin' || allowed.includes(user.role));
-    }
     const moduleKey = el.dataset.module;
     const moduleOk = !moduleKey || posModulesCache[moduleKey] !== false;
 
-    let permOk = true;
-    if (el.dataset.perm && user.role !== 'owner' && user.role !== 'admin') {
-      const requiredPerms = el.dataset.perm.split(',').map(p => p.trim());
-      permOk = requiredPerms.some(p => Auth.can(p));
+    let accessOk = true;
+    if (isSuper) {
+      accessOk = true;
+    } else if (el.dataset.perm && hasPermList) {
+      const requiredPerms = el.dataset.perm.split(',').map(p => p.trim()).filter(Boolean);
+      accessOk = requiredPerms.some(p => Auth.can(p));
+    } else if (el.dataset.role) {
+      const allowed = el.dataset.role.split(',').map(r => r.trim()).filter(Boolean);
+      accessOk = allowed.includes(user.role);
     }
 
-    el.style.display = (roleOk && moduleOk && permOk) ? '' : 'none';
+    el.style.display = (accessOk && moduleOk) ? '' : 'none';
   });
+
+  if (typeof renderRadialOrbitMenu === 'function') renderRadialOrbitMenu();
 
   // Header info
   const nameEl  = document.getElementById('header-username');
@@ -472,9 +482,11 @@ async function applyRoleUI() {
   if (nameEl) nameEl.textContent = user.name;
   if (roleEl) roleEl.textContent = {
     owner:      '👑 Chủ Shop',
+    admin:      '🛡 Quản Trị',
     cashier:    '🏷 Thu Ngân',
     accountant: '📒 Kế Toán',
-    warehouse:  '📦 Thủ Kho'
+    warehouse:  '📦 Thủ Kho',
+    staff:      '👤 Nhân Viên'
   }[user.role] || user.role;
 }
 
