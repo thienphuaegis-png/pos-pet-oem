@@ -68,3 +68,7 @@ def test_attendance_api_returns_rules_and_ui_has_vn_date_sort_and_dynamic_footer
     assert 'function parseVnIsoDate(' in hrm_js
     assert 'window.toggleHrmAttSort' in hrm_js
     assert 'Tổng cộng (${rows.length} dòng đang lọc):' in hrm_js
+    assert 'function syncHrmAttStaffFilterOptions(' in hrm_js
+    assert 'data-hrm-staff-picker="hrm-att-filter-staff"' in html
+    assert 'id="hrm-att-filter-staff-search"' in html
+

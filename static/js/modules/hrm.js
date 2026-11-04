@@ -645,11 +645,49 @@
         renderAttendanceDetailTable();
     };
 
+    function syncHrmAttStaffFilterOptions() {
+        const staffSel = document.getElementById('hrm-att-filter-staff');
+        const searchInp = document.getElementById('hrm-att-filter-staff-search');
+        const clearBtn = document.getElementById('hrm-att-filter-staff-clear');
+        if (!staffSel) return;
+
+        const curVal = String(staffSel.value || '');
+        if (attendanceData && Array.isArray(attendanceData.employees) && attendanceData.employees.length > 0) {
+            const list = attendanceData.employees.map(e => ({
+                id: e.staff_id,
+                employee_code: (e.employee_code || '').trim(),
+                name: e.name || `NV #${e.staff_id}`,
+                block_name: e.block_name || e.block || ''
+            })).sort((a, b) => {
+                if (a.employee_code && !b.employee_code) return -1;
+                if (!a.employee_code && b.employee_code) return 1;
+                if (a.employee_code && b.employee_code && a.employee_code !== b.employee_code) {
+                    return hrmViCollator.compare(a.employee_code, b.employee_code);
+                }
+                return hrmViCollator.compare(a.name || '', b.name || '');
+            });
+
+            hrmStaffPickerState['hrm-att-filter-staff'] = list;
+            staffSel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
+                list.map(s => `<option value="${s.id}" ${String(s.id) === curVal ? 'selected' : ''}>${escHrmHtml(formatHrmEmpLabel(s))}</option>`).join('');
+
+            const chosen = curVal ? list.find(s => String(s.id) === curVal) : null;
+            staffSel.value = chosen ? String(chosen.id) : '';
+            if (searchInp && document.activeElement !== searchInp) {
+                searchInp.value = chosen ? formatHrmEmpLabel(chosen) : '';
+            }
+            if (clearBtn) clearBtn.classList.toggle('hidden', !chosen);
+        } else if (!(hrmStaffPickerState['hrm-att-filter-staff'] || []).length) {
+            initHrmStaffPicker('hrm-att-filter-staff', curVal);
+        }
+    }
+
     async function loadHrmAttendance(month) {
         try {
             const res = await fetch(`/api/hrm/attendance?month=${month}`);
             if (!res.ok) return;
             attendanceData = await res.json();
+            syncHrmAttStaffFilterOptions();
             renderAttendanceMatrix(attendanceData);
             if (hrmAttCurrentView === 'detail') {
                 renderAttendanceDetailTable();
@@ -680,18 +718,17 @@
             if (containerDetail) containerDetail.classList.remove('hidden');
             if (legend) legend.classList.add('hidden');
 
-            const staffSel = document.getElementById('hrm-att-filter-staff');
-            if (staffSel && attendanceData && attendanceData.employees) {
-                const curVal = staffSel.value;
-                staffSel.innerHTML = '<option value="">Tất cả nhân viên</option>' +
-                    attendanceData.employees.map(e => `<option value="${e.staff_id}" ${curVal == e.staff_id ? 'selected' : ''}>${e.employee_code || 'NV' + e.staff_id} - ${e.name}</option>`).join('');
-            }
+            syncHrmAttStaffFilterOptions();
             renderAttendanceDetailTable();
         }
     };
 
     window.renderAttendanceDetailTable = function() {
         if (!attendanceData || !attendanceData.employees) return;
+        const staffSelCheck = document.getElementById('hrm-att-filter-staff');
+        if (staffSelCheck && staffSelCheck.options.length <= 1) {
+            syncHrmAttStaffFilterOptions();
+        }
         const tbody = document.getElementById('table-hrm-att-detail-body');
         const tfoot = document.getElementById('table-hrm-att-detail-foot');
         const countEl = document.getElementById('hrm-att-detail-count');
@@ -973,21 +1010,32 @@
     async function loadHrmLeaves(month) {
         month = month || getSelectedMonth();
         try {
-            const res = await fetch(`/api/hrm/leaves?month=${month}`);
+        const [res, resEmp] = await Promise.all([
+                fetch(`/api/hrm/leaves?month=${month}`),
+                fetch('/api/hrm/employees')
+            ]);
             if (!res.ok) throw new Error("Lỗi tải danh sách xin off");
             leavesData = await res.json();
+            const empRows = resEmp.ok ? await resEmp.json() : [];
 
             // Populate staff filter
             const filterEl = document.getElementById('hrm-leaves-staff-filter');
             if (filterEl) {
                 const currentFilter = filterEl.value;
-                const staffMap = {};
+                const staffMap = new Map();
+                empRows.forEach(s => {
+                    if (s.is_active !== 0 && s.contractual_status !== 'Nghỉ việc') {
+                        staffMap.set(String(s.id), formatHrmEmpLabel(s));
+                    }
+                });
                 leavesData.forEach(l => {
-                    if (l.staff_id) staffMap[l.staff_id] = l.staff_name;
+                    if (l.staff_id && !staffMap.has(String(l.staff_id))) {
+                        staffMap.set(String(l.staff_id), l.staff_name);
+                    }
                 });
                 filterEl.innerHTML = '<option value="">-- Tất cả nhân viên --</option>' +
-                    Object.keys(staffMap).map(sid => `<option value="${sid}">${staffMap[sid]}</option>`).join('');
-                filterEl.value = currentFilter;
+                    Array.from(staffMap.entries()).map(([sid, lbl]) => `<option value="${sid}">${escHrmHtml(lbl)}</option>`).join('');
+                filterEl.value = staffMap.has(String(currentFilter)) ? currentFilter : '';
             }
             renderHrmLeavesTable();
         } catch (e) {
@@ -1127,7 +1175,18 @@
             return;
         }
 
-        menuEl.innerHTML = matches.map(s => {
+        const wrapEl = selectEl ? selectEl.closest('[data-hrm-staff-picker]') : null;
+        const allowAll = wrapEl && wrapEl.getAttribute('data-allow-all') === '1';
+        const allRowHtml = (allowAll && !q)
+            ? `<div onmousedown="event.preventDefault(); selectHrmStaffOption('${selectId}', '')"
+                    ${!curVal ? 'style="background-color:#f0f9ff;box-shadow:inset 0 0 0 1px #0284c7;"' : ''}
+                    class="p-2 hover:bg-sky-50/70 cursor-pointer flex items-center justify-between gap-2 transition">
+                    <span class="font-bold ${!curVal ? 'text-sky-800' : 'text-slate-700'}">Tất cả nhân viên</span>
+                    <span class="text-xs text-slate-400">${list.length} NV</span>
+               </div>`
+            : '';
+
+        menuEl.innerHTML = allRowHtml + matches.map(s => {
             const isSelected = String(s.id) === curVal;
             const code = (s.employee_code || '').trim();
             const codeBadge = code
@@ -1172,6 +1231,7 @@
             const chosen = list.find(s => String(s.id) === String(selectEl.value));
             if (!chosen || val !== formatHrmEmpLabel(chosen)) {
                 selectEl.value = '';
+                if (!val) selectEl.dispatchEvent(new Event('change'));
             }
         }
         if (clearBtn) clearBtn.classList.toggle('hidden', !val);

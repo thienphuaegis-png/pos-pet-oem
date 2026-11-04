@@ -7607,9 +7607,17 @@
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-slate-500 font-bold">Nhân viên:</span>
-                                    <select id="hrm-att-filter-staff" onchange="renderAttendanceDetailTable()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white text-slate-700 max-w-[200px]">
-                                        <option value="">Tất cả nhân viên</option>
-                                    </select>
+                                    <div class="relative min-w-[235px]" data-hrm-staff-picker="hrm-att-filter-staff" data-allow-all="1">
+                                        <select id="hrm-att-filter-staff" onchange="renderAttendanceDetailTable()" class="hidden">
+                                            <option value="">Tất cả nhân viên</option>
+                                        </select>
+                                        <div class="relative flex items-center">
+                                            <input type="text" id="hrm-att-filter-staff-search" autocomplete="off" placeholder="Tất cả nhân viên (gõ tìm...)" onclick="openHrmStaffDropdown('hrm-att-filter-staff')" onfocus="openHrmStaffDropdown('hrm-att-filter-staff')" oninput="filterHrmStaffDropdown('hrm-att-filter-staff', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1 pr-11 text-xs font-bold bg-white text-slate-800 outline-none focus:border-sky-500 cursor-pointer">
+                                            <button type="button" id="hrm-att-filter-staff-clear" onclick="clearHrmStaffSelection('hrm-att-filter-staff', event)" title="Xem tất cả nhân viên" class="hidden absolute right-6 text-slate-400 hover:text-rose-600 font-bold text-sm px-1 cursor-pointer">&times;</button>
+                                            <span class="absolute right-2.5 text-slate-400 pointer-events-none text-xs">▾</span>
+                                        </div>
+                                        <div id="hrm-att-filter-staff-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-2xl z-50 max-h-64 overflow-y-auto divide-y divide-slate-100 text-xs"></div>
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-slate-500 font-bold">Ngày:</span>
